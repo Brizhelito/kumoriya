@@ -10,5 +10,6 @@ workspace:
   - packages/kumoriya_domain
   - packages/kumoriya_plugins
   - packages/kumoriya_anilist
+  - packages/kumoriya_source_jkanime
   - packages/kumoriya_storage
   - packages/kumoriya_testing

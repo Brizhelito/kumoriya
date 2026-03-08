@@ -1,0 +1,19 @@
+{
+  "current_page": 1,
+  "data": [
+    {
+      "id": 2714,
+      "number": 1,
+      "title": "Naruto 1",
+      "image": "jkvideo_a.jpg"
+    },
+    {
+      "id": 2715,
+      "number": 2,
+      "title": "Naruto 2",
+      "image": "jkvideo_b.jpg"
+    }
+  ],
+  "last_page": 1,
+  "total": 2
+}
