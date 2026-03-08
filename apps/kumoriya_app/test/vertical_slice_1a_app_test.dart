@@ -77,6 +77,37 @@ void main() {
     expect(find.text('Retry'), findsOneWidget);
   });
 
+  testWidgets('jkanime episode server links are navigable', (tester) async {
+    final fakeRepository = _FakeAnimeCatalogRepository.success();
+    const fakeSourcePlugin = _FakeSourcePlugin();
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          animeCatalogRepositoryProvider.overrideWithValue(fakeRepository),
+          sourcePluginProvider.overrideWithValue(fakeSourcePlugin),
+        ],
+        child: const KumoriyaApp(),
+      ),
+    );
+
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Frieren').first);
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('View real JKAnime episodes'));
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('JKAnime episodes'), findsOneWidget);
+    expect(find.text('View servers'), findsWidgets);
+
+    await tester.tap(find.text('View servers').first);
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('servers'), findsOneWidget);
+    expect(find.text('Desu'), findsOneWidget);
+  });
+
   testWidgets('app respects Spanish system locale when supported', (
     tester,
   ) async {
@@ -244,6 +275,20 @@ final class _FakeSourcePlugin implements SourcePlugin {
         number: 1,
         title: 'Episode 1',
         episodeUrl: Uri.parse('https://example.com/1'),
+      ),
+    ]);
+  }
+
+  @override
+  Future<Result<List<SourceServerLink>, KumoriyaError>> getEpisodeServerLinks(
+    SourceEpisode episode,
+  ) async {
+    return Success(<SourceServerLink>[
+      SourceServerLink(
+        serverId: 'desu-0',
+        serverName: 'Desu',
+        initialUrl: Uri.parse('https://jkanime.net/jkplayer/um?e=test'),
+        language: 'sub',
       ),
     ]);
   }
