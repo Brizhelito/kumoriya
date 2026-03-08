@@ -492,6 +492,78 @@ abstract class AppLocalizations {
   /// **'Resolved by: {resolverName}'**
   String resolverUsed(Object resolverName);
 
+  /// No description provided for @openPlayer.
+  ///
+  /// In en, this message translates to:
+  /// **'Open player'**
+  String get openPlayer;
+
+  /// No description provided for @playerTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Player'**
+  String get playerTitle;
+
+  /// No description provided for @playerEpisodeTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'{animeTitle} - Episode {episodeNumber}'**
+  String playerEpisodeTitle(Object animeTitle, Object episodeNumber);
+
+  /// No description provided for @playerLoading.
+  ///
+  /// In en, this message translates to:
+  /// **'Opening playback...'**
+  String get playerLoading;
+
+  /// No description provided for @playerCurrentStream.
+  ///
+  /// In en, this message translates to:
+  /// **'Current stream: {url}'**
+  String playerCurrentStream(Object url);
+
+  /// No description provided for @playerPlay.
+  ///
+  /// In en, this message translates to:
+  /// **'Play'**
+  String get playerPlay;
+
+  /// No description provided for @playerPause.
+  ///
+  /// In en, this message translates to:
+  /// **'Pause'**
+  String get playerPause;
+
+  /// No description provided for @playerNoPlayableStream.
+  ///
+  /// In en, this message translates to:
+  /// **'No playable stream was available.'**
+  String get playerNoPlayableStream;
+
+  /// No description provided for @playerUnsupportedStream.
+  ///
+  /// In en, this message translates to:
+  /// **'The selected stream is not supported by this player.'**
+  String get playerUnsupportedStream;
+
+  /// No description provided for @playerOpenFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Player failed to open the selected stream.'**
+  String get playerOpenFailed;
+
+  /// No description provided for @playerPlaybackErrorGeneric.
+  ///
+  /// In en, this message translates to:
+  /// **'A playback error occurred.'**
+  String get playerPlaybackErrorGeneric;
+
+  /// No description provided for @playerPlaybackError.
+  ///
+  /// In en, this message translates to:
+  /// **'Playback error: {reason}'**
+  String playerPlaybackError(Object reason);
+
   /// No description provided for @jkanimeServerLinksLoading.
   ///
   /// In en, this message translates to:

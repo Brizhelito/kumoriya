@@ -255,6 +255,51 @@ class AppLocalizationsEs extends AppLocalizations {
   }
 
   @override
+  String get openPlayer => 'Abrir player';
+
+  @override
+  String get playerTitle => 'Player';
+
+  @override
+  String playerEpisodeTitle(Object animeTitle, Object episodeNumber) {
+    return '$animeTitle - Episodio $episodeNumber';
+  }
+
+  @override
+  String get playerLoading => 'Abriendo reproduccion...';
+
+  @override
+  String playerCurrentStream(Object url) {
+    return 'Stream actual: $url';
+  }
+
+  @override
+  String get playerPlay => 'Reproducir';
+
+  @override
+  String get playerPause => 'Pausar';
+
+  @override
+  String get playerNoPlayableStream =>
+      'No hay un stream reproducible disponible.';
+
+  @override
+  String get playerUnsupportedStream =>
+      'El stream seleccionado no es compatible con este player.';
+
+  @override
+  String get playerOpenFailed =>
+      'El player no pudo abrir el stream seleccionado.';
+
+  @override
+  String get playerPlaybackErrorGeneric => 'Ocurrio un error de reproduccion.';
+
+  @override
+  String playerPlaybackError(Object reason) {
+    return 'Error de reproduccion: $reason';
+  }
+
+  @override
   String get jkanimeServerLinksLoading =>
       'Cargando enlaces de servidores de JKAnime...';
 

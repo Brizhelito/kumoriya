@@ -77,6 +77,19 @@ class ErrorStateView extends StatelessWidget {
 }
 
 String mapErrorMessage(BuildContext context, KumoriyaError error) {
+  if (error.code.startsWith('player.')) {
+    switch (error.code) {
+      case 'player.no_playable_stream':
+        return context.l10n.playerNoPlayableStream;
+      case 'player.unsupported_stream':
+        return context.l10n.playerUnsupportedStream;
+      case 'player.open_failed':
+        return context.l10n.playerOpenFailed;
+      case 'player.playback_error':
+        return context.l10n.playerPlaybackErrorGeneric;
+    }
+  }
+
   if (error.code.startsWith('resolver.')) {
     switch (error.code) {
       case 'resolver.no_resolver':

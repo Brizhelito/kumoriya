@@ -130,6 +130,34 @@
       "resolverName": {}
     }
   },
+  "openPlayer": "Abrir player",
+  "playerTitle": "Player",
+  "playerEpisodeTitle": "{animeTitle} - Episodio {episodeNumber}",
+  "@playerEpisodeTitle": {
+    "placeholders": {
+      "animeTitle": {},
+      "episodeNumber": {}
+    }
+  },
+  "playerLoading": "Abriendo reproduccion...",
+  "playerCurrentStream": "Stream actual: {url}",
+  "@playerCurrentStream": {
+    "placeholders": {
+      "url": {}
+    }
+  },
+  "playerPlay": "Reproducir",
+  "playerPause": "Pausar",
+  "playerNoPlayableStream": "No hay un stream reproducible disponible.",
+  "playerUnsupportedStream": "El stream seleccionado no es compatible con este player.",
+  "playerOpenFailed": "El player no pudo abrir el stream seleccionado.",
+  "playerPlaybackErrorGeneric": "Ocurrio un error de reproduccion.",
+  "playerPlaybackError": "Error de reproduccion: {reason}",
+  "@playerPlaybackError": {
+    "placeholders": {
+      "reason": {}
+    }
+  },
   "jkanimeServerLinksLoading": "Cargando enlaces de servidores de JKAnime...",
   "jkanimeServerLinksEmpty": "No se encontraron servidores para este episodio en JKAnime.",
   "jkanimeServerLinksTitle": "{animeTitle} | Servidores episodio {episodeNumber}",

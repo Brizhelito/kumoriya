@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kumoriya_plugins/kumoriya_plugins.dart';
 
 import '../../../../app/l10n.dart';
+import '../../../player/presentation/pages/player_page.dart';
 import '../../../../shared/widgets/state_views.dart';
 import '../providers/anime_catalog_providers.dart';
 
@@ -53,9 +54,35 @@ class ResolveServerLinkPage extends ConsumerWidget {
             separatorBuilder: (_, _) => const Divider(height: 1),
             itemBuilder: (context, index) {
               if (index == 0) {
-                return ListTile(
-                  title: Text(context.l10n.resolverUsed(resolved.resolverName)),
-                  subtitle: Text(resolved.resolverId),
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    ListTile(
+                      title: Text(
+                        context.l10n.resolverUsed(resolved.resolverName),
+                      ),
+                      subtitle: Text(resolved.resolverId),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: FilledButton.icon(
+                        onPressed: () {
+                          Navigator.of(context).push(
+                            MaterialPageRoute<void>(
+                              builder: (_) => PlayerPage(
+                                animeTitle: animeTitle,
+                                episodeNumber: episodeNumber,
+                                resolved: resolved,
+                              ),
+                            ),
+                          );
+                        },
+                        icon: const Icon(Icons.play_circle_fill),
+                        label: Text(context.l10n.openPlayer),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                  ],
                 );
               }
 
