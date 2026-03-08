@@ -1,15 +1,19 @@
+import 'package:flutter_test/flutter_test.dart';
 import 'package:kumoriya_app/src/features/anime_catalog/application/services/resolver_registry.dart';
 import 'package:kumoriya_app/src/features/anime_catalog/application/use_cases/resolve_source_server_link_use_case.dart';
 import 'package:kumoriya_core/kumoriya_core.dart';
 import 'package:kumoriya_plugins/kumoriya_plugins.dart';
-import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   test('resolves stream when resolver exists and returns streams', () async {
     final useCase = ResolveSourceServerLinkUseCase(
       registry: ResolverRegistry(
         resolvers: const <ResolverPlugin>[
-          _SuccessResolver(host: 'jkanime.net'),
+          _SuccessResolver(
+            host: 'jkanime.net',
+            id: 'resolver.primary',
+            priority: 100,
+          ),
         ],
       ),
     );
@@ -25,9 +29,10 @@ void main() {
     expect(result.isSuccess, isTrue);
     result.fold(
       onFailure: (_) => fail('expected success'),
-      onSuccess: (streams) {
-        expect(streams, hasLength(1));
-        expect(streams.single.isHls, isTrue);
+      onSuccess: (resolved) {
+        expect(resolved.streams, hasLength(1));
+        expect(resolved.streams.single.isHls, isTrue);
+        expect(resolved.resolverId, 'resolver.primary');
       },
     );
   });
@@ -36,7 +41,11 @@ void main() {
     final useCase = ResolveSourceServerLinkUseCase(
       registry: ResolverRegistry(
         resolvers: const <ResolverPlugin>[
-          _SuccessResolver(host: 'other.example'),
+          _SuccessResolver(
+            host: 'other.example',
+            id: 'resolver.other',
+            priority: 100,
+          ),
         ],
       ),
     );
@@ -59,11 +68,51 @@ void main() {
     );
   });
 
+  test('returns ambiguous when top resolver candidates tie', () async {
+    final useCase = ResolveSourceServerLinkUseCase(
+      registry: ResolverRegistry(
+        resolvers: const <ResolverPlugin>[
+          _SuccessResolver(
+            host: 'jkanime.net',
+            id: 'resolver.a',
+            priority: 100,
+          ),
+          _SuccessResolver(
+            host: 'jkanime.net',
+            id: 'resolver.b',
+            priority: 100,
+          ),
+        ],
+      ),
+    );
+
+    final result = await useCase.call(
+      SourceServerLink(
+        serverId: 'desu-0',
+        serverName: 'Desu',
+        initialUrl: Uri.parse('https://jkanime.net/jkplayer/um?e=abc'),
+      ),
+    );
+
+    expect(result.isFailure, isTrue);
+    result.fold(
+      onFailure: (error) {
+        expect(error.code, 'resolver.ambiguous');
+        expect(error.kind, KumoriyaErrorKind.unexpected);
+      },
+      onSuccess: (_) => fail('expected failure'),
+    );
+  });
+
   test('returns malformed_link for malformed source URL', () async {
     final useCase = ResolveSourceServerLinkUseCase(
       registry: ResolverRegistry(
         resolvers: const <ResolverPlugin>[
-          _SuccessResolver(host: 'jkanime.net'),
+          _SuccessResolver(
+            host: 'jkanime.net',
+            id: 'resolver.primary',
+            priority: 100,
+          ),
         ],
       ),
     );
@@ -90,7 +139,11 @@ void main() {
     final useCase = ResolveSourceServerLinkUseCase(
       registry: ResolverRegistry(
         resolvers: const <ResolverPlugin>[
-          _FailureResolver(host: 'jkanime.net'),
+          _FailureResolver(
+            host: 'jkanime.net',
+            id: 'resolver.fail',
+            priority: 200,
+          ),
         ],
       ),
     );
@@ -115,14 +168,22 @@ void main() {
 }
 
 final class _SuccessResolver implements ResolverPlugin {
-  const _SuccessResolver({required this.host});
+  const _SuccessResolver({
+    required this.host,
+    required this.id,
+    required this.priority,
+  });
 
   final String host;
+  final String id;
+
+  @override
+  final int priority;
 
   @override
   PluginManifest get manifest => PluginManifest(
-    id: 'success.$host',
-    displayName: 'Success $host',
+    id: id,
+    displayName: 'Success $id',
     type: PluginType.resolver,
     capabilities: const <PluginCapability>{PluginCapability.streamResolution},
   );
@@ -143,14 +204,22 @@ final class _SuccessResolver implements ResolverPlugin {
 }
 
 final class _FailureResolver implements ResolverPlugin {
-  const _FailureResolver({required this.host});
+  const _FailureResolver({
+    required this.host,
+    required this.id,
+    required this.priority,
+  });
 
   final String host;
+  final String id;
+
+  @override
+  final int priority;
 
   @override
   PluginManifest get manifest => PluginManifest(
-    id: 'failure.$host',
-    displayName: 'Failure $host',
+    id: id,
+    displayName: 'Failure $id',
     type: PluginType.resolver,
     capabilities: const <PluginCapability>{PluginCapability.streamResolution},
   );
