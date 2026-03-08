@@ -228,12 +228,15 @@ class _JkAnimeAvailabilityCard extends ConsumerWidget {
                             ),
                             const SizedBox(height: 6),
                             if (sourceManifest.iconUrl != null)
-                              Image.network(
-                                sourceManifest.iconUrl!,
-                                height: 24,
-                                fit: BoxFit.contain,
-                                errorBuilder: (_, _, _) =>
-                                    Text(sourceManifest.displayName),
+                              SizedBox(
+                                height: 30,
+                                child: Image.network(
+                                  sourceManifest.iconUrl!,
+                                  fit: BoxFit.contain,
+                                  alignment: Alignment.centerLeft,
+                                  errorBuilder: (_, _, _) =>
+                                      Text(sourceManifest.displayName),
+                                ),
                               )
                             else
                               Text(sourceManifest.displayName),
