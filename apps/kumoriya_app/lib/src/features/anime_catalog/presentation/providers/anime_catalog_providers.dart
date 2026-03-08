@@ -5,6 +5,9 @@ import 'package:kumoriya_domain/kumoriya_domain.dart';
 import 'package:kumoriya_plugins/kumoriya_plugins.dart';
 import 'package:kumoriya_resolver_filemoon/kumoriya_resolver_filemoon.dart';
 import 'package:kumoriya_resolver_jkplayer/kumoriya_resolver_jkplayer.dart';
+import 'package:kumoriya_resolver_mixdrop/kumoriya_resolver_mixdrop.dart';
+import 'package:kumoriya_resolver_mp4upload/kumoriya_resolver_mp4upload.dart';
+import 'package:kumoriya_resolver_streamwish/kumoriya_resolver_streamwish.dart';
 import 'package:kumoriya_resolver_voe/kumoriya_resolver_voe.dart';
 import 'package:kumoriya_source_jkanime/kumoriya_source_jkanime.dart';
 
@@ -43,6 +46,9 @@ final resolverPluginsProvider = Provider<List<ResolverPlugin>>((ref) {
     JkPlayerResolverPlugin(),
     VoeResolverPlugin(),
     FilemoonResolverPlugin(),
+    StreamwishResolverPlugin(),
+    MixdropResolverPlugin(),
+    Mp4uploadResolverPlugin(),
   ];
 });
 
