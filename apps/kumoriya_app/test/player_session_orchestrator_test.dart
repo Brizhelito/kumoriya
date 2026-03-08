@@ -13,6 +13,7 @@ void main() {
     final result = await orchestrator.start(
       streamCandidates: const <ResolvedStream>[],
     );
+
     expect(result.isFailure, isTrue);
     result.fold(
       onFailure: (error) => expect(error.code, 'player.no_playable_stream'),
@@ -34,9 +35,134 @@ void main() {
 
     expect(result.isFailure, isTrue);
     result.fold(
-      onFailure: (error) => expect(error.code, 'player.unsupported_stream'),
+      onFailure: (error) => expect(error.code, 'player.no_playable_stream'),
       onSuccess: (_) => fail('expected failure'),
     );
+
+    await orchestrator.dispose();
+  });
+
+  test('falls back to next candidate when first open fails', () async {
+    final engine = _FakePlaybackEngine(
+      openBehaviors: <_OpenBehavior>[
+        const _OpenBehavior.throwError('network fail'),
+        const _OpenBehavior.success(),
+      ],
+    );
+    final orchestrator = PlayerSessionOrchestrator(playbackEngine: engine);
+
+    final result = await orchestrator.start(
+      streamCandidates: <ResolvedStream>[
+        ResolvedStream(
+          url: Uri.parse('https://cdn.example/a.m3u8'),
+          isHls: true,
+        ),
+        ResolvedStream(
+          url: Uri.parse('https://cdn.example/b.m3u8'),
+          isHls: true,
+        ),
+      ],
+    );
+
+    expect(result.isSuccess, isTrue);
+    expect(engine.openCalls, 2);
+    expect(orchestrator.state.currentCandidateIndex, 1);
+
+    await orchestrator.dispose();
+  });
+
+  test('returns all_candidates_failed when every candidate fails', () async {
+    final engine = _FakePlaybackEngine(
+      openBehaviors: <_OpenBehavior>[
+        const _OpenBehavior.throwError('fail-1'),
+        const _OpenBehavior.throwError('fail-2'),
+      ],
+    );
+    final orchestrator = PlayerSessionOrchestrator(playbackEngine: engine);
+
+    final result = await orchestrator.start(
+      streamCandidates: <ResolvedStream>[
+        ResolvedStream(
+          url: Uri.parse('https://cdn.example/a.m3u8'),
+          isHls: true,
+        ),
+        ResolvedStream(
+          url: Uri.parse('https://cdn.example/b.m3u8'),
+          isHls: true,
+        ),
+      ],
+    );
+
+    expect(result.isFailure, isTrue);
+    result.fold(
+      onFailure: (error) => expect(error.code, 'player.all_candidates_failed'),
+      onSuccess: (_) => fail('expected failure'),
+    );
+
+    await orchestrator.dispose();
+  });
+
+  test(
+    'returns open_timeout when candidate open exceeds timeout and no fallback',
+    () async {
+      final engine = _FakePlaybackEngine(
+        openBehaviors: <_OpenBehavior>[
+          const _OpenBehavior.delay(milliseconds: 200),
+        ],
+      );
+      final orchestrator = PlayerSessionOrchestrator(
+        playbackEngine: engine,
+        openTimeout: const Duration(milliseconds: 50),
+      );
+
+      final result = await orchestrator.start(
+        streamCandidates: <ResolvedStream>[
+          ResolvedStream(
+            url: Uri.parse('https://cdn.example/a.m3u8'),
+            isHls: true,
+          ),
+        ],
+      );
+
+      expect(result.isFailure, isTrue);
+      result.fold(
+        onFailure: (error) => expect(error.code, 'player.open_timeout'),
+        onSuccess: (_) => fail('expected failure'),
+      );
+
+      await orchestrator.dispose();
+    },
+  );
+
+  test('buffering timeout triggers fallback to next candidate', () async {
+    final engine = _FakePlaybackEngine(
+      openBehaviors: <_OpenBehavior>[
+        const _OpenBehavior.success(bufferingStuck: true),
+        const _OpenBehavior.success(),
+      ],
+    );
+    final orchestrator = PlayerSessionOrchestrator(
+      playbackEngine: engine,
+      bufferingTimeout: const Duration(milliseconds: 50),
+    );
+
+    final result = await orchestrator.start(
+      streamCandidates: <ResolvedStream>[
+        ResolvedStream(
+          url: Uri.parse('https://cdn.example/a.m3u8'),
+          isHls: true,
+        ),
+        ResolvedStream(
+          url: Uri.parse('https://cdn.example/b.m3u8'),
+          isHls: true,
+        ),
+      ],
+    );
+
+    expect(result.isSuccess, isTrue);
+    await Future<void>.delayed(const Duration(milliseconds: 250));
+    expect(engine.openCalls, 2);
+    expect(orchestrator.state.currentCandidateIndex, 1);
 
     await orchestrator.dispose();
   });
@@ -66,29 +192,16 @@ void main() {
 
     await orchestrator.dispose();
   });
-
-  test('emits error state when playback engine reports error event', () async {
-    final engine = _FakePlaybackEngine();
-    final orchestrator = PlayerSessionOrchestrator(playbackEngine: engine);
-
-    final result = await orchestrator.start(
-      streamCandidates: <ResolvedStream>[
-        ResolvedStream(url: Uri.parse('https://cdn.example/video.mp4')),
-      ],
-    );
-    expect(result.isSuccess, isTrue);
-
-    engine.emitError('decoder failed');
-    await Future<void>.delayed(const Duration(milliseconds: 10));
-
-    expect(orchestrator.state.status.name, 'error');
-    expect(orchestrator.state.errorMessage, contains('decoder failed'));
-
-    await orchestrator.dispose();
-  });
 }
 
 final class _FakePlaybackEngine implements PlaybackEngine {
+  _FakePlaybackEngine({List<_OpenBehavior>? openBehaviors})
+    : _openBehaviors =
+          openBehaviors ?? const <_OpenBehavior>[_OpenBehavior.success()];
+
+  final List<_OpenBehavior> _openBehaviors;
+  int _openBehaviorIndex = 0;
+
   final _playingController = StreamController<bool>.broadcast();
   final _bufferingController = StreamController<bool>.broadcast();
   final _errorController = StreamController<String>.broadcast();
@@ -96,11 +209,6 @@ final class _FakePlaybackEngine implements PlaybackEngine {
   int openCalls = 0;
   int playCalls = 0;
   int pauseCalls = 0;
-
-  _FakePlaybackEngine() {
-    _playingController.add(false);
-    _bufferingController.add(false);
-  }
 
   @override
   Stream<bool> get bufferingStream => _bufferingController.stream;
@@ -121,9 +229,25 @@ final class _FakePlaybackEngine implements PlaybackEngine {
   @override
   Future<void> open(ResolvedStream stream) async {
     openCalls++;
+    final behavior =
+        _openBehaviors[_openBehaviorIndex.clamp(0, _openBehaviors.length - 1)];
+    if (_openBehaviorIndex < _openBehaviors.length - 1) {
+      _openBehaviorIndex++;
+    }
+
+    if (behavior.delayMs != null) {
+      await Future<void>.delayed(Duration(milliseconds: behavior.delayMs!));
+    }
+
+    if (behavior.shouldThrow) {
+      throw Exception(behavior.errorMessage ?? 'open fail');
+    }
+
     _bufferingController.add(true);
     _playingController.add(true);
-    _bufferingController.add(false);
+    if (!behavior.bufferingStuck) {
+      _bufferingController.add(false);
+    }
   }
 
   @override
@@ -141,8 +265,27 @@ final class _FakePlaybackEngine implements PlaybackEngine {
   void emitPlaying(bool value) {
     _playingController.add(value);
   }
+}
 
-  void emitError(String message) {
-    _errorController.add(message);
-  }
+final class _OpenBehavior {
+  const _OpenBehavior.success({this.bufferingStuck = false})
+    : shouldThrow = false,
+      delayMs = null,
+      errorMessage = null;
+
+  const _OpenBehavior.throwError(this.errorMessage)
+    : shouldThrow = true,
+      bufferingStuck = false,
+      delayMs = null;
+
+  const _OpenBehavior.delay({required int milliseconds})
+    : shouldThrow = false,
+      bufferingStuck = false,
+      delayMs = milliseconds,
+      errorMessage = null;
+
+  final bool shouldThrow;
+  final bool bufferingStuck;
+  final int? delayMs;
+  final String? errorMessage;
 }

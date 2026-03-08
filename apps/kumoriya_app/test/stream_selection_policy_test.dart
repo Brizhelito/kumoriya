@@ -32,4 +32,27 @@ void main() {
     expect(selected, isNotNull);
     expect(selected!.url.path, contains('1080p.m3u8'));
   });
+
+  test('rankCandidates deduplicates by URL and preserves best-first order', () {
+    final ranked = policy.rankCandidates(<ResolvedStream>[
+      ResolvedStream(
+        url: Uri.parse('https://cdn.example/master-720p.m3u8'),
+        qualityLabel: '720p',
+        isHls: true,
+      ),
+      ResolvedStream(
+        url: Uri.parse('https://cdn.example/master-720p.m3u8'),
+        qualityLabel: '720p',
+        isHls: true,
+      ),
+      ResolvedStream(
+        url: Uri.parse('https://cdn.example/video-1080p.mp4'),
+        qualityLabel: '1080p',
+        isHls: false,
+      ),
+    ]);
+
+    expect(ranked.length, 2);
+    expect(ranked.first.url.path, contains('720p.m3u8'));
+  });
 }
