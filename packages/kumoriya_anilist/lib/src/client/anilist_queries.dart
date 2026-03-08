@@ -62,6 +62,7 @@ query AnimeDetail($id: Int) {
       english
       native
     }
+    synonyms
     format
     seasonYear
     episodes

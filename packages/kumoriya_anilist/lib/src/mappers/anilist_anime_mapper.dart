@@ -9,7 +9,7 @@ final class AnilistAnimeMapper {
       throw const FormatException('Missing or invalid media id.');
     }
 
-    final title = _mapTitle(media['title']);
+    final title = _mapTitle(media['title'], media['synonyms']);
 
     return Anime(
       anilistId: id,
@@ -77,7 +77,7 @@ final class AnilistAnimeMapper {
         .toList(growable: false);
   }
 
-  static AnimeTitle _mapTitle(dynamic value) {
+  static AnimeTitle _mapTitle(dynamic value, dynamic synonymsRaw) {
     if (value is! Map<String, dynamic>) {
       throw const FormatException('Missing or invalid title payload.');
     }
@@ -104,6 +104,7 @@ final class AnilistAnimeMapper {
       romaji: canonical,
       english: english is String && english.isNotEmpty ? english : null,
       native: native is String && native.isNotEmpty ? native : null,
+      synonyms: _stringList(synonymsRaw),
     );
   }
 

@@ -16,6 +16,7 @@ dependencies:
   kumoriya_core:
   kumoriya_domain:
   kumoriya_plugins:
+  kumoriya_source_jkanime:
   kumoriya_storage:
 
 dev_dependencies:

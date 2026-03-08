@@ -2,8 +2,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kumoriya_anilist/kumoriya_anilist.dart';
 import 'package:kumoriya_core/kumoriya_core.dart';
 import 'package:kumoriya_domain/kumoriya_domain.dart';
+import 'package:kumoriya_plugins/kumoriya_plugins.dart';
+import 'package:kumoriya_source_jkanime/kumoriya_source_jkanime.dart';
 
 import '../../application/use_cases/anime_catalog_use_cases.dart';
+import '../../application/matching/anilist_jkanime_matcher.dart';
+import '../../application/models/source_availability.dart';
+import '../../application/use_cases/check_jkanime_availability_use_case.dart';
 
 final anilistGraphqlClientProvider = Provider<AnilistGraphqlClient>((ref) {
   return HttpAnilistGraphqlClient();
@@ -19,6 +24,14 @@ final animeCatalogRepositoryProvider = Provider<AnimeCatalogRepository>((ref) {
   return AnilistAnimeCatalogRepository(
     gateway: ref.watch(anilistMetadataGatewayProvider),
   );
+});
+
+final sourcePluginProvider = Provider<SourcePlugin>((ref) {
+  return JkAnimeSourcePlugin();
+});
+
+final anilistJkanimeMatcherProvider = Provider<AnilistJkanimeMatcher>((ref) {
+  return const AnilistJkanimeMatcher();
 });
 
 final getHomeCatalogUseCaseProvider = Provider<GetHomeCatalogUseCase>((ref) {
@@ -38,6 +51,14 @@ final getAnimeEpisodesUseCaseProvider = Provider<GetAnimeEpisodesUseCase>((
 ) {
   return GetAnimeEpisodesUseCase(ref.watch(animeCatalogRepositoryProvider));
 });
+
+final checkJkanimeAvailabilityUseCaseProvider =
+    Provider<CheckJkanimeAvailabilityUseCase>((ref) {
+      return CheckJkanimeAvailabilityUseCase(
+        sourcePlugin: ref.watch(sourcePluginProvider),
+        matcher: ref.watch(anilistJkanimeMatcherProvider),
+      );
+    });
 
 final homeCatalogProvider =
     FutureProvider.autoDispose<Result<List<Anime>, KumoriyaError>>((ref) async {
@@ -64,4 +85,21 @@ final animeEpisodesProvider = FutureProvider.autoDispose
       anilistId,
     ) async {
       return ref.watch(getAnimeEpisodesUseCaseProvider).call(anilistId);
+    });
+
+final jkanimeAvailabilityProvider = FutureProvider.autoDispose
+    .family<Result<SourceAvailability, KumoriyaError>, int>((
+      ref,
+      anilistId,
+    ) async {
+      final detailResult = await ref.watch(
+        animeDetailProvider(anilistId).future,
+      );
+      if (detailResult is Failure<AnimeDetail, KumoriyaError>) {
+        return Failure(detailResult.error);
+      }
+
+      final detail =
+          (detailResult as Success<AnimeDetail, KumoriyaError>).value;
+      return ref.watch(checkJkanimeAvailabilityUseCaseProvider).call(detail);
     });
