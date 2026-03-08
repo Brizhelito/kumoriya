@@ -20,6 +20,7 @@ final class ResolvedStream {
 
 abstract interface class ResolverPlugin {
   PluginManifest get manifest;
+  int get priority;
 
   bool supports(Uri url);
 

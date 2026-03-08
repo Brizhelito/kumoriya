@@ -16,8 +16,11 @@ void main() {
   final noStreamsFixture = File(
     'test/fixtures/jkplayer_payload_no_streams.html',
   ).readAsStringSync();
+  final jkFixture = File(
+    'test/fixtures/jkplayer_payload_jk_url.html',
+  ).readAsStringSync();
 
-  test('supports only jkanime jkplayer links', () {
+  test('um resolver supports only um and umv paths', () {
     final plugin = JkPlayerResolverPlugin();
 
     expect(
@@ -29,12 +32,25 @@ void main() {
       isTrue,
     );
     expect(
-      plugin.supports(Uri.parse('https://example.com/video?id=1')),
+      plugin.supports(Uri.parse('https://jkanime.net/jkplayer/jk?u=stream/x')),
       isFalse,
     );
   });
 
-  test('resolve extracts HLS stream with metadata and headers', () async {
+  test('jk resolver supports only jk path', () {
+    final plugin = JkPlayerJkResolverPlugin();
+
+    expect(
+      plugin.supports(Uri.parse('https://jkanime.net/jkplayer/jk?u=stream/x')),
+      isTrue,
+    );
+    expect(
+      plugin.supports(Uri.parse('https://jkanime.net/jkplayer/um?e=abc')),
+      isFalse,
+    );
+  });
+
+  test('um resolver extracts HLS stream with metadata and headers', () async {
     final plugin = JkPlayerResolverPlugin(
       httpClient: MockClient((request) async {
         expect(request.url.path, '/jkplayer/um');
@@ -60,7 +76,7 @@ void main() {
     );
   });
 
-  test('resolve extracts escaped mp4 stream', () async {
+  test('um resolver extracts escaped mp4 stream', () async {
     final plugin = JkPlayerResolverPlugin(
       httpClient: MockClient(
         (_) async => http.Response(escapedMp4Fixture, 200),
@@ -82,59 +98,86 @@ void main() {
     );
   });
 
-  test('resolve returns notFound for unsupported host', () async {
+  test('jk resolver extracts stream URL without media extension', () async {
+    final plugin = JkPlayerJkResolverPlugin(
+      httpClient: MockClient((request) async {
+        expect(request.url.path, '/jkplayer/jk');
+        return http.Response(jkFixture, 200);
+      }),
+    );
+
+    final result = await plugin.resolve(
+      Uri.parse('https://jkanime.net/jkplayer/jk?u=stream/jkmedia/abc/1/2/3/'),
+    );
+
+    expect(result.isSuccess, isTrue);
+    result.fold(
+      onFailure: (_) => fail('expected success'),
+      onSuccess: (streams) {
+        expect(streams, hasLength(1));
+        expect(streams.single.url.host, 'jkplayers.com');
+        expect(streams.single.mimeType, isNull);
+      },
+    );
+  });
+
+  test('um resolver returns malformed link when token e is missing', () async {
     final plugin = JkPlayerResolverPlugin();
 
-    final result = await plugin.resolve(Uri.parse('https://example.com/video'));
+    final result = await plugin.resolve(
+      Uri.parse('https://jkanime.net/jkplayer/um'),
+    );
     expect(result.isFailure, isTrue);
     result.fold(
       onFailure: (error) {
-        expect(error.kind, KumoriyaErrorKind.notFound);
-        expect(error.code, 'resolver.jkplayer.unsupported_host');
+        expect(error.kind, KumoriyaErrorKind.mapping);
+        expect(error.code, 'resolver.jkplayer.malformed_link');
+      },
+      onSuccess: (_) => fail('expected failure'),
+    );
+  });
+
+  test('jk resolver returns malformed link when token u is missing', () async {
+    final plugin = JkPlayerJkResolverPlugin();
+
+    final result = await plugin.resolve(
+      Uri.parse('https://jkanime.net/jkplayer/jk'),
+    );
+    expect(result.isFailure, isTrue);
+    result.fold(
+      onFailure: (error) {
+        expect(error.kind, KumoriyaErrorKind.mapping);
+        expect(error.code, 'resolver.jkplayer.malformed_link');
       },
       onSuccess: (_) => fail('expected failure'),
     );
   });
 
   test(
-    'resolve returns malformed link when required token is missing',
+    'um resolver returns parse failure when no stream URL is present',
     () async {
-      final plugin = JkPlayerResolverPlugin();
+      final plugin = JkPlayerResolverPlugin(
+        httpClient: MockClient(
+          (_) async => http.Response(noStreamsFixture, 200),
+        ),
+      );
 
       final result = await plugin.resolve(
-        Uri.parse('https://jkanime.net/jkplayer/um'),
+        Uri.parse('https://jkanime.net/jkplayer/um?e=abc&t=def'),
       );
+
       expect(result.isFailure, isTrue);
       result.fold(
         onFailure: (error) {
           expect(error.kind, KumoriyaErrorKind.mapping);
-          expect(error.code, 'resolver.jkplayer.malformed_link');
+          expect(error.code, 'resolver.jkplayer.parse');
         },
         onSuccess: (_) => fail('expected failure'),
       );
     },
   );
 
-  test('resolve returns parse failure when no stream URL is present', () async {
-    final plugin = JkPlayerResolverPlugin(
-      httpClient: MockClient((_) async => http.Response(noStreamsFixture, 200)),
-    );
-
-    final result = await plugin.resolve(
-      Uri.parse('https://jkanime.net/jkplayer/um?e=abc&t=def'),
-    );
-
-    expect(result.isFailure, isTrue);
-    result.fold(
-      onFailure: (error) {
-        expect(error.kind, KumoriyaErrorKind.mapping);
-        expect(error.code, 'resolver.jkplayer.parse');
-      },
-      onSuccess: (_) => fail('expected failure'),
-    );
-  });
-
-  test('resolve returns transport failure for non-200 response', () async {
+  test('resolver returns transport failure for non-200 response', () async {
     final plugin = JkPlayerResolverPlugin(
       httpClient: MockClient((_) async => http.Response('fail', 503)),
     );
