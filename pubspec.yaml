@@ -14,5 +14,8 @@ workspace:
   - packages/kumoriya_resolver_jkplayer
   - packages/kumoriya_resolver_voe
   - packages/kumoriya_resolver_filemoon
+  - packages/kumoriya_resolver_streamwish
+  - packages/kumoriya_resolver_mixdrop
+  - packages/kumoriya_resolver_mp4upload
   - packages/kumoriya_storage
   - packages/kumoriya_testing

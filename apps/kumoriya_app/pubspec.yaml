@@ -26,6 +26,9 @@ dependencies:
   kumoriya_resolver_jkplayer:
   kumoriya_resolver_voe:
   kumoriya_resolver_filemoon:
+  kumoriya_resolver_streamwish:
+  kumoriya_resolver_mixdrop:
+  kumoriya_resolver_mp4upload:
   kumoriya_storage:
 
 dev_dependencies:
