@@ -1,6 +1,7 @@
 import 'package:kumoriya_core/kumoriya_core.dart';
 import 'package:kumoriya_plugins/kumoriya_plugins.dart';
 
+import '../models/resolved_server_link_result.dart';
 import '../services/resolver_registry.dart';
 
 final class ResolveSourceServerLinkUseCase {
@@ -9,7 +10,7 @@ final class ResolveSourceServerLinkUseCase {
 
   final ResolverRegistry _registry;
 
-  Future<Result<List<ResolvedStream>, KumoriyaError>> call(
+  Future<Result<ResolvedServerLinkResult, KumoriyaError>> call(
     SourceServerLink sourceServerLink,
   ) async {
     final url = sourceServerLink.initialUrl;
@@ -23,16 +24,31 @@ final class ResolveSourceServerLinkUseCase {
       );
     }
 
-    final resolver = _registry.findFor(url);
-    if (resolver == null) {
+    final selection = _registry.selectFor(url);
+    if (selection is ResolverNotFound) {
       return Failure(
         SimpleError(
           code: 'resolver.no_resolver',
-          message: 'No resolver plugin found for host: ${url.host}',
+          message:
+              'No resolver plugin found for host/path: ${url.host}${url.path}',
           kind: KumoriyaErrorKind.notFound,
         ),
       );
     }
+    if (selection is ResolverAmbiguous) {
+      final resolverIds = selection.resolvers
+          .map((r) => r.manifest.id)
+          .join(', ');
+      return Failure(
+        SimpleError(
+          code: 'resolver.ambiguous',
+          message:
+              'Multiple resolvers match this URL with same priority: $resolverIds',
+          kind: KumoriyaErrorKind.unexpected,
+        ),
+      );
+    }
+    final resolver = (selection as ResolverSelected).resolver;
 
     final result = await resolver.resolve(url);
     return result.fold(
@@ -47,7 +63,13 @@ final class ResolveSourceServerLinkUseCase {
             ),
           );
         }
-        return Success(streams);
+        return Success(
+          ResolvedServerLinkResult(
+            resolverId: resolver.manifest.id,
+            resolverName: resolver.manifest.displayName,
+            streams: streams,
+          ),
+        );
       },
     );
   }

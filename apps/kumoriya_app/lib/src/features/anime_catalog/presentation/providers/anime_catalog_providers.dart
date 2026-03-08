@@ -8,6 +8,7 @@ import 'package:kumoriya_source_jkanime/kumoriya_source_jkanime.dart';
 
 import '../../application/use_cases/anime_catalog_use_cases.dart';
 import '../../application/matching/anilist_jkanime_matcher.dart';
+import '../../application/models/resolved_server_link_result.dart';
 import '../../application/models/source_availability.dart';
 import '../../application/services/resolver_registry.dart';
 import '../../application/use_cases/check_jkanime_availability_use_case.dart';
@@ -35,7 +36,7 @@ final sourcePluginProvider = Provider<SourcePlugin>((ref) {
 });
 
 final resolverPluginsProvider = Provider<List<ResolverPlugin>>((ref) {
-  return <ResolverPlugin>[JkPlayerResolverPlugin()];
+  return <ResolverPlugin>[JkPlayerJkResolverPlugin(), JkPlayerResolverPlugin()];
 });
 
 final resolverRegistryProvider = Provider<ResolverRegistry>((ref) {
@@ -141,7 +142,7 @@ final jkanimeEpisodeServerLinksProvider = FutureProvider.autoDispose
     });
 
 final resolveSourceServerLinkProvider = FutureProvider.autoDispose
-    .family<Result<List<ResolvedStream>, KumoriyaError>, SourceServerLink>((
+    .family<Result<ResolvedServerLinkResult, KumoriyaError>, SourceServerLink>((
       ref,
       sourceServerLink,
     ) async {
