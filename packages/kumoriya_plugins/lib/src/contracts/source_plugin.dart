@@ -65,6 +65,20 @@ final class SourceEpisode {
   final Uri? thumbnailUrl;
 }
 
+final class SourceServerLink {
+  const SourceServerLink({
+    required this.serverId,
+    required this.serverName,
+    required this.initialUrl,
+    this.language,
+  });
+
+  final String serverId;
+  final String serverName;
+  final Uri initialUrl;
+  final String? language;
+}
+
 abstract interface class SourcePlugin {
   PluginManifest get manifest;
 
@@ -78,5 +92,9 @@ abstract interface class SourcePlugin {
 
   Future<Result<List<SourceEpisode>, KumoriyaError>> getEpisodes(
     String sourceId,
+  );
+
+  Future<Result<List<SourceServerLink>, KumoriyaError>> getEpisodeServerLinks(
+    SourceEpisode episode,
   );
 }
