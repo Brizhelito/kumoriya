@@ -140,6 +140,13 @@
     }
   },
   "playerLoading": "Opening playback...",
+  "playerCandidatePosition": "Candidate {current} of {total}",
+  "@playerCandidatePosition": {
+    "placeholders": {
+      "current": {},
+      "total": {}
+    }
+  },
   "playerCurrentStream": "Current stream: {url}",
   "@playerCurrentStream": {
     "placeholders": {
@@ -151,6 +158,11 @@
   "playerNoPlayableStream": "No playable stream was available.",
   "playerUnsupportedStream": "The selected stream is not supported by this player.",
   "playerOpenFailed": "Player failed to open the selected stream.",
+  "playerOpenTimeout": "Playback opening timed out.",
+  "playerBufferingTimeout": "Buffering took too long. Trying fallback if available.",
+  "playerNetworkFailure": "Network failure while opening playback.",
+  "playerCandidateFailedTryingFallback": "This stream failed. Trying another candidate.",
+  "playerAllCandidatesFailed": "All stream candidates failed.",
   "playerPlaybackErrorGeneric": "A playback error occurred.",
   "playerPlaybackError": "Playback error: {reason}",
   "@playerPlaybackError": {

@@ -516,6 +516,12 @@ abstract class AppLocalizations {
   /// **'Opening playback...'**
   String get playerLoading;
 
+  /// No description provided for @playerCandidatePosition.
+  ///
+  /// In en, this message translates to:
+  /// **'Candidate {current} of {total}'**
+  String playerCandidatePosition(Object current, Object total);
+
   /// No description provided for @playerCurrentStream.
   ///
   /// In en, this message translates to:
@@ -551,6 +557,36 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Player failed to open the selected stream.'**
   String get playerOpenFailed;
+
+  /// No description provided for @playerOpenTimeout.
+  ///
+  /// In en, this message translates to:
+  /// **'Playback opening timed out.'**
+  String get playerOpenTimeout;
+
+  /// No description provided for @playerBufferingTimeout.
+  ///
+  /// In en, this message translates to:
+  /// **'Buffering took too long. Trying fallback if available.'**
+  String get playerBufferingTimeout;
+
+  /// No description provided for @playerNetworkFailure.
+  ///
+  /// In en, this message translates to:
+  /// **'Network failure while opening playback.'**
+  String get playerNetworkFailure;
+
+  /// No description provided for @playerCandidateFailedTryingFallback.
+  ///
+  /// In en, this message translates to:
+  /// **'This stream failed. Trying another candidate.'**
+  String get playerCandidateFailedTryingFallback;
+
+  /// No description provided for @playerAllCandidatesFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'All stream candidates failed.'**
+  String get playerAllCandidatesFailed;
 
   /// No description provided for @playerPlaybackErrorGeneric.
   ///

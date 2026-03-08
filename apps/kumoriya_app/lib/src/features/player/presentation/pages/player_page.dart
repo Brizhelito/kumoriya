@@ -71,12 +71,26 @@ class _PlayerPageState extends State<PlayerPage> {
     );
   }
 
+  Future<void> _retryPlayback() async {
+    setState(() => _startError = null);
+    final result = await _orchestrator.retry();
+    if (!mounted) {
+      return;
+    }
+    result.fold(
+      onFailure: (error) {
+        setState(() => _startError = mapErrorMessage(context, error));
+      },
+      onSuccess: (_) {},
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_startError != null) {
       return Scaffold(
         appBar: AppBar(title: Text(context.l10n.playerTitle)),
-        body: ErrorStateView(message: _startError!),
+        body: ErrorStateView(message: _startError!, onRetry: _retryPlayback),
       );
     }
 
@@ -105,9 +119,16 @@ class _PlayerPageState extends State<PlayerPage> {
                   Container(
                     color: Colors.black45,
                     alignment: Alignment.center,
-                    child: Text(
-                      context.l10n.playerLoading,
-                      style: const TextStyle(color: Colors.white),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: <Widget>[
+                        const CircularProgressIndicator(),
+                        const SizedBox(height: 12),
+                        Text(
+                          context.l10n.playerLoading,
+                          style: const TextStyle(color: Colors.white),
+                        ),
+                      ],
                     ),
                   ),
                 if (_state.status == PlayerSessionStatus.error)
@@ -138,6 +159,18 @@ class _PlayerPageState extends State<PlayerPage> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
                 Text(context.l10n.resolverUsed(widget.resolved.resolverName)),
+                const SizedBox(height: 6),
+                Text(
+                  context.l10n.playerCandidatePosition(
+                    (_state.currentCandidateIndex + 1).toString(),
+                    _state.totalCandidates.toString(),
+                  ),
+                ),
+                if (_state.infoMessage != null &&
+                    _state.infoMessage!.trim().isNotEmpty) ...<Widget>[
+                  const SizedBox(height: 6),
+                  Text(_mapInfoMessage(context, _state.infoMessage!)),
+                ],
                 if (selected != null) ...<Widget>[
                   const SizedBox(height: 6),
                   Text(
@@ -145,24 +178,52 @@ class _PlayerPageState extends State<PlayerPage> {
                   ),
                 ],
                 const SizedBox(height: 12),
-                FilledButton.icon(
-                  onPressed: () => _orchestrator.togglePlayPause(),
-                  icon: Icon(
-                    _state.status == PlayerSessionStatus.playing
-                        ? Icons.pause
-                        : Icons.play_arrow,
-                  ),
-                  label: Text(
-                    _state.status == PlayerSessionStatus.playing
-                        ? context.l10n.playerPause
-                        : context.l10n.playerPlay,
-                  ),
+                Row(
+                  children: <Widget>[
+                    FilledButton.icon(
+                      onPressed: () => _orchestrator.togglePlayPause(),
+                      icon: Icon(
+                        _state.status == PlayerSessionStatus.playing
+                            ? Icons.pause
+                            : Icons.play_arrow,
+                      ),
+                      label: Text(
+                        _state.status == PlayerSessionStatus.playing
+                            ? context.l10n.playerPause
+                            : context.l10n.playerPlay,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    OutlinedButton.icon(
+                      onPressed: _retryPlayback,
+                      icon: const Icon(Icons.refresh),
+                      label: Text(context.l10n.retry),
+                    ),
+                  ],
                 ),
+                if (_state.status == PlayerSessionStatus.error) ...<Widget>[
+                  const SizedBox(height: 8),
+                  Text(
+                    context.l10n.playerAllCandidatesFailed,
+                    style: const TextStyle(color: Colors.redAccent),
+                  ),
+                ],
               ],
             ),
           ),
         ],
       ),
     );
+  }
+
+  String _mapInfoMessage(BuildContext context, String code) {
+    switch (code) {
+      case 'player.fallback_in_progress':
+        return context.l10n.playerCandidateFailedTryingFallback;
+      case 'player.tried_all_candidates':
+        return context.l10n.playerAllCandidatesFailed;
+      default:
+        return code;
+    }
   }
 }

@@ -83,6 +83,16 @@ String mapErrorMessage(BuildContext context, KumoriyaError error) {
         return context.l10n.playerNoPlayableStream;
       case 'player.unsupported_stream':
         return context.l10n.playerUnsupportedStream;
+      case 'player.open_timeout':
+        return context.l10n.playerOpenTimeout;
+      case 'player.buffering_timeout':
+        return context.l10n.playerBufferingTimeout;
+      case 'player.network_failure':
+        return context.l10n.playerNetworkFailure;
+      case 'player.candidate_failed':
+        return context.l10n.playerCandidateFailedTryingFallback;
+      case 'player.all_candidates_failed':
+        return context.l10n.playerAllCandidatesFailed;
       case 'player.open_failed':
         return context.l10n.playerOpenFailed;
       case 'player.playback_error':

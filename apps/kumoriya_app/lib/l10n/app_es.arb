@@ -140,6 +140,13 @@
     }
   },
   "playerLoading": "Abriendo reproduccion...",
+  "playerCandidatePosition": "Candidato {current} de {total}",
+  "@playerCandidatePosition": {
+    "placeholders": {
+      "current": {},
+      "total": {}
+    }
+  },
   "playerCurrentStream": "Stream actual: {url}",
   "@playerCurrentStream": {
     "placeholders": {
@@ -151,6 +158,11 @@
   "playerNoPlayableStream": "No hay un stream reproducible disponible.",
   "playerUnsupportedStream": "El stream seleccionado no es compatible con este player.",
   "playerOpenFailed": "El player no pudo abrir el stream seleccionado.",
+  "playerOpenTimeout": "Se agoto el tiempo de apertura de reproduccion.",
+  "playerBufferingTimeout": "El buffering tomo demasiado tiempo. Se intentara fallback si existe.",
+  "playerNetworkFailure": "Fallo de red al abrir la reproduccion.",
+  "playerCandidateFailedTryingFallback": "Este stream fallo. Probando otro candidato.",
+  "playerAllCandidatesFailed": "Todos los candidatos de stream fallaron.",
   "playerPlaybackErrorGeneric": "Ocurrio un error de reproduccion.",
   "playerPlaybackError": "Error de reproduccion: {reason}",
   "@playerPlaybackError": {

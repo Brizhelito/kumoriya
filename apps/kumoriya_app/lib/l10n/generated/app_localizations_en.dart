@@ -269,6 +269,11 @@ class AppLocalizationsEn extends AppLocalizations {
   String get playerLoading => 'Opening playback...';
 
   @override
+  String playerCandidatePosition(Object current, Object total) {
+    return 'Candidate $current of $total';
+  }
+
+  @override
   String playerCurrentStream(Object url) {
     return 'Current stream: $url';
   }
@@ -288,6 +293,23 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get playerOpenFailed => 'Player failed to open the selected stream.';
+
+  @override
+  String get playerOpenTimeout => 'Playback opening timed out.';
+
+  @override
+  String get playerBufferingTimeout =>
+      'Buffering took too long. Trying fallback if available.';
+
+  @override
+  String get playerNetworkFailure => 'Network failure while opening playback.';
+
+  @override
+  String get playerCandidateFailedTryingFallback =>
+      'This stream failed. Trying another candidate.';
+
+  @override
+  String get playerAllCandidatesFailed => 'All stream candidates failed.';
 
   @override
   String get playerPlaybackErrorGeneric => 'A playback error occurred.';
