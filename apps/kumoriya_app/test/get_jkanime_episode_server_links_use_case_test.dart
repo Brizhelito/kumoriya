@@ -27,6 +27,37 @@ void main() {
     );
   });
 
+  test('filters out mega and mediafire from presentation list', () async {
+    final useCase = GetJkanimeEpisodeServerLinksUseCase(
+      sourcePlugin: _FakeSourcePluginSuccess(),
+    );
+
+    final episode = SourceEpisode(
+      sourceEpisodeId: '3',
+      number: 3,
+      title: 'Episode 3',
+      episodeUrl: Uri.parse('https://jkanime.net/anime/3/'),
+    );
+
+    final result = await useCase.call(episode);
+    expect(result.isSuccess, isTrue);
+    result.fold(
+      onFailure: (_) => fail('expected success'),
+      onSuccess: (links) {
+        expect(
+          links.any((link) => link.detectedHost?.contains('mega.nz') ?? false),
+          isFalse,
+        );
+        expect(
+          links.any(
+            (link) => link.detectedHost?.contains('mediafire.com') ?? false,
+          ),
+          isFalse,
+        );
+      },
+    );
+  });
+
   test('returns typed failure from source plugin', () async {
     final useCase = GetJkanimeEpisodeServerLinksUseCase(
       sourcePlugin: _FakeSourcePluginFailure(),
@@ -81,6 +112,21 @@ final class _FakeSourcePluginSuccess implements SourcePlugin {
         serverName: 'Desu',
         initialUrl: Uri.parse('https://jkanime.net/jkplayer/um?e=x'),
         language: 'sub',
+      ),
+      SourceServerLink(
+        serverId: 'mega-1',
+        serverName: 'Mega',
+        initialUrl: Uri.parse('https://mega.nz/embed/abc123'),
+        language: 'sub',
+        detectedHost: 'mega.nz',
+      ),
+      SourceServerLink(
+        serverId: 'mediafire-2',
+        serverName: 'Mediafire',
+        initialUrl: Uri.parse('https://mediafire.com/file/abc123/file'),
+        language: 'sub',
+        linkType: SourceServerLinkType.download,
+        detectedHost: 'mediafire.com',
       ),
     ]);
   }
