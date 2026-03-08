@@ -78,6 +78,51 @@
   },
   "jkanimeViewRealEpisodes": "Ver episodios reales de JKAnime",
   "viewServerLinks": "Ver servidores",
+  "resolveServerLink": "Resolver",
+  "resolverResolving": "Resolviendo enlace de stream...",
+  "resolverNoResolverFound": "No hay resolver disponible para este server link.",
+  "resolverMalformedLink": "El enlace de origen es invalido y no se puede resolver.",
+  "resolverParseFailure": "El resolver no pudo extraer un stream valido del payload.",
+  "resolverInconsistentPayload": "El resolver recibio un payload inconsistente del proveedor.",
+  "resolverTransportFailure": "La solicitud del resolver fallo por transporte/red.",
+  "resolverUnexpectedFailure": "Error inesperado al resolver el enlace.",
+  "resolverNoStreams": "El resolver no devolvio candidatos de stream.",
+  "resolverPageTitle": "{animeTitle} Ep.{episodeNumber} | Resolver {serverName}",
+  "@resolverPageTitle": {
+    "placeholders": {
+      "animeTitle": {},
+      "episodeNumber": {},
+      "serverName": {}
+    }
+  },
+  "resolverQuality": "Calidad: {quality}",
+  "@resolverQuality": {
+    "placeholders": {
+      "quality": {}
+    }
+  },
+  "resolverQualityUnknown": "desconocida",
+  "resolverMediaType": "Tipo: {type}",
+  "@resolverMediaType": {
+    "placeholders": {
+      "type": {}
+    }
+  },
+  "resolverTypeHls": "HLS",
+  "resolverTypeMp4": "MP4",
+  "resolverMimeType": "MIME: {mimeType}",
+  "@resolverMimeType": {
+    "placeholders": {
+      "mimeType": {}
+    }
+  },
+  "resolverHeader": "Header {name}: {value}",
+  "@resolverHeader": {
+    "placeholders": {
+      "name": {},
+      "value": {}
+    }
+  },
   "jkanimeServerLinksLoading": "Cargando enlaces de servidores de JKAnime...",
   "jkanimeServerLinksEmpty": "No se encontraron servidores para este episodio en JKAnime.",
   "jkanimeServerLinksTitle": "{animeTitle} | Servidores episodio {episodeNumber}",

@@ -77,6 +77,34 @@ class ErrorStateView extends StatelessWidget {
 }
 
 String mapErrorMessage(BuildContext context, KumoriyaError error) {
+  if (error.code.startsWith('resolver.')) {
+    switch (error.code) {
+      case 'resolver.no_resolver':
+      case 'resolver.jkplayer.unsupported_host':
+        return context.l10n.resolverNoResolverFound;
+      case 'resolver.malformed_link':
+      case 'resolver.jkplayer.malformed_link':
+        return context.l10n.resolverMalformedLink;
+      case 'resolver.jkplayer.parse':
+        return context.l10n.resolverParseFailure;
+      case 'resolver.jkplayer.inconsistent':
+        return context.l10n.resolverInconsistentPayload;
+      case 'resolver.empty':
+        return context.l10n.resolverNoStreams;
+    }
+
+    switch (error.kind) {
+      case KumoriyaErrorKind.transport:
+        return context.l10n.resolverTransportFailure;
+      case KumoriyaErrorKind.mapping:
+        return context.l10n.resolverParseFailure;
+      case KumoriyaErrorKind.notFound:
+        return context.l10n.resolverNoResolverFound;
+      case KumoriyaErrorKind.unexpected:
+        return context.l10n.resolverUnexpectedFailure;
+    }
+  }
+
   if (error.code.startsWith('jkanime.')) {
     switch (error.code) {
       case 'jkanime.parse':

@@ -3,13 +3,16 @@ import 'package:kumoriya_anilist/kumoriya_anilist.dart';
 import 'package:kumoriya_core/kumoriya_core.dart';
 import 'package:kumoriya_domain/kumoriya_domain.dart';
 import 'package:kumoriya_plugins/kumoriya_plugins.dart';
+import 'package:kumoriya_resolver_jkplayer/kumoriya_resolver_jkplayer.dart';
 import 'package:kumoriya_source_jkanime/kumoriya_source_jkanime.dart';
 
 import '../../application/use_cases/anime_catalog_use_cases.dart';
 import '../../application/matching/anilist_jkanime_matcher.dart';
 import '../../application/models/source_availability.dart';
+import '../../application/services/resolver_registry.dart';
 import '../../application/use_cases/check_jkanime_availability_use_case.dart';
 import '../../application/use_cases/get_jkanime_episode_server_links_use_case.dart';
+import '../../application/use_cases/resolve_source_server_link_use_case.dart';
 
 final anilistGraphqlClientProvider = Provider<AnilistGraphqlClient>((ref) {
   return HttpAnilistGraphqlClient();
@@ -29,6 +32,14 @@ final animeCatalogRepositoryProvider = Provider<AnimeCatalogRepository>((ref) {
 
 final sourcePluginProvider = Provider<SourcePlugin>((ref) {
   return JkAnimeSourcePlugin();
+});
+
+final resolverPluginsProvider = Provider<List<ResolverPlugin>>((ref) {
+  return <ResolverPlugin>[JkPlayerResolverPlugin()];
+});
+
+final resolverRegistryProvider = Provider<ResolverRegistry>((ref) {
+  return ResolverRegistry(resolvers: ref.watch(resolverPluginsProvider));
 });
 
 final anilistJkanimeMatcherProvider = Provider<AnilistJkanimeMatcher>((ref) {
@@ -65,6 +76,13 @@ final getJkanimeEpisodeServerLinksUseCaseProvider =
     Provider<GetJkanimeEpisodeServerLinksUseCase>((ref) {
       return GetJkanimeEpisodeServerLinksUseCase(
         sourcePlugin: ref.watch(sourcePluginProvider),
+      );
+    });
+
+final resolveSourceServerLinkUseCaseProvider =
+    Provider<ResolveSourceServerLinkUseCase>((ref) {
+      return ResolveSourceServerLinkUseCase(
+        registry: ref.watch(resolverRegistryProvider),
       );
     });
 
@@ -120,4 +138,14 @@ final jkanimeEpisodeServerLinksProvider = FutureProvider.autoDispose
       return ref
           .watch(getJkanimeEpisodeServerLinksUseCaseProvider)
           .call(episode);
+    });
+
+final resolveSourceServerLinkProvider = FutureProvider.autoDispose
+    .family<Result<List<ResolvedStream>, KumoriyaError>, SourceServerLink>((
+      ref,
+      sourceServerLink,
+    ) async {
+      return ref
+          .watch(resolveSourceServerLinkUseCaseProvider)
+          .call(sourceServerLink);
     });

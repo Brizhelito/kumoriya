@@ -5,6 +5,7 @@ import 'package:kumoriya_plugins/kumoriya_plugins.dart';
 import '../../../../app/l10n.dart';
 import '../../../../shared/widgets/state_views.dart';
 import '../providers/anime_catalog_providers.dart';
+import 'resolve_server_link_page.dart';
 
 class JkAnimeServerLinksPage extends ConsumerWidget {
   const JkAnimeServerLinksPage({
@@ -62,9 +63,29 @@ class JkAnimeServerLinksPage extends ConsumerWidget {
                   leading: const Icon(Icons.dns_outlined),
                   title: Text(link.serverName),
                   subtitle: Text(link.initialUrl.toString()),
-                  trailing: language == null
-                      ? null
-                      : Text(language.toUpperCase()),
+                  trailing: Wrap(
+                    spacing: 8,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    children: <Widget>[
+                      if (language != null) Text(language.toUpperCase()),
+                      OutlinedButton(
+                        onPressed: () {
+                          Navigator.of(context).push(
+                            MaterialPageRoute<void>(
+                              builder: (_) => ResolveServerLinkPage(
+                                animeTitle: animeTitle,
+                                episodeNumber: episode.number
+                                    .toInt()
+                                    .toString(),
+                                serverLink: link,
+                              ),
+                            ),
+                          );
+                        },
+                        child: Text(context.l10n.resolveServerLink),
+                      ),
+                    ],
+                  ),
                 );
               },
             );

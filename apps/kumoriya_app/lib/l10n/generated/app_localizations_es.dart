@@ -174,6 +174,78 @@ class AppLocalizationsEs extends AppLocalizations {
   String get viewServerLinks => 'Ver servidores';
 
   @override
+  String get resolveServerLink => 'Resolver';
+
+  @override
+  String get resolverResolving => 'Resolviendo enlace de stream...';
+
+  @override
+  String get resolverNoResolverFound =>
+      'No hay resolver disponible para este server link.';
+
+  @override
+  String get resolverMalformedLink =>
+      'El enlace de origen es invalido y no se puede resolver.';
+
+  @override
+  String get resolverParseFailure =>
+      'El resolver no pudo extraer un stream valido del payload.';
+
+  @override
+  String get resolverInconsistentPayload =>
+      'El resolver recibio un payload inconsistente del proveedor.';
+
+  @override
+  String get resolverTransportFailure =>
+      'La solicitud del resolver fallo por transporte/red.';
+
+  @override
+  String get resolverUnexpectedFailure =>
+      'Error inesperado al resolver el enlace.';
+
+  @override
+  String get resolverNoStreams =>
+      'El resolver no devolvio candidatos de stream.';
+
+  @override
+  String resolverPageTitle(
+    Object animeTitle,
+    Object episodeNumber,
+    Object serverName,
+  ) {
+    return '$animeTitle Ep.$episodeNumber | Resolver $serverName';
+  }
+
+  @override
+  String resolverQuality(Object quality) {
+    return 'Calidad: $quality';
+  }
+
+  @override
+  String get resolverQualityUnknown => 'desconocida';
+
+  @override
+  String resolverMediaType(Object type) {
+    return 'Tipo: $type';
+  }
+
+  @override
+  String get resolverTypeHls => 'HLS';
+
+  @override
+  String get resolverTypeMp4 => 'MP4';
+
+  @override
+  String resolverMimeType(Object mimeType) {
+    return 'MIME: $mimeType';
+  }
+
+  @override
+  String resolverHeader(Object name, Object value) {
+    return 'Header $name: $value';
+  }
+
+  @override
   String get jkanimeServerLinksLoading =>
       'Cargando enlaces de servidores de JKAnime...';
 

@@ -374,6 +374,112 @@ abstract class AppLocalizations {
   /// **'View servers'**
   String get viewServerLinks;
 
+  /// No description provided for @resolveServerLink.
+  ///
+  /// In en, this message translates to:
+  /// **'Resolve'**
+  String get resolveServerLink;
+
+  /// No description provided for @resolverResolving.
+  ///
+  /// In en, this message translates to:
+  /// **'Resolving stream link...'**
+  String get resolverResolving;
+
+  /// No description provided for @resolverNoResolverFound.
+  ///
+  /// In en, this message translates to:
+  /// **'No resolver is available for this server link.'**
+  String get resolverNoResolverFound;
+
+  /// No description provided for @resolverMalformedLink.
+  ///
+  /// In en, this message translates to:
+  /// **'The source server link is malformed and cannot be resolved.'**
+  String get resolverMalformedLink;
+
+  /// No description provided for @resolverParseFailure.
+  ///
+  /// In en, this message translates to:
+  /// **'Resolver could not parse a valid stream from provider payload.'**
+  String get resolverParseFailure;
+
+  /// No description provided for @resolverInconsistentPayload.
+  ///
+  /// In en, this message translates to:
+  /// **'Resolver received inconsistent provider payload.'**
+  String get resolverInconsistentPayload;
+
+  /// No description provided for @resolverTransportFailure.
+  ///
+  /// In en, this message translates to:
+  /// **'Resolver request failed due to network/transport issue.'**
+  String get resolverTransportFailure;
+
+  /// No description provided for @resolverUnexpectedFailure.
+  ///
+  /// In en, this message translates to:
+  /// **'Unexpected error while resolving stream link.'**
+  String get resolverUnexpectedFailure;
+
+  /// No description provided for @resolverNoStreams.
+  ///
+  /// In en, this message translates to:
+  /// **'Resolver did not return any stream candidate.'**
+  String get resolverNoStreams;
+
+  /// No description provided for @resolverPageTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'{animeTitle} Ep.{episodeNumber} | Resolve {serverName}'**
+  String resolverPageTitle(
+    Object animeTitle,
+    Object episodeNumber,
+    Object serverName,
+  );
+
+  /// No description provided for @resolverQuality.
+  ///
+  /// In en, this message translates to:
+  /// **'Quality: {quality}'**
+  String resolverQuality(Object quality);
+
+  /// No description provided for @resolverQualityUnknown.
+  ///
+  /// In en, this message translates to:
+  /// **'unknown'**
+  String get resolverQualityUnknown;
+
+  /// No description provided for @resolverMediaType.
+  ///
+  /// In en, this message translates to:
+  /// **'Type: {type}'**
+  String resolverMediaType(Object type);
+
+  /// No description provided for @resolverTypeHls.
+  ///
+  /// In en, this message translates to:
+  /// **'HLS'**
+  String get resolverTypeHls;
+
+  /// No description provided for @resolverTypeMp4.
+  ///
+  /// In en, this message translates to:
+  /// **'MP4'**
+  String get resolverTypeMp4;
+
+  /// No description provided for @resolverMimeType.
+  ///
+  /// In en, this message translates to:
+  /// **'MIME: {mimeType}'**
+  String resolverMimeType(Object mimeType);
+
+  /// No description provided for @resolverHeader.
+  ///
+  /// In en, this message translates to:
+  /// **'Header {name}: {value}'**
+  String resolverHeader(Object name, Object value);
+
   /// No description provided for @jkanimeServerLinksLoading.
   ///
   /// In en, this message translates to:
