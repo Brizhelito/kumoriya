@@ -65,18 +65,24 @@ final class SourceEpisode {
   final Uri? thumbnailUrl;
 }
 
+enum SourceServerLinkType { stream, download }
+
 final class SourceServerLink {
   const SourceServerLink({
     required this.serverId,
     required this.serverName,
     required this.initialUrl,
     this.language,
+    this.linkType = SourceServerLinkType.stream,
+    this.detectedHost,
   });
 
   final String serverId;
   final String serverName;
   final Uri initialUrl;
   final String? language;
+  final SourceServerLinkType linkType;
+  final String? detectedHost;
 }
 
 abstract interface class SourcePlugin {

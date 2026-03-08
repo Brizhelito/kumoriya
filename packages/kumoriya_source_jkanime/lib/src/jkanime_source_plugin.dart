@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:html/dom.dart' as html_dom;
 import 'package:html/parser.dart' as html_parser;
 import 'package:http/http.dart' as http;
 import 'package:kumoriya_core/kumoriya_core.dart';
@@ -539,15 +540,11 @@ final class JkAnimeSourcePlugin implements SourcePlugin {
   List<SourceServerLink> _extractServerLinksFromEpisodeHtml(String html) {
     final document = html_parser.parse(html);
     final serverButtons = document.querySelectorAll('.servers.btn-show');
-    final videoByIndex = _extractVideoUrlsByIndex(html);
+    final videoByIndex = _extractVideoTargetsByIndex(html);
 
-    if (serverButtons.isEmpty) {
-      return const <SourceServerLink>[];
-    }
-
-    final links = <SourceServerLink>[];
+    final streamLinks = <SourceServerLink>[];
     var parseableButtonCount = 0;
-    final seenServerIds = <String>{};
+    final seenKeys = <String>{};
 
     for (final button in serverButtons) {
       final serverName = button.text.trim();
@@ -565,8 +562,8 @@ final class JkAnimeSourcePlugin implements SourcePlugin {
       }
       parseableButtonCount++;
 
-      final initialUrl = videoByIndex[index];
-      if (initialUrl == null) {
+      final target = videoByIndex[index];
+      if (target == null) {
         continue;
       }
       final normalizedServerSlug = serverName.toLowerCase().replaceAll(
@@ -574,21 +571,24 @@ final class JkAnimeSourcePlugin implements SourcePlugin {
         '-',
       );
       final serverId = '$index-$normalizedServerSlug';
-      if (!seenServerIds.add(serverId)) {
+      final dedupeKey = '${target.url}|$serverId|stream';
+      if (!seenKeys.add(dedupeKey)) {
         continue;
       }
 
-      links.add(
+      streamLinks.add(
         SourceServerLink(
           serverId: serverId,
           serverName: serverName,
-          initialUrl: initialUrl,
+          initialUrl: target.url,
           language: _extractLanguageFromClasses(button.classes),
+          linkType: SourceServerLinkType.stream,
+          detectedHost: target.detectedHost ?? target.url.host,
         ),
       );
     }
 
-    if (serverButtons.isNotEmpty && links.isEmpty) {
+    if (serverButtons.isNotEmpty && streamLinks.isEmpty) {
       final hasVideoAssignments = RegExp(
         r'''video\s*\[\s*['"]?\d+['"]?\s*\]''',
         multiLine: true,
@@ -621,7 +621,9 @@ final class JkAnimeSourcePlugin implements SourcePlugin {
       );
     }
 
-    return links;
+    final downloadLinks = _extractDownloadLinks(document, seenKeys: seenKeys);
+
+    return <SourceServerLink>[...streamLinks, ...downloadLinks];
   }
 
   double? _parseEpisodeNumber(Object? rawNumber) {
@@ -634,8 +636,8 @@ final class JkAnimeSourcePlugin implements SourcePlugin {
     return null;
   }
 
-  Map<int, Uri> _extractVideoUrlsByIndex(String html) {
-    final byIndex = <int, Uri>{};
+  Map<int, _ExtractedServerTarget> _extractVideoTargetsByIndex(String html) {
+    final byIndex = <int, _ExtractedServerTarget>{};
     final assignmentPattern = RegExp(
       r'''video\s*\[\s*['"]?(\d+)['"]?\s*\]\s*=\s*(['"])([\s\S]*?)\2\s*;''',
       multiLine: true,
@@ -653,22 +655,22 @@ final class JkAnimeSourcePlugin implements SourcePlugin {
         continue;
       }
 
-      final uri = _extractVideoUri(rawValue);
-      if (uri != null) {
-        byIndex[index] = uri;
+      final target = _extractVideoTarget(rawValue);
+      if (target != null) {
+        byIndex[index] = target;
       }
     }
 
     return byIndex;
   }
 
-  Uri? _extractVideoUri(String rawValue) {
+  _ExtractedServerTarget? _extractVideoTarget(String rawValue) {
     final normalized = rawValue
         .replaceAll(r'\/', '/')
         .replaceAll(r'\"', '"')
         .replaceAll(r"\'", "'");
 
-    final direct = _normalizePotentialVideoUri(normalized.trim());
+    final direct = _normalizePotentialVideoTarget(normalized.trim());
     if (direct != null) {
       return direct;
     }
@@ -685,10 +687,10 @@ final class JkAnimeSourcePlugin implements SourcePlugin {
 
     final rawSrc =
         srcMatch.group(1) ?? srcMatch.group(2) ?? srcMatch.group(3) ?? '';
-    return _normalizePotentialVideoUri(rawSrc.trim());
+    return _normalizePotentialVideoTarget(rawSrc.trim());
   }
 
-  Uri? _normalizePotentialVideoUri(String raw) {
+  _ExtractedServerTarget? _normalizePotentialVideoTarget(String raw) {
     if (raw.isEmpty) {
       return null;
     }
@@ -708,7 +710,145 @@ final class JkAnimeSourcePlugin implements SourcePlugin {
       return null;
     }
 
-    return parsed;
+    final resolved = _resolveWrappedVideoUrl(parsed);
+    if (resolved == null) {
+      return _ExtractedServerTarget(url: parsed);
+    }
+
+    final resolvedHost = _extractServerAliasHost(parsed);
+    return _ExtractedServerTarget(
+      url: resolved,
+      originalWrapperUrl: parsed,
+      detectedHost: resolvedHost ?? resolved.host,
+    );
+  }
+
+  Uri? _resolveWrappedVideoUrl(Uri sourceUri) {
+    final normalizedPath = sourceUri.path.toLowerCase();
+    final isC1Wrapper =
+        normalizedPath == '/jkplayer/c1' || normalizedPath == '/jkplayer/c2';
+    if (!isC1Wrapper) {
+      return null;
+    }
+
+    final encoded = sourceUri.queryParameters['u'];
+    if (encoded == null || encoded.trim().isEmpty) {
+      return null;
+    }
+
+    try {
+      final normalized = base64.normalize(encoded.trim());
+      final decoded = utf8.decode(base64.decode(normalized));
+      final parsed = Uri.tryParse(decoded.trim());
+      if (parsed == null ||
+          !parsed.hasScheme ||
+          parsed.host.isEmpty ||
+          (parsed.scheme != 'http' && parsed.scheme != 'https')) {
+        return null;
+      }
+      return parsed;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  String? _extractServerAliasHost(Uri sourceUri) {
+    final alias = sourceUri.queryParameters['s']?.trim().toLowerCase();
+    if (alias == null || alias.isEmpty) {
+      return null;
+    }
+
+    const aliasToHost = <String, String>{
+      'voe': 'voe.sx',
+      'streamwish': 'streamwish.to',
+      'filemoon': 'filemoon.sx',
+      'mixdrop': 'mixdrop.co',
+      'mp4upload': 'mp4upload.com',
+      'vidhide': 'vidhide.com',
+      'streamtape': 'streamtape.com',
+      'mega': 'mega.nz',
+      'mediafire': 'mediafire.com',
+    };
+
+    return aliasToHost[alias];
+  }
+
+  List<SourceServerLink> _extractDownloadLinks(
+    html_dom.Document document, {
+    required Set<String> seenKeys,
+  }) {
+    final rows = document.querySelectorAll('.download table tr');
+    if (rows.isEmpty) {
+      return const <SourceServerLink>[];
+    }
+
+    final links = <SourceServerLink>[];
+    var downloadIndex = 0;
+
+    for (final row in rows) {
+      final cells = row.querySelectorAll('td');
+      if (cells.length < 4) {
+        continue;
+      }
+
+      final label = cells.first.text.trim();
+      final linkEl = row.querySelector('a[href]');
+      if (label.isEmpty || linkEl == null) {
+        continue;
+      }
+
+      final href = linkEl.attributes['href']?.trim();
+      if (href == null || href.isEmpty) {
+        continue;
+      }
+
+      final parsed = _normalizePotentialVideoTarget(href);
+      final url = parsed?.url ?? _asUri(href);
+      if (url == null) {
+        continue;
+      }
+
+      final slug = label.toLowerCase().replaceAll(' ', '-');
+      final dedupeKey = '${url.toString()}|$slug|download';
+      if (!seenKeys.add(dedupeKey)) {
+        continue;
+      }
+
+      final hostByLabel = _guessHostFromLabel(label);
+      links.add(
+        SourceServerLink(
+          serverId: 'download-$downloadIndex-$slug',
+          serverName: label,
+          initialUrl: url,
+          linkType: SourceServerLinkType.download,
+          detectedHost: hostByLabel ?? parsed?.detectedHost ?? url.host,
+        ),
+      );
+      downloadIndex++;
+    }
+
+    return links;
+  }
+
+  String? _guessHostFromLabel(String label) {
+    final value = label.trim().toLowerCase();
+    if (value.isEmpty) {
+      return null;
+    }
+
+    const byLabel = <String, String>{
+      'mediafire': 'mediafire.com',
+      'mega': 'mega.nz',
+      'streamwish': 'streamwish.to',
+      'voe': 'voe.sx',
+      'vidhide': 'vidhide.com',
+      'filemoon': 'filemoon.sx',
+      'mixdrop': 'mixdrop.co',
+      'mp4upload': 'mp4upload.com',
+      'streamtape': 'streamtape.com',
+    };
+
+    return byLabel[value];
   }
 
   int? _extractServerIndex({
@@ -791,4 +931,16 @@ final class _DetailPageContext {
   final String csrfToken;
   final String animeNumericId;
   final String? cookieHeader;
+}
+
+final class _ExtractedServerTarget {
+  const _ExtractedServerTarget({
+    required this.url,
+    this.originalWrapperUrl,
+    this.detectedHost,
+  });
+
+  final Uri url;
+  final Uri? originalWrapperUrl;
+  final String? detectedHost;
 }
