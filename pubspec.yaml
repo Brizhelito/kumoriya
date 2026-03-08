@@ -12,5 +12,7 @@ workspace:
   - packages/kumoriya_anilist
   - packages/kumoriya_source_jkanime
   - packages/kumoriya_resolver_jkplayer
+  - packages/kumoriya_resolver_voe
+  - packages/kumoriya_resolver_filemoon
   - packages/kumoriya_storage
   - packages/kumoriya_testing

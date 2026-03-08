@@ -3,7 +3,9 @@ import 'package:kumoriya_anilist/kumoriya_anilist.dart';
 import 'package:kumoriya_core/kumoriya_core.dart';
 import 'package:kumoriya_domain/kumoriya_domain.dart';
 import 'package:kumoriya_plugins/kumoriya_plugins.dart';
+import 'package:kumoriya_resolver_filemoon/kumoriya_resolver_filemoon.dart';
 import 'package:kumoriya_resolver_jkplayer/kumoriya_resolver_jkplayer.dart';
+import 'package:kumoriya_resolver_voe/kumoriya_resolver_voe.dart';
 import 'package:kumoriya_source_jkanime/kumoriya_source_jkanime.dart';
 
 import '../../application/use_cases/anime_catalog_use_cases.dart';
@@ -36,7 +38,12 @@ final sourcePluginProvider = Provider<SourcePlugin>((ref) {
 });
 
 final resolverPluginsProvider = Provider<List<ResolverPlugin>>((ref) {
-  return <ResolverPlugin>[JkPlayerJkResolverPlugin(), JkPlayerResolverPlugin()];
+  return <ResolverPlugin>[
+    JkPlayerJkResolverPlugin(),
+    JkPlayerResolverPlugin(),
+    VoeResolverPlugin(),
+    FilemoonResolverPlugin(),
+  ];
 });
 
 final resolverRegistryProvider = Provider<ResolverRegistry>((ref) {
