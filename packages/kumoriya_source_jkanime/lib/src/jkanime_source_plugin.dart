@@ -539,12 +539,14 @@ final class JkAnimeSourcePlugin implements SourcePlugin {
 
   List<SourceServerLink> _extractServerLinksFromEpisodeHtml(String html) {
     final document = html_parser.parse(html);
-    final serverButtons = document.querySelectorAll('.servers.btn-show');
+    final serverButtons = document.querySelectorAll('.servers');
     final videoByIndex = _extractVideoTargetsByIndex(html);
+    final dynamicByServerLabel = _extractDynamicServerTargetsByLabel(html);
 
     final streamLinks = <SourceServerLink>[];
     var parseableButtonCount = 0;
     final seenKeys = <String>{};
+    final consumedDynamicLabels = <String>{};
 
     for (final button in serverButtons) {
       final serverName = button.text.trim();
@@ -562,7 +564,17 @@ final class JkAnimeSourcePlugin implements SourcePlugin {
       }
       parseableButtonCount++;
 
-      final target = videoByIndex[index];
+      _ExtractedServerTarget? target = videoByIndex[index];
+      String? dynamicLanguage;
+      final normalizedServerLabel = _normalizeServerLabel(serverName);
+      consumedDynamicLabels.add(normalizedServerLabel);
+      if (target == null) {
+        final dynamicEntry = dynamicByServerLabel[normalizedServerLabel];
+        if (dynamicEntry != null) {
+          target = dynamicEntry.target;
+          dynamicLanguage = dynamicEntry.language;
+        }
+      }
       if (target == null) {
         continue;
       }
@@ -571,7 +583,7 @@ final class JkAnimeSourcePlugin implements SourcePlugin {
         '-',
       );
       final serverId = '$index-$normalizedServerSlug';
-      final dedupeKey = '${target.url}|$serverId|stream';
+      final dedupeKey = '${target.url}|$normalizedServerSlug|stream';
       if (!seenKeys.add(dedupeKey)) {
         continue;
       }
@@ -581,7 +593,8 @@ final class JkAnimeSourcePlugin implements SourcePlugin {
           serverId: serverId,
           serverName: serverName,
           initialUrl: target.url,
-          language: _extractLanguageFromClasses(button.classes),
+          language:
+              _extractLanguageFromClasses(button.classes) ?? dynamicLanguage,
           linkType: SourceServerLinkType.stream,
           detectedHost: target.detectedHost ?? target.url.host,
         ),
@@ -622,8 +635,17 @@ final class JkAnimeSourcePlugin implements SourcePlugin {
     }
 
     final downloadLinks = _extractDownloadLinks(document, seenKeys: seenKeys);
+    final dynamicSupplementalLinks = _extractSupplementalDynamicLinks(
+      dynamicByServerLabel: dynamicByServerLabel,
+      consumedLabels: consumedDynamicLabels,
+      seenKeys: seenKeys,
+    );
 
-    return <SourceServerLink>[...streamLinks, ...downloadLinks];
+    return <SourceServerLink>[
+      ...streamLinks,
+      ...dynamicSupplementalLinks,
+      ...downloadLinks,
+    ];
   }
 
   double? _parseEpisodeNumber(Object? rawNumber) {
@@ -809,7 +831,7 @@ final class JkAnimeSourcePlugin implements SourcePlugin {
       }
 
       final slug = label.toLowerCase().replaceAll(' ', '-');
-      final dedupeKey = '${url.toString()}|$slug|download';
+      final dedupeKey = '$slug|download';
       if (!seenKeys.add(dedupeKey)) {
         continue;
       }
@@ -828,6 +850,169 @@ final class JkAnimeSourcePlugin implements SourcePlugin {
     }
 
     return links;
+  }
+
+  Map<String, _DynamicServerEntry> _extractDynamicServerTargetsByLabel(
+    String html,
+  ) {
+    final match = RegExp(
+      r'''var\s+servers\s*=\s*(\[[\s\S]*?\]);''',
+      caseSensitive: false,
+      multiLine: true,
+    ).firstMatch(html);
+    if (match == null) {
+      return const <String, _DynamicServerEntry>{};
+    }
+
+    final rawServers = match.group(1);
+    if (rawServers == null || rawServers.trim().isEmpty) {
+      return const <String, _DynamicServerEntry>{};
+    }
+
+    final byLabel = <String, _DynamicServerEntry>{};
+    try {
+      final decoded = jsonDecode(rawServers);
+      if (decoded is! List) {
+        return const <String, _DynamicServerEntry>{};
+      }
+
+      for (final item in decoded) {
+        if (item is! Map<String, dynamic>) {
+          continue;
+        }
+
+        final serverName = item['server'] is String
+            ? (item['server'] as String).trim()
+            : '';
+        if (serverName.isEmpty) {
+          continue;
+        }
+
+        final remoteEncoded = item['remote'] is String
+            ? (item['remote'] as String).trim()
+            : '';
+        final decodedRemote = _decodeDynamicRemoteUrl(remoteEncoded);
+        if (decodedRemote == null) {
+          continue;
+        }
+
+        final target = _normalizePotentialVideoTarget(decodedRemote);
+        if (target == null) {
+          continue;
+        }
+
+        final normalizedLabel = _normalizeServerLabel(serverName);
+        if (normalizedLabel.isEmpty || byLabel.containsKey(normalizedLabel)) {
+          continue;
+        }
+
+        byLabel[normalizedLabel] = _DynamicServerEntry(
+          serverName: serverName,
+          normalizedServerLabel: normalizedLabel,
+          target: target,
+          language: _mapDynamicLanguage(item['lang']),
+          linkTypeHint: _inferDynamicLinkType(serverName, target.url),
+        );
+      }
+    } catch (_) {
+      return const <String, _DynamicServerEntry>{};
+    }
+
+    return byLabel;
+  }
+
+  String? _decodeDynamicRemoteUrl(String encoded) {
+    if (encoded.trim().isEmpty) {
+      return null;
+    }
+
+    try {
+      final normalized = base64.normalize(encoded.trim());
+      final decoded = utf8.decode(base64.decode(normalized)).trim();
+      if (decoded.isEmpty) {
+        return null;
+      }
+      if (decoded.startsWith('//')) {
+        return 'https:$decoded';
+      }
+      return decoded;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  List<SourceServerLink> _extractSupplementalDynamicLinks({
+    required Map<String, _DynamicServerEntry> dynamicByServerLabel,
+    required Set<String> consumedLabels,
+    required Set<String> seenKeys,
+  }) {
+    if (dynamicByServerLabel.isEmpty) {
+      return const <SourceServerLink>[];
+    }
+
+    final links = <SourceServerLink>[];
+    for (final entry in dynamicByServerLabel.values) {
+      if (consumedLabels.contains(entry.normalizedServerLabel)) {
+        continue;
+      }
+      final serverSlug = entry.normalizedServerLabel.replaceAll(' ', '-');
+      final serverId = 'dynamic-$serverSlug';
+      final dedupeKey = entry.linkTypeHint == SourceServerLinkType.download
+          ? '$serverSlug|download'
+          : '${entry.target.url.toString()}|$serverSlug|stream';
+      if (!seenKeys.add(dedupeKey)) {
+        continue;
+      }
+
+      links.add(
+        SourceServerLink(
+          serverId: serverId,
+          serverName: entry.serverName,
+          initialUrl: entry.target.url,
+          language: entry.language,
+          linkType: entry.linkTypeHint,
+          detectedHost: entry.target.detectedHost ?? entry.target.url.host,
+        ),
+      );
+    }
+
+    return links;
+  }
+
+  String _normalizeServerLabel(String value) {
+    return value.trim().toLowerCase().replaceAll(RegExp(r'\s+'), ' ');
+  }
+
+  String? _mapDynamicLanguage(Object? raw) {
+    final asInt = switch (raw) {
+      int value => value,
+      String value => int.tryParse(value.trim()),
+      _ => null,
+    };
+
+    switch (asInt) {
+      case 1:
+        return 'sub';
+      case 2:
+        return 'lat';
+      case 3:
+        return 'cast';
+    }
+    return null;
+  }
+
+  SourceServerLinkType _inferDynamicLinkType(String serverName, Uri url) {
+    final serverValue = serverName.trim().toLowerCase();
+    if (serverValue == 'mediafire') {
+      return SourceServerLinkType.download;
+    }
+
+    final host = url.host.toLowerCase();
+    if (host.contains('mediafire.com')) {
+      return SourceServerLinkType.download;
+    }
+
+    return SourceServerLinkType.stream;
   }
 
   String? _guessHostFromLabel(String label) {
@@ -943,4 +1128,20 @@ final class _ExtractedServerTarget {
   final Uri url;
   final Uri? originalWrapperUrl;
   final String? detectedHost;
+}
+
+final class _DynamicServerEntry {
+  const _DynamicServerEntry({
+    required this.serverName,
+    required this.normalizedServerLabel,
+    required this.target,
+    required this.language,
+    required this.linkTypeHint,
+  });
+
+  final String serverName;
+  final String normalizedServerLabel;
+  final _ExtractedServerTarget target;
+  final String? language;
+  final SourceServerLinkType linkTypeHint;
 }
