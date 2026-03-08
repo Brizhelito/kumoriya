@@ -31,6 +31,12 @@ void main() {
   final base64EmbeddedFixture = File(
     'test/fixtures/voe_payload_base64_embedded.html',
   ).readAsStringSync();
+  final sourceTagFixture = File(
+    'test/fixtures/voe_payload_source_tag.html',
+  ).readAsStringSync();
+  final packedJsFixture = File(
+    'test/fixtures/voe_payload_packed_js.html',
+  ).readAsStringSync();
 
   test('supports voe hosts with /e/ path', () {
     final plugin = VoeResolverPlugin();
@@ -139,6 +145,27 @@ void main() {
     );
   });
 
+  test('extracts stream from source tag payload', () async {
+    final plugin = VoeResolverPlugin(
+      httpClient: MockClient((_) async => http.Response(sourceTagFixture, 200)),
+    );
+
+    final result = await plugin.resolve(Uri.parse('https://voe.sx/e/abcd1234'));
+
+    expect(result.isSuccess, isTrue);
+    result.fold(
+      onFailure: (_) => fail('expected success'),
+      onSuccess: (streams) {
+        expect(streams, hasLength(1));
+        expect(
+          streams.single.url.toString(),
+          contains('/video/source-123.mp4'),
+        );
+        expect(streams.single.isHls, isFalse);
+      },
+    );
+  });
+
   test('extracts stream from base64 embedded payload', () async {
     final plugin = VoeResolverPlugin(
       httpClient: MockClient(
@@ -155,6 +182,30 @@ void main() {
         expect(streams, hasLength(1));
         expect(streams.single.isHls, isTrue);
         expect(streams.single.url.toString(), contains('/hls/abc/master.m3u8'));
+      },
+    );
+  });
+
+  test('extracts stream from packed javascript payload', () async {
+    final plugin = VoeResolverPlugin(
+      httpClient: MockClient((_) async => http.Response(packedJsFixture, 200)),
+    );
+
+    final result = await plugin.resolve(Uri.parse('https://voe.sx/e/abcd1234'));
+
+    expect(result.isSuccess, isTrue);
+    result.fold(
+      onFailure: (_) => fail('expected success'),
+      onSuccess: (streams) {
+        expect(streams, isNotEmpty);
+        expect(
+          streams.any(
+            (stream) =>
+                stream.url.toString().contains('/hls/packed/master.m3u8'),
+          ),
+          isTrue,
+        );
+        expect(streams.where((stream) => stream.isHls), isNotEmpty);
       },
     );
   });
@@ -255,6 +306,34 @@ void main() {
       onFailure: (error) {
         expect(error.kind, KumoriyaErrorKind.transport);
         expect(error.code, 'resolver.voe.transport');
+      },
+      onSuccess: (_) => fail('expected failure'),
+    );
+  });
+
+  test('returns redirect limit error on recursive redirect loop', () async {
+    final plugin = VoeResolverPlugin(
+      httpClient: MockClient((request) async {
+        if (request.url.path.contains('/loop-a')) {
+          return http.Response(
+            '<script>window.location.href="https://voe.sx/e/loop-b"</script>',
+            200,
+          );
+        }
+        return http.Response(
+          '<script>window.location.href="https://voe.sx/e/loop-a"</script>',
+          200,
+        );
+      }),
+    );
+
+    final result = await plugin.resolve(Uri.parse('https://voe.sx/e/loop-a'));
+
+    expect(result.isFailure, isTrue);
+    result.fold(
+      onFailure: (error) {
+        expect(error.kind, KumoriyaErrorKind.mapping);
+        expect(error.code, 'resolver.voe.redirect_limit');
       },
       onSuccess: (_) => fail('expected failure'),
     );
