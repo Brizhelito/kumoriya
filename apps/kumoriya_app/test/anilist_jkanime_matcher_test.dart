@@ -59,6 +59,7 @@ void main() {
     );
 
     expect(decision.verdict, isFalse);
+    expect(decision.rejectionSignals, contains('title-mismatch'));
   });
 
   test('year conflict rejects near match', () {
@@ -109,6 +110,43 @@ void main() {
 
     expect(decision.verdict, isFalse);
     expect(decision.reason, contains('No JKAnime candidates'));
+  });
+
+  test('format conflict is rejected even with exact title', () {
+    final decision = matcher.decideMatch(
+      anilistDetail: _anilistDetail(
+        title: const AnimeTitle(romaji: 'Suzume no Tojimari'),
+        format: AnimeFormat.movie,
+      ),
+      candidates: const <SourceAnimeMatch>[
+        SourceAnimeMatch(
+          sourceId: 'suzume-no-tojimari',
+          title: 'Suzume no Tojimari',
+          format: AnimeFormat.tv,
+        ),
+      ],
+    );
+
+    expect(decision.verdict, isFalse);
+    expect(decision.rejectionSignals, contains('conflict-format'));
+  });
+
+  test('weak token overlap is rejected for safety', () {
+    final decision = matcher.decideMatch(
+      anilistDetail: _anilistDetail(
+        title: const AnimeTitle(romaji: 'Boku no Hero Academia'),
+      ),
+      candidates: const <SourceAnimeMatch>[
+        SourceAnimeMatch(
+          sourceId: 'hero',
+          title: 'Hero',
+          format: AnimeFormat.tv,
+        ),
+      ],
+    );
+
+    expect(decision.verdict, isFalse);
+    expect(decision.rejectionSignals, contains('title-mismatch'));
   });
 }
 

@@ -34,14 +34,13 @@ final class AnilistJkanimeMatcher {
           ..sort((a, b) => b.score.compareTo(a.score));
 
     final best = scored.first;
-    final hasConflict = best.decision.rejectionSignals.any(
+    final hasConflicts = best.decision.rejectionSignals.any(
       (signal) => signal.startsWith('conflict-'),
     );
 
-    final hasAmbiguousTie =
-        scored.length > 1 && (best.score - scored[1].score).abs() < 5;
-
-    if (hasAmbiguousTie) {
+    final secondScore = scored.length > 1 ? scored[1].score : -999;
+    final ambiguousTop = (best.score - secondScore).abs() < 8;
+    if (ambiguousTop) {
       return SourceMatchDecision(
         verdict: false,
         confidence: MatchConfidence.low,
@@ -54,7 +53,12 @@ final class AnilistJkanimeMatcher {
       );
     }
 
-    if (best.decision.confidence == MatchConfidence.high && !hasConflict) {
+    final canAccept =
+        best.decision.confidence == MatchConfidence.high &&
+        best.decision.acceptanceSignals.contains('exact-title') &&
+        !hasConflicts;
+
+    if (canAccept) {
       return best.decision;
     }
 
@@ -80,22 +84,36 @@ final class AnilistJkanimeMatcher {
     final rejectionSignals = <String>[];
 
     final normalizedCandidateTitle = _normalize(candidate.title);
+    if (normalizedCandidateTitle.isEmpty) {
+      return const _ScoredDecision(
+        score: -100,
+        decision: SourceMatchDecision(
+          verdict: false,
+          confidence: MatchConfidence.low,
+          reason: 'Candidate title could not be normalized.',
+          acceptanceSignals: <String>[],
+          rejectionSignals: <String>['empty-normalized-title'],
+        ),
+      );
+    }
 
     final exactTitle = canonicalTitles.contains(normalizedCandidateTitle);
     if (exactTitle) {
-      score += 100;
+      score += 120;
       acceptanceSignals.add('exact-title');
     } else {
-      final partial = canonicalTitles.any(
-        (title) =>
-            title.length >= 8 &&
-            (normalizedCandidateTitle.contains(title) ||
-                title.contains(normalizedCandidateTitle)),
+      final tokenOverlap = _maxTokenOverlap(
+        normalizedCandidateTitle,
+        canonicalTitles,
       );
-
-      if (partial) {
-        score += 25;
-        acceptanceSignals.add('partial-title');
+      if (tokenOverlap >= 0.90) {
+        score += 35;
+        acceptanceSignals.add('token-overlap-high');
+      } else if (tokenOverlap >= 0.75) {
+        score += 10;
+        rejectionSignals.add('weak-token-overlap');
+      } else {
+        rejectionSignals.add('title-mismatch');
       }
     }
 
@@ -104,10 +122,10 @@ final class AnilistJkanimeMatcher {
     if (candidateFormat != AnimeFormat.unknown &&
         anilistFormat != AnimeFormat.unknown) {
       if (candidateFormat == anilistFormat) {
-        score += 10;
+        score += 12;
         acceptanceSignals.add('format-match');
       } else {
-        score -= 15;
+        score -= 25;
         rejectionSignals.add('conflict-format');
       }
     }
@@ -116,10 +134,10 @@ final class AnilistJkanimeMatcher {
     final anilistYear = anilistDetail.anime.releaseYear;
     if (candidateYear != null && anilistYear != null) {
       if (candidateYear == anilistYear) {
-        score += 8;
+        score += 10;
         acceptanceSignals.add('year-match');
       } else {
-        score -= 20;
+        score -= 30;
         rejectionSignals.add('conflict-year');
       }
     }
@@ -148,11 +166,9 @@ final class AnilistJkanimeMatcher {
     if (exactTitle && score >= 90) {
       return MatchConfidence.high;
     }
-
-    if (score >= 60) {
+    if (score >= 70) {
       return MatchConfidence.medium;
     }
-
     return MatchConfidence.low;
   }
 
@@ -167,13 +183,65 @@ final class AnilistJkanimeMatcher {
     return values.map(_normalize).where((value) => value.isNotEmpty).toSet();
   }
 
+  double _maxTokenOverlap(String candidate, Set<String> canonicalTitles) {
+    final candidateTokens = _tokenize(candidate);
+    if (candidateTokens.isEmpty) {
+      return 0;
+    }
+
+    var maxOverlap = 0.0;
+    for (final canonical in canonicalTitles) {
+      final canonicalTokens = _tokenize(canonical);
+      if (canonicalTokens.isEmpty) {
+        continue;
+      }
+
+      final intersection = candidateTokens.intersection(canonicalTokens).length;
+      final union = candidateTokens.union(canonicalTokens).length;
+      final overlap = union == 0 ? 0.0 : intersection / union;
+      if (overlap > maxOverlap) {
+        maxOverlap = overlap;
+      }
+    }
+
+    return maxOverlap;
+  }
+
+  Set<String> _tokenize(String text) {
+    final parts = text.split(' ');
+    return parts.where((part) => part.isNotEmpty).toSet();
+  }
+
   String _normalize(String input) {
     final lower = _stripDiacritics(input.toLowerCase());
-    return lower
-        .replaceAll(RegExp(r'[-_/.:]+'), ' ')
-        .replaceAll(RegExp(r'[^a-z0-9\s]+'), ' ')
-        .replaceAll(RegExp(r'\s+'), ' ')
-        .trim();
+    final normalizedSeparators = lower
+        .replaceAll('-', ' ')
+        .replaceAll('_', ' ')
+        .replaceAll('/', ' ')
+        .replaceAll(':', ' ')
+        .replaceAll('.', ' ');
+
+    final builder = StringBuffer();
+    var previousWasSpace = false;
+
+    for (final codeUnit in normalizedSeparators.codeUnits) {
+      final isLetter = codeUnit >= 97 && codeUnit <= 122;
+      final isDigit = codeUnit >= 48 && codeUnit <= 57;
+      final isSpace = codeUnit == 32;
+
+      if (isLetter || isDigit) {
+        builder.writeCharCode(codeUnit);
+        previousWasSpace = false;
+        continue;
+      }
+
+      if (isSpace && !previousWasSpace) {
+        builder.write(' ');
+        previousWasSpace = true;
+      }
+    }
+
+    return builder.toString().trim();
   }
 
   String _stripDiacritics(String value) {
