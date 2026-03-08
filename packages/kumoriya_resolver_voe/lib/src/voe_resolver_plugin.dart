@@ -122,11 +122,13 @@ final class VoeResolverPlugin implements ResolverPlugin {
           .toList(growable: false);
 
       if (streams.isEmpty) {
+        final tokenGated = _isTokenGatedPayload(extractionPayload);
         final hasStreamHints = _hasStreamHints(extractionPayload);
-        if (hasStreamHints) {
+        if (hasStreamHints || tokenGated) {
           return const Failure(
             VoeInconsistentPayloadError(
-              message: 'VOE payload has stream hints but no valid stream URLs.',
+              message:
+                  'VOE payload has stream hints/token flow but no valid stream URLs.',
             ),
           );
         }
@@ -203,7 +205,7 @@ List<Uri> _extractStreams(String payload, Uri resolverUrl) {
   final rawCandidates = <String>{};
 
   final keyedPattern = RegExp(
-    r'''(?:hls|file|src|source)\s*[:=]\s*(?:"([^"]+)"|'([^']+)')''',
+    r'''(?:hls|file|src|source|url)\s*[:=]\s*(?:"([^"]+)"|'([^']+)')''',
     caseSensitive: false,
     multiLine: true,
   );
@@ -226,22 +228,85 @@ List<Uri> _extractStreams(String payload, Uri resolverUrl) {
     }
   }
 
+  rawCandidates.addAll(_extractBase64EmbeddedCandidates(normalized));
+
   final streams = <Uri>[];
   final seen = <String>{};
 
   for (final raw in rawCandidates) {
-    final uri = _toAbsoluteUri(raw, resolverUrl);
-    if (uri == null || !_isPlayableUri(uri) || _isKnownPlaceholderUri(uri)) {
-      continue;
+    final expandedCandidates = <String>{raw};
+    if (raw.contains('%')) {
+      expandedCandidates.add(Uri.decodeFull(raw));
     }
 
-    final key = uri.toString();
-    if (seen.add(key)) {
-      streams.add(uri);
+    for (final expanded in expandedCandidates) {
+      final uri = _toAbsoluteUri(expanded, resolverUrl);
+      if (uri == null || !_isPlayableUri(uri) || _isKnownPlaceholderUri(uri)) {
+        continue;
+      }
+
+      final key = uri.toString();
+      if (seen.add(key)) {
+        streams.add(uri);
+      }
     }
   }
 
   return streams;
+}
+
+Set<String> _extractBase64EmbeddedCandidates(String payload) {
+  final candidates = <String>{};
+  final encodedPattern = RegExp(
+    r'''["']([A-Za-z0-9+/=]{24,})["']''',
+    caseSensitive: false,
+    multiLine: true,
+  );
+
+  for (final match in encodedPattern.allMatches(payload)) {
+    final encoded = match.group(1);
+    if (encoded == null || encoded.isEmpty) {
+      continue;
+    }
+
+    final decoded = _tryDecodeBase64(encoded);
+    if (decoded == null || decoded.isEmpty) {
+      continue;
+    }
+
+    final normalizedDecoded = decoded
+        .replaceAll(r'\/', '/')
+        .replaceAll('&amp;', '&')
+        .replaceAll(r'\u0026', '&')
+        .replaceAll(r'\x2F', '/');
+
+    final directUrlPattern = RegExp(
+      r'''https?:\/\/[\w\-._~:/?#\[\]@!$&'()*+,;=%]+''',
+      caseSensitive: false,
+      multiLine: true,
+    );
+    for (final directMatch in directUrlPattern.allMatches(normalizedDecoded)) {
+      final value = directMatch.group(0);
+      if (value != null && value.trim().isNotEmpty) {
+        candidates.add(_cleanCandidate(value));
+      }
+    }
+  }
+
+  return candidates;
+}
+
+String? _tryDecodeBase64(String encoded) {
+  try {
+    final decoded = Uri.decodeFull(encoded);
+    final bytes = UriData.parse('data:;base64,$decoded').contentAsBytes();
+    if (bytes.isEmpty) {
+      return null;
+    }
+    return String.fromCharCodes(bytes);
+  } catch (_) {
+    return null;
+  }
 }
 
 Uri? _toAbsoluteUri(String raw, Uri baseUri) {
@@ -286,6 +351,7 @@ bool _isPlayableUri(Uri uri) {
   return value.contains('.m3u8') ||
       value.contains('.mp4') ||
       value.contains('/hls/') ||
+      value.contains('/api/video/') ||
       value.contains('master.m3u8');
 }
 
@@ -305,7 +371,15 @@ bool _isKnownPlaceholderUri(Uri uri) {
 
 bool _hasStreamHints(String payload) {
   return RegExp(
-    r'''(hls|source|sources|master\.m3u8|\.mp4)''',
+    r'''(hls|source|sources|master\.m3u8|\.mp4|api\/video)''',
+    caseSensitive: false,
+    multiLine: true,
+  ).hasMatch(payload);
+}
+
+bool _isTokenGatedPayload(String payload) {
+  return RegExp(
+    r'''(api2\/session\/generate-token|session\/sync\?|guestMode|permanentToken)''',
     caseSensitive: false,
     multiLine: true,
   ).hasMatch(payload);
