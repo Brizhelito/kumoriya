@@ -78,6 +78,15 @@ class ErrorStateView extends StatelessWidget {
 
 String mapErrorMessage(BuildContext context, KumoriyaError error) {
   if (error.code.startsWith('jkanime.')) {
+    switch (error.code) {
+      case 'jkanime.parse':
+        return context.l10n.errorJkanimeParse;
+      case 'jkanime.inconsistent':
+        return context.l10n.errorJkanimeInconsistent;
+      case 'jkanime.empty':
+        return context.l10n.errorJkanimeEmpty;
+    }
+
     switch (error.kind) {
       case KumoriyaErrorKind.transport:
         return context.l10n.errorTransportSource;

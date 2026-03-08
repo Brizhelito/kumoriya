@@ -170,6 +170,24 @@ abstract class AppLocalizations {
   /// **'Unexpected source error while loading data.'**
   String get errorUnexpectedSource;
 
+  /// No description provided for @errorJkanimeParse.
+  ///
+  /// In en, this message translates to:
+  /// **'JKAnime page structure changed and links could not be parsed safely.'**
+  String get errorJkanimeParse;
+
+  /// No description provided for @errorJkanimeInconsistent.
+  ///
+  /// In en, this message translates to:
+  /// **'JKAnime returned inconsistent server data for this episode.'**
+  String get errorJkanimeInconsistent;
+
+  /// No description provided for @errorJkanimeEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'JKAnime has no data for this item right now.'**
+  String get errorJkanimeEmpty;
+
   /// No description provided for @homeLoadingCatalog.
   ///
   /// In en, this message translates to:

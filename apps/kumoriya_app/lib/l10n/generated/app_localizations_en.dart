@@ -54,6 +54,18 @@ class AppLocalizationsEn extends AppLocalizations {
       'Unexpected source error while loading data.';
 
   @override
+  String get errorJkanimeParse =>
+      'JKAnime page structure changed and links could not be parsed safely.';
+
+  @override
+  String get errorJkanimeInconsistent =>
+      'JKAnime returned inconsistent server data for this episode.';
+
+  @override
+  String get errorJkanimeEmpty =>
+      'JKAnime has no data for this item right now.';
+
+  @override
   String get homeLoadingCatalog => 'Loading home catalog...';
 
   @override

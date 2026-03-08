@@ -54,6 +54,18 @@ class AppLocalizationsEs extends AppLocalizations {
       'Error inesperado en la fuente al cargar datos.';
 
   @override
+  String get errorJkanimeParse =>
+      'La estructura de JKAnime cambio y no se pudieron interpretar los links de forma segura.';
+
+  @override
+  String get errorJkanimeInconsistent =>
+      'JKAnime devolvio datos de servidores inconsistentes para este episodio.';
+
+  @override
+  String get errorJkanimeEmpty =>
+      'JKAnime no tiene datos para este item en este momento.';
+
+  @override
   String get homeLoadingCatalog => 'Cargando catalogo principal...';
 
   @override
