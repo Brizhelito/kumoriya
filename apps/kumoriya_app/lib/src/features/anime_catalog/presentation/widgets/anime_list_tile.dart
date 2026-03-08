@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:kumoriya_domain/kumoriya_domain.dart';
 
+import '../../../../app/l10n.dart';
+
 class AnimeListTile extends StatelessWidget {
   const AnimeListTile({super.key, required this.anime, required this.onTap});
 
@@ -19,8 +21,9 @@ class AnimeListTile extends StatelessWidget {
           [
             anime.format.name.toUpperCase(),
             if (anime.releaseYear != null) anime.releaseYear.toString(),
-            if (anime.totalEpisodes != null) '${anime.totalEpisodes} eps',
-          ].join(' • '),
+            if (anime.totalEpisodes != null)
+              context.l10n.animeListEpisodesShort(anime.totalEpisodes!),
+          ].join(' | '),
         ),
         trailing: const Icon(Icons.chevron_right),
         onTap: onTap,

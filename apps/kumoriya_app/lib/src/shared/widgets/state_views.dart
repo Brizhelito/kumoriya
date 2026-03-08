@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:kumoriya_core/kumoriya_core.dart';
 
-class LoadingStateView extends StatelessWidget {
-  const LoadingStateView({super.key, this.label = 'Loading...'});
+import '../../app/l10n.dart';
 
-  final String label;
+class LoadingStateView extends StatelessWidget {
+  const LoadingStateView({super.key, this.label});
+
+  final String? label;
 
   @override
   Widget build(BuildContext context) {
@@ -14,7 +16,7 @@ class LoadingStateView extends StatelessWidget {
         children: <Widget>[
           const CircularProgressIndicator(),
           const SizedBox(height: 12),
-          Text(label),
+          Text(label ?? context.l10n.loadingGeneric),
         ],
       ),
     );
@@ -65,7 +67,7 @@ class ErrorStateView extends StatelessWidget {
               FilledButton.icon(
                 onPressed: onRetry,
                 icon: const Icon(Icons.refresh),
-                label: const Text('Retry'),
+                label: Text(context.l10n.retry),
               ),
           ],
         ),
@@ -74,15 +76,15 @@ class ErrorStateView extends StatelessWidget {
   }
 }
 
-String mapErrorMessage(KumoriyaError error) {
+String mapErrorMessage(BuildContext context, KumoriyaError error) {
   switch (error.kind) {
     case KumoriyaErrorKind.transport:
-      return 'Could not reach AniList. Check your connection and retry.';
+      return context.l10n.errorTransportAnilist;
     case KumoriyaErrorKind.mapping:
-      return 'AniList returned data we could not parse safely.';
+      return context.l10n.errorMappingAnilist;
     case KumoriyaErrorKind.notFound:
-      return 'Anime not found in AniList.';
+      return context.l10n.errorNotFoundAnilist;
     case KumoriyaErrorKind.unexpected:
-      return 'Unexpected error while loading AniList data.';
+      return context.l10n.errorUnexpectedAnilist;
   }
 }

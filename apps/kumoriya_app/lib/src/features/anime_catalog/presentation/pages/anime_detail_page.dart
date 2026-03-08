@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kumoriya_core/kumoriya_core.dart';
 import 'package:kumoriya_domain/kumoriya_domain.dart';
 
+import '../../../../app/l10n.dart';
 import '../../../../shared/widgets/state_views.dart';
 import '../../application/models/source_availability.dart';
 import '../providers/anime_catalog_providers.dart';
@@ -20,16 +21,16 @@ class AnimeDetailPage extends ConsumerWidget {
     final availabilityState = ref.watch(jkanimeAvailabilityProvider(anilistId));
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Anime detail')),
+      appBar: AppBar(title: Text(context.l10n.animeDetailTitle)),
       body: detailState.when(
-        loading: () => const LoadingStateView(label: 'Loading anime detail...'),
+        loading: () => LoadingStateView(label: context.l10n.animeDetailLoading),
         error: (error, _) => ErrorStateView(
-          message: 'Unexpected state error: $error',
+          message: context.l10n.unexpectedStateError(error.toString()),
           onRetry: () => ref.invalidate(animeDetailProvider(anilistId)),
         ),
         data: (result) => result.fold(
           onFailure: (error) => ErrorStateView(
-            message: mapErrorMessage(error),
+            message: mapErrorMessage(context, error),
             onRetry: () => ref.invalidate(animeDetailProvider(anilistId)),
           ),
           onSuccess: (detail) => _AnimeDetailContent(
@@ -78,7 +79,8 @@ class _AnimeDetailContent extends StatelessWidget {
           [
             anime.format.name.toUpperCase(),
             anime.status.name.toUpperCase(),
-            if (anime.totalEpisodes != null) '${anime.totalEpisodes} episodes',
+            if (anime.totalEpisodes != null)
+              '${anime.totalEpisodes} ${context.l10n.episodesWord}',
           ].join(' | '),
         ),
         if (detail.synopsis != null && detail.synopsis!.isNotEmpty) ...<Widget>[
@@ -108,7 +110,7 @@ class _AnimeDetailContent extends StatelessWidget {
             );
           },
           icon: const Icon(Icons.playlist_play),
-          label: const Text('View episode list'),
+          label: Text(context.l10n.viewEpisodeList),
         ),
         const SizedBox(height: 20),
         _JkAnimeAvailabilityCard(
@@ -118,7 +120,7 @@ class _AnimeDetailContent extends StatelessWidget {
         if (detail.episodes.isNotEmpty) ...<Widget>[
           const SizedBox(height: 20),
           Text(
-            'Episode preview',
+            context.l10n.episodePreviewTitle,
             style: Theme.of(context).textTheme.titleMedium,
           ),
           const SizedBox(height: 8),
@@ -128,7 +130,9 @@ class _AnimeDetailContent extends StatelessWidget {
               contentPadding: EdgeInsets.zero,
               title: Text('${episode.number.toInt()}. ${episode.title}'),
               subtitle: Text(
-                episode.isAired ? 'Aired' : 'Upcoming',
+                episode.isAired
+                    ? context.l10n.episodeStatusAired
+                    : context.l10n.episodeStatusUpcoming,
                 style: TextStyle(
                   color: episode.isAired ? Colors.green : Colors.orange,
                 ),
@@ -138,7 +142,10 @@ class _AnimeDetailContent extends StatelessWidget {
         ],
         if (detail.relations.isNotEmpty) ...<Widget>[
           const SizedBox(height: 20),
-          Text('Relations', style: Theme.of(context).textTheme.titleMedium),
+          Text(
+            context.l10n.relationsTitle,
+            style: Theme.of(context).textTheme.titleMedium,
+          ),
           const SizedBox(height: 8),
           ...detail.relations.take(6).map((relation) {
             return ListTile(
@@ -169,31 +176,32 @@ class _JkAnimeAvailabilityCard extends ConsumerWidget {
       child: Padding(
         padding: const EdgeInsets.all(12),
         child: availabilityState.when(
-          loading: () => const _AvailabilityStatusTile(
-            title: 'JKAnime availability',
-            subtitle: 'Checking availability in JKAnime...',
+          loading: () => _AvailabilityStatusTile(
+            title: context.l10n.jkanimeAvailabilityTitle,
+            subtitle: context.l10n.jkanimeChecking,
             icon: Icons.sync,
             iconColor: Colors.blue,
           ),
           error: (error, _) => _AvailabilityStatusTile(
-            title: 'JKAnime availability',
-            subtitle: 'Error consulting JKAnime: $error',
+            title: context.l10n.jkanimeAvailabilityTitle,
+            subtitle: context.l10n.jkanimeErrorConsulting(error.toString()),
             icon: Icons.error_outline,
             iconColor: Colors.red,
           ),
           data: (result) => result.fold(
             onFailure: (error) => _AvailabilityStatusTile(
-              title: 'JKAnime availability',
-              subtitle: mapErrorMessage(error),
+              title: context.l10n.jkanimeAvailabilityTitle,
+              subtitle: mapErrorMessage(context, error),
               icon: Icons.error_outline,
               iconColor: Colors.red,
             ),
             onSuccess: (availability) {
               if (availability.status == SourceAvailabilityStatus.unavailable) {
                 return _AvailabilityStatusTile(
-                  title: 'JKAnime availability',
-                  subtitle:
-                      'Not available in JKAnime (${availability.decision.reason})',
+                  title: context.l10n.jkanimeAvailabilityTitle,
+                  subtitle: context.l10n.jkanimeNotAvailable(
+                    availability.decision.reason,
+                  ),
                   icon: Icons.remove_circle_outline,
                   iconColor: Colors.orange,
                 );
@@ -202,14 +210,18 @@ class _JkAnimeAvailabilityCard extends ConsumerWidget {
               return Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: <Widget>[
-                  const _AvailabilityStatusTile(
-                    title: 'JKAnime availability',
-                    subtitle: 'Available in JKAnime',
+                  _AvailabilityStatusTile(
+                    title: context.l10n.jkanimeAvailabilityTitle,
+                    subtitle: context.l10n.jkanimeAvailable,
                     icon: Icons.check_circle_outline,
                     iconColor: Colors.green,
                   ),
                   const SizedBox(height: 8),
-                  Text('Real episodes found: ${availability.episodes.length}'),
+                  Text(
+                    context.l10n.jkanimeRealEpisodesFound(
+                      availability.episodes.length,
+                    ),
+                  ),
                   if (availability.episodes.isNotEmpty) ...<Widget>[
                     const SizedBox(height: 8),
                     ...availability.episodes.take(3).map((episode) {
@@ -231,7 +243,7 @@ class _JkAnimeAvailabilityCard extends ConsumerWidget {
                         );
                       },
                       icon: const Icon(Icons.list_alt),
-                      label: const Text('View real JKAnime episodes'),
+                      label: Text(context.l10n.jkanimeViewRealEpisodes),
                     ),
                   ],
                 ],

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:kumoriya_plugins/kumoriya_plugins.dart';
 
+import '../../../../app/l10n.dart';
+
 class JkAnimeEpisodeListPage extends StatelessWidget {
   const JkAnimeEpisodeListPage({
     super.key,
@@ -14,7 +16,9 @@ class JkAnimeEpisodeListPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text('JKAnime episodes • $animeTitle')),
+      appBar: AppBar(
+        title: Text(context.l10n.jkanimeEpisodesTitle(animeTitle)),
+      ),
       body: ListView.separated(
         itemCount: episodes.length,
         separatorBuilder: (_, _) => const Divider(height: 1),

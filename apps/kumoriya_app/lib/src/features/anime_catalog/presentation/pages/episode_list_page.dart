@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../app/l10n.dart';
 import '../../../../shared/widgets/state_views.dart';
 import '../providers/anime_catalog_providers.dart';
 
@@ -19,23 +20,21 @@ class EpisodeListPage extends ConsumerWidget {
     final episodesState = ref.watch(animeEpisodesProvider(anilistId));
 
     return Scaffold(
-      appBar: AppBar(title: Text('$animeTitle episodes')),
+      appBar: AppBar(title: Text(context.l10n.episodeListTitle(animeTitle))),
       body: episodesState.when(
-        loading: () => const LoadingStateView(label: 'Loading episodes...'),
+        loading: () => LoadingStateView(label: context.l10n.episodeListLoading),
         error: (error, _) => ErrorStateView(
-          message: 'Unexpected state error: $error',
+          message: context.l10n.unexpectedStateError(error.toString()),
           onRetry: () => ref.invalidate(animeEpisodesProvider(anilistId)),
         ),
         data: (result) => result.fold(
           onFailure: (error) => ErrorStateView(
-            message: mapErrorMessage(error),
+            message: mapErrorMessage(context, error),
             onRetry: () => ref.invalidate(animeEpisodesProvider(anilistId)),
           ),
           onSuccess: (episodes) {
             if (episodes.isEmpty) {
-              return const EmptyStateView(
-                message: 'AniList has no episode metadata for this anime yet.',
-              );
+              return EmptyStateView(message: context.l10n.episodeListEmpty);
             }
 
             return ListView.separated(
@@ -46,7 +45,9 @@ class EpisodeListPage extends ConsumerWidget {
                 return ListTile(
                   title: Text('${episode.number.toInt()}. ${episode.title}'),
                   subtitle: Text(
-                    episode.isAired ? 'Aired metadata' : 'Upcoming metadata',
+                    episode.isAired
+                        ? context.l10n.episodeMetadataAired
+                        : context.l10n.episodeMetadataUpcoming,
                     style: TextStyle(
                       color: episode.isAired ? Colors.green : Colors.orange,
                     ),

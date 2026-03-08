@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kumoriya_domain/kumoriya_domain.dart';
 
+import '../../../../app/l10n.dart';
 import '../../../../shared/widgets/state_views.dart';
 import '../providers/anime_catalog_providers.dart';
 import '../widgets/anime_list_tile.dart';
@@ -17,7 +18,7 @@ class HomePage extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Kumoriya'),
+        title: Text(context.l10n.appTitle),
         actions: <Widget>[
           IconButton(
             onPressed: () {
@@ -30,14 +31,14 @@ class HomePage extends ConsumerWidget {
         ],
       ),
       body: homeCatalog.when(
-        loading: () => const LoadingStateView(label: 'Loading home catalog...'),
+        loading: () => LoadingStateView(label: context.l10n.homeLoadingCatalog),
         error: (error, _) => ErrorStateView(
-          message: 'Unexpected state error: $error',
+          message: context.l10n.unexpectedStateError(error.toString()),
           onRetry: () => ref.invalidate(homeCatalogProvider),
         ),
         data: (result) => result.fold(
           onFailure: (error) => ErrorStateView(
-            message: mapErrorMessage(error),
+            message: mapErrorMessage(context, error),
             onRetry: () => ref.invalidate(homeCatalogProvider),
           ),
           onSuccess: (animeList) => _HomeCatalogList(animeList: animeList),
@@ -55,9 +56,7 @@ class _HomeCatalogList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (animeList.isEmpty) {
-      return const EmptyStateView(
-        message: 'No trending anime found in AniList right now.',
-      );
+      return EmptyStateView(message: context.l10n.homeEmptyCatalog);
     }
 
     return ListView.builder(

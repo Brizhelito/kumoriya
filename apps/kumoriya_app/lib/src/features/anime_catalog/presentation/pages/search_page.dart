@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kumoriya_domain/kumoriya_domain.dart';
 
+import '../../../../app/l10n.dart';
 import '../../../../shared/widgets/state_views.dart';
 import '../providers/anime_catalog_providers.dart';
 import '../widgets/anime_list_tile.dart';
@@ -29,14 +30,14 @@ class _SearchPageState extends ConsumerState<SearchPage> {
     final searchState = ref.watch(searchCatalogProvider(_activeQuery));
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Search AniList')),
+      appBar: AppBar(title: Text(context.l10n.searchTitle)),
       body: Column(
         children: <Widget>[
           Padding(
             padding: const EdgeInsets.all(12),
             child: SearchBar(
               controller: _controller,
-              hintText: 'Search anime title',
+              hintText: context.l10n.searchHintTitle,
               onSubmitted: (value) {
                 setState(() {
                   _activeQuery = value.trim();
@@ -56,20 +57,20 @@ class _SearchPageState extends ConsumerState<SearchPage> {
           ),
           Expanded(
             child: _activeQuery.isEmpty
-                ? const EmptyStateView(
-                    message: 'Type a title and tap search to query AniList.',
-                  )
+                ? EmptyStateView(message: context.l10n.searchEmptyPrompt)
                 : searchState.when(
                     loading: () =>
-                        const LoadingStateView(label: 'Searching AniList...'),
+                        LoadingStateView(label: context.l10n.searchLoading),
                     error: (error, _) => ErrorStateView(
-                      message: 'Unexpected state error: $error',
+                      message: context.l10n.unexpectedStateError(
+                        error.toString(),
+                      ),
                       onRetry: () =>
                           ref.invalidate(searchCatalogProvider(_activeQuery)),
                     ),
                     data: (result) => result.fold(
                       onFailure: (error) => ErrorStateView(
-                        message: mapErrorMessage(error),
+                        message: mapErrorMessage(context, error),
                         onRetry: () =>
                             ref.invalidate(searchCatalogProvider(_activeQuery)),
                       ),
@@ -95,7 +96,7 @@ class _SearchResultsList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (animeList.isEmpty) {
-      return EmptyStateView(message: 'No AniList results found for "$query".');
+      return EmptyStateView(message: context.l10n.searchNoResults(query));
     }
 
     return ListView.builder(
