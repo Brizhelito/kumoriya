@@ -16,6 +16,12 @@ void main() {
   final episodesFixture = File(
     'test/fixtures/jkanime_episodes_page1_naruto.json',
   ).readAsStringSync();
+  final serverLinksFixture = File(
+    'test/fixtures/jkanime_episode_server_links_page.html',
+  ).readAsStringSync();
+  final serverLinksEmptyFixture = File(
+    'test/fixtures/jkanime_episode_server_links_empty.html',
+  ).readAsStringSync();
 
   test('search parses JKAnime cards into source matches', () async {
     final plugin = JkAnimeSourcePlugin(
@@ -96,4 +102,59 @@ void main() {
       },
     );
   });
+
+  test('getEpisodeServerLinks parses server links from episode page', () async {
+    final plugin = JkAnimeSourcePlugin(
+      httpClient: MockClient((request) async {
+        expect(request.method, 'GET');
+        expect(request.url.path, '/naruto/1/');
+        return http.Response(serverLinksFixture, 200);
+      }),
+    );
+
+    final episode = SourceEpisode(
+      sourceEpisodeId: '1',
+      number: 1,
+      title: 'Episode 1',
+      episodeUrl: Uri.parse('https://jkanime.net/naruto/1/'),
+    );
+
+    final result = await plugin.getEpisodeServerLinks(episode);
+
+    expect(result.isSuccess, isTrue);
+    result.fold(
+      onFailure: (_) => fail('expected success'),
+      onSuccess: (links) {
+        expect(links, hasLength(2));
+        expect(links.first.serverName, 'Desu');
+        expect(links.first.initialUrl.toString(), contains('/jkplayer/um?'));
+      },
+    );
+  });
+
+  test(
+    'getEpisodeServerLinks returns empty list when no servers exist',
+    () async {
+      final plugin = JkAnimeSourcePlugin(
+        httpClient: MockClient((request) async {
+          expect(request.url.path, '/naruto/2/');
+          return http.Response(serverLinksEmptyFixture, 200);
+        }),
+      );
+
+      final episode = SourceEpisode(
+        sourceEpisodeId: '2',
+        number: 2,
+        title: 'Episode 2',
+        episodeUrl: Uri.parse('https://jkanime.net/naruto/2/'),
+      );
+
+      final result = await plugin.getEpisodeServerLinks(episode);
+      expect(result.isSuccess, isTrue);
+      result.fold(
+        onFailure: (_) => fail('expected success'),
+        onSuccess: (links) => expect(links, isEmpty),
+      );
+    },
+  );
 }

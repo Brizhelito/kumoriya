@@ -205,6 +205,32 @@ final class JkAnimeSourcePlugin implements SourcePlugin {
     );
   }
 
+  @override
+  Future<Result<List<SourceServerLink>, KumoriyaError>> getEpisodeServerLinks(
+    SourceEpisode episode,
+  ) async {
+    final episodePath = episode.episodeUrl.path.startsWith('/')
+        ? episode.episodeUrl.path.substring(1)
+        : episode.episodeUrl.path;
+    final htmlResult = await _fetchHtml(episodePath);
+
+    return htmlResult.fold(
+      onFailure: Failure.new,
+      onSuccess: (html) {
+        try {
+          final links = _extractServerLinksFromEpisodeHtml(html);
+          return Success(links);
+        } catch (error) {
+          return Failure(
+            JkAnimeParseError(
+              message: 'Failed to parse JKAnime episode server links: $error',
+            ),
+          );
+        }
+      },
+    );
+  }
+
   Future<Result<String, KumoriyaError>> _fetchHtml(String path) async {
     final uri = _baseUri.resolve(path);
     try {
@@ -468,6 +494,85 @@ final class JkAnimeSourcePlugin implements SourcePlugin {
     }
 
     return Uri.tryParse(raw.trim());
+  }
+
+  List<SourceServerLink> _extractServerLinksFromEpisodeHtml(String html) {
+    final document = html_parser.parse(html);
+    final serverButtons = document.querySelectorAll('.bg-servers .servers');
+
+    final videoPattern = RegExp(
+      r'''video\[(\d+)\]\s*=\s*'<iframe[^>]*src="([^"]+)"''',
+      multiLine: true,
+    );
+    final videoByIndex = <int, Uri>{};
+
+    for (final match in videoPattern.allMatches(html)) {
+      final rawIndex = match.group(1);
+      final rawUrl = match.group(2);
+      if (rawIndex == null || rawUrl == null) {
+        continue;
+      }
+
+      final index = int.tryParse(rawIndex);
+      final uri = Uri.tryParse(rawUrl);
+      if (index == null || uri == null) {
+        continue;
+      }
+
+      videoByIndex[index] = uri;
+    }
+
+    if (serverButtons.isEmpty) {
+      return const <SourceServerLink>[];
+    }
+
+    final links = <SourceServerLink>[];
+    for (final button in serverButtons) {
+      final idAttr = button.attributes['data-id']?.trim();
+      final serverName = button.text.trim();
+      if (idAttr == null || serverName.isEmpty) {
+        continue;
+      }
+
+      final index = int.tryParse(idAttr);
+      if (index == null) {
+        continue;
+      }
+
+      final initialUrl = videoByIndex[index];
+      if (initialUrl == null) {
+        continue;
+      }
+
+      final classes = button.classes;
+      final languageClass = classes
+          .where((value) => value.startsWith('lg_'))
+          .firstWhere((_) => true, orElse: () => '');
+
+      final language = switch (languageClass) {
+        'lg_1' => 'sub',
+        'lg_2' => 'lat',
+        'lg_3' => 'cast',
+        _ => null,
+      };
+
+      links.add(
+        SourceServerLink(
+          serverId: '$index-${serverName.toLowerCase().replaceAll(' ', '-')}',
+          serverName: serverName,
+          initialUrl: initialUrl,
+          language: language,
+        ),
+      );
+    }
+
+    if (serverButtons.isNotEmpty && links.isEmpty) {
+      throw const JkAnimeParseError(
+        message: 'JKAnime server buttons were found but link mapping failed.',
+      );
+    }
+
+    return links;
   }
 }
 
