@@ -1,0 +1,84 @@
+{
+  "@@locale": "en",
+  "appTitle": "Kumoriya",
+  "retry": "Retry",
+  "loadingGeneric": "Loading...",
+  "unexpectedStateError": "Unexpected state error: {error}",
+  "@unexpectedStateError": {
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "errorTransportAnilist": "Could not reach AniList. Check your connection and retry.",
+  "errorMappingAnilist": "AniList returned data we could not parse safely.",
+  "errorNotFoundAnilist": "Anime not found in AniList.",
+  "errorUnexpectedAnilist": "Unexpected error while loading AniList data.",
+  "homeLoadingCatalog": "Loading home catalog...",
+  "homeEmptyCatalog": "No trending anime found in AniList right now.",
+  "searchTitle": "Search AniList",
+  "searchHintTitle": "Search anime title",
+  "searchEmptyPrompt": "Type a title and tap search to query AniList.",
+  "searchLoading": "Searching AniList...",
+  "searchNoResults": "No AniList results found for \"{query}\".",
+  "@searchNoResults": {
+    "placeholders": {
+      "query": {}
+    }
+  },
+  "animeDetailTitle": "Anime detail",
+  "animeDetailLoading": "Loading anime detail...",
+  "viewEpisodeList": "View episode list",
+  "episodesWord": "episodes",
+  "episodePreviewTitle": "Episode preview",
+  "episodeStatusAired": "Aired",
+  "episodeStatusUpcoming": "Upcoming",
+  "relationsTitle": "Relations",
+  "episodeListTitle": "{animeTitle} episodes",
+  "@episodeListTitle": {
+    "placeholders": {
+      "animeTitle": {}
+    }
+  },
+  "episodeListLoading": "Loading episodes...",
+  "episodeListEmpty": "AniList has no episode metadata for this anime yet.",
+  "episodeMetadataAired": "Aired metadata",
+  "episodeMetadataUpcoming": "Upcoming metadata",
+  "jkanimeAvailabilityTitle": "JKAnime availability",
+  "jkanimeChecking": "Checking availability in JKAnime...",
+  "jkanimeErrorConsulting": "Error consulting JKAnime: {error}",
+  "@jkanimeErrorConsulting": {
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "jkanimeNotAvailable": "Not available in JKAnime ({reason})",
+  "@jkanimeNotAvailable": {
+    "placeholders": {
+      "reason": {}
+    }
+  },
+  "jkanimeAvailable": "Available in JKAnime",
+  "jkanimeRealEpisodesFound": "Real episodes found: {count}",
+  "@jkanimeRealEpisodesFound": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "jkanimeViewRealEpisodes": "View real JKAnime episodes",
+  "jkanimeEpisodesTitle": "JKAnime episodes | {animeTitle}",
+  "@jkanimeEpisodesTitle": {
+    "placeholders": {
+      "animeTitle": {}
+    }
+  },
+  "animeListEpisodesShort": "{count} eps",
+  "@animeListEpisodesShort": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  }
+}

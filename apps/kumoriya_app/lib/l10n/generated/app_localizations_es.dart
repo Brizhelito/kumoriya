@@ -1,0 +1,143 @@
+// ignore: unused_import
+import 'package:intl/intl.dart' as intl;
+import 'app_localizations.dart';
+
+// ignore_for_file: type=lint
+
+/// The translations for Spanish Castilian (`es`).
+class AppLocalizationsEs extends AppLocalizations {
+  AppLocalizationsEs([String locale = 'es']) : super(locale);
+
+  @override
+  String get appTitle => 'Kumoriya';
+
+  @override
+  String get retry => 'Reintentar';
+
+  @override
+  String get loadingGeneric => 'Cargando...';
+
+  @override
+  String unexpectedStateError(Object error) {
+    return 'Error de estado inesperado: $error';
+  }
+
+  @override
+  String get errorTransportAnilist =>
+      'No se pudo conectar con AniList. Revisa tu conexión y vuelve a intentar.';
+
+  @override
+  String get errorMappingAnilist =>
+      'AniList devolvió datos que no se pudieron interpretar de forma segura.';
+
+  @override
+  String get errorNotFoundAnilist => 'No se encontró el anime en AniList.';
+
+  @override
+  String get errorUnexpectedAnilist =>
+      'Error inesperado al cargar datos desde AniList.';
+
+  @override
+  String get homeLoadingCatalog => 'Cargando catálogo principal...';
+
+  @override
+  String get homeEmptyCatalog =>
+      'No se encontraron animes en tendencia en AniList en este momento.';
+
+  @override
+  String get searchTitle => 'Buscar en AniList';
+
+  @override
+  String get searchHintTitle => 'Buscar título de anime';
+
+  @override
+  String get searchEmptyPrompt =>
+      'Escribe un título y toca buscar para consultar AniList.';
+
+  @override
+  String get searchLoading => 'Buscando en AniList...';
+
+  @override
+  String searchNoResults(Object query) {
+    return 'No se encontraron resultados en AniList para \"$query\".';
+  }
+
+  @override
+  String get animeDetailTitle => 'Detalle del anime';
+
+  @override
+  String get animeDetailLoading => 'Cargando detalle del anime...';
+
+  @override
+  String get viewEpisodeList => 'Ver lista de episodios';
+
+  @override
+  String get episodesWord => 'episodios';
+
+  @override
+  String get episodePreviewTitle => 'Vista previa de episodios';
+
+  @override
+  String get episodeStatusAired => 'Emitido';
+
+  @override
+  String get episodeStatusUpcoming => 'Próximo';
+
+  @override
+  String get relationsTitle => 'Relaciones';
+
+  @override
+  String episodeListTitle(Object animeTitle) {
+    return 'Episodios de $animeTitle';
+  }
+
+  @override
+  String get episodeListLoading => 'Cargando episodios...';
+
+  @override
+  String get episodeListEmpty =>
+      'AniList todavía no tiene metadatos de episodios para este anime.';
+
+  @override
+  String get episodeMetadataAired => 'Metadato emitido';
+
+  @override
+  String get episodeMetadataUpcoming => 'Metadato próximo';
+
+  @override
+  String get jkanimeAvailabilityTitle => 'Disponibilidad en JKAnime';
+
+  @override
+  String get jkanimeChecking => 'Verificando disponibilidad en JKAnime...';
+
+  @override
+  String jkanimeErrorConsulting(Object error) {
+    return 'Error consultando JKAnime: $error';
+  }
+
+  @override
+  String jkanimeNotAvailable(Object reason) {
+    return 'No disponible en JKAnime ($reason)';
+  }
+
+  @override
+  String get jkanimeAvailable => 'Disponible en JKAnime';
+
+  @override
+  String jkanimeRealEpisodesFound(int count) {
+    return 'Episodios reales encontrados: $count';
+  }
+
+  @override
+  String get jkanimeViewRealEpisodes => 'Ver episodios reales de JKAnime';
+
+  @override
+  String jkanimeEpisodesTitle(Object animeTitle) {
+    return 'Episodios JKAnime | $animeTitle';
+  }
+
+  @override
+  String animeListEpisodesShort(int count) {
+    return '$count eps';
+  }
+}
