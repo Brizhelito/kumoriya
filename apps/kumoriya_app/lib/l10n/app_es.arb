@@ -9,15 +9,19 @@
       "error": {}
     }
   },
-  "errorTransportAnilist": "No se pudo conectar con AniList. Revisa tu conexión y vuelve a intentar.",
-  "errorMappingAnilist": "AniList devolvió datos que no se pudieron interpretar de forma segura.",
-  "errorNotFoundAnilist": "No se encontró el anime en AniList.",
+  "errorTransportAnilist": "No se pudo conectar con AniList. Revisa tu conexion y vuelve a intentar.",
+  "errorMappingAnilist": "AniList devolvio datos que no se pudieron interpretar de forma segura.",
+  "errorNotFoundAnilist": "No se encontro el anime en AniList.",
   "errorUnexpectedAnilist": "Error inesperado al cargar datos desde AniList.",
-  "homeLoadingCatalog": "Cargando catálogo principal...",
+  "errorTransportSource": "No se pudo conectar con la fuente. Intenta de nuevo en unos momentos.",
+  "errorMappingSource": "La respuesta de la fuente cambio y no se pudo interpretar de forma segura.",
+  "errorNotFoundSource": "No se encontraron datos en la fuente para esta consulta.",
+  "errorUnexpectedSource": "Error inesperado en la fuente al cargar datos.",
+  "homeLoadingCatalog": "Cargando catalogo principal...",
   "homeEmptyCatalog": "No se encontraron animes en tendencia en AniList en este momento.",
   "searchTitle": "Buscar en AniList",
-  "searchHintTitle": "Buscar título de anime",
-  "searchEmptyPrompt": "Escribe un título y toca buscar para consultar AniList.",
+  "searchHintTitle": "Buscar titulo de anime",
+  "searchEmptyPrompt": "Escribe un titulo y toca buscar para consultar AniList.",
   "searchLoading": "Buscando en AniList...",
   "searchNoResults": "No se encontraron resultados en AniList para \"{query}\".",
   "@searchNoResults": {
@@ -31,7 +35,7 @@
   "episodesWord": "episodios",
   "episodePreviewTitle": "Vista previa de episodios",
   "episodeStatusAired": "Emitido",
-  "episodeStatusUpcoming": "Próximo",
+  "episodeStatusUpcoming": "Proximo",
   "relationsTitle": "Relaciones",
   "episodeListTitle": "Episodios de {animeTitle}",
   "@episodeListTitle": {
@@ -40,9 +44,9 @@
     }
   },
   "episodeListLoading": "Cargando episodios...",
-  "episodeListEmpty": "AniList todavía no tiene metadatos de episodios para este anime.",
+  "episodeListEmpty": "AniList todavia no tiene metadatos de episodios para este anime.",
   "episodeMetadataAired": "Metadato emitido",
-  "episodeMetadataUpcoming": "Metadato próximo",
+  "episodeMetadataUpcoming": "Metadato proximo",
   "jkanimeAvailabilityTitle": "Disponibilidad en JKAnime",
   "jkanimeChecking": "Verificando disponibilidad en JKAnime...",
   "jkanimeErrorConsulting": "Error consultando JKAnime: {error}",
@@ -58,6 +62,8 @@
     }
   },
   "jkanimeNotAvailableSimple": "No disponible en JKAnime",
+  "jkanimeNotAvailableNoMatch": "No se encontro un match confiable en JKAnime.",
+  "jkanimeNotAvailableNoEpisodes": "Hay match en JKAnime, pero no se encontraron episodios.",
   "jkanimeAvailable": "Disponible en JKAnime",
   "jkanimeRealEpisodesFound": "Episodios reales encontrados: {count}",
   "@jkanimeRealEpisodesFound": {

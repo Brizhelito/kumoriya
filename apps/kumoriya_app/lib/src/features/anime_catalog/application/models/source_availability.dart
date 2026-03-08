@@ -2,6 +2,8 @@ import 'package:kumoriya_plugins/kumoriya_plugins.dart';
 
 enum SourceAvailabilityStatus { available, unavailable }
 
+enum SourceUnavailableReason { noMatch, noEpisodes }
+
 enum MatchConfidence { high, medium, low }
 
 final class SourceMatchDecision {
@@ -27,9 +29,11 @@ final class SourceAvailability {
     required this.status,
     required this.decision,
     this.episodes = const <SourceEpisode>[],
+    this.unavailableReason,
   });
 
   final SourceAvailabilityStatus status;
   final SourceMatchDecision decision;
   final List<SourceEpisode> episodes;
+  final SourceUnavailableReason? unavailableReason;
 }

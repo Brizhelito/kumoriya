@@ -13,6 +13,10 @@
   "errorMappingAnilist": "AniList returned data we could not parse safely.",
   "errorNotFoundAnilist": "Anime not found in AniList.",
   "errorUnexpectedAnilist": "Unexpected error while loading AniList data.",
+  "errorTransportSource": "Could not reach the source. Try again in a moment.",
+  "errorMappingSource": "The source response changed and could not be parsed safely.",
+  "errorNotFoundSource": "No source data was found for this request.",
+  "errorUnexpectedSource": "Unexpected source error while loading data.",
   "homeLoadingCatalog": "Loading home catalog...",
   "homeEmptyCatalog": "No trending anime found in AniList right now.",
   "searchTitle": "Search AniList",
@@ -58,6 +62,8 @@
     }
   },
   "jkanimeNotAvailableSimple": "Not available in JKAnime",
+  "jkanimeNotAvailableNoMatch": "No reliable JKAnime match was found.",
+  "jkanimeNotAvailableNoEpisodes": "JKAnime match exists but no episodes were found.",
   "jkanimeAvailable": "Available in JKAnime",
   "jkanimeRealEpisodesFound": "Real episodes found: {count}",
   "@jkanimeRealEpisodesFound": {

@@ -24,21 +24,37 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get errorTransportAnilist =>
-      'No se pudo conectar con AniList. Revisa tu conexión y vuelve a intentar.';
+      'No se pudo conectar con AniList. Revisa tu conexion y vuelve a intentar.';
 
   @override
   String get errorMappingAnilist =>
-      'AniList devolvió datos que no se pudieron interpretar de forma segura.';
+      'AniList devolvio datos que no se pudieron interpretar de forma segura.';
 
   @override
-  String get errorNotFoundAnilist => 'No se encontró el anime en AniList.';
+  String get errorNotFoundAnilist => 'No se encontro el anime en AniList.';
 
   @override
   String get errorUnexpectedAnilist =>
       'Error inesperado al cargar datos desde AniList.';
 
   @override
-  String get homeLoadingCatalog => 'Cargando catálogo principal...';
+  String get errorTransportSource =>
+      'No se pudo conectar con la fuente. Intenta de nuevo en unos momentos.';
+
+  @override
+  String get errorMappingSource =>
+      'La respuesta de la fuente cambio y no se pudo interpretar de forma segura.';
+
+  @override
+  String get errorNotFoundSource =>
+      'No se encontraron datos en la fuente para esta consulta.';
+
+  @override
+  String get errorUnexpectedSource =>
+      'Error inesperado en la fuente al cargar datos.';
+
+  @override
+  String get homeLoadingCatalog => 'Cargando catalogo principal...';
 
   @override
   String get homeEmptyCatalog =>
@@ -48,11 +64,11 @@ class AppLocalizationsEs extends AppLocalizations {
   String get searchTitle => 'Buscar en AniList';
 
   @override
-  String get searchHintTitle => 'Buscar título de anime';
+  String get searchHintTitle => 'Buscar titulo de anime';
 
   @override
   String get searchEmptyPrompt =>
-      'Escribe un título y toca buscar para consultar AniList.';
+      'Escribe un titulo y toca buscar para consultar AniList.';
 
   @override
   String get searchLoading => 'Buscando en AniList...';
@@ -81,7 +97,7 @@ class AppLocalizationsEs extends AppLocalizations {
   String get episodeStatusAired => 'Emitido';
 
   @override
-  String get episodeStatusUpcoming => 'Próximo';
+  String get episodeStatusUpcoming => 'Proximo';
 
   @override
   String get relationsTitle => 'Relaciones';
@@ -96,13 +112,13 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get episodeListEmpty =>
-      'AniList todavía no tiene metadatos de episodios para este anime.';
+      'AniList todavia no tiene metadatos de episodios para este anime.';
 
   @override
   String get episodeMetadataAired => 'Metadato emitido';
 
   @override
-  String get episodeMetadataUpcoming => 'Metadato próximo';
+  String get episodeMetadataUpcoming => 'Metadato proximo';
 
   @override
   String get jkanimeAvailabilityTitle => 'Disponibilidad en JKAnime';
@@ -122,6 +138,14 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get jkanimeNotAvailableSimple => 'No disponible en JKAnime';
+
+  @override
+  String get jkanimeNotAvailableNoMatch =>
+      'No se encontro un match confiable en JKAnime.';
+
+  @override
+  String get jkanimeNotAvailableNoEpisodes =>
+      'Hay match en JKAnime, pero no se encontraron episodios.';
 
   @override
   String get jkanimeAvailable => 'Disponible en JKAnime';

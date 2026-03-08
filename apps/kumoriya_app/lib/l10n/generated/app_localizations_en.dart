@@ -38,6 +38,22 @@ class AppLocalizationsEn extends AppLocalizations {
       'Unexpected error while loading AniList data.';
 
   @override
+  String get errorTransportSource =>
+      'Could not reach the source. Try again in a moment.';
+
+  @override
+  String get errorMappingSource =>
+      'The source response changed and could not be parsed safely.';
+
+  @override
+  String get errorNotFoundSource =>
+      'No source data was found for this request.';
+
+  @override
+  String get errorUnexpectedSource =>
+      'Unexpected source error while loading data.';
+
+  @override
   String get homeLoadingCatalog => 'Loading home catalog...';
 
   @override
@@ -122,6 +138,14 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get jkanimeNotAvailableSimple => 'Not available in JKAnime';
+
+  @override
+  String get jkanimeNotAvailableNoMatch =>
+      'No reliable JKAnime match was found.';
+
+  @override
+  String get jkanimeNotAvailableNoEpisodes =>
+      'JKAnime match exists but no episodes were found.';
 
   @override
   String get jkanimeAvailable => 'Available in JKAnime';

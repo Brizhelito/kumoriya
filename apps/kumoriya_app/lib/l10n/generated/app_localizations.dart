@@ -146,6 +146,30 @@ abstract class AppLocalizations {
   /// **'Unexpected error while loading AniList data.'**
   String get errorUnexpectedAnilist;
 
+  /// No description provided for @errorTransportSource.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not reach the source. Try again in a moment.'**
+  String get errorTransportSource;
+
+  /// No description provided for @errorMappingSource.
+  ///
+  /// In en, this message translates to:
+  /// **'The source response changed and could not be parsed safely.'**
+  String get errorMappingSource;
+
+  /// No description provided for @errorNotFoundSource.
+  ///
+  /// In en, this message translates to:
+  /// **'No source data was found for this request.'**
+  String get errorNotFoundSource;
+
+  /// No description provided for @errorUnexpectedSource.
+  ///
+  /// In en, this message translates to:
+  /// **'Unexpected source error while loading data.'**
+  String get errorUnexpectedSource;
+
   /// No description provided for @homeLoadingCatalog.
   ///
   /// In en, this message translates to:
@@ -295,6 +319,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Not available in JKAnime'**
   String get jkanimeNotAvailableSimple;
+
+  /// No description provided for @jkanimeNotAvailableNoMatch.
+  ///
+  /// In en, this message translates to:
+  /// **'No reliable JKAnime match was found.'**
+  String get jkanimeNotAvailableNoMatch;
+
+  /// No description provided for @jkanimeNotAvailableNoEpisodes.
+  ///
+  /// In en, this message translates to:
+  /// **'JKAnime match exists but no episodes were found.'**
+  String get jkanimeNotAvailableNoEpisodes;
 
   /// No description provided for @jkanimeAvailable.
   ///

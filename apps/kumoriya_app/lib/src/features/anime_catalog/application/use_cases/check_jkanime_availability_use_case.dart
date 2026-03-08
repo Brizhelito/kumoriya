@@ -35,6 +35,7 @@ final class CheckJkanimeAvailabilityUseCase {
             SourceAvailability(
               status: SourceAvailabilityStatus.unavailable,
               decision: decision,
+              unavailableReason: SourceUnavailableReason.noMatch,
             ),
           );
         }
@@ -43,7 +44,19 @@ final class CheckJkanimeAvailabilityUseCase {
           decision.candidate!.sourceId,
         );
         return episodesResult.fold(
-          onFailure: Failure.new,
+          onFailure: (error) {
+            if (error.kind == KumoriyaErrorKind.notFound ||
+                error.code == 'jkanime.empty') {
+              return Success(
+                SourceAvailability(
+                  status: SourceAvailabilityStatus.unavailable,
+                  decision: decision,
+                  unavailableReason: SourceUnavailableReason.noEpisodes,
+                ),
+              );
+            }
+            return Failure(error);
+          },
           onSuccess: (episodes) => Success(
             SourceAvailability(
               status: SourceAvailabilityStatus.available,
