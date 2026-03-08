@@ -56,6 +56,9 @@ void main() {
   final serverLinksFullSourcesFixture = File(
     'test/fixtures/jkanime_episode_server_links_full_sources_and_downloads.html',
   ).readAsStringSync();
+  final serverLinksDynamicPayloadFixture = File(
+    'test/fixtures/jkanime_episode_server_links_dynamic_servers_payload.html',
+  ).readAsStringSync();
 
   test('search parses JKAnime cards into source matches', () async {
     final plugin = JkAnimeSourcePlugin(
@@ -510,6 +513,66 @@ void main() {
           expect(error.code, 'jkanime.inconsistent');
         },
         onSuccess: (_) => fail('expected failure'),
+      );
+    },
+  );
+
+  test(
+    'getEpisodeServerLinks expands stream list from dynamic var servers payload',
+    () async {
+      final plugin = JkAnimeSourcePlugin(
+        httpClient: MockClient((request) async {
+          expect(request.url.path, '/naruto/12/');
+          return http.Response(serverLinksDynamicPayloadFixture, 200);
+        }),
+      );
+
+      final episode = SourceEpisode(
+        sourceEpisodeId: '12',
+        number: 12,
+        title: 'Episode 12',
+        episodeUrl: Uri.parse('https://jkanime.net/naruto/12/'),
+      );
+
+      final result = await plugin.getEpisodeServerLinks(episode);
+      expect(result.isSuccess, isTrue);
+      result.fold(
+        onFailure: (_) => fail('expected success'),
+        onSuccess: (links) {
+          final streamLinks = links
+              .where((link) => link.linkType == SourceServerLinkType.stream)
+              .toList(growable: false);
+          final downloadLinks = links
+              .where((link) => link.linkType == SourceServerLinkType.download)
+              .toList(growable: false);
+
+          expect(streamLinks, hasLength(11));
+          expect(downloadLinks, hasLength(1));
+
+          expect(
+            streamLinks.any((link) => link.serverName == 'Streamwish'),
+            isTrue,
+          );
+          expect(
+            streamLinks.any((link) => link.serverName == 'Mixdrop'),
+            isTrue,
+          );
+          expect(
+            streamLinks.any((link) => link.serverName == 'Doodstream'),
+            isTrue,
+          );
+
+          final streamwish = streamLinks.firstWhere(
+            (link) => link.serverName == 'Streamwish',
+          );
+          expect(streamwish.initialUrl.host, 'sfastwish.com');
+          expect(streamwish.detectedHost, 'sfastwish.com');
+
+          final mediafire = downloadLinks.single;
+          expect(mediafire.serverName, 'Mediafire');
+          expect(mediafire.initialUrl.host, 'mediafire.com');
+          expect(mediafire.detectedHost, 'mediafire.com');
+        },
       );
     },
   );
