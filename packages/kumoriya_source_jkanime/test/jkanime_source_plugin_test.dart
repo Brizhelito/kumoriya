@@ -38,6 +38,21 @@ void main() {
   final serverLinksBrokenFixture = File(
     'test/fixtures/jkanime_episode_server_links_buttons_without_mapping.html',
   ).readAsStringSync();
+  final serverLinksMultilineVariantsFixture = File(
+    'test/fixtures/jkanime_episode_server_links_multiline_variants.html',
+  ).readAsStringSync();
+  final serverLinksElementIdFixture = File(
+    'test/fixtures/jkanime_episode_server_links_element_id_fallback.html',
+  ).readAsStringSync();
+  final serverLinksMalformedScriptFixture = File(
+    'test/fixtures/jkanime_episode_server_links_malformed_script.html',
+  ).readAsStringSync();
+  final serverLinksMarkupWithoutButtonsFixture = File(
+    'test/fixtures/jkanime_episode_server_links_markup_without_buttons.html',
+  ).readAsStringSync();
+  final serverLinksMismatchedIndexesFixture = File(
+    'test/fixtures/jkanime_episode_server_links_mismatched_indexes.html',
+  ).readAsStringSync();
 
   test('search parses JKAnime cards into source matches', () async {
     final plugin = JkAnimeSourcePlugin(
@@ -262,7 +277,99 @@ void main() {
       expect(result.isSuccess, isTrue);
       result.fold(
         onFailure: (_) => fail('expected success'),
-        onSuccess: (links) => expect(links, hasLength(1)),
+        onSuccess: (links) {
+          expect(links, hasLength(1));
+          expect(links.first.serverName, 'Desu');
+        },
+      );
+    },
+  );
+
+  test(
+    'getEpisodeServerLinks parses multiline quoted variants and direct URLs',
+    () async {
+      final plugin = JkAnimeSourcePlugin(
+        httpClient: MockClient((request) async {
+          expect(request.url.path, '/naruto/6/');
+          return http.Response(serverLinksMultilineVariantsFixture, 200);
+        }),
+      );
+
+      final episode = SourceEpisode(
+        sourceEpisodeId: '6',
+        number: 6,
+        title: 'Episode 6',
+        episodeUrl: Uri.parse('https://jkanime.net/naruto/6/'),
+      );
+
+      final result = await plugin.getEpisodeServerLinks(episode);
+      expect(result.isSuccess, isTrue);
+      result.fold(
+        onFailure: (_) => fail('expected success'),
+        onSuccess: (links) {
+          expect(links, hasLength(2));
+          expect(links.first.language, 'sub');
+          expect(links.last.language, 'lat');
+          expect(
+            links.last.initialUrl.toString(),
+            'https://stream.jkanimecdn.com/embed/xyz987',
+          );
+        },
+      );
+    },
+  );
+
+  test(
+    'getEpisodeServerLinks can resolve index from element id fallback',
+    () async {
+      final plugin = JkAnimeSourcePlugin(
+        httpClient: MockClient((request) async {
+          expect(request.url.path, '/naruto/7/');
+          return http.Response(serverLinksElementIdFixture, 200);
+        }),
+      );
+
+      final episode = SourceEpisode(
+        sourceEpisodeId: '7',
+        number: 7,
+        title: 'Episode 7',
+        episodeUrl: Uri.parse('https://jkanime.net/naruto/7/'),
+      );
+
+      final result = await plugin.getEpisodeServerLinks(episode);
+      expect(result.isSuccess, isTrue);
+      result.fold(
+        onFailure: (_) => fail('expected success'),
+        onSuccess: (links) {
+          expect(links, hasLength(1));
+          expect(links.single.serverId, '12-desu');
+        },
+      );
+    },
+  );
+
+  test(
+    'getEpisodeServerLinks returns empty safely when markup exists but no server buttons',
+    () async {
+      final plugin = JkAnimeSourcePlugin(
+        httpClient: MockClient((request) async {
+          expect(request.url.path, '/naruto/8/');
+          return http.Response(serverLinksMarkupWithoutButtonsFixture, 200);
+        }),
+      );
+
+      final episode = SourceEpisode(
+        sourceEpisodeId: '8',
+        number: 8,
+        title: 'Episode 8',
+        episodeUrl: Uri.parse('https://jkanime.net/naruto/8/'),
+      );
+
+      final result = await plugin.getEpisodeServerLinks(episode);
+      expect(result.isSuccess, isTrue);
+      result.fold(
+        onFailure: (_) => fail('expected success'),
+        onSuccess: (links) => expect(links, isEmpty),
       );
     },
   );
@@ -289,6 +396,65 @@ void main() {
       result.fold(
         onFailure: (error) {
           expect(error.kind, KumoriyaErrorKind.mapping);
+          expect(error.code, 'jkanime.inconsistent');
+        },
+        onSuccess: (_) => fail('expected failure'),
+      );
+    },
+  );
+
+  test(
+    'getEpisodeServerLinks fails with parse error for malformed video script',
+    () async {
+      final plugin = JkAnimeSourcePlugin(
+        httpClient: MockClient((request) async {
+          expect(request.url.path, '/naruto/9/');
+          return http.Response(serverLinksMalformedScriptFixture, 200);
+        }),
+      );
+
+      final episode = SourceEpisode(
+        sourceEpisodeId: '9',
+        number: 9,
+        title: 'Episode 9',
+        episodeUrl: Uri.parse('https://jkanime.net/naruto/9/'),
+      );
+
+      final result = await plugin.getEpisodeServerLinks(episode);
+      expect(result.isFailure, isTrue);
+      result.fold(
+        onFailure: (error) {
+          expect(error.kind, KumoriyaErrorKind.mapping);
+          expect(error.code, 'jkanime.parse');
+        },
+        onSuccess: (_) => fail('expected failure'),
+      );
+    },
+  );
+
+  test(
+    'getEpisodeServerLinks fails with inconsistent error for mismatched indexes',
+    () async {
+      final plugin = JkAnimeSourcePlugin(
+        httpClient: MockClient((request) async {
+          expect(request.url.path, '/naruto/10/');
+          return http.Response(serverLinksMismatchedIndexesFixture, 200);
+        }),
+      );
+
+      final episode = SourceEpisode(
+        sourceEpisodeId: '10',
+        number: 10,
+        title: 'Episode 10',
+        episodeUrl: Uri.parse('https://jkanime.net/naruto/10/'),
+      );
+
+      final result = await plugin.getEpisodeServerLinks(episode);
+      expect(result.isFailure, isTrue);
+      result.fold(
+        onFailure: (error) {
+          expect(error.kind, KumoriyaErrorKind.mapping);
+          expect(error.code, 'jkanime.inconsistent');
         },
         onSuccess: (_) => fail('expected failure'),
       );
