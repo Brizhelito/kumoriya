@@ -1,0 +1,21 @@
+Suggested Codex app actions for Kumoriya (Windows):
+
+1. Analyze
+cd apps\kumoriya_app
+dart analyze
+
+2. Test
+cd apps\kumoriya_app
+flutter test
+
+3. Run Windows
+cd apps\kumoriya_app
+flutter run -d windows
+
+4. Format changed package
+cd apps\kumoriya_app
+dart format lib test
+
+5. Plugin smoke tests
+cd packages
+# replace with your future plugin test command

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Storage Drift"
+  short_description: "Design and maintain Drift storage for Kumoriya"
+  default_prompt: "Implement Drift-based local storage in Kumoriya with modular boundaries, durable-vs-cache separation, sustainable migrations, Riverpod integration seams, and storage-focused tests."

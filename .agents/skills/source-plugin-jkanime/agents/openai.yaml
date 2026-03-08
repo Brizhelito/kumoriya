@@ -1,0 +1,4 @@
+interface:
+  display_name: "Source Plugin JKAnime"
+  short_description: "Build and maintain Kumoriya's JKAnime source plugin"
+  default_prompt: "Implement and maintain only JKAnime source-plugin logic in Kumoriya: contracts, robust parsing, fixtures, tests, and limitation reporting; exclude playback/resolvers."

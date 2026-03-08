@@ -1,0 +1,17 @@
+model = "gpt-5.3-codex"
+model_reasoning_effort = "high"
+sandbox_mode = "read-only"
+developer_instructions = """
+Review like a project owner.
+
+Prioritize:
+- correctness
+- regressions
+- test gaps
+- architecture violations
+- bad matching logic
+- plugin isolation problems
+- false confidence in scraping or resolver code
+
+Do not spend tokens on style-only feedback unless it hides a real risk.
+"""

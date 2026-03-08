@@ -1,0 +1,22 @@
+# Paste these into Codex Local Environments (Windows) as setup scripts / actions.
+
+## Setup script (Windows)
+flutter pub get
+dart --version
+flutter --version
+
+## Action: Analyze app
+cd apps\kumoriya_app
+dart analyze
+
+## Action: Run tests
+cd apps\kumoriya_app
+flutter test
+
+## Action: Run Windows app
+cd apps\kumoriya_app
+flutter run -d windows
+
+## Action: Pub outdated
+cd apps\kumoriya_app
+flutter pub outdated

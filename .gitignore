@@ -1,0 +1,34 @@
+# Flutter / Dart
+.dart_tool/
+.packages
+.pub/
+build/
+.flutter-plugins
+.flutter-plugins-dependencies
+.idea/
+.vscode/
+*.iml
+
+# macOS / Windows
+.DS_Store
+Thumbs.db
+
+# Node / MCP utilities
+node_modules/
+dist/
+coverage/
+
+# Python
+__pycache__/
+*.pyc
+
+# Environment / secrets
+.env
+.env.*
+secrets/
+*.secret
+auth.json
+
+# Codex local state (do not commit user-local secrets)
+.codex/auth.json
+.codex/logs/

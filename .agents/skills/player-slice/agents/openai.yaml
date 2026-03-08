@@ -1,0 +1,4 @@
+interface:
+  display_name: "Player Slice"
+  short_description: "Build focused Kumoriya player slices with media_kit"
+  default_prompt: "Implement a focused Kumoriya player slice with media_kit, strict separation from resolvers, session orchestration, error/fallback handling, progress-history integration, and minimal player UX validation."

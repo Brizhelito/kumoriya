@@ -1,0 +1,36 @@
+# Flutter and Dart commands commonly used in this repo.
+
+prefix_rule(
+    pattern = [["flutter", "dart"], "format"],
+    decision = "allow",
+    justification = "Formatting source files is safe and routine.",
+    match = ["dart format lib", "flutter format ."],
+)
+
+prefix_rule(
+    pattern = [["flutter", "dart"], "analyze"],
+    decision = "allow",
+    justification = "Static analysis is safe and required for validation.",
+    match = ["dart analyze", "flutter analyze"],
+)
+
+prefix_rule(
+    pattern = [["flutter", "dart"], "test"],
+    decision = "allow",
+    justification = "Tests are safe and expected.",
+    match = ["flutter test", "dart test"],
+)
+
+prefix_rule(
+    pattern = ["flutter", "pub", ["get", "outdated"]],
+    decision = "allow",
+    justification = "Dependency sync/read commands are expected in this project.",
+    match = ["flutter pub get", "flutter pub outdated"],
+)
+
+prefix_rule(
+    pattern = ["flutter", "run"],
+    decision = "prompt",
+    justification = "Running the app is allowed, but prompt because it can spawn long-lived local processes.",
+    match = ["flutter run -d windows"],
+)

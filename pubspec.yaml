@@ -1,0 +1,14 @@
+name: kumoriya_workspace
+publish_to: none
+
+environment:
+  sdk: ^3.11.1
+
+workspace:
+  - apps/kumoriya_app
+  - packages/kumoriya_core
+  - packages/kumoriya_domain
+  - packages/kumoriya_plugins
+  - packages/kumoriya_anilist
+  - packages/kumoriya_storage
+  - packages/kumoriya_testing

@@ -1,0 +1,92 @@
+model = "gpt-5.4"
+model_provider = "openai"
+personality = "pragmatic"
+sandbox_mode = "workspace-write"
+project_root_markers = [".git"]
+project_doc_max_bytes = 32768
+project_doc_fallback_filenames = ["CLAUDE.md", "README_AGENT.md"]
+
+[sandbox_workspace_write]
+network_access = true
+writable_roots = []
+
+[features]
+multi_agent = true
+
+[agents]
+max_threads = 4
+max_depth = 1
+
+[agents.explorer]
+description = "Read-only codebase explorer for mapping ownership, flows, and relevant files before implementation."
+config_file = "agents/explorer.toml"
+
+[agents.reviewer]
+description = "Review-focused agent for correctness, regressions, missing tests, and architectural drift."
+config_file = "agents/reviewer.toml"
+
+[agents.worker]
+description = "Implementation-focused agent for small, targeted feature or fix work once the path is clear."
+config_file = "agents/worker.toml"
+
+[agents.docs_researcher]
+description = "Documentation specialist that uses docs-focused MCPs to verify APIs, framework behavior, and official guidance."
+config_file = "agents/docs-researcher.toml"
+
+[agents.browser_debugger]
+description = "Browser-debugging specialist for scraping and JS-heavy flows using Playwright or browser tooling."
+config_file = "agents/browser-debugger.toml"
+
+[mcp_servers.dart-mcp-server]
+command = "C:\\flutter\\bin\\dart.bat"
+args = ["mcp-server"]
+enabled = true
+required = true
+startup_timeout_sec = 20
+tool_timeout_sec = 90
+
+[mcp_servers.fetch]
+command = "uvx"
+args = ["mcp-server-fetch", "--user-agent=KumoriyaDevBot/0.1"]
+enabled = true
+required = false
+startup_timeout_sec = 20
+tool_timeout_sec = 60
+
+[mcp_servers.fetch.env]
+PYTHONIOENCODING = "utf-8"
+
+[mcp_servers.filesystem]
+command = "npx"
+args = ["-y", "@modelcontextprotocol/server-filesystem", "C:\\Users\\Reny\\Documents\\Kumoriya"]
+enabled = true
+required = true
+startup_timeout_sec = 20
+tool_timeout_sec = 60
+
+[mcp_servers.github]
+url = "https://api.githubcopilot.com/mcp/"
+bearer_token_env_var = "GITHUB_TOKEN"
+enabled = true
+required = false
+startup_timeout_sec = 20
+tool_timeout_sec = 60
+
+[mcp_servers.kumoriya-mcp]
+command = "node"
+args = ["C:\\Users\\Reny\\Documents\\MCP\\kumoriya_mcp_premium\\dist\\index.js"]
+enabled = true
+required = false
+startup_timeout_sec = 20
+tool_timeout_sec = 60
+
+# Prefer adding GitHub at the user level because it needs a token.
+# Example:
+# [mcp_servers.github]
+# url = "https://api.githubcopilot.com/mcp/"
+# bearer_token = "YOUR_GITHUB_PAT"
+
+# If you keep a project-specific local MCP, point it here:
+# [mcp_servers.kumoriya]
+# command = "node"
+# args = ["C:\\Users\\YOUR_USER\\Documents\\MCP\\kumoriya_mcp_premium\\dist\\index.js"]

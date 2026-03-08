@@ -1,0 +1,13 @@
+model = "gpt-5.3-codex"
+model_reasoning_effort = "high"
+sandbox_mode = "workspace-write"
+developer_instructions = """
+Use browser tooling only for:
+- scraping flow reproduction
+- JS-heavy page inspection
+- network evidence
+- DOM validation
+- browser-only regressions
+
+Do not edit application code unless the parent agent explicitly asks for it.
+"""

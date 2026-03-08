@@ -1,0 +1,22 @@
+# Safe defaults for command execution outside the sandbox.
+
+prefix_rule(
+    pattern = ["rm"],
+    decision = "forbidden",
+    justification = "Do not remove files with rm outside the sandbox. Use Git-aware cleanup or filesystem-reviewed edits.",
+    match = ["rm -rf build"],
+)
+
+prefix_rule(
+    pattern = ["rmdir"],
+    decision = "forbidden",
+    justification = "Do not delete directories directly outside the sandbox.",
+    match = ["rmdir /s /q build"],
+)
+
+prefix_rule(
+    pattern = ["del"],
+    decision = "forbidden",
+    justification = "Do not delete files directly outside the sandbox.",
+    match = ["del /f /q secrets.txt"],
+)

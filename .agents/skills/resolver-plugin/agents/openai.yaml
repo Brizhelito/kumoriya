@@ -1,0 +1,4 @@
+interface:
+  display_name: "Resolver Plugin"
+  short_description: "Build and harden Kumoriya video resolver plugins"
+  default_prompt: "Implement or harden a Kumoriya resolver plugin with strict contracts, host gating, URL normalization, request context handling, fixtures, timeout/error controls, and resolver-focused tests only."

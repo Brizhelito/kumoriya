@@ -1,0 +1,13 @@
+Use conventional commits.
+
+Rules:
+- Keep commits scoped and reviewable.
+- Separate bootstrap/docs/architecture from features.
+- Mention the real user-visible or architectural outcome.
+- Avoid vague messages like "fix stuff" or "update files".
+
+Good examples:
+- feat(anilist): add catalog and search repository
+- feat(source-jkanime): add search and episode extraction
+- fix(theme): resolve ColorScheme duplicate arguments
+- chore(codex): add project skills and MCP config

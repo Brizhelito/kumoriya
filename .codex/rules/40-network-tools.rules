@@ -1,0 +1,8 @@
+# Network tools allowed for official docs and project tasks.
+
+prefix_rule(
+    pattern = [["curl", "wget"]],
+    decision = "prompt",
+    justification = "Network access is useful but should be reviewed when leaving the sandbox.",
+    match = ["curl https://developers.openai.com/codex/skills/"],
+)

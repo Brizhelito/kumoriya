@@ -1,0 +1,4 @@
+interface:
+  display_name: "AniList Matching"
+  short_description: "Conservative AniList matching for scraped sources"
+  default_prompt: "Implement strict and conservative AniList-to-source matching in Kumoriya with explainable decisions, confidence reporting, and no-match bias over false positives."

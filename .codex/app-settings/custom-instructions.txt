@@ -1,0 +1,12 @@
+Kumoriya project defaults:
+
+- Be pragmatic with strict boundaries.
+- Do not silently expand scope.
+- Prefer no match over false match.
+- Prefer no stream over wrong stream.
+- Use vertical slices.
+- Keep plugin contracts explicit.
+- Validate with format, analyze, and relevant tests.
+- Be honest when a flow was not actually exercised.
+- Use Git checkpoints for meaningful phases.
+- Favor reviewable diffs over giant edits.

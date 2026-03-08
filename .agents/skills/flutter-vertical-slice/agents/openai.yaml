@@ -1,0 +1,4 @@
+interface:
+  display_name: "Flutter Vertical Slice"
+  short_description: "Small validated Flutter slices for monorepos"
+  default_prompt: "Implement exactly one requested Flutter vertical slice with strict scope boundaries, real validation, and milestone-based reporting."

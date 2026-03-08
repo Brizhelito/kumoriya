@@ -1,0 +1,14 @@
+PR body guidance for Kumoriya:
+
+1. What changed
+2. Why this change exists
+3. Scope deliberately excluded
+4. Validation performed
+5. Residual risks
+6. Follow-up steps
+
+Additional rules:
+- call out plugin contract changes explicitly
+- call out matching heuristics explicitly
+- say whether flows were tested in Windows, Android, or both
+- mention any MCPs or skills that were important to the work

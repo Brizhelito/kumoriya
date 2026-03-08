@@ -1,0 +1,29 @@
+# Git guardrails for a new repo.
+
+prefix_rule(
+    pattern = ["git", ["status", "diff", "log", "show", "branch", "rev-parse"]],
+    decision = "allow",
+    justification = "Read-only Git inspection is safe.",
+    match = ["git status", "git log --oneline"],
+)
+
+prefix_rule(
+    pattern = ["git", ["add", "restore", "checkout", "switch", "commit", "tag"]],
+    decision = "prompt",
+    justification = "State-changing Git commands are allowed with review.",
+    match = ["git add .", "git commit -m feat: bootstrap", "git switch -c codex/bootstrap"],
+)
+
+prefix_rule(
+    pattern = ["git", ["reset", "rebase", "push", "clean"]],
+    decision = "prompt",
+    justification = "Potentially destructive or remote-impacting Git commands must be reviewed.",
+    match = ["git reset --hard HEAD~1", "git push origin main"],
+)
+
+prefix_rule(
+    pattern = ["git", "push", "--force"],
+    decision = "forbidden",
+    justification = "Force push is forbidden by default. Revisit manually if absolutely necessary.",
+    match = ["git push --force origin main"],
+)
