@@ -47,3 +47,11 @@ final class VoeInconsistentPayloadError extends VoeResolverError {
   const VoeInconsistentPayloadError({required super.message})
     : super(code: 'resolver.voe.inconsistent', kind: KumoriyaErrorKind.mapping);
 }
+
+final class VoeRedirectLimitError extends VoeResolverError {
+  const VoeRedirectLimitError({required super.message})
+    : super(
+        code: 'resolver.voe.redirect_limit',
+        kind: KumoriyaErrorKind.mapping,
+      );
+}

@@ -9,6 +9,7 @@ final class VoeResolverPlugin implements ResolverPlugin {
     : _httpClient = httpClient ?? http.Client();
 
   final http.Client _httpClient;
+  static const int _maxRedirectDepth = 5;
 
   static const Set<String> _supportedHosts = <String>{
     'voe.sx',
@@ -82,10 +83,12 @@ final class VoeResolverPlugin implements ResolverPlugin {
 
     try {
       final payloads = <_FetchedPayload>[];
-      var currentUrl = url;
+      var currentUrl = _normalizeEmbedUrl(url);
       Uri? referer;
+      final visitedUrls = <String>{currentUrl.toString()};
+      String? redirectLimitMessage;
 
-      for (var hop = 0; hop < 3; hop++) {
+      for (var hop = 0; hop < _maxRedirectDepth; hop++) {
         final response = await _httpClient
             .get(currentUrl, headers: _requestHeaders(currentUrl, referer))
             .timeout(const Duration(seconds: 15));
@@ -99,21 +102,37 @@ final class VoeResolverPlugin implements ResolverPlugin {
           );
         }
 
-        payloads.add(_FetchedPayload(url: currentUrl, body: response.body));
+        final extractionPayload = _buildExtractionPayload(response.body);
+        payloads.add(_FetchedPayload(url: currentUrl, body: extractionPayload));
 
         final redirectUrl = _extractJavascriptRedirect(
-          response.body,
+          extractionPayload,
           baseUrl: currentUrl,
         );
-        if (redirectUrl == null ||
-            payloads.any(
-              (item) => item.url.toString() == redirectUrl.toString(),
-            )) {
+        if (redirectUrl == null) {
+          break;
+        }
+
+        final normalizedRedirect = _normalizeEmbedUrl(redirectUrl);
+        final redirectKey = normalizedRedirect.toString();
+        if (!visitedUrls.add(redirectKey)) {
+          redirectLimitMessage =
+              'VOE redirect loop detected while resolving $url at $redirectKey.';
+          break;
+        }
+
+        if (hop >= _maxRedirectDepth - 1) {
+          redirectLimitMessage =
+              'VOE redirect depth exceeded ($_maxRedirectDepth) while resolving $url.';
           break;
         }
 
         referer = currentUrl;
-        currentUrl = redirectUrl;
+        currentUrl = normalizedRedirect;
+      }
+
+      if (redirectLimitMessage != null) {
+        return Failure(VoeRedirectLimitError(message: redirectLimitMessage));
       }
 
       final extractionPayload = payloads.map((item) => item.body).join('\n');
@@ -166,15 +185,16 @@ Uri? _extractJavascriptRedirect(String payload, {required Uri baseUrl}) {
   final normalized = payload
       .replaceAll(r'\/', '/')
       .replaceAll('&amp;', '&')
-      .replaceAll(r'\u0026', '&');
+      .replaceAll(r'\u0026', '&')
+      .replaceAll(r'\x2F', '/');
 
   final patterns = <RegExp>[
     RegExp(
-      r'''(?:window\.)?location(?:\.href)?\s*=\s*["']([^"']+)["']''',
+      r'''(?:window\.)?location(?:\.href)?\s*=\s*(?:["'`])([^"'`]+)(?:["'`])''',
       caseSensitive: false,
     ),
     RegExp(
-      r'''location\.replace\(\s*["']([^"']+)["']\s*\)''',
+      r'''location\.replace\(\s*(?:["'`])([^"'`]+)(?:["'`])\s*\)''',
       caseSensitive: false,
     ),
   ];
@@ -223,6 +243,18 @@ List<Uri> _extractStreams(String payload, Uri resolverUrl) {
   );
   for (final match in directUrlPattern.allMatches(normalized)) {
     final value = match.group(0);
+    if (value != null && value.trim().isNotEmpty) {
+      rawCandidates.add(_cleanCandidate(value));
+    }
+  }
+
+  final sourceTagPattern = RegExp(
+    r'''<source[^>]+src\s*=\s*(?:"([^"]+)"|'([^']+)')''',
+    caseSensitive: false,
+    multiLine: true,
+  );
+  for (final match in sourceTagPattern.allMatches(normalized)) {
+    final value = match.group(1) ?? match.group(2);
     if (value != null && value.trim().isNotEmpty) {
       rawCandidates.add(_cleanCandidate(value));
     }
@@ -298,8 +330,11 @@ Set<String> _extractBase64EmbeddedCandidates(String payload) {
 
 String? _tryDecodeBase64(String encoded) {
   try {
-    final decoded = Uri.decodeFull(encoded);
-    final bytes = UriData.parse('data:;base64,$decoded').contentAsBytes();
+    final normalized = _normalizeBase64(encoded);
+    if (normalized.isEmpty) {
+      return null;
+    }
+    final bytes = UriData.parse('data:;base64,$normalized').contentAsBytes();
     if (bytes.isEmpty) {
       return null;
     }
@@ -307,6 +342,15 @@ String? _tryDecodeBase64(String encoded) {
   } catch (_) {
     return null;
   }
+}
+
+String _normalizeBase64(String value) {
+  final clean = value.replaceAll(RegExp(r'\s+'), '');
+  final remainder = clean.length % 4;
+  if (remainder == 0) {
+    return clean;
+  }
+  return clean.padRight(clean.length + (4 - remainder), '=');
 }
 
 Uri? _toAbsoluteUri(String raw, Uri baseUri) {
@@ -383,6 +427,123 @@ bool _isTokenGatedPayload(String payload) {
     caseSensitive: false,
     multiLine: true,
   ).hasMatch(payload);
+}
+
+Uri _normalizeEmbedUrl(Uri url) {
+  if (url.path.startsWith('/v/')) {
+    return url.replace(path: url.path.replaceFirst('/v/', '/e/'));
+  }
+  return url;
+}
+
+String _buildExtractionPayload(String payload) {
+  final parts = <String>[payload];
+  for (final unpacked in _unpackDeanEdwardsPayloads(payload)) {
+    if (unpacked.trim().isNotEmpty) {
+      parts.add(unpacked);
+    }
+  }
+  return parts.join('\n');
+}
+
+List<String> _unpackDeanEdwardsPayloads(String payload) {
+  final pattern = RegExp(
+    r"""eval\(function\(p,a,c,k,e,d\)\{[\s\S]*?return p\}\('([\s\S]*?)',\s*(\d+),\s*(\d+),\s*'([\s\S]*?)'\.split\('\|'\)""",
+    caseSensitive: false,
+    multiLine: true,
+  );
+
+  final unpacked = <String>[];
+  for (final match in pattern.allMatches(payload)) {
+    final rawPacked = match.group(1);
+    final rawBase = match.group(2);
+    final rawCount = match.group(3);
+    final rawDictionary = match.group(4);
+    if (rawPacked == null ||
+        rawBase == null ||
+        rawCount == null ||
+        rawDictionary == null) {
+      continue;
+    }
+
+    final base = int.tryParse(rawBase);
+    final count = int.tryParse(rawCount);
+    if (base == null || count == null || base < 2 || base > 36 || count <= 0) {
+      continue;
+    }
+
+    final tokens = rawDictionary.split('|');
+    var decoded = _decodeJsEscapes(rawPacked);
+
+    for (var i = count - 1; i >= 0; i--) {
+      if (i >= tokens.length) {
+        continue;
+      }
+      final replacement = tokens[i];
+      if (replacement.isEmpty) {
+        continue;
+      }
+      final key = i.toRadixString(base);
+      decoded = decoded.replaceAll(
+        RegExp(r'\b' + RegExp.escape(key) + r'\b'),
+        replacement,
+      );
+    }
+
+    if (decoded.trim().isNotEmpty) {
+      unpacked.add(decoded);
+    }
+  }
+  return unpacked;
+}
+
+String _decodeJsEscapes(String value) {
+  final output = StringBuffer();
+  var i = 0;
+  while (i < value.length) {
+    final char = value[i];
+    if (char != '\\') {
+      output.write(char);
+      i++;
+      continue;
+    }
+
+    if (i + 1 >= value.length) {
+      output.write(char);
+      break;
+    }
+
+    final next = value[i + 1];
+    if (next == 'x' && i + 3 < value.length) {
+      final hex = value.substring(i + 2, i + 4);
+      final code = int.tryParse(hex, radix: 16);
+      if (code != null) {
+        output.writeCharCode(code);
+        i += 4;
+        continue;
+      }
+    }
+
+    if (next == 'u' && i + 5 < value.length) {
+      final hex = value.substring(i + 2, i + 6);
+      final code = int.tryParse(hex, radix: 16);
+      if (code != null) {
+        output.writeCharCode(code);
+        i += 6;
+        continue;
+      }
+    }
+
+    if (next == '/') {
+      output.write('/');
+      i += 2;
+      continue;
+    }
+
+    output.write(next);
+    i += 2;
+  }
+  return output.toString();
 }
 
 ResolvedStream _toResolvedStream(Uri url, Uri resolverUrl) {
