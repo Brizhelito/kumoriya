@@ -228,14 +228,33 @@ class _JkAnimeAvailabilityCard extends ConsumerWidget {
                             ),
                             const SizedBox(height: 6),
                             if (sourceManifest.iconUrl != null)
-                              SizedBox(
-                                height: 30,
-                                child: Image.network(
-                                  sourceManifest.iconUrl!,
-                                  fit: BoxFit.contain,
-                                  alignment: Alignment.centerLeft,
-                                  errorBuilder: (_, _, _) =>
-                                      Text(sourceManifest.displayName),
+                              DecoratedBox(
+                                decoration: BoxDecoration(
+                                  color:
+                                      Theme.of(context).brightness ==
+                                          Brightness.dark
+                                      ? Colors.white
+                                      : const Color(0xFF101826),
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(
+                                    color: Colors.black.withValues(alpha: 0.12),
+                                  ),
+                                ),
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 10,
+                                    vertical: 6,
+                                  ),
+                                  child: SizedBox(
+                                    height: 26,
+                                    child: Image.network(
+                                      sourceManifest.iconUrl!,
+                                      fit: BoxFit.contain,
+                                      alignment: Alignment.centerLeft,
+                                      errorBuilder: (_, _, _) =>
+                                          Text(sourceManifest.displayName),
+                                    ),
+                                  ),
                                 ),
                               )
                             else
