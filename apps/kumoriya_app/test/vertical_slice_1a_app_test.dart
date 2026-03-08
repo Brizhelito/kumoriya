@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kumoriya_core/kumoriya_core.dart';
 import 'package:kumoriya_domain/kumoriya_domain.dart';
+import 'package:kumoriya_plugins/kumoriya_plugins.dart';
 
 import 'package:kumoriya_app/src/app/kumoriya_app.dart';
 import 'package:kumoriya_app/src/features/anime_catalog/presentation/providers/anime_catalog_providers.dart';
@@ -12,11 +13,13 @@ void main() {
     tester,
   ) async {
     final fakeRepository = _FakeAnimeCatalogRepository.success();
+    const fakeSourcePlugin = _FakeSourcePlugin();
 
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
           animeCatalogRepositoryProvider.overrideWithValue(fakeRepository),
+          sourcePluginProvider.overrideWithValue(fakeSourcePlugin),
         ],
         child: const KumoriyaApp(),
       ),
@@ -53,11 +56,13 @@ void main() {
 
   testWidgets('home page shows typed error with retry button', (tester) async {
     final fakeRepository = _FakeAnimeCatalogRepository.transportFailure();
+    const fakeSourcePlugin = _FakeSourcePlugin();
 
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
           animeCatalogRepositoryProvider.overrideWithValue(fakeRepository),
+          sourcePluginProvider.overrideWithValue(fakeSourcePlugin),
         ],
         child: const KumoriyaApp(),
       ),
@@ -174,4 +179,52 @@ final class _FakeAnimeCatalogRepository implements AnimeCatalogRepository {
     totalEpisodes: 28,
     status: AnimeStatus.releasing,
   );
+}
+
+final class _FakeSourcePlugin implements SourcePlugin {
+  const _FakeSourcePlugin();
+
+  @override
+  PluginManifest get manifest => const PluginManifest(
+    id: 'test.source',
+    displayName: 'Test Source',
+    type: PluginType.source,
+    capabilities: <PluginCapability>{},
+  );
+
+  @override
+  Future<Result<SourceAnimeDetail, KumoriyaError>> getAnimeDetail(
+    String sourceId,
+  ) async {
+    return Failure(
+      SimpleError(
+        code: 'test.unsupported',
+        message: 'Not used in this test',
+        kind: KumoriyaErrorKind.unexpected,
+      ),
+    );
+  }
+
+  @override
+  Future<Result<List<SourceEpisode>, KumoriyaError>> getEpisodes(
+    String sourceId,
+  ) async {
+    return Success(<SourceEpisode>[
+      SourceEpisode(
+        sourceEpisodeId: '1',
+        number: 1,
+        title: 'Episode 1',
+        episodeUrl: Uri.parse('https://example.com/1'),
+      ),
+    ]);
+  }
+
+  @override
+  Future<Result<List<SourceAnimeMatch>, KumoriyaError>> search(
+    SourceSearchQuery query,
+  ) async {
+    return const Success(<SourceAnimeMatch>[
+      SourceAnimeMatch(sourceId: 'frieren', title: 'Frieren'),
+    ]);
+  }
 }
