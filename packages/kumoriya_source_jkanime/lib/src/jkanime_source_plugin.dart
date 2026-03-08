@@ -46,14 +46,18 @@ final class JkAnimeSourcePlugin implements SourcePlugin {
             '.page_directorio .anime__item',
           );
           final matches = <SourceAnimeMatch>[];
+          final seenSourceIds = <String>{};
 
           for (final card in cards) {
             final title = card.querySelector('h5 a')?.text.trim() ?? '';
             final href = card.querySelector('h5 a')?.attributes['href'] ?? '';
             final sourceId = _extractSourceIdFromUrl(href);
-            if (title.isEmpty || sourceId == null) {
+            if (title.isEmpty ||
+                sourceId == null ||
+                seenSourceIds.contains(sourceId)) {
               continue;
             }
+            seenSourceIds.add(sourceId);
 
             final imageUrl = card
                 .querySelector('.anime__item__pic')
@@ -101,7 +105,15 @@ final class JkAnimeSourcePlugin implements SourcePlugin {
           final document = html_parser.parse(html);
           final title =
               document.querySelector('.anime_info h3')?.text.trim() ?? '';
-          if (title.isEmpty) {
+          final fallbackOgTitle = document
+              .querySelector('meta[property="og:title"]')
+              ?.attributes['content']
+              ?.trim();
+          final resolvedTitle = title.isNotEmpty
+              ? title
+              : _extractTitleFromOgTitle(fallbackOgTitle);
+
+          if (resolvedTitle.isEmpty) {
             return const Failure(
               JkAnimeParseError(message: 'JKAnime detail title was not found.'),
             );
@@ -129,7 +141,7 @@ final class JkAnimeSourcePlugin implements SourcePlugin {
           return Success(
             SourceAnimeDetail(
               sourceId: slug,
-              title: title,
+              title: resolvedTitle,
               synopsis: synopsis?.isEmpty == true ? null : synopsis,
               thumbnailUrl: _asUri(thumbnail),
               releaseYear: _extractYear(emittedText),
@@ -378,21 +390,23 @@ final class JkAnimeSourcePlugin implements SourcePlugin {
       final number = item['number'];
       final title = item['title'];
 
+      final episodeNumber = _parseEpisodeNumber(number);
       if (id is! int ||
-          number is! num ||
+          episodeNumber == null ||
           title is! String ||
           title.trim().isEmpty) {
         continue;
       }
 
       final image = item['image'];
-      final episodeNumber = number.toDouble();
       episodes.add(
         SourceEpisode(
           sourceEpisodeId: id.toString(),
           number: episodeNumber,
           title: title.trim(),
-          episodeUrl: _baseUri.resolve('$slug/${number.toString()}/'),
+          episodeUrl: _baseUri.resolve(
+            '$slug/${_episodeNumberPathSegment(episodeNumber)}/',
+          ),
           thumbnailUrl: image is String && image.startsWith('http')
               ? Uri.parse(image)
               : null,
@@ -400,7 +414,12 @@ final class JkAnimeSourcePlugin implements SourcePlugin {
       );
     }
 
-    return episodes;
+    final dedupedById = <String, SourceEpisode>{};
+    for (final episode in episodes) {
+      dedupedById[episode.sourceEpisodeId] = episode;
+    }
+
+    return dedupedById.values.toList(growable: false);
   }
 
   String _normalizeSourceId(String sourceId) {
@@ -422,12 +441,31 @@ final class JkAnimeSourcePlugin implements SourcePlugin {
       return null;
     }
 
-    final segments = uri.pathSegments.where((s) => s.isNotEmpty).toList();
+    final resolved = uri.hasScheme ? uri : _baseUri.resolveUri(uri);
+    if (resolved.host.isNotEmpty &&
+        !resolved.host.toLowerCase().endsWith('jkanime.net')) {
+      return null;
+    }
+
+    final segments = resolved.pathSegments.where((s) => s.isNotEmpty).toList();
     if (segments.isEmpty) {
       return null;
     }
 
     return segments.first;
+  }
+
+  String _extractTitleFromOgTitle(String? ogTitle) {
+    if (ogTitle == null || ogTitle.isEmpty) {
+      return '';
+    }
+
+    final delimiter = ' Sub ';
+    final delimiterIndex = ogTitle.indexOf(delimiter);
+    final title = delimiterIndex == -1
+        ? ogTitle
+        : ogTitle.substring(0, delimiterIndex);
+    return title.trim();
   }
 
   AnimeFormat _mapFormat(String? raw) {
@@ -498,17 +536,17 @@ final class JkAnimeSourcePlugin implements SourcePlugin {
 
   List<SourceServerLink> _extractServerLinksFromEpisodeHtml(String html) {
     final document = html_parser.parse(html);
-    final serverButtons = document.querySelectorAll('.bg-servers .servers');
+    final serverButtons = document.querySelectorAll('.servers.btn-show');
 
     final videoPattern = RegExp(
-      r'''video\[(\d+)\]\s*=\s*'<iframe[^>]*src="([^"]+)"''',
+      r'''video\[(\d+)\]\s*=\s*['"]<iframe[^>]*src=(["'])([^"']+)\2''',
       multiLine: true,
     );
     final videoByIndex = <int, Uri>{};
 
     for (final match in videoPattern.allMatches(html)) {
       final rawIndex = match.group(1);
-      final rawUrl = match.group(2);
+      final rawUrl = match.group(3);
       if (rawIndex == null || rawUrl == null) {
         continue;
       }
@@ -530,11 +568,14 @@ final class JkAnimeSourcePlugin implements SourcePlugin {
     for (final button in serverButtons) {
       final idAttr = button.attributes['data-id']?.trim();
       final serverName = button.text.trim();
-      if (idAttr == null || serverName.isEmpty) {
+      if (serverName.isEmpty) {
         continue;
       }
 
-      final index = int.tryParse(idAttr);
+      final index = _extractServerIndex(
+        idAttr: idAttr,
+        href: button.attributes['href'],
+      );
       if (index == null) {
         continue;
       }
@@ -573,6 +614,44 @@ final class JkAnimeSourcePlugin implements SourcePlugin {
     }
 
     return links;
+  }
+
+  double? _parseEpisodeNumber(Object? rawNumber) {
+    if (rawNumber is num) {
+      return rawNumber.toDouble();
+    }
+    if (rawNumber is String) {
+      return double.tryParse(rawNumber.trim());
+    }
+    return null;
+  }
+
+  int? _extractServerIndex({String? idAttr, String? href}) {
+    if (idAttr != null) {
+      final parsed = int.tryParse(idAttr);
+      if (parsed != null) {
+        return parsed;
+      }
+    }
+
+    if (href == null || href.isEmpty) {
+      return null;
+    }
+
+    final marker = '#option';
+    final markerIndex = href.indexOf(marker);
+    if (markerIndex == -1) {
+      return null;
+    }
+
+    final value = href.substring(markerIndex + marker.length).trim();
+    return int.tryParse(value);
+  }
+
+  String _episodeNumberPathSegment(double number) {
+    return number == number.truncateToDouble()
+        ? number.toInt().toString()
+        : number.toString();
   }
 }
 
