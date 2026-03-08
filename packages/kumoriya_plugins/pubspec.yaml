@@ -1,0 +1,17 @@
+name: kumoriya_plugins
+description: Plugin contracts for source and resolver integration.
+version: 0.1.0
+publish_to: none
+
+resolution: workspace
+
+environment:
+  sdk: ^3.11.1
+
+dependencies:
+  kumoriya_core:
+  kumoriya_domain:
+
+dev_dependencies:
+  lints: ^6.0.0
+  test: ^1.25.6
