@@ -17,6 +17,7 @@ final class VoeResolverPlugin implements ResolverPlugin {
     'voe.sh',
     'voe.network',
     'voe.su',
+    'lancewhosedifficult.com',
   };
 
   @override
@@ -32,6 +33,7 @@ final class VoeResolverPlugin implements ResolverPlugin {
       'voe.sh',
       'voe.network',
       'voe.su',
+      'lancewhosedifficult.com',
     ],
     baseUrls: <String>['https://voe.sx/e/'],
   );
@@ -79,25 +81,48 @@ final class VoeResolverPlugin implements ResolverPlugin {
     }
 
     try {
-      final response = await _httpClient
-          .get(url, headers: _requestHeaders(url))
-          .timeout(const Duration(seconds: 15));
+      final payloads = <_FetchedPayload>[];
+      var currentUrl = url;
+      Uri? referer;
 
-      if (response.statusCode != 200) {
-        return Failure(
-          VoeTransportError(
-            message: 'VOE request failed with status ${response.statusCode}.',
-          ),
+      for (var hop = 0; hop < 3; hop++) {
+        final response = await _httpClient
+            .get(currentUrl, headers: _requestHeaders(currentUrl, referer))
+            .timeout(const Duration(seconds: 15));
+
+        if (response.statusCode != 200) {
+          return Failure(
+            VoeTransportError(
+              message:
+                  'VOE request failed with status ${response.statusCode} for $currentUrl.',
+            ),
+          );
+        }
+
+        payloads.add(_FetchedPayload(url: currentUrl, body: response.body));
+
+        final redirectUrl = _extractJavascriptRedirect(
+          response.body,
+          baseUrl: currentUrl,
         );
+        if (redirectUrl == null ||
+            payloads.any(
+              (item) => item.url.toString() == redirectUrl.toString(),
+            )) {
+          break;
+        }
+
+        referer = currentUrl;
+        currentUrl = redirectUrl;
       }
 
-      final streams = _extractStreams(
-        response.body,
-        url,
-      ).map((stream) => _toResolvedStream(stream, url)).toList(growable: false);
+      final extractionPayload = payloads.map((item) => item.body).join('\n');
+      final streams = _extractStreams(extractionPayload, payloads.last.url)
+          .map((stream) => _toResolvedStream(stream, payloads.last.url))
+          .toList(growable: false);
 
       if (streams.isEmpty) {
-        final hasStreamHints = _hasStreamHints(response.body);
+        final hasStreamHints = _hasStreamHints(extractionPayload);
         if (hasStreamHints) {
           return const Failure(
             VoeInconsistentPayloadError(
@@ -122,9 +147,50 @@ final class VoeResolverPlugin implements ResolverPlugin {
   }
 }
 
-Map<String, String> _requestHeaders(Uri url) {
+final class _FetchedPayload {
+  const _FetchedPayload({required this.url, required this.body});
+
+  final Uri url;
+  final String body;
+}
+
+Map<String, String> _requestHeaders(Uri url, Uri? referer) {
   final origin = '${url.scheme}://${url.host}';
-  return <String, String>{'Referer': '$origin/', 'Origin': origin};
+  final resolvedReferer = referer == null ? '$origin/' : referer.toString();
+  return <String, String>{'Referer': resolvedReferer, 'Origin': origin};
+}
+
+Uri? _extractJavascriptRedirect(String payload, {required Uri baseUrl}) {
+  final normalized = payload
+      .replaceAll(r'\/', '/')
+      .replaceAll('&amp;', '&')
+      .replaceAll(r'\u0026', '&');
+
+  final patterns = <RegExp>[
+    RegExp(
+      r'''(?:window\.)?location(?:\.href)?\s*=\s*["']([^"']+)["']''',
+      caseSensitive: false,
+    ),
+    RegExp(
+      r'''location\.replace\(\s*["']([^"']+)["']\s*\)''',
+      caseSensitive: false,
+    ),
+  ];
+
+  for (final pattern in patterns) {
+    final match = pattern.firstMatch(normalized);
+    final candidate = match?.group(1)?.trim();
+    if (candidate == null || candidate.isEmpty) {
+      continue;
+    }
+
+    final absolute = _toAbsoluteUri(candidate, baseUrl);
+    if (absolute != null) {
+      return absolute;
+    }
+  }
+
+  return null;
 }
 
 List<Uri> _extractStreams(String payload, Uri resolverUrl) {
@@ -144,7 +210,7 @@ List<Uri> _extractStreams(String payload, Uri resolverUrl) {
   for (final match in keyedPattern.allMatches(normalized)) {
     final value = match.group(1) ?? match.group(2);
     if (value != null && value.trim().isNotEmpty) {
-      rawCandidates.add(value.trim());
+      rawCandidates.add(_cleanCandidate(value));
     }
   }
 
@@ -156,7 +222,7 @@ List<Uri> _extractStreams(String payload, Uri resolverUrl) {
   for (final match in directUrlPattern.allMatches(normalized)) {
     final value = match.group(0);
     if (value != null && value.trim().isNotEmpty) {
-      rawCandidates.add(value.trim());
+      rawCandidates.add(_cleanCandidate(value));
     }
   }
 
@@ -179,7 +245,8 @@ List<Uri> _extractStreams(String payload, Uri resolverUrl) {
 }
 
 Uri? _toAbsoluteUri(String raw, Uri baseUri) {
-  final direct = Uri.tryParse(raw);
+  final cleaned = _cleanCandidate(raw);
+  final direct = Uri.tryParse(cleaned);
   if (direct == null) {
     return null;
   }
@@ -188,15 +255,22 @@ Uri? _toAbsoluteUri(String raw, Uri baseUri) {
     return direct;
   }
 
-  if (raw.startsWith('//')) {
-    return Uri.tryParse('${baseUri.scheme}:$raw');
+  if (cleaned.startsWith('//')) {
+    return Uri.tryParse('${baseUri.scheme}:$cleaned');
   }
 
-  if (raw.startsWith('/')) {
-    return baseUri.replace(path: raw, query: null, fragment: null);
+  if (cleaned.startsWith('/')) {
+    return baseUri.replace(path: cleaned, query: null, fragment: null);
   }
 
   return null;
+}
+
+String _cleanCandidate(String value) {
+  return value
+      .trim()
+      .replaceAll(RegExp(r'''^[\'"]+'''), '')
+      .replaceAll(RegExp(r'''[\'"),;\]]+$'''), '');
 }
 
 bool _isPlayableUri(Uri uri) {
@@ -235,7 +309,7 @@ ResolvedStream _toResolvedStream(Uri url, Uri resolverUrl) {
     qualityLabel: _inferQuality(url),
     mimeType: mimeType,
     isHls: isHls,
-    headers: _requestHeaders(resolverUrl),
+    headers: _requestHeaders(resolverUrl, null),
   );
 }
 

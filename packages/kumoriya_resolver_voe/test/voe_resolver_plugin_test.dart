@@ -16,6 +16,12 @@ void main() {
   final emptyFixture = File(
     'test/fixtures/voe_payload_empty.html',
   ).readAsStringSync();
+  final redirectFixture = File(
+    'test/fixtures/voe_payload_redirect.html',
+  ).readAsStringSync();
+  final redirectTargetFixture = File(
+    'test/fixtures/voe_payload_redirect_target.html',
+  ).readAsStringSync();
 
   test('supports voe hosts with /e/ path', () {
     final plugin = VoeResolverPlugin();
@@ -23,10 +29,52 @@ void main() {
     expect(plugin.supports(Uri.parse('https://voe.sx/e/abcd1234')), isTrue);
     expect(plugin.supports(Uri.parse('https://voe.uno/v/abcd1234')), isTrue);
     expect(
+      plugin.supports(Uri.parse('https://lancewhosedifficult.com/e/abcd1234')),
+      isTrue,
+    );
+    expect(
       plugin.supports(Uri.parse('https://filemoon.sx/e/abcd1234')),
       isFalse,
     );
   });
+
+  test(
+    'follows javascript redirect and extracts streams from target payload',
+    () async {
+      var hits = 0;
+      final plugin = VoeResolverPlugin(
+        httpClient: MockClient((request) async {
+          hits++;
+          if (request.url.host == 'voe.sx') {
+            return http.Response(redirectFixture, 200);
+          }
+          if (request.url.host == 'lancewhosedifficult.com') {
+            expect(request.headers['referer'], contains('voe.sx/e/abcd1234'));
+            return http.Response(redirectTargetFixture, 200);
+          }
+          return http.Response('not found', 404);
+        }),
+      );
+
+      final result = await plugin.resolve(
+        Uri.parse('https://voe.sx/e/abcd1234'),
+      );
+
+      expect(hits, 2);
+      expect(result.isSuccess, isTrue);
+      result.fold(
+        onFailure: (_) => fail('expected success'),
+        onSuccess: (streams) {
+          expect(streams, hasLength(2));
+          expect(streams.where((stream) => stream.isHls), isNotEmpty);
+          expect(
+            streams.where((stream) => stream.mimeType == 'video/mp4'),
+            isNotEmpty,
+          );
+        },
+      );
+    },
+  );
 
   test('extracts hls and mp4 streams with metadata', () async {
     final plugin = VoeResolverPlugin(
