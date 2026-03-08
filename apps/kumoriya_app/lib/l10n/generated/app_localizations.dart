@@ -392,6 +392,12 @@ abstract class AppLocalizations {
   /// **'No resolver is available for this server link.'**
   String get resolverNoResolverFound;
 
+  /// No description provided for @resolverAmbiguousSelection.
+  ///
+  /// In en, this message translates to:
+  /// **'More than one resolver matches this link with the same priority.'**
+  String get resolverAmbiguousSelection;
+
   /// No description provided for @resolverMalformedLink.
   ///
   /// In en, this message translates to:
@@ -479,6 +485,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Header {name}: {value}'**
   String resolverHeader(Object name, Object value);
+
+  /// No description provided for @resolverUsed.
+  ///
+  /// In en, this message translates to:
+  /// **'Resolved by: {resolverName}'**
+  String resolverUsed(Object resolverName);
 
   /// No description provided for @jkanimeServerLinksLoading.
   ///

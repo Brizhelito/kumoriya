@@ -47,12 +47,19 @@ class ResolveServerLinkPage extends ConsumerWidget {
             onRetry: () =>
                 ref.invalidate(resolveSourceServerLinkProvider(serverLink)),
           ),
-          onSuccess: (streams) => ListView.separated(
+          onSuccess: (resolved) => ListView.separated(
             padding: const EdgeInsets.all(12),
-            itemCount: streams.length,
+            itemCount: resolved.streams.length + 1,
             separatorBuilder: (_, _) => const Divider(height: 1),
             itemBuilder: (context, index) {
-              final stream = streams[index];
+              if (index == 0) {
+                return ListTile(
+                  title: Text(context.l10n.resolverUsed(resolved.resolverName)),
+                  subtitle: Text(resolved.resolverId),
+                );
+              }
+
+              final stream = resolved.streams[index - 1];
               return ListTile(
                 title: Text(stream.url.toString()),
                 subtitle: Column(

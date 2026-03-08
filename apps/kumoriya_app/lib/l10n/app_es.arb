@@ -81,6 +81,7 @@
   "resolveServerLink": "Resolver",
   "resolverResolving": "Resolviendo enlace de stream...",
   "resolverNoResolverFound": "No hay resolver disponible para este server link.",
+  "resolverAmbiguousSelection": "Mas de un resolver coincide con este link con la misma prioridad.",
   "resolverMalformedLink": "El enlace de origen es invalido y no se puede resolver.",
   "resolverParseFailure": "El resolver no pudo extraer un stream valido del payload.",
   "resolverInconsistentPayload": "El resolver recibio un payload inconsistente del proveedor.",
@@ -121,6 +122,12 @@
     "placeholders": {
       "name": {},
       "value": {}
+    }
+  },
+  "resolverUsed": "Resuelto por: {resolverName}",
+  "@resolverUsed": {
+    "placeholders": {
+      "resolverName": {}
     }
   },
   "jkanimeServerLinksLoading": "Cargando enlaces de servidores de JKAnime...",

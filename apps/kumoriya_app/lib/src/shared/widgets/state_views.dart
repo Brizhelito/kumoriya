@@ -82,6 +82,8 @@ String mapErrorMessage(BuildContext context, KumoriyaError error) {
       case 'resolver.no_resolver':
       case 'resolver.jkplayer.unsupported_host':
         return context.l10n.resolverNoResolverFound;
+      case 'resolver.ambiguous':
+        return context.l10n.resolverAmbiguousSelection;
       case 'resolver.malformed_link':
       case 'resolver.jkplayer.malformed_link':
         return context.l10n.resolverMalformedLink;

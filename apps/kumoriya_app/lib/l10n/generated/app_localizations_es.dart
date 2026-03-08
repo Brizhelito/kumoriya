@@ -184,6 +184,10 @@ class AppLocalizationsEs extends AppLocalizations {
       'No hay resolver disponible para este server link.';
 
   @override
+  String get resolverAmbiguousSelection =>
+      'Mas de un resolver coincide con este link con la misma prioridad.';
+
+  @override
   String get resolverMalformedLink =>
       'El enlace de origen es invalido y no se puede resolver.';
 
@@ -243,6 +247,11 @@ class AppLocalizationsEs extends AppLocalizations {
   @override
   String resolverHeader(Object name, Object value) {
     return 'Header $name: $value';
+  }
+
+  @override
+  String resolverUsed(Object resolverName) {
+    return 'Resuelto por: $resolverName';
   }
 
   @override
