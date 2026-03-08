@@ -22,6 +22,7 @@ void main() {
 
     expect(plugin.supports(Uri.parse('https://mixdrop.co/e/abc123')), isTrue);
     expect(plugin.supports(Uri.parse('https://mixdrop.top/e/abc123')), isTrue);
+    expect(plugin.supports(Uri.parse('https://mxdrop.to/e/abc123')), isTrue);
     expect(
       plugin.supports(Uri.parse('https://streamwish.to/e/abc123')),
       isFalse,

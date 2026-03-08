@@ -43,6 +43,24 @@ void main() {
     expect(selected.resolver.manifest.id, 'kumoriya.resolver.filemoon');
   });
 
+  test('registry selects filemoon resolver for bysekoze alias host', () {
+    final registry = ResolverRegistry(
+      resolvers: <ResolverPlugin>[
+        JkPlayerJkResolverPlugin(),
+        VoeResolverPlugin(),
+        FilemoonResolverPlugin(),
+      ],
+    );
+
+    final selection = registry.selectFor(
+      Uri.parse('https://bysekoze.com/e/xyz123'),
+    );
+
+    expect(selection, isA<ResolverSelected>());
+    final selected = selection as ResolverSelected;
+    expect(selected.resolver.manifest.id, 'kumoriya.resolver.filemoon');
+  });
+
   test('registry remains deterministic with different host resolvers', () {
     final registry = ResolverRegistry(
       resolvers: <ResolverPlugin>[
@@ -100,6 +118,23 @@ void main() {
 
     final selection = registry.selectFor(
       Uri.parse('https://mixdrop.co/e/xyz321'),
+    );
+
+    expect(selection, isA<ResolverSelected>());
+    final selected = selection as ResolverSelected;
+    expect(selected.resolver.manifest.id, 'kumoriya.resolver.mixdrop');
+  });
+
+  test('registry selects mixdrop resolver for mxdrop alias host', () {
+    final registry = ResolverRegistry(
+      resolvers: <ResolverPlugin>[
+        StreamwishResolverPlugin(),
+        MixdropResolverPlugin(),
+      ],
+    );
+
+    final selection = registry.selectFor(
+      Uri.parse('https://mxdrop.to/e/xyz321'),
     );
 
     expect(selection, isA<ResolverSelected>());

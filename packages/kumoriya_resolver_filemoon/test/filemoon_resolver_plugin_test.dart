@@ -22,6 +22,7 @@ void main() {
 
     expect(plugin.supports(Uri.parse('https://filemoon.sx/e/xyz123')), isTrue);
     expect(plugin.supports(Uri.parse('https://filemoon.to/e/xyz123')), isTrue);
+    expect(plugin.supports(Uri.parse('https://bysekoze.com/e/xyz123')), isTrue);
     expect(plugin.supports(Uri.parse('https://voe.sx/e/xyz123')), isFalse);
   });
 

@@ -13,6 +13,7 @@ final class MixdropResolverPlugin implements ResolverPlugin {
   static const Set<String> _supportedHosts = <String>{
     'mixdrop.co',
     'mixdrop.to',
+    'mxdrop.to',
     'mixdrop.ag',
     'mixdrop.top',
     'mixdrop.my',
@@ -27,6 +28,7 @@ final class MixdropResolverPlugin implements ResolverPlugin {
     supportedHosts: <String>[
       'mixdrop.co',
       'mixdrop.to',
+      'mxdrop.to',
       'mixdrop.ag',
       'mixdrop.top',
       'mixdrop.my',

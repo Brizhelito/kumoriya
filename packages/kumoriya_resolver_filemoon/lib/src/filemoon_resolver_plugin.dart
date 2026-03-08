@@ -17,6 +17,7 @@ final class FilemoonResolverPlugin implements ResolverPlugin {
     'filemoon.in',
     'filemoon.link',
     'kerapoxy.cc',
+    'bysekoze.com',
   };
 
   @override
@@ -32,6 +33,7 @@ final class FilemoonResolverPlugin implements ResolverPlugin {
       'filemoon.in',
       'filemoon.link',
       'kerapoxy.cc',
+      'bysekoze.com',
     ],
     baseUrls: <String>['https://filemoon.sx/e/'],
   );
