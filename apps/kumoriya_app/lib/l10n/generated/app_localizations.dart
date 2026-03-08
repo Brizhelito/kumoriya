@@ -612,6 +612,30 @@ abstract class AppLocalizations {
   /// **'No servers found for this episode in JKAnime.'**
   String get jkanimeServerLinksEmpty;
 
+  /// No description provided for @jkanimeLinkTypeStream.
+  ///
+  /// In en, this message translates to:
+  /// **'STREAM'**
+  String get jkanimeLinkTypeStream;
+
+  /// No description provided for @jkanimeLinkTypeDownload.
+  ///
+  /// In en, this message translates to:
+  /// **'DOWNLOAD'**
+  String get jkanimeLinkTypeDownload;
+
+  /// No description provided for @jkanimeDownloadOnly.
+  ///
+  /// In en, this message translates to:
+  /// **'Download'**
+  String get jkanimeDownloadOnly;
+
+  /// No description provided for @jkanimeDetectedHost.
+  ///
+  /// In en, this message translates to:
+  /// **'Host: {host}'**
+  String jkanimeDetectedHost(Object host);
+
   /// No description provided for @jkanimeServerLinksTitle.
   ///
   /// In en, this message translates to:

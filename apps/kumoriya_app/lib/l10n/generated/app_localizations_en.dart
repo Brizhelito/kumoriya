@@ -327,6 +327,20 @@ class AppLocalizationsEn extends AppLocalizations {
       'No servers found for this episode in JKAnime.';
 
   @override
+  String get jkanimeLinkTypeStream => 'STREAM';
+
+  @override
+  String get jkanimeLinkTypeDownload => 'DOWNLOAD';
+
+  @override
+  String get jkanimeDownloadOnly => 'Download';
+
+  @override
+  String jkanimeDetectedHost(Object host) {
+    return 'Host: $host';
+  }
+
+  @override
   String jkanimeServerLinksTitle(Object animeTitle, Object episodeNumber) {
     return '$animeTitle | Episode $episodeNumber servers';
   }

@@ -172,6 +172,15 @@
   },
   "jkanimeServerLinksLoading": "Cargando enlaces de servidores de JKAnime...",
   "jkanimeServerLinksEmpty": "No se encontraron servidores para este episodio en JKAnime.",
+  "jkanimeLinkTypeStream": "STREAM",
+  "jkanimeLinkTypeDownload": "DESCARGA",
+  "jkanimeDownloadOnly": "Descargar",
+  "jkanimeDetectedHost": "Host: {host}",
+  "@jkanimeDetectedHost": {
+    "placeholders": {
+      "host": {}
+    }
+  },
   "jkanimeServerLinksTitle": "{animeTitle} | Servidores episodio {episodeNumber}",
   "@jkanimeServerLinksTitle": {
     "placeholders": {

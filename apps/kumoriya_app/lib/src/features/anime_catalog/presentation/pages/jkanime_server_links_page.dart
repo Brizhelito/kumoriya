@@ -59,30 +59,51 @@ class JkAnimeServerLinksPage extends ConsumerWidget {
               itemBuilder: (context, index) {
                 final link = serverLinks[index];
                 final language = link.language;
+                final isStream = link.linkType == SourceServerLinkType.stream;
                 return ListTile(
                   leading: const Icon(Icons.dns_outlined),
                   title: Text(link.serverName),
-                  subtitle: Text(link.initialUrl.toString()),
+                  subtitle: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: <Widget>[
+                      Text(link.initialUrl.toString()),
+                      if (link.detectedHost != null)
+                        Text(
+                          context.l10n.jkanimeDetectedHost(link.detectedHost!),
+                        ),
+                    ],
+                  ),
                   trailing: Wrap(
                     spacing: 8,
                     crossAxisAlignment: WrapCrossAlignment.center,
                     children: <Widget>[
+                      Text(
+                        isStream
+                            ? context.l10n.jkanimeLinkTypeStream
+                            : context.l10n.jkanimeLinkTypeDownload,
+                      ),
                       if (language != null) Text(language.toUpperCase()),
                       OutlinedButton(
-                        onPressed: () {
-                          Navigator.of(context).push(
-                            MaterialPageRoute<void>(
-                              builder: (_) => ResolveServerLinkPage(
-                                animeTitle: animeTitle,
-                                episodeNumber: episode.number
-                                    .toInt()
-                                    .toString(),
-                                serverLink: link,
-                              ),
-                            ),
-                          );
-                        },
-                        child: Text(context.l10n.resolveServerLink),
+                        onPressed: isStream
+                            ? () {
+                                Navigator.of(context).push(
+                                  MaterialPageRoute<void>(
+                                    builder: (_) => ResolveServerLinkPage(
+                                      animeTitle: animeTitle,
+                                      episodeNumber: episode.number
+                                          .toInt()
+                                          .toString(),
+                                      serverLink: link,
+                                    ),
+                                  ),
+                                );
+                              }
+                            : null,
+                        child: Text(
+                          isStream
+                              ? context.l10n.resolveServerLink
+                              : context.l10n.jkanimeDownloadOnly,
+                        ),
                       ),
                     ],
                   ),
