@@ -16,6 +16,9 @@ void main() {
   final emptyFixture = File(
     'test/fixtures/streamwish_payload_empty.html',
   ).readAsStringSync();
+  final packedEvalFixture = File(
+    'test/fixtures/streamwish_payload_packed_eval.html',
+  ).readAsStringSync();
 
   test('supports known StreamWish hosts', () {
     final plugin = StreamwishResolverPlugin();
@@ -53,6 +56,29 @@ void main() {
           streams.where((stream) => stream.mimeType == 'video/mp4'),
           isNotEmpty,
         );
+      },
+    );
+  });
+
+  test('extracts stream from eval-packed payload shape', () async {
+    final plugin = StreamwishResolverPlugin(
+      httpClient: MockClient((request) async {
+        expect(request.url.host, 'sfastwish.com');
+        return http.Response(packedEvalFixture, 200);
+      }),
+    );
+
+    final result = await plugin.resolve(
+      Uri.parse('https://sfastwish.com/e/abc123'),
+    );
+
+    expect(result.isSuccess, isTrue);
+    result.fold(
+      onFailure: (_) => fail('expected success'),
+      onSuccess: (streams) {
+        expect(streams, isNotEmpty);
+        expect(streams.single.url.toString(), contains('master.m3u8'));
+        expect(streams.single.isHls, isTrue);
       },
     );
   });

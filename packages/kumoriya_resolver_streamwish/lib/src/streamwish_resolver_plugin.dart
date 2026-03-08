@@ -89,9 +89,10 @@ final class StreamwishResolverPlugin implements ResolverPlugin {
         );
       }
 
-      final streams = _extractStreams(response.body, url);
+      final extractionPayload = _buildExtractionPayload(response.body);
+      final streams = _extractStreams(extractionPayload, url);
       if (streams.isEmpty) {
-        if (_hasHints(response.body)) {
+        if (_hasHints(extractionPayload)) {
           return const Failure(
             StreamwishInconsistentPayloadError(
               message: 'StreamWish payload has stream hints but no valid URLs.',
@@ -115,6 +116,163 @@ final class StreamwishResolverPlugin implements ResolverPlugin {
       );
     }
   }
+}
+
+String _buildExtractionPayload(String payload) {
+  final parts = <String>[payload];
+  for (final unpacked in _unpackDeanEdwardsPayloads(payload)) {
+    if (unpacked.trim().isNotEmpty) {
+      parts.add(unpacked);
+    }
+  }
+  return parts.join('\n');
+}
+
+List<String> _unpackDeanEdwardsPayloads(String payload) {
+  final pattern = RegExp(
+    r"""eval\(function\(p,a,c,k,e,d\)\{[\s\S]*?return p\}\('([\s\S]*?)',\s*(\d+),\s*(\d+),\s*'([\s\S]*?)'\.split\('\|'\)""",
+    caseSensitive: false,
+    multiLine: true,
+  );
+
+  final unpacked = <String>[];
+  for (final match in pattern.allMatches(payload)) {
+    final rawPacked = match.group(1);
+    final rawBase = match.group(2);
+    final rawCount = match.group(3);
+    final rawDictionary = match.group(4);
+    if (rawPacked == null ||
+        rawBase == null ||
+        rawCount == null ||
+        rawDictionary == null) {
+      continue;
+    }
+
+    final base = int.tryParse(rawBase);
+    final count = int.tryParse(rawCount);
+    if (base == null || count == null) {
+      continue;
+    }
+
+    final decoded = _decodeDeanEdwards(
+      packed: rawPacked,
+      base: base,
+      count: count,
+      dictionary: rawDictionary,
+    );
+    if (decoded != null && decoded.trim().isNotEmpty) {
+      unpacked.add(decoded);
+    }
+  }
+  return unpacked;
+}
+
+String? _decodeDeanEdwards({
+  required String packed,
+  required int base,
+  required int count,
+  required String dictionary,
+}) {
+  if (base < 2 || base > 36 || count <= 0) {
+    return null;
+  }
+
+  final tokens = dictionary.split('|');
+  var decoded = _decodeJsEscapes(packed);
+
+  for (var i = count - 1; i >= 0; i--) {
+    if (i >= tokens.length) {
+      continue;
+    }
+    final replacement = tokens[i];
+    if (replacement.isEmpty) {
+      continue;
+    }
+
+    final key = i.toRadixString(base);
+    decoded = decoded.replaceAll(
+      RegExp(r'\b' + RegExp.escape(key) + r'\b'),
+      replacement,
+    );
+  }
+
+  return decoded;
+}
+
+String _decodeJsEscapes(String value) {
+  final output = StringBuffer();
+
+  var i = 0;
+  while (i < value.length) {
+    final char = value[i];
+    if (char != '\\') {
+      output.write(char);
+      i++;
+      continue;
+    }
+
+    if (i + 1 >= value.length) {
+      i++;
+      continue;
+    }
+
+    final next = value[i + 1];
+    switch (next) {
+      case 'n':
+        output.write('\n');
+        i += 2;
+        break;
+      case 'r':
+        output.write('\r');
+        i += 2;
+        break;
+      case 't':
+        output.write('\t');
+        i += 2;
+        break;
+      case '\'':
+      case '"':
+      case '\\':
+      case '/':
+        output.write(next);
+        i += 2;
+        break;
+      case 'x':
+        final hex = _readHex(value, i + 2, 2);
+        if (hex != null) {
+          output.write(String.fromCharCode(hex));
+          i += 4;
+        } else {
+          output.write(next);
+          i += 2;
+        }
+        break;
+      case 'u':
+        final hex = _readHex(value, i + 2, 4);
+        if (hex != null) {
+          output.write(String.fromCharCode(hex));
+          i += 6;
+        } else {
+          output.write(next);
+          i += 2;
+        }
+        break;
+      default:
+        output.write(next);
+        i += 2;
+        break;
+    }
+  }
+
+  return output.toString();
+}
+
+int? _readHex(String value, int start, int length) {
+  if (start + length > value.length) {
+    return null;
+  }
+  final raw = value.substring(start, start + length);
+  return int.tryParse(raw, radix: 16);
 }
 
 Map<String, String> _headers(Uri url) {
@@ -207,7 +365,7 @@ bool _isPlayable(Uri uri) {
 
 bool _hasHints(String payload) {
   return RegExp(
-    r'''(sources|source|hls|master\.m3u8|\.mp4)''',
+    r'''(sources|source|hls|master\.m3u8|\.mp4|eval\(function\(p,a,c,k,e,d\))''',
     caseSensitive: false,
     multiLine: true,
   ).hasMatch(payload);
