@@ -76,6 +76,35 @@ void main() {
     );
     expect(find.text('Retry'), findsOneWidget);
   });
+
+  testWidgets('app respects Spanish system locale when supported', (
+    tester,
+  ) async {
+    tester.binding.platformDispatcher.localesTestValue = const <Locale>[
+      Locale('es', 'ES'),
+    ];
+    addTearDown(tester.binding.platformDispatcher.clearLocalesTestValue);
+
+    final fakeRepository = _FakeAnimeCatalogRepository.success();
+    const fakeSourcePlugin = _FakeSourcePlugin();
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          animeCatalogRepositoryProvider.overrideWithValue(fakeRepository),
+          sourcePluginProvider.overrideWithValue(fakeSourcePlugin),
+        ],
+        child: const KumoriyaApp(),
+      ),
+    );
+
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byIcon(Icons.search));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Buscar en AniList'), findsOneWidget);
+  });
 }
 
 final class _FakeAnimeCatalogRepository implements AnimeCatalogRepository {
