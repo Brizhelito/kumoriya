@@ -25,12 +25,25 @@ void main() {
   final placeholderOnlyFixture = File(
     'test/fixtures/voe_payload_placeholder_only.html',
   ).readAsStringSync();
+  final tokenGatedFixture = File(
+    'test/fixtures/voe_payload_token_gated.html',
+  ).readAsStringSync();
+  final base64EmbeddedFixture = File(
+    'test/fixtures/voe_payload_base64_embedded.html',
+  ).readAsStringSync();
 
   test('supports voe hosts with /e/ path', () {
     final plugin = VoeResolverPlugin();
 
     expect(plugin.supports(Uri.parse('https://voe.sx/e/abcd1234')), isTrue);
     expect(plugin.supports(Uri.parse('https://voe.uno/v/abcd1234')), isTrue);
+    expect(plugin.supports(Uri.parse('https://voe.cx/e/abcd1234')), isTrue);
+    expect(
+      plugin.supports(Uri.parse('https://voe.network/e/abcd1234')),
+      isTrue,
+    );
+    expect(plugin.supports(Uri.parse('https://voe.sh/e/abcd1234')), isTrue);
+    expect(plugin.supports(Uri.parse('https://voe.su/e/abcd1234')), isTrue);
     expect(
       plugin.supports(Uri.parse('https://lancewhosedifficult.com/e/abcd1234')),
       isTrue,
@@ -102,6 +115,50 @@ void main() {
     );
   });
 
+  test('extracts stream from api/video style payload', () async {
+    const apiVideoFixture = '''
+<html>
+  <body>
+    <script>var config = { url: "https://voe.sx/api/video/abc12345" };</script>
+  </body>
+</html>
+''';
+    final plugin = VoeResolverPlugin(
+      httpClient: MockClient((_) async => http.Response(apiVideoFixture, 200)),
+    );
+
+    final result = await plugin.resolve(Uri.parse('https://voe.sx/e/abcd1234'));
+
+    expect(result.isSuccess, isTrue);
+    result.fold(
+      onFailure: (_) => fail('expected success'),
+      onSuccess: (streams) {
+        expect(streams, hasLength(1));
+        expect(streams.single.url.toString(), contains('/api/video/abc12345'));
+      },
+    );
+  });
+
+  test('extracts stream from base64 embedded payload', () async {
+    final plugin = VoeResolverPlugin(
+      httpClient: MockClient(
+        (_) async => http.Response(base64EmbeddedFixture, 200),
+      ),
+    );
+
+    final result = await plugin.resolve(Uri.parse('https://voe.sx/e/abcd1234'));
+
+    expect(result.isSuccess, isTrue);
+    result.fold(
+      onFailure: (_) => fail('expected success'),
+      onSuccess: (streams) {
+        expect(streams, hasLength(1));
+        expect(streams.single.isHls, isTrue);
+        expect(streams.single.url.toString(), contains('/hls/abc/master.m3u8'));
+      },
+    );
+  });
+
   test(
     'returns inconsistent payload when hints exist without playable urls',
     () async {
@@ -166,6 +223,25 @@ void main() {
       );
     },
   );
+
+  test('returns inconsistent for token-gated payload flow', () async {
+    final plugin = VoeResolverPlugin(
+      httpClient: MockClient(
+        (_) async => http.Response(tokenGatedFixture, 200),
+      ),
+    );
+
+    final result = await plugin.resolve(Uri.parse('https://voe.sx/e/abcd1234'));
+
+    expect(result.isFailure, isTrue);
+    result.fold(
+      onFailure: (error) {
+        expect(error.kind, KumoriyaErrorKind.mapping);
+        expect(error.code, 'resolver.voe.inconsistent');
+      },
+      onSuccess: (_) => fail('expected failure'),
+    );
+  });
 
   test('returns transport failure for non-200 response', () async {
     final plugin = VoeResolverPlugin(
