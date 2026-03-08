@@ -11,5 +11,6 @@ workspace:
   - packages/kumoriya_plugins
   - packages/kumoriya_anilist
   - packages/kumoriya_source_jkanime
+  - packages/kumoriya_resolver_jkplayer
   - packages/kumoriya_storage
   - packages/kumoriya_testing

@@ -5,12 +5,16 @@ import '../models/plugin_manifest.dart';
 final class ResolvedStream {
   const ResolvedStream({
     required this.url,
-    required this.qualityLabel,
+    this.qualityLabel,
+    this.mimeType,
+    this.isHls = false,
     this.headers = const <String, String>{},
   });
 
   final Uri url;
-  final String qualityLabel;
+  final String? qualityLabel;
+  final String? mimeType;
+  final bool isHls;
   final Map<String, String> headers;
 }
 
