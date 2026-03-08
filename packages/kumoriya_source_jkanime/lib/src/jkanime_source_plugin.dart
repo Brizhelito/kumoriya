@@ -232,6 +232,8 @@ final class JkAnimeSourcePlugin implements SourcePlugin {
         try {
           final links = _extractServerLinksFromEpisodeHtml(html);
           return Success(links);
+        } on JkAnimeError catch (error) {
+          return Failure(error);
         } catch (error) {
           return Failure(
             JkAnimeParseError(
@@ -537,79 +539,85 @@ final class JkAnimeSourcePlugin implements SourcePlugin {
   List<SourceServerLink> _extractServerLinksFromEpisodeHtml(String html) {
     final document = html_parser.parse(html);
     final serverButtons = document.querySelectorAll('.servers.btn-show');
-
-    final videoPattern = RegExp(
-      r'''video\[(\d+)\]\s*=\s*['"]<iframe[^>]*src=(["'])([^"']+)\2''',
-      multiLine: true,
-    );
-    final videoByIndex = <int, Uri>{};
-
-    for (final match in videoPattern.allMatches(html)) {
-      final rawIndex = match.group(1);
-      final rawUrl = match.group(3);
-      if (rawIndex == null || rawUrl == null) {
-        continue;
-      }
-
-      final index = int.tryParse(rawIndex);
-      final uri = Uri.tryParse(rawUrl);
-      if (index == null || uri == null) {
-        continue;
-      }
-
-      videoByIndex[index] = uri;
-    }
+    final videoByIndex = _extractVideoUrlsByIndex(html);
 
     if (serverButtons.isEmpty) {
       return const <SourceServerLink>[];
     }
 
     final links = <SourceServerLink>[];
+    var parseableButtonCount = 0;
+    final seenServerIds = <String>{};
+
     for (final button in serverButtons) {
-      final idAttr = button.attributes['data-id']?.trim();
       final serverName = button.text.trim();
       if (serverName.isEmpty) {
         continue;
       }
 
       final index = _extractServerIndex(
-        idAttr: idAttr,
+        dataIdAttr: button.attributes['data-id'],
+        elementIdAttr: button.attributes['id'],
         href: button.attributes['href'],
       );
       if (index == null) {
         continue;
       }
+      parseableButtonCount++;
 
       final initialUrl = videoByIndex[index];
       if (initialUrl == null) {
         continue;
       }
-
-      final classes = button.classes;
-      final languageClass = classes
-          .where((value) => value.startsWith('lg_'))
-          .firstWhere((_) => true, orElse: () => '');
-
-      final language = switch (languageClass) {
-        'lg_1' => 'sub',
-        'lg_2' => 'lat',
-        'lg_3' => 'cast',
-        _ => null,
-      };
+      final normalizedServerSlug = serverName.toLowerCase().replaceAll(
+        ' ',
+        '-',
+      );
+      final serverId = '$index-$normalizedServerSlug';
+      if (!seenServerIds.add(serverId)) {
+        continue;
+      }
 
       links.add(
         SourceServerLink(
-          serverId: '$index-${serverName.toLowerCase().replaceAll(' ', '-')}',
+          serverId: serverId,
           serverName: serverName,
           initialUrl: initialUrl,
-          language: language,
+          language: _extractLanguageFromClasses(button.classes),
         ),
       );
     }
 
     if (serverButtons.isNotEmpty && links.isEmpty) {
-      throw const JkAnimeParseError(
-        message: 'JKAnime server buttons were found but link mapping failed.',
+      final hasVideoAssignments = RegExp(
+        r'''video\s*\[\s*['"]?\d+['"]?\s*\]''',
+        multiLine: true,
+      ).hasMatch(html);
+
+      if (parseableButtonCount == 0) {
+        throw const JkAnimeParseError(
+          message:
+              'JKAnime server buttons were found but no parseable server index was detected.',
+        );
+      }
+
+      if (!hasVideoAssignments) {
+        throw JkAnimeInconsistentPayloadError(
+          message:
+              'JKAnime server buttons are present ($parseableButtonCount), but no video[index] assignments exist in payload.',
+        );
+      }
+
+      if (videoByIndex.isEmpty) {
+        throw const JkAnimeParseError(
+          message:
+              'JKAnime video[index] assignments were detected but no valid iframe/url could be extracted.',
+        );
+      }
+
+      throw JkAnimeInconsistentPayloadError(
+        message:
+            'JKAnime server mapping failed: $parseableButtonCount parseable buttons, ${videoByIndex.length} extracted video entries, 0 resolved links.',
       );
     }
 
@@ -626,26 +634,142 @@ final class JkAnimeSourcePlugin implements SourcePlugin {
     return null;
   }
 
-  int? _extractServerIndex({String? idAttr, String? href}) {
-    if (idAttr != null) {
-      final parsed = int.tryParse(idAttr);
+  Map<int, Uri> _extractVideoUrlsByIndex(String html) {
+    final byIndex = <int, Uri>{};
+    final assignmentPattern = RegExp(
+      r'''video\s*\[\s*['"]?(\d+)['"]?\s*\]\s*=\s*(['"])([\s\S]*?)\2\s*;''',
+      multiLine: true,
+    );
+
+    for (final match in assignmentPattern.allMatches(html)) {
+      final rawIndex = match.group(1);
+      final rawValue = match.group(3);
+      if (rawIndex == null || rawValue == null) {
+        continue;
+      }
+
+      final index = int.tryParse(rawIndex);
+      if (index == null) {
+        continue;
+      }
+
+      final uri = _extractVideoUri(rawValue);
+      if (uri != null) {
+        byIndex[index] = uri;
+      }
+    }
+
+    return byIndex;
+  }
+
+  Uri? _extractVideoUri(String rawValue) {
+    final normalized = rawValue
+        .replaceAll(r'\/', '/')
+        .replaceAll(r'\"', '"')
+        .replaceAll(r"\'", "'");
+
+    final direct = _normalizePotentialVideoUri(normalized.trim());
+    if (direct != null) {
+      return direct;
+    }
+
+    final iframeSrcPattern = RegExp(
+      r'''src\s*=\s*(?:"([^"]+)"|'([^']+)'|([^"'\s>]+))''',
+      caseSensitive: false,
+      multiLine: true,
+    );
+    final srcMatch = iframeSrcPattern.firstMatch(normalized);
+    if (srcMatch == null) {
+      return null;
+    }
+
+    final rawSrc =
+        srcMatch.group(1) ?? srcMatch.group(2) ?? srcMatch.group(3) ?? '';
+    return _normalizePotentialVideoUri(rawSrc.trim());
+  }
+
+  Uri? _normalizePotentialVideoUri(String raw) {
+    if (raw.isEmpty) {
+      return null;
+    }
+
+    final candidate = raw.startsWith('//') ? 'https:$raw' : raw;
+    final parsed = Uri.tryParse(candidate);
+    if (parsed == null) {
+      return null;
+    }
+    if (!parsed.hasScheme) {
+      return null;
+    }
+    if (parsed.scheme != 'http' && parsed.scheme != 'https') {
+      return null;
+    }
+    if (parsed.host.isEmpty) {
+      return null;
+    }
+
+    return parsed;
+  }
+
+  int? _extractServerIndex({
+    String? dataIdAttr,
+    String? elementIdAttr,
+    String? href,
+  }) {
+    final candidates = <String?>[dataIdAttr, elementIdAttr, href];
+    for (final candidate in candidates) {
+      final parsed = _extractTrailingInt(candidate);
       if (parsed != null) {
         return parsed;
       }
     }
 
-    if (href == null || href.isEmpty) {
+    return null;
+  }
+
+  int? _extractTrailingInt(String? raw) {
+    if (raw == null || raw.trim().isEmpty) {
       return null;
     }
 
-    final marker = '#option';
-    final markerIndex = href.indexOf(marker);
-    if (markerIndex == -1) {
+    final trimmed = raw.trim();
+    final exact = int.tryParse(trimmed);
+    if (exact != null) {
+      return exact;
+    }
+
+    final match = RegExp(r'(\d+)(?!.*\d)').firstMatch(trimmed);
+    if (match == null) {
       return null;
     }
 
-    final value = href.substring(markerIndex + marker.length).trim();
-    return int.tryParse(value);
+    return int.tryParse(match.group(1)!);
+  }
+
+  String? _extractLanguageFromClasses(Set<String> classes) {
+    if (classes.isEmpty) {
+      return null;
+    }
+
+    final lowerClasses = classes.map((value) => value.toLowerCase()).toSet();
+    if (lowerClasses.contains('lg_1') ||
+        lowerClasses.contains('lang-sub') ||
+        lowerClasses.contains('sub')) {
+      return 'sub';
+    }
+    if (lowerClasses.contains('lg_2') ||
+        lowerClasses.contains('lang-lat') ||
+        lowerClasses.contains('latino') ||
+        lowerClasses.contains('audio-latino')) {
+      return 'lat';
+    }
+    if (lowerClasses.contains('lg_3') ||
+        lowerClasses.contains('lang-cast') ||
+        lowerClasses.contains('castellano')) {
+      return 'cast';
+    }
+
+    return null;
   }
 
   String _episodeNumberPathSegment(double number) {

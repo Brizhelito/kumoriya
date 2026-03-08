@@ -27,6 +27,11 @@ final class JkAnimeParseError extends JkAnimeError {
     : super(code: 'jkanime.parse', kind: KumoriyaErrorKind.mapping);
 }
 
+final class JkAnimeInconsistentPayloadError extends JkAnimeError {
+  const JkAnimeInconsistentPayloadError({required super.message})
+    : super(code: 'jkanime.inconsistent', kind: KumoriyaErrorKind.mapping);
+}
+
 final class JkAnimeSourceEmptyError extends JkAnimeError {
   const JkAnimeSourceEmptyError({required super.message})
     : super(code: 'jkanime.empty', kind: KumoriyaErrorKind.notFound);
