@@ -172,6 +172,8 @@ class _JkAnimeAvailabilityCard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final sourceManifest = ref.watch(sourcePluginProvider).manifest;
+
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(12),
@@ -208,11 +210,37 @@ class _JkAnimeAvailabilityCard extends ConsumerWidget {
               return Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: <Widget>[
-                  _AvailabilityStatusTile(
-                    title: context.l10n.jkanimeAvailabilityTitle,
-                    subtitle: context.l10n.jkanimeAvailable,
-                    icon: Icons.check_circle_outline,
-                    iconColor: Colors.green,
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: <Widget>[
+                      const Icon(
+                        Icons.check_circle_outline,
+                        color: Colors.green,
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: <Widget>[
+                            Text(
+                              context.l10n.jkanimeAvailabilityTitle,
+                              style: Theme.of(context).textTheme.titleMedium,
+                            ),
+                            const SizedBox(height: 6),
+                            if (sourceManifest.iconUrl != null)
+                              Image.network(
+                                sourceManifest.iconUrl!,
+                                height: 24,
+                                fit: BoxFit.contain,
+                                errorBuilder: (_, _, _) =>
+                                    Text(sourceManifest.displayName),
+                              )
+                            else
+                              Text(sourceManifest.displayName),
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
                   const SizedBox(height: 8),
                   Text(

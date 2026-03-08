@@ -7,6 +7,7 @@ final class PluginManifest {
     required this.displayName,
     required this.type,
     required this.capabilities,
+    this.iconUrl,
     this.supportedHosts = const <String>[],
     this.baseUrls = const <String>[],
     this.usesWebView = false,
@@ -16,6 +17,7 @@ final class PluginManifest {
   final String displayName;
   final PluginType type;
   final Set<PluginCapability> capabilities;
+  final String? iconUrl;
   final List<String> supportedHosts;
   final List<String> baseUrls;
   final bool usesWebView;

@@ -21,6 +21,7 @@ final class JkAnimeSourcePlugin implements SourcePlugin {
     id: 'kumoriya.source.jkanime',
     displayName: 'JKAnime',
     type: PluginType.source,
+    iconUrl: 'https://jkanime.net/favicon.ico',
     capabilities: <PluginCapability>{
       PluginCapability.search,
       PluginCapability.animeDetail,
