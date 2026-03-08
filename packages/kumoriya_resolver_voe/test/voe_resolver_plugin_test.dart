@@ -22,6 +22,9 @@ void main() {
   final redirectTargetFixture = File(
     'test/fixtures/voe_payload_redirect_target.html',
   ).readAsStringSync();
+  final placeholderOnlyFixture = File(
+    'test/fixtures/voe_payload_placeholder_only.html',
+  ).readAsStringSync();
 
   test('supports voe hosts with /e/ path', () {
     final plugin = VoeResolverPlugin();
@@ -139,6 +142,30 @@ void main() {
       onSuccess: (_) => fail('expected failure'),
     );
   });
+
+  test(
+    'rejects placeholder demo streams and returns inconsistent error',
+    () async {
+      final plugin = VoeResolverPlugin(
+        httpClient: MockClient(
+          (_) async => http.Response(placeholderOnlyFixture, 200),
+        ),
+      );
+
+      final result = await plugin.resolve(
+        Uri.parse('https://voe.sx/e/abcd1234'),
+      );
+
+      expect(result.isFailure, isTrue);
+      result.fold(
+        onFailure: (error) {
+          expect(error.kind, KumoriyaErrorKind.mapping);
+          expect(error.code, 'resolver.voe.inconsistent');
+        },
+        onSuccess: (_) => fail('expected failure'),
+      );
+    },
+  );
 
   test('returns transport failure for non-200 response', () async {
     final plugin = VoeResolverPlugin(

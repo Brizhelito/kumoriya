@@ -231,7 +231,7 @@ List<Uri> _extractStreams(String payload, Uri resolverUrl) {
 
   for (final raw in rawCandidates) {
     final uri = _toAbsoluteUri(raw, resolverUrl);
-    if (uri == null || !_isPlayableUri(uri)) {
+    if (uri == null || !_isPlayableUri(uri) || _isKnownPlaceholderUri(uri)) {
       continue;
     }
 
@@ -287,6 +287,20 @@ bool _isPlayableUri(Uri uri) {
       value.contains('.mp4') ||
       value.contains('/hls/') ||
       value.contains('master.m3u8');
+}
+
+bool _isKnownPlaceholderUri(Uri uri) {
+  final host = uri.host.toLowerCase();
+  if (host == 'test-videos.co.uk' || host.endsWith('.test-videos.co.uk')) {
+    return true;
+  }
+
+  final value = uri.toString().toLowerCase();
+  if (value.contains('big_buck_bunny')) {
+    return true;
+  }
+
+  return false;
 }
 
 bool _hasStreamHints(String payload) {
