@@ -68,6 +68,16 @@
     }
   },
   "jkanimeViewRealEpisodes": "View real JKAnime episodes",
+  "viewServerLinks": "View servers",
+  "jkanimeServerLinksLoading": "Loading JKAnime server links...",
+  "jkanimeServerLinksEmpty": "No servers found for this episode in JKAnime.",
+  "jkanimeServerLinksTitle": "{animeTitle} | Episode {episodeNumber} servers",
+  "@jkanimeServerLinksTitle": {
+    "placeholders": {
+      "animeTitle": {},
+      "episodeNumber": {}
+    }
+  },
   "jkanimeEpisodesTitle": "JKAnime episodes | {animeTitle}",
   "@jkanimeEpisodesTitle": {
     "placeholders": {

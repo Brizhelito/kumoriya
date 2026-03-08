@@ -135,6 +135,22 @@ class AppLocalizationsEs extends AppLocalizations {
   String get jkanimeViewRealEpisodes => 'Ver episodios reales de JKAnime';
 
   @override
+  String get viewServerLinks => 'Ver servidores';
+
+  @override
+  String get jkanimeServerLinksLoading =>
+      'Cargando enlaces de servidores de JKAnime...';
+
+  @override
+  String get jkanimeServerLinksEmpty =>
+      'No se encontraron servidores para este episodio en JKAnime.';
+
+  @override
+  String jkanimeServerLinksTitle(Object animeTitle, Object episodeNumber) {
+    return '$animeTitle | Servidores episodio $episodeNumber';
+  }
+
+  @override
   String jkanimeEpisodesTitle(Object animeTitle) {
     return 'Episodios JKAnime | $animeTitle';
   }

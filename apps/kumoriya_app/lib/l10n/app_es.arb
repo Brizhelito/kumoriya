@@ -68,6 +68,16 @@
     }
   },
   "jkanimeViewRealEpisodes": "Ver episodios reales de JKAnime",
+  "viewServerLinks": "Ver servidores",
+  "jkanimeServerLinksLoading": "Cargando enlaces de servidores de JKAnime...",
+  "jkanimeServerLinksEmpty": "No se encontraron servidores para este episodio en JKAnime.",
+  "jkanimeServerLinksTitle": "{animeTitle} | Servidores episodio {episodeNumber}",
+  "@jkanimeServerLinksTitle": {
+    "placeholders": {
+      "animeTitle": {},
+      "episodeNumber": {}
+    }
+  },
   "jkanimeEpisodesTitle": "Episodios JKAnime | {animeTitle}",
   "@jkanimeEpisodesTitle": {
     "placeholders": {

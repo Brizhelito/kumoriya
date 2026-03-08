@@ -314,6 +314,30 @@ abstract class AppLocalizations {
   /// **'View real JKAnime episodes'**
   String get jkanimeViewRealEpisodes;
 
+  /// No description provided for @viewServerLinks.
+  ///
+  /// In en, this message translates to:
+  /// **'View servers'**
+  String get viewServerLinks;
+
+  /// No description provided for @jkanimeServerLinksLoading.
+  ///
+  /// In en, this message translates to:
+  /// **'Loading JKAnime server links...'**
+  String get jkanimeServerLinksLoading;
+
+  /// No description provided for @jkanimeServerLinksEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No servers found for this episode in JKAnime.'**
+  String get jkanimeServerLinksEmpty;
+
+  /// No description provided for @jkanimeServerLinksTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'{animeTitle} | Episode {episodeNumber} servers'**
+  String jkanimeServerLinksTitle(Object animeTitle, Object episodeNumber);
+
   /// No description provided for @jkanimeEpisodesTitle.
   ///
   /// In en, this message translates to:

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:kumoriya_plugins/kumoriya_plugins.dart';
 
 import '../../../../app/l10n.dart';
+import 'jkanime_server_links_page.dart';
 
 class JkAnimeEpisodeListPage extends StatelessWidget {
   const JkAnimeEpisodeListPage({
@@ -27,6 +28,20 @@ class JkAnimeEpisodeListPage extends StatelessWidget {
           return ListTile(
             title: Text('${episode.number.toInt()}. ${episode.title}'),
             subtitle: Text(episode.episodeUrl.toString()),
+            trailing: OutlinedButton.icon(
+              onPressed: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => JkAnimeServerLinksPage(
+                      animeTitle: animeTitle,
+                      episode: episode,
+                    ),
+                  ),
+                );
+              },
+              icon: const Icon(Icons.dns_outlined),
+              label: Text(context.l10n.viewServerLinks),
+            ),
           );
         },
       ),
