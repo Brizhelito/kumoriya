@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
+import 'package:kumoriya_core/kumoriya_core.dart';
 import 'package:kumoriya_plugins/kumoriya_plugins.dart';
 import 'package:kumoriya_source_jkanime/kumoriya_source_jkanime.dart';
 import 'package:test/test.dart';
@@ -13,14 +14,29 @@ void main() {
   final detailFixture = File(
     'test/fixtures/jkanime_detail_naruto.html',
   ).readAsStringSync();
+  final detailNoH3Fixture = File(
+    'test/fixtures/jkanime_detail_without_h3.html',
+  ).readAsStringSync();
   final episodesFixture = File(
     'test/fixtures/jkanime_episodes_page1_naruto.json',
+  ).readAsStringSync();
+  final searchDuplicatesFixture = File(
+    'test/fixtures/jkanime_search_duplicates_and_external.html',
   ).readAsStringSync();
   final serverLinksFixture = File(
     'test/fixtures/jkanime_episode_server_links_page.html',
   ).readAsStringSync();
   final serverLinksEmptyFixture = File(
     'test/fixtures/jkanime_episode_server_links_empty.html',
+  ).readAsStringSync();
+  final serverLinksHrefFallbackFixture = File(
+    'test/fixtures/jkanime_episode_server_links_href_fallback.html',
+  ).readAsStringSync();
+  final serverLinksPartialFixture = File(
+    'test/fixtures/jkanime_episode_server_links_partial_mapping.html',
+  ).readAsStringSync();
+  final serverLinksBrokenFixture = File(
+    'test/fixtures/jkanime_episode_server_links_buttons_without_mapping.html',
   ).readAsStringSync();
 
   test('search parses JKAnime cards into source matches', () async {
@@ -45,6 +61,26 @@ void main() {
     );
   });
 
+  test('search skips duplicate and external host candidates', () async {
+    final plugin = JkAnimeSourcePlugin(
+      httpClient: MockClient((request) async {
+        return http.Response(searchDuplicatesFixture, 200);
+      }),
+    );
+
+    final result = await plugin.search(
+      const SourceSearchQuery(query: 'Naruto'),
+    );
+    expect(result.isSuccess, isTrue);
+    result.fold(
+      onFailure: (_) => fail('expected success'),
+      onSuccess: (items) {
+        expect(items, hasLength(1));
+        expect(items.first.sourceId, 'naruto');
+      },
+    );
+  });
+
   test('getAnimeDetail parses minimal useful fields', () async {
     final plugin = JkAnimeSourcePlugin(
       httpClient: MockClient((request) async {
@@ -61,6 +97,24 @@ void main() {
       onSuccess: (detail) {
         expect(detail.title, 'Naruto');
         expect(detail.releaseYear, 2002);
+      },
+    );
+  });
+
+  test('getAnimeDetail can fallback to og:title when h3 is missing', () async {
+    final plugin = JkAnimeSourcePlugin(
+      httpClient: MockClient((request) async {
+        expect(request.url.path, '/naruto/');
+        return http.Response(detailNoH3Fixture, 200);
+      }),
+    );
+
+    final result = await plugin.getAnimeDetail('naruto');
+    expect(result.isSuccess, isTrue);
+    result.fold(
+      onFailure: (_) => fail('expected success'),
+      onSuccess: (detail) {
+        expect(detail.title, 'Naruto');
       },
     );
   });
@@ -154,6 +208,89 @@ void main() {
       result.fold(
         onFailure: (_) => fail('expected success'),
         onSuccess: (links) => expect(links, isEmpty),
+      );
+    },
+  );
+
+  test(
+    'getEpisodeServerLinks supports href option fallback when data-id is absent',
+    () async {
+      final plugin = JkAnimeSourcePlugin(
+        httpClient: MockClient((request) async {
+          expect(request.url.path, '/naruto/3/');
+          return http.Response(serverLinksHrefFallbackFixture, 200);
+        }),
+      );
+
+      final episode = SourceEpisode(
+        sourceEpisodeId: '3',
+        number: 3,
+        title: 'Episode 3',
+        episodeUrl: Uri.parse('https://jkanime.net/naruto/3/'),
+      );
+
+      final result = await plugin.getEpisodeServerLinks(episode);
+      expect(result.isSuccess, isTrue);
+      result.fold(
+        onFailure: (_) => fail('expected success'),
+        onSuccess: (links) {
+          expect(links, hasLength(2));
+          expect(links[1].language, 'lat');
+        },
+      );
+    },
+  );
+
+  test(
+    'getEpisodeServerLinks keeps mapped links when payload is partial',
+    () async {
+      final plugin = JkAnimeSourcePlugin(
+        httpClient: MockClient((request) async {
+          expect(request.url.path, '/naruto/4/');
+          return http.Response(serverLinksPartialFixture, 200);
+        }),
+      );
+
+      final episode = SourceEpisode(
+        sourceEpisodeId: '4',
+        number: 4,
+        title: 'Episode 4',
+        episodeUrl: Uri.parse('https://jkanime.net/naruto/4/'),
+      );
+
+      final result = await plugin.getEpisodeServerLinks(episode);
+      expect(result.isSuccess, isTrue);
+      result.fold(
+        onFailure: (_) => fail('expected success'),
+        onSuccess: (links) => expect(links, hasLength(1)),
+      );
+    },
+  );
+
+  test(
+    'getEpisodeServerLinks fails safely when server buttons cannot be mapped',
+    () async {
+      final plugin = JkAnimeSourcePlugin(
+        httpClient: MockClient((request) async {
+          expect(request.url.path, '/naruto/5/');
+          return http.Response(serverLinksBrokenFixture, 200);
+        }),
+      );
+
+      final episode = SourceEpisode(
+        sourceEpisodeId: '5',
+        number: 5,
+        title: 'Episode 5',
+        episodeUrl: Uri.parse('https://jkanime.net/naruto/5/'),
+      );
+
+      final result = await plugin.getEpisodeServerLinks(episode);
+      expect(result.isFailure, isTrue);
+      result.fold(
+        onFailure: (error) {
+          expect(error.kind, KumoriyaErrorKind.mapping);
+        },
+        onSuccess: (_) => fail('expected failure'),
       );
     },
   );
