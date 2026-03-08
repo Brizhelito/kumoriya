@@ -53,6 +53,9 @@ void main() {
   final serverLinksMismatchedIndexesFixture = File(
     'test/fixtures/jkanime_episode_server_links_mismatched_indexes.html',
   ).readAsStringSync();
+  final serverLinksFullSourcesFixture = File(
+    'test/fixtures/jkanime_episode_server_links_full_sources_and_downloads.html',
+  ).readAsStringSync();
 
   test('search parses JKAnime cards into source matches', () async {
     final plugin = JkAnimeSourcePlugin(
@@ -428,6 +431,56 @@ void main() {
           expect(error.code, 'jkanime.parse');
         },
         onSuccess: (_) => fail('expected failure'),
+      );
+    },
+  );
+
+  test(
+    'getEpisodeServerLinks extracts expanded stream/download sources and resolves c1 wrappers',
+    () async {
+      final plugin = JkAnimeSourcePlugin(
+        httpClient: MockClient((request) async {
+          expect(request.url.path, '/naruto/11/');
+          return http.Response(serverLinksFullSourcesFixture, 200);
+        }),
+      );
+
+      final episode = SourceEpisode(
+        sourceEpisodeId: '11',
+        number: 11,
+        title: 'Episode 11',
+        episodeUrl: Uri.parse('https://jkanime.net/naruto/11/'),
+      );
+
+      final result = await plugin.getEpisodeServerLinks(episode);
+      expect(result.isSuccess, isTrue);
+      result.fold(
+        onFailure: (_) => fail('expected success'),
+        onSuccess: (links) {
+          expect(links, hasLength(12));
+
+          final streamLinks = links
+              .where((link) => link.linkType == SourceServerLinkType.stream)
+              .toList(growable: false);
+          final downloadLinks = links
+              .where((link) => link.linkType == SourceServerLinkType.download)
+              .toList(growable: false);
+
+          expect(streamLinks, hasLength(10));
+          expect(downloadLinks, hasLength(2));
+
+          final voe = streamLinks.firstWhere(
+            (link) => link.serverName == 'VOE',
+          );
+          expect(voe.initialUrl.host, 'voe.sx');
+          expect(voe.detectedHost, 'voe.sx');
+
+          final mediafire = downloadLinks.firstWhere(
+            (link) => link.serverName == 'Mediafire',
+          );
+          expect(mediafire.initialUrl.host, 'c1.jkplayers.com');
+          expect(mediafire.detectedHost, 'mediafire.com');
+        },
       );
     },
   );
