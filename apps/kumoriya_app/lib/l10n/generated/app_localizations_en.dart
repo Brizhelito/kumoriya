@@ -121,6 +121,9 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get jkanimeNotAvailableSimple => 'Not available in JKAnime';
+
+  @override
   String get jkanimeAvailable => 'Available in JKAnime';
 
   @override

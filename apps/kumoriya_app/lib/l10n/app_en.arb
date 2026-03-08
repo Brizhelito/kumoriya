@@ -57,6 +57,7 @@
       "reason": {}
     }
   },
+  "jkanimeNotAvailableSimple": "Not available in JKAnime",
   "jkanimeAvailable": "Available in JKAnime",
   "jkanimeRealEpisodesFound": "Real episodes found: {count}",
   "@jkanimeRealEpisodesFound": {

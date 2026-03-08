@@ -290,6 +290,12 @@ abstract class AppLocalizations {
   /// **'Not available in JKAnime ({reason})'**
   String jkanimeNotAvailable(Object reason);
 
+  /// No description provided for @jkanimeNotAvailableSimple.
+  ///
+  /// In en, this message translates to:
+  /// **'Not available in JKAnime'**
+  String get jkanimeNotAvailableSimple;
+
   /// No description provided for @jkanimeAvailable.
   ///
   /// In en, this message translates to:

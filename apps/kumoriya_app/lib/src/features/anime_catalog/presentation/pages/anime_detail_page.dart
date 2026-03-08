@@ -199,9 +199,7 @@ class _JkAnimeAvailabilityCard extends ConsumerWidget {
               if (availability.status == SourceAvailabilityStatus.unavailable) {
                 return _AvailabilityStatusTile(
                   title: context.l10n.jkanimeAvailabilityTitle,
-                  subtitle: context.l10n.jkanimeNotAvailable(
-                    availability.decision.reason,
-                  ),
+                  subtitle: context.l10n.jkanimeNotAvailableSimple,
                   icon: Icons.remove_circle_outline,
                   iconColor: Colors.orange,
                 );
