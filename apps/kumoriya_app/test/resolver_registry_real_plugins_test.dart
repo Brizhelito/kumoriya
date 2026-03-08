@@ -3,6 +3,9 @@ import 'package:kumoriya_app/src/features/anime_catalog/application/services/res
 import 'package:kumoriya_plugins/kumoriya_plugins.dart';
 import 'package:kumoriya_resolver_filemoon/kumoriya_resolver_filemoon.dart';
 import 'package:kumoriya_resolver_jkplayer/kumoriya_resolver_jkplayer.dart';
+import 'package:kumoriya_resolver_mixdrop/kumoriya_resolver_mixdrop.dart';
+import 'package:kumoriya_resolver_mp4upload/kumoriya_resolver_mp4upload.dart';
+import 'package:kumoriya_resolver_streamwish/kumoriya_resolver_streamwish.dart';
 import 'package:kumoriya_resolver_voe/kumoriya_resolver_voe.dart';
 
 void main() {
@@ -45,6 +48,9 @@ void main() {
       resolvers: <ResolverPlugin>[
         VoeResolverPlugin(),
         FilemoonResolverPlugin(),
+        StreamwishResolverPlugin(),
+        MixdropResolverPlugin(),
+        Mp4uploadResolverPlugin(),
         JkPlayerResolverPlugin(),
       ],
     );
@@ -64,5 +70,57 @@ void main() {
       (jkSelection as ResolverSelected).resolver.manifest.id,
       'kumoriya.resolver.jkplayer.um',
     );
+  });
+
+  test('registry selects streamwish resolver for streamwish host', () {
+    final registry = ResolverRegistry(
+      resolvers: <ResolverPlugin>[
+        MixdropResolverPlugin(),
+        StreamwishResolverPlugin(),
+        Mp4uploadResolverPlugin(),
+      ],
+    );
+
+    final selection = registry.selectFor(
+      Uri.parse('https://streamwish.to/e/abcd1234'),
+    );
+
+    expect(selection, isA<ResolverSelected>());
+    final selected = selection as ResolverSelected;
+    expect(selected.resolver.manifest.id, 'kumoriya.resolver.streamwish');
+  });
+
+  test('registry selects mixdrop resolver for mixdrop host', () {
+    final registry = ResolverRegistry(
+      resolvers: <ResolverPlugin>[
+        StreamwishResolverPlugin(),
+        MixdropResolverPlugin(),
+      ],
+    );
+
+    final selection = registry.selectFor(
+      Uri.parse('https://mixdrop.co/e/xyz321'),
+    );
+
+    expect(selection, isA<ResolverSelected>());
+    final selected = selection as ResolverSelected;
+    expect(selected.resolver.manifest.id, 'kumoriya.resolver.mixdrop');
+  });
+
+  test('registry selects mp4upload resolver for mp4upload host', () {
+    final registry = ResolverRegistry(
+      resolvers: <ResolverPlugin>[
+        StreamwishResolverPlugin(),
+        Mp4uploadResolverPlugin(),
+      ],
+    );
+
+    final selection = registry.selectFor(
+      Uri.parse('https://www.mp4upload.com/embed-abc123.html'),
+    );
+
+    expect(selection, isA<ResolverSelected>());
+    final selected = selection as ResolverSelected;
+    expect(selected.resolver.manifest.id, 'kumoriya.resolver.mp4upload');
   });
 }

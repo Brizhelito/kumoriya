@@ -165,6 +165,42 @@ void main() {
       onSuccess: (_) => fail('expected failure'),
     );
   });
+
+  test(
+    'keeps mediafire links unresolved when no playback resolver exists',
+    () async {
+      final useCase = ResolveSourceServerLinkUseCase(
+        registry: ResolverRegistry(
+          resolvers: const <ResolverPlugin>[
+            _SuccessResolver(
+              host: 'jkanime.net',
+              id: 'resolver.primary',
+              priority: 100,
+            ),
+          ],
+        ),
+      );
+
+      final result = await useCase.call(
+        SourceServerLink(
+          serverId: 'download-mediafire',
+          serverName: 'Mediafire',
+          initialUrl: Uri.parse('https://mediafire.com/file/abc123/'),
+          linkType: SourceServerLinkType.download,
+          detectedHost: 'mediafire.com',
+        ),
+      );
+
+      expect(result.isFailure, isTrue);
+      result.fold(
+        onFailure: (error) {
+          expect(error.code, 'resolver.no_resolver');
+          expect(error.kind, KumoriyaErrorKind.notFound);
+        },
+        onSuccess: (_) => fail('expected failure'),
+      );
+    },
+  );
 }
 
 final class _SuccessResolver implements ResolverPlugin {
