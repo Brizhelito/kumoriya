@@ -1,3 +1,5 @@
+import 'package:flutter/foundation.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kumoriya_core/kumoriya_core.dart';
@@ -179,7 +181,7 @@ class _HeroSearchCard extends StatelessWidget {
   }
 }
 
-class _ContinueWatchingSection extends StatelessWidget {
+class _ContinueWatchingSection extends StatefulWidget {
   const _ContinueWatchingSection({
     required this.continueWatching,
     required this.catalogById,
@@ -190,8 +192,78 @@ class _ContinueWatchingSection extends StatelessWidget {
   final Map<int, Anime> catalogById;
 
   @override
+  State<_ContinueWatchingSection> createState() =>
+      _ContinueWatchingSectionState();
+}
+
+class _ContinueWatchingSectionState extends State<_ContinueWatchingSection> {
+  static const double _scrollStep = 280;
+
+  final ScrollController _scrollController = ScrollController();
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  bool get _isDesktopPlatform {
+    switch (defaultTargetPlatform) {
+      case TargetPlatform.linux:
+      case TargetPlatform.macOS:
+      case TargetPlatform.windows:
+        return true;
+      case TargetPlatform.android:
+      case TargetPlatform.fuchsia:
+      case TargetPlatform.iOS:
+        return false;
+    }
+  }
+
+  void _scrollBy(double delta) {
+    if (!_scrollController.hasClients) {
+      return;
+    }
+
+    final position = _scrollController.position;
+    final target = (_scrollController.offset + delta).clamp(
+      0.0,
+      position.maxScrollExtent,
+    );
+
+    _scrollController.animateTo(
+      target,
+      duration: const Duration(milliseconds: 220),
+      curve: Curves.easeOutCubic,
+    );
+  }
+
+  void _handlePointerSignal(PointerSignalEvent event) {
+    if (!_isDesktopPlatform || !_scrollController.hasClients) {
+      return;
+    }
+    if (event is! PointerScrollEvent) {
+      return;
+    }
+
+    final delta = event.scrollDelta.dx != 0
+        ? event.scrollDelta.dx
+        : event.scrollDelta.dy;
+    if (delta == 0) {
+      return;
+    }
+
+    final position = _scrollController.position;
+    final target = (_scrollController.offset + delta).clamp(
+      0.0,
+      position.maxScrollExtent,
+    );
+    _scrollController.jumpTo(target);
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return continueWatching.when(
+    return widget.continueWatching.when(
       loading: () => const SizedBox.shrink(),
       error: (_, _) => const SizedBox.shrink(),
       data: (result) => result.fold(
@@ -201,14 +273,39 @@ class _ContinueWatchingSection extends StatelessWidget {
             return const SizedBox.shrink();
           }
 
+          final showDesktopControls = _isDesktopPlatform && history.length > 1;
+
           return Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
-              Text(
-                context.l10n.continueWatching,
-                style: Theme.of(
-                  context,
-                ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  Expanded(
+                    child: Text(
+                      context.l10n.continueWatching,
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ),
+                  if (showDesktopControls)
+                    Row(
+                      children: <Widget>[
+                        IconButton.filledTonal(
+                          key: const Key('continue-watching-scroll-left'),
+                          onPressed: () => _scrollBy(-_scrollStep),
+                          icon: const Icon(Icons.arrow_back_rounded),
+                        ),
+                        const SizedBox(width: 8),
+                        IconButton.filled(
+                          key: const Key('continue-watching-scroll-right'),
+                          onPressed: () => _scrollBy(_scrollStep),
+                          icon: const Icon(Icons.arrow_forward_rounded),
+                        ),
+                      ],
+                    ),
+                ],
               ),
               const SizedBox(height: 8),
               Text(
@@ -220,17 +317,27 @@ class _ContinueWatchingSection extends StatelessWidget {
               const SizedBox(height: 12),
               SizedBox(
                 height: 172,
-                child: ListView.separated(
-                  scrollDirection: Axis.horizontal,
-                  itemCount: history.length,
-                  separatorBuilder: (_, _) => const SizedBox(width: 12),
-                  itemBuilder: (context, index) {
-                    final entry = history[index];
-                    return _ContinueWatchingCard(
-                      entry: entry,
-                      fallbackAnime: catalogById[entry.anilistId],
-                    );
-                  },
+                child: Listener(
+                  onPointerSignal: _handlePointerSignal,
+                  child: Scrollbar(
+                    controller: _scrollController,
+                    thumbVisibility: showDesktopControls,
+                    interactive: true,
+                    child: ListView.separated(
+                      key: const Key('continue-watching-list'),
+                      controller: _scrollController,
+                      scrollDirection: Axis.horizontal,
+                      itemCount: history.length,
+                      separatorBuilder: (_, _) => const SizedBox(width: 12),
+                      itemBuilder: (context, index) {
+                        final entry = history[index];
+                        return _ContinueWatchingCard(
+                          entry: entry,
+                          fallbackAnime: widget.catalogById[entry.anilistId],
+                        );
+                      },
+                    ),
+                  ),
                 ),
               ),
             ],
@@ -289,6 +396,7 @@ class _ContinueWatchingCardState extends ConsumerState<_ContinueWatchingCard> {
         );
 
     return InkWell(
+      key: Key('continue-watching-card-${widget.entry.anilistId}'),
       onTap: _isLaunching ? null : () => _handleResumeTap(title),
       borderRadius: BorderRadius.circular(24),
       child: Container(
