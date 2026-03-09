@@ -7,6 +7,8 @@ import 'package:kumoriya_storage/kumoriya_storage.dart';
 import '../../../../app/l10n.dart';
 import '../../../../shared/widgets/kumoriya_cached_image.dart';
 import '../../../../shared/widgets/state_views.dart';
+import '../../application/models/episode_playback.dart';
+import '../../application/models/source_availability.dart';
 import '../providers/anime_catalog_providers.dart';
 import '../providers/storage_providers.dart';
 import '../support/playback_launch_flow.dart';
@@ -254,6 +256,8 @@ class _ContinueWatchingCard extends ConsumerStatefulWidget {
 }
 
 class _ContinueWatchingCardState extends ConsumerState<_ContinueWatchingCard> {
+  static const Duration _resumePreparationTimeout = Duration(seconds: 6);
+
   bool _isLaunching = false;
 
   @override
@@ -378,46 +382,42 @@ class _ContinueWatchingCardState extends ConsumerState<_ContinueWatchingCard> {
     var loaderShown = true;
 
     try {
-      final summaryResult = await ref.read(
-        sourceAvailabilitySummaryProvider(widget.entry.anilistId).future,
-      );
+      final summary = await _loadResumeSummary();
 
       if (!mounted) {
         return;
       }
 
-      await summaryResult.fold(
-        onFailure: (_) async {
-          if (loaderShown) {
-            hideBlockingLoader(context);
-            loaderShown = false;
-          }
-          await _openEpisodeListFallback(context, animeTitle);
-        },
-        onSuccess: (summary) async {
-          final decision = await ref
-              .read(startEpisodePlaybackUseCaseProvider)
-              .call(
-                anilistId: widget.entry.anilistId,
-                episodeNumber: widget.entry.lastEpisodeNumber,
-                availabilitySummary: summary,
-              );
-          if (!mounted) {
-            return;
-          }
-          if (loaderShown) {
-            hideBlockingLoader(context);
-            loaderShown = false;
-          }
-          await handlePlaybackDecision(
-            context: context,
-            ref: ref,
-            anilistId: widget.entry.anilistId,
-            animeTitle: animeTitle,
-            decision: decision,
-            onUnavailable: () => _openEpisodeListFallback(context, animeTitle),
-          );
-        },
+      if (summary == null) {
+        if (loaderShown) {
+          hideBlockingLoader(context);
+          loaderShown = false;
+        }
+        await _openEpisodeListFallback(context, animeTitle);
+        return;
+      }
+
+      final decision = await _prepareResumeDecision(summary);
+      if (!mounted) {
+        return;
+      }
+      if (loaderShown) {
+        hideBlockingLoader(context);
+        loaderShown = false;
+      }
+
+      if (decision == null) {
+        await _openEpisodeListFallback(context, animeTitle);
+        return;
+      }
+
+      await handlePlaybackDecision(
+        context: context,
+        ref: ref,
+        anilistId: widget.entry.anilistId,
+        animeTitle: animeTitle,
+        decision: decision,
+        onUnavailable: () => _openEpisodeListFallback(context, animeTitle),
       );
     } finally {
       if (mounted) {
@@ -426,6 +426,36 @@ class _ContinueWatchingCardState extends ConsumerState<_ContinueWatchingCard> {
         }
         setState(() => _isLaunching = false);
       }
+    }
+  }
+
+  Future<SourceAvailabilitySummary?> _loadResumeSummary() async {
+    try {
+      final result = await ref
+          .read(
+            sourceAvailabilitySummaryProvider(widget.entry.anilistId).future,
+          )
+          .timeout(_resumePreparationTimeout);
+      return result.fold(onFailure: (_) => null, onSuccess: (value) => value);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<EpisodePlaybackDecision?> _prepareResumeDecision(
+    SourceAvailabilitySummary summary,
+  ) async {
+    try {
+      return await ref
+          .read(startEpisodePlaybackUseCaseProvider)
+          .call(
+            anilistId: widget.entry.anilistId,
+            episodeNumber: widget.entry.lastEpisodeNumber,
+            availabilitySummary: summary,
+          )
+          .timeout(_resumePreparationTimeout);
+    } catch (_) {
+      return null;
     }
   }
 
