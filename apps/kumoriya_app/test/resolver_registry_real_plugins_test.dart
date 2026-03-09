@@ -142,6 +142,25 @@ void main() {
     expect(selected.resolver.manifest.id, 'kumoriya.resolver.mixdrop');
   });
 
+  test(
+    'registry keeps not_found for unrelated host containing mixdrop text',
+    () {
+      final registry = ResolverRegistry(
+        resolvers: <ResolverPlugin>[
+          FilemoonResolverPlugin(),
+          MixdropResolverPlugin(),
+          StreamwishResolverPlugin(),
+        ],
+      );
+
+      final selection = registry.selectFor(
+        Uri.parse('https://evil-mxdrop-gateway.com/e/xyz321'),
+      );
+
+      expect(selection, isA<ResolverNotFound>());
+    },
+  );
+
   test('registry selects mp4upload resolver for mp4upload host', () {
     final registry = ResolverRegistry(
       resolvers: <ResolverPlugin>[
