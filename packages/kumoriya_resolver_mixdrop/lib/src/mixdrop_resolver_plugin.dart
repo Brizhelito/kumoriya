@@ -137,7 +137,12 @@ bool _isSupportedHost(String host, Set<String> knownHosts) {
 
 Map<String, String> _headers(Uri url) {
   final origin = '${url.scheme}://${url.host}';
-  return <String, String>{'Referer': '$origin/', 'Origin': origin};
+  return <String, String>{
+    'Referer': '$origin/',
+    'Origin': origin,
+    'User-Agent':
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36',
+  };
 }
 
 List<ResolvedStream> _extractStreams(String payload, {required Uri baseUrl}) {

@@ -57,6 +57,9 @@ void main() {
         expect(streams, hasLength(1));
         expect(streams.single.url.host, 'cdn.mixdrop.co');
         expect(streams.single.mimeType, 'video/mp4');
+        expect(streams.single.headers['Referer'], 'https://mixdrop.co/');
+        expect(streams.single.headers['Origin'], 'https://mixdrop.co');
+        expect(streams.single.headers['User-Agent'], isNotEmpty);
       },
     );
   });
@@ -108,6 +111,9 @@ void main() {
         expect(streams, hasLength(1));
         expect(streams.single.url.host, 'cdn.mixdrop');
         expect(streams.single.url.path, '/video/abc.file_720p.mp4');
+        expect(streams.single.headers['Referer'], 'https://mxdrop.to/');
+        expect(streams.single.headers['Origin'], 'https://mxdrop.to');
+        expect(streams.single.headers['User-Agent'], isNotEmpty);
       },
     );
   });
