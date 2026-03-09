@@ -48,6 +48,14 @@ final class VoeInconsistentPayloadError extends VoeResolverError {
     : super(code: 'resolver.voe.inconsistent', kind: KumoriyaErrorKind.mapping);
 }
 
+final class VoeSessionGatedError extends VoeResolverError {
+  const VoeSessionGatedError({required super.message})
+    : super(
+        code: 'resolver.voe.session_gated',
+        kind: KumoriyaErrorKind.mapping,
+      );
+}
+
 final class VoeRedirectLimitError extends VoeResolverError {
   const VoeRedirectLimitError({required super.message})
     : super(

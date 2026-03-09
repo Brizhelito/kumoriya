@@ -141,8 +141,17 @@ final class VoeResolverPlugin implements ResolverPlugin {
           .toList(growable: false);
 
       if (streams.isEmpty) {
+        final sessionGated = _isSessionGatedPayload(extractionPayload);
         final tokenGated = _isTokenGatedPayload(extractionPayload);
         final hasStreamHints = _hasStreamHints(extractionPayload);
+        if (sessionGated) {
+          return const Failure(
+            VoeSessionGatedError(
+              message:
+                  'VOE payload requires session/runtime token flow not reproducible from static payload.',
+            ),
+          );
+        }
         if (hasStreamHints || tokenGated) {
           return const Failure(
             VoeInconsistentPayloadError(
@@ -424,6 +433,23 @@ bool _hasStreamHints(String payload) {
 bool _isTokenGatedPayload(String payload) {
   return RegExp(
     r'''(api2\/session\/generate-token|session\/sync\?|guestMode|permanentToken)''',
+    caseSensitive: false,
+    multiLine: true,
+  ).hasMatch(payload);
+}
+
+bool _isSessionGatedPayload(String payload) {
+  final hasEngineUpdate = RegExp(
+    r'''(\/engine\/update|loader\.[a-z0-9]+\.js|meta name="csrf-token")''',
+    caseSensitive: false,
+    multiLine: true,
+  ).hasMatch(payload);
+  if (!hasEngineUpdate) {
+    return false;
+  }
+
+  return RegExp(
+    r'''(guestMode|permanentToken|test-videos\.co\.uk|Big_Buck_Bunny|api2\/session\/generate-token)''',
     caseSensitive: false,
     multiLine: true,
   ).hasMatch(payload);
