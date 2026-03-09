@@ -170,28 +170,6 @@ void main() {
     expect(decision.acceptanceSignals, contains('grouped-season-title'));
   });
 
-  test('structured subtitle alias can still match conservatively', () {
-    final decision = matcher.decideMatch(
-      anilistDetail: _anilistDetail(
-        title: const AnimeTitle(
-          romaji:
-              'Mushoku Tensei: Isekai Ittara Honki Dasu - Megami ni Erabareshi',
-        ),
-      ),
-      candidates: const <SourceAnimeMatch>[
-        SourceAnimeMatch(
-          sourceId: 'mushoku-tensei-megami-ni-erabareshi',
-          title: 'Mushoku Tensei: Megami ni Erabareshi',
-          format: AnimeFormat.tv,
-        ),
-      ],
-    );
-
-    expect(decision.verdict, isTrue);
-    expect(decision.confidence, MatchConfidence.high);
-    expect(decision.acceptanceSignals, contains('structured-alias-title'));
-  });
-
   test('franchise umbrella entry can satisfy grouped franchise fallback', () {
     final decision = matcher.decideMatch(
       anilistDetail: _anilistDetail(
@@ -215,6 +193,27 @@ void main() {
     expect(decision.confidence, MatchConfidence.high);
     expect(decision.acceptanceSignals, contains('franchise-root-grouping'));
     expect(decision.candidate?.sourceId, 'mushoku-tensei-main');
+  });
+
+  test('subtitle alias alone stays rejected without umbrella evidence', () {
+    final decision = matcher.decideMatch(
+      anilistDetail: _anilistDetail(
+        title: const AnimeTitle(
+          romaji:
+              'Mushoku Tensei: Isekai Ittara Honki Dasu - Megami ni Erabareshi',
+        ),
+      ),
+      candidates: const <SourceAnimeMatch>[
+        SourceAnimeMatch(
+          sourceId: 'mushoku-tensei-megami-ni-erabareshi',
+          title: 'Mushoku Tensei: Megami ni Erabareshi',
+          format: AnimeFormat.tv,
+        ),
+      ],
+    );
+
+    expect(decision.verdict, isFalse);
+    expect(decision.rejectionSignals, contains('title-mismatch'));
   });
 }
 

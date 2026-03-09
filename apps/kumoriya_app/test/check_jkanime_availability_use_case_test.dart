@@ -118,10 +118,7 @@ void main() {
 
     expect(availability.status, SourceAvailabilityStatus.available);
     expect(plugin.queries, contains('Mushoku Tensei'));
-    expect(
-      availability.matchedAnime?.sourceId,
-      'mushoku-tensei-megami-ni-erabareshi',
-    );
+    expect(availability.matchedAnime?.sourceId, 'mushoku-tensei-main');
   });
 }
 
@@ -303,8 +300,13 @@ final class _FakeSourcePluginFranchiseRootOnly extends _BaseFakeSourcePlugin {
     if (query.query == 'Mushoku Tensei') {
       return const Success(<SourceAnimeMatch>[
         SourceAnimeMatch(
-          sourceId: 'mushoku-tensei-megami-ni-erabareshi',
-          title: 'Mushoku Tensei: Megami ni Erabareshi',
+          sourceId: 'mushoku-tensei-main',
+          title: 'Mushoku Tensei: Isekai Ittara Honki Dasu',
+          format: AnimeFormat.tv,
+        ),
+        SourceAnimeMatch(
+          sourceId: 'mushoku-tensei-s2',
+          title: 'Mushoku Tensei: Isekai Ittara Honki Dasu 2nd Season',
           format: AnimeFormat.tv,
         ),
       ]);

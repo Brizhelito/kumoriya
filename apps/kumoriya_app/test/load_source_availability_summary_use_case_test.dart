@@ -1,6 +1,7 @@
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kumoriya_app/src/features/anime_catalog/application/matching/anilist_source_matcher.dart';
+import 'package:kumoriya_app/src/features/anime_catalog/application/models/source_availability.dart';
 import 'package:kumoriya_app/src/features/anime_catalog/application/services/resolver_registry.dart';
 import 'package:kumoriya_app/src/features/anime_catalog/application/services/source_availability_cache_codec.dart';
 import 'package:kumoriya_app/src/features/anime_catalog/application/services/source_selection_policy.dart';
@@ -88,6 +89,76 @@ void main() {
     expect(loaded.fromCache, isTrue);
     expect(loaded.shouldRefreshInBackground, isTrue);
     expect(plugin.searchCalls, 0);
+  });
+
+  test(
+    'fresh cache without playable sources is revalidated in background',
+    () async {
+      final detail = _detail();
+      final summary = const SourceAvailabilitySummary(
+        sources: <SourceAvailability>[
+          SourceAvailability(
+            manifest: PluginManifest(
+              id: 'fake.cache.source',
+              displayName: 'Fake Cache Source',
+              type: PluginType.source,
+              capabilities: <PluginCapability>{PluginCapability.search},
+            ),
+            status: SourceAvailabilityStatus.unavailable,
+            decision: SourceMatchDecision(
+              verdict: false,
+              confidence: MatchConfidence.low,
+              reason: 'No match',
+              acceptanceSignals: <String>[],
+              rejectionSignals: <String>['title-mismatch'],
+            ),
+            unavailableReason: SourceUnavailableReason.noMatch,
+          ),
+        ],
+      );
+
+      await store.replaceAvailability(
+        detail.anime.anilistId,
+        codec.encode(
+          anilistId: detail.anime.anilistId,
+          summary: summary,
+          updatedAt: DateTime.now(),
+        ),
+      );
+
+      final result = await loadUseCase.call(detail);
+      final loaded =
+          (result as Success<LoadedSourceAvailabilitySummary, KumoriyaError>)
+              .value;
+
+      expect(loaded.fromCache, isTrue);
+      expect(loaded.shouldRefreshInBackground, isTrue);
+    },
+  );
+
+  test('legacy cache payload is ignored and recomputed', () async {
+    final detail = _detail();
+    await store.replaceAvailability(
+      detail.anime.anilistId,
+      <SourceAvailabilityCacheRecord>[
+        SourceAvailabilityCacheRecord(
+          anilistId: detail.anime.anilistId,
+          sourcePluginId: 'fake.cache.source',
+          payloadJson: '{"status":"available"}',
+          updatedAt: DateTime.now(),
+        ),
+      ],
+    );
+
+    plugin.resetCounters();
+
+    final result = await loadUseCase.call(detail);
+    final loaded =
+        (result as Success<LoadedSourceAvailabilitySummary, KumoriyaError>)
+            .value;
+
+    expect(loaded.fromCache, isFalse);
+    expect(plugin.searchCalls, greaterThan(0));
   });
 
   test(
