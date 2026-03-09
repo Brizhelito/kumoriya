@@ -29,6 +29,7 @@ final class LoadSourceAvailabilitySummaryUseCase {
     required SourceAvailabilityCacheCodec cacheCodec,
     Duration? freshTtl,
     Duration? maxStaleAge,
+    Duration? unavailableFreshTtl,
   }) : _store = store,
        _computeUseCase = computeUseCase,
        _sourcePluginIds = sourcePlugins
@@ -36,7 +37,9 @@ final class LoadSourceAvailabilitySummaryUseCase {
            .toSet(),
        _cacheCodec = cacheCodec,
        _freshTtl = freshTtl ?? const Duration(hours: 6),
-       _maxStaleAge = maxStaleAge ?? const Duration(days: 3);
+       _maxStaleAge = maxStaleAge ?? const Duration(days: 3),
+       _unavailableFreshTtl =
+           unavailableFreshTtl ?? const Duration(minutes: 10);
 
   final SourceAvailabilityStore _store;
   final GetSourceAvailabilitySummaryUseCase _computeUseCase;
@@ -44,6 +47,7 @@ final class LoadSourceAvailabilitySummaryUseCase {
   final SourceAvailabilityCacheCodec _cacheCodec;
   final Duration _freshTtl;
   final Duration _maxStaleAge;
+  final Duration _unavailableFreshTtl;
 
   Future<Result<LoadedSourceAvailabilitySummary, KumoriyaError>> call(
     AnimeDetail anilistDetail,
@@ -55,6 +59,7 @@ final class LoadSourceAvailabilitySummaryUseCase {
       final missingCoverage = _sourcePluginIds
           .difference(cached.coveredSourcePluginIds)
           .isNotEmpty;
+      final hasPlayableSources = cached.summary.playableSources.isNotEmpty;
 
       if (age <= _maxStaleAge) {
         return Success(
@@ -62,7 +67,10 @@ final class LoadSourceAvailabilitySummaryUseCase {
             summary: cached.summary,
             updatedAt: cached.updatedAt,
             fromCache: true,
-            shouldRefreshInBackground: age > _freshTtl || missingCoverage,
+            shouldRefreshInBackground:
+                age > (hasPlayableSources ? _freshTtl : _unavailableFreshTtl) ||
+                missingCoverage ||
+                !hasPlayableSources,
           ),
         );
       }

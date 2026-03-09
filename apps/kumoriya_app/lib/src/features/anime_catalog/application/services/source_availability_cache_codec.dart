@@ -20,6 +20,8 @@ final class CachedSourceAvailabilitySnapshot {
 }
 
 final class SourceAvailabilityCacheCodec {
+  static const int cacheVersion = 2;
+
   SourceAvailabilityCacheCodec({
     required List<SourcePlugin> sourcePlugins,
     required SourceSelectionPolicy selectionPolicy,
@@ -74,8 +76,12 @@ final class SourceAvailabilityCacheCodec {
         continue;
       }
 
-      sources.add(_decodeAvailability(manifest, decoded));
-      coveredSourcePluginIds.add(record.sourcePluginId);
+      try {
+        sources.add(_decodeAvailability(manifest, decoded));
+        coveredSourcePluginIds.add(record.sourcePluginId);
+      } on FormatException {
+        continue;
+      }
     }
 
     if (sources.isEmpty) {
@@ -94,6 +100,7 @@ final class SourceAvailabilityCacheCodec {
 
   Map<String, Object?> _encodeAvailability(SourceAvailability source) {
     return <String, Object?>{
+      'version': cacheVersion,
       'status': source.status.name,
       'decision': _encodeDecision(source.decision),
       'matchedAnime': source.matchedAnime == null
@@ -114,6 +121,12 @@ final class SourceAvailabilityCacheCodec {
     PluginManifest manifest,
     Map<String, dynamic> json,
   ) {
+    if (json['version'] != cacheVersion) {
+      throw const FormatException(
+        'Unsupported source availability cache version.',
+      );
+    }
+
     final decisionJson = json['decision'];
     final matchedAnimeJson = json['matchedAnime'];
     final episodesJson = json['episodes'];

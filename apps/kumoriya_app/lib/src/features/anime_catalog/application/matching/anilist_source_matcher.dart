@@ -21,6 +21,9 @@ final class AnilistSourceMatcher {
     }
 
     final canonicalTitles = _buildCanonicalTitles(anilistDetail.anime.title);
+    final canonicalHasSubtitleBearingTitle = canonicalTitles.any(
+      (title) => title.subtitleBearing,
+    );
     final scored =
         candidates
             .map(
@@ -28,6 +31,8 @@ final class AnilistSourceMatcher {
                 anilistDetail: anilistDetail,
                 candidate: candidate,
                 canonicalTitles: canonicalTitles,
+                canonicalHasSubtitleBearingTitle:
+                    canonicalHasSubtitleBearingTitle,
               ),
             )
             .toList(growable: false)
@@ -88,6 +93,7 @@ final class AnilistSourceMatcher {
     required AnimeDetail anilistDetail,
     required SourceAnimeMatch candidate,
     required Set<_NormalizedTitle> canonicalTitles,
+    required bool canonicalHasSubtitleBearingTitle,
   }) {
     var score = 0;
     final acceptanceSignals = <String>[];
@@ -100,6 +106,7 @@ final class AnilistSourceMatcher {
         hasStrongTitleAlignment: false,
         sharedRootTitle: false,
         normalizedTitleLength: 0,
+        canonicalHasSubtitleBearingTitle: false,
         decision: SourceMatchDecision(
           verdict: false,
           confidence: MatchConfidence.low,
@@ -117,7 +124,6 @@ final class AnilistSourceMatcher {
           title.rootTitle == normalizedCandidateTitle.rootTitle,
     );
     var groupedSeasonTitle = false;
-    var structuredAliasTitle = false;
     if (exactTitle) {
       score += 100;
       acceptanceSignals.add('exact-title');
@@ -133,22 +139,14 @@ final class AnilistSourceMatcher {
         score += 92;
         acceptanceSignals.add('grouped-season-title');
       } else {
-        structuredAliasTitle = canonicalTitles.any(
-          (title) => _isStructuredAliasMatch(normalizedCandidateTitle, title),
+        final tokenOverlap = _maxTokenOverlap(
+          normalizedCandidateTitle,
+          canonicalTitles,
         );
-        if (structuredAliasTitle) {
-          score += 88;
-          acceptanceSignals.add('structured-alias-title');
+        if (tokenOverlap >= 0.75) {
+          rejectionSignals.add('weak-token-overlap');
         } else {
-          final tokenOverlap = _maxTokenOverlap(
-            normalizedCandidateTitle,
-            canonicalTitles,
-          );
-          if (tokenOverlap >= 0.75) {
-            rejectionSignals.add('weak-token-overlap');
-          } else {
-            rejectionSignals.add('title-mismatch');
-          }
+          rejectionSignals.add('title-mismatch');
         }
       }
     }
@@ -182,17 +180,16 @@ final class AnilistSourceMatcher {
 
     final confidence = _confidenceFor(
       score: score,
-      hasStrongTitleAlignment:
-          exactTitle || groupedSeasonTitle || structuredAliasTitle,
+      hasStrongTitleAlignment: exactTitle || groupedSeasonTitle,
     );
-    final hasStrongTitleAlignment =
-        exactTitle || groupedSeasonTitle || structuredAliasTitle;
+    final hasStrongTitleAlignment = exactTitle || groupedSeasonTitle;
 
     return _ScoredDecision(
       score: score,
       hasStrongTitleAlignment: hasStrongTitleAlignment,
       sharedRootTitle: sharedRootTitle,
       normalizedTitleLength: normalizedCandidateTitle.normalized.length,
+      canonicalHasSubtitleBearingTitle: canonicalHasSubtitleBearingTitle,
       decision: SourceMatchDecision(
         verdict: confidence == MatchConfidence.high && hasStrongTitleAlignment,
         confidence: confidence,
@@ -221,6 +218,16 @@ final class AnilistSourceMatcher {
         .toList(growable: false);
 
     if (rootCompatible.isEmpty) {
+      return null;
+    }
+    if (rootCompatible.length < 2) {
+      return null;
+    }
+
+    final allSubtitleBearing = rootCompatible.every(
+      (candidate) => candidate.canonicalHasSubtitleBearingTitle,
+    );
+    if (!allSubtitleBearing) {
       return null;
     }
 
@@ -303,72 +310,6 @@ final class AnilistSourceMatcher {
     return maxOverlap;
   }
 
-  bool _isStructuredAliasMatch(
-    _NormalizedTitle candidate,
-    _NormalizedTitle canonical,
-  ) {
-    if (candidate.tokens.length < 4 || canonical.tokens.length < 4) {
-      return false;
-    }
-
-    final sharedTokens = candidate.tokens.intersection(canonical.tokens);
-    if (sharedTokens.length < 4) {
-      return false;
-    }
-
-    final candidateOrdered = candidate.orderedTokens;
-    final canonicalOrdered = canonical.orderedTokens;
-    if (!_sharesLeadingTokens(candidateOrdered, canonicalOrdered, 2)) {
-      return false;
-    }
-    if (!_sharesTrailingTokens(candidateOrdered, canonicalOrdered, 2)) {
-      return false;
-    }
-
-    return _containsOrderedSubsequence(candidateOrdered, canonicalOrdered) ||
-        _containsOrderedSubsequence(canonicalOrdered, candidateOrdered);
-  }
-
-  bool _sharesLeadingTokens(List<String> a, List<String> b, int count) {
-    if (a.length < count || b.length < count) {
-      return false;
-    }
-
-    for (var index = 0; index < count; index++) {
-      if (a[index] != b[index]) {
-        return false;
-      }
-    }
-    return true;
-  }
-
-  bool _sharesTrailingTokens(List<String> a, List<String> b, int count) {
-    if (a.length < count || b.length < count) {
-      return false;
-    }
-
-    for (var index = 1; index <= count; index++) {
-      if (a[a.length - index] != b[b.length - index]) {
-        return false;
-      }
-    }
-    return true;
-  }
-
-  bool _containsOrderedSubsequence(
-    List<String> tokens,
-    List<String> subsequence,
-  ) {
-    var searchIndex = 0;
-    for (final token in tokens) {
-      if (searchIndex < subsequence.length &&
-          token == subsequence[searchIndex]) {
-        searchIndex++;
-      }
-    }
-    return searchIndex == subsequence.length;
-  }
-
   _NormalizedTitle _normalizeTitle(String input) {
     final normalized = _normalizeLoose(input);
     final orderedTokens = normalized
@@ -382,9 +323,15 @@ final class AnilistSourceMatcher {
       orderedTokens: orderedTokens,
       baseTitle: baseTitle,
       rootTitle: _extractRootTitle(input, baseTitle),
+      subtitleBearing: _isSubtitleBearing(input),
       hasSeasonMarker:
           orderedTokens.length != _stripSeasonTokens(orderedTokens).length,
     );
+  }
+
+  bool _isSubtitleBearing(String rawInput) {
+    final trimmed = rawInput.trim();
+    return trimmed.contains(':') || trimmed.contains(' - ');
   }
 
   String _extractRootTitle(String rawInput, String baseTitle) {
@@ -534,6 +481,7 @@ final class _ScoredDecision {
     required this.hasStrongTitleAlignment,
     required this.sharedRootTitle,
     required this.normalizedTitleLength,
+    required this.canonicalHasSubtitleBearingTitle,
     required this.decision,
   });
 
@@ -541,6 +489,7 @@ final class _ScoredDecision {
   final bool hasStrongTitleAlignment;
   final bool sharedRootTitle;
   final int normalizedTitleLength;
+  final bool canonicalHasSubtitleBearingTitle;
   final SourceMatchDecision decision;
 }
 
@@ -550,6 +499,7 @@ final class _NormalizedTitle {
     required this.orderedTokens,
     required this.baseTitle,
     required this.rootTitle,
+    required this.subtitleBearing,
     required this.hasSeasonMarker,
   });
 
@@ -557,6 +507,7 @@ final class _NormalizedTitle {
   final List<String> orderedTokens;
   final String baseTitle;
   final String rootTitle;
+  final bool subtitleBearing;
   final bool hasSeasonMarker;
 
   Set<String> get tokens => orderedTokens.toSet();
