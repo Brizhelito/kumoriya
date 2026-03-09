@@ -653,6 +653,124 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'{count} eps'**
   String animeListEpisodesShort(int count);
+
+  /// No description provided for @continueWatching.
+  ///
+  /// In en, this message translates to:
+  /// **'Continue Watching'**
+  String get continueWatching;
+
+  /// No description provided for @continueWatchingEpisode.
+  ///
+  /// In en, this message translates to:
+  /// **'Episode {episode}'**
+  String continueWatchingEpisode(Object episode);
+
+  /// No description provided for @sourceAvailabilityTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Source availability'**
+  String get sourceAvailabilityTitle;
+
+  /// No description provided for @sourceAvailabilityChecking.
+  ///
+  /// In en, this message translates to:
+  /// **'Checking supported sources...'**
+  String get sourceAvailabilityChecking;
+
+  /// No description provided for @sourceAvailabilityNone.
+  ///
+  /// In en, this message translates to:
+  /// **'No source status is available yet.'**
+  String get sourceAvailabilityNone;
+
+  /// No description provided for @sourceOpenRecommended.
+  ///
+  /// In en, this message translates to:
+  /// **'Open recommended source: {sourceName}'**
+  String sourceOpenRecommended(Object sourceName);
+
+  /// No description provided for @sourceRecommended.
+  ///
+  /// In en, this message translates to:
+  /// **'Recommended fallback order selected: {sourceName}'**
+  String sourceRecommended(Object sourceName);
+
+  /// No description provided for @sourceRecommendedShort.
+  ///
+  /// In en, this message translates to:
+  /// **'Recommended'**
+  String get sourceRecommendedShort;
+
+  /// No description provided for @sourceChoosePrompt.
+  ///
+  /// In en, this message translates to:
+  /// **'Other matched sources:'**
+  String get sourceChoosePrompt;
+
+  /// No description provided for @sourceAvailableEpisodes.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} source episodes available'**
+  String sourceAvailableEpisodes(int count);
+
+  /// No description provided for @sourceNotAvailableNoMatch.
+  ///
+  /// In en, this message translates to:
+  /// **'{sourceName}: no reliable AniList match.'**
+  String sourceNotAvailableNoMatch(Object sourceName);
+
+  /// No description provided for @sourceNotAvailableAmbiguous.
+  ///
+  /// In en, this message translates to:
+  /// **'{sourceName}: ambiguous title match, skipped safely.'**
+  String sourceNotAvailableAmbiguous(Object sourceName);
+
+  /// No description provided for @sourceNotAvailableNoEpisodes.
+  ///
+  /// In en, this message translates to:
+  /// **'{sourceName}: matched, but no episodes were found.'**
+  String sourceNotAvailableNoEpisodes(Object sourceName);
+
+  /// No description provided for @sourceUnavailableError.
+  ///
+  /// In en, this message translates to:
+  /// **'{sourceName}: source check failed.'**
+  String sourceUnavailableError(Object sourceName);
+
+  /// No description provided for @sourceViewEpisodes.
+  ///
+  /// In en, this message translates to:
+  /// **'Episodes'**
+  String get sourceViewEpisodes;
+
+  /// No description provided for @sourceEpisodesTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'{sourceName} episodes | {animeTitle}'**
+  String sourceEpisodesTitle(Object sourceName, Object animeTitle);
+
+  /// No description provided for @sourceServerLinksLoading.
+  ///
+  /// In en, this message translates to:
+  /// **'Loading {sourceName} server links...'**
+  String sourceServerLinksLoading(Object sourceName);
+
+  /// No description provided for @sourceServerLinksTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'{sourceName} | {animeTitle} Episode {episodeNumber} servers'**
+  String sourceServerLinksTitle(
+    Object sourceName,
+    Object animeTitle,
+    Object episodeNumber,
+  );
+
+  /// No description provided for @sourceDetectedHost.
+  ///
+  /// In en, this message translates to:
+  /// **'Host: {host}'**
+  String sourceDetectedHost(Object host);
 }
 
 class _AppLocalizationsDelegate

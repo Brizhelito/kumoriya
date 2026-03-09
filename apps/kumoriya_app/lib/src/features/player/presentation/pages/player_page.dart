@@ -1,86 +1,167 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kumoriya_app/src/features/anime_catalog/application/models/resolved_server_link_result.dart';
+import 'package:kumoriya_storage/kumoriya_storage.dart';
+import 'package:media_kit_video/media_kit_video.dart';
 
 import '../../../../app/l10n.dart';
 import '../../../../shared/widgets/state_views.dart';
+import '../../../anime_catalog/presentation/providers/storage_providers.dart';
 import '../../application/models/player_session_state.dart';
 import '../../application/services/player_session_orchestrator.dart';
+import '../../application/use_cases/save_progress_use_case.dart';
 import '../../infrastructure/media_kit_playback_engine.dart';
-import 'package:media_kit_video/media_kit_video.dart';
 
-class PlayerPage extends StatefulWidget {
+class PlayerPage extends ConsumerStatefulWidget {
   const PlayerPage({
     super.key,
+    required this.anilistId,
     required this.animeTitle,
     required this.episodeNumber,
+    required this.sourcePluginId,
     required this.resolved,
   });
 
+  final int anilistId;
   final String animeTitle;
   final String episodeNumber;
+  final String sourcePluginId;
   final ResolvedServerLinkResult resolved;
 
   @override
-  State<PlayerPage> createState() => _PlayerPageState();
+  ConsumerState<PlayerPage> createState() => _PlayerPageState();
 }
 
-class _PlayerPageState extends State<PlayerPage> {
+class _PlayerPageState extends ConsumerState<PlayerPage> {
   late final MediaKitPlaybackEngine _engine;
   late final PlayerSessionOrchestrator _orchestrator;
-  StreamSubscription<PlayerSessionState>? _subscription;
+  late final SaveProgressUseCase _saveProgress;
+
+  StreamSubscription<PlayerSessionState>? _sessionSub;
+  StreamSubscription<bool>? _playingSub;
+  Timer? _periodicSaveTimer;
 
   PlayerSessionState _state = const PlayerSessionState.idle();
   String? _startError;
+
+  Duration _currentPosition = Duration.zero;
+  Duration _currentDuration = Duration.zero;
+  bool _resumeAttempted = false;
+
+  double get _episodeNumberDouble =>
+      double.tryParse(widget.episodeNumber) ?? 0.0;
 
   @override
   void initState() {
     super.initState();
     _engine = MediaKitPlaybackEngine();
     _orchestrator = PlayerSessionOrchestrator(playbackEngine: _engine);
-    _subscription = _orchestrator.states.listen((next) {
-      if (mounted) {
-        setState(() => _state = next);
-      }
+    _saveProgress = SaveProgressUseCase(
+      store: ref.read(animeProgressStoreProvider),
+    );
+
+    _sessionSub = _orchestrator.states.listen((next) {
+      if (mounted) setState(() => _state = next);
     });
+
+    _engine.positionStream.listen((pos) => _currentPosition = pos);
+    _engine.durationStream.listen((dur) {
+      if (dur > Duration.zero) _currentDuration = dur;
+    });
+
+    _playingSub = _engine.playingStream.listen(_onPlayingChanged);
+
     _startPlayback();
   }
 
   @override
   void dispose() {
-    _subscription?.cancel();
+    _periodicSaveTimer?.cancel();
+    _sessionSub?.cancel();
+    _playingSub?.cancel();
+    _saveCurrentProgress();
     _orchestrator.dispose();
     super.dispose();
+  }
+
+  void _onPlayingChanged(bool playing) {
+    if (!playing) {
+      _saveCurrentProgress();
+    } else if (!_resumeAttempted) {
+      _attemptResume();
+    }
+    if (playing) {
+      _periodicSaveTimer ??= Timer.periodic(
+        const Duration(seconds: 15),
+        (_) => _saveCurrentProgress(),
+      );
+    } else {
+      _periodicSaveTimer?.cancel();
+      _periodicSaveTimer = null;
+    }
+  }
+
+  Future<void> _attemptResume() async {
+    _resumeAttempted = true;
+    final store = ref.read(animeProgressStoreProvider);
+    final result = await store.getProgress(
+      widget.anilistId,
+      _episodeNumberDouble,
+    );
+    result.fold(
+      onFailure: (_) {},
+      onSuccess: (progress) {
+        if (progress != null &&
+            progress.watchState != WatchState.completed &&
+            progress.position > const Duration(seconds: 5)) {
+          _engine.seekTo(progress.position);
+        }
+      },
+    );
+  }
+
+  void _saveCurrentProgress() {
+    if (_currentPosition < const Duration(seconds: 5)) return;
+    final selected = _state.selectedStream;
+    unawaited(
+      _saveProgress(
+        anilistId: widget.anilistId,
+        episodeNumber: _episodeNumberDouble,
+        position: _currentPosition,
+        totalDuration: _currentDuration > Duration.zero
+            ? _currentDuration
+            : null,
+        lastSourcePluginId: widget.sourcePluginId,
+        lastServerName: selected != null ? widget.resolved.resolverName : null,
+        lastResolverPluginId: selected != null
+            ? widget.resolved.resolverId
+            : null,
+      ),
+    );
   }
 
   Future<void> _startPlayback() async {
     final result = await _orchestrator.start(
       streamCandidates: widget.resolved.streams,
     );
-
-    if (!mounted) {
-      return;
-    }
-
+    if (!mounted) return;
     result.fold(
-      onFailure: (error) {
-        setState(() => _startError = mapErrorMessage(context, error));
-      },
+      onFailure: (error) =>
+          setState(() => _startError = mapErrorMessage(context, error)),
       onSuccess: (_) {},
     );
   }
 
   Future<void> _retryPlayback() async {
     setState(() => _startError = null);
+    _resumeAttempted = false;
     final result = await _orchestrator.retry();
-    if (!mounted) {
-      return;
-    }
+    if (!mounted) return;
     result.fold(
-      onFailure: (error) {
-        setState(() => _startError = mapErrorMessage(context, error));
-      },
+      onFailure: (error) =>
+          setState(() => _startError = mapErrorMessage(context, error)),
       onSuccess: (_) {},
     );
   }

@@ -1,13 +1,13 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:kumoriya_app/src/features/anime_catalog/application/matching/anilist_jkanime_matcher.dart';
+import 'package:kumoriya_app/src/features/anime_catalog/application/matching/anilist_source_matcher.dart';
 import 'package:kumoriya_app/src/features/anime_catalog/application/models/source_availability.dart';
 import 'package:kumoriya_domain/kumoriya_domain.dart';
 import 'package:kumoriya_plugins/kumoriya_plugins.dart';
 
 void main() {
-  const matcher = AnilistJkanimeMatcher();
+  const matcher = AnilistSourceMatcher();
 
-  test('exact title + format yields high-confidence match', () {
+  test('exact title plus format yields high-confidence match', () {
     final decision = matcher.decideMatch(
       anilistDetail: _anilistDetail(
         title: const AnimeTitle(romaji: 'Naruto'),
@@ -92,7 +92,7 @@ void main() {
           title: 'Fate Stay Night',
         ),
         SourceAnimeMatch(
-          sourceId: 'fate-stay-night-unlimited-blade-works',
+          sourceId: 'fate-stay-night-remake',
           title: 'Fate Stay Night',
         ),
       ],
@@ -109,7 +109,7 @@ void main() {
     );
 
     expect(decision.verdict, isFalse);
-    expect(decision.reason, contains('No JKAnime candidates'));
+    expect(decision.reason, contains('No source candidates'));
   });
 
   test('format conflict is rejected even with exact title', () {

@@ -10,10 +10,12 @@ import 'resolve_server_link_page.dart';
 class JkAnimeServerLinksPage extends ConsumerWidget {
   const JkAnimeServerLinksPage({
     super.key,
+    required this.anilistId,
     required this.animeTitle,
     required this.episode,
   });
 
+  final int anilistId;
   final String animeTitle;
   final SourceEpisode episode;
 
@@ -89,10 +91,12 @@ class JkAnimeServerLinksPage extends ConsumerWidget {
                                 Navigator.of(context).push(
                                   MaterialPageRoute<void>(
                                     builder: (_) => ResolveServerLinkPage(
+                                      anilistId: anilistId,
                                       animeTitle: animeTitle,
                                       episodeNumber: episode.number
                                           .toInt()
                                           .toString(),
+                                      sourcePluginId: 'kumoriya.source.jkanime',
                                       serverLink: link,
                                     ),
                                   ),

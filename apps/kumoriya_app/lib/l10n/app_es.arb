@@ -201,5 +201,89 @@
         "type": "int"
       }
     }
+  },
+  "continueWatching": "Seguir Viendo",
+  "continueWatchingEpisode": "Episodio {episode}",
+  "@continueWatchingEpisode": {
+    "placeholders": {
+      "episode": {}
+    }
+  },
+  "sourceAvailabilityTitle": "Disponibilidad de fuentes",
+  "sourceAvailabilityChecking": "Verificando fuentes compatibles...",
+  "sourceAvailabilityNone": "Todavia no hay estado de fuentes disponible.",
+  "sourceOpenRecommended": "Abrir fuente recomendada: {sourceName}",
+  "@sourceOpenRecommended": {
+    "placeholders": {
+      "sourceName": {}
+    }
+  },
+  "sourceRecommended": "Se selecciono esta fuente por el orden de fallback: {sourceName}",
+  "@sourceRecommended": {
+    "placeholders": {
+      "sourceName": {}
+    }
+  },
+  "sourceRecommendedShort": "Recomendada",
+  "sourceChoosePrompt": "Otras fuentes con match:",
+  "sourceAvailableEpisodes": "{count} episodios reales disponibles",
+  "@sourceAvailableEpisodes": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "sourceNotAvailableNoMatch": "{sourceName}: no hubo match confiable con AniList.",
+  "@sourceNotAvailableNoMatch": {
+    "placeholders": {
+      "sourceName": {}
+    }
+  },
+  "sourceNotAvailableAmbiguous": "{sourceName}: el match fue ambiguo y se descarto por seguridad.",
+  "@sourceNotAvailableAmbiguous": {
+    "placeholders": {
+      "sourceName": {}
+    }
+  },
+  "sourceNotAvailableNoEpisodes": "{sourceName}: hubo match, pero no se encontraron episodios.",
+  "@sourceNotAvailableNoEpisodes": {
+    "placeholders": {
+      "sourceName": {}
+    }
+  },
+  "sourceUnavailableError": "{sourceName}: la verificacion de la fuente fallo.",
+  "@sourceUnavailableError": {
+    "placeholders": {
+      "sourceName": {}
+    }
+  },
+  "sourceViewEpisodes": "Episodios",
+  "sourceEpisodesTitle": "Episodios {sourceName} | {animeTitle}",
+  "@sourceEpisodesTitle": {
+    "placeholders": {
+      "sourceName": {},
+      "animeTitle": {}
+    }
+  },
+  "sourceServerLinksLoading": "Cargando enlaces de servidores de {sourceName}...",
+  "@sourceServerLinksLoading": {
+    "placeholders": {
+      "sourceName": {}
+    }
+  },
+  "sourceServerLinksTitle": "{sourceName} | {animeTitle} Servidores episodio {episodeNumber}",
+  "@sourceServerLinksTitle": {
+    "placeholders": {
+      "sourceName": {},
+      "animeTitle": {},
+      "episodeNumber": {}
+    }
+  },
+  "sourceDetectedHost": "Host: {host}",
+  "@sourceDetectedHost": {
+    "placeholders": {
+      "host": {}
+    }
   }
 }

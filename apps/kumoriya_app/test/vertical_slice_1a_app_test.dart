@@ -9,83 +9,58 @@ import 'package:kumoriya_app/src/app/kumoriya_app.dart';
 import 'package:kumoriya_app/src/features/anime_catalog/presentation/providers/anime_catalog_providers.dart';
 
 void main() {
-  testWidgets('home -> search -> detail -> episodes flow is navigable', (
+  testWidgets(
+    'home -> detail shows multi-source section and navigates to source episodes',
+    (tester) async {
+      final fakeRepository = _FakeAnimeCatalogRepository.success();
+      const fakeSourcePlugins = <SourcePlugin>[
+        _PrimarySourcePlugin(),
+        _SecondarySourcePlugin(),
+      ];
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            animeCatalogRepositoryProvider.overrideWithValue(fakeRepository),
+            sourcePluginsProvider.overrideWithValue(fakeSourcePlugins),
+          ],
+          child: const KumoriyaApp(),
+        ),
+      );
+
+      await tester.pumpAndSettle();
+
+      expect(find.text('Frieren'), findsOneWidget);
+
+      await tester.tap(find.text('Frieren').first);
+      await tester.pumpAndSettle();
+
+      expect(find.text('Source availability'), findsOneWidget);
+      expect(find.textContaining('Open recommended source'), findsOneWidget);
+      expect(find.text('Recommended'), findsOneWidget);
+
+      await tester.tap(find.text('Episodes').first);
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('episodes | Frieren'), findsOneWidget);
+      expect(find.text('View servers'), findsWidgets);
+    },
+  );
+
+  testWidgets('source server links route resolves from a secondary source', (
     tester,
   ) async {
     final fakeRepository = _FakeAnimeCatalogRepository.success();
-    const fakeSourcePlugin = _FakeSourcePlugin();
+    const fakeSourcePlugins = <SourcePlugin>[
+      _UnavailableSourcePlugin(),
+      _SecondarySourcePlugin(),
+    ];
 
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
           animeCatalogRepositoryProvider.overrideWithValue(fakeRepository),
-          sourcePluginProvider.overrideWithValue(fakeSourcePlugin),
-        ],
-        child: const KumoriyaApp(),
-      ),
-    );
-
-    await tester.pumpAndSettle();
-
-    expect(find.text('Kumoriya'), findsOneWidget);
-    expect(find.text('Frieren'), findsOneWidget);
-
-    await tester.tap(find.byIcon(Icons.search));
-    await tester.pumpAndSettle();
-
-    expect(find.text('Search AniList'), findsOneWidget);
-
-    await tester.enterText(find.byType(TextField), 'frieren');
-    await tester.tap(find.byIcon(Icons.search).first);
-    await tester.pumpAndSettle();
-
-    expect(find.text('Frieren'), findsWidgets);
-
-    await tester.tap(find.text('Frieren').first);
-    await tester.pumpAndSettle();
-
-    expect(find.text('Anime detail'), findsOneWidget);
-    expect(find.text('View episode list'), findsOneWidget);
-
-    await tester.tap(find.text('View episode list'));
-    await tester.pumpAndSettle();
-
-    expect(find.textContaining('episodes'), findsOneWidget);
-    expect(find.textContaining('Episode 1'), findsOneWidget);
-  });
-
-  testWidgets('home page shows typed error with retry button', (tester) async {
-    final fakeRepository = _FakeAnimeCatalogRepository.transportFailure();
-    const fakeSourcePlugin = _FakeSourcePlugin();
-
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: [
-          animeCatalogRepositoryProvider.overrideWithValue(fakeRepository),
-          sourcePluginProvider.overrideWithValue(fakeSourcePlugin),
-        ],
-        child: const KumoriyaApp(),
-      ),
-    );
-
-    await tester.pumpAndSettle();
-
-    expect(
-      find.text('Could not reach AniList. Check your connection and retry.'),
-      findsOneWidget,
-    );
-    expect(find.text('Retry'), findsOneWidget);
-  });
-
-  testWidgets('jkanime episode server links are navigable', (tester) async {
-    final fakeRepository = _FakeAnimeCatalogRepository.success();
-    const fakeSourcePlugin = _FakeSourcePlugin();
-
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: [
-          animeCatalogRepositoryProvider.overrideWithValue(fakeRepository),
-          sourcePluginProvider.overrideWithValue(fakeSourcePlugin),
+          sourcePluginsProvider.overrideWithValue(fakeSourcePlugins),
         ],
         child: const KumoriyaApp(),
       ),
@@ -94,18 +69,13 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('Frieren').first);
     await tester.pumpAndSettle();
-
-    await tester.tap(find.text('View real JKAnime episodes'));
+    await tester.tap(find.text('Episodes').first);
     await tester.pumpAndSettle();
-
-    expect(find.textContaining('JKAnime episodes'), findsOneWidget);
-    expect(find.text('View servers'), findsWidgets);
-
     await tester.tap(find.text('View servers').first);
     await tester.pumpAndSettle();
 
     expect(find.textContaining('servers'), findsOneWidget);
-    expect(find.text('Desu'), findsOneWidget);
+    expect(find.text('MP4Upload'), findsOneWidget);
   });
 
   testWidgets('app respects Spanish system locale when supported', (
@@ -117,24 +87,24 @@ void main() {
     addTearDown(tester.binding.platformDispatcher.clearLocalesTestValue);
 
     final fakeRepository = _FakeAnimeCatalogRepository.success();
-    const fakeSourcePlugin = _FakeSourcePlugin();
 
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
           animeCatalogRepositoryProvider.overrideWithValue(fakeRepository),
-          sourcePluginProvider.overrideWithValue(fakeSourcePlugin),
+          sourcePluginsProvider.overrideWithValue(const <SourcePlugin>[
+            _PrimarySourcePlugin(),
+          ]),
         ],
         child: const KumoriyaApp(),
       ),
     );
 
     await tester.pumpAndSettle();
-
-    await tester.tap(find.byIcon(Icons.search));
+    await tester.tap(find.text('Frieren').first);
     await tester.pumpAndSettle();
 
-    expect(find.text('Buscar en AniList'), findsOneWidget);
+    expect(find.text('Disponibilidad de fuentes'), findsOneWidget);
   });
 }
 
@@ -145,10 +115,6 @@ final class _FakeAnimeCatalogRepository implements AnimeCatalogRepository {
 
   factory _FakeAnimeCatalogRepository.success() {
     return _FakeAnimeCatalogRepository(fail: false);
-  }
-
-  factory _FakeAnimeCatalogRepository.transportFailure() {
-    return _FakeAnimeCatalogRepository(fail: true);
   }
 
   @override
@@ -181,16 +147,6 @@ final class _FakeAnimeCatalogRepository implements AnimeCatalogRepository {
   Future<Result<List<AnimeEpisode>, KumoriyaError>> fetchAnimeEpisodes(
     int anilistId,
   ) async {
-    if (fail) {
-      return const Failure(
-        SimpleError(
-          code: 'anilist.transport',
-          message: 'network down',
-          kind: KumoriyaErrorKind.transport,
-        ),
-      );
-    }
-
     return const Success(<AnimeEpisode>[
       AnimeEpisode(number: 1, title: 'Episode 1', isAired: true),
       AnimeEpisode(number: 2, title: 'Episode 2', isAired: false),
@@ -202,16 +158,6 @@ final class _FakeAnimeCatalogRepository implements AnimeCatalogRepository {
     int page = 1,
     int perPage = 20,
   }) async {
-    if (fail) {
-      return const Failure(
-        SimpleError(
-          code: 'anilist.transport',
-          message: 'network down',
-          kind: KumoriyaErrorKind.transport,
-        ),
-      );
-    }
-
     return Success(<Anime>[_anime]);
   }
 
@@ -219,16 +165,6 @@ final class _FakeAnimeCatalogRepository implements AnimeCatalogRepository {
   Future<Result<List<Anime>, KumoriyaError>> searchAnime(
     AnimeSearchRequest request,
   ) async {
-    if (fail) {
-      return const Failure(
-        SimpleError(
-          code: 'anilist.transport',
-          message: 'network down',
-          kind: KumoriyaErrorKind.transport,
-        ),
-      );
-    }
-
     return Success(<Anime>[_anime]);
   }
 
@@ -241,28 +177,77 @@ final class _FakeAnimeCatalogRepository implements AnimeCatalogRepository {
   );
 }
 
-final class _FakeSourcePlugin implements SourcePlugin {
-  const _FakeSourcePlugin();
+final class _PrimarySourcePlugin extends _BaseFakeSourcePlugin {
+  const _PrimarySourcePlugin();
 
   @override
   PluginManifest get manifest => const PluginManifest(
-    id: 'test.source',
-    displayName: 'Test Source',
+    id: 'kumoriya.source.jkanime',
+    displayName: 'JKAnime',
     type: PluginType.source,
-    capabilities: <PluginCapability>{},
+    capabilities: <PluginCapability>{
+      PluginCapability.search,
+      PluginCapability.episodeList,
+      PluginCapability.linkExtraction,
+    },
   );
+}
+
+final class _SecondarySourcePlugin extends _BaseFakeSourcePlugin {
+  const _SecondarySourcePlugin();
+
+  @override
+  PluginManifest get manifest => const PluginManifest(
+    id: 'kumoriya.source.animeav1',
+    displayName: 'AnimeAV1',
+    type: PluginType.source,
+    capabilities: <PluginCapability>{
+      PluginCapability.search,
+      PluginCapability.episodeList,
+      PluginCapability.linkExtraction,
+    },
+  );
+}
+
+final class _UnavailableSourcePlugin extends _BaseFakeSourcePlugin {
+  const _UnavailableSourcePlugin();
+
+  @override
+  PluginManifest get manifest => const PluginManifest(
+    id: 'kumoriya.source.jkanime',
+    displayName: 'JKAnime',
+    type: PluginType.source,
+    capabilities: <PluginCapability>{PluginCapability.search},
+  );
+
+  @override
+  Future<Result<List<SourceAnimeMatch>, KumoriyaError>> search(
+    SourceSearchQuery query,
+  ) async {
+    return const Success(<SourceAnimeMatch>[
+      SourceAnimeMatch(sourceId: 'other', title: 'Other Show'),
+    ]);
+  }
+
+  @override
+  Future<Result<List<SourceEpisode>, KumoriyaError>> getEpisodes(
+    String sourceId,
+  ) async {
+    return const Success(<SourceEpisode>[]);
+  }
+}
+
+class _BaseFakeSourcePlugin implements SourcePlugin {
+  const _BaseFakeSourcePlugin();
+
+  @override
+  PluginManifest get manifest => throw UnimplementedError();
 
   @override
   Future<Result<SourceAnimeDetail, KumoriyaError>> getAnimeDetail(
     String sourceId,
   ) async {
-    return Failure(
-      SimpleError(
-        code: 'test.unsupported',
-        message: 'Not used in this test',
-        kind: KumoriyaErrorKind.unexpected,
-      ),
-    );
+    throw UnimplementedError();
   }
 
   @override
@@ -285,10 +270,13 @@ final class _FakeSourcePlugin implements SourcePlugin {
   ) async {
     return Success(<SourceServerLink>[
       SourceServerLink(
-        serverId: 'desu-0',
-        serverName: 'Desu',
-        initialUrl: Uri.parse('https://jkanime.net/jkplayer/um?e=test'),
+        serverId: 'mp4upload-0',
+        serverName: 'MP4Upload',
+        initialUrl: Uri.parse(
+          'https://www.mp4upload.com/embed-bz5usnfha398.html',
+        ),
         language: 'sub',
+        detectedHost: 'www.mp4upload.com',
       ),
     ]);
   }

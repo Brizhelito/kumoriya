@@ -3,26 +3,23 @@ import 'package:kumoriya_anilist/kumoriya_anilist.dart';
 import 'package:kumoriya_core/kumoriya_core.dart';
 import 'package:kumoriya_domain/kumoriya_domain.dart';
 import 'package:kumoriya_plugins/kumoriya_plugins.dart';
-import 'package:kumoriya_resolver_filemoon/kumoriya_resolver_filemoon.dart';
 import 'package:kumoriya_resolver_jkplayer/kumoriya_resolver_jkplayer.dart';
-import 'package:kumoriya_resolver_mixdrop/kumoriya_resolver_mixdrop.dart';
 import 'package:kumoriya_resolver_mp4upload/kumoriya_resolver_mp4upload.dart';
 import 'package:kumoriya_resolver_streamtape/kumoriya_resolver_streamtape.dart';
 import 'package:kumoriya_resolver_streamwish/kumoriya_resolver_streamwish.dart';
 import 'package:kumoriya_resolver_doodstream/kumoriya_resolver_doodstream.dart';
-import 'package:kumoriya_resolver_vidhide/kumoriya_resolver_vidhide.dart';
-import 'package:kumoriya_resolver_voe/kumoriya_resolver_voe.dart';
 import 'package:kumoriya_source_jkanime/kumoriya_source_jkanime.dart';
 import 'package:kumoriya_source_animeflv/kumoriya_source_animeflv.dart';
 import 'package:kumoriya_source_animeav1/kumoriya_source_animeav1.dart';
 
 import '../../application/use_cases/anime_catalog_use_cases.dart';
-import '../../application/matching/anilist_jkanime_matcher.dart';
+import '../../application/matching/anilist_source_matcher.dart';
 import '../../application/models/resolved_server_link_result.dart';
 import '../../application/models/source_availability.dart';
 import '../../application/services/resolver_registry.dart';
-import '../../application/use_cases/check_jkanime_availability_use_case.dart';
-import '../../application/use_cases/get_jkanime_episode_server_links_use_case.dart';
+import '../../application/services/source_selection_policy.dart';
+import '../../application/use_cases/get_source_availability_summary_use_case.dart';
+import '../../application/use_cases/get_source_episode_server_links_use_case.dart';
 import '../../application/use_cases/resolve_source_server_link_use_case.dart';
 
 final anilistGraphqlClientProvider = Provider<AnilistGraphqlClient>((ref) {
@@ -49,22 +46,36 @@ final sourcePluginsProvider = Provider<List<SourcePlugin>>((ref) {
   ];
 });
 
+final sourcePluginMapProvider = Provider<Map<String, SourcePlugin>>((ref) {
+  return {
+    for (final plugin in ref.watch(sourcePluginsProvider))
+      plugin.manifest.id: plugin,
+  };
+});
+
+final sourcePluginByIdProvider = Provider.family<SourcePlugin, String>((
+  ref,
+  sourcePluginId,
+) {
+  final plugin = ref.watch(sourcePluginMapProvider)[sourcePluginId];
+  if (plugin == null) {
+    throw StateError('Unknown source plugin id: $sourcePluginId');
+  }
+  return plugin;
+});
+
 final sourcePluginProvider = Provider<SourcePlugin>((ref) {
-  return JkAnimeSourcePlugin();
+  return ref.watch(sourcePluginsProvider).first;
 });
 
 final resolverPluginsProvider = Provider<List<ResolverPlugin>>((ref) {
   return <ResolverPlugin>[
     JkPlayerJkResolverPlugin(),
     JkPlayerResolverPlugin(),
-    VoeResolverPlugin(),
-    FilemoonResolverPlugin(),
     StreamwishResolverPlugin(),
-    MixdropResolverPlugin(),
     Mp4uploadResolverPlugin(),
     StreamtapeResolverPlugin(),
     DoodstreamResolverPlugin(),
-    VidhideResolverPlugin(),
   ];
 });
 
@@ -72,8 +83,12 @@ final resolverRegistryProvider = Provider<ResolverRegistry>((ref) {
   return ResolverRegistry(resolvers: ref.watch(resolverPluginsProvider));
 });
 
-final anilistJkanimeMatcherProvider = Provider<AnilistJkanimeMatcher>((ref) {
-  return const AnilistJkanimeMatcher();
+final anilistSourceMatcherProvider = Provider<AnilistSourceMatcher>((ref) {
+  return const AnilistSourceMatcher();
+});
+
+final sourceSelectionPolicyProvider = Provider<SourceSelectionPolicy>((ref) {
+  return const SourceSelectionPolicy();
 });
 
 final getHomeCatalogUseCaseProvider = Provider<GetHomeCatalogUseCase>((ref) {
@@ -94,18 +109,12 @@ final getAnimeEpisodesUseCaseProvider = Provider<GetAnimeEpisodesUseCase>((
   return GetAnimeEpisodesUseCase(ref.watch(animeCatalogRepositoryProvider));
 });
 
-final checkJkanimeAvailabilityUseCaseProvider =
-    Provider<CheckJkanimeAvailabilityUseCase>((ref) {
-      return CheckJkanimeAvailabilityUseCase(
-        sourcePlugin: ref.watch(sourcePluginProvider),
-        matcher: ref.watch(anilistJkanimeMatcherProvider),
-      );
-    });
-
-final getJkanimeEpisodeServerLinksUseCaseProvider =
-    Provider<GetJkanimeEpisodeServerLinksUseCase>((ref) {
-      return GetJkanimeEpisodeServerLinksUseCase(
-        sourcePlugin: ref.watch(sourcePluginProvider),
+final getSourceAvailabilitySummaryUseCaseProvider =
+    Provider<GetSourceAvailabilitySummaryUseCase>((ref) {
+      return GetSourceAvailabilitySummaryUseCase(
+        sourcePlugins: ref.watch(sourcePluginsProvider),
+        matcher: ref.watch(anilistSourceMatcherProvider),
+        selectionPolicy: ref.watch(sourceSelectionPolicyProvider),
       );
     });
 
@@ -143,8 +152,8 @@ final animeEpisodesProvider = FutureProvider.autoDispose
       return ref.watch(getAnimeEpisodesUseCaseProvider).call(anilistId);
     });
 
-final jkanimeAvailabilityProvider = FutureProvider.autoDispose
-    .family<Result<SourceAvailability, KumoriyaError>, int>((
+final sourceAvailabilitySummaryProvider = FutureProvider.autoDispose
+    .family<Result<SourceAvailabilitySummary, KumoriyaError>, int>((
       ref,
       anilistId,
     ) async {
@@ -157,7 +166,52 @@ final jkanimeAvailabilityProvider = FutureProvider.autoDispose
 
       final detail =
           (detailResult as Success<AnimeDetail, KumoriyaError>).value;
-      return ref.watch(checkJkanimeAvailabilityUseCaseProvider).call(detail);
+      final summary = await ref
+          .watch(getSourceAvailabilitySummaryUseCaseProvider)
+          .call(detail);
+      return Success(summary);
+    });
+
+final sourceEpisodeServerLinksProvider = FutureProvider.autoDispose
+    .family<
+      Result<List<SourceServerLink>, KumoriyaError>,
+      ({String sourcePluginId, SourceEpisode episode})
+    >((ref, args) async {
+      return GetSourceEpisodeServerLinksUseCase(
+        sourcePlugin: ref.watch(sourcePluginByIdProvider(args.sourcePluginId)),
+        registry: ref.watch(resolverRegistryProvider),
+      ).call(args.episode);
+    });
+
+final jkanimeAvailabilityProvider = FutureProvider.autoDispose
+    .family<Result<SourceAvailability, KumoriyaError>, int>((
+      ref,
+      anilistId,
+    ) async {
+      final summary = await ref.watch(
+        sourceAvailabilitySummaryProvider(anilistId).future,
+      );
+      return summary.fold(
+        onFailure: Failure.new,
+        onSuccess: (value) {
+          final source = value.sources.firstWhere(
+            (entry) => entry.manifest.id == 'kumoriya.source.jkanime',
+            orElse: () => SourceAvailability(
+              manifest: ref.watch(sourcePluginProvider).manifest,
+              status: SourceAvailabilityStatus.unavailable,
+              decision: const SourceMatchDecision(
+                verdict: false,
+                confidence: MatchConfidence.low,
+                reason: 'JKAnime availability was not evaluated.',
+                acceptanceSignals: <String>[],
+                rejectionSignals: <String>['missing-jkanime-summary'],
+              ),
+              unavailableReason: SourceUnavailableReason.noMatch,
+            ),
+          );
+          return Success(source);
+        },
+      );
     });
 
 final jkanimeEpisodeServerLinksProvider = FutureProvider.autoDispose
@@ -165,9 +219,12 @@ final jkanimeEpisodeServerLinksProvider = FutureProvider.autoDispose
       ref,
       episode,
     ) async {
-      return ref
-          .watch(getJkanimeEpisodeServerLinksUseCaseProvider)
-          .call(episode);
+      return ref.watch(
+        sourceEpisodeServerLinksProvider((
+          sourcePluginId: 'kumoriya.source.jkanime',
+          episode: episode,
+        )).future,
+      );
     });
 
 final resolveSourceServerLinkProvider = FutureProvider.autoDispose

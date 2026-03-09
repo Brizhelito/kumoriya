@@ -8,7 +8,7 @@ import '../../../../shared/widgets/state_views.dart';
 import '../../application/models/source_availability.dart';
 import '../providers/anime_catalog_providers.dart';
 import 'episode_list_page.dart';
-import 'jkanime_episode_list_page.dart';
+import 'source_episode_list_page.dart';
 
 class AnimeDetailPage extends ConsumerWidget {
   const AnimeDetailPage({super.key, required this.anilistId});
@@ -18,7 +18,9 @@ class AnimeDetailPage extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final detailState = ref.watch(animeDetailProvider(anilistId));
-    final availabilityState = ref.watch(jkanimeAvailabilityProvider(anilistId));
+    final availabilityState = ref.watch(
+      sourceAvailabilitySummaryProvider(anilistId),
+    );
 
     return Scaffold(
       appBar: AppBar(title: Text(context.l10n.animeDetailTitle)),
@@ -34,6 +36,7 @@ class AnimeDetailPage extends ConsumerWidget {
             onRetry: () => ref.invalidate(animeDetailProvider(anilistId)),
           ),
           onSuccess: (detail) => _AnimeDetailContent(
+            anilistId: anilistId,
             detail: detail,
             availabilityState: availabilityState,
           ),
@@ -45,12 +48,15 @@ class AnimeDetailPage extends ConsumerWidget {
 
 class _AnimeDetailContent extends StatelessWidget {
   const _AnimeDetailContent({
+    required this.anilistId,
     required this.detail,
     required this.availabilityState,
   });
 
+  final int anilistId;
   final AnimeDetail detail;
-  final AsyncValue<Result<SourceAvailability, KumoriyaError>> availabilityState;
+  final AsyncValue<Result<SourceAvailabilitySummary, KumoriyaError>>
+  availabilityState;
 
   @override
   Widget build(BuildContext context) {
@@ -113,7 +119,8 @@ class _AnimeDetailContent extends StatelessWidget {
           label: Text(context.l10n.viewEpisodeList),
         ),
         const SizedBox(height: 20),
-        _JkAnimeAvailabilityCard(
+        _SourceAvailabilityCard(
+          anilistId: anilistId,
           animeTitle: anime.title.romaji,
           availabilityState: availabilityState,
         ),
@@ -161,53 +168,48 @@ class _AnimeDetailContent extends StatelessWidget {
   }
 }
 
-class _JkAnimeAvailabilityCard extends ConsumerWidget {
-  const _JkAnimeAvailabilityCard({
+class _SourceAvailabilityCard extends StatelessWidget {
+  const _SourceAvailabilityCard({
+    required this.anilistId,
     required this.animeTitle,
     required this.availabilityState,
   });
 
+  final int anilistId;
   final String animeTitle;
-  final AsyncValue<Result<SourceAvailability, KumoriyaError>> availabilityState;
+  final AsyncValue<Result<SourceAvailabilitySummary, KumoriyaError>>
+  availabilityState;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final sourceManifest = ref.watch(sourcePluginProvider).manifest;
-
+  Widget build(BuildContext context) {
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(12),
         child: availabilityState.when(
           loading: () => _AvailabilityStatusTile(
-            title: context.l10n.jkanimeAvailabilityTitle,
-            subtitle: context.l10n.jkanimeChecking,
+            title: context.l10n.sourceAvailabilityTitle,
+            subtitle: context.l10n.sourceAvailabilityChecking,
             icon: Icons.sync,
             iconColor: Colors.blue,
           ),
           error: (error, _) => _AvailabilityStatusTile(
-            title: context.l10n.jkanimeAvailabilityTitle,
-            subtitle: context.l10n.jkanimeErrorConsulting(error.toString()),
+            title: context.l10n.sourceAvailabilityTitle,
+            subtitle: context.l10n.unexpectedStateError(error.toString()),
             icon: Icons.error_outline,
             iconColor: Colors.red,
           ),
           data: (result) => result.fold(
             onFailure: (error) => _AvailabilityStatusTile(
-              title: context.l10n.jkanimeAvailabilityTitle,
+              title: context.l10n.sourceAvailabilityTitle,
               subtitle: mapErrorMessage(context, error),
               icon: Icons.error_outline,
               iconColor: Colors.red,
             ),
-            onSuccess: (availability) {
-              if (availability.status == SourceAvailabilityStatus.unavailable) {
-                final unavailableSubtitle =
-                    switch (availability.unavailableReason) {
-                      SourceUnavailableReason.noEpisodes =>
-                        context.l10n.jkanimeNotAvailableNoEpisodes,
-                      _ => context.l10n.jkanimeNotAvailableNoMatch,
-                    };
+            onSuccess: (summary) {
+              if (summary.sources.isEmpty) {
                 return _AvailabilityStatusTile(
-                  title: context.l10n.jkanimeAvailabilityTitle,
-                  subtitle: unavailableSubtitle,
+                  title: context.l10n.sourceAvailabilityTitle,
+                  subtitle: context.l10n.sourceAvailabilityNone,
                   icon: Icons.remove_circle_outline,
                   iconColor: Colors.orange,
                 );
@@ -216,96 +218,157 @@ class _JkAnimeAvailabilityCard extends ConsumerWidget {
               return Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: <Widget>[
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: <Widget>[
-                      const Icon(
-                        Icons.check_circle_outline,
-                        color: Colors.green,
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: <Widget>[
-                            Text(
-                              context.l10n.jkanimeAvailabilityTitle,
-                              style: Theme.of(context).textTheme.titleMedium,
-                            ),
-                            const SizedBox(height: 6),
-                            if (sourceManifest.iconUrl != null)
-                              DecoratedBox(
-                                decoration: BoxDecoration(
-                                  color:
-                                      Theme.of(context).brightness ==
-                                          Brightness.dark
-                                      ? Colors.white
-                                      : const Color(0xFF101826),
-                                  borderRadius: BorderRadius.circular(8),
-                                  border: Border.all(
-                                    color: Colors.black.withValues(alpha: 0.12),
-                                  ),
-                                ),
-                                child: Padding(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 10,
-                                    vertical: 6,
-                                  ),
-                                  child: SizedBox(
-                                    height: 26,
-                                    child: Image.network(
-                                      sourceManifest.iconUrl!,
-                                      fit: BoxFit.contain,
-                                      alignment: Alignment.centerLeft,
-                                      errorBuilder: (_, _, _) =>
-                                          Text(sourceManifest.displayName),
-                                    ),
-                                  ),
-                                ),
-                              )
-                            else
-                              Text(sourceManifest.displayName),
-                          ],
+                  Text(
+                    context.l10n.sourceAvailabilityTitle,
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                  if (summary.recommended != null) ...<Widget>[
+                    const SizedBox(height: 8),
+                    FilledButton.icon(
+                      onPressed: () =>
+                          _openSourceEpisodes(context, summary.recommended!),
+                      icon: const Icon(Icons.playlist_play),
+                      label: Text(
+                        context.l10n.sourceOpenRecommended(
+                          summary.recommended!.manifest.displayName,
                         ),
                       ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    context.l10n.jkanimeRealEpisodesFound(
-                      availability.episodes.length,
                     ),
-                  ),
-                  if (availability.episodes.isNotEmpty) ...<Widget>[
                     const SizedBox(height: 8),
-                    ...availability.episodes.take(3).map((episode) {
-                      return Text(
-                        '${episode.number.toInt()}. ${episode.title}',
-                        style: Theme.of(context).textTheme.bodyMedium,
-                      );
-                    }),
-                    const SizedBox(height: 12),
-                    FilledButton.icon(
-                      onPressed: () {
-                        Navigator.of(context).push(
-                          MaterialPageRoute<void>(
-                            builder: (_) => JkAnimeEpisodeListPage(
-                              animeTitle: animeTitle,
-                              episodes: availability.episodes,
-                            ),
-                          ),
-                        );
-                      },
-                      icon: const Icon(Icons.list_alt),
-                      label: Text(context.l10n.jkanimeViewRealEpisodes),
+                    Text(
+                      context.l10n.sourceRecommended(
+                        summary.recommended!.manifest.displayName,
+                      ),
                     ),
                   ],
+                  if (summary.sources
+                          .where(
+                            (source) =>
+                                source.status ==
+                                SourceAvailabilityStatus.available,
+                          )
+                          .length >
+                      1) ...<Widget>[
+                    const SizedBox(height: 12),
+                    Text(context.l10n.sourceChoosePrompt),
+                  ],
+                  const SizedBox(height: 8),
+                  ...summary.sources.map(
+                    (availability) => _SourceAvailabilityListTile(
+                      anilistId: anilistId,
+                      animeTitle: animeTitle,
+                      availability: availability,
+                      isRecommended:
+                          summary.recommended?.manifest.id ==
+                          availability.manifest.id,
+                    ),
+                  ),
                 ],
               );
             },
           ),
         ),
       ),
+    );
+  }
+
+  void _openSourceEpisodes(
+    BuildContext context,
+    SourceAvailability availability,
+  ) {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => SourceEpisodeListPage(
+          anilistId: anilistId,
+          animeTitle: animeTitle,
+          sourcePluginId: availability.manifest.id,
+          sourceName: availability.manifest.displayName,
+          episodes: availability.episodes,
+        ),
+      ),
+    );
+  }
+}
+
+class _SourceAvailabilityListTile extends StatelessWidget {
+  const _SourceAvailabilityListTile({
+    required this.anilistId,
+    required this.animeTitle,
+    required this.availability,
+    required this.isRecommended,
+  });
+
+  final int anilistId;
+  final String animeTitle;
+  final SourceAvailability availability;
+  final bool isRecommended;
+
+  @override
+  Widget build(BuildContext context) {
+    final subtitle = switch (availability.status) {
+      SourceAvailabilityStatus.available =>
+        context.l10n.sourceAvailableEpisodes(availability.episodes.length),
+      SourceAvailabilityStatus.error =>
+        availability.errorMessage ??
+            context.l10n.sourceUnavailableError(
+              availability.manifest.displayName,
+            ),
+      SourceAvailabilityStatus.unavailable =>
+        switch (availability.unavailableReason) {
+          SourceUnavailableReason.noEpisodes =>
+            context.l10n.sourceNotAvailableNoEpisodes(
+              availability.manifest.displayName,
+            ),
+          SourceUnavailableReason.ambiguousMatch =>
+            context.l10n.sourceNotAvailableAmbiguous(
+              availability.manifest.displayName,
+            ),
+          _ => context.l10n.sourceNotAvailableNoMatch(
+            availability.manifest.displayName,
+          ),
+        },
+    };
+
+    return ListTile(
+      contentPadding: EdgeInsets.zero,
+      leading: Icon(
+        availability.status == SourceAvailabilityStatus.available
+            ? Icons.check_circle_outline
+            : availability.status == SourceAvailabilityStatus.error
+            ? Icons.error_outline
+            : Icons.remove_circle_outline,
+        color: availability.status == SourceAvailabilityStatus.available
+            ? Colors.green
+            : availability.status == SourceAvailabilityStatus.error
+            ? Colors.red
+            : Colors.orange,
+      ),
+      title: Row(
+        children: <Widget>[
+          Expanded(child: Text(availability.manifest.displayName)),
+          if (isRecommended)
+            Chip(label: Text(context.l10n.sourceRecommendedShort)),
+        ],
+      ),
+      subtitle: Text(subtitle),
+      trailing: availability.status == SourceAvailabilityStatus.available
+          ? OutlinedButton(
+              onPressed: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => SourceEpisodeListPage(
+                      anilistId: anilistId,
+                      animeTitle: animeTitle,
+                      sourcePluginId: availability.manifest.id,
+                      sourceName: availability.manifest.displayName,
+                      episodes: availability.episodes,
+                    ),
+                  ),
+                );
+              },
+              child: Text(context.l10n.sourceViewEpisodes),
+            )
+          : null,
     );
   }
 }

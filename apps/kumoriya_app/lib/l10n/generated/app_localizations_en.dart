@@ -354,4 +354,89 @@ class AppLocalizationsEn extends AppLocalizations {
   String animeListEpisodesShort(int count) {
     return '$count eps';
   }
+
+  @override
+  String get continueWatching => 'Continue Watching';
+
+  @override
+  String continueWatchingEpisode(Object episode) {
+    return 'Episode $episode';
+  }
+
+  @override
+  String get sourceAvailabilityTitle => 'Source availability';
+
+  @override
+  String get sourceAvailabilityChecking => 'Checking supported sources...';
+
+  @override
+  String get sourceAvailabilityNone => 'No source status is available yet.';
+
+  @override
+  String sourceOpenRecommended(Object sourceName) {
+    return 'Open recommended source: $sourceName';
+  }
+
+  @override
+  String sourceRecommended(Object sourceName) {
+    return 'Recommended fallback order selected: $sourceName';
+  }
+
+  @override
+  String get sourceRecommendedShort => 'Recommended';
+
+  @override
+  String get sourceChoosePrompt => 'Other matched sources:';
+
+  @override
+  String sourceAvailableEpisodes(int count) {
+    return '$count source episodes available';
+  }
+
+  @override
+  String sourceNotAvailableNoMatch(Object sourceName) {
+    return '$sourceName: no reliable AniList match.';
+  }
+
+  @override
+  String sourceNotAvailableAmbiguous(Object sourceName) {
+    return '$sourceName: ambiguous title match, skipped safely.';
+  }
+
+  @override
+  String sourceNotAvailableNoEpisodes(Object sourceName) {
+    return '$sourceName: matched, but no episodes were found.';
+  }
+
+  @override
+  String sourceUnavailableError(Object sourceName) {
+    return '$sourceName: source check failed.';
+  }
+
+  @override
+  String get sourceViewEpisodes => 'Episodes';
+
+  @override
+  String sourceEpisodesTitle(Object sourceName, Object animeTitle) {
+    return '$sourceName episodes | $animeTitle';
+  }
+
+  @override
+  String sourceServerLinksLoading(Object sourceName) {
+    return 'Loading $sourceName server links...';
+  }
+
+  @override
+  String sourceServerLinksTitle(
+    Object sourceName,
+    Object animeTitle,
+    Object episodeNumber,
+  ) {
+    return '$sourceName | $animeTitle Episode $episodeNumber servers';
+  }
+
+  @override
+  String sourceDetectedHost(Object host) {
+    return 'Host: $host';
+  }
 }

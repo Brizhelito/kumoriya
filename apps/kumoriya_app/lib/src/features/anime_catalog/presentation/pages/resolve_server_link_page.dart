@@ -10,13 +10,17 @@ import '../providers/anime_catalog_providers.dart';
 class ResolveServerLinkPage extends ConsumerWidget {
   const ResolveServerLinkPage({
     super.key,
+    required this.anilistId,
     required this.animeTitle,
     required this.episodeNumber,
+    required this.sourcePluginId,
     required this.serverLink,
   });
 
+  final int anilistId;
   final String animeTitle;
   final String episodeNumber;
+  final String sourcePluginId;
   final SourceServerLink serverLink;
 
   @override
@@ -70,8 +74,10 @@ class ResolveServerLinkPage extends ConsumerWidget {
                           Navigator.of(context).push(
                             MaterialPageRoute<void>(
                               builder: (_) => PlayerPage(
+                                anilistId: anilistId,
                                 animeTitle: animeTitle,
                                 episodeNumber: episodeNumber,
+                                sourcePluginId: sourcePluginId,
                                 resolved: resolved,
                               ),
                             ),

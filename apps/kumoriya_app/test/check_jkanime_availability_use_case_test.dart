@@ -1,77 +1,88 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:kumoriya_app/src/features/anime_catalog/application/matching/anilist_jkanime_matcher.dart';
+import 'package:kumoriya_app/src/features/anime_catalog/application/matching/anilist_source_matcher.dart';
 import 'package:kumoriya_app/src/features/anime_catalog/application/models/source_availability.dart';
-import 'package:kumoriya_app/src/features/anime_catalog/application/use_cases/check_jkanime_availability_use_case.dart';
+import 'package:kumoriya_app/src/features/anime_catalog/application/use_cases/check_source_availability_use_case.dart';
 import 'package:kumoriya_core/kumoriya_core.dart';
 import 'package:kumoriya_domain/kumoriya_domain.dart';
 import 'package:kumoriya_plugins/kumoriya_plugins.dart';
 
 void main() {
-  const matcher = AnilistJkanimeMatcher();
+  const matcher = AnilistSourceMatcher();
 
   test('returns unavailable noMatch when matcher rejects candidates', () async {
-    final useCase = CheckJkanimeAvailabilityUseCase(
+    final useCase = CheckSourceAvailabilityUseCase(
       sourcePlugin: _FakeSourcePluginNoMatch(),
       matcher: matcher,
     );
 
-    final result = await useCase.call(_detail('Naruto'));
+    final availability = await useCase.call(_detail('Naruto'));
 
-    expect(result.isSuccess, isTrue);
-    result.fold(
-      onFailure: (_) => fail('expected success'),
-      onSuccess: (availability) {
-        expect(availability.status, SourceAvailabilityStatus.unavailable);
-        expect(availability.unavailableReason, SourceUnavailableReason.noMatch);
-      },
-    );
+    expect(availability.status, SourceAvailabilityStatus.unavailable);
+    expect(availability.unavailableReason, SourceUnavailableReason.noMatch);
   });
 
   test(
     'returns unavailable noEpisodes when source has empty episodes',
     () async {
-      final useCase = CheckJkanimeAvailabilityUseCase(
+      final useCase = CheckSourceAvailabilityUseCase(
         sourcePlugin: _FakeSourcePluginNoEpisodes(),
         matcher: matcher,
       );
 
-      final result = await useCase.call(_detail('Naruto'));
+      final availability = await useCase.call(_detail('Naruto'));
 
-      expect(result.isSuccess, isTrue);
-      result.fold(
-        onFailure: (_) => fail('expected success'),
-        onSuccess: (availability) {
-          expect(availability.status, SourceAvailabilityStatus.unavailable);
-          expect(
-            availability.unavailableReason,
-            SourceUnavailableReason.noEpisodes,
-          );
-        },
+      expect(availability.status, SourceAvailabilityStatus.unavailable);
+      expect(
+        availability.unavailableReason,
+        SourceUnavailableReason.noEpisodes,
       );
     },
   );
 
-  test('returns failure when source breaks during episodes fetch', () async {
-    final useCase = CheckJkanimeAvailabilityUseCase(
-      sourcePlugin: _FakeSourcePluginTransportFailure(),
-      matcher: matcher,
-    );
+  test(
+    'returns error status when source breaks during episodes fetch',
+    () async {
+      final useCase = CheckSourceAvailabilityUseCase(
+        sourcePlugin: _FakeSourcePluginTransportFailure(),
+        matcher: matcher,
+      );
 
-    final result = await useCase.call(_detail('Naruto'));
+      final availability = await useCase.call(_detail('Naruto'));
 
-    expect(result.isFailure, isTrue);
-    result.fold(
-      onFailure: (error) => expect(error.kind, KumoriyaErrorKind.transport),
-      onSuccess: (_) => fail('expected failure'),
-    );
-  });
+      expect(availability.status, SourceAvailabilityStatus.error);
+      expect(availability.errorMessage, contains('down'));
+    },
+  );
+
+  test(
+    'aggregates alternative AniList titles across multiple searches',
+    () async {
+      final useCase = CheckSourceAvailabilityUseCase(
+        sourcePlugin: _FakeSourcePluginAliasOnly(),
+        matcher: matcher,
+      );
+
+      final availability = await useCase.call(
+        _detail(
+          'Kimetsu no Yaiba',
+          titleOverride: const AnimeTitle(
+            romaji: 'Kimetsu no Yaiba',
+            english: 'Demon Slayer',
+          ),
+        ),
+      );
+
+      expect(availability.status, SourceAvailabilityStatus.available);
+      expect(availability.matchedAnime?.sourceId, 'demon-slayer');
+    },
+  );
 }
 
-AnimeDetail _detail(String title) {
+AnimeDetail _detail(String title, {AnimeTitle? titleOverride}) {
   return AnimeDetail(
     anime: Anime(
       anilistId: 1,
-      title: AnimeTitle(romaji: title),
+      title: titleOverride ?? AnimeTitle(romaji: title),
       format: AnimeFormat.tv,
     ),
   );
@@ -145,7 +156,7 @@ final class _FakeSourcePluginNoEpisodes extends _BaseFakeSourcePlugin {
   ) async {
     return const Failure(
       SimpleError(
-        code: 'jkanime.empty',
+        code: 'source.empty',
         message: 'no episodes',
         kind: KumoriyaErrorKind.notFound,
       ),
@@ -160,10 +171,39 @@ final class _FakeSourcePluginTransportFailure extends _BaseFakeSourcePlugin {
   ) async {
     return const Failure(
       SimpleError(
-        code: 'jkanime.transport',
+        code: 'source.transport',
         message: 'down',
         kind: KumoriyaErrorKind.transport,
       ),
     );
+  }
+}
+
+final class _FakeSourcePluginAliasOnly extends _BaseFakeSourcePlugin {
+  @override
+  Future<Result<List<SourceAnimeMatch>, KumoriyaError>> search(
+    SourceSearchQuery query,
+  ) async {
+    if (query.query == 'Kimetsu no Yaiba') {
+      return const Success(<SourceAnimeMatch>[]);
+    }
+
+    return const Success(<SourceAnimeMatch>[
+      SourceAnimeMatch(sourceId: 'demon-slayer', title: 'Demon Slayer'),
+    ]);
+  }
+
+  @override
+  Future<Result<List<SourceEpisode>, KumoriyaError>> getEpisodes(
+    String sourceId,
+  ) async {
+    return Success(<SourceEpisode>[
+      SourceEpisode(
+        sourceEpisodeId: 'ep1',
+        number: 1,
+        title: 'Episode 1',
+        episodeUrl: Uri.parse('https://example.com/1'),
+      ),
+    ]);
   }
 }

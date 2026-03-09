@@ -359,4 +359,90 @@ class AppLocalizationsEs extends AppLocalizations {
   String animeListEpisodesShort(int count) {
     return '$count eps';
   }
+
+  @override
+  String get continueWatching => 'Seguir Viendo';
+
+  @override
+  String continueWatchingEpisode(Object episode) {
+    return 'Episodio $episode';
+  }
+
+  @override
+  String get sourceAvailabilityTitle => 'Disponibilidad de fuentes';
+
+  @override
+  String get sourceAvailabilityChecking => 'Verificando fuentes compatibles...';
+
+  @override
+  String get sourceAvailabilityNone =>
+      'Todavia no hay estado de fuentes disponible.';
+
+  @override
+  String sourceOpenRecommended(Object sourceName) {
+    return 'Abrir fuente recomendada: $sourceName';
+  }
+
+  @override
+  String sourceRecommended(Object sourceName) {
+    return 'Se selecciono esta fuente por el orden de fallback: $sourceName';
+  }
+
+  @override
+  String get sourceRecommendedShort => 'Recomendada';
+
+  @override
+  String get sourceChoosePrompt => 'Otras fuentes con match:';
+
+  @override
+  String sourceAvailableEpisodes(int count) {
+    return '$count episodios reales disponibles';
+  }
+
+  @override
+  String sourceNotAvailableNoMatch(Object sourceName) {
+    return '$sourceName: no hubo match confiable con AniList.';
+  }
+
+  @override
+  String sourceNotAvailableAmbiguous(Object sourceName) {
+    return '$sourceName: el match fue ambiguo y se descarto por seguridad.';
+  }
+
+  @override
+  String sourceNotAvailableNoEpisodes(Object sourceName) {
+    return '$sourceName: hubo match, pero no se encontraron episodios.';
+  }
+
+  @override
+  String sourceUnavailableError(Object sourceName) {
+    return '$sourceName: la verificacion de la fuente fallo.';
+  }
+
+  @override
+  String get sourceViewEpisodes => 'Episodios';
+
+  @override
+  String sourceEpisodesTitle(Object sourceName, Object animeTitle) {
+    return 'Episodios $sourceName | $animeTitle';
+  }
+
+  @override
+  String sourceServerLinksLoading(Object sourceName) {
+    return 'Cargando enlaces de servidores de $sourceName...';
+  }
+
+  @override
+  String sourceServerLinksTitle(
+    Object sourceName,
+    Object animeTitle,
+    Object episodeNumber,
+  ) {
+    return '$sourceName | $animeTitle Servidores episodio $episodeNumber';
+  }
+
+  @override
+  String sourceDetectedHost(Object host) {
+    return 'Host: $host';
+  }
 }
