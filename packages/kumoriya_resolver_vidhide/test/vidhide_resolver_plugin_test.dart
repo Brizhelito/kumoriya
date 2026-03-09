@@ -1,6 +1,5 @@
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
-import 'package:kumoriya_core/kumoriya_core.dart';
 import 'package:kumoriya_resolver_vidhide/kumoriya_resolver_vidhide.dart';
 import 'package:test/test.dart';
 
@@ -56,14 +55,6 @@ void main() {
   });
 
   group('VidhideResolverPlugin.resolve', () {
-    const packedHtml = r'''
-<html><body>
-<script>
-eval(function(p,a,c,k,e,d){e=function(c){return c};if(!''.replace(/^/,String)){while(c--){d[c]=k[c]||c}k=[function(e){return d[e]}];e=function(){return'\w+'};c=1};while(c--){if(k[c]){p=p.replace(new RegExp('\b'+e(c)+'\b','g'),k[c])}}return p}('var links={"hls2":"https://cdn.example.com/hls/abc123/master.m3u8"};jwplayer("vplayer").setup({sources:[{file:links.hls2,type:"hls"}]});',62,3,'|||'.split('|'),0,{}))
-</script>
-</body></html>
-''';
-
     const plainHlsHtml = '''
 <html><body>
 <script>
