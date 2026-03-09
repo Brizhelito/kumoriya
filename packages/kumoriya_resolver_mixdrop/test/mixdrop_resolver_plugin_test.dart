@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:http/http.dart' as http;
@@ -40,17 +41,12 @@ void main() {
 
   test('extracts stream from MDCore.wurl payload', () async {
     final plugin = MixdropResolverPlugin(
-      httpClient: MockClient((request) async {
-        expect(request.url.host, 'mixdrop.co');
-        return http.Response.bytes(
-          wurlFixture.codeUnits,
-          200,
-          request: http.Request(
-            'GET',
-            Uri.parse('https://m1xdrop.bz/e/abc123'),
-          ),
-        );
-      }),
+      httpClient: _StaticStreamedClient(
+        body: wurlFixture,
+        statusCode: 200,
+        responseUrl: Uri.parse('https://m1xdrop.bz/e/abc123'),
+        onRequest: (request) => expect(request.url.host, 'mixdrop.co'),
+      ),
     );
 
     final result = await plugin.resolve(
@@ -195,4 +191,42 @@ void main() {
       onSuccess: (_) => fail('expected failure'),
     );
   });
+}
+
+final class _StreamedResponseWithUrl extends http.StreamedResponse
+    implements http.BaseResponseWithUrl {
+  _StreamedResponseWithUrl(
+    super.stream,
+    super.statusCode, {
+    required this.url,
+    super.request,
+  });
+
+  @override
+  final Uri url;
+}
+
+final class _StaticStreamedClient extends http.BaseClient {
+  _StaticStreamedClient({
+    required this.body,
+    required this.statusCode,
+    required this.responseUrl,
+    this.onRequest,
+  });
+
+  final String body;
+  final int statusCode;
+  final Uri responseUrl;
+  final void Function(http.BaseRequest request)? onRequest;
+
+  @override
+  Future<http.StreamedResponse> send(http.BaseRequest request) async {
+    onRequest?.call(request);
+    return _StreamedResponseWithUrl(
+      http.ByteStream.fromBytes(utf8.encode(body)),
+      statusCode,
+      url: responseUrl,
+      request: request,
+    );
+  }
 }

@@ -82,10 +82,14 @@ final class MixdropResolverPlugin implements ResolverPlugin {
     }
 
     try {
+      final request = http.Request('GET', url)..headers.addAll(_headers(url));
       final response = await _httpClient
-          .get(url, headers: _headers(url))
+          .send(request)
           .timeout(const Duration(seconds: 15));
-      final effectiveEmbedUrl = response.request?.url ?? url;
+      final effectiveEmbedUrl = switch (response) {
+        http.BaseResponseWithUrl responseWithUrl => responseWithUrl.url,
+        _ => url,
+      };
 
       if (response.statusCode != 200) {
         return Failure(
@@ -96,12 +100,10 @@ final class MixdropResolverPlugin implements ResolverPlugin {
         );
       }
 
-      final streams = _extractStreams(
-        response.body,
-        baseUrl: effectiveEmbedUrl,
-      );
+      final payload = await response.stream.bytesToString();
+      final streams = _extractStreams(payload, baseUrl: effectiveEmbedUrl);
       if (streams.isEmpty) {
-        if (_hasHints(response.body)) {
+        if (_hasHints(payload)) {
           return const Failure(
             MixdropInconsistentPayloadError(
               message:
