@@ -155,29 +155,13 @@ final class AnimeAv1SourcePlugin implements SourcePlugin {
       onSuccess: (html) {
         try {
           final document = html_parser.parse(html);
-          final links = document.querySelectorAll('a[href^="/media/$slug/"]');
-          final episodes = <SourceEpisode>[];
-          final seenNumbers = <double>{};
-
-          for (final link in links) {
-            final href = link.attributes['href'] ?? '';
-            final number = _extractEpisodeNumberFromMediaPath(href);
-            if (number == null || !seenNumbers.add(number)) {
-              continue;
-            }
-
-            final numberStr = _formatNumber(number);
-            episodes.add(
-              SourceEpisode(
-                sourceEpisodeId: '${slug}_$numberStr',
-                number: number,
-                title: 'Episodio $numberStr',
-                episodeUrl: _baseUri.resolve(
-                  href.startsWith('/') ? href.substring(1) : href,
-                ),
-              ),
-            );
-          }
+          final bootstrapSlug = _extractBootstrapSlug(html) ?? slug;
+          final bootstrapEpisodes = _extractEpisodesFromBootstrap(
+            html,
+            bootstrapSlug,
+          );
+          final domEpisodes = _extractEpisodesFromDom(document, bootstrapSlug);
+          final episodes = _mergeEpisodes(bootstrapEpisodes, domEpisodes);
 
           if (episodes.isEmpty) {
             return const Failure(
@@ -327,6 +311,88 @@ final class AnimeAv1SourcePlugin implements SourcePlugin {
     return links;
   }
 
+  List<SourceEpisode> _extractEpisodesFromBootstrap(String html, String slug) {
+    final blockMatch = RegExp(
+      r'episodes:\[(.*?)\],relations:',
+      multiLine: true,
+      caseSensitive: false,
+    ).firstMatch(html);
+    final block = blockMatch?.group(1);
+    if (block == null || block.isEmpty) {
+      return const <SourceEpisode>[];
+    }
+
+    final matches = RegExp(
+      r'\{id:\d+,number:(\d+(?:\.\d+)?)\}',
+      multiLine: true,
+      caseSensitive: false,
+    ).allMatches(block);
+
+    return _buildEpisodesFromNumbers(
+      matches
+          .map((match) => double.tryParse(match.group(1) ?? ''))
+          .whereType<double>(),
+      slug,
+    );
+  }
+
+  List<SourceEpisode> _extractEpisodesFromDom(dynamic document, String slug) {
+    final links = document.querySelectorAll('a[href^="/media/$slug/"]');
+    final numbers = <double>[];
+
+    for (final link in links) {
+      final href = link.attributes['href'] ?? '';
+      final number = _extractEpisodeNumberFromMediaPath(href);
+      if (number != null) {
+        numbers.add(number);
+      }
+    }
+
+    return _buildEpisodesFromNumbers(numbers, slug);
+  }
+
+  List<SourceEpisode> _buildEpisodesFromNumbers(
+    Iterable<double> numbers,
+    String slug,
+  ) {
+    final episodes = <SourceEpisode>[];
+    final seenNumbers = <double>{};
+
+    for (final number in numbers) {
+      if (!seenNumbers.add(number)) {
+        continue;
+      }
+
+      final numberStr = _formatNumber(number);
+      episodes.add(
+        SourceEpisode(
+          sourceEpisodeId: '${slug}_$numberStr',
+          number: number,
+          title: 'Episodio $numberStr',
+          episodeUrl: _baseUri.resolve('media/$slug/$numberStr'),
+        ),
+      );
+    }
+
+    return episodes;
+  }
+
+  List<SourceEpisode> _mergeEpisodes(
+    List<SourceEpisode> primary,
+    List<SourceEpisode> fallback,
+  ) {
+    final mergedByNumber = <double, SourceEpisode>{};
+
+    for (final episode in primary) {
+      mergedByNumber[episode.number] = episode;
+    }
+    for (final episode in fallback) {
+      mergedByNumber.putIfAbsent(episode.number, () => episode);
+    }
+
+    return mergedByNumber.values.toList();
+  }
+
   String _normalizeSourceId(String sourceId) {
     final trimmed = sourceId.trim();
     final uri = Uri.tryParse(trimmed);
@@ -345,6 +411,15 @@ final class AnimeAv1SourcePlugin implements SourcePlugin {
       return segments[1];
     }
     return null;
+  }
+
+  String? _extractBootstrapSlug(String html) {
+    final match = RegExp(
+      r'votes:\d+,slug:"([^"]+)"',
+      multiLine: true,
+      caseSensitive: false,
+    ).firstMatch(html);
+    return match?.group(1)?.trim();
   }
 
   double? _extractEpisodeNumberFromMediaPath(String path) {
