@@ -123,6 +123,9 @@ final class MixdropResolverPlugin implements ResolverPlugin {
   }
 }
 
+const String _defaultUserAgent =
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36';
+
 bool _isSupportedHost(String host, Set<String> knownHosts) {
   if (knownHosts.any((supported) => host == supported)) {
     return true;
@@ -140,8 +143,23 @@ Map<String, String> _headers(Uri url) {
   return <String, String>{
     'Referer': '$origin/',
     'Origin': origin,
-    'User-Agent':
-        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36',
+    'User-Agent': _defaultUserAgent,
+  };
+}
+
+Map<String, String> _playbackHeaders(Uri embedUrl) {
+  final origin = '${embedUrl.scheme}://${embedUrl.host}';
+  return <String, String>{
+    'Referer': embedUrl.toString(),
+    'Origin': origin,
+    'User-Agent': _defaultUserAgent,
+    'Accept': 'video/webm,video/ogg,video/*;q=0.9,*/*;q=0.8',
+    'Accept-Language': 'es-ES,es;q=0.9,en-US;q=0.8,en;q=0.7',
+    'Connection': 'keep-alive',
+    'Range': 'bytes=0-',
+    'Sec-Fetch-Dest': 'video',
+    'Sec-Fetch-Mode': 'no-cors',
+    'Sec-Fetch-Site': 'cross-site',
   };
 }
 
@@ -330,7 +348,7 @@ ResolvedStream _toResolved(Uri uri, Uri baseUrl) {
     qualityLabel: _inferQuality(uri),
     mimeType: mimeType,
     isHls: isHls,
-    headers: _headers(baseUrl),
+    headers: _playbackHeaders(baseUrl),
   );
 }
 
