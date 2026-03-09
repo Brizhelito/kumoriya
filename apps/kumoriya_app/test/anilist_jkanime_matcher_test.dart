@@ -148,6 +148,74 @@ void main() {
     expect(decision.verdict, isFalse);
     expect(decision.rejectionSignals, contains('title-mismatch'));
   });
+
+  test('grouped season source entry is accepted conservatively', () {
+    final decision = matcher.decideMatch(
+      anilistDetail: _anilistDetail(
+        title: const AnimeTitle(romaji: 'Oshi no Ko 2nd Season'),
+        releaseYear: 2024,
+      ),
+      candidates: const <SourceAnimeMatch>[
+        SourceAnimeMatch(
+          sourceId: 'oshi-no-ko',
+          title: 'Oshi no Ko',
+          format: AnimeFormat.tv,
+          releaseYear: 2023,
+        ),
+      ],
+    );
+
+    expect(decision.verdict, isTrue);
+    expect(decision.confidence, MatchConfidence.high);
+    expect(decision.acceptanceSignals, contains('grouped-season-title'));
+  });
+
+  test('structured subtitle alias can still match conservatively', () {
+    final decision = matcher.decideMatch(
+      anilistDetail: _anilistDetail(
+        title: const AnimeTitle(
+          romaji:
+              'Mushoku Tensei: Isekai Ittara Honki Dasu - Megami ni Erabareshi',
+        ),
+      ),
+      candidates: const <SourceAnimeMatch>[
+        SourceAnimeMatch(
+          sourceId: 'mushoku-tensei-megami-ni-erabareshi',
+          title: 'Mushoku Tensei: Megami ni Erabareshi',
+          format: AnimeFormat.tv,
+        ),
+      ],
+    );
+
+    expect(decision.verdict, isTrue);
+    expect(decision.confidence, MatchConfidence.high);
+    expect(decision.acceptanceSignals, contains('structured-alias-title'));
+  });
+
+  test('franchise umbrella entry can satisfy grouped franchise fallback', () {
+    final decision = matcher.decideMatch(
+      anilistDetail: _anilistDetail(
+        title: const AnimeTitle(romaji: 'Mushoku Tensei: Megami ni Erabareshi'),
+      ),
+      candidates: const <SourceAnimeMatch>[
+        SourceAnimeMatch(
+          sourceId: 'mushoku-tensei-main',
+          title: 'Mushoku Tensei: Isekai Ittara Honki Dasu',
+          format: AnimeFormat.tv,
+        ),
+        SourceAnimeMatch(
+          sourceId: 'mushoku-tensei-s2',
+          title: 'Mushoku Tensei: Isekai Ittara Honki Dasu 2nd Season',
+          format: AnimeFormat.tv,
+        ),
+      ],
+    );
+
+    expect(decision.verdict, isTrue);
+    expect(decision.confidence, MatchConfidence.high);
+    expect(decision.acceptanceSignals, contains('franchise-root-grouping'));
+    expect(decision.candidate?.sourceId, 'mushoku-tensei-main');
+  });
 }
 
 AnimeDetail _anilistDetail({

@@ -76,6 +76,53 @@ void main() {
       expect(availability.matchedAnime?.sourceId, 'demon-slayer');
     },
   );
+
+  test(
+    'strips season descriptors from search queries before matching',
+    () async {
+      final plugin = _FakeSourcePluginSeasonRootOnly();
+      final useCase = CheckSourceAvailabilityUseCase(
+        sourcePlugin: plugin,
+        matcher: matcher,
+      );
+
+      final availability = await useCase.call(
+        _detail(
+          'Oshi no Ko 2nd Season',
+          titleOverride: const AnimeTitle(romaji: 'Oshi no Ko 2nd Season'),
+        ),
+      );
+
+      expect(availability.status, SourceAvailabilityStatus.available);
+      expect(plugin.queries, contains('Oshi no Ko'));
+      expect(availability.matchedAnime?.sourceId, 'oshi-no-ko');
+    },
+  );
+
+  test('adds franchise root query for subtitle-heavy titles', () async {
+    final plugin = _FakeSourcePluginFranchiseRootOnly();
+    final useCase = CheckSourceAvailabilityUseCase(
+      sourcePlugin: plugin,
+      matcher: matcher,
+    );
+
+    final availability = await useCase.call(
+      _detail(
+        'Mushoku Tensei: Isekai Ittara Honki Dasu - Megami ni Erabareshi',
+        titleOverride: const AnimeTitle(
+          romaji:
+              'Mushoku Tensei: Isekai Ittara Honki Dasu - Megami ni Erabareshi',
+        ),
+      ),
+    );
+
+    expect(availability.status, SourceAvailabilityStatus.available);
+    expect(plugin.queries, contains('Mushoku Tensei'));
+    expect(
+      availability.matchedAnime?.sourceId,
+      'mushoku-tensei-megami-ni-erabareshi',
+    );
+  });
 }
 
 AnimeDetail _detail(String title, {AnimeTitle? titleOverride}) {
@@ -203,6 +250,79 @@ final class _FakeSourcePluginAliasOnly extends _BaseFakeSourcePlugin {
         number: 1,
         title: 'Episode 1',
         episodeUrl: Uri.parse('https://example.com/1'),
+      ),
+    ]);
+  }
+}
+
+final class _FakeSourcePluginSeasonRootOnly extends _BaseFakeSourcePlugin {
+  final List<String> queries = <String>[];
+
+  @override
+  Future<Result<List<SourceAnimeMatch>, KumoriyaError>> search(
+    SourceSearchQuery query,
+  ) async {
+    queries.add(query.query);
+    if (query.query == 'Oshi no Ko') {
+      return const Success(<SourceAnimeMatch>[
+        SourceAnimeMatch(
+          sourceId: 'oshi-no-ko',
+          title: 'Oshi no Ko',
+          format: AnimeFormat.tv,
+          releaseYear: 2023,
+        ),
+      ]);
+    }
+
+    return const Success(<SourceAnimeMatch>[]);
+  }
+
+  @override
+  Future<Result<List<SourceEpisode>, KumoriyaError>> getEpisodes(
+    String sourceId,
+  ) async {
+    return Success(<SourceEpisode>[
+      SourceEpisode(
+        sourceEpisodeId: 'ep1',
+        number: 1,
+        title: 'Episode 1',
+        episodeUrl: Uri.parse('https://example.com/oshi/1'),
+      ),
+    ]);
+  }
+}
+
+final class _FakeSourcePluginFranchiseRootOnly extends _BaseFakeSourcePlugin {
+  final List<String> queries = <String>[];
+
+  @override
+  Future<Result<List<SourceAnimeMatch>, KumoriyaError>> search(
+    SourceSearchQuery query,
+  ) async {
+    queries.add(query.query);
+    if (query.query == 'Mushoku Tensei') {
+      return const Success(<SourceAnimeMatch>[
+        SourceAnimeMatch(
+          sourceId: 'mushoku-tensei-megami-ni-erabareshi',
+          title: 'Mushoku Tensei: Megami ni Erabareshi',
+          format: AnimeFormat.tv,
+        ),
+      ]);
+    }
+
+    return const Success(<SourceAnimeMatch>[]);
+  }
+
+  @override
+  Future<Result<List<SourceEpisode>, KumoriyaError>> getEpisodes(
+    String sourceId,
+  ) async {
+    return Success(<SourceEpisode>[
+      SourceEpisode(
+        sourceEpisodeId: 'ep1',
+        number: 1,
+        title: 'Episode 1',
+        episodeUrl: Uri.parse('https://example.com/mushoku/1'),
       ),
     ]);
   }

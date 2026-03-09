@@ -97,14 +97,14 @@ final class CheckSourceAvailabilityUseCase {
   Future<Result<List<SourceAnimeMatch>, KumoriyaError>> _searchCandidates(
     AnimeDetail anilistDetail,
   ) async {
-    final queries = <String>{
+    final queries = _buildSearchQueries(<String>{
       anilistDetail.anime.title.romaji,
       if (anilistDetail.anime.title.english != null)
         anilistDetail.anime.title.english!,
       if (anilistDetail.anime.title.native != null)
         anilistDetail.anime.title.native!,
       ...anilistDetail.anime.title.synonyms,
-    }.where((value) => value.trim().isNotEmpty).toList(growable: false);
+    });
 
     final seenIds = <String>{};
     final collected = <SourceAnimeMatch>[];
@@ -140,5 +140,83 @@ final class CheckSourceAvailabilityUseCase {
     }
 
     return const Success(<SourceAnimeMatch>[]);
+  }
+
+  List<String> _buildSearchQueries(Set<String> rawTitles) {
+    final ordered = <String>[];
+    final seen = <String>{};
+
+    void addQuery(String value) {
+      final trimmed = value.trim();
+      if (trimmed.isEmpty) {
+        return;
+      }
+
+      final normalizedKey = trimmed.toLowerCase();
+      if (seen.add(normalizedKey)) {
+        ordered.add(trimmed);
+      }
+    }
+
+    for (final title in rawTitles) {
+      addQuery(title);
+
+      final withoutSeason = _stripSeasonDescriptor(title);
+      if (withoutSeason != title) {
+        addQuery(withoutSeason);
+      }
+
+      final rootTitle = _extractRootTitle(withoutSeason);
+      if (rootTitle != withoutSeason) {
+        addQuery(rootTitle);
+      }
+    }
+
+    return ordered;
+  }
+
+  String _stripSeasonDescriptor(String value) {
+    var result = value.trim();
+    const patterns = <String>[
+      r'\s*[-:]?\s*\b\d+(?:st|nd|rd|th)?\s+season\b$',
+      r'\s*[-:]?\s*\bseason\s+\d+\b$',
+      r'\s*[-:]?\s*\bpart\s+\d+\b$',
+      r'\s*[-:]?\s*\bcour\s+\d+\b$',
+      r'\s*[-:]?\s*\b(?:ii|iii|iv|v)\b$',
+    ];
+
+    for (final pattern in patterns) {
+      result = result.replaceFirst(RegExp(pattern, caseSensitive: false), '');
+    }
+
+    return result.trim();
+  }
+
+  String _extractRootTitle(String value) {
+    final trimmed = value.trim();
+    if (trimmed.isEmpty) {
+      return trimmed;
+    }
+
+    final colonIndex = trimmed.indexOf(':');
+    final dashIndex = trimmed.indexOf(' - ');
+    final splitIndex = <int>[colonIndex, dashIndex]
+        .where((index) => index > 0)
+        .fold<int?>(null, (current, index) {
+          if (current == null || index < current) {
+            return index;
+          }
+          return current;
+        });
+
+    if (splitIndex == null) {
+      return trimmed;
+    }
+
+    final root = trimmed.substring(0, splitIndex).trim();
+    if (root.length < 10 || root.split(' ').length < 2) {
+      return trimmed;
+    }
+    return root;
   }
 }
