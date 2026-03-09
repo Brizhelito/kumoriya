@@ -83,15 +83,69 @@ final class CheckSourceAvailabilityUseCase {
             unavailableReason: SourceUnavailableReason.noEpisodes,
           );
         }
+        final alignedEpisodes = _alignEpisodesToRequestedSeason(
+          anilistDetail: anilistDetail,
+          decision: decision,
+          episodes: episodes,
+        );
         return SourceAvailability(
           manifest: _sourcePlugin.manifest,
           status: SourceAvailabilityStatus.available,
           decision: decision,
           matchedAnime: decision.candidate,
-          episodes: episodes,
+          episodes: alignedEpisodes,
         );
       },
     );
+  }
+
+  List<SourceEpisode> _alignEpisodesToRequestedSeason({
+    required AnimeDetail anilistDetail,
+    required SourceMatchDecision decision,
+    required List<SourceEpisode> episodes,
+  }) {
+    if (!decision.acceptanceSignals.contains('grouped-season-title')) {
+      return episodes;
+    }
+
+    final airedMetadata =
+        anilistDetail.episodes
+            .where((episode) => episode.isAired)
+            .toList(growable: false)
+          ..sort((a, b) => a.number.compareTo(b.number));
+    if (airedMetadata.isEmpty) {
+      return episodes;
+    }
+
+    final sourceSlice = episodes.length <= airedMetadata.length
+        ? episodes
+        : episodes.sublist(episodes.length - airedMetadata.length);
+    if (sourceSlice.isEmpty) {
+      return episodes;
+    }
+
+    final maxLength = sourceSlice.length < airedMetadata.length
+        ? sourceSlice.length
+        : airedMetadata.length;
+    final aligned = <SourceEpisode>[];
+
+    for (var index = 0; index < maxLength; index++) {
+      final sourceEpisode = sourceSlice[index];
+      final targetEpisode = airedMetadata[index];
+      aligned.add(
+        SourceEpisode(
+          sourceEpisodeId: sourceEpisode.sourceEpisodeId,
+          number: targetEpisode.number,
+          title: targetEpisode.title.trim().isEmpty
+              ? sourceEpisode.title
+              : targetEpisode.title,
+          episodeUrl: sourceEpisode.episodeUrl,
+          thumbnailUrl: sourceEpisode.thumbnailUrl,
+        ),
+      );
+    }
+
+    return aligned.isEmpty ? episodes : aligned;
   }
 
   Future<Result<List<SourceAnimeMatch>, KumoriyaError>> _searchCandidates(

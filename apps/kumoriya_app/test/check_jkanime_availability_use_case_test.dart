@@ -120,6 +120,47 @@ void main() {
     expect(plugin.queries, contains('Mushoku Tensei'));
     expect(availability.matchedAnime?.sourceId, 'mushoku-tensei-main');
   });
+
+  test(
+    'grouped season match aligns umbrella episodes to current season',
+    () async {
+      final plugin = _FakeSourcePluginGroupedSeasonEpisodes();
+      final useCase = CheckSourceAvailabilityUseCase(
+        sourcePlugin: plugin,
+        matcher: matcher,
+      );
+
+      final availability = await useCase.call(
+        AnimeDetail(
+          anime: const Anime(
+            anilistId: 77,
+            title: AnimeTitle(romaji: 'Oshi no Ko 2nd Season'),
+            format: AnimeFormat.tv,
+            totalEpisodes: 13,
+            status: AnimeStatus.releasing,
+          ),
+          episodes: const <AnimeEpisode>[
+            AnimeEpisode(number: 1, title: 'Episode 1', isAired: true),
+            AnimeEpisode(number: 2, title: 'Episode 2', isAired: true),
+            AnimeEpisode(number: 3, title: 'Episode 3', isAired: false),
+          ],
+        ),
+      );
+
+      expect(availability.status, SourceAvailabilityStatus.available);
+      expect(availability.episodes, hasLength(2));
+      expect(
+        availability.episodes.map((episode) => episode.number).toList(),
+        <double>[1, 2],
+      );
+      expect(
+        availability.episodes
+            .map((episode) => episode.sourceEpisodeId)
+            .toList(),
+        <String>['oshi-no-ko_12', 'oshi-no-ko_13'],
+      );
+    },
+  );
 }
 
 AnimeDetail _detail(String title, {AnimeTitle? titleOverride}) {
@@ -327,5 +368,43 @@ final class _FakeSourcePluginFranchiseRootOnly extends _BaseFakeSourcePlugin {
         episodeUrl: Uri.parse('https://example.com/mushoku/1'),
       ),
     ]);
+  }
+}
+
+final class _FakeSourcePluginGroupedSeasonEpisodes
+    extends _BaseFakeSourcePlugin {
+  @override
+  Future<Result<List<SourceAnimeMatch>, KumoriyaError>> search(
+    SourceSearchQuery query,
+  ) async {
+    if (query.query == 'Oshi no Ko') {
+      return const Success(<SourceAnimeMatch>[
+        SourceAnimeMatch(
+          sourceId: 'oshi-no-ko',
+          title: 'Oshi no Ko',
+          format: AnimeFormat.tv,
+          releaseYear: 2023,
+        ),
+      ]);
+    }
+
+    return const Success(<SourceAnimeMatch>[]);
+  }
+
+  @override
+  Future<Result<List<SourceEpisode>, KumoriyaError>> getEpisodes(
+    String sourceId,
+  ) async {
+    return Success(
+      List<SourceEpisode>.generate(
+        13,
+        (index) => SourceEpisode(
+          sourceEpisodeId: 'oshi-no-ko_${index + 1}',
+          number: (index + 1).toDouble(),
+          title: 'Umbrella Episode ${index + 1}',
+          episodeUrl: Uri.parse('https://example.com/oshi/${index + 1}'),
+        ),
+      ),
+    );
   }
 }
