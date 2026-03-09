@@ -11,22 +11,25 @@ void main() {
   final fixtureDir = Directory(
     '${Directory.current.path}${Platform.pathSeparator}test${Platform.pathSeparator}fixtures',
   );
+  http.Response htmlResponse(String fixtureName) {
+    return http.Response.bytes(
+      utf8.encode(
+        File(
+          '${fixtureDir.path}${Platform.pathSeparator}$fixtureName',
+        ).readAsStringSync(),
+      ),
+      200,
+      headers: const <String, String>{
+        'content-type': 'text/html; charset=utf-8',
+      },
+    );
+  }
 
   test('search parses AnimeAV1 catalog results', () async {
     final plugin = AnimeAv1SourcePlugin(
       httpClient: MockClient((request) async {
         expect(request.url.queryParameters['search'], 'naruto');
-        return http.Response.bytes(
-          utf8.encode(
-            File(
-              '${fixtureDir.path}${Platform.pathSeparator}animeav1_search_naruto.html',
-            ).readAsStringSync(),
-          ),
-          200,
-          headers: const <String, String>{
-            'content-type': 'text/html; charset=utf-8',
-          },
-        );
+        return htmlResponse('animeav1_search_naruto.html');
       }),
     );
 
@@ -44,56 +47,101 @@ void main() {
     );
   });
 
-  test('detail and episodes parse from AnimeAV1 media page', () async {
-    final fixture = File(
-      '${fixtureDir.path}${Platform.pathSeparator}animeav1_detail_naruto.html',
-    ).readAsStringSync();
-    final plugin = AnimeAv1SourcePlugin(
-      httpClient: MockClient(
-        (request) async => http.Response.bytes(
-          utf8.encode(fixture),
-          200,
-          headers: const <String, String>{
-            'content-type': 'text/html; charset=utf-8',
-          },
+  test(
+    'detail and episodes parse from AnimeAV1 fallback DOM fixture',
+    () async {
+      final plugin = AnimeAv1SourcePlugin(
+        httpClient: MockClient(
+          (request) async => htmlResponse('animeav1_detail_naruto.html'),
         ),
-      ),
-    );
+      );
 
-    final detailResult = await plugin.getAnimeDetail('naruto');
-    final episodesResult = await plugin.getEpisodes('naruto');
+      final detailResult = await plugin.getAnimeDetail('naruto');
+      final episodesResult = await plugin.getEpisodes('naruto');
 
-    detailResult.fold(
-      onFailure: (error) => fail('expected success, got ${error.message}'),
-      onSuccess: (detail) {
-        expect(detail.title, 'Naruto');
-        expect(detail.releaseYear, 2002);
-      },
-    );
-    episodesResult.fold(
-      onFailure: (error) => fail('expected success, got ${error.message}'),
-      onSuccess: (episodes) {
-        expect(episodes, hasLength(3));
-        expect(episodes.first.number, 1);
-      },
-    );
-  });
+      detailResult.fold(
+        onFailure: (error) => fail('expected success, got ${error.message}'),
+        onSuccess: (detail) {
+          expect(detail.title, 'Naruto');
+          expect(detail.releaseYear, 2002);
+        },
+      );
+      episodesResult.fold(
+        onFailure: (error) => fail('expected success, got ${error.message}'),
+        onSuccess: (episodes) {
+          expect(episodes, hasLength(3));
+          expect(episodes.first.number, 1);
+          expect(episodes.last.number, 3);
+        },
+      );
+    },
+  );
+
+  test(
+    'episodes parse complete single-block list from AnimeAV1 bootstrap',
+    () async {
+      final plugin = AnimeAv1SourcePlugin(
+        httpClient: MockClient(
+          (request) async =>
+              htmlResponse('animeav1_detail_kimetsu_no_yaiba.html'),
+        ),
+      );
+
+      final episodesResult = await plugin.getEpisodes('kimetsu-no-yaiba');
+
+      episodesResult.fold(
+        onFailure: (error) => fail('expected success, got ${error.message}'),
+        onSuccess: (episodes) {
+          expect(episodes, hasLength(26));
+          expect(episodes.first.number, 1);
+          expect(episodes.last.number, 26);
+          expect(
+            episodes.last.episodeUrl,
+            Uri.parse('https://animeav1.com/media/kimetsu-no-yaiba/26'),
+          );
+        },
+      );
+    },
+  );
+
+  test(
+    'episodes parse complete multi-block list from AnimeAV1 bootstrap',
+    () async {
+      final plugin = AnimeAv1SourcePlugin(
+        httpClient: MockClient(
+          (request) async =>
+              htmlResponse('animeav1_detail_naruto_shippuuden.html'),
+        ),
+      );
+
+      final episodesResult = await plugin.getEpisodes('naruto-shippuuden');
+
+      episodesResult.fold(
+        onFailure: (error) => fail('expected success, got ${error.message}'),
+        onSuccess: (episodes) {
+          expect(episodes, hasLength(500));
+          expect(episodes.first.number, 1);
+          expect(episodes[49].number, 50);
+          expect(episodes[50].number, 51);
+          expect(episodes.last.number, 500);
+          expect(
+            episodes.map((episode) => episode.number).toSet(),
+            hasLength(500),
+          );
+          expect(
+            episodes.last.episodeUrl,
+            Uri.parse('https://animeav1.com/media/naruto-shippuuden/500'),
+          );
+        },
+      );
+    },
+  );
 
   test('server links parse from AnimeAV1 bootstrap payload', () async {
     final plugin = AnimeAv1SourcePlugin(
-      httpClient: MockClient((request) async {
-        return http.Response.bytes(
-          utf8.encode(
-            File(
-              '${fixtureDir.path}${Platform.pathSeparator}animeav1_episode_naruto_1.html',
-            ).readAsStringSync(),
-          ),
-          200,
-          headers: const <String, String>{
-            'content-type': 'text/html; charset=utf-8',
-          },
-        );
-      }),
+      httpClient: MockClient(
+        (request) async => htmlResponse('animeav1_episode_naruto_1.html'),
+      ),
     );
 
     final result = await plugin.getEpisodeServerLinks(
