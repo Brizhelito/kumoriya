@@ -1,0 +1,4 @@
+interface:
+  display_name: "Resolver Runtime Audit"
+  short_description: "Audit Kumoriya resolvers with runtime/DOM/network evidence"
+  default_prompt: "Audit Kumoriya resolver and dynamic extraction failures using real runtime evidence (DOM, JS, network, payloads), isolate root cause by layer (source vs resolver vs alias/redirect/payload), and produce prioritized fixes plus validation."

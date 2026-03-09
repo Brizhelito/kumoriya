@@ -1,0 +1,4 @@
+interface:
+  display_name: "UI/UX Review"
+  short_description: "Audita y mejora UX/UI en pantallas de Kumoriya"
+  default_prompt: "Use $uiux-review to audit a Kumoriya screen and propose concrete UI/UX improvements."

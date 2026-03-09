@@ -7,9 +7,14 @@ import 'package:kumoriya_resolver_filemoon/kumoriya_resolver_filemoon.dart';
 import 'package:kumoriya_resolver_jkplayer/kumoriya_resolver_jkplayer.dart';
 import 'package:kumoriya_resolver_mixdrop/kumoriya_resolver_mixdrop.dart';
 import 'package:kumoriya_resolver_mp4upload/kumoriya_resolver_mp4upload.dart';
+import 'package:kumoriya_resolver_streamtape/kumoriya_resolver_streamtape.dart';
 import 'package:kumoriya_resolver_streamwish/kumoriya_resolver_streamwish.dart';
+import 'package:kumoriya_resolver_doodstream/kumoriya_resolver_doodstream.dart';
+import 'package:kumoriya_resolver_vidhide/kumoriya_resolver_vidhide.dart';
 import 'package:kumoriya_resolver_voe/kumoriya_resolver_voe.dart';
 import 'package:kumoriya_source_jkanime/kumoriya_source_jkanime.dart';
+import 'package:kumoriya_source_animeflv/kumoriya_source_animeflv.dart';
+import 'package:kumoriya_source_animeav1/kumoriya_source_animeav1.dart';
 
 import '../../application/use_cases/anime_catalog_use_cases.dart';
 import '../../application/matching/anilist_jkanime_matcher.dart';
@@ -36,6 +41,14 @@ final animeCatalogRepositoryProvider = Provider<AnimeCatalogRepository>((ref) {
   );
 });
 
+final sourcePluginsProvider = Provider<List<SourcePlugin>>((ref) {
+  return <SourcePlugin>[
+    JkAnimeSourcePlugin(),
+    AnimeFlvSourcePlugin(),
+    AnimeAv1SourcePlugin(),
+  ];
+});
+
 final sourcePluginProvider = Provider<SourcePlugin>((ref) {
   return JkAnimeSourcePlugin();
 });
@@ -49,6 +62,9 @@ final resolverPluginsProvider = Provider<List<ResolverPlugin>>((ref) {
     StreamwishResolverPlugin(),
     MixdropResolverPlugin(),
     Mp4uploadResolverPlugin(),
+    StreamtapeResolverPlugin(),
+    DoodstreamResolverPlugin(),
+    VidhideResolverPlugin(),
   ];
 });
 

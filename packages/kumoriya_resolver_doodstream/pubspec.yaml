@@ -1,0 +1,18 @@
+name: kumoriya_resolver_doodstream
+description: Doodstream host resolver plugin for Kumoriya.
+version: 0.1.0
+publish_to: none
+
+resolution: workspace
+
+environment:
+  sdk: ^3.11.1
+
+dependencies:
+  http: ^1.2.2
+  kumoriya_core:
+  kumoriya_plugins:
+
+dev_dependencies:
+  lints: ^6.0.0
+  test: ^1.25.6
