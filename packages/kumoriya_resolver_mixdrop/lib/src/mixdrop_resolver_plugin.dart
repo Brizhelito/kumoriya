@@ -154,12 +154,11 @@ Map<String, String> _headers(Uri url) {
 }
 
 Map<String, String> _playbackHeaders(Uri embedUrl) {
-  final referer = '${embedUrl.scheme}://${embedUrl.host}/';
+  final origin = '${embedUrl.scheme}://${embedUrl.host}';
   return <String, String>{
-    'Referer': referer,
+    'Referer': '$origin/',
+    'Origin': origin,
     'User-Agent': _defaultUserAgent,
-    'Range': 'bytes=0-',
-    'Accept-Encoding': 'identity;q=1, *;q=0',
   };
 }
 

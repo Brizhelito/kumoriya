@@ -1,6 +1,5 @@
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
-import 'package:kumoriya_core/kumoriya_core.dart';
 import 'package:kumoriya_resolver_doodstream/kumoriya_resolver_doodstream.dart';
 import 'package:test/test.dart';
 
@@ -23,8 +22,19 @@ void main() {
     });
 
     test('accepts dood.la /e/ path', () {
+      expect(plugin.supports(Uri.parse('https://dood.la/e/abc123')), isTrue);
+    });
+
+    test('accepts dsvplay.com /e/ path (JKAnime 2026-03 alias)', () {
       expect(
-        plugin.supports(Uri.parse('https://dood.la/e/abc123')),
+        plugin.supports(Uri.parse('https://dsvplay.com/e/q9ribs5zcel5')),
+        isTrue,
+      );
+    });
+
+    test('accepts myvidplay.com /e/ path (dsvplay redirect target)', () {
+      expect(
+        plugin.supports(Uri.parse('https://myvidplay.com/e/q9ribs5zcel5')),
         isTrue,
       );
     });
@@ -37,10 +47,7 @@ void main() {
     });
 
     test('rejects unknown host', () {
-      expect(
-        plugin.supports(Uri.parse('https://voe.sx/e/abc123')),
-        isFalse,
-      );
+      expect(plugin.supports(Uri.parse('https://voe.sx/e/abc123')), isFalse);
     });
 
     test('rejects doodstream.com with wrong path', () {
@@ -101,7 +108,8 @@ dsplayer.video = '/pass_md5/abc123def456/tokenpath';
     test('returns parse error when no pass_md5 path in payload', () async {
       final plugin = DoodstreamResolverPlugin(
         httpClient: MockClient(
-          (_) async => http.Response('<html><body>no token here</body></html>', 200),
+          (_) async =>
+              http.Response('<html><body>no token here</body></html>', 200),
         ),
       );
 
