@@ -58,7 +58,9 @@ final class VidhideResolverPlugin implements ResolverPlugin {
       return false;
     }
 
-    return url.path.startsWith('/e/') || url.path.startsWith('/v/');
+    return url.path.startsWith('/e/') ||
+        url.path.startsWith('/v/') ||
+        url.path.startsWith('/embed/');
   }
 
   @override
