@@ -85,6 +85,7 @@ final class MixdropResolverPlugin implements ResolverPlugin {
       final response = await _httpClient
           .get(url, headers: _headers(url))
           .timeout(const Duration(seconds: 15));
+      final effectiveEmbedUrl = response.request?.url ?? url;
 
       if (response.statusCode != 200) {
         return Failure(
@@ -95,7 +96,10 @@ final class MixdropResolverPlugin implements ResolverPlugin {
         );
       }
 
-      final streams = _extractStreams(response.body, baseUrl: url);
+      final streams = _extractStreams(
+        response.body,
+        baseUrl: effectiveEmbedUrl,
+      );
       if (streams.isEmpty) {
         if (_hasHints(response.body)) {
           return const Failure(
@@ -148,18 +152,12 @@ Map<String, String> _headers(Uri url) {
 }
 
 Map<String, String> _playbackHeaders(Uri embedUrl) {
-  final origin = '${embedUrl.scheme}://${embedUrl.host}';
+  final referer = '${embedUrl.scheme}://${embedUrl.host}/';
   return <String, String>{
-    'Referer': embedUrl.toString(),
-    'Origin': origin,
+    'Referer': referer,
     'User-Agent': _defaultUserAgent,
-    'Accept': 'video/webm,video/ogg,video/*;q=0.9,*/*;q=0.8',
-    'Accept-Language': 'es-ES,es;q=0.9,en-US;q=0.8,en;q=0.7',
-    'Connection': 'keep-alive',
     'Range': 'bytes=0-',
-    'Sec-Fetch-Dest': 'video',
-    'Sec-Fetch-Mode': 'no-cors',
-    'Sec-Fetch-Site': 'cross-site',
+    'Accept-Encoding': 'identity;q=1, *;q=0',
   };
 }
 

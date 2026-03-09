@@ -42,7 +42,14 @@ void main() {
     final plugin = MixdropResolverPlugin(
       httpClient: MockClient((request) async {
         expect(request.url.host, 'mixdrop.co');
-        return http.Response(wurlFixture, 200);
+        return http.Response.bytes(
+          wurlFixture.codeUnits,
+          200,
+          request: http.Request(
+            'GET',
+            Uri.parse('https://m1xdrop.bz/e/abc123'),
+          ),
+        );
       }),
     );
 
@@ -57,14 +64,14 @@ void main() {
         expect(streams, hasLength(1));
         expect(streams.single.url.host, 'cdn.mixdrop.co');
         expect(streams.single.mimeType, 'video/mp4');
-        expect(
-          streams.single.headers['Referer'],
-          'https://mixdrop.co/e/abc123',
-        );
-        expect(streams.single.headers['Origin'], 'https://mixdrop.co');
+        expect(streams.single.headers['Referer'], 'https://m1xdrop.bz/');
         expect(streams.single.headers['User-Agent'], isNotEmpty);
-        expect(streams.single.headers['Accept'], contains('video/*'));
         expect(streams.single.headers['Range'], 'bytes=0-');
+        expect(
+          streams.single.headers['Accept-Encoding'],
+          'identity;q=1, *;q=0',
+        );
+        expect(streams.single.headers.containsKey('Origin'), isFalse);
       },
     );
   });
@@ -116,12 +123,13 @@ void main() {
         expect(streams, hasLength(1));
         expect(streams.single.url.host, 'cdn.mixdrop');
         expect(streams.single.url.path, '/video/abc.file_720p.mp4');
-        expect(streams.single.headers['Referer'], 'https://mxdrop.to/e/abc123');
-        expect(streams.single.headers['Origin'], 'https://mxdrop.to');
+        expect(streams.single.headers['Referer'], 'https://mxdrop.to/');
         expect(streams.single.headers['User-Agent'], isNotEmpty);
-        expect(streams.single.headers['Sec-Fetch-Dest'], 'video');
-        expect(streams.single.headers['Sec-Fetch-Mode'], 'no-cors');
-        expect(streams.single.headers['Sec-Fetch-Site'], 'cross-site');
+        expect(
+          streams.single.headers['Accept-Encoding'],
+          'identity;q=1, *;q=0',
+        );
+        expect(streams.single.headers.containsKey('Origin'), isFalse);
       },
     );
   });
