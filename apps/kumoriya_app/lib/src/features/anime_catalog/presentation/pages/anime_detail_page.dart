@@ -13,8 +13,8 @@ import '../../../../shared/widgets/state_views.dart';
 import '../../application/models/source_availability.dart';
 import '../providers/anime_catalog_providers.dart';
 import '../providers/storage_providers.dart';
+import '../support/playback_launch_flow.dart';
 import '../widgets/source_badge.dart';
-import 'episode_list_page.dart';
 
 class AnimeDetailPage extends ConsumerStatefulWidget {
   const AnimeDetailPage({super.key, required this.anilistId});
@@ -180,8 +180,6 @@ class _AnimeDetailBody extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final anime = detail.anime;
-
     return CustomScrollView(
       slivers: <Widget>[
         SliverAppBar(
@@ -226,10 +224,9 @@ class _AnimeDetailBody extends StatelessWidget {
                 ),
               ],
               const SizedBox(height: 22),
-              _EpisodeOverviewSection(
-                anilistId: anime.anilistId,
-                animeTitle: anime.title.romaji,
-                episodeCount: detail.episodes.length,
+              _EpisodeDetailSection(
+                detail: detail,
+                availabilityState: availabilityState,
                 latestProgressState: latestProgressState,
               ),
               if (detail.relations.isNotEmpty) ...<Widget>[
@@ -466,30 +463,71 @@ class _PlaybackSummaryCard extends StatelessWidget {
   }
 }
 
-class _EpisodeOverviewSection extends StatelessWidget {
-  const _EpisodeOverviewSection({
-    required this.anilistId,
-    required this.animeTitle,
-    required this.episodeCount,
+class _EpisodeDetailSection extends ConsumerStatefulWidget {
+  const _EpisodeDetailSection({
+    required this.detail,
+    required this.availabilityState,
     required this.latestProgressState,
   });
 
-  final int anilistId;
-  final String animeTitle;
-  final int episodeCount;
+  final AnimeDetail detail;
+  final AsyncValue<Result<SourceAvailabilitySummary, KumoriyaError>>
+  availabilityState;
   final AsyncValue<Result<EpisodeProgress?, KumoriyaError>> latestProgressState;
 
   @override
+  ConsumerState<_EpisodeDetailSection> createState() =>
+      _EpisodeDetailSectionState();
+}
+
+class _EpisodeDetailSectionState extends ConsumerState<_EpisodeDetailSection> {
+  static const int _collapsedEpisodeCount = 18;
+
+  bool _isLaunching = false;
+  bool _showAllEpisodes = false;
+
+  @override
   Widget build(BuildContext context) {
-    final latestProgress = latestProgressState.maybeWhen(
+    final latestProgress = widget.latestProgressState.maybeWhen(
       data: (result) => result.fold(
         onFailure: (_) => null,
         onSuccess: (progress) => progress,
       ),
       orElse: () => null,
     );
+    final progressListState = ref.watch(
+      animeEpisodeProgressListProvider(widget.detail.anime.anilistId),
+    );
+    final preferenceState = ref.watch(
+      playbackPreferenceProvider(widget.detail.anime.anilistId),
+    );
+    final progressList =
+        _extractSuccessValue<List<EpisodeProgress>>(progressListState) ??
+        const <EpisodeProgress>[];
+    final preference = _extractSuccessValue<PlaybackPreference?>(
+      preferenceState,
+    );
+    final summary = _extractSuccessValue<SourceAvailabilitySummary>(
+      widget.availabilityState,
+    );
+    final rows = _buildDetailEpisodeRows(
+      animeEpisodes: widget.detail.episodes,
+      availabilitySummary: summary,
+      progressList: progressList,
+      focusedEpisodeNumber: latestProgress?.episodeNumber,
+      fallbackTitleBuilder: (episodeNumber) => context.l10n
+          .continueWatchingEpisode(episodeNumber.toInt().toString()),
+      upcomingLabel: context.l10n.episodeStatusUpcoming,
+      readyLabel: context.l10n.episodePlayNowLabel,
+    );
+    final visibleRows =
+        _showAllEpisodes || rows.length <= _collapsedEpisodeCount
+        ? rows
+        : rows.take(_collapsedEpisodeCount).toList(growable: false);
+    final hiddenEpisodeCount = rows.length - visibleRows.length;
 
     return Container(
+      key: const Key('anime-detail-episodes-section'),
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         color: Theme.of(context).colorScheme.surfaceContainerHighest,
@@ -506,10 +544,14 @@ class _EpisodeOverviewSection extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           Text(
-            latestProgress == null
-                ? '$episodeCount ${context.l10n.episodesWord}'
-                : context.l10n.detailContinueEpisode(
+            latestProgress != null
+                ? context.l10n.detailContinueEpisode(
                     latestProgress.episodeNumber.toInt().toString(),
+                  )
+                : rows.isEmpty
+                ? '${widget.detail.episodes.length} ${context.l10n.episodesWord}'
+                : context.l10n.detailContinueEpisode(
+                    rows.first.number.toInt().toString(),
                   ),
             style: Theme.of(
               context,
@@ -517,37 +559,416 @@ class _EpisodeOverviewSection extends StatelessWidget {
           ),
           const SizedBox(height: 4),
           Text(
-            context.l10n.viewEpisodeList,
+            rows.isEmpty
+                ? context.l10n.episodeListEmpty
+                : '${rows.length} ${context.l10n.episodesWord}',
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
               color: Theme.of(context).colorScheme.onSurfaceVariant,
             ),
           ),
           const SizedBox(height: 14),
-          FilledButton.icon(
-            onPressed: () {
-              Navigator.of(context).push(
-                MaterialPageRoute<void>(
-                  builder: (_) => EpisodeListPage(
-                    anilistId: anilistId,
-                    animeTitle: animeTitle,
-                    focusedEpisodeNumber: latestProgress?.episodeNumber,
+          if (summary?.playableSources.isEmpty ?? true)
+            _DetailInfoBanner(message: context.l10n.detailPlaybackNotReady)
+          else
+            _DetailInfoBanner(
+              message: preference == null
+                  ? context.l10n.episodeListUsingPreference
+                  : context.l10n.episodeListUsingRememberedSource(
+                      preference.preferredSourcePluginId ?? '',
+                      preference.preferredServerName ?? '',
+                    ),
+              badges: summary!.playableSources
+                  .map(
+                    (source) => SourceBadge(
+                      name: source.manifest.displayName,
+                      iconUrl: _sourceIconUrl(source.manifest),
+                      audioKinds: source.availableAudioKinds,
+                      compact: true,
+                      highlighted:
+                          summary.recommended?.manifest.id ==
+                          source.manifest.id,
+                    ),
+                  )
+                  .toList(growable: false),
+            ),
+          const SizedBox(height: 14),
+          if (rows.isEmpty)
+            Text(
+              context.l10n.episodeListEmpty,
+              style: Theme.of(context).textTheme.bodyMedium,
+            )
+          else ...<Widget>[
+            ...visibleRows.map(
+              (row) => _DetailEpisodeCard(
+                row: row,
+                onTap:
+                    row.playableSources.isEmpty ||
+                        summary == null ||
+                        _isLaunching
+                    ? null
+                    : () => _handleEpisodeTap(row, summary),
+              ),
+            ),
+            if (hiddenEpisodeCount > 0) ...<Widget>[
+              const SizedBox(height: 6),
+              Center(
+                child: OutlinedButton.icon(
+                  onPressed: () {
+                    setState(() => _showAllEpisodes = true);
+                  },
+                  icon: const Icon(Icons.expand_more_rounded),
+                  label: Text(
+                    '+$hiddenEpisodeCount ${context.l10n.episodesWord}',
                   ),
                 ),
-              );
-            },
-            icon: const Icon(Icons.play_circle_fill_rounded),
-            label: Text(
-              latestProgress == null
-                  ? context.l10n.viewEpisodeList
-                  : context.l10n.detailContinueEpisode(
-                      latestProgress.episodeNumber.toInt().toString(),
-                    ),
-            ),
-          ),
+              ),
+            ] else if (_showAllEpisodes &&
+                rows.length > _collapsedEpisodeCount) ...<Widget>[
+              const SizedBox(height: 6),
+              Center(
+                child: OutlinedButton.icon(
+                  onPressed: () {
+                    setState(() => _showAllEpisodes = false);
+                  },
+                  icon: const Icon(Icons.expand_less_rounded),
+                  label: Text(context.l10n.episodePreviewTitle),
+                ),
+              ),
+            ],
+          ],
         ],
       ),
     );
   }
+
+  Future<void> _handleEpisodeTap(
+    _DetailEpisodeRowData row,
+    SourceAvailabilitySummary summary,
+  ) async {
+    setState(() => _isLaunching = true);
+    showBlockingLoader(context, context.l10n.playbackPreparing);
+    final decision = await ref
+        .read(startEpisodePlaybackUseCaseProvider)
+        .call(
+          anilistId: widget.detail.anime.anilistId,
+          episodeNumber: row.number,
+          availabilitySummary: summary,
+        );
+    if (!mounted) {
+      return;
+    }
+    hideBlockingLoader(context);
+    setState(() => _isLaunching = false);
+    await handlePlaybackDecision(
+      context: context,
+      ref: ref,
+      anilistId: widget.detail.anime.anilistId,
+      animeTitle: widget.detail.anime.title.romaji,
+      decision: decision,
+    );
+  }
+}
+
+class _DetailEpisodeCard extends StatelessWidget {
+  const _DetailEpisodeCard({required this.row, this.onTap});
+
+  final _DetailEpisodeRowData row;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return Card(
+      key: Key('anime-detail-episode-${row.number.toInt()}'),
+      elevation: 0,
+      margin: const EdgeInsets.only(bottom: 12),
+      color: row.isCurrentEpisode
+          ? colorScheme.primaryContainer.withValues(alpha: 0.6)
+          : colorScheme.surface,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(22),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.all(14),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  Container(
+                    width: 42,
+                    height: 42,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: row.playableSources.isEmpty
+                          ? colorScheme.surfaceContainerHighest
+                          : colorScheme.primaryContainer,
+                    ),
+                    alignment: Alignment.center,
+                    child: Text(
+                      row.number.toInt().toString(),
+                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: <Widget>[
+                        Row(
+                          children: <Widget>[
+                            Expanded(
+                              child: Text(
+                                row.displayTitle,
+                                style: Theme.of(context).textTheme.titleMedium
+                                    ?.copyWith(fontWeight: FontWeight.w700),
+                              ),
+                            ),
+                            if (row.isCurrentEpisode)
+                              _DetailContextChip(
+                                label: context.l10n.detailContinueBadge,
+                              ),
+                          ],
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          row.secondaryText,
+                          style: Theme.of(context).textTheme.bodyMedium
+                              ?.copyWith(color: colorScheme.onSurfaceVariant),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              if (row.playableSources.isNotEmpty)
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: row.playableSources
+                      .map(
+                        (source) => SourceBadge(
+                          name: source.manifest.displayName,
+                          iconUrl: _sourceIconUrl(source.manifest),
+                          audioKinds: source.availableAudioKinds,
+                          compact: true,
+                        ),
+                      )
+                      .toList(growable: false),
+                )
+              else
+                Text(
+                  context.l10n.episodePlaybackUnavailable,
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              if (row.progressFraction != null) ...<Widget>[
+                const SizedBox(height: 12),
+                LinearProgressIndicator(
+                  value: row.progressFraction,
+                  borderRadius: BorderRadius.circular(999),
+                ),
+              ],
+              const SizedBox(height: 14),
+              Align(
+                alignment: Alignment.centerRight,
+                child: FilledButton.tonalIcon(
+                  onPressed: onTap,
+                  icon: const Icon(Icons.play_arrow_rounded),
+                  label: Text(
+                    row.playableSources.isEmpty
+                        ? context.l10n.episodeLockedLabel
+                        : context.l10n.episodePlayNowLabel,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _DetailInfoBanner extends StatelessWidget {
+  const _DetailInfoBanner({
+    required this.message,
+    this.badges = const <Widget>[],
+  });
+
+  final String message;
+  final List<Widget> badges;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surface,
+        borderRadius: BorderRadius.circular(24),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Text(
+            message,
+            style: Theme.of(
+              context,
+            ).textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w600),
+          ),
+          if (badges.isNotEmpty) ...<Widget>[
+            const SizedBox(height: 12),
+            Wrap(spacing: 8, runSpacing: 8, children: badges),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _DetailContextChip extends StatelessWidget {
+  const _DetailContextChip({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(999),
+        color: Theme.of(context).colorScheme.primaryContainer,
+      ),
+      child: Text(
+        label,
+        style: Theme.of(
+          context,
+        ).textTheme.labelMedium?.copyWith(fontWeight: FontWeight.w700),
+      ),
+    );
+  }
+}
+
+T? _extractSuccessValue<T>(AsyncValue asyncValue) {
+  return asyncValue.maybeWhen(
+    data: (result) {
+      try {
+        final dynamic typedResult = result;
+        return typedResult.value as T?;
+      } catch (_) {
+        return null;
+      }
+    },
+    orElse: () => null,
+  );
+}
+
+List<_DetailEpisodeRowData> _buildDetailEpisodeRows({
+  required List<AnimeEpisode> animeEpisodes,
+  required SourceAvailabilitySummary? availabilitySummary,
+  required List<EpisodeProgress> progressList,
+  required double? focusedEpisodeNumber,
+  required String Function(double episodeNumber) fallbackTitleBuilder,
+  required String upcomingLabel,
+  required String readyLabel,
+}) {
+  final metadataByNumber = <double, AnimeEpisode>{
+    for (final episode in animeEpisodes) episode.number: episode,
+  };
+  final progressByNumber = <double, EpisodeProgress>{
+    for (final progress in progressList) progress.episodeNumber: progress,
+  };
+  final sourcesByEpisode = <double, List<SourceAvailability>>{};
+
+  for (final source
+      in availabilitySummary?.playableSources ?? const <SourceAvailability>[]) {
+    for (final episode in source.episodes) {
+      sourcesByEpisode
+          .putIfAbsent(episode.number, () => <SourceAvailability>[])
+          .add(source);
+    }
+  }
+
+  final allNumbers = <double>{
+    ...metadataByNumber.keys,
+    ...sourcesByEpisode.keys,
+  }.toList(growable: false)..sort();
+
+  EpisodeProgress? latestProgress;
+  for (final progress in progressList) {
+    if (latestProgress == null ||
+        progress.updatedAt.isAfter(latestProgress.updatedAt)) {
+      latestProgress = progress;
+    }
+  }
+
+  return allNumbers
+      .map((number) {
+        final metadata = metadataByNumber[number];
+        final sources =
+            sourcesByEpisode[number] ?? const <SourceAvailability>[];
+        final progress = progressByNumber[number];
+
+        return _DetailEpisodeRowData(
+          number: number,
+          displayTitle: metadata?.title.trim().isNotEmpty == true
+              ? metadata!.title
+              : fallbackTitleBuilder(number),
+          secondaryText: metadata?.isAired == false
+              ? upcomingLabel
+              : metadata?.airDate != null
+              ? _formatEpisodeDate(metadata!.airDate!)
+              : readyLabel,
+          playableSources: sources,
+          progressFraction: _progressFraction(progress),
+          isCurrentEpisode:
+              latestProgress?.episodeNumber == number ||
+              focusedEpisodeNumber == number,
+        );
+      })
+      .toList(growable: false);
+}
+
+double? _progressFraction(EpisodeProgress? progress) {
+  if (progress == null || progress.totalDuration == null) {
+    return null;
+  }
+  if (progress.totalDuration!.inMilliseconds == 0) {
+    return null;
+  }
+
+  final value =
+      progress.position.inMilliseconds / progress.totalDuration!.inMilliseconds;
+  return value.clamp(0.0, 1.0);
+}
+
+String _formatEpisodeDate(DateTime dt) {
+  final local = dt.toLocal();
+  return '${local.year}-${local.month.toString().padLeft(2, '0')}-${local.day.toString().padLeft(2, '0')}';
+}
+
+final class _DetailEpisodeRowData {
+  const _DetailEpisodeRowData({
+    required this.number,
+    required this.displayTitle,
+    required this.secondaryText,
+    required this.playableSources,
+    required this.progressFraction,
+    required this.isCurrentEpisode,
+  });
+
+  final double number;
+  final String displayTitle;
+  final String secondaryText;
+  final List<SourceAvailability> playableSources;
+  final double? progressFraction;
+  final bool isCurrentEpisode;
 }
 
 class _HeroMetaPill extends StatelessWidget {
