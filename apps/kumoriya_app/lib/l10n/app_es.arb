@@ -3,6 +3,7 @@
   "appTitle": "Kumoriya",
   "retry": "Reintentar",
   "loadingGeneric": "Cargando...",
+  "genericLoadFailure": "Algo no cargo bien. Intenta de nuevo.",
   "unexpectedStateError": "Error de estado inesperado: {error}",
   "@unexpectedStateError": {
     "placeholders": {
@@ -34,7 +35,7 @@
   },
   "animeDetailTitle": "Detalle del anime",
   "animeDetailLoading": "Cargando detalle del anime...",
-  "viewEpisodeList": "Ver lista de episodios",
+  "viewEpisodeList": "Episodios",
   "episodesWord": "episodios",
   "episodePreviewTitle": "Vista previa de episodios",
   "episodeStatusAired": "Emitido",
@@ -203,6 +204,7 @@
     }
   },
   "continueWatching": "Seguir Viendo",
+  "continueWatchingHint": "Vuelve rapido a donde lo dejaste.",
   "continueWatchingEpisode": "Episodio {episode}",
   "@continueWatchingEpisode": {
     "placeholders": {
@@ -210,7 +212,7 @@
     }
   },
   "sourceAvailabilityTitle": "Disponibilidad de fuentes",
-  "sourceAvailabilityChecking": "Verificando fuentes compatibles...",
+  "sourceAvailabilityChecking": "Revisando donde puedes verlo...",
   "sourceAvailabilityNone": "Todavia no hay estado de fuentes disponible.",
   "sourceOpenRecommended": "Abrir fuente recomendada: {sourceName}",
   "@sourceOpenRecommended": {
@@ -284,6 +286,88 @@
   "@sourceDetectedHost": {
     "placeholders": {
       "host": {}
+    }
+  },
+  "detailSynopsisTitle": "Sinopsis",
+  "detailDiscoverPrompt": "Mira rapido que esta listo antes de elegir episodio.",
+  "detailPlaybackNotReady": "Este anime no esta listo para reproducirse ahora mismo.",
+  "detailPlaybackHint": "Cuando se pueda, reutilizaremos tu ultima fuente y servidor utiles.",
+  "detailContinueEpisode": "Continuar desde el episodio {episode}",
+  "@detailContinueEpisode": {
+    "placeholders": {
+      "episode": {}
+    }
+  },
+  "detailContinueBadge": "Continuar",
+  "detailPlaybackSources": "Disponible en {count} fuentes",
+  "@detailPlaybackSources": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "homeHeroTitle": "Encuentra algo rapido y empieza a ver antes.",
+  "homeHeroSubtitle": "Busca en AniList, revisa disponibilidad real y entra a reproduccion con menos pasos.",
+  "homeSearchAction": "Buscar",
+  "homeTrendingSection": "Tendencias",
+  "homeTrendingHint": "Abre cualquier anime para ver si realmente esta listo para verse.",
+  "searchHeroTitle": "Buscar por titulo",
+  "searchPromptShort": "Busca un titulo para ver animes coincidentes.",
+  "timeAgoMinutes": "hace {count}m",
+  "@timeAgoMinutes": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "timeAgoHours": "hace {count}h",
+  "@timeAgoHours": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "timeAgoDays": "hace {count}d",
+  "@timeAgoDays": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "playbackPreparing": "Preparando reproduccion...",
+  "playbackOpeningSelectedServer": "Abriendo servidor seleccionado...",
+  "serverPickerTitle": "Elige un servidor",
+  "serverPickerSubtitle": "Aqui solo aparecen opciones que realmente pueden abrirse.",
+  "serverOptionLastUsed": "Ultimo usado",
+  "serverOptionRecommended": "Recomendado",
+  "episodeAutoplayFailed": "Ese atajo no abrio. Elige otro servidor.",
+  "episodePlaybackUnavailable": "Este episodio no esta listo para reproducirse ahora mismo.",
+  "episodeSelectedServerFailed": "Ese servidor no esta disponible ahora mismo.",
+  "episodeLockedLabel": "No disponible",
+  "episodePlayNowLabel": "Ver ahora",
+  "episodeListUsingPreference": "Toca un episodio y Kumoriya intentara primero tu mejor fuente.",
+  "episodeListUsingRememberedSource": "Empezaremos con {sourceName} {serverName} si sigue disponible.",
+  "@episodeListUsingRememberedSource": {
+    "placeholders": {
+      "sourceName": {},
+      "serverName": {}
+    }
+  },
+  "playerSourceSummary": "Reproduciendo desde {serverName} via {resolverName}",
+  "@playerSourceSummary": {
+    "placeholders": {
+      "serverName": {},
+      "resolverName": {}
+    }
+  },
+  "playerAudioPreference": "Audio: {value}",
+  "@playerAudioPreference": {
+    "placeholders": {
+      "value": {}
     }
   }
 }

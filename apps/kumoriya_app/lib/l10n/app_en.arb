@@ -3,6 +3,7 @@
   "appTitle": "Kumoriya",
   "retry": "Retry",
   "loadingGeneric": "Loading...",
+  "genericLoadFailure": "Something didn't load. Try again.",
   "unexpectedStateError": "Unexpected state error: {error}",
   "@unexpectedStateError": {
     "placeholders": {
@@ -34,7 +35,7 @@
   },
   "animeDetailTitle": "Anime detail",
   "animeDetailLoading": "Loading anime detail...",
-  "viewEpisodeList": "View episode list",
+  "viewEpisodeList": "Episodes",
   "episodesWord": "episodes",
   "episodePreviewTitle": "Episode preview",
   "episodeStatusAired": "Aired",
@@ -203,6 +204,7 @@
     }
   },
   "continueWatching": "Continue Watching",
+  "continueWatchingHint": "Jump back in where you left off.",
   "continueWatchingEpisode": "Episode {episode}",
   "@continueWatchingEpisode": {
     "placeholders": {
@@ -210,7 +212,7 @@
     }
   },
   "sourceAvailabilityTitle": "Source availability",
-  "sourceAvailabilityChecking": "Checking supported sources...",
+  "sourceAvailabilityChecking": "Checking where you can watch...",
   "sourceAvailabilityNone": "No source status is available yet.",
   "sourceOpenRecommended": "Open recommended source: {sourceName}",
   "@sourceOpenRecommended": {
@@ -284,6 +286,88 @@
   "@sourceDetectedHost": {
     "placeholders": {
       "host": {}
+    }
+  },
+  "detailSynopsisTitle": "Synopsis",
+  "detailDiscoverPrompt": "See what's ready before you pick an episode.",
+  "detailPlaybackNotReady": "This anime is not ready to play right now.",
+  "detailPlaybackHint": "We'll reuse your last working source and server when possible.",
+  "detailContinueEpisode": "Continue from episode {episode}",
+  "@detailContinueEpisode": {
+    "placeholders": {
+      "episode": {}
+    }
+  },
+  "detailContinueBadge": "Resume",
+  "detailPlaybackSources": "Ready in {count} sources",
+  "@detailPlaybackSources": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "homeHeroTitle": "Find something fast and start watching sooner.",
+  "homeHeroSubtitle": "Search AniList, check real source availability, and jump into playback with fewer steps.",
+  "homeSearchAction": "Search",
+  "homeTrendingSection": "Trending now",
+  "homeTrendingHint": "Open any title to see if it's actually ready to watch.",
+  "searchHeroTitle": "Search by title",
+  "searchPromptShort": "Search a title to see matching anime.",
+  "timeAgoMinutes": "{count}m ago",
+  "@timeAgoMinutes": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "timeAgoHours": "{count}h ago",
+  "@timeAgoHours": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "timeAgoDays": "{count}d ago",
+  "@timeAgoDays": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "playbackPreparing": "Preparing playback...",
+  "playbackOpeningSelectedServer": "Opening selected server...",
+  "serverPickerTitle": "Choose a server",
+  "serverPickerSubtitle": "Only servers that can actually open are shown here.",
+  "serverOptionLastUsed": "Last used",
+  "serverOptionRecommended": "Recommended",
+  "episodeAutoplayFailed": "That shortcut didn't open. Choose another server.",
+  "episodePlaybackUnavailable": "This episode is not ready to play right now.",
+  "episodeSelectedServerFailed": "That server is not available right now.",
+  "episodeLockedLabel": "Unavailable",
+  "episodePlayNowLabel": "Play now",
+  "episodeListUsingPreference": "Tap an episode and Kumoriya will try your best source first.",
+  "episodeListUsingRememberedSource": "We'll start with {sourceName} {serverName} when it's still available.",
+  "@episodeListUsingRememberedSource": {
+    "placeholders": {
+      "sourceName": {},
+      "serverName": {}
+    }
+  },
+  "playerSourceSummary": "Playing from {serverName} via {resolverName}",
+  "@playerSourceSummary": {
+    "placeholders": {
+      "serverName": {},
+      "resolverName": {}
+    }
+  },
+  "playerAudioPreference": "Audio: {value}",
+  "@playerAudioPreference": {
+    "placeholders": {
+      "value": {}
     }
   }
 }

@@ -4,15 +4,19 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kumoriya_core/kumoriya_core.dart';
 import 'package:kumoriya_domain/kumoriya_domain.dart';
 import 'package:kumoriya_plugins/kumoriya_plugins.dart';
+import 'package:kumoriya_storage/kumoriya_storage_flutter.dart';
 
 import 'package:kumoriya_app/src/app/kumoriya_app.dart';
 import 'package:kumoriya_app/src/features/anime_catalog/presentation/providers/anime_catalog_providers.dart';
+import 'package:kumoriya_app/src/features/anime_catalog/presentation/providers/storage_providers.dart';
 
 void main() {
   testWidgets(
-    'home -> detail shows multi-source section and navigates to source episodes',
+    'home -> detail shows compact source badges and opens episode list',
     (tester) async {
       final fakeRepository = _FakeAnimeCatalogRepository.success();
+      final db = openInMemoryDatabase();
+      addTearDown(db.close);
       const fakeSourcePlugins = <SourcePlugin>[
         _PrimarySourcePlugin(),
         _SecondarySourcePlugin(),
@@ -23,6 +27,7 @@ void main() {
           overrides: [
             animeCatalogRepositoryProvider.overrideWithValue(fakeRepository),
             sourcePluginsProvider.overrideWithValue(fakeSourcePlugins),
+            appDatabaseProvider.overrideWithValue(db),
           ],
           child: const KumoriyaApp(),
         ),
@@ -35,32 +40,32 @@ void main() {
       await tester.tap(find.text('Frieren').first);
       await tester.pumpAndSettle();
 
-      expect(find.text('Source availability'), findsOneWidget);
-      expect(find.textContaining('Open recommended source'), findsOneWidget);
-      expect(find.text('Recommended'), findsOneWidget);
+      expect(find.textContaining('Ready in'), findsOneWidget);
+      expect(find.text('JKAnime'), findsOneWidget);
+      expect(find.text('AnimeAV1'), findsOneWidget);
 
       await tester.tap(find.text('Episodes').first);
       await tester.pumpAndSettle();
 
-      expect(find.textContaining('episodes | Frieren'), findsOneWidget);
-      expect(find.text('View servers'), findsWidgets);
+      expect(find.textContaining('Frieren'), findsWidgets);
+      expect(find.text('Play now'), findsWidgets);
     },
   );
 
-  testWidgets('source server links route resolves from a secondary source', (
+  testWidgets('episode tap opens a minimal server selector when needed', (
     tester,
   ) async {
     final fakeRepository = _FakeAnimeCatalogRepository.success();
-    const fakeSourcePlugins = <SourcePlugin>[
-      _UnavailableSourcePlugin(),
-      _SecondarySourcePlugin(),
-    ];
+    final db = openInMemoryDatabase();
+    addTearDown(db.close);
+    const fakeSourcePlugins = <SourcePlugin>[_MultiServerSourcePlugin()];
 
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
           animeCatalogRepositoryProvider.overrideWithValue(fakeRepository),
           sourcePluginsProvider.overrideWithValue(fakeSourcePlugins),
+          appDatabaseProvider.overrideWithValue(db),
         ],
         child: const KumoriyaApp(),
       ),
@@ -71,10 +76,10 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('Episodes').first);
     await tester.pumpAndSettle();
-    await tester.tap(find.text('View servers').first);
+    await tester.tap(find.text('Play now').first);
     await tester.pumpAndSettle();
 
-    expect(find.textContaining('servers'), findsOneWidget);
+    expect(find.text('Choose a server'), findsOneWidget);
     expect(find.text('MP4Upload'), findsOneWidget);
   });
 
@@ -87,6 +92,8 @@ void main() {
     addTearDown(tester.binding.platformDispatcher.clearLocalesTestValue);
 
     final fakeRepository = _FakeAnimeCatalogRepository.success();
+    final db = openInMemoryDatabase();
+    addTearDown(db.close);
 
     await tester.pumpWidget(
       ProviderScope(
@@ -95,6 +102,7 @@ void main() {
           sourcePluginsProvider.overrideWithValue(const <SourcePlugin>[
             _PrimarySourcePlugin(),
           ]),
+          appDatabaseProvider.overrideWithValue(db),
         ],
         child: const KumoriyaApp(),
       ),
@@ -104,7 +112,7 @@ void main() {
     await tester.tap(find.text('Frieren').first);
     await tester.pumpAndSettle();
 
-    expect(find.text('Disponibilidad de fuentes'), findsOneWidget);
+    expect(find.textContaining('Disponible en'), findsOneWidget);
   });
 }
 
@@ -209,34 +217,6 @@ final class _SecondarySourcePlugin extends _BaseFakeSourcePlugin {
   );
 }
 
-final class _UnavailableSourcePlugin extends _BaseFakeSourcePlugin {
-  const _UnavailableSourcePlugin();
-
-  @override
-  PluginManifest get manifest => const PluginManifest(
-    id: 'kumoriya.source.jkanime',
-    displayName: 'JKAnime',
-    type: PluginType.source,
-    capabilities: <PluginCapability>{PluginCapability.search},
-  );
-
-  @override
-  Future<Result<List<SourceAnimeMatch>, KumoriyaError>> search(
-    SourceSearchQuery query,
-  ) async {
-    return const Success(<SourceAnimeMatch>[
-      SourceAnimeMatch(sourceId: 'other', title: 'Other Show'),
-    ]);
-  }
-
-  @override
-  Future<Result<List<SourceEpisode>, KumoriyaError>> getEpisodes(
-    String sourceId,
-  ) async {
-    return const Success(<SourceEpisode>[]);
-  }
-}
-
 class _BaseFakeSourcePlugin implements SourcePlugin {
   const _BaseFakeSourcePlugin();
 
@@ -287,6 +267,46 @@ class _BaseFakeSourcePlugin implements SourcePlugin {
   ) async {
     return const Success(<SourceAnimeMatch>[
       SourceAnimeMatch(sourceId: 'frieren', title: 'Frieren'),
+    ]);
+  }
+}
+
+final class _MultiServerSourcePlugin extends _BaseFakeSourcePlugin {
+  const _MultiServerSourcePlugin();
+
+  @override
+  PluginManifest get manifest => const PluginManifest(
+    id: 'kumoriya.source.animeav1',
+    displayName: 'AnimeAV1',
+    type: PluginType.source,
+    capabilities: <PluginCapability>{
+      PluginCapability.search,
+      PluginCapability.episodeList,
+      PluginCapability.linkExtraction,
+    },
+  );
+
+  @override
+  Future<Result<List<SourceServerLink>, KumoriyaError>> getEpisodeServerLinks(
+    SourceEpisode episode,
+  ) async {
+    return Success(<SourceServerLink>[
+      SourceServerLink(
+        serverId: 'mp4upload-0',
+        serverName: 'MP4Upload',
+        initialUrl: Uri.parse(
+          'https://www.mp4upload.com/embed-bz5usnfha398.html',
+        ),
+        language: 'sub',
+        detectedHost: 'www.mp4upload.com',
+      ),
+      SourceServerLink(
+        serverId: 'streamwish-1',
+        serverName: 'Streamwish',
+        initialUrl: Uri.parse('https://hlswish.com/e/123456'),
+        language: 'dub',
+        detectedHost: 'hlswish.com',
+      ),
     ]);
   }
 }

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:kumoriya_domain/kumoriya_domain.dart';
 
 import '../../../../app/l10n.dart';
+import '../../../../shared/widgets/kumoriya_cached_image.dart';
 
 class AnimeListTile extends StatelessWidget {
   const AnimeListTile({super.key, required this.anime, required this.onTap});
@@ -11,22 +12,58 @@ class AnimeListTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      child: ListTile(
-        contentPadding: const EdgeInsets.all(8),
-        leading: _CoverImage(url: anime.coverImageUrl),
-        title: Text(anime.title.romaji),
-        subtitle: Text(
-          [
-            anime.format.name.toUpperCase(),
-            if (anime.releaseYear != null) anime.releaseYear.toString(),
-            if (anime.totalEpisodes != null)
-              context.l10n.animeListEpisodesShort(anime.totalEpisodes!),
-          ].join(' | '),
-        ),
-        trailing: const Icon(Icons.chevron_right),
+      elevation: 0,
+      color: colorScheme.surface,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(22),
         onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.all(10),
+          child: Row(
+            children: <Widget>[
+              _CoverImage(url: anime.coverImageUrl),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Text(
+                      anime.title.romaji,
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 6),
+                    Wrap(
+                      spacing: 6,
+                      runSpacing: 6,
+                      children: <Widget>[
+                        _MetaChip(label: anime.format.name.toUpperCase()),
+                        if (anime.releaseYear != null)
+                          _MetaChip(label: anime.releaseYear.toString()),
+                        if (anime.totalEpisodes != null)
+                          _MetaChip(
+                            label: context.l10n.animeListEpisodesShort(
+                              anime.totalEpisodes!,
+                            ),
+                          ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 12),
+              Icon(Icons.chevron_right_rounded, color: colorScheme.outline),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -40,34 +77,51 @@ class _CoverImage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (url == null || url!.isEmpty) {
-      return const SizedBox(
-        width: 56,
-        height: 72,
-        child: ColoredBox(
-          color: Colors.black12,
-          child: Icon(Icons.movie_outlined),
+      return Container(
+        width: 68,
+        height: 92,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(16),
+          color: Theme.of(context).colorScheme.surfaceContainerHighest,
         ),
+        child: const Icon(Icons.movie_outlined),
       );
     }
 
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(6),
-      child: Image.network(
-        url!,
-        width: 56,
-        height: 72,
-        fit: BoxFit.cover,
-        errorBuilder: (context, _, _) {
-          return const SizedBox(
-            width: 56,
-            height: 72,
-            child: ColoredBox(
-              color: Colors.black12,
-              child: Icon(Icons.broken_image_outlined),
-            ),
-          );
-        },
+    return KumoriyaCachedImage(
+      url: url,
+      bucket: KumoriyaImageCacheBucket.artwork,
+      width: 68,
+      height: 92,
+      fit: BoxFit.cover,
+      borderRadius: BorderRadius.circular(16),
+      errorFallback: Container(
+        width: 68,
+        height: 92,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(16),
+          color: Theme.of(context).colorScheme.surfaceContainerHighest,
+        ),
+        child: const Icon(Icons.broken_image_outlined),
       ),
+    );
+  }
+}
+
+class _MetaChip extends StatelessWidget {
+  const _MetaChip({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(label, style: Theme.of(context).textTheme.labelMedium),
     );
   }
 }

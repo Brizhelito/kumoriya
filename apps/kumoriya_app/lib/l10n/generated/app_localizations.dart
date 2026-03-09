@@ -116,6 +116,12 @@ abstract class AppLocalizations {
   /// **'Loading...'**
   String get loadingGeneric;
 
+  /// No description provided for @genericLoadFailure.
+  ///
+  /// In en, this message translates to:
+  /// **'Something didn\'t load. Try again.'**
+  String get genericLoadFailure;
+
   /// No description provided for @unexpectedStateError.
   ///
   /// In en, this message translates to:
@@ -245,7 +251,7 @@ abstract class AppLocalizations {
   /// No description provided for @viewEpisodeList.
   ///
   /// In en, this message translates to:
-  /// **'View episode list'**
+  /// **'Episodes'**
   String get viewEpisodeList;
 
   /// No description provided for @episodesWord.
@@ -660,6 +666,12 @@ abstract class AppLocalizations {
   /// **'Continue Watching'**
   String get continueWatching;
 
+  /// No description provided for @continueWatchingHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Jump back in where you left off.'**
+  String get continueWatchingHint;
+
   /// No description provided for @continueWatchingEpisode.
   ///
   /// In en, this message translates to:
@@ -675,7 +687,7 @@ abstract class AppLocalizations {
   /// No description provided for @sourceAvailabilityChecking.
   ///
   /// In en, this message translates to:
-  /// **'Checking supported sources...'**
+  /// **'Checking where you can watch...'**
   String get sourceAvailabilityChecking;
 
   /// No description provided for @sourceAvailabilityNone.
@@ -771,6 +783,198 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Host: {host}'**
   String sourceDetectedHost(Object host);
+
+  /// No description provided for @detailSynopsisTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Synopsis'**
+  String get detailSynopsisTitle;
+
+  /// No description provided for @detailDiscoverPrompt.
+  ///
+  /// In en, this message translates to:
+  /// **'See what\'s ready before you pick an episode.'**
+  String get detailDiscoverPrompt;
+
+  /// No description provided for @detailPlaybackNotReady.
+  ///
+  /// In en, this message translates to:
+  /// **'This anime is not ready to play right now.'**
+  String get detailPlaybackNotReady;
+
+  /// No description provided for @detailPlaybackHint.
+  ///
+  /// In en, this message translates to:
+  /// **'We\'ll reuse your last working source and server when possible.'**
+  String get detailPlaybackHint;
+
+  /// No description provided for @detailContinueEpisode.
+  ///
+  /// In en, this message translates to:
+  /// **'Continue from episode {episode}'**
+  String detailContinueEpisode(Object episode);
+
+  /// No description provided for @detailContinueBadge.
+  ///
+  /// In en, this message translates to:
+  /// **'Resume'**
+  String get detailContinueBadge;
+
+  /// No description provided for @detailPlaybackSources.
+  ///
+  /// In en, this message translates to:
+  /// **'Ready in {count} sources'**
+  String detailPlaybackSources(int count);
+
+  /// No description provided for @homeHeroTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Find something fast and start watching sooner.'**
+  String get homeHeroTitle;
+
+  /// No description provided for @homeHeroSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Search AniList, check real source availability, and jump into playback with fewer steps.'**
+  String get homeHeroSubtitle;
+
+  /// No description provided for @homeSearchAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Search'**
+  String get homeSearchAction;
+
+  /// No description provided for @homeTrendingSection.
+  ///
+  /// In en, this message translates to:
+  /// **'Trending now'**
+  String get homeTrendingSection;
+
+  /// No description provided for @homeTrendingHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Open any title to see if it\'s actually ready to watch.'**
+  String get homeTrendingHint;
+
+  /// No description provided for @searchHeroTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Search by title'**
+  String get searchHeroTitle;
+
+  /// No description provided for @searchPromptShort.
+  ///
+  /// In en, this message translates to:
+  /// **'Search a title to see matching anime.'**
+  String get searchPromptShort;
+
+  /// No description provided for @timeAgoMinutes.
+  ///
+  /// In en, this message translates to:
+  /// **'{count}m ago'**
+  String timeAgoMinutes(int count);
+
+  /// No description provided for @timeAgoHours.
+  ///
+  /// In en, this message translates to:
+  /// **'{count}h ago'**
+  String timeAgoHours(int count);
+
+  /// No description provided for @timeAgoDays.
+  ///
+  /// In en, this message translates to:
+  /// **'{count}d ago'**
+  String timeAgoDays(int count);
+
+  /// No description provided for @playbackPreparing.
+  ///
+  /// In en, this message translates to:
+  /// **'Preparing playback...'**
+  String get playbackPreparing;
+
+  /// No description provided for @playbackOpeningSelectedServer.
+  ///
+  /// In en, this message translates to:
+  /// **'Opening selected server...'**
+  String get playbackOpeningSelectedServer;
+
+  /// No description provided for @serverPickerTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose a server'**
+  String get serverPickerTitle;
+
+  /// No description provided for @serverPickerSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Only servers that can actually open are shown here.'**
+  String get serverPickerSubtitle;
+
+  /// No description provided for @serverOptionLastUsed.
+  ///
+  /// In en, this message translates to:
+  /// **'Last used'**
+  String get serverOptionLastUsed;
+
+  /// No description provided for @serverOptionRecommended.
+  ///
+  /// In en, this message translates to:
+  /// **'Recommended'**
+  String get serverOptionRecommended;
+
+  /// No description provided for @episodeAutoplayFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'That shortcut didn\'t open. Choose another server.'**
+  String get episodeAutoplayFailed;
+
+  /// No description provided for @episodePlaybackUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'This episode is not ready to play right now.'**
+  String get episodePlaybackUnavailable;
+
+  /// No description provided for @episodeSelectedServerFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'That server is not available right now.'**
+  String get episodeSelectedServerFailed;
+
+  /// No description provided for @episodeLockedLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Unavailable'**
+  String get episodeLockedLabel;
+
+  /// No description provided for @episodePlayNowLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Play now'**
+  String get episodePlayNowLabel;
+
+  /// No description provided for @episodeListUsingPreference.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap an episode and Kumoriya will try your best source first.'**
+  String get episodeListUsingPreference;
+
+  /// No description provided for @episodeListUsingRememberedSource.
+  ///
+  /// In en, this message translates to:
+  /// **'We\'ll start with {sourceName} {serverName} when it\'s still available.'**
+  String episodeListUsingRememberedSource(Object sourceName, Object serverName);
+
+  /// No description provided for @playerSourceSummary.
+  ///
+  /// In en, this message translates to:
+  /// **'Playing from {serverName} via {resolverName}'**
+  String playerSourceSummary(Object serverName, Object resolverName);
+
+  /// No description provided for @playerAudioPreference.
+  ///
+  /// In en, this message translates to:
+  /// **'Audio: {value}'**
+  String playerAudioPreference(Object value);
 }
 
 class _AppLocalizationsDelegate

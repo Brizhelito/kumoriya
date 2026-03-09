@@ -18,6 +18,9 @@ class AppLocalizationsEs extends AppLocalizations {
   String get loadingGeneric => 'Cargando...';
 
   @override
+  String get genericLoadFailure => 'Algo no cargo bien. Intenta de nuevo.';
+
+  @override
   String unexpectedStateError(Object error) {
     return 'Error de estado inesperado: $error';
   }
@@ -97,7 +100,7 @@ class AppLocalizationsEs extends AppLocalizations {
   String get animeDetailLoading => 'Cargando detalle del anime...';
 
   @override
-  String get viewEpisodeList => 'Ver lista de episodios';
+  String get viewEpisodeList => 'Episodios';
 
   @override
   String get episodesWord => 'episodios';
@@ -364,6 +367,9 @@ class AppLocalizationsEs extends AppLocalizations {
   String get continueWatching => 'Seguir Viendo';
 
   @override
+  String get continueWatchingHint => 'Vuelve rapido a donde lo dejaste.';
+
+  @override
   String continueWatchingEpisode(Object episode) {
     return 'Episodio $episode';
   }
@@ -372,7 +378,7 @@ class AppLocalizationsEs extends AppLocalizations {
   String get sourceAvailabilityTitle => 'Disponibilidad de fuentes';
 
   @override
-  String get sourceAvailabilityChecking => 'Verificando fuentes compatibles...';
+  String get sourceAvailabilityChecking => 'Revisando donde puedes verlo...';
 
   @override
   String get sourceAvailabilityNone =>
@@ -444,5 +450,132 @@ class AppLocalizationsEs extends AppLocalizations {
   @override
   String sourceDetectedHost(Object host) {
     return 'Host: $host';
+  }
+
+  @override
+  String get detailSynopsisTitle => 'Sinopsis';
+
+  @override
+  String get detailDiscoverPrompt =>
+      'Mira rapido que esta listo antes de elegir episodio.';
+
+  @override
+  String get detailPlaybackNotReady =>
+      'Este anime no esta listo para reproducirse ahora mismo.';
+
+  @override
+  String get detailPlaybackHint =>
+      'Cuando se pueda, reutilizaremos tu ultima fuente y servidor utiles.';
+
+  @override
+  String detailContinueEpisode(Object episode) {
+    return 'Continuar desde el episodio $episode';
+  }
+
+  @override
+  String get detailContinueBadge => 'Continuar';
+
+  @override
+  String detailPlaybackSources(int count) {
+    return 'Disponible en $count fuentes';
+  }
+
+  @override
+  String get homeHeroTitle => 'Encuentra algo rapido y empieza a ver antes.';
+
+  @override
+  String get homeHeroSubtitle =>
+      'Busca en AniList, revisa disponibilidad real y entra a reproduccion con menos pasos.';
+
+  @override
+  String get homeSearchAction => 'Buscar';
+
+  @override
+  String get homeTrendingSection => 'Tendencias';
+
+  @override
+  String get homeTrendingHint =>
+      'Abre cualquier anime para ver si realmente esta listo para verse.';
+
+  @override
+  String get searchHeroTitle => 'Buscar por titulo';
+
+  @override
+  String get searchPromptShort =>
+      'Busca un titulo para ver animes coincidentes.';
+
+  @override
+  String timeAgoMinutes(int count) {
+    return 'hace ${count}m';
+  }
+
+  @override
+  String timeAgoHours(int count) {
+    return 'hace ${count}h';
+  }
+
+  @override
+  String timeAgoDays(int count) {
+    return 'hace ${count}d';
+  }
+
+  @override
+  String get playbackPreparing => 'Preparando reproduccion...';
+
+  @override
+  String get playbackOpeningSelectedServer =>
+      'Abriendo servidor seleccionado...';
+
+  @override
+  String get serverPickerTitle => 'Elige un servidor';
+
+  @override
+  String get serverPickerSubtitle =>
+      'Aqui solo aparecen opciones que realmente pueden abrirse.';
+
+  @override
+  String get serverOptionLastUsed => 'Ultimo usado';
+
+  @override
+  String get serverOptionRecommended => 'Recomendado';
+
+  @override
+  String get episodeAutoplayFailed =>
+      'Ese atajo no abrio. Elige otro servidor.';
+
+  @override
+  String get episodePlaybackUnavailable =>
+      'Este episodio no esta listo para reproducirse ahora mismo.';
+
+  @override
+  String get episodeSelectedServerFailed =>
+      'Ese servidor no esta disponible ahora mismo.';
+
+  @override
+  String get episodeLockedLabel => 'No disponible';
+
+  @override
+  String get episodePlayNowLabel => 'Ver ahora';
+
+  @override
+  String get episodeListUsingPreference =>
+      'Toca un episodio y Kumoriya intentara primero tu mejor fuente.';
+
+  @override
+  String episodeListUsingRememberedSource(
+    Object sourceName,
+    Object serverName,
+  ) {
+    return 'Empezaremos con $sourceName $serverName si sigue disponible.';
+  }
+
+  @override
+  String playerSourceSummary(Object serverName, Object resolverName) {
+    return 'Reproduciendo desde $serverName via $resolverName';
+  }
+
+  @override
+  String playerAudioPreference(Object value) {
+    return 'Audio: $value';
   }
 }

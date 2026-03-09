@@ -2,13 +2,17 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kumoriya_core/kumoriya_core.dart';
 import 'package:kumoriya_domain/kumoriya_domain.dart';
+import 'package:kumoriya_plugins/kumoriya_plugins.dart';
+import 'package:kumoriya_storage/kumoriya_storage.dart';
 
 import '../../../../app/l10n.dart';
+import '../../../../shared/widgets/kumoriya_cached_image.dart';
 import '../../../../shared/widgets/state_views.dart';
 import '../../application/models/source_availability.dart';
 import '../providers/anime_catalog_providers.dart';
+import '../providers/storage_providers.dart';
+import '../widgets/source_badge.dart';
 import 'episode_list_page.dart';
-import 'source_episode_list_page.dart';
 
 class AnimeDetailPage extends ConsumerWidget {
   const AnimeDetailPage({super.key, required this.anilistId});
@@ -21,13 +25,15 @@ class AnimeDetailPage extends ConsumerWidget {
     final availabilityState = ref.watch(
       sourceAvailabilitySummaryProvider(anilistId),
     );
+    final latestProgressState = ref.watch(
+      latestEpisodeProgressProvider(anilistId),
+    );
 
     return Scaffold(
-      appBar: AppBar(title: Text(context.l10n.animeDetailTitle)),
       body: detailState.when(
         loading: () => LoadingStateView(label: context.l10n.animeDetailLoading),
-        error: (error, _) => ErrorStateView(
-          message: context.l10n.unexpectedStateError(error.toString()),
+        error: (_, _) => ErrorStateView(
+          message: context.l10n.genericLoadFailure,
           onRetry: () => ref.invalidate(animeDetailProvider(anilistId)),
         ),
         data: (result) => result.fold(
@@ -35,10 +41,10 @@ class AnimeDetailPage extends ConsumerWidget {
             message: mapErrorMessage(context, error),
             onRetry: () => ref.invalidate(animeDetailProvider(anilistId)),
           ),
-          onSuccess: (detail) => _AnimeDetailContent(
-            anilistId: anilistId,
+          onSuccess: (detail) => _AnimeDetailBody(
             detail: detail,
             availabilityState: availabilityState,
+            latestProgressState: latestProgressState,
           ),
         ),
       ),
@@ -46,364 +52,502 @@ class AnimeDetailPage extends ConsumerWidget {
   }
 }
 
-class _AnimeDetailContent extends StatelessWidget {
-  const _AnimeDetailContent({
-    required this.anilistId,
+class _AnimeDetailBody extends StatelessWidget {
+  const _AnimeDetailBody({
     required this.detail,
     required this.availabilityState,
+    required this.latestProgressState,
   });
 
-  final int anilistId;
   final AnimeDetail detail;
   final AsyncValue<Result<SourceAvailabilitySummary, KumoriyaError>>
   availabilityState;
+  final AsyncValue<Result<EpisodeProgress?, KumoriyaError>> latestProgressState;
 
   @override
   Widget build(BuildContext context) {
     final anime = detail.anime;
 
-    return ListView(
-      padding: const EdgeInsets.all(16),
-      children: <Widget>[
-        if (detail.bannerImageUrl != null)
-          ClipRRect(
-            borderRadius: BorderRadius.circular(12),
-            child: Image.network(
-              detail.bannerImageUrl!,
-              height: 160,
-              fit: BoxFit.cover,
-              errorBuilder: (context, _, _) => const SizedBox.shrink(),
-            ),
+    return CustomScrollView(
+      slivers: <Widget>[
+        SliverAppBar(
+          expandedHeight: 280,
+          pinned: true,
+          stretch: true,
+          backgroundColor: Theme.of(context).colorScheme.surface,
+          flexibleSpace: FlexibleSpaceBar(
+            background: _DetailHero(detail: detail),
           ),
-        const SizedBox(height: 12),
-        Text(
-          anime.title.romaji,
-          style: Theme.of(context).textTheme.headlineSmall,
         ),
-        const SizedBox(height: 8),
-        Text(
-          [
-            anime.format.name.toUpperCase(),
-            anime.status.name.toUpperCase(),
-            if (anime.totalEpisodes != null)
-              '${anime.totalEpisodes} ${context.l10n.episodesWord}',
-          ].join(' | '),
-        ),
-        if (detail.synopsis != null && detail.synopsis!.isNotEmpty) ...<Widget>[
-          const SizedBox(height: 16),
-          Text(detail.synopsis!),
-        ],
-        if (detail.genres.isNotEmpty) ...<Widget>[
-          const SizedBox(height: 16),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: detail.genres
-                .map((genre) => Chip(label: Text(genre)))
-                .toList(growable: false),
-          ),
-        ],
-        const SizedBox(height: 20),
-        FilledButton.icon(
-          onPressed: () {
-            Navigator.of(context).push(
-              MaterialPageRoute<void>(
-                builder: (_) => EpisodeListPage(
-                  anilistId: anime.anilistId,
-                  animeTitle: anime.title.romaji,
-                ),
+        SliverPadding(
+          padding: const EdgeInsets.fromLTRB(16, 18, 16, 28),
+          sliver: SliverList(
+            delegate: SliverChildListDelegate(<Widget>[
+              _TitleBlock(detail: detail),
+              const SizedBox(height: 18),
+              _PlaybackSummaryCard(
+                anilistId: anime.anilistId,
+                animeTitle: anime.title.romaji,
+                availabilityState: availabilityState,
+                latestProgressState: latestProgressState,
               ),
-            );
-          },
-          icon: const Icon(Icons.playlist_play),
-          label: Text(context.l10n.viewEpisodeList),
-        ),
-        const SizedBox(height: 20),
-        _SourceAvailabilityCard(
-          anilistId: anilistId,
-          animeTitle: anime.title.romaji,
-          availabilityState: availabilityState,
-        ),
-        if (detail.episodes.isNotEmpty) ...<Widget>[
-          const SizedBox(height: 20),
-          Text(
-            context.l10n.episodePreviewTitle,
-            style: Theme.of(context).textTheme.titleMedium,
-          ),
-          const SizedBox(height: 8),
-          ...detail.episodes.take(5).map((episode) {
-            return ListTile(
-              dense: true,
-              contentPadding: EdgeInsets.zero,
-              title: Text('${episode.number.toInt()}. ${episode.title}'),
-              subtitle: Text(
-                episode.isAired
-                    ? context.l10n.episodeStatusAired
-                    : context.l10n.episodeStatusUpcoming,
-                style: TextStyle(
-                  color: episode.isAired ? Colors.green : Colors.orange,
+              if (detail.synopsis != null &&
+                  detail.synopsis!.trim().isNotEmpty) ...<Widget>[
+                const SizedBox(height: 22),
+                Text(
+                  context.l10n.detailSynopsisTitle,
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
+                const SizedBox(height: 10),
+                Text(
+                  detail.synopsis!,
+                  style: Theme.of(context).textTheme.bodyLarge,
+                ),
+              ],
+              if (detail.genres.isNotEmpty) ...<Widget>[
+                const SizedBox(height: 22),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: detail.genres
+                      .map((genre) => Chip(label: Text(genre)))
+                      .toList(growable: false),
+                ),
+              ],
+              const SizedBox(height: 22),
+              _EpisodePreviewSection(
+                anilistId: anime.anilistId,
+                animeTitle: anime.title.romaji,
+                previewEpisodes: detail.episodes
+                    .take(5)
+                    .toList(growable: false),
+                availabilityState: availabilityState,
               ),
-            );
-          }),
-        ],
-        if (detail.relations.isNotEmpty) ...<Widget>[
-          const SizedBox(height: 20),
-          Text(
-            context.l10n.relationsTitle,
-            style: Theme.of(context).textTheme.titleMedium,
+              if (detail.relations.isNotEmpty) ...<Widget>[
+                const SizedBox(height: 22),
+                Text(
+                  context.l10n.relationsTitle,
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                ...detail.relations
+                    .take(6)
+                    .map(
+                      (relation) => ListTile(
+                        contentPadding: EdgeInsets.zero,
+                        title: Text(relation.anime.title.romaji),
+                        subtitle: Text(relation.type.name),
+                      ),
+                    ),
+              ],
+            ]),
           ),
-          const SizedBox(height: 8),
-          ...detail.relations.take(6).map((relation) {
-            return ListTile(
-              dense: true,
-              contentPadding: EdgeInsets.zero,
-              title: Text(relation.anime.title.romaji),
-              subtitle: Text(relation.type.name),
-            );
-          }),
-        ],
+        ),
       ],
     );
   }
 }
 
-class _SourceAvailabilityCard extends StatelessWidget {
-  const _SourceAvailabilityCard({
+class _DetailHero extends StatelessWidget {
+  const _DetailHero({required this.detail});
+
+  final AnimeDetail detail;
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      fit: StackFit.expand,
+      children: <Widget>[
+        KumoriyaCachedImage(
+          url: detail.bannerImageUrl ?? detail.anime.coverImageUrl,
+          bucket: KumoriyaImageCacheBucket.artwork,
+          fit: BoxFit.cover,
+        ),
+        DecoratedBox(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: <Color>[
+                Colors.black.withValues(alpha: 0.12),
+                Colors.black.withValues(alpha: 0.78),
+              ],
+            ),
+          ),
+        ),
+        SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 84, 16, 20),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: <Widget>[
+                KumoriyaCachedImage(
+                  url: detail.anime.coverImageUrl,
+                  bucket: KumoriyaImageCacheBucket.artwork,
+                  width: 120,
+                  height: 170,
+                  fit: BoxFit.cover,
+                  borderRadius: BorderRadius.circular(22),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: <Widget>[
+                      Text(
+                        detail.anime.title.romaji,
+                        maxLines: 3,
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(context).textTheme.headlineMedium
+                            ?.copyWith(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w800,
+                            ),
+                      ),
+                      const SizedBox(height: 8),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: <Widget>[
+                          _HeroMetaPill(
+                            label: detail.anime.format.name.toUpperCase(),
+                          ),
+                          _HeroMetaPill(
+                            label: detail.anime.status.name.toUpperCase(),
+                          ),
+                          if (detail.anime.releaseYear != null)
+                            _HeroMetaPill(
+                              label: detail.anime.releaseYear.toString(),
+                            ),
+                          if (detail.anime.totalEpisodes != null)
+                            _HeroMetaPill(
+                              label:
+                                  '${detail.anime.totalEpisodes} ${context.l10n.episodesWord}',
+                            ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _TitleBlock extends StatelessWidget {
+  const _TitleBlock({required this.detail});
+
+  final AnimeDetail detail;
+
+  @override
+  Widget build(BuildContext context) {
+    final secondaryTitle =
+        detail.anime.title.english ??
+        detail.anime.title.native ??
+        detail.anime.title.romaji;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        Text(
+          secondaryTitle,
+          style: Theme.of(
+            context,
+          ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          context.l10n.detailDiscoverPrompt,
+          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _PlaybackSummaryCard extends StatelessWidget {
+  const _PlaybackSummaryCard({
     required this.anilistId,
     required this.animeTitle,
     required this.availabilityState,
+    required this.latestProgressState,
   });
 
   final int anilistId;
   final String animeTitle;
   final AsyncValue<Result<SourceAvailabilitySummary, KumoriyaError>>
   availabilityState;
+  final AsyncValue<Result<EpisodeProgress?, KumoriyaError>> latestProgressState;
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: availabilityState.when(
-          loading: () => _AvailabilityStatusTile(
-            title: context.l10n.sourceAvailabilityTitle,
-            subtitle: context.l10n.sourceAvailabilityChecking,
-            icon: Icons.sync,
-            iconColor: Colors.blue,
-          ),
-          error: (error, _) => _AvailabilityStatusTile(
-            title: context.l10n.sourceAvailabilityTitle,
-            subtitle: context.l10n.unexpectedStateError(error.toString()),
-            icon: Icons.error_outline,
-            iconColor: Colors.red,
-          ),
-          data: (result) => result.fold(
-            onFailure: (error) => _AvailabilityStatusTile(
-              title: context.l10n.sourceAvailabilityTitle,
-              subtitle: mapErrorMessage(context, error),
-              icon: Icons.error_outline,
-              iconColor: Colors.red,
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: <Color>[
+            Theme.of(context).colorScheme.primaryContainer,
+            Theme.of(context).colorScheme.surface,
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(24),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          availabilityState.when(
+            loading: () => Text(
+              context.l10n.sourceAvailabilityChecking,
+              style: Theme.of(context).textTheme.bodyLarge,
             ),
-            onSuccess: (summary) {
-              if (summary.sources.isEmpty) {
-                return _AvailabilityStatusTile(
-                  title: context.l10n.sourceAvailabilityTitle,
-                  subtitle: context.l10n.sourceAvailabilityNone,
-                  icon: Icons.remove_circle_outline,
-                  iconColor: Colors.orange,
-                );
-              }
+            error: (_, _) => Text(context.l10n.detailPlaybackNotReady),
+            data: (result) => result.fold(
+              onFailure: (_) => Text(context.l10n.detailPlaybackNotReady),
+              onSuccess: (summary) {
+                final playable = summary.playableSources;
+                if (playable.isEmpty) {
+                  return Text(
+                    context.l10n.detailPlaybackNotReady,
+                    style: Theme.of(context).textTheme.bodyLarge,
+                  );
+                }
 
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: <Widget>[
-                  Text(
-                    context.l10n.sourceAvailabilityTitle,
-                    style: Theme.of(context).textTheme.titleMedium,
-                  ),
-                  if (summary.recommended != null) ...<Widget>[
-                    const SizedBox(height: 8),
-                    FilledButton.icon(
-                      onPressed: () =>
-                          _openSourceEpisodes(context, summary.recommended!),
-                      icon: const Icon(Icons.playlist_play),
-                      label: Text(
-                        context.l10n.sourceOpenRecommended(
-                          summary.recommended!.manifest.displayName,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 8),
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
                     Text(
-                      context.l10n.sourceRecommended(
-                        summary.recommended!.manifest.displayName,
+                      context.l10n.detailPlaybackSources(playable.length),
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w800,
                       ),
                     ),
-                  ],
-                  if (summary.sources
-                          .where(
-                            (source) =>
-                                source.status ==
-                                SourceAvailabilityStatus.available,
+                    const SizedBox(height: 10),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: playable
+                          .map(
+                            (source) => SourceBadge(
+                              name: source.manifest.displayName,
+                              iconUrl: _sourceIconUrl(source.manifest),
+                              audioKinds: source.availableAudioKinds,
+                              highlighted:
+                                  summary.recommended?.manifest.id ==
+                                  source.manifest.id,
+                            ),
                           )
-                          .length >
-                      1) ...<Widget>[
-                    const SizedBox(height: 12),
-                    Text(context.l10n.sourceChoosePrompt),
-                  ],
-                  const SizedBox(height: 8),
-                  ...summary.sources.map(
-                    (availability) => _SourceAvailabilityListTile(
-                      anilistId: anilistId,
-                      animeTitle: animeTitle,
-                      availability: availability,
-                      isRecommended:
-                          summary.recommended?.manifest.id ==
-                          availability.manifest.id,
+                          .toList(growable: false),
                     ),
+                  ],
+                );
+              },
+            ),
+          ),
+          const SizedBox(height: 14),
+          latestProgressState.when(
+            loading: () => const SizedBox.shrink(),
+            error: (_, _) => const SizedBox.shrink(),
+            data: (result) => result.fold(
+              onFailure: (_) => const SizedBox.shrink(),
+              onSuccess: (progress) {
+                if (progress == null) {
+                  return Text(
+                    context.l10n.detailPlaybackHint,
+                    style: Theme.of(context).textTheme.bodyMedium,
+                  );
+                }
+
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Text(
+                      context.l10n.detailContinueEpisode(
+                        progress.episodeNumber.toInt().toString(),
+                      ),
+                      style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      context.l10n.detailPlaybackHint,
+                      style: Theme.of(context).textTheme.bodyMedium,
+                    ),
+                  ],
+                );
+              },
+            ),
+          ),
+          const SizedBox(height: 16),
+          FilledButton.icon(
+            onPressed: () {
+              Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => EpisodeListPage(
+                    anilistId: anilistId,
+                    animeTitle: animeTitle,
                   ),
-                ],
+                ),
               );
             },
+            icon: const Icon(Icons.play_circle_fill_rounded),
+            label: Text(context.l10n.viewEpisodeList),
           ),
-        ),
-      ),
-    );
-  }
-
-  void _openSourceEpisodes(
-    BuildContext context,
-    SourceAvailability availability,
-  ) {
-    Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (_) => SourceEpisodeListPage(
-          anilistId: anilistId,
-          animeTitle: animeTitle,
-          sourcePluginId: availability.manifest.id,
-          sourceName: availability.manifest.displayName,
-          episodes: availability.episodes,
-        ),
+        ],
       ),
     );
   }
 }
 
-class _SourceAvailabilityListTile extends StatelessWidget {
-  const _SourceAvailabilityListTile({
+class _EpisodePreviewSection extends StatelessWidget {
+  const _EpisodePreviewSection({
     required this.anilistId,
     required this.animeTitle,
-    required this.availability,
-    required this.isRecommended,
+    required this.previewEpisodes,
+    required this.availabilityState,
   });
 
   final int anilistId;
   final String animeTitle;
-  final SourceAvailability availability;
-  final bool isRecommended;
+  final List<AnimeEpisode> previewEpisodes;
+  final AsyncValue<Result<SourceAvailabilitySummary, KumoriyaError>>
+  availabilityState;
 
   @override
   Widget build(BuildContext context) {
-    final subtitle = switch (availability.status) {
-      SourceAvailabilityStatus.available =>
-        context.l10n.sourceAvailableEpisodes(availability.episodes.length),
-      SourceAvailabilityStatus.error =>
-        availability.errorMessage ??
-            context.l10n.sourceUnavailableError(
-              availability.manifest.displayName,
-            ),
-      SourceAvailabilityStatus.unavailable =>
-        switch (availability.unavailableReason) {
-          SourceUnavailableReason.noEpisodes =>
-            context.l10n.sourceNotAvailableNoEpisodes(
-              availability.manifest.displayName,
-            ),
-          SourceUnavailableReason.ambiguousMatch =>
-            context.l10n.sourceNotAvailableAmbiguous(
-              availability.manifest.displayName,
-            ),
-          _ => context.l10n.sourceNotAvailableNoMatch(
-            availability.manifest.displayName,
-          ),
-        },
-    };
+    if (previewEpisodes.isEmpty) {
+      return const SizedBox.shrink();
+    }
 
-    return ListTile(
-      contentPadding: EdgeInsets.zero,
-      leading: Icon(
-        availability.status == SourceAvailabilityStatus.available
-            ? Icons.check_circle_outline
-            : availability.status == SourceAvailabilityStatus.error
-            ? Icons.error_outline
-            : Icons.remove_circle_outline,
-        color: availability.status == SourceAvailabilityStatus.available
-            ? Colors.green
-            : availability.status == SourceAvailabilityStatus.error
-            ? Colors.red
-            : Colors.orange,
+    final availableByEpisode = availabilityState.maybeWhen(
+      data: (result) => result.fold(
+        onFailure: (_) => const <double, List<SourceAvailability>>{},
+        onSuccess: (summary) {
+          final map = <double, List<SourceAvailability>>{};
+          for (final source in summary.playableSources) {
+            for (final episode in source.episodes.take(20)) {
+              map
+                  .putIfAbsent(episode.number, () => <SourceAvailability>[])
+                  .add(source);
+            }
+          }
+          return map;
+        },
       ),
-      title: Row(
-        children: <Widget>[
-          Expanded(child: Text(availability.manifest.displayName)),
-          if (isRecommended)
-            Chip(label: Text(context.l10n.sourceRecommendedShort)),
-        ],
-      ),
-      subtitle: Text(subtitle),
-      trailing: availability.status == SourceAvailabilityStatus.available
-          ? OutlinedButton(
-              onPressed: () {
+      orElse: () => const <double, List<SourceAvailability>>{},
+    );
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        Text(
+          context.l10n.episodePreviewTitle,
+          style: Theme.of(
+            context,
+          ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+        ),
+        const SizedBox(height: 8),
+        ...previewEpisodes.map((episode) {
+          final sources =
+              availableByEpisode[episode.number] ??
+              const <SourceAvailability>[];
+          return Card(
+            elevation: 0,
+            margin: const EdgeInsets.only(bottom: 10),
+            child: ListTile(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20),
+              ),
+              title: Text('${episode.number.toInt()}. ${episode.title}'),
+              subtitle: sources.isEmpty
+                  ? Text(
+                      episode.isAired
+                          ? context.l10n.episodeStatusAired
+                          : context.l10n.episodeStatusUpcoming,
+                    )
+                  : Wrap(
+                      spacing: 6,
+                      runSpacing: 6,
+                      children: sources
+                          .take(3)
+                          .map(
+                            (source) => SourceBadge(
+                              name: source.manifest.displayName,
+                              iconUrl: _sourceIconUrl(source.manifest),
+                              audioKinds: source.availableAudioKinds,
+                              compact: true,
+                            ),
+                          )
+                          .toList(growable: false),
+                    ),
+              trailing: const Icon(Icons.chevron_right_rounded),
+              onTap: () {
                 Navigator.of(context).push(
                   MaterialPageRoute<void>(
-                    builder: (_) => SourceEpisodeListPage(
+                    builder: (_) => EpisodeListPage(
                       anilistId: anilistId,
                       animeTitle: animeTitle,
-                      sourcePluginId: availability.manifest.id,
-                      sourceName: availability.manifest.displayName,
-                      episodes: availability.episodes,
                     ),
                   ),
                 );
               },
-              child: Text(context.l10n.sourceViewEpisodes),
-            )
-          : null,
+            ),
+          );
+        }),
+      ],
     );
   }
 }
 
-class _AvailabilityStatusTile extends StatelessWidget {
-  const _AvailabilityStatusTile({
-    required this.title,
-    required this.subtitle,
-    required this.icon,
-    required this.iconColor,
-  });
+class _HeroMetaPill extends StatelessWidget {
+  const _HeroMetaPill({required this.label});
 
-  final String title;
-  final String subtitle;
-  final IconData icon;
-  final Color iconColor;
+  final String label;
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: <Widget>[
-        Icon(icon, color: iconColor),
-        const SizedBox(width: 8),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: <Widget>[
-              Text(title, style: Theme.of(context).textTheme.titleMedium),
-              const SizedBox(height: 4),
-              Text(subtitle),
-            ],
-          ),
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(999),
+        color: Colors.white.withValues(alpha: 0.16),
+      ),
+      child: Text(
+        label,
+        style: Theme.of(context).textTheme.labelLarge?.copyWith(
+          color: Colors.white,
+          fontWeight: FontWeight.w700,
         ),
-      ],
+      ),
     );
   }
+}
+
+String? _sourceIconUrl(PluginManifest manifest) {
+  if (manifest.iconUrl != null && manifest.iconUrl!.trim().isNotEmpty) {
+    return manifest.iconUrl;
+  }
+  if (manifest.baseUrls.isEmpty) {
+    return null;
+  }
+
+  final base = Uri.tryParse(manifest.baseUrls.first);
+  if (base == null || !base.hasScheme) {
+    return null;
+  }
+
+  return base.resolve('/favicon.ico').toString();
 }

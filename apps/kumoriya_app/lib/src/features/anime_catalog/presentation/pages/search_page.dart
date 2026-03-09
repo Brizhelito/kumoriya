@@ -31,56 +31,78 @@ class _SearchPageState extends ConsumerState<SearchPage> {
 
     return Scaffold(
       appBar: AppBar(title: Text(context.l10n.searchTitle)),
-      body: Column(
+      body: ListView(
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
         children: <Widget>[
-          Padding(
-            padding: const EdgeInsets.all(12),
-            child: SearchBar(
-              controller: _controller,
-              hintText: context.l10n.searchHintTitle,
-              onSubmitted: (value) {
-                setState(() {
-                  _activeQuery = value.trim();
-                });
-              },
-              trailing: <Widget>[
-                IconButton(
-                  icon: const Icon(Icons.search),
-                  onPressed: () {
+          Container(
+            padding: const EdgeInsets.all(18),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(26),
+              color: Theme.of(context).colorScheme.surfaceContainerLowest,
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                Text(
+                  context.l10n.searchHeroTitle,
+                  style: Theme.of(
+                    context,
+                  ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  context.l10n.searchEmptyPrompt,
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+                ),
+                const SizedBox(height: 14),
+                SearchBar(
+                  controller: _controller,
+                  hintText: context.l10n.searchHintTitle,
+                  onSubmitted: (value) {
                     setState(() {
-                      _activeQuery = _controller.text.trim();
+                      _activeQuery = value.trim();
                     });
                   },
+                  trailing: <Widget>[
+                    IconButton(
+                      icon: const Icon(Icons.search),
+                      onPressed: () {
+                        setState(() {
+                          _activeQuery = _controller.text.trim();
+                        });
+                      },
+                    ),
+                  ],
                 ),
               ],
             ),
           ),
-          Expanded(
-            child: _activeQuery.isEmpty
-                ? EmptyStateView(message: context.l10n.searchEmptyPrompt)
-                : searchState.when(
-                    loading: () =>
-                        LoadingStateView(label: context.l10n.searchLoading),
-                    error: (error, _) => ErrorStateView(
-                      message: context.l10n.unexpectedStateError(
-                        error.toString(),
-                      ),
-                      onRetry: () =>
-                          ref.invalidate(searchCatalogProvider(_activeQuery)),
-                    ),
-                    data: (result) => result.fold(
-                      onFailure: (error) => ErrorStateView(
-                        message: mapErrorMessage(context, error),
-                        onRetry: () =>
-                            ref.invalidate(searchCatalogProvider(_activeQuery)),
-                      ),
-                      onSuccess: (animeList) => _SearchResultsList(
-                        animeList: animeList,
-                        query: _activeQuery,
-                      ),
-                    ),
-                  ),
-          ),
+          const SizedBox(height: 16),
+          if (_activeQuery.isEmpty)
+            EmptyStateView(message: context.l10n.searchPromptShort)
+          else
+            searchState.when(
+              loading: () =>
+                  LoadingStateView(label: context.l10n.searchLoading),
+              error: (_, _) => ErrorStateView(
+                message: context.l10n.genericLoadFailure,
+                onRetry: () =>
+                    ref.invalidate(searchCatalogProvider(_activeQuery)),
+              ),
+              data: (result) => result.fold(
+                onFailure: (error) => ErrorStateView(
+                  message: mapErrorMessage(context, error),
+                  onRetry: () =>
+                      ref.invalidate(searchCatalogProvider(_activeQuery)),
+                ),
+                onSuccess: (animeList) => _SearchResultsList(
+                  animeList: animeList,
+                  query: _activeQuery,
+                ),
+              ),
+            ),
         ],
       ),
     );
@@ -99,21 +121,21 @@ class _SearchResultsList extends StatelessWidget {
       return EmptyStateView(message: context.l10n.searchNoResults(query));
     }
 
-    return ListView.builder(
-      itemCount: animeList.length,
-      itemBuilder: (context, index) {
-        final anime = animeList[index];
-        return AnimeListTile(
-          anime: anime,
-          onTap: () {
-            Navigator.of(context).push(
-              MaterialPageRoute<void>(
-                builder: (_) => AnimeDetailPage(anilistId: anime.anilistId),
-              ),
+    return Column(
+      children: animeList
+          .map((anime) {
+            return AnimeListTile(
+              anime: anime,
+              onTap: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => AnimeDetailPage(anilistId: anime.anilistId),
+                  ),
+                );
+              },
             );
-          },
-        );
-      },
+          })
+          .toList(growable: false),
     );
   }
 }
