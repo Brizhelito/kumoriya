@@ -370,6 +370,9 @@ class AppLocalizationsEs extends AppLocalizations {
   String get continueWatchingHint => 'Vuelve rapido a donde lo dejaste.';
 
   @override
+  String get continueWatchingResumeAction => 'Reanudar ahora';
+
+  @override
   String continueWatchingEpisode(Object episode) {
     return 'Episodio $episode';
   }

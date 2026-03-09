@@ -365,6 +365,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get continueWatchingHint => 'Jump back in where you left off.';
 
   @override
+  String get continueWatchingResumeAction => 'Resume now';
+
+  @override
   String continueWatchingEpisode(Object episode) {
     return 'Episode $episode';
   }

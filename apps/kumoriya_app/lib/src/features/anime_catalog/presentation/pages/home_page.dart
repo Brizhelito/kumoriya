@@ -9,8 +9,10 @@ import '../../../../shared/widgets/kumoriya_cached_image.dart';
 import '../../../../shared/widgets/state_views.dart';
 import '../providers/anime_catalog_providers.dart';
 import '../providers/storage_providers.dart';
+import '../support/playback_launch_flow.dart';
 import '../widgets/anime_list_tile.dart';
 import 'anime_detail_page.dart';
+import 'episode_list_page.dart';
 import 'search_page.dart';
 
 class HomePage extends ConsumerWidget {
@@ -237,7 +239,7 @@ class _ContinueWatchingSection extends StatelessWidget {
   }
 }
 
-class _ContinueWatchingCard extends ConsumerWidget {
+class _ContinueWatchingCard extends ConsumerStatefulWidget {
   const _ContinueWatchingCard({
     required this.entry,
     required this.fallbackAnime,
@@ -247,24 +249,32 @@ class _ContinueWatchingCard extends ConsumerWidget {
   final Anime? fallbackAnime;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final detailState = fallbackAnime == null
-        ? ref.watch(animeDetailProvider(entry.anilistId))
+  ConsumerState<_ContinueWatchingCard> createState() =>
+      _ContinueWatchingCardState();
+}
+
+class _ContinueWatchingCardState extends ConsumerState<_ContinueWatchingCard> {
+  bool _isLaunching = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final detailState = widget.fallbackAnime == null
+        ? ref.watch(animeDetailProvider(widget.entry.anilistId))
         : null;
 
     final title =
-        fallbackAnime?.title.romaji ??
+        widget.fallbackAnime?.title.romaji ??
         detailState?.maybeWhen(
           data: (result) => result.fold(
-            onFailure: (_) => 'AniList #${entry.anilistId}',
+            onFailure: (_) => 'AniList #${widget.entry.anilistId}',
             onSuccess: (detail) => detail.anime.title.romaji,
           ),
-          orElse: () => 'AniList #${entry.anilistId}',
+          orElse: () => 'AniList #${widget.entry.anilistId}',
         ) ??
-        'AniList #${entry.anilistId}';
+        'AniList #${widget.entry.anilistId}';
 
     final imageUrl =
-        fallbackAnime?.coverImageUrl ??
+        widget.fallbackAnime?.coverImageUrl ??
         detailState?.maybeWhen(
           data: (result) => result.fold(
             onFailure: (_) => null,
@@ -275,13 +285,7 @@ class _ContinueWatchingCard extends ConsumerWidget {
         );
 
     return InkWell(
-      onTap: () {
-        Navigator.of(context).push(
-          MaterialPageRoute<void>(
-            builder: (_) => AnimeDetailPage(anilistId: entry.anilistId),
-          ),
-        );
-      },
+      onTap: _isLaunching ? null : () => _handleResumeTap(title),
       borderRadius: BorderRadius.circular(24),
       child: Container(
         width: 248,
@@ -317,7 +321,7 @@ class _ContinueWatchingCard extends ConsumerWidget {
                 children: <Widget>[
                   _PillLabel(
                     label: context.l10n.continueWatchingEpisode(
-                      entry.lastEpisodeNumber.toInt().toString(),
+                      widget.entry.lastEpisodeNumber.toInt().toString(),
                     ),
                   ),
                   const Spacer(),
@@ -332,15 +336,109 @@ class _ContinueWatchingCard extends ConsumerWidget {
                   ),
                   const SizedBox(height: 6),
                   Text(
-                    _formatTimeAgo(context, entry.lastAccessedAt),
+                    _formatTimeAgo(context, widget.entry.lastAccessedAt),
                     style: Theme.of(
                       context,
                     ).textTheme.bodySmall?.copyWith(color: Colors.white70),
+                  ),
+                  const SizedBox(height: 10),
+                  Row(
+                    children: <Widget>[
+                      const Icon(
+                        Icons.play_circle_fill_rounded,
+                        size: 18,
+                        color: Colors.white,
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        context.l10n.continueWatchingResumeAction,
+                        style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _handleResumeTap(String animeTitle) async {
+    if (_isLaunching) {
+      return;
+    }
+
+    setState(() => _isLaunching = true);
+    showBlockingLoader(context, context.l10n.playbackPreparing);
+    var loaderShown = true;
+
+    try {
+      final summaryResult = await ref.read(
+        sourceAvailabilitySummaryProvider(widget.entry.anilistId).future,
+      );
+
+      if (!mounted) {
+        return;
+      }
+
+      await summaryResult.fold(
+        onFailure: (_) async {
+          if (loaderShown) {
+            hideBlockingLoader(context);
+            loaderShown = false;
+          }
+          await _openEpisodeListFallback(context, animeTitle);
+        },
+        onSuccess: (summary) async {
+          final decision = await ref
+              .read(startEpisodePlaybackUseCaseProvider)
+              .call(
+                anilistId: widget.entry.anilistId,
+                episodeNumber: widget.entry.lastEpisodeNumber,
+                availabilitySummary: summary,
+              );
+          if (!mounted) {
+            return;
+          }
+          if (loaderShown) {
+            hideBlockingLoader(context);
+            loaderShown = false;
+          }
+          await handlePlaybackDecision(
+            context: context,
+            ref: ref,
+            anilistId: widget.entry.anilistId,
+            animeTitle: animeTitle,
+            decision: decision,
+            onUnavailable: () => _openEpisodeListFallback(context, animeTitle),
+          );
+        },
+      );
+    } finally {
+      if (mounted) {
+        if (loaderShown) {
+          hideBlockingLoader(context);
+        }
+        setState(() => _isLaunching = false);
+      }
+    }
+  }
+
+  Future<void> _openEpisodeListFallback(
+    BuildContext context,
+    String animeTitle,
+  ) {
+    return Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => EpisodeListPage(
+          anilistId: widget.entry.anilistId,
+          animeTitle: animeTitle,
+          focusedEpisodeNumber: widget.entry.lastEpisodeNumber,
         ),
       ),
     );

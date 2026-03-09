@@ -672,6 +672,12 @@ abstract class AppLocalizations {
   /// **'Jump back in where you left off.'**
   String get continueWatchingHint;
 
+  /// No description provided for @continueWatchingResumeAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Resume now'**
+  String get continueWatchingResumeAction;
+
   /// No description provided for @continueWatchingEpisode.
   ///
   /// In en, this message translates to:

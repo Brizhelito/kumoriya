@@ -6,22 +6,23 @@ import 'package:kumoriya_storage/kumoriya_storage.dart';
 
 import '../../../../app/l10n.dart';
 import '../../../../shared/widgets/state_views.dart';
-import '../../application/models/episode_playback.dart';
 import '../../application/models/source_availability.dart';
 import '../providers/anime_catalog_providers.dart';
 import '../providers/storage_providers.dart';
+import '../support/playback_launch_flow.dart';
 import '../widgets/source_badge.dart';
-import '../../../player/presentation/pages/player_page.dart';
 
 class EpisodeListPage extends ConsumerStatefulWidget {
   const EpisodeListPage({
     super.key,
     required this.anilistId,
     required this.animeTitle,
+    this.focusedEpisodeNumber,
   });
 
   final int anilistId;
   final String animeTitle;
+  final double? focusedEpisodeNumber;
 
   @override
   ConsumerState<EpisodeListPage> createState() => _EpisodeListPageState();
@@ -29,6 +30,14 @@ class EpisodeListPage extends ConsumerStatefulWidget {
 
 class _EpisodeListPageState extends ConsumerState<EpisodeListPage> {
   bool _isLaunching = false;
+  final ScrollController _scrollController = ScrollController();
+  bool _didScrollToFocus = false;
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -74,11 +83,13 @@ class _EpisodeListPageState extends ConsumerState<EpisodeListPage> {
       animeEpisodes: animeEpisodes,
       availabilitySummary: sourceSummary,
       progressList: progressList,
+      focusedEpisodeNumber: widget.focusedEpisodeNumber,
       fallbackTitleBuilder: (episodeNumber) => context.l10n
           .continueWatchingEpisode(episodeNumber.toInt().toString()),
       upcomingLabel: context.l10n.episodeStatusUpcoming,
       readyLabel: context.l10n.episodePlayNowLabel,
     );
+    _scheduleScrollToFocus(rows);
 
     return Scaffold(
       appBar: AppBar(
@@ -87,6 +98,7 @@ class _EpisodeListPageState extends ConsumerState<EpisodeListPage> {
       body: rows.isEmpty
           ? EmptyStateView(message: context.l10n.episodeListEmpty)
           : ListView(
+              controller: _scrollController,
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
               children: <Widget>[
                 _EpisodeListHeader(
@@ -115,7 +127,7 @@ class _EpisodeListPageState extends ConsumerState<EpisodeListPage> {
     SourceAvailabilitySummary summary,
   ) async {
     setState(() => _isLaunching = true);
-    _showBlockingLoader(context, context.l10n.playbackPreparing);
+    showBlockingLoader(context, context.l10n.playbackPreparing);
     final decision = await ref
         .read(startEpisodePlaybackUseCaseProvider)
         .call(
@@ -126,236 +138,15 @@ class _EpisodeListPageState extends ConsumerState<EpisodeListPage> {
     if (!mounted) {
       return;
     }
-    Navigator.of(context, rootNavigator: true).pop();
+    hideBlockingLoader(context);
     setState(() => _isLaunching = false);
-
-    switch (decision.type) {
-      case EpisodePlaybackDecisionType.direct:
-        await _openPlayer(decision.launch!);
-      case EpisodePlaybackDecisionType.selection:
-        final option = await _showServerPicker(
-          context,
-          options: decision.options,
-          autoSelectionFailed: decision.autoSelectionFailed,
-        );
-        if (option != null && mounted) {
-          await _resolveSelectedOption(
-            option,
-            remaining: decision.options
-                .where((item) => item.optionKey != option.optionKey)
-                .toList(growable: false),
-          );
-        }
-      case EpisodePlaybackDecisionType.unavailable:
-        _showUserMessage(
-          decision.autoSelectionFailed
-              ? context.l10n.episodeAutoplayFailed
-              : context.l10n.episodePlaybackUnavailable,
-        );
-    }
-  }
-
-  Future<void> _resolveSelectedOption(
-    EpisodePlaybackOption option, {
-    required List<EpisodePlaybackOption> remaining,
-  }) async {
-    _showBlockingLoader(context, context.l10n.playbackOpeningSelectedServer);
-    final result = await ref
-        .read(resolveSourceServerLinkUseCaseProvider)
-        .call(option.serverLink);
-    if (!mounted) {
-      return;
-    }
-    Navigator.of(context, rootNavigator: true).pop();
-
-    result.fold(
-      onFailure: (_) async {
-        _showUserMessage(context.l10n.episodeSelectedServerFailed);
-        if (remaining.isNotEmpty) {
-          final next = await _showServerPicker(
-            context,
-            options: remaining,
-            autoSelectionFailed: true,
-          );
-          if (next != null && mounted) {
-            await _resolveSelectedOption(
-              next,
-              remaining: remaining
-                  .where((item) => item.optionKey != next.optionKey)
-                  .toList(growable: false),
-            );
-          }
-        }
-      },
-      onSuccess: (resolved) async {
-        await _openPlayer(
-          EpisodePlayerLaunch(option: option, resolved: resolved),
-        );
-      },
-    );
-  }
-
-  Future<void> _openPlayer(EpisodePlayerLaunch launch) async {
-    if (!mounted) {
-      return;
-    }
-
-    await Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (_) => PlayerPage(
-          anilistId: widget.anilistId,
-          animeTitle: widget.animeTitle,
-          episodeNumber: launch.option.sourceEpisode.number.toInt().toString(),
-          sourcePluginId: launch.option.sourcePluginId,
-          serverName: launch.option.serverLink.serverName,
-          preferredAudioPreference: switch (launch.option.audioKind) {
-            SourceAudioKind.sub => PlaybackAudioPreference.sub,
-            SourceAudioKind.dub => PlaybackAudioPreference.dub,
-            null => null,
-          },
-          resolved: launch.resolved,
-        ),
-      ),
-    );
-  }
-
-  Future<EpisodePlaybackOption?> _showServerPicker(
-    BuildContext context, {
-    required List<EpisodePlaybackOption> options,
-    required bool autoSelectionFailed,
-  }) {
-    return showModalBottomSheet<EpisodePlaybackOption>(
+    await handlePlaybackDecision(
       context: context,
-      showDragHandle: true,
-      isScrollControlled: true,
-      builder: (context) {
-        return SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: <Widget>[
-                Text(
-                  autoSelectionFailed
-                      ? context.l10n.episodeAutoplayFailed
-                      : context.l10n.serverPickerTitle,
-                  style: Theme.of(
-                    context,
-                  ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  context.l10n.serverPickerSubtitle,
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                  ),
-                ),
-                const SizedBox(height: 14),
-                Flexible(
-                  child: ListView.separated(
-                    shrinkWrap: true,
-                    itemCount: options.length,
-                    separatorBuilder: (_, _) => const SizedBox(height: 10),
-                    itemBuilder: (context, index) {
-                      final option = options[index];
-                      return Card(
-                        elevation: 0,
-                        child: ListTile(
-                          contentPadding: const EdgeInsets.all(12),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(22),
-                          ),
-                          leading: const Icon(
-                            Icons.play_circle_outline_rounded,
-                          ),
-                          title: Row(
-                            children: <Widget>[
-                              Expanded(
-                                child: Text(
-                                  option.serverLink.serverName,
-                                  style: Theme.of(context).textTheme.titleMedium
-                                      ?.copyWith(fontWeight: FontWeight.w700),
-                                ),
-                              ),
-                              if (option.isPreferred)
-                                _ContextChip(
-                                  label: context.l10n.serverOptionLastUsed,
-                                )
-                              else if (option.isRecommended)
-                                _ContextChip(
-                                  label: context.l10n.serverOptionRecommended,
-                                ),
-                            ],
-                          ),
-                          subtitle: Padding(
-                            padding: const EdgeInsets.only(top: 8),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: <Widget>[
-                                SourceBadge(
-                                  name: option.sourceName,
-                                  iconUrl: option.sourceIconUrl,
-                                  audioKinds: option.audioKind == null
-                                      ? const <SourceAudioKind>{}
-                                      : <SourceAudioKind>{option.audioKind!},
-                                  compact: true,
-                                ),
-                                const SizedBox(height: 8),
-                                Text(
-                                  option.serverLink.detectedHost ??
-                                      option.resolverName,
-                                ),
-                              ],
-                            ),
-                          ),
-                          onTap: () => Navigator.of(context).pop(option),
-                        ),
-                      );
-                    },
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
+      ref: ref,
+      anilistId: widget.anilistId,
+      animeTitle: widget.animeTitle,
+      decision: decision,
     );
-  }
-
-  void _showBlockingLoader(BuildContext context, String label) {
-    showDialog<void>(
-      context: context,
-      barrierDismissible: false,
-      useRootNavigator: true,
-      builder: (_) {
-        return PopScope(
-          canPop: false,
-          child: Dialog(
-            child: Padding(
-              padding: const EdgeInsets.all(24),
-              child: Row(
-                children: <Widget>[
-                  const SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(child: Text(label)),
-                ],
-              ),
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  void _showUserMessage(String message) {
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   T? _extractSuccessValue<T>(AsyncValue asyncValue) {
@@ -370,6 +161,32 @@ class _EpisodeListPageState extends ConsumerState<EpisodeListPage> {
       },
       orElse: () => null,
     );
+  }
+
+  void _scheduleScrollToFocus(List<_EpisodeRowData> rows) {
+    if (_didScrollToFocus || widget.focusedEpisodeNumber == null) {
+      return;
+    }
+
+    final focusIndex = rows.indexWhere(
+      (row) => (row.number - widget.focusedEpisodeNumber!).abs() < 0.001,
+    );
+    if (focusIndex == -1) {
+      return;
+    }
+
+    _didScrollToFocus = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !_scrollController.hasClients) {
+        return;
+      }
+      final offset = (focusIndex * 152.0).clamp(0.0, double.infinity);
+      _scrollController.animateTo(
+        offset,
+        duration: const Duration(milliseconds: 280),
+        curve: Curves.easeOutCubic,
+      );
+    });
   }
 }
 
@@ -602,6 +419,7 @@ List<_EpisodeRowData> _buildEpisodeRows({
   required List<AnimeEpisode> animeEpisodes,
   required SourceAvailabilitySummary? availabilitySummary,
   required List<EpisodeProgress> progressList,
+  required double? focusedEpisodeNumber,
   required String Function(double episodeNumber) fallbackTitleBuilder,
   required String upcomingLabel,
   required String readyLabel,
@@ -655,7 +473,9 @@ List<_EpisodeRowData> _buildEpisodeRows({
               : readyLabel,
           playableSources: sources,
           progressFraction: _progressFraction(progress),
-          isCurrentEpisode: latestProgress?.episodeNumber == number,
+          isCurrentEpisode:
+              latestProgress?.episodeNumber == number ||
+              focusedEpisodeNumber == number,
         );
       })
       .toList(growable: false);

@@ -292,6 +292,14 @@ class _PlaybackSummaryCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final latestProgress = latestProgressState.maybeWhen(
+      data: (result) => result.fold(
+        onFailure: (_) => null,
+        onSuccess: (progress) => progress,
+      ),
+      orElse: () => null,
+    );
+
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
@@ -399,12 +407,19 @@ class _PlaybackSummaryCard extends StatelessWidget {
                   builder: (_) => EpisodeListPage(
                     anilistId: anilistId,
                     animeTitle: animeTitle,
+                    focusedEpisodeNumber: latestProgress?.episodeNumber,
                   ),
                 ),
               );
             },
             icon: const Icon(Icons.play_circle_fill_rounded),
-            label: Text(context.l10n.viewEpisodeList),
+            label: Text(
+              latestProgress == null
+                  ? context.l10n.viewEpisodeList
+                  : context.l10n.detailContinueEpisode(
+                      latestProgress.episodeNumber.toInt().toString(),
+                    ),
+            ),
           ),
         ],
       ),
