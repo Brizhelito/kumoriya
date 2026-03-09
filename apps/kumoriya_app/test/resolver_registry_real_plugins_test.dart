@@ -1,106 +1,27 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kumoriya_app/src/features/anime_catalog/application/services/resolver_registry.dart';
 import 'package:kumoriya_plugins/kumoriya_plugins.dart';
-import 'package:kumoriya_resolver_filemoon/kumoriya_resolver_filemoon.dart';
+import 'package:kumoriya_resolver_doodstream/kumoriya_resolver_doodstream.dart';
 import 'package:kumoriya_resolver_jkplayer/kumoriya_resolver_jkplayer.dart';
-import 'package:kumoriya_resolver_mixdrop/kumoriya_resolver_mixdrop.dart';
 import 'package:kumoriya_resolver_mp4upload/kumoriya_resolver_mp4upload.dart';
+import 'package:kumoriya_resolver_pixeldrain/kumoriya_resolver_pixeldrain.dart';
+import 'package:kumoriya_resolver_streamtape/kumoriya_resolver_streamtape.dart';
 import 'package:kumoriya_resolver_streamwish/kumoriya_resolver_streamwish.dart';
-import 'package:kumoriya_resolver_voe/kumoriya_resolver_voe.dart';
+import 'package:kumoriya_resolver_yourupload/kumoriya_resolver_yourupload.dart';
+import 'package:kumoriya_resolver_zilla/kumoriya_resolver_zilla.dart';
 
 void main() {
-  test('registry selects voe resolver for voe host url', () {
+  test('registry selects streamwish resolver for streamwish host url', () {
     final registry = ResolverRegistry(
       resolvers: <ResolverPlugin>[
         JkPlayerResolverPlugin(),
-        FilemoonResolverPlugin(),
-        VoeResolverPlugin(),
-      ],
-    );
-
-    final selection = registry.selectFor(Uri.parse('https://voe.sx/e/abc123'));
-
-    expect(selection, isA<ResolverSelected>());
-    final selected = selection as ResolverSelected;
-    expect(selected.resolver.manifest.id, 'kumoriya.resolver.voe');
-  });
-
-  test('registry selects filemoon resolver for filemoon host url', () {
-    final registry = ResolverRegistry(
-      resolvers: <ResolverPlugin>[
-        JkPlayerJkResolverPlugin(),
-        VoeResolverPlugin(),
-        FilemoonResolverPlugin(),
-      ],
-    );
-
-    final selection = registry.selectFor(
-      Uri.parse('https://filemoon.sx/e/xyz123'),
-    );
-
-    expect(selection, isA<ResolverSelected>());
-    final selected = selection as ResolverSelected;
-    expect(selected.resolver.manifest.id, 'kumoriya.resolver.filemoon');
-  });
-
-  test('registry selects filemoon resolver for bysekoze alias host', () {
-    final registry = ResolverRegistry(
-      resolvers: <ResolverPlugin>[
-        JkPlayerJkResolverPlugin(),
-        VoeResolverPlugin(),
-        FilemoonResolverPlugin(),
-      ],
-    );
-
-    final selection = registry.selectFor(
-      Uri.parse('https://bysekoze.com/e/xyz123'),
-    );
-
-    expect(selection, isA<ResolverSelected>());
-    final selected = selection as ResolverSelected;
-    expect(selected.resolver.manifest.id, 'kumoriya.resolver.filemoon');
-  });
-
-  test('registry remains deterministic with different host resolvers', () {
-    final registry = ResolverRegistry(
-      resolvers: <ResolverPlugin>[
-        VoeResolverPlugin(),
-        FilemoonResolverPlugin(),
         StreamwishResolverPlugin(),
-        MixdropResolverPlugin(),
-        Mp4uploadResolverPlugin(),
-        JkPlayerResolverPlugin(),
-      ],
-    );
-
-    final voeSelection = registry.selectFor(Uri.parse('https://voe.sx/e/a1'));
-    final jkSelection = registry.selectFor(
-      Uri.parse('https://jkanime.net/jkplayer/um?e=abc'),
-    );
-
-    expect(voeSelection, isA<ResolverSelected>());
-    expect(jkSelection, isA<ResolverSelected>());
-    expect(
-      (voeSelection as ResolverSelected).resolver.manifest.id,
-      'kumoriya.resolver.voe',
-    );
-    expect(
-      (jkSelection as ResolverSelected).resolver.manifest.id,
-      'kumoriya.resolver.jkplayer.um',
-    );
-  });
-
-  test('registry selects streamwish resolver for streamwish host', () {
-    final registry = ResolverRegistry(
-      resolvers: <ResolverPlugin>[
-        MixdropResolverPlugin(),
-        StreamwishResolverPlugin(),
-        Mp4uploadResolverPlugin(),
+        DoodstreamResolverPlugin(),
       ],
     );
 
     final selection = registry.selectFor(
-      Uri.parse('https://streamwish.to/e/abcd1234'),
+      Uri.parse('https://streamwish.to/e/abc123'),
     );
 
     expect(selection, isA<ResolverSelected>());
@@ -108,58 +29,119 @@ void main() {
     expect(selected.resolver.manifest.id, 'kumoriya.resolver.streamwish');
   });
 
-  test('registry selects mixdrop resolver for mixdrop host', () {
+  test('registry selects doodstream resolver for dood.la host url', () {
     final registry = ResolverRegistry(
       resolvers: <ResolverPlugin>[
+        JkPlayerJkResolverPlugin(),
+        DoodstreamResolverPlugin(),
+        Mp4uploadResolverPlugin(),
+      ],
+    );
+
+    final selection = registry.selectFor(Uri.parse('https://dood.la/e/xyz123'));
+
+    expect(selection, isA<ResolverSelected>());
+    final selected = selection as ResolverSelected;
+    expect(selected.resolver.manifest.id, 'kumoriya.resolver.doodstream');
+  });
+
+  test('registry selects streamtape resolver for streamtape host', () {
+    final registry = ResolverRegistry(
+      resolvers: <ResolverPlugin>[
+        JkPlayerJkResolverPlugin(),
+        StreamtapeResolverPlugin(),
         StreamwishResolverPlugin(),
-        MixdropResolverPlugin(),
       ],
     );
 
     final selection = registry.selectFor(
-      Uri.parse('https://mixdrop.co/e/xyz321'),
+      Uri.parse('https://streamtape.com/e/xyz123'),
     );
 
     expect(selection, isA<ResolverSelected>());
     final selected = selection as ResolverSelected;
-    expect(selected.resolver.manifest.id, 'kumoriya.resolver.mixdrop');
+    expect(selected.resolver.manifest.id, 'kumoriya.resolver.streamtape');
   });
 
-  test('registry selects mixdrop resolver for mxdrop alias host', () {
+  test('registry remains deterministic with multiple active resolvers', () {
     final registry = ResolverRegistry(
       resolvers: <ResolverPlugin>[
         StreamwishResolverPlugin(),
-        MixdropResolverPlugin(),
+        DoodstreamResolverPlugin(),
+        Mp4uploadResolverPlugin(),
+        JkPlayerResolverPlugin(),
+      ],
+    );
+
+    final swSelection = registry.selectFor(
+      Uri.parse('https://streamwish.to/e/a1'),
+    );
+    final jkSelection = registry.selectFor(
+      Uri.parse('https://jkanime.net/jkplayer/um?e=abc'),
+    );
+
+    expect(swSelection, isA<ResolverSelected>());
+    expect(jkSelection, isA<ResolverSelected>());
+    expect(
+      (swSelection as ResolverSelected).resolver.manifest.id,
+      'kumoriya.resolver.streamwish',
+    );
+    expect(
+      (jkSelection as ResolverSelected).resolver.manifest.id,
+      'kumoriya.resolver.jkplayer.um',
+    );
+  });
+
+  test('registry selects doodstream resolver for dsvplay alias host', () {
+    final registry = ResolverRegistry(
+      resolvers: <ResolverPlugin>[
+        StreamwishResolverPlugin(),
+        DoodstreamResolverPlugin(),
+        Mp4uploadResolverPlugin(),
       ],
     );
 
     final selection = registry.selectFor(
-      Uri.parse('https://mxdrop.to/e/xyz321'),
+      Uri.parse('https://dsvplay.com/e/abcd1234'),
     );
 
     expect(selection, isA<ResolverSelected>());
     final selected = selection as ResolverSelected;
-    expect(selected.resolver.manifest.id, 'kumoriya.resolver.mixdrop');
+    expect(selected.resolver.manifest.id, 'kumoriya.resolver.doodstream');
   });
 
-  test(
-    'registry keeps not_found for unrelated host containing mixdrop text',
-    () {
-      final registry = ResolverRegistry(
-        resolvers: <ResolverPlugin>[
-          FilemoonResolverPlugin(),
-          MixdropResolverPlugin(),
-          StreamwishResolverPlugin(),
-        ],
-      );
+  test('registry selects streamtape resolver for streamtape.com host', () {
+    final registry = ResolverRegistry(
+      resolvers: <ResolverPlugin>[
+        StreamwishResolverPlugin(),
+        StreamtapeResolverPlugin(),
+      ],
+    );
 
-      final selection = registry.selectFor(
-        Uri.parse('https://evil-mxdrop-gateway.com/e/xyz321'),
-      );
+    final selection = registry.selectFor(
+      Uri.parse('https://streamtape.com/e/xyz321'),
+    );
 
-      expect(selection, isA<ResolverNotFound>());
-    },
-  );
+    expect(selection, isA<ResolverSelected>());
+    final selected = selection as ResolverSelected;
+    expect(selected.resolver.manifest.id, 'kumoriya.resolver.streamtape');
+  });
+
+  test('registry returns not_found for unknown host', () {
+    final registry = ResolverRegistry(
+      resolvers: <ResolverPlugin>[
+        StreamwishResolverPlugin(),
+        DoodstreamResolverPlugin(),
+        Mp4uploadResolverPlugin(),
+      ],
+    );
+
+    final selection = registry.selectFor(
+      Uri.parse('https://unknown-video-host.com/e/xyz321'),
+    );
+
+    expect(selection, isA<ResolverNotFound>());
+  });
 
   test('registry selects mp4upload resolver for mp4upload host', () {
     final registry = ResolverRegistry(
@@ -176,5 +158,61 @@ void main() {
     expect(selection, isA<ResolverSelected>());
     final selected = selection as ResolverSelected;
     expect(selected.resolver.manifest.id, 'kumoriya.resolver.mp4upload');
+  });
+
+  test('registry selects yourupload resolver for yourupload host', () {
+    final registry = ResolverRegistry(
+      resolvers: <ResolverPlugin>[
+        StreamwishResolverPlugin(),
+        YouruploadResolverPlugin(),
+        Mp4uploadResolverPlugin(),
+      ],
+    );
+
+    final selection = registry.selectFor(
+      Uri.parse('https://www.yourupload.com/embed/abc123'),
+    );
+
+    expect(selection, isA<ResolverSelected>());
+    final selected = selection as ResolverSelected;
+    expect(selected.resolver.manifest.id, 'kumoriya.resolver.yourupload');
+  });
+
+  test('registry selects pixeldrain resolver for pixeldrain share host', () {
+    final registry = ResolverRegistry(
+      resolvers: <ResolverPlugin>[
+        StreamwishResolverPlugin(),
+        PixeldrainResolverPlugin(),
+        Mp4uploadResolverPlugin(),
+      ],
+    );
+
+    final selection = registry.selectFor(
+      Uri.parse('https://pixeldrain.com/u/qi2eVVgY?embed'),
+    );
+
+    expect(selection, isA<ResolverSelected>());
+    final selected = selection as ResolverSelected;
+    expect(selected.resolver.manifest.id, 'kumoriya.resolver.pixeldrain');
+  });
+
+  test('registry selects zilla resolver for zilla player host', () {
+    final registry = ResolverRegistry(
+      resolvers: <ResolverPlugin>[
+        StreamwishResolverPlugin(),
+        PixeldrainResolverPlugin(),
+        ZillaResolverPlugin(),
+      ],
+    );
+
+    final selection = registry.selectFor(
+      Uri.parse(
+        'https://player.zilla-networks.com/play/6918779582b6c03ddb61dfd86129d3cd',
+      ),
+    );
+
+    expect(selection, isA<ResolverSelected>());
+    final selected = selection as ResolverSelected;
+    expect(selected.resolver.manifest.id, 'kumoriya.resolver.zilla');
   });
 }

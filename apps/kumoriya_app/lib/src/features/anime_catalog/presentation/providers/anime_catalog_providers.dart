@@ -5,9 +5,12 @@ import 'package:kumoriya_domain/kumoriya_domain.dart';
 import 'package:kumoriya_plugins/kumoriya_plugins.dart';
 import 'package:kumoriya_resolver_jkplayer/kumoriya_resolver_jkplayer.dart';
 import 'package:kumoriya_resolver_mp4upload/kumoriya_resolver_mp4upload.dart';
+import 'package:kumoriya_resolver_pixeldrain/kumoriya_resolver_pixeldrain.dart';
 import 'package:kumoriya_resolver_streamtape/kumoriya_resolver_streamtape.dart';
 import 'package:kumoriya_resolver_streamwish/kumoriya_resolver_streamwish.dart';
 import 'package:kumoriya_resolver_doodstream/kumoriya_resolver_doodstream.dart';
+import 'package:kumoriya_resolver_yourupload/kumoriya_resolver_yourupload.dart';
+import 'package:kumoriya_resolver_zilla/kumoriya_resolver_zilla.dart';
 import 'package:kumoriya_source_jkanime/kumoriya_source_jkanime.dart';
 import 'package:kumoriya_source_animeflv/kumoriya_source_animeflv.dart';
 import 'package:kumoriya_source_animeav1/kumoriya_source_animeav1.dart';
@@ -78,8 +81,11 @@ final resolverPluginsProvider = Provider<List<ResolverPlugin>>((ref) {
     JkPlayerResolverPlugin(),
     StreamwishResolverPlugin(),
     Mp4uploadResolverPlugin(),
+    PixeldrainResolverPlugin(),
     StreamtapeResolverPlugin(),
     DoodstreamResolverPlugin(),
+    YouruploadResolverPlugin(),
+    ZillaResolverPlugin(),
   ];
 });
 

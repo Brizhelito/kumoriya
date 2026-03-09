@@ -17,9 +17,12 @@ workspace:
   - packages/kumoriya_resolver_streamwish
   - packages/kumoriya_resolver_mixdrop
   - packages/kumoriya_resolver_mp4upload
+  - packages/kumoriya_resolver_pixeldrain
   - packages/kumoriya_resolver_streamtape
   - packages/kumoriya_resolver_doodstream
+  - packages/kumoriya_resolver_yourupload
   - packages/kumoriya_resolver_vidhide
+  - packages/kumoriya_resolver_zilla
   - packages/kumoriya_source_animeflv
   - packages/kumoriya_source_animeav1
   - packages/kumoriya_storage

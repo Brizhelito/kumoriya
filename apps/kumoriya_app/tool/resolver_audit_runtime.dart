@@ -2,12 +2,14 @@ import 'dart:convert';
 
 import 'package:kumoriya_core/kumoriya_core.dart';
 import 'package:kumoriya_plugins/kumoriya_plugins.dart';
-import 'package:kumoriya_resolver_filemoon/kumoriya_resolver_filemoon.dart';
 import 'package:kumoriya_resolver_jkplayer/kumoriya_resolver_jkplayer.dart';
-import 'package:kumoriya_resolver_mixdrop/kumoriya_resolver_mixdrop.dart';
 import 'package:kumoriya_resolver_mp4upload/kumoriya_resolver_mp4upload.dart';
+import 'package:kumoriya_resolver_pixeldrain/kumoriya_resolver_pixeldrain.dart';
 import 'package:kumoriya_resolver_streamwish/kumoriya_resolver_streamwish.dart';
-import 'package:kumoriya_resolver_voe/kumoriya_resolver_voe.dart';
+import 'package:kumoriya_resolver_streamtape/kumoriya_resolver_streamtape.dart';
+import 'package:kumoriya_resolver_doodstream/kumoriya_resolver_doodstream.dart';
+import 'package:kumoriya_resolver_yourupload/kumoriya_resolver_yourupload.dart';
+import 'package:kumoriya_resolver_zilla/kumoriya_resolver_zilla.dart';
 import 'package:kumoriya_source_jkanime/kumoriya_source_jkanime.dart';
 import 'package:kumoriya_app/src/features/anime_catalog/application/models/resolved_server_link_result.dart';
 import 'package:kumoriya_app/src/features/anime_catalog/application/services/resolver_registry.dart';
@@ -21,11 +23,13 @@ Future<void> main(List<String> args) async {
   final resolvers = <ResolverPlugin>[
     JkPlayerJkResolverPlugin(),
     JkPlayerResolverPlugin(),
-    VoeResolverPlugin(),
-    FilemoonResolverPlugin(),
     StreamwishResolverPlugin(),
-    MixdropResolverPlugin(),
     Mp4uploadResolverPlugin(),
+    PixeldrainResolverPlugin(),
+    StreamtapeResolverPlugin(),
+    DoodstreamResolverPlugin(),
+    YouruploadResolverPlugin(),
+    ZillaResolverPlugin(),
   ];
 
   final registry = ResolverRegistry(resolvers: resolvers);
