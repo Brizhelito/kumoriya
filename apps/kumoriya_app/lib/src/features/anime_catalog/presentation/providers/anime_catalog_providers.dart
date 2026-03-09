@@ -18,6 +18,7 @@ import '../../application/models/resolved_server_link_result.dart';
 import '../../application/models/episode_playback.dart';
 import '../../application/models/source_availability.dart';
 import '../../application/services/resolver_registry.dart';
+import '../../application/services/playback_preference_policy.dart';
 import '../../application/services/source_selection_policy.dart';
 import '../../application/use_cases/get_source_availability_summary_use_case.dart';
 import '../../application/use_cases/get_source_episode_server_links_use_case.dart';
@@ -94,6 +95,12 @@ final sourceSelectionPolicyProvider = Provider<SourceSelectionPolicy>((ref) {
   return const SourceSelectionPolicy();
 });
 
+final playbackPreferencePolicyProvider = Provider<PlaybackPreferencePolicy>((
+  ref,
+) {
+  return const PlaybackPreferencePolicy();
+});
+
 final getHomeCatalogUseCaseProvider = Provider<GetHomeCatalogUseCase>((ref) {
   return GetHomeCatalogUseCase(ref.watch(animeCatalogRepositoryProvider));
 });
@@ -137,6 +144,7 @@ final startEpisodePlaybackUseCaseProvider =
         resolver: ref.watch(resolveSourceServerLinkUseCaseProvider),
         progressStore: ref.watch(animeProgressStoreProvider),
         sourceSelectionPolicy: ref.watch(sourceSelectionPolicyProvider),
+        playbackPreferencePolicy: ref.watch(playbackPreferencePolicyProvider),
       );
     });
 

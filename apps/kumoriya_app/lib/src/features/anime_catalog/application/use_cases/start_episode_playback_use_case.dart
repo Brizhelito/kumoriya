@@ -3,6 +3,7 @@ import 'package:kumoriya_storage/kumoriya_storage.dart';
 
 import '../models/episode_playback.dart';
 import '../models/source_availability.dart';
+import '../services/playback_preference_policy.dart';
 import '../services/resolver_registry.dart';
 import '../services/source_selection_policy.dart';
 import 'get_source_episode_server_links_use_case.dart';
@@ -15,17 +16,20 @@ final class StartEpisodePlaybackUseCase {
     required ResolveSourceServerLinkUseCase resolver,
     required AnimeProgressStore progressStore,
     required SourceSelectionPolicy sourceSelectionPolicy,
+    required PlaybackPreferencePolicy playbackPreferencePolicy,
   }) : _sourcePlugins = sourcePlugins,
        _registry = registry,
        _resolver = resolver,
        _progressStore = progressStore,
-       _sourceSelectionPolicy = sourceSelectionPolicy;
+       _sourceSelectionPolicy = sourceSelectionPolicy,
+       _playbackPreferencePolicy = playbackPreferencePolicy;
 
   final Map<String, SourcePlugin> _sourcePlugins;
   final ResolverRegistry _registry;
   final ResolveSourceServerLinkUseCase _resolver;
   final AnimeProgressStore _progressStore;
   final SourceSelectionPolicy _sourceSelectionPolicy;
+  final PlaybackPreferencePolicy _playbackPreferencePolicy;
 
   Future<EpisodePlaybackDecision> call({
     required int anilistId,
@@ -33,6 +37,10 @@ final class StartEpisodePlaybackUseCase {
     required SourceAvailabilitySummary availabilitySummary,
   }) async {
     final preference = await _loadPreference(anilistId);
+    final episodeProgress = await _loadEpisodeProgress(
+      anilistId,
+      episodeNumber,
+    );
     final sourcesWithEpisode = _episodeCandidates(
       availabilitySummary: availabilitySummary,
       episodeNumber: episodeNumber,
@@ -58,8 +66,30 @@ final class StartEpisodePlaybackUseCase {
       return const EpisodePlaybackDecision.unavailable();
     }
 
-    final ranked = _rankOptions(options, preference);
-    final autoQueue = _buildAutoQueue(ranked, preference);
+    final reconciliation = _playbackPreferencePolicy.reconcile(
+      anilistId: anilistId,
+      durablePreference: preference,
+      episodeProgress: episodeProgress,
+      sourceIdsWithEpisode: sourcesWithEpisode
+          .map((entry) => entry.availability.manifest.id)
+          .toSet(),
+      options: options,
+    );
+
+    await _persistPreference(reconciliation.persistedPreferenceUpdate);
+
+    var durablePreference = reconciliation.durablePreference;
+    final ranked = _playbackPreferencePolicy.rankOptions(
+      options: options,
+      durablePreference: durablePreference,
+      episodePreference: reconciliation.episodePreference,
+      sourcePriorityIndex: _sourceSelectionPolicy.priorityIndex,
+    );
+    final autoQueue = _playbackPreferencePolicy.buildAutoQueue(
+      rankedOptions: ranked,
+      durablePreference: durablePreference,
+      episodePreference: reconciliation.episodePreference,
+    );
     final attempted = <String>{};
 
     for (final option in autoQueue) {
@@ -76,6 +106,16 @@ final class StartEpisodePlaybackUseCase {
             autoSelectionFailed: attempted.length > 1,
           );
         }
+      }
+
+      final invalidated = _playbackPreferencePolicy.invalidateAfterAutoFailure(
+        durablePreference: durablePreference,
+        failedOption: option,
+        rankedOptions: ranked,
+      );
+      if (invalidated != null) {
+        durablePreference = invalidated;
+        await _persistPreference(invalidated);
       }
     }
 
@@ -98,6 +138,21 @@ final class StartEpisodePlaybackUseCase {
   Future<PlaybackPreference?> _loadPreference(int anilistId) async {
     final result = await _progressStore.getPlaybackPreference(anilistId);
     return result.fold(onFailure: (_) => null, onSuccess: (value) => value);
+  }
+
+  Future<EpisodeProgress?> _loadEpisodeProgress(
+    int anilistId,
+    double episodeNumber,
+  ) async {
+    final result = await _progressStore.getProgress(anilistId, episodeNumber);
+    return result.fold(onFailure: (_) => null, onSuccess: (value) => value);
+  }
+
+  Future<void> _persistPreference(PlaybackPreference? preference) async {
+    if (preference == null) {
+      return;
+    }
+    await _progressStore.upsertPlaybackPreference(preference);
   }
 
   List<_EpisodeSourceCandidate> _episodeCandidates({
@@ -169,148 +224,6 @@ final class StartEpisodePlaybackUseCase {
             .toList(growable: false);
       },
     );
-  }
-
-  List<EpisodePlaybackOption> _rankOptions(
-    List<EpisodePlaybackOption> options,
-    PlaybackPreference? preference,
-  ) {
-    final ranked = [...options];
-    ranked.sort(
-      (left, right) => _scoreOption(
-        right,
-        preference,
-      ).compareTo(_scoreOption(left, preference)),
-    );
-
-    if (ranked.isEmpty) {
-      return ranked;
-    }
-
-    final preferredKey = ranked.first.optionKey;
-    return ranked
-        .map(
-          (option) => option.copyWith(
-            isPreferred: _matchesExactPreference(option, preference),
-            isRecommended: option.optionKey == preferredKey,
-          ),
-        )
-        .toList(growable: false);
-  }
-
-  int _scoreOption(
-    EpisodePlaybackOption option,
-    PlaybackPreference? preference,
-  ) {
-    var score =
-        1000 -
-        _sourceSelectionPolicy.priorityIndex(option.sourcePluginId) * 100;
-
-    if (preference == null) {
-      return score;
-    }
-
-    if (option.sourcePluginId == preference.preferredSourcePluginId) {
-      score += 240;
-    }
-    if (option.serverLink.serverName == preference.preferredServerName) {
-      score += 360;
-    }
-    if (option.resolverId == preference.preferredResolverPluginId) {
-      score += 140;
-    }
-    if (option.audioKind != null &&
-        preference.preferredAudioPreference != null &&
-        option.audioKind!.name == preference.preferredAudioPreference!.name) {
-      score += 90;
-    }
-
-    return score;
-  }
-
-  List<EpisodePlaybackOption> _buildAutoQueue(
-    List<EpisodePlaybackOption> ranked,
-    PlaybackPreference? preference,
-  ) {
-    if (ranked.isEmpty) {
-      return const <EpisodePlaybackOption>[];
-    }
-
-    final queue = <EpisodePlaybackOption>[];
-    final seenKeys = <String>{};
-
-    void add(EpisodePlaybackOption? option) {
-      if (option == null || !seenKeys.add(option.optionKey)) {
-        return;
-      }
-      queue.add(option);
-    }
-
-    add(
-      ranked.cast<EpisodePlaybackOption?>().firstWhere(
-        (option) =>
-            option != null && _matchesExactPreference(option, preference),
-        orElse: () => null,
-      ),
-    );
-
-    if (preference?.preferredSourcePluginId != null) {
-      final sourceMatches = ranked
-          .where(
-            (option) =>
-                option.sourcePluginId == preference!.preferredSourcePluginId,
-          )
-          .toList(growable: false);
-      if (sourceMatches.length == 1) {
-        add(sourceMatches.first);
-      }
-    }
-
-    final topSourceId = ranked.first.sourcePluginId;
-    final topSourceOptions = ranked
-        .where((option) => option.sourcePluginId == topSourceId)
-        .toList(growable: false);
-
-    if (topSourceOptions.length == 1) {
-      add(topSourceOptions.first);
-    }
-
-    if (ranked.length == 1) {
-      add(ranked.first);
-    }
-
-    return queue;
-  }
-
-  bool _matchesExactPreference(
-    EpisodePlaybackOption option,
-    PlaybackPreference? preference,
-  ) {
-    if (preference == null) {
-      return false;
-    }
-
-    if (preference.preferredSourcePluginId != null &&
-        option.sourcePluginId != preference.preferredSourcePluginId) {
-      return false;
-    }
-    if (preference.preferredServerName != null &&
-        option.serverLink.serverName != preference.preferredServerName) {
-      return false;
-    }
-    if (preference.preferredResolverPluginId != null &&
-        option.resolverId != preference.preferredResolverPluginId) {
-      return false;
-    }
-    if (preference.preferredAudioPreference != null &&
-        option.audioKind?.name != preference.preferredAudioPreference!.name) {
-      return false;
-    }
-
-    return preference.preferredSourcePluginId != null ||
-        preference.preferredServerName != null ||
-        preference.preferredResolverPluginId != null ||
-        preference.preferredAudioPreference != null;
   }
 
   String? _fallbackIconUrl(PluginManifest manifest) {

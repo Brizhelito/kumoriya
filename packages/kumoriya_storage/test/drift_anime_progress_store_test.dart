@@ -224,5 +224,37 @@ void main() {
           (stored as Success<PlaybackPreference?, KumoriyaError>).value;
       expect(value, isNull);
     });
+
+    test(
+      'allows clearing broken source/server fields while keeping audio',
+      () async {
+        await store.upsertPlaybackPreference(
+          PlaybackPreference(
+            anilistId: 902,
+            preferredSourcePluginId: 'kumoriya.source.animeav1',
+            preferredServerName: 'Broken Server',
+            preferredResolverPluginId: 'kumoriya.resolver.broken',
+            preferredAudioPreference: PlaybackAudioPreference.dub,
+            updatedAt: DateTime(2025, 7, 1),
+          ),
+        );
+
+        await store.upsertPlaybackPreference(
+          PlaybackPreference(
+            anilistId: 902,
+            preferredAudioPreference: PlaybackAudioPreference.dub,
+            updatedAt: DateTime(2025, 7, 2),
+          ),
+        );
+
+        final stored = await store.getPlaybackPreference(902);
+        final value =
+            (stored as Success<PlaybackPreference?, KumoriyaError>).value!;
+        expect(value.preferredSourcePluginId, isNull);
+        expect(value.preferredServerName, isNull);
+        expect(value.preferredResolverPluginId, isNull);
+        expect(value.preferredAudioPreference, PlaybackAudioPreference.dub);
+      },
+    );
   });
 }

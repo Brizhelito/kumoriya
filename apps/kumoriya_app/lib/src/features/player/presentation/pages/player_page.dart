@@ -160,15 +160,7 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
       onFailure: (error) =>
           setState(() => _startError = mapErrorMessage(context, error)),
       onSuccess: (_) {
-        unawaited(
-          _savePlaybackPreference(
-            anilistId: widget.anilistId,
-            sourcePluginId: widget.sourcePluginId,
-            serverName: widget.serverName,
-            resolverPluginId: widget.resolved.resolverId,
-            preferredAudioPreference: widget.preferredAudioPreference,
-          ),
-        );
+        unawaited(_persistSuccessfulSelection());
       },
     );
   }
@@ -181,7 +173,19 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
     result.fold(
       onFailure: (error) =>
           setState(() => _startError = mapErrorMessage(context, error)),
-      onSuccess: (_) {},
+      onSuccess: (_) {
+        unawaited(_persistSuccessfulSelection());
+      },
+    );
+  }
+
+  Future<void> _persistSuccessfulSelection() async {
+    await _savePlaybackPreference(
+      anilistId: widget.anilistId,
+      sourcePluginId: widget.sourcePluginId,
+      serverName: widget.serverName,
+      resolverPluginId: widget.resolved.resolverId,
+      preferredAudioPreference: widget.preferredAudioPreference,
     );
   }
 

@@ -153,19 +153,14 @@ final class DriftAnimeProgressStore implements AnimeProgressStore {
       await _dao.upsertPlaybackPreference(
         PlaybackPreferenceTableCompanion(
           anilistId: Value(preference.anilistId),
-          preferredSourcePluginId: preference.preferredSourcePluginId != null
-              ? Value(preference.preferredSourcePluginId)
-              : const Value.absent(),
-          preferredServerName: preference.preferredServerName != null
-              ? Value(preference.preferredServerName)
-              : const Value.absent(),
-          preferredResolverPluginId:
-              preference.preferredResolverPluginId != null
-              ? Value(preference.preferredResolverPluginId)
-              : const Value.absent(),
-          preferredAudioPreference: preference.preferredAudioPreference != null
-              ? Value(preference.preferredAudioPreference!.name)
-              : const Value.absent(),
+          preferredSourcePluginId: Value(preference.preferredSourcePluginId),
+          preferredServerName: Value(preference.preferredServerName),
+          preferredResolverPluginId: Value(
+            preference.preferredResolverPluginId,
+          ),
+          preferredAudioPreference: Value(
+            preference.preferredAudioPreference?.name,
+          ),
           updatedAt: Value(preference.updatedAt.millisecondsSinceEpoch),
         ),
       );
