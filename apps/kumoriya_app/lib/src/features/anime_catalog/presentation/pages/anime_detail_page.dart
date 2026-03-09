@@ -1,5 +1,7 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter/services.dart';
 import 'package:kumoriya_core/kumoriya_core.dart';
 import 'package:kumoriya_domain/kumoriya_domain.dart';
 import 'package:kumoriya_plugins/kumoriya_plugins.dart';
@@ -14,32 +16,132 @@ import '../providers/storage_providers.dart';
 import '../widgets/source_badge.dart';
 import 'episode_list_page.dart';
 
-class AnimeDetailPage extends ConsumerWidget {
+class AnimeDetailPage extends ConsumerStatefulWidget {
   const AnimeDetailPage({super.key, required this.anilistId});
 
   final int anilistId;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final detailState = ref.watch(animeDetailProvider(anilistId));
-    final availabilityState = ref.watch(
-      sourceAvailabilitySummaryProvider(anilistId),
+  ConsumerState<AnimeDetailPage> createState() => _AnimeDetailPageState();
+}
+
+class _AnimeDetailPageState extends ConsumerState<AnimeDetailPage> {
+  Future<void> _showDebugPlaybackPreferenceTools() async {
+    if (!kDebugMode) {
+      return;
+    }
+
+    final preferenceResult = await ref.read(
+      playbackPreferenceProvider(widget.anilistId).future,
     );
-    final latestProgressState = ref.watch(
-      latestEpisodeProgressProvider(anilistId),
+    if (!mounted) {
+      return;
+    }
+
+    final preference = preferenceResult.fold(
+      onFailure: (_) => null,
+      onSuccess: (value) => value,
     );
 
-    return Scaffold(
+    await showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      builder: (context) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 4, 16, 20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                Text(
+                  'Debug playback preference',
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  preference == null
+                      ? 'No persisted preferred player is stored for this anime.'
+                      : _debugPreferenceSummary(preference),
+                  style: Theme.of(context).textTheme.bodyMedium,
+                ),
+                const SizedBox(height: 12),
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  enabled: preference != null,
+                  leading: const Icon(Icons.delete_outline_rounded),
+                  title: const Text('Clear persisted preferred player'),
+                  subtitle: const Text(
+                    'Removes the saved source/server/resolver preference for this anime.',
+                  ),
+                  onTap: preference == null
+                      ? null
+                      : () async {
+                          Navigator.of(context).pop();
+                          final result = await ref
+                              .read(clearPlaybackPreferenceUseCaseProvider)
+                              .call(widget.anilistId);
+                          if (!mounted) {
+                            return;
+                          }
+
+                          result.fold(
+                            onFailure: (error) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text(
+                                    'Failed to clear preferred player: ${error.message}',
+                                  ),
+                                ),
+                              );
+                            },
+                            onSuccess: (_) {
+                              ref.invalidate(
+                                playbackPreferenceProvider(widget.anilistId),
+                              );
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text(
+                                    'Persisted preferred player cleared.',
+                                  ),
+                                ),
+                              );
+                            },
+                          );
+                        },
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final detailState = ref.watch(animeDetailProvider(widget.anilistId));
+    final availabilityState = ref.watch(
+      sourceAvailabilitySummaryProvider(widget.anilistId),
+    );
+    final latestProgressState = ref.watch(
+      latestEpisodeProgressProvider(widget.anilistId),
+    );
+
+    final content = Scaffold(
       body: detailState.when(
         loading: () => LoadingStateView(label: context.l10n.animeDetailLoading),
         error: (_, _) => ErrorStateView(
           message: context.l10n.genericLoadFailure,
-          onRetry: () => ref.invalidate(animeDetailProvider(anilistId)),
+          onRetry: () => ref.invalidate(animeDetailProvider(widget.anilistId)),
         ),
         data: (result) => result.fold(
           onFailure: (error) => ErrorStateView(
             message: mapErrorMessage(context, error),
-            onRetry: () => ref.invalidate(animeDetailProvider(anilistId)),
+            onRetry: () =>
+                ref.invalidate(animeDetailProvider(widget.anilistId)),
           ),
           onSuccess: (detail) => _AnimeDetailBody(
             detail: detail,
@@ -48,6 +150,18 @@ class AnimeDetailPage extends ConsumerWidget {
           ),
         ),
       ),
+    );
+
+    if (!kDebugMode) {
+      return content;
+    }
+
+    return CallbackShortcuts(
+      bindings: <ShortcutActivator, VoidCallback>{
+        const SingleActivator(LogicalKeyboardKey.keyD):
+            _showDebugPlaybackPreferenceTools,
+      },
+      child: Focus(autofocus: true, child: content),
     );
   }
 }
@@ -85,12 +199,7 @@ class _AnimeDetailBody extends StatelessWidget {
             delegate: SliverChildListDelegate(<Widget>[
               _TitleBlock(detail: detail),
               const SizedBox(height: 18),
-              _PlaybackSummaryCard(
-                anilistId: anime.anilistId,
-                animeTitle: anime.title.romaji,
-                availabilityState: availabilityState,
-                latestProgressState: latestProgressState,
-              ),
+              _PlaybackSummaryCard(availabilityState: availabilityState),
               if (detail.synopsis != null &&
                   detail.synopsis!.trim().isNotEmpty) ...<Widget>[
                 const SizedBox(height: 22),
@@ -117,13 +226,11 @@ class _AnimeDetailBody extends StatelessWidget {
                 ),
               ],
               const SizedBox(height: 22),
-              _EpisodePreviewSection(
+              _EpisodeOverviewSection(
                 anilistId: anime.anilistId,
                 animeTitle: anime.title.romaji,
-                previewEpisodes: detail.episodes
-                    .take(5)
-                    .toList(growable: false),
-                availabilityState: availabilityState,
+                episodeCount: detail.episodes.length,
+                latestProgressState: latestProgressState,
               ),
               if (detail.relations.isNotEmpty) ...<Widget>[
                 const SizedBox(height: 22),
@@ -277,29 +384,13 @@ class _TitleBlock extends StatelessWidget {
 }
 
 class _PlaybackSummaryCard extends StatelessWidget {
-  const _PlaybackSummaryCard({
-    required this.anilistId,
-    required this.animeTitle,
-    required this.availabilityState,
-    required this.latestProgressState,
-  });
+  const _PlaybackSummaryCard({required this.availabilityState});
 
-  final int anilistId;
-  final String animeTitle;
   final AsyncValue<Result<SourceAvailabilitySummary, KumoriyaError>>
   availabilityState;
-  final AsyncValue<Result<EpisodeProgress?, KumoriyaError>> latestProgressState;
 
   @override
   Widget build(BuildContext context) {
-    final latestProgress = latestProgressState.maybeWhen(
-      data: (result) => result.fold(
-        onFailure: (_) => null,
-        onSuccess: (progress) => progress,
-      ),
-      orElse: () => null,
-    );
-
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
@@ -365,41 +456,73 @@ class _PlaybackSummaryCard extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 14),
-          latestProgressState.when(
-            loading: () => const SizedBox.shrink(),
-            error: (_, _) => const SizedBox.shrink(),
-            data: (result) => result.fold(
-              onFailure: (_) => const SizedBox.shrink(),
-              onSuccess: (progress) {
-                if (progress == null) {
-                  return Text(
-                    context.l10n.detailPlaybackHint,
-                    style: Theme.of(context).textTheme.bodyMedium,
-                  );
-                }
+          Text(
+            context.l10n.detailPlaybackHint,
+            style: Theme.of(context).textTheme.bodyMedium,
+          ),
+        ],
+      ),
+    );
+  }
+}
 
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: <Widget>[
-                    Text(
-                      context.l10n.detailContinueEpisode(
-                        progress.episodeNumber.toInt().toString(),
-                      ),
-                      style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      context.l10n.detailPlaybackHint,
-                      style: Theme.of(context).textTheme.bodyMedium,
-                    ),
-                  ],
-                );
-              },
+class _EpisodeOverviewSection extends StatelessWidget {
+  const _EpisodeOverviewSection({
+    required this.anilistId,
+    required this.animeTitle,
+    required this.episodeCount,
+    required this.latestProgressState,
+  });
+
+  final int anilistId;
+  final String animeTitle;
+  final int episodeCount;
+  final AsyncValue<Result<EpisodeProgress?, KumoriyaError>> latestProgressState;
+
+  @override
+  Widget build(BuildContext context) {
+    final latestProgress = latestProgressState.maybeWhen(
+      data: (result) => result.fold(
+        onFailure: (_) => null,
+        onSuccess: (progress) => progress,
+      ),
+      orElse: () => null,
+    );
+
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(24),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Text(
+            context.l10n.episodePreviewTitle,
+            style: Theme.of(
+              context,
+            ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            latestProgress == null
+                ? '$episodeCount ${context.l10n.episodesWord}'
+                : context.l10n.detailContinueEpisode(
+                    latestProgress.episodeNumber.toInt().toString(),
+                  ),
+            style: Theme.of(
+              context,
+            ).textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w700),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            context.l10n.viewEpisodeList,
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
             ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 14),
           FilledButton.icon(
             onPressed: () {
               Navigator.of(context).push(
@@ -423,106 +546,6 @@ class _PlaybackSummaryCard extends StatelessWidget {
           ),
         ],
       ),
-    );
-  }
-}
-
-class _EpisodePreviewSection extends StatelessWidget {
-  const _EpisodePreviewSection({
-    required this.anilistId,
-    required this.animeTitle,
-    required this.previewEpisodes,
-    required this.availabilityState,
-  });
-
-  final int anilistId;
-  final String animeTitle;
-  final List<AnimeEpisode> previewEpisodes;
-  final AsyncValue<Result<SourceAvailabilitySummary, KumoriyaError>>
-  availabilityState;
-
-  @override
-  Widget build(BuildContext context) {
-    if (previewEpisodes.isEmpty) {
-      return const SizedBox.shrink();
-    }
-
-    final availableByEpisode = availabilityState.maybeWhen(
-      data: (result) => result.fold(
-        onFailure: (_) => const <double, List<SourceAvailability>>{},
-        onSuccess: (summary) {
-          final map = <double, List<SourceAvailability>>{};
-          for (final source in summary.playableSources) {
-            for (final episode in source.episodes.take(20)) {
-              map
-                  .putIfAbsent(episode.number, () => <SourceAvailability>[])
-                  .add(source);
-            }
-          }
-          return map;
-        },
-      ),
-      orElse: () => const <double, List<SourceAvailability>>{},
-    );
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: <Widget>[
-        Text(
-          context.l10n.episodePreviewTitle,
-          style: Theme.of(
-            context,
-          ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
-        ),
-        const SizedBox(height: 8),
-        ...previewEpisodes.map((episode) {
-          final sources =
-              availableByEpisode[episode.number] ??
-              const <SourceAvailability>[];
-          return Card(
-            elevation: 0,
-            margin: const EdgeInsets.only(bottom: 10),
-            child: ListTile(
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(20),
-              ),
-              title: Text('${episode.number.toInt()}. ${episode.title}'),
-              subtitle: sources.isEmpty
-                  ? Text(
-                      episode.isAired
-                          ? context.l10n.episodeStatusAired
-                          : context.l10n.episodeStatusUpcoming,
-                    )
-                  : Wrap(
-                      spacing: 6,
-                      runSpacing: 6,
-                      children: sources
-                          .take(3)
-                          .map(
-                            (source) => SourceBadge(
-                              name: source.manifest.displayName,
-                              iconUrl: _sourceIconUrl(source.manifest),
-                              audioKinds: source.availableAudioKinds,
-                              compact: true,
-                            ),
-                          )
-                          .toList(growable: false),
-                    ),
-              trailing: const Icon(Icons.chevron_right_rounded),
-              onTap: () {
-                Navigator.of(context).push(
-                  MaterialPageRoute<void>(
-                    builder: (_) => EpisodeListPage(
-                      anilistId: anilistId,
-                      animeTitle: animeTitle,
-                    ),
-                  ),
-                );
-              },
-            ),
-          );
-        }),
-      ],
     );
   }
 }
@@ -565,4 +588,23 @@ String? _sourceIconUrl(PluginManifest manifest) {
   }
 
   return base.resolve('/favicon.ico').toString();
+}
+
+String _debugPreferenceSummary(PlaybackPreference preference) {
+  final parts = <String>[
+    if (preference.preferredSourcePluginId != null)
+      'Source: ${preference.preferredSourcePluginId}',
+    if (preference.preferredServerName != null)
+      'Server: ${preference.preferredServerName}',
+    if (preference.preferredResolverPluginId != null)
+      'Resolver: ${preference.preferredResolverPluginId}',
+    if (preference.preferredAudioPreference != null)
+      'Audio: ${preference.preferredAudioPreference!.name}',
+  ];
+
+  if (parts.isEmpty) {
+    return 'A playback preference row exists, but it has no persisted source, server, resolver, or audio signal.';
+  }
+
+  return parts.join('\n');
 }
