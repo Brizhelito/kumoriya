@@ -28,6 +28,9 @@ void main() {
   final tokenGatedFixture = File(
     'test/fixtures/voe_payload_token_gated.html',
   ).readAsStringSync();
+  final sessionGatedFixture = File(
+    'test/fixtures/voe_payload_session_gated.html',
+  ).readAsStringSync();
   final base64EmbeddedFixture = File(
     'test/fixtures/voe_payload_base64_embedded.html',
   ).readAsStringSync();
@@ -293,6 +296,30 @@ void main() {
       onSuccess: (_) => fail('expected failure'),
     );
   });
+
+  test(
+    'returns session-gated failure for runtime token/cookie flow payload',
+    () async {
+      final plugin = VoeResolverPlugin(
+        httpClient: MockClient(
+          (_) async => http.Response(sessionGatedFixture, 200),
+        ),
+      );
+
+      final result = await plugin.resolve(
+        Uri.parse('https://voe.sx/e/abcd1234'),
+      );
+
+      expect(result.isFailure, isTrue);
+      result.fold(
+        onFailure: (error) {
+          expect(error.kind, KumoriyaErrorKind.mapping);
+          expect(error.code, 'resolver.voe.session_gated');
+        },
+        onSuccess: (_) => fail('expected failure'),
+      );
+    },
+  );
 
   test('returns transport failure for non-200 response', () async {
     final plugin = VoeResolverPlugin(
