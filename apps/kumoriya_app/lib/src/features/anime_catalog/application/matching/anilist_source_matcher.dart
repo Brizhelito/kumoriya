@@ -40,9 +40,14 @@ final class AnilistSourceMatcher {
 
     final best = scored.first;
     final secondScore = scored.length > 1 ? scored[1].score : -999;
+    final bestTitleSignalRank = _titleSignalRank(best.decision);
+    final secondTitleSignalRank = scored.length > 1
+        ? _titleSignalRank(scored[1].decision)
+        : -1;
     final ambiguousTop =
         best.decision.confidence == MatchConfidence.high &&
-        (best.score - secondScore).abs() < 10;
+        (best.score - secondScore).abs() < 10 &&
+        bestTitleSignalRank == secondTitleSignalRank;
     final hasConflicts = best.decision.rejectionSignals.any(
       (signal) => signal.startsWith('conflict-'),
     );
@@ -350,7 +355,11 @@ final class AnilistSourceMatcher {
 
   String _normalizeLoose(String input) {
     final lower = _stripDiacritics(input.toLowerCase());
-    final normalizedSeparators = lower
+    final romanizationNormalized = lower.replaceAll(
+      RegExp(r'\bno de\b', caseSensitive: false),
+      'node',
+    );
+    final normalizedSeparators = romanizationNormalized
         .replaceAll('-', ' ')
         .replaceAll('_', ' ')
         .replaceAll('/', ' ')
@@ -472,6 +481,17 @@ final class AnilistSourceMatcher {
         .replaceAll('\u00FC', 'u')
         .replaceAll('\u00FB', 'u')
         .replaceAll('\u00F1', 'n');
+  }
+
+  int _titleSignalRank(SourceMatchDecision decision) {
+    final acceptanceSignals = decision.acceptanceSignals;
+    if (acceptanceSignals.contains('exact-title')) {
+      return 2;
+    }
+    if (acceptanceSignals.contains('grouped-season-title')) {
+      return 1;
+    }
+    return 0;
   }
 }
 

@@ -39,10 +39,28 @@ final class CheckSourceAvailabilityUseCase {
       onFailure: (_) => const <SourceAnimeMatch>[],
       onSuccess: (value) => value,
     );
-    final decision = _matcher.decideMatch(
+    var allCandidates = candidates;
+    var decision = _matcher.decideMatch(
       anilistDetail: anilistDetail,
-      candidates: candidates,
+      candidates: allCandidates,
     );
+
+    if (!decision.verdict || decision.candidate == null) {
+      final directCandidates = await _probeDirectSlugCandidates(
+        anilistDetail,
+        existingCandidates: allCandidates,
+      );
+      if (directCandidates.isNotEmpty) {
+        allCandidates = <SourceAnimeMatch>[
+          ...allCandidates,
+          ...directCandidates,
+        ];
+        decision = _matcher.decideMatch(
+          anilistDetail: anilistDetail,
+          candidates: allCandidates,
+        );
+      }
+    }
 
     if (!decision.verdict || decision.candidate == null) {
       return SourceAvailability(
@@ -148,6 +166,44 @@ final class CheckSourceAvailabilityUseCase {
     return aligned.isEmpty ? episodes : aligned;
   }
 
+  Future<List<SourceAnimeMatch>> _probeDirectSlugCandidates(
+    AnimeDetail anilistDetail, {
+    required List<SourceAnimeMatch> existingCandidates,
+  }) async {
+    final existingIds = existingCandidates
+        .map((candidate) => candidate.sourceId.trim().toLowerCase())
+        .toSet();
+    final resolved = <SourceAnimeMatch>[];
+
+    for (final slug in _buildDirectSlugCandidates(anilistDetail)) {
+      if (!existingIds.add(slug)) {
+        continue;
+      }
+
+      try {
+        final result = await _sourcePlugin.getAnimeDetail(slug);
+        result.fold(
+          onFailure: (_) {},
+          onSuccess: (detail) {
+            resolved.add(
+              SourceAnimeMatch(
+                sourceId: detail.sourceId,
+                title: detail.title,
+                thumbnailUrl: detail.thumbnailUrl,
+                releaseYear: detail.releaseYear,
+                format: detail.format,
+              ),
+            );
+          },
+        );
+      } catch (_) {
+        continue;
+      }
+    }
+
+    return resolved;
+  }
+
   Future<Result<List<SourceAnimeMatch>, KumoriyaError>> _searchCandidates(
     AnimeDetail anilistDetail,
   ) async {
@@ -229,6 +285,36 @@ final class CheckSourceAvailabilityUseCase {
     return ordered;
   }
 
+  List<String> _buildDirectSlugCandidates(AnimeDetail anilistDetail) {
+    final candidates = <String>[];
+    final seen = <String>{};
+    final queries = _buildSearchQueries(<String>{
+      anilistDetail.anime.title.romaji,
+      if (anilistDetail.anime.title.english != null)
+        anilistDetail.anime.title.english!,
+      if (anilistDetail.anime.title.native != null)
+        anilistDetail.anime.title.native!,
+      ...anilistDetail.anime.title.synonyms,
+    });
+
+    void addSlug(String value) {
+      final slug = _slugify(value);
+      if (slug.isEmpty || !seen.add(slug)) {
+        return;
+      }
+      candidates.add(slug);
+    }
+
+    for (final query in queries) {
+      addSlug(query);
+      if (anilistDetail.anime.format == AnimeFormat.tv) {
+        addSlug('$query TV');
+      }
+    }
+
+    return candidates;
+  }
+
   String _stripSeasonDescriptor(String value) {
     var result = value.trim();
     const patterns = <String>[
@@ -272,5 +358,56 @@ final class CheckSourceAvailabilityUseCase {
       return trimmed;
     }
     return root;
+  }
+
+  String _slugify(String value) {
+    final lower = _stripDiacritics(value.toLowerCase());
+    final buffer = StringBuffer();
+    var previousWasDash = false;
+
+    for (final codeUnit in lower.codeUnits) {
+      final isLetter = codeUnit >= 97 && codeUnit <= 122;
+      final isDigit = codeUnit >= 48 && codeUnit <= 57;
+      if (isLetter || isDigit) {
+        buffer.writeCharCode(codeUnit);
+        previousWasDash = false;
+        continue;
+      }
+
+      if (!previousWasDash) {
+        buffer.write('-');
+        previousWasDash = true;
+      }
+    }
+
+    return buffer
+        .toString()
+        .replaceAll(RegExp(r'-+'), '-')
+        .replaceAll(RegExp(r'^-|-$'), '');
+  }
+
+  String _stripDiacritics(String value) {
+    return value
+        .replaceAll('\u00E1', 'a')
+        .replaceAll('\u00E0', 'a')
+        .replaceAll('\u00E4', 'a')
+        .replaceAll('\u00E2', 'a')
+        .replaceAll('\u00E9', 'e')
+        .replaceAll('\u00E8', 'e')
+        .replaceAll('\u00EB', 'e')
+        .replaceAll('\u00EA', 'e')
+        .replaceAll('\u00ED', 'i')
+        .replaceAll('\u00EC', 'i')
+        .replaceAll('\u00EF', 'i')
+        .replaceAll('\u00EE', 'i')
+        .replaceAll('\u00F3', 'o')
+        .replaceAll('\u00F2', 'o')
+        .replaceAll('\u00F6', 'o')
+        .replaceAll('\u00F4', 'o')
+        .replaceAll('\u00FA', 'u')
+        .replaceAll('\u00F9', 'u')
+        .replaceAll('\u00FC', 'u')
+        .replaceAll('\u00FB', 'u')
+        .replaceAll('\u00F1', 'n');
   }
 }

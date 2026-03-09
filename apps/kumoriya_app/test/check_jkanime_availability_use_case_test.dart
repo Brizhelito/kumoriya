@@ -78,6 +78,21 @@ void main() {
   );
 
   test(
+    'direct slug probe rescues titles when search misses the canonical entry',
+    () async {
+      final useCase = CheckSourceAvailabilityUseCase(
+        sourcePlugin: _FakeSourcePluginDirectSlugOnly(),
+        matcher: matcher,
+      );
+
+      final availability = await useCase.call(_detail('One Piece'));
+
+      expect(availability.status, SourceAvailabilityStatus.available);
+      expect(availability.matchedAnime?.sourceId, 'one-piece-tv');
+    },
+  );
+
+  test(
     'strips season descriptors from search queries before matching',
     () async {
       final plugin = _FakeSourcePluginSeasonRootOnly();
@@ -119,6 +134,23 @@ void main() {
     expect(availability.status, SourceAvailabilityStatus.available);
     expect(plugin.queries, contains('Mushoku Tensei'));
     expect(availability.matchedAnime?.sourceId, 'mushoku-tensei-main');
+  });
+
+  test('romanized no-de source title is accepted as mapped anime', () async {
+    final useCase = CheckSourceAvailabilityUseCase(
+      sourcePlugin: _FakeSourcePluginNodeVariant(),
+      matcher: matcher,
+    );
+
+    final availability = await useCase.call(
+      _detail('Yuusha Party ni Kawaii Ko ga Ita no de, Kokuhaku Shitemita.'),
+    );
+
+    expect(availability.status, SourceAvailabilityStatus.available);
+    expect(
+      availability.matchedAnime?.sourceId,
+      'yuusha-party-ni-kawaii-ko-ga-ita-node-kokuhaku-shitemita',
+    );
   });
 
   test(
@@ -293,6 +325,58 @@ final class _FakeSourcePluginAliasOnly extends _BaseFakeSourcePlugin {
   }
 }
 
+final class _FakeSourcePluginDirectSlugOnly extends _BaseFakeSourcePlugin {
+  @override
+  Future<Result<List<SourceAnimeMatch>, KumoriyaError>> search(
+    SourceSearchQuery query,
+  ) async {
+    return const Success(<SourceAnimeMatch>[
+      SourceAnimeMatch(
+        sourceId: 'one-piece-film-red',
+        title: 'One Piece Film: Red',
+        format: AnimeFormat.movie,
+      ),
+    ]);
+  }
+
+  @override
+  Future<Result<SourceAnimeDetail, KumoriyaError>> getAnimeDetail(
+    String sourceId,
+  ) async {
+    if (sourceId == 'one-piece-tv') {
+      return const Success(
+        SourceAnimeDetail(
+          sourceId: 'one-piece-tv',
+          title: 'One Piece',
+          format: AnimeFormat.tv,
+        ),
+      );
+    }
+
+    return const Failure(
+      SimpleError(
+        code: 'source.not-found',
+        message: 'not found',
+        kind: KumoriyaErrorKind.notFound,
+      ),
+    );
+  }
+
+  @override
+  Future<Result<List<SourceEpisode>, KumoriyaError>> getEpisodes(
+    String sourceId,
+  ) async {
+    return Success(<SourceEpisode>[
+      SourceEpisode(
+        sourceEpisodeId: 'ep1',
+        number: 1,
+        title: 'Episode 1',
+        episodeUrl: Uri.parse('https://example.com/1'),
+      ),
+    ]);
+  }
+}
+
 final class _FakeSourcePluginSeasonRootOnly extends _BaseFakeSourcePlugin {
   final List<String> queries = <String>[];
 
@@ -406,5 +490,34 @@ final class _FakeSourcePluginGroupedSeasonEpisodes
         ),
       ),
     );
+  }
+}
+
+final class _FakeSourcePluginNodeVariant extends _BaseFakeSourcePlugin {
+  @override
+  Future<Result<List<SourceAnimeMatch>, KumoriyaError>> search(
+    SourceSearchQuery query,
+  ) async {
+    return const Success(<SourceAnimeMatch>[
+      SourceAnimeMatch(
+        sourceId: 'yuusha-party-ni-kawaii-ko-ga-ita-node-kokuhaku-shitemita',
+        title: 'Yuusha Party ni Kawaii Ko ga Ita node, Kokuhaku shitemita.',
+        format: AnimeFormat.tv,
+      ),
+    ]);
+  }
+
+  @override
+  Future<Result<List<SourceEpisode>, KumoriyaError>> getEpisodes(
+    String sourceId,
+  ) async {
+    return Success(<SourceEpisode>[
+      SourceEpisode(
+        sourceEpisodeId: 'ep1',
+        number: 1,
+        title: 'Episode 1',
+        episodeUrl: Uri.parse('https://example.com/1'),
+      ),
+    ]);
   }
 }

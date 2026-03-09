@@ -170,6 +170,33 @@ void main() {
     expect(decision.acceptanceSignals, contains('grouped-season-title'));
   });
 
+  test('exact season entry wins over grouped-season fallback candidate', () {
+    final decision = matcher.decideMatch(
+      anilistDetail: _anilistDetail(
+        title: const AnimeTitle(romaji: 'Jigokuraku 2nd Season'),
+        releaseYear: 2026,
+      ),
+      candidates: const <SourceAnimeMatch>[
+        SourceAnimeMatch(
+          sourceId: 'jigokuraku-2nd-season',
+          title: 'Jigokuraku 2nd Season',
+          format: AnimeFormat.tv,
+          releaseYear: 2026,
+        ),
+        SourceAnimeMatch(
+          sourceId: 'jigokuraku',
+          title: 'Jigokuraku',
+          format: AnimeFormat.tv,
+          releaseYear: 2023,
+        ),
+      ],
+    );
+
+    expect(decision.verdict, isTrue);
+    expect(decision.candidate?.sourceId, 'jigokuraku-2nd-season');
+    expect(decision.acceptanceSignals, contains('exact-title'));
+  });
+
   test('franchise umbrella entry can satisfy grouped franchise fallback', () {
     final decision = matcher.decideMatch(
       anilistDetail: _anilistDetail(
@@ -214,6 +241,27 @@ void main() {
 
     expect(decision.verdict, isFalse);
     expect(decision.rejectionSignals, contains('title-mismatch'));
+  });
+
+  test('romanized no-de vs node title variant matches conservatively', () {
+    final decision = matcher.decideMatch(
+      anilistDetail: _anilistDetail(
+        title: const AnimeTitle(
+          romaji: 'Yuusha Party ni Kawaii Ko ga Ita no de, Kokuhaku Shitemita.',
+        ),
+      ),
+      candidates: const <SourceAnimeMatch>[
+        SourceAnimeMatch(
+          sourceId: 'yuusha-party-ni-kawaii-ko-ga-ita-node-kokuhaku-shitemita',
+          title: 'Yuusha Party ni Kawaii Ko ga Ita node, Kokuhaku shitemita.',
+          format: AnimeFormat.tv,
+        ),
+      ],
+    );
+
+    expect(decision.verdict, isTrue);
+    expect(decision.confidence, MatchConfidence.high);
+    expect(decision.acceptanceSignals, contains('exact-title'));
   });
 }
 
