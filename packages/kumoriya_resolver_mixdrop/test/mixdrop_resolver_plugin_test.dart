@@ -16,6 +16,9 @@ void main() {
   final emptyFixture = File(
     'test/fixtures/mixdrop_payload_empty.html',
   ).readAsStringSync();
+  final packedEvalFixture = File(
+    'test/fixtures/mixdrop_payload_packed_eval.html',
+  ).readAsStringSync();
 
   test('supports known MixDrop hosts', () {
     final plugin = MixdropResolverPlugin();
@@ -23,6 +26,12 @@ void main() {
     expect(plugin.supports(Uri.parse('https://mixdrop.co/e/abc123')), isTrue);
     expect(plugin.supports(Uri.parse('https://mixdrop.top/e/abc123')), isTrue);
     expect(plugin.supports(Uri.parse('https://mxdrop.to/e/abc123')), isTrue);
+    expect(plugin.supports(Uri.parse('https://mixdrop.is/e/abc123')), isTrue);
+    expect(plugin.supports(Uri.parse('https://mdbekjwqa.pw/e/abc123')), isTrue);
+    expect(
+      plugin.supports(Uri.parse('https://evil-mxdrop-gateway.com/e/abc123')),
+      isFalse,
+    );
     expect(
       plugin.supports(Uri.parse('https://streamwish.to/e/abc123')),
       isFalse,
@@ -48,6 +57,57 @@ void main() {
         expect(streams, hasLength(1));
         expect(streams.single.url.host, 'cdn.mixdrop.co');
         expect(streams.single.mimeType, 'video/mp4');
+      },
+    );
+  });
+
+  test('extracts stream from mxcontent path without file extension', () async {
+    const mxContentFixture = '''
+<html>
+  <body>
+    <script>MDCore = {}; MDCore.wurl = "//a-4.mxcontent.net/17/abcde12345";</script>
+  </body>
+</html>
+''';
+    final plugin = MixdropResolverPlugin(
+      httpClient: MockClient((request) async {
+        expect(request.url.host, 'mdbekjwqa.pw');
+        return http.Response(mxContentFixture, 200);
+      }),
+    );
+
+    final result = await plugin.resolve(
+      Uri.parse('https://mdbekjwqa.pw/e/abc123'),
+    );
+
+    expect(result.isSuccess, isTrue);
+    result.fold(
+      onFailure: (_) => fail('expected success'),
+      onSuccess: (streams) {
+        expect(streams, hasLength(1));
+        expect(streams.single.url.host, 'a-4.mxcontent.net');
+      },
+    );
+  });
+
+  test('extracts stream from packed eval payload', () async {
+    final plugin = MixdropResolverPlugin(
+      httpClient: MockClient(
+        (_) async => http.Response(packedEvalFixture, 200),
+      ),
+    );
+
+    final result = await plugin.resolve(
+      Uri.parse('https://mxdrop.to/e/abc123'),
+    );
+
+    expect(result.isSuccess, isTrue);
+    result.fold(
+      onFailure: (_) => fail('expected success'),
+      onSuccess: (streams) {
+        expect(streams, hasLength(1));
+        expect(streams.single.url.host, 'cdn.mixdrop');
+        expect(streams.single.url.path, '/video/abc.file_720p.mp4');
       },
     );
   });

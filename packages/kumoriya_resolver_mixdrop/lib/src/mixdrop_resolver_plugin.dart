@@ -14,9 +14,12 @@ final class MixdropResolverPlugin implements ResolverPlugin {
     'mixdrop.co',
     'mixdrop.to',
     'mxdrop.to',
+    'mixdrop.is',
     'mixdrop.ag',
     'mixdrop.top',
     'mixdrop.my',
+    'm1xdrop.bz',
+    'mdbekjwqa.pw',
   };
 
   @override
@@ -29,9 +32,12 @@ final class MixdropResolverPlugin implements ResolverPlugin {
       'mixdrop.co',
       'mixdrop.to',
       'mxdrop.to',
+      'mixdrop.is',
       'mixdrop.ag',
       'mixdrop.top',
       'mixdrop.my',
+      'm1xdrop.bz',
+      'mdbekjwqa.pw',
     ],
     baseUrls: <String>['https://mixdrop.co/e/'],
   );
@@ -46,9 +52,7 @@ final class MixdropResolverPlugin implements ResolverPlugin {
     }
 
     final host = url.host.toLowerCase();
-    final hostSupported = _supportedHosts.any(
-      (supported) => host == supported || host.endsWith('.$supported'),
-    );
+    final hostSupported = _isSupportedHost(host, _supportedHosts);
     if (!hostSupported) {
       return false;
     }
@@ -119,13 +123,26 @@ final class MixdropResolverPlugin implements ResolverPlugin {
   }
 }
 
+bool _isSupportedHost(String host, Set<String> knownHosts) {
+  if (knownHosts.any((supported) => host == supported)) {
+    return true;
+  }
+
+  if (knownHosts.any((supported) => host.endsWith('.$supported'))) {
+    return true;
+  }
+
+  return false;
+}
+
 Map<String, String> _headers(Uri url) {
   final origin = '${url.scheme}://${url.host}';
   return <String, String>{'Referer': '$origin/', 'Origin': origin};
 }
 
 List<ResolvedStream> _extractStreams(String payload, {required Uri baseUrl}) {
-  final normalized = payload
+  final extractionPayload = _buildExtractionPayload(payload);
+  final normalized = extractionPayload
       .replaceAll(r'\/', '/')
       .replaceAll('&amp;', '&')
       .replaceAll(r'\u0026', '&');
@@ -184,6 +201,66 @@ List<ResolvedStream> _extractStreams(String payload, {required Uri baseUrl}) {
   return streams;
 }
 
+String _buildExtractionPayload(String payload) {
+  final parts = <String>[payload];
+  for (final unpacked in _unpackDeanEdwardsPayloads(payload)) {
+    if (unpacked.trim().isNotEmpty) {
+      parts.add(unpacked);
+    }
+  }
+  return parts.join('\n');
+}
+
+List<String> _unpackDeanEdwardsPayloads(String payload) {
+  final pattern = RegExp(
+    r"""eval\(function\(p,a,c,k,e,d\)\{[\s\S]*?return p\}\('([\s\S]*?)',\s*(\d+),\s*(\d+),\s*'([\s\S]*?)'\.split\('\|'\)""",
+    caseSensitive: false,
+    multiLine: true,
+  );
+
+  final unpacked = <String>[];
+  for (final match in pattern.allMatches(payload)) {
+    final rawPacked = match.group(1);
+    final rawBase = match.group(2);
+    final rawCount = match.group(3);
+    final rawDictionary = match.group(4);
+    if (rawPacked == null ||
+        rawBase == null ||
+        rawCount == null ||
+        rawDictionary == null) {
+      continue;
+    }
+
+    final base = int.tryParse(rawBase);
+    final count = int.tryParse(rawCount);
+    if (base == null || count == null || base < 2 || base > 36 || count <= 0) {
+      continue;
+    }
+
+    final tokens = rawDictionary.split('|');
+    var decoded = rawPacked.replaceAll(r'\/', '/');
+    for (var i = count - 1; i >= 0; i--) {
+      if (i >= tokens.length) {
+        continue;
+      }
+      final replacement = tokens[i];
+      if (replacement.isEmpty) {
+        continue;
+      }
+      final key = i.toRadixString(base);
+      decoded = decoded.replaceAll(
+        RegExp(r'\b' + RegExp.escape(key) + r'\b'),
+        replacement,
+      );
+    }
+
+    if (decoded.trim().isNotEmpty) {
+      unpacked.add(decoded);
+    }
+  }
+  return unpacked;
+}
+
 Uri? _toAbsolute(String raw, Uri baseUrl) {
   final parsed = Uri.tryParse(raw);
   if (parsed == null) {
@@ -214,9 +291,18 @@ bool _isPlayable(Uri uri) {
   }
 
   final path = uri.path.toLowerCase();
-  return path.contains('.m3u8') ||
+  if (path.contains('.m3u8') ||
       path.contains('.mp4') ||
-      path.contains('/video/');
+      path.contains('/video/')) {
+    return true;
+  }
+
+  final host = uri.host.toLowerCase();
+  if (host.endsWith('.mxcontent.net') && uri.pathSegments.length >= 2) {
+    return true;
+  }
+
+  return false;
 }
 
 bool _hasHints(String payload) {
