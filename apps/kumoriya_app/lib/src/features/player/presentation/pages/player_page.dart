@@ -11,6 +11,7 @@ import '../../../../shared/widgets/state_views.dart';
 import '../../../anime_catalog/presentation/providers/storage_providers.dart';
 import '../../application/models/player_session_state.dart';
 import '../../application/services/player_session_orchestrator.dart';
+import '../../application/use_cases/save_playback_preference_use_case.dart';
 import '../../application/use_cases/save_progress_use_case.dart';
 import '../../infrastructure/media_kit_playback_engine.dart';
 
@@ -21,6 +22,8 @@ class PlayerPage extends ConsumerStatefulWidget {
     required this.animeTitle,
     required this.episodeNumber,
     required this.sourcePluginId,
+    required this.serverName,
+    this.preferredAudioPreference,
     required this.resolved,
   });
 
@@ -28,6 +31,8 @@ class PlayerPage extends ConsumerStatefulWidget {
   final String animeTitle;
   final String episodeNumber;
   final String sourcePluginId;
+  final String serverName;
+  final PlaybackAudioPreference? preferredAudioPreference;
   final ResolvedServerLinkResult resolved;
 
   @override
@@ -38,6 +43,7 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
   late final MediaKitPlaybackEngine _engine;
   late final PlayerSessionOrchestrator _orchestrator;
   late final SaveProgressUseCase _saveProgress;
+  late final SavePlaybackPreferenceUseCase _savePlaybackPreference;
 
   StreamSubscription<PlayerSessionState>? _sessionSub;
   StreamSubscription<bool>? _playingSub;
@@ -59,6 +65,9 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
     _engine = MediaKitPlaybackEngine();
     _orchestrator = PlayerSessionOrchestrator(playbackEngine: _engine);
     _saveProgress = SaveProgressUseCase(
+      store: ref.read(animeProgressStoreProvider),
+    );
+    _savePlaybackPreference = SavePlaybackPreferenceUseCase(
       store: ref.read(animeProgressStoreProvider),
     );
 
@@ -134,7 +143,7 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
             ? _currentDuration
             : null,
         lastSourcePluginId: widget.sourcePluginId,
-        lastServerName: selected != null ? widget.resolved.resolverName : null,
+        lastServerName: selected != null ? widget.serverName : null,
         lastResolverPluginId: selected != null
             ? widget.resolved.resolverId
             : null,
@@ -150,7 +159,17 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
     result.fold(
       onFailure: (error) =>
           setState(() => _startError = mapErrorMessage(context, error)),
-      onSuccess: (_) {},
+      onSuccess: (_) {
+        unawaited(
+          _savePlaybackPreference(
+            anilistId: widget.anilistId,
+            sourcePluginId: widget.sourcePluginId,
+            serverName: widget.serverName,
+            resolverPluginId: widget.resolved.resolverId,
+            preferredAudioPreference: widget.preferredAudioPreference,
+          ),
+        );
+      },
     );
   }
 
@@ -175,7 +194,6 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
       );
     }
 
-    final selected = _state.selectedStream;
     final isLoading =
         _state.status == PlayerSessionStatus.opening ||
         _state.status == PlayerSessionStatus.buffering;
@@ -223,10 +241,7 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Text(
-                        context.l10n.playerPlaybackError(
-                          _state.errorMessage ??
-                              context.l10n.errorUnexpectedSource,
-                        ),
+                        context.l10n.playerPlaybackErrorGeneric,
                         style: const TextStyle(color: Colors.white),
                       ),
                     ),
@@ -239,7 +254,12 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
-                Text(context.l10n.resolverUsed(widget.resolved.resolverName)),
+                Text(
+                  context.l10n.playerSourceSummary(
+                    widget.serverName,
+                    widget.resolved.resolverName,
+                  ),
+                ),
                 const SizedBox(height: 6),
                 Text(
                   context.l10n.playerCandidatePosition(
@@ -252,10 +272,12 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
                   const SizedBox(height: 6),
                   Text(_mapInfoMessage(context, _state.infoMessage!)),
                 ],
-                if (selected != null) ...<Widget>[
+                if (widget.preferredAudioPreference != null) ...<Widget>[
                   const SizedBox(height: 6),
                   Text(
-                    context.l10n.playerCurrentStream(selected.url.toString()),
+                    context.l10n.playerAudioPreference(
+                      widget.preferredAudioPreference!.name.toUpperCase(),
+                    ),
                   ),
                 ],
                 const SizedBox(height: 12),

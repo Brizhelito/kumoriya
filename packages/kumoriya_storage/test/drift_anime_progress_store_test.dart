@@ -1,0 +1,228 @@
+import 'package:drift/native.dart';
+import 'package:test/test.dart';
+import 'package:kumoriya_core/kumoriya_core.dart';
+import 'package:kumoriya_storage/kumoriya_storage.dart';
+
+void main() {
+  late AppDatabase db;
+  late DriftAnimeProgressStore store;
+
+  setUp(() {
+    db = AppDatabase(NativeDatabase.memory());
+    store = DriftAnimeProgressStore(db);
+  });
+
+  tearDown(() async {
+    await db.close();
+  });
+
+  group('DriftAnimeProgressStore.upsert', () {
+    test('saves and retrieves progress', () async {
+      final progress = EpisodeProgress(
+        anilistId: 101,
+        episodeNumber: 5.0,
+        position: const Duration(minutes: 10),
+        totalDuration: const Duration(minutes: 24),
+        watchState: WatchState.watching,
+        updatedAt: DateTime(2025, 1, 1),
+      );
+
+      final upsertResult = await store.upsert(progress);
+      expect(upsertResult, isA<Success>());
+
+      final getResult = await store.getProgress(101, 5.0);
+      expect(getResult, isA<Success>());
+      final saved =
+          (getResult as Success<EpisodeProgress?, KumoriyaError>).value;
+      expect(saved, isNotNull);
+      expect(saved!.anilistId, 101);
+      expect(saved.episodeNumber, 5.0);
+      expect(saved.position, const Duration(minutes: 10));
+      expect(saved.totalDuration, const Duration(minutes: 24));
+      expect(saved.watchState, WatchState.watching);
+    });
+
+    test('upsert overwrites existing progress for same key', () async {
+      final first = EpisodeProgress(
+        anilistId: 101,
+        episodeNumber: 5.0,
+        position: const Duration(minutes: 5),
+        watchState: WatchState.watching,
+        updatedAt: DateTime(2025, 1, 1),
+      );
+      final second = EpisodeProgress(
+        anilistId: 101,
+        episodeNumber: 5.0,
+        position: const Duration(minutes: 20),
+        watchState: WatchState.completed,
+        updatedAt: DateTime(2025, 1, 2),
+      );
+
+      await store.upsert(first);
+      await store.upsert(second);
+
+      final result = await store.getProgress(101, 5.0);
+      final saved = (result as Success<EpisodeProgress?, KumoriyaError>).value!;
+      expect(saved.position, const Duration(minutes: 20));
+      expect(saved.watchState, WatchState.completed);
+    });
+
+    test('upsert writes watch history entry', () async {
+      final progress = EpisodeProgress(
+        anilistId: 202,
+        episodeNumber: 3.0,
+        position: const Duration(minutes: 8),
+        watchState: WatchState.watching,
+        updatedAt: DateTime(2025, 6, 1),
+        lastSourcePluginId: 'jkanime',
+      );
+
+      await store.upsert(progress);
+
+      final historyResult = await store.getRecentHistory(limit: 5);
+      final history =
+          (historyResult as Success<List<AnimeWatchHistory>, KumoriyaError>)
+              .value;
+      expect(history.length, 1);
+      expect(history.first.anilistId, 202);
+      expect(history.first.lastEpisodeNumber, 3.0);
+      expect(history.first.lastSourcePluginId, 'jkanime');
+    });
+  });
+
+  group('DriftAnimeProgressStore.getLatestProgress', () {
+    test('returns most recently updated episode', () async {
+      final ep1 = EpisodeProgress(
+        anilistId: 303,
+        episodeNumber: 1.0,
+        position: const Duration(minutes: 20),
+        watchState: WatchState.completed,
+        updatedAt: DateTime(2025, 1, 1),
+      );
+      final ep5 = EpisodeProgress(
+        anilistId: 303,
+        episodeNumber: 5.0,
+        position: const Duration(minutes: 10),
+        watchState: WatchState.watching,
+        updatedAt: DateTime(2025, 2, 1),
+      );
+
+      await store.upsert(ep1);
+      await store.upsert(ep5);
+
+      final result = await store.getLatestProgress(303);
+      final latest =
+          (result as Success<EpisodeProgress?, KumoriyaError>).value!;
+      expect(latest.episodeNumber, 5.0);
+    });
+
+    test('returns null when no progress for anilistId', () async {
+      final result = await store.getLatestProgress(9999);
+      final value = (result as Success<EpisodeProgress?, KumoriyaError>).value;
+      expect(value, isNull);
+    });
+  });
+
+  group('DriftAnimeProgressStore.getAllProgress', () {
+    test('returns all episodes ordered by episode number', () async {
+      for (final ep in [3.0, 1.0, 2.0]) {
+        await store.upsert(
+          EpisodeProgress(
+            anilistId: 404,
+            episodeNumber: ep,
+            position: Duration(minutes: ep.toInt()),
+            watchState: WatchState.watching,
+            updatedAt: DateTime(2025, 1, ep.toInt()),
+          ),
+        );
+      }
+
+      final result = await store.getAllProgress(404);
+      final list =
+          (result as Success<List<EpisodeProgress>, KumoriyaError>).value;
+      expect(list.length, 3);
+      expect(list.map((e) => e.episodeNumber).toList(), [1.0, 2.0, 3.0]);
+    });
+  });
+
+  group('DriftAnimeProgressStore.getRecentHistory', () {
+    test('returns entries ordered by most recent access', () async {
+      for (int i = 1; i <= 5; i++) {
+        await store.upsert(
+          EpisodeProgress(
+            anilistId: i * 100,
+            episodeNumber: 1.0,
+            position: const Duration(minutes: 5),
+            watchState: WatchState.watching,
+            updatedAt: DateTime(2025, 1, i),
+          ),
+        );
+      }
+
+      final result = await store.getRecentHistory(limit: 3);
+      final list =
+          (result as Success<List<AnimeWatchHistory>, KumoriyaError>).value;
+      expect(list.length, 3);
+      expect(list.first.anilistId, 500);
+    });
+
+    test('history is updated when same anime has new episode access', () async {
+      await store.upsert(
+        EpisodeProgress(
+          anilistId: 777,
+          episodeNumber: 1.0,
+          position: const Duration(minutes: 10),
+          watchState: WatchState.watching,
+          updatedAt: DateTime(2025, 1, 1),
+        ),
+      );
+      await store.upsert(
+        EpisodeProgress(
+          anilistId: 777,
+          episodeNumber: 2.0,
+          position: const Duration(minutes: 10),
+          watchState: WatchState.watching,
+          updatedAt: DateTime(2025, 1, 2),
+        ),
+      );
+
+      final result = await store.getRecentHistory(limit: 5);
+      final list =
+          (result as Success<List<AnimeWatchHistory>, KumoriyaError>).value;
+      expect(list.length, 1);
+      expect(list.first.lastEpisodeNumber, 2.0);
+    });
+  });
+
+  group('DriftAnimeProgressStore.playbackPreference', () {
+    test('saves and retrieves playback preference', () async {
+      final result = await store.upsertPlaybackPreference(
+        PlaybackPreference(
+          anilistId: 901,
+          preferredSourcePluginId: 'kumoriya.source.animeav1',
+          preferredServerName: 'Streamwish',
+          preferredResolverPluginId: 'kumoriya.resolver.streamwish',
+          preferredAudioPreference: PlaybackAudioPreference.dub,
+          updatedAt: DateTime(2025, 7, 1),
+        ),
+      );
+
+      expect(result, isA<Success>());
+
+      final stored = await store.getPlaybackPreference(901);
+      final value =
+          (stored as Success<PlaybackPreference?, KumoriyaError>).value!;
+      expect(value.preferredSourcePluginId, 'kumoriya.source.animeav1');
+      expect(value.preferredServerName, 'Streamwish');
+      expect(value.preferredResolverPluginId, 'kumoriya.resolver.streamwish');
+      expect(value.preferredAudioPreference, PlaybackAudioPreference.dub);
+    });
+
+    test('returns null when no playback preference exists', () async {
+      final stored = await store.getPlaybackPreference(999);
+      final value =
+          (stored as Success<PlaybackPreference?, KumoriyaError>).value;
+      expect(value, isNull);
+    });
+  });
+}

@@ -15,12 +15,15 @@ import 'package:kumoriya_source_animeav1/kumoriya_source_animeav1.dart';
 import '../../application/use_cases/anime_catalog_use_cases.dart';
 import '../../application/matching/anilist_source_matcher.dart';
 import '../../application/models/resolved_server_link_result.dart';
+import '../../application/models/episode_playback.dart';
 import '../../application/models/source_availability.dart';
 import '../../application/services/resolver_registry.dart';
 import '../../application/services/source_selection_policy.dart';
 import '../../application/use_cases/get_source_availability_summary_use_case.dart';
 import '../../application/use_cases/get_source_episode_server_links_use_case.dart';
 import '../../application/use_cases/resolve_source_server_link_use_case.dart';
+import '../../application/use_cases/start_episode_playback_use_case.dart';
+import 'storage_providers.dart';
 
 final anilistGraphqlClientProvider = Provider<AnilistGraphqlClient>((ref) {
   return HttpAnilistGraphqlClient();
@@ -115,6 +118,7 @@ final getSourceAvailabilitySummaryUseCaseProvider =
         sourcePlugins: ref.watch(sourcePluginsProvider),
         matcher: ref.watch(anilistSourceMatcherProvider),
         selectionPolicy: ref.watch(sourceSelectionPolicyProvider),
+        registry: ref.watch(resolverRegistryProvider),
       );
     });
 
@@ -122,6 +126,17 @@ final resolveSourceServerLinkUseCaseProvider =
     Provider<ResolveSourceServerLinkUseCase>((ref) {
       return ResolveSourceServerLinkUseCase(
         registry: ref.watch(resolverRegistryProvider),
+      );
+    });
+
+final startEpisodePlaybackUseCaseProvider =
+    Provider<StartEpisodePlaybackUseCase>((ref) {
+      return StartEpisodePlaybackUseCase(
+        sourcePlugins: ref.watch(sourcePluginMapProvider),
+        registry: ref.watch(resolverRegistryProvider),
+        resolver: ref.watch(resolveSourceServerLinkUseCaseProvider),
+        progressStore: ref.watch(animeProgressStoreProvider),
+        sourceSelectionPolicy: ref.watch(sourceSelectionPolicyProvider),
       );
     });
 
@@ -235,4 +250,18 @@ final resolveSourceServerLinkProvider = FutureProvider.autoDispose
       return ref
           .watch(resolveSourceServerLinkUseCaseProvider)
           .call(sourceServerLink);
+    });
+
+final episodePlaybackDecisionProvider = FutureProvider.autoDispose
+    .family<
+      EpisodePlaybackDecision,
+      ({int anilistId, double episodeNumber, SourceAvailabilitySummary summary})
+    >((ref, args) async {
+      return ref
+          .watch(startEpisodePlaybackUseCaseProvider)
+          .call(
+            anilistId: args.anilistId,
+            episodeNumber: args.episodeNumber,
+            availabilitySummary: args.summary,
+          );
     });

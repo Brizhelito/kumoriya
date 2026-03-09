@@ -12,21 +12,25 @@ final class SourceSelectionPolicy {
   final List<String> priority;
 
   SourceAvailability? selectRecommended(List<SourceAvailability> sources) {
-    for (final pluginId in priority) {
-      for (final source in sources) {
-        if (source.manifest.id == pluginId &&
-            source.status == SourceAvailabilityStatus.available) {
-          return source;
-        }
-      }
-    }
+    final ranked = rankAvailable(sources);
+    return ranked.isEmpty ? null : ranked.first;
+  }
 
-    for (final source in sources) {
-      if (source.status == SourceAvailabilityStatus.available) {
-        return source;
-      }
-    }
+  List<SourceAvailability> rankAvailable(List<SourceAvailability> sources) {
+    final available = sources
+        .where((source) => source.status == SourceAvailabilityStatus.available)
+        .toList(growable: false);
+    final ranked = [...available];
+    ranked.sort(
+      (left, right) => priorityIndex(
+        left.manifest.id,
+      ).compareTo(priorityIndex(right.manifest.id)),
+    );
+    return ranked;
+  }
 
-    return null;
+  int priorityIndex(String pluginId) {
+    final index = priority.indexOf(pluginId);
+    return index == -1 ? priority.length + 100 : index;
   }
 }

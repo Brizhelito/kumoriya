@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kumoriya_plugins/kumoriya_plugins.dart';
+import 'package:kumoriya_storage/kumoriya_storage.dart';
 
 import '../../../../app/l10n.dart';
 import '../../../player/presentation/pages/player_page.dart';
@@ -78,6 +79,17 @@ class ResolveServerLinkPage extends ConsumerWidget {
                                 animeTitle: animeTitle,
                                 episodeNumber: episodeNumber,
                                 sourcePluginId: sourcePluginId,
+                                serverName: serverLink.serverName,
+                                preferredAudioPreference: switch (serverLink
+                                    .language
+                                    ?.trim()
+                                    .toLowerCase()) {
+                                  'sub' => PlaybackAudioPreference.sub,
+                                  'dub' ||
+                                  'lat' ||
+                                  'cast' => PlaybackAudioPreference.dub,
+                                  _ => null,
+                                },
                                 resolved: resolved,
                               ),
                             ),

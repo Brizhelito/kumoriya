@@ -2,6 +2,8 @@ import 'package:kumoriya_core/kumoriya_core.dart';
 
 enum WatchState { unwatched, watching, completed }
 
+enum PlaybackAudioPreference { sub, dub }
+
 final class EpisodeProgress {
   const EpisodeProgress({
     required this.anilistId,
@@ -40,6 +42,24 @@ final class AnimeWatchHistory {
   final String? lastSourcePluginId;
 }
 
+final class PlaybackPreference {
+  const PlaybackPreference({
+    required this.anilistId,
+    required this.updatedAt,
+    this.preferredSourcePluginId,
+    this.preferredServerName,
+    this.preferredResolverPluginId,
+    this.preferredAudioPreference,
+  });
+
+  final int anilistId;
+  final DateTime updatedAt;
+  final String? preferredSourcePluginId;
+  final String? preferredServerName;
+  final String? preferredResolverPluginId;
+  final PlaybackAudioPreference? preferredAudioPreference;
+}
+
 abstract interface class AnimeProgressStore {
   Future<Result<void, KumoriyaError>> upsert(EpisodeProgress progress);
 
@@ -59,4 +79,12 @@ abstract interface class AnimeProgressStore {
   Future<Result<List<AnimeWatchHistory>, KumoriyaError>> getRecentHistory({
     int limit = 20,
   });
+
+  Future<Result<void, KumoriyaError>> upsertPlaybackPreference(
+    PlaybackPreference preference,
+  );
+
+  Future<Result<PlaybackPreference?, KumoriyaError>> getPlaybackPreference(
+    int anilistId,
+  );
 }
