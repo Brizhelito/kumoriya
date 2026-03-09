@@ -1444,6 +1444,348 @@ class PlaybackPreferenceTableCompanion
   }
 }
 
+class $SourceAvailabilityCacheTableTable extends SourceAvailabilityCacheTable
+    with
+        TableInfo<
+          $SourceAvailabilityCacheTableTable,
+          SourceAvailabilityCacheTableData
+        > {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $SourceAvailabilityCacheTableTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _anilistIdMeta = const VerificationMeta(
+    'anilistId',
+  );
+  @override
+  late final GeneratedColumn<int> anilistId = GeneratedColumn<int>(
+    'anilist_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _sourcePluginIdMeta = const VerificationMeta(
+    'sourcePluginId',
+  );
+  @override
+  late final GeneratedColumn<String> sourcePluginId = GeneratedColumn<String>(
+    'source_plugin_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _payloadJsonMeta = const VerificationMeta(
+    'payloadJson',
+  );
+  @override
+  late final GeneratedColumn<String> payloadJson = GeneratedColumn<String>(
+    'payload_json',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<int> updatedAt = GeneratedColumn<int>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    anilistId,
+    sourcePluginId,
+    payloadJson,
+    updatedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'source_availability_cache_table';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<SourceAvailabilityCacheTableData> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('anilist_id')) {
+      context.handle(
+        _anilistIdMeta,
+        anilistId.isAcceptableOrUnknown(data['anilist_id']!, _anilistIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_anilistIdMeta);
+    }
+    if (data.containsKey('source_plugin_id')) {
+      context.handle(
+        _sourcePluginIdMeta,
+        sourcePluginId.isAcceptableOrUnknown(
+          data['source_plugin_id']!,
+          _sourcePluginIdMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_sourcePluginIdMeta);
+    }
+    if (data.containsKey('payload_json')) {
+      context.handle(
+        _payloadJsonMeta,
+        payloadJson.isAcceptableOrUnknown(
+          data['payload_json']!,
+          _payloadJsonMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_payloadJsonMeta);
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_updatedAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {anilistId, sourcePluginId};
+  @override
+  SourceAvailabilityCacheTableData map(
+    Map<String, dynamic> data, {
+    String? tablePrefix,
+  }) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return SourceAvailabilityCacheTableData(
+      anilistId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}anilist_id'],
+      )!,
+      sourcePluginId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}source_plugin_id'],
+      )!,
+      payloadJson: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}payload_json'],
+      )!,
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}updated_at'],
+      )!,
+    );
+  }
+
+  @override
+  $SourceAvailabilityCacheTableTable createAlias(String alias) {
+    return $SourceAvailabilityCacheTableTable(attachedDatabase, alias);
+  }
+}
+
+class SourceAvailabilityCacheTableData extends DataClass
+    implements Insertable<SourceAvailabilityCacheTableData> {
+  final int anilistId;
+  final String sourcePluginId;
+  final String payloadJson;
+  final int updatedAt;
+  const SourceAvailabilityCacheTableData({
+    required this.anilistId,
+    required this.sourcePluginId,
+    required this.payloadJson,
+    required this.updatedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['anilist_id'] = Variable<int>(anilistId);
+    map['source_plugin_id'] = Variable<String>(sourcePluginId);
+    map['payload_json'] = Variable<String>(payloadJson);
+    map['updated_at'] = Variable<int>(updatedAt);
+    return map;
+  }
+
+  SourceAvailabilityCacheTableCompanion toCompanion(bool nullToAbsent) {
+    return SourceAvailabilityCacheTableCompanion(
+      anilistId: Value(anilistId),
+      sourcePluginId: Value(sourcePluginId),
+      payloadJson: Value(payloadJson),
+      updatedAt: Value(updatedAt),
+    );
+  }
+
+  factory SourceAvailabilityCacheTableData.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return SourceAvailabilityCacheTableData(
+      anilistId: serializer.fromJson<int>(json['anilistId']),
+      sourcePluginId: serializer.fromJson<String>(json['sourcePluginId']),
+      payloadJson: serializer.fromJson<String>(json['payloadJson']),
+      updatedAt: serializer.fromJson<int>(json['updatedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'anilistId': serializer.toJson<int>(anilistId),
+      'sourcePluginId': serializer.toJson<String>(sourcePluginId),
+      'payloadJson': serializer.toJson<String>(payloadJson),
+      'updatedAt': serializer.toJson<int>(updatedAt),
+    };
+  }
+
+  SourceAvailabilityCacheTableData copyWith({
+    int? anilistId,
+    String? sourcePluginId,
+    String? payloadJson,
+    int? updatedAt,
+  }) => SourceAvailabilityCacheTableData(
+    anilistId: anilistId ?? this.anilistId,
+    sourcePluginId: sourcePluginId ?? this.sourcePluginId,
+    payloadJson: payloadJson ?? this.payloadJson,
+    updatedAt: updatedAt ?? this.updatedAt,
+  );
+  SourceAvailabilityCacheTableData copyWithCompanion(
+    SourceAvailabilityCacheTableCompanion data,
+  ) {
+    return SourceAvailabilityCacheTableData(
+      anilistId: data.anilistId.present ? data.anilistId.value : this.anilistId,
+      sourcePluginId: data.sourcePluginId.present
+          ? data.sourcePluginId.value
+          : this.sourcePluginId,
+      payloadJson: data.payloadJson.present
+          ? data.payloadJson.value
+          : this.payloadJson,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('SourceAvailabilityCacheTableData(')
+          ..write('anilistId: $anilistId, ')
+          ..write('sourcePluginId: $sourcePluginId, ')
+          ..write('payloadJson: $payloadJson, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode =>
+      Object.hash(anilistId, sourcePluginId, payloadJson, updatedAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is SourceAvailabilityCacheTableData &&
+          other.anilistId == this.anilistId &&
+          other.sourcePluginId == this.sourcePluginId &&
+          other.payloadJson == this.payloadJson &&
+          other.updatedAt == this.updatedAt);
+}
+
+class SourceAvailabilityCacheTableCompanion
+    extends UpdateCompanion<SourceAvailabilityCacheTableData> {
+  final Value<int> anilistId;
+  final Value<String> sourcePluginId;
+  final Value<String> payloadJson;
+  final Value<int> updatedAt;
+  final Value<int> rowid;
+  const SourceAvailabilityCacheTableCompanion({
+    this.anilistId = const Value.absent(),
+    this.sourcePluginId = const Value.absent(),
+    this.payloadJson = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  SourceAvailabilityCacheTableCompanion.insert({
+    required int anilistId,
+    required String sourcePluginId,
+    required String payloadJson,
+    required int updatedAt,
+    this.rowid = const Value.absent(),
+  }) : anilistId = Value(anilistId),
+       sourcePluginId = Value(sourcePluginId),
+       payloadJson = Value(payloadJson),
+       updatedAt = Value(updatedAt);
+  static Insertable<SourceAvailabilityCacheTableData> custom({
+    Expression<int>? anilistId,
+    Expression<String>? sourcePluginId,
+    Expression<String>? payloadJson,
+    Expression<int>? updatedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (anilistId != null) 'anilist_id': anilistId,
+      if (sourcePluginId != null) 'source_plugin_id': sourcePluginId,
+      if (payloadJson != null) 'payload_json': payloadJson,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  SourceAvailabilityCacheTableCompanion copyWith({
+    Value<int>? anilistId,
+    Value<String>? sourcePluginId,
+    Value<String>? payloadJson,
+    Value<int>? updatedAt,
+    Value<int>? rowid,
+  }) {
+    return SourceAvailabilityCacheTableCompanion(
+      anilistId: anilistId ?? this.anilistId,
+      sourcePluginId: sourcePluginId ?? this.sourcePluginId,
+      payloadJson: payloadJson ?? this.payloadJson,
+      updatedAt: updatedAt ?? this.updatedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (anilistId.present) {
+      map['anilist_id'] = Variable<int>(anilistId.value);
+    }
+    if (sourcePluginId.present) {
+      map['source_plugin_id'] = Variable<String>(sourcePluginId.value);
+    }
+    if (payloadJson.present) {
+      map['payload_json'] = Variable<String>(payloadJson.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<int>(updatedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('SourceAvailabilityCacheTableCompanion(')
+          ..write('anilistId: $anilistId, ')
+          ..write('sourcePluginId: $sourcePluginId, ')
+          ..write('payloadJson: $payloadJson, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -1453,6 +1795,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
       $WatchHistoryTableTable(this);
   late final $PlaybackPreferenceTableTable playbackPreferenceTable =
       $PlaybackPreferenceTableTable(this);
+  late final $SourceAvailabilityCacheTableTable sourceAvailabilityCacheTable =
+      $SourceAvailabilityCacheTableTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -1461,6 +1805,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     episodeProgressTable,
     watchHistoryTable,
     playbackPreferenceTable,
+    sourceAvailabilityCacheTable,
   ];
 }
 
@@ -2204,6 +2549,210 @@ typedef $$PlaybackPreferenceTableTableProcessedTableManager =
       PlaybackPreferenceTableData,
       PrefetchHooks Function()
     >;
+typedef $$SourceAvailabilityCacheTableTableCreateCompanionBuilder =
+    SourceAvailabilityCacheTableCompanion Function({
+      required int anilistId,
+      required String sourcePluginId,
+      required String payloadJson,
+      required int updatedAt,
+      Value<int> rowid,
+    });
+typedef $$SourceAvailabilityCacheTableTableUpdateCompanionBuilder =
+    SourceAvailabilityCacheTableCompanion Function({
+      Value<int> anilistId,
+      Value<String> sourcePluginId,
+      Value<String> payloadJson,
+      Value<int> updatedAt,
+      Value<int> rowid,
+    });
+
+class $$SourceAvailabilityCacheTableTableFilterComposer
+    extends Composer<_$AppDatabase, $SourceAvailabilityCacheTableTable> {
+  $$SourceAvailabilityCacheTableTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get anilistId => $composableBuilder(
+    column: $table.anilistId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get sourcePluginId => $composableBuilder(
+    column: $table.sourcePluginId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get payloadJson => $composableBuilder(
+    column: $table.payloadJson,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$SourceAvailabilityCacheTableTableOrderingComposer
+    extends Composer<_$AppDatabase, $SourceAvailabilityCacheTableTable> {
+  $$SourceAvailabilityCacheTableTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get anilistId => $composableBuilder(
+    column: $table.anilistId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get sourcePluginId => $composableBuilder(
+    column: $table.sourcePluginId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get payloadJson => $composableBuilder(
+    column: $table.payloadJson,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$SourceAvailabilityCacheTableTableAnnotationComposer
+    extends Composer<_$AppDatabase, $SourceAvailabilityCacheTableTable> {
+  $$SourceAvailabilityCacheTableTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get anilistId =>
+      $composableBuilder(column: $table.anilistId, builder: (column) => column);
+
+  GeneratedColumn<String> get sourcePluginId => $composableBuilder(
+    column: $table.sourcePluginId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get payloadJson => $composableBuilder(
+    column: $table.payloadJson,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+}
+
+class $$SourceAvailabilityCacheTableTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $SourceAvailabilityCacheTableTable,
+          SourceAvailabilityCacheTableData,
+          $$SourceAvailabilityCacheTableTableFilterComposer,
+          $$SourceAvailabilityCacheTableTableOrderingComposer,
+          $$SourceAvailabilityCacheTableTableAnnotationComposer,
+          $$SourceAvailabilityCacheTableTableCreateCompanionBuilder,
+          $$SourceAvailabilityCacheTableTableUpdateCompanionBuilder,
+          (
+            SourceAvailabilityCacheTableData,
+            BaseReferences<
+              _$AppDatabase,
+              $SourceAvailabilityCacheTableTable,
+              SourceAvailabilityCacheTableData
+            >,
+          ),
+          SourceAvailabilityCacheTableData,
+          PrefetchHooks Function()
+        > {
+  $$SourceAvailabilityCacheTableTableTableManager(
+    _$AppDatabase db,
+    $SourceAvailabilityCacheTableTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$SourceAvailabilityCacheTableTableFilterComposer(
+                $db: db,
+                $table: table,
+              ),
+          createOrderingComposer: () =>
+              $$SourceAvailabilityCacheTableTableOrderingComposer(
+                $db: db,
+                $table: table,
+              ),
+          createComputedFieldComposer: () =>
+              $$SourceAvailabilityCacheTableTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<int> anilistId = const Value.absent(),
+                Value<String> sourcePluginId = const Value.absent(),
+                Value<String> payloadJson = const Value.absent(),
+                Value<int> updatedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => SourceAvailabilityCacheTableCompanion(
+                anilistId: anilistId,
+                sourcePluginId: sourcePluginId,
+                payloadJson: payloadJson,
+                updatedAt: updatedAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required int anilistId,
+                required String sourcePluginId,
+                required String payloadJson,
+                required int updatedAt,
+                Value<int> rowid = const Value.absent(),
+              }) => SourceAvailabilityCacheTableCompanion.insert(
+                anilistId: anilistId,
+                sourcePluginId: sourcePluginId,
+                payloadJson: payloadJson,
+                updatedAt: updatedAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$SourceAvailabilityCacheTableTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $SourceAvailabilityCacheTableTable,
+      SourceAvailabilityCacheTableData,
+      $$SourceAvailabilityCacheTableTableFilterComposer,
+      $$SourceAvailabilityCacheTableTableOrderingComposer,
+      $$SourceAvailabilityCacheTableTableAnnotationComposer,
+      $$SourceAvailabilityCacheTableTableCreateCompanionBuilder,
+      $$SourceAvailabilityCacheTableTableUpdateCompanionBuilder,
+      (
+        SourceAvailabilityCacheTableData,
+        BaseReferences<
+          _$AppDatabase,
+          $SourceAvailabilityCacheTableTable,
+          SourceAvailabilityCacheTableData
+        >,
+      ),
+      SourceAvailabilityCacheTableData,
+      PrefetchHooks Function()
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -2216,5 +2765,11 @@ class $AppDatabaseManager {
       $$PlaybackPreferenceTableTableTableManager(
         _db,
         _db.playbackPreferenceTable,
+      );
+  $$SourceAvailabilityCacheTableTableTableManager
+  get sourceAvailabilityCacheTable =>
+      $$SourceAvailabilityCacheTableTableTableManager(
+        _db,
+        _db.sourceAvailabilityCacheTable,
       );
 }

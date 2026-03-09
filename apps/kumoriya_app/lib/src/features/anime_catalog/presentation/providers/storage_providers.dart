@@ -13,6 +13,13 @@ final animeProgressStoreProvider = Provider<AnimeProgressStore>((ref) {
   return DriftAnimeProgressStore(db);
 });
 
+final sourceAvailabilityStoreProvider = Provider<SourceAvailabilityStore>((
+  ref,
+) {
+  final db = ref.watch(appDatabaseProvider);
+  return DriftSourceAvailabilityStore(db);
+});
+
 final continueWatchingProvider =
     FutureProvider.autoDispose<Result<List<AnimeWatchHistory>, KumoriyaError>>((
       ref,

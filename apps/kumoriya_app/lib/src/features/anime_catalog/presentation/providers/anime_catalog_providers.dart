@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kumoriya_anilist/kumoriya_anilist.dart';
 import 'package:kumoriya_core/kumoriya_core.dart';
@@ -9,7 +11,10 @@ import 'package:kumoriya_resolver_pixeldrain/kumoriya_resolver_pixeldrain.dart';
 import 'package:kumoriya_resolver_streamtape/kumoriya_resolver_streamtape.dart';
 import 'package:kumoriya_resolver_streamwish/kumoriya_resolver_streamwish.dart';
 import 'package:kumoriya_resolver_doodstream/kumoriya_resolver_doodstream.dart';
+import 'package:kumoriya_resolver_hqq/kumoriya_resolver_hqq.dart';
+import 'package:kumoriya_resolver_okru/kumoriya_resolver_okru.dart';
 import 'package:kumoriya_resolver_yourupload/kumoriya_resolver_yourupload.dart';
+import 'package:kumoriya_resolver_upnshare/kumoriya_resolver_upnshare.dart';
 import 'package:kumoriya_resolver_zilla/kumoriya_resolver_zilla.dart';
 import 'package:kumoriya_source_jkanime/kumoriya_source_jkanime.dart';
 import 'package:kumoriya_source_animeflv/kumoriya_source_animeflv.dart';
@@ -21,12 +26,15 @@ import '../../application/models/resolved_server_link_result.dart';
 import '../../application/models/episode_playback.dart';
 import '../../application/models/source_availability.dart';
 import '../../application/services/resolver_registry.dart';
+import '../../application/services/source_availability_cache_codec.dart';
 import '../../application/services/playback_preference_policy.dart';
 import '../../application/services/source_selection_policy.dart';
 import '../../application/use_cases/get_source_availability_summary_use_case.dart';
 import '../../application/use_cases/get_source_episode_server_links_use_case.dart';
+import '../../application/use_cases/load_source_availability_summary_use_case.dart';
 import '../../application/use_cases/resolve_source_server_link_use_case.dart';
 import '../../application/use_cases/start_episode_playback_use_case.dart';
+import '../../../player/application/use_cases/clear_playback_preference_use_case.dart';
 import 'storage_providers.dart';
 
 final anilistGraphqlClientProvider = Provider<AnilistGraphqlClient>((ref) {
@@ -85,6 +93,9 @@ final resolverPluginsProvider = Provider<List<ResolverPlugin>>((ref) {
     StreamtapeResolverPlugin(),
     DoodstreamResolverPlugin(),
     YouruploadResolverPlugin(),
+    OkruResolverPlugin(),
+    HqqResolverPlugin(),
+    UpnshareResolverPlugin(),
     ZillaResolverPlugin(),
   ];
 });
@@ -135,10 +146,35 @@ final getSourceAvailabilitySummaryUseCaseProvider =
       );
     });
 
+final sourceAvailabilityCacheCodecProvider =
+    Provider<SourceAvailabilityCacheCodec>((ref) {
+      return SourceAvailabilityCacheCodec(
+        sourcePlugins: ref.watch(sourcePluginsProvider),
+        selectionPolicy: ref.watch(sourceSelectionPolicyProvider),
+      );
+    });
+
+final loadSourceAvailabilitySummaryUseCaseProvider =
+    Provider<LoadSourceAvailabilitySummaryUseCase>((ref) {
+      return LoadSourceAvailabilitySummaryUseCase(
+        store: ref.watch(sourceAvailabilityStoreProvider),
+        computeUseCase: ref.watch(getSourceAvailabilitySummaryUseCaseProvider),
+        sourcePlugins: ref.watch(sourcePluginsProvider),
+        cacheCodec: ref.watch(sourceAvailabilityCacheCodecProvider),
+      );
+    });
+
 final resolveSourceServerLinkUseCaseProvider =
     Provider<ResolveSourceServerLinkUseCase>((ref) {
       return ResolveSourceServerLinkUseCase(
         registry: ref.watch(resolverRegistryProvider),
+      );
+    });
+
+final clearPlaybackPreferenceUseCaseProvider =
+    Provider<ClearPlaybackPreferenceUseCase>((ref) {
+      return ClearPlaybackPreferenceUseCase(
+        store: ref.watch(animeProgressStoreProvider),
       );
     });
 
@@ -195,10 +231,28 @@ final sourceAvailabilitySummaryProvider = FutureProvider.autoDispose
 
       final detail =
           (detailResult as Success<AnimeDetail, KumoriyaError>).value;
-      final summary = await ref
-          .watch(getSourceAvailabilitySummaryUseCaseProvider)
+      final loaded = await ref
+          .watch(loadSourceAvailabilitySummaryUseCaseProvider)
           .call(detail);
-      return Success(summary);
+
+      return loaded.fold(
+        onFailure: Failure.new,
+        onSuccess: (value) {
+          if (value.shouldRefreshInBackground) {
+            unawaited(
+              Future<void>(() async {
+                final refreshResult = await ref
+                    .read(loadSourceAvailabilitySummaryUseCaseProvider)
+                    .refresh(detail);
+                if (refreshResult.isSuccess) {
+                  ref.invalidateSelf();
+                }
+              }),
+            );
+          }
+          return Success(value.summary);
+        },
+      );
     });
 
 final sourceEpisodeServerLinksProvider = FutureProvider.autoDispose
