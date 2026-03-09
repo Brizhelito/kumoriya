@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:http/http.dart' as http;
 import 'package:kumoriya_core/kumoriya_core.dart';
 import 'package:kumoriya_plugins/kumoriya_plugins.dart';
@@ -18,6 +20,7 @@ final class FilemoonResolverPlugin implements ResolverPlugin {
     'filemoon.link',
     'kerapoxy.cc',
     'bysekoze.com',
+    'f75s.com',
   };
 
   @override
@@ -34,6 +37,7 @@ final class FilemoonResolverPlugin implements ResolverPlugin {
       'filemoon.link',
       'kerapoxy.cc',
       'bysekoze.com',
+      'f75s.com',
     ],
     baseUrls: <String>['https://filemoon.sx/e/'],
   );
@@ -96,6 +100,25 @@ final class FilemoonResolverPlugin implements ResolverPlugin {
 
       final streams = _extractStreams(response.body, resolverUrl: url);
       if (streams.isEmpty) {
+        if (_isDynamicHost(url.host)) {
+          final dynamicResult = await _resolveDynamicByseFlow(
+            url,
+            httpClient: _httpClient,
+          );
+          if (dynamicResult != null) {
+            return dynamicResult;
+          }
+        }
+
+        if (_isUnavailablePayload(response.body)) {
+          return Failure(
+            FilemoonTransportError(
+              message:
+                  'Filemoon host responded but reported source unavailable for this video.',
+            ),
+          );
+        }
+
         if (_hasStreamHints(response.body)) {
           return const Failure(
             FilemoonInconsistentPayloadError(
@@ -123,9 +146,160 @@ final class FilemoonResolverPlugin implements ResolverPlugin {
   }
 }
 
-Map<String, String> _requestHeaders(Uri url) {
+Future<Result<List<ResolvedStream>, KumoriyaError>?> _resolveDynamicByseFlow(
+  Uri sourceUrl, {
+  http.Client? httpClient,
+}) async {
+  final client = httpClient;
+  if (client == null) {
+    return null;
+  }
+
+  final code = _extractVideoCode(sourceUrl);
+  if (code == null) {
+    return null;
+  }
+
+  final detailsUri = sourceUrl.replace(
+    path: '/api/videos/$code/embed/details',
+    query: null,
+    fragment: null,
+  );
+
+  try {
+    final detailsResponse = await client
+        .get(detailsUri, headers: _requestHeaders(sourceUrl))
+        .timeout(const Duration(seconds: 15));
+
+    if (detailsResponse.statusCode != 200) {
+      return null;
+    }
+
+    final decoded = _decodeDetails(detailsResponse.body);
+    if (decoded == null) {
+      return null;
+    }
+
+    final errorMessage = decoded['error'];
+    if (errorMessage is String && errorMessage.trim().isNotEmpty) {
+      return Failure(
+        FilemoonTransportError(
+          message: 'Filemoon details endpoint rejected request: $errorMessage',
+        ),
+      );
+    }
+
+    final embedFrameRaw = decoded['embed_frame_url'];
+    if (embedFrameRaw is! String || embedFrameRaw.trim().isEmpty) {
+      return null;
+    }
+
+    final embedFrameUrl = Uri.tryParse(embedFrameRaw.trim());
+    if (embedFrameUrl == null) {
+      return null;
+    }
+
+    return await _resolveFromEmbedFrame(
+      client: client,
+      sourceUrl: sourceUrl,
+      embedFrameUrl: embedFrameUrl,
+    );
+  } catch (_) {
+    return null;
+  }
+}
+
+Future<Result<List<ResolvedStream>, KumoriyaError>?> _resolveFromEmbedFrame({
+  required http.Client client,
+  required Uri sourceUrl,
+  required Uri embedFrameUrl,
+}) async {
+  Future<Result<List<ResolvedStream>, KumoriyaError>?> fetchAndExtract(
+    Uri targetUrl, {
+    required Uri refererUrl,
+  }) async {
+    final response = await client
+        .get(
+          targetUrl,
+          headers: _requestHeaders(targetUrl, referer: refererUrl),
+        )
+        .timeout(const Duration(seconds: 15));
+
+    if (response.statusCode != 200) {
+      return null;
+    }
+
+    final streams = _extractStreams(response.body, resolverUrl: targetUrl);
+    if (streams.isNotEmpty) {
+      return Success(streams);
+    }
+
+    if (_isUnavailablePayload(response.body)) {
+      return Failure(
+        FilemoonTransportError(
+          message:
+              'Filemoon embed host responded with an unavailable/source-blocked payload.',
+        ),
+      );
+    }
+
+    return null;
+  }
+
+  final directResult = await fetchAndExtract(
+    embedFrameUrl,
+    refererUrl: sourceUrl,
+  );
+  if (directResult != null) {
+    return directResult;
+  }
+
+  final code = _extractVideoCode(embedFrameUrl);
+  if (code == null) {
+    return null;
+  }
+
+  final canonicalEmbedUrl = embedFrameUrl.replace(
+    path: '/e/$code',
+    query: null,
+    fragment: null,
+  );
+
+  if (canonicalEmbedUrl.toString() == embedFrameUrl.toString()) {
+    return null;
+  }
+
+  return fetchAndExtract(canonicalEmbedUrl, refererUrl: embedFrameUrl);
+}
+
+Map<String, dynamic>? _decodeDetails(String payload) {
+  try {
+    final decoded = jsonDecode(payload);
+    if (decoded is Map<String, dynamic>) {
+      return decoded;
+    }
+  } catch (_) {
+    return null;
+  }
+  return null;
+}
+
+String? _extractVideoCode(Uri url) {
+  final segments = url.pathSegments
+      .where((segment) => segment.trim().isNotEmpty)
+      .toList(growable: false);
+  if (segments.length < 2) {
+    return null;
+  }
+  return segments.last.trim();
+}
+
+Map<String, String> _requestHeaders(Uri url, {Uri? referer}) {
   final origin = '${url.scheme}://${url.host}';
-  return <String, String>{'Referer': '$origin/', 'Origin': origin};
+  return <String, String>{
+    'Referer': referer?.toString() ?? '$origin/',
+    'Origin': origin,
+  };
 }
 
 List<ResolvedStream> _extractStreams(
@@ -251,6 +425,22 @@ bool _isPlayableUri(Uri uri) {
 bool _hasStreamHints(String payload) {
   return RegExp(
     r'''(sources|file\s*:|hls|master\.m3u8|\.mp4)''',
+    caseSensitive: false,
+    multiLine: true,
+  ).hasMatch(payload);
+}
+
+bool _isDynamicHost(String host) {
+  final normalized = host.toLowerCase();
+  return normalized == 'bysekoze.com' ||
+      normalized.endsWith('.bysekoze.com') ||
+      normalized == 'f75s.com' ||
+      normalized.endsWith('.f75s.com');
+}
+
+bool _isUnavailablePayload(String payload) {
+  return RegExp(
+    r'''(video source is unavailable|embedding from this domain is not allowed|we can\'t find the video)''',
     caseSensitive: false,
     multiLine: true,
   ).hasMatch(payload);

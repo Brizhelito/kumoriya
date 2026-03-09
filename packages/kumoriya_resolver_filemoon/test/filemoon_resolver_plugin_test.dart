@@ -23,6 +23,10 @@ void main() {
     expect(plugin.supports(Uri.parse('https://filemoon.sx/e/xyz123')), isTrue);
     expect(plugin.supports(Uri.parse('https://filemoon.to/e/xyz123')), isTrue);
     expect(plugin.supports(Uri.parse('https://bysekoze.com/e/xyz123')), isTrue);
+    expect(
+      plugin.supports(Uri.parse('https://bysekoze-mirror.fake/e/xyz123')),
+      isFalse,
+    );
     expect(plugin.supports(Uri.parse('https://voe.sx/e/xyz123')), isFalse);
   });
 
@@ -53,6 +57,44 @@ void main() {
           streams.where((stream) => stream.mimeType == 'video/mp4'),
           isNotEmpty,
         );
+      },
+    );
+  });
+
+  test('uses dynamic details flow for bysekoze aliases', () async {
+    const detailsPayload = '''
+{"embed_frame_url":"https://bysekoze.com/embed/xyz123"}
+''';
+    const embedPayload = '''
+<html><body><script>var cfg={file:"https://cdn.filemoon.sx/hls/xyz123/master.m3u8"};</script></body></html>
+''';
+
+    final plugin = FilemoonResolverPlugin(
+      httpClient: MockClient((request) async {
+        if (request.url.path == '/e/xyz123') {
+          return http.Response(inconsistentFixture, 200);
+        }
+        if (request.url.path == '/api/videos/xyz123/embed/details') {
+          return http.Response(detailsPayload, 200);
+        }
+        if (request.url.path == '/embed/xyz123') {
+          return http.Response(embedPayload, 200);
+        }
+        return http.Response('not found', 404);
+      }),
+    );
+
+    final result = await plugin.resolve(
+      Uri.parse('https://bysekoze.com/e/xyz123'),
+    );
+
+    expect(result.isSuccess, isTrue);
+    result.fold(
+      onFailure: (_) => fail('expected success'),
+      onSuccess: (streams) {
+        expect(streams, hasLength(1));
+        expect(streams.single.url.host, 'cdn.filemoon.sx');
+        expect(streams.single.isHls, isTrue);
       },
     );
   });
