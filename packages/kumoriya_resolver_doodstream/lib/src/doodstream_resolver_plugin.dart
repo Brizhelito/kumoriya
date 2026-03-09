@@ -35,6 +35,7 @@ final class DoodstreamResolverPlugin implements ResolverPlugin {
     'do0od.com',
     'd000d.com',
     'doods.pro',
+    'd-s.io',
   };
 
   @override
@@ -61,6 +62,7 @@ final class DoodstreamResolverPlugin implements ResolverPlugin {
       'do0od.com',
       'd000d.com',
       'doods.pro',
+      'd-s.io',
     ],
     baseUrls: <String>['https://doodstream.com/e/'],
   );
