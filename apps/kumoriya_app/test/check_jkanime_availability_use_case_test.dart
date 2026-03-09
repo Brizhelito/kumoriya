@@ -136,6 +136,103 @@ void main() {
     expect(availability.matchedAnime?.sourceId, 'mushoku-tensei-main');
   });
 
+  test(
+    'adds stripped parenthetical and franchise queries for pokemon 2023',
+    () async {
+      final plugin = _FakeSourcePluginPokemonAliasSearch();
+      final useCase = CheckSourceAvailabilityUseCase(
+        sourcePlugin: plugin,
+        matcher: matcher,
+      );
+
+      final availability = await useCase.call(
+        _detail(
+          'Pocket Monsters (2023)',
+          titleOverride: const AnimeTitle(
+            romaji: 'Pocket Monsters (2023)',
+            english: 'Pokémon Horizons: The Series',
+            synonyms: <String>['Pokémon (2023)'],
+          ),
+        ),
+      );
+
+      expect(plugin.queries, contains('Pokémon Horizons: The Series'));
+      expect(plugin.queries, contains('Pokémon'));
+      expect(availability.status, SourceAvailabilityStatus.available);
+      expect(availability.matchedAnime?.sourceId, 'pokemon-shinsaku-anime');
+    },
+  );
+
+  test('adds root title query for short colon titles like hell mode', () async {
+    final plugin = _FakeSourcePluginHellModeRootOnly();
+    final useCase = CheckSourceAvailabilityUseCase(
+      sourcePlugin: plugin,
+      matcher: matcher,
+    );
+
+    final availability = await useCase.call(
+      _detail(
+        'Hell Mode: Yarikomi Suki no Gamer wa Haisettei no Isekai de Musou Suru',
+        titleOverride: const AnimeTitle(
+          romaji:
+              'Hell Mode: Yarikomi Suki no Gamer wa Haisettei no Isekai de Musou Suru',
+        ),
+      ),
+    );
+
+    expect(plugin.queries, contains('Hell Mode'));
+    expect(availability.status, SourceAvailabilityStatus.available);
+  });
+
+  test(
+    'adds root plus suffix query for omitted middle subtitle segments',
+    () async {
+      final plugin = _FakeSourcePluginDarkMoonRootSuffixOnly();
+      final useCase = CheckSourceAvailabilityUseCase(
+        sourcePlugin: plugin,
+        matcher: matcher,
+      );
+
+      final availability = await useCase.call(
+        _detail(
+          'DARK MOON: Kuro no Tsuki - Tsuki no Saidan',
+          titleOverride: const AnimeTitle(
+            romaji: 'DARK MOON: Kuro no Tsuki - Tsuki no Saidan',
+          ),
+        ),
+      );
+
+      expect(plugin.queries, contains('DARK MOON'));
+      expect(plugin.queries, contains('DARK MOON: Tsuki no Saidan'));
+      expect(availability.status, SourceAvailabilityStatus.available);
+    },
+  );
+
+  test(
+    'builds ordinal season slug variants for season number titles',
+    () async {
+      final useCase = CheckSourceAvailabilityUseCase(
+        sourcePlugin: _FakeSourcePluginDouseOrdinalSlugOnly(),
+        matcher: matcher,
+      );
+
+      final availability = await useCase.call(
+        _detail(
+          'Douse, Koishite Shimaunda. Season 2',
+          titleOverride: const AnimeTitle(
+            romaji: 'Douse, Koishite Shimaunda. Season 2',
+          ),
+        ),
+      );
+
+      expect(availability.status, SourceAvailabilityStatus.available);
+      expect(
+        availability.matchedAnime?.sourceId,
+        'douse-koishite-shimaunda-2nd-season',
+      );
+    },
+  );
+
   test('romanized no-de source title is accepted as mapped anime', () async {
     final useCase = CheckSourceAvailabilityUseCase(
       sourcePlugin: _FakeSourcePluginNodeVariant(),
@@ -505,6 +602,167 @@ final class _FakeSourcePluginNodeVariant extends _BaseFakeSourcePlugin {
         format: AnimeFormat.tv,
       ),
     ]);
+  }
+
+  @override
+  Future<Result<List<SourceEpisode>, KumoriyaError>> getEpisodes(
+    String sourceId,
+  ) async {
+    return Success(<SourceEpisode>[
+      SourceEpisode(
+        sourceEpisodeId: 'ep1',
+        number: 1,
+        title: 'Episode 1',
+        episodeUrl: Uri.parse('https://example.com/1'),
+      ),
+    ]);
+  }
+}
+
+final class _FakeSourcePluginPokemonAliasSearch extends _BaseFakeSourcePlugin {
+  final List<String> queries = <String>[];
+
+  @override
+  Future<Result<List<SourceAnimeMatch>, KumoriyaError>> search(
+    SourceSearchQuery query,
+  ) async {
+    queries.add(query.query);
+    if (query.query == 'Pokémon Horizons: The Series') {
+      return const Success(<SourceAnimeMatch>[
+        SourceAnimeMatch(
+          sourceId: 'pokemon-shinsaku-anime',
+          title: 'Pokemon (Shinsaku Anime)',
+          format: AnimeFormat.tv,
+        ),
+      ]);
+    }
+
+    return const Success(<SourceAnimeMatch>[]);
+  }
+
+  @override
+  Future<Result<List<SourceEpisode>, KumoriyaError>> getEpisodes(
+    String sourceId,
+  ) async {
+    return Success(<SourceEpisode>[
+      SourceEpisode(
+        sourceEpisodeId: 'ep1',
+        number: 1,
+        title: 'Episode 1',
+        episodeUrl: Uri.parse('https://example.com/1'),
+      ),
+    ]);
+  }
+}
+
+final class _FakeSourcePluginHellModeRootOnly extends _BaseFakeSourcePlugin {
+  final List<String> queries = <String>[];
+
+  @override
+  Future<Result<List<SourceAnimeMatch>, KumoriyaError>> search(
+    SourceSearchQuery query,
+  ) async {
+    queries.add(query.query);
+    if (query.query == 'Hell Mode') {
+      return const Success(<SourceAnimeMatch>[
+        SourceAnimeMatch(
+          sourceId:
+              'hell-mode-yarikomizuki-no-gamer-wa-hai-settei-no-isekai-de-musou-suru',
+          title:
+              'Hell Mode: Yarikomizuki no Gamer wa Hai Settei no Isekai de Musou suru',
+          format: AnimeFormat.tv,
+          releaseYear: 2026,
+        ),
+      ]);
+    }
+
+    return const Success(<SourceAnimeMatch>[]);
+  }
+
+  @override
+  Future<Result<List<SourceEpisode>, KumoriyaError>> getEpisodes(
+    String sourceId,
+  ) async {
+    return Success(<SourceEpisode>[
+      SourceEpisode(
+        sourceEpisodeId: 'ep1',
+        number: 1,
+        title: 'Episode 1',
+        episodeUrl: Uri.parse('https://example.com/1'),
+      ),
+    ]);
+  }
+}
+
+final class _FakeSourcePluginDarkMoonRootSuffixOnly
+    extends _BaseFakeSourcePlugin {
+  final List<String> queries = <String>[];
+
+  @override
+  Future<Result<List<SourceAnimeMatch>, KumoriyaError>> search(
+    SourceSearchQuery query,
+  ) async {
+    queries.add(query.query);
+    if (query.query == 'DARK MOON: Tsuki no Saidan') {
+      return const Success(<SourceAnimeMatch>[
+        SourceAnimeMatch(
+          sourceId: 'dark-moon-tsuki-no-saidan',
+          title: 'Dark Moon: Tsuki no Saidan',
+          format: AnimeFormat.tv,
+          releaseYear: 2026,
+        ),
+      ]);
+    }
+
+    return const Success(<SourceAnimeMatch>[]);
+  }
+
+  @override
+  Future<Result<List<SourceEpisode>, KumoriyaError>> getEpisodes(
+    String sourceId,
+  ) async {
+    return Success(<SourceEpisode>[
+      SourceEpisode(
+        sourceEpisodeId: 'ep1',
+        number: 1,
+        title: 'Episode 1',
+        episodeUrl: Uri.parse('https://example.com/1'),
+      ),
+    ]);
+  }
+}
+
+final class _FakeSourcePluginDouseOrdinalSlugOnly
+    extends _BaseFakeSourcePlugin {
+  @override
+  Future<Result<List<SourceAnimeMatch>, KumoriyaError>> search(
+    SourceSearchQuery query,
+  ) async {
+    return const Success(<SourceAnimeMatch>[]);
+  }
+
+  @override
+  Future<Result<SourceAnimeDetail, KumoriyaError>> getAnimeDetail(
+    String sourceId,
+  ) async {
+    if (sourceId == 'douse-koishite-shimaunda-2nd-season') {
+      return const Success(
+        SourceAnimeDetail(
+          sourceId: 'douse-koishite-shimaunda-2nd-season',
+          title: 'Douse, Koishite Shimaunda. 2nd Season',
+          format: AnimeFormat.tv,
+          releaseYear: 2026,
+        ),
+      );
+    }
+
+    return const Failure(
+      SimpleError(
+        code: 'source.not-found',
+        message: 'not found',
+        kind: KumoriyaErrorKind.notFound,
+      ),
+    );
   }
 
   @override

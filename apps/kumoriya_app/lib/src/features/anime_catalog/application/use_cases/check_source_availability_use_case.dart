@@ -269,16 +269,8 @@ final class CheckSourceAvailabilityUseCase {
     }
 
     for (final title in rawTitles) {
-      addQuery(title);
-
-      final withoutSeason = _stripSeasonDescriptor(title);
-      if (withoutSeason != title) {
-        addQuery(withoutSeason);
-      }
-
-      final rootTitle = _extractRootTitle(withoutSeason);
-      if (rootTitle != withoutSeason) {
-        addQuery(rootTitle);
+      for (final variant in _expandQueryVariants(title)) {
+        addQuery(variant);
       }
     }
 
@@ -303,6 +295,11 @@ final class CheckSourceAvailabilityUseCase {
         return;
       }
       candidates.add(slug);
+      for (final variant in _expandSlugVariants(slug)) {
+        if (seen.add(variant)) {
+          candidates.add(variant);
+        }
+      }
     }
 
     for (final query in queries) {
@@ -313,6 +310,43 @@ final class CheckSourceAvailabilityUseCase {
     }
 
     return candidates;
+  }
+
+  List<String> _expandQueryVariants(String value) {
+    final ordered = <String>[];
+    final seen = <String>{};
+
+    void add(String candidate) {
+      final trimmed = candidate.trim();
+      if (trimmed.isEmpty) {
+        return;
+      }
+      final key = trimmed.toLowerCase();
+      if (seen.add(key)) {
+        ordered.add(trimmed);
+      }
+    }
+
+    add(value);
+    final withoutSeason = _stripSeasonDescriptor(value);
+    add(withoutSeason);
+    add(_swapSeasonNotation(value));
+    add(_swapSeasonNotation(withoutSeason));
+
+    final withoutTrailingParenthetical = _stripTrailingParenthetical(
+      withoutSeason,
+    );
+    add(withoutTrailingParenthetical);
+    add(_swapSeasonNotation(withoutTrailingParenthetical));
+
+    final rootTitle = _extractRootTitle(withoutTrailingParenthetical);
+    add(rootTitle);
+
+    final rootPlusSuffix = _extractRootPlusSuffixTitle(withoutSeason);
+    add(rootPlusSuffix);
+    add(_extractRootPlusSuffixTitle(withoutTrailingParenthetical));
+
+    return ordered;
   }
 
   String _stripSeasonDescriptor(String value) {
@@ -354,10 +388,84 @@ final class CheckSourceAvailabilityUseCase {
     }
 
     final root = trimmed.substring(0, splitIndex).trim();
-    if (root.length < 10 || root.split(' ').length < 2) {
+    if (root.split(' ').length < 2 || root.length < 6) {
       return trimmed;
     }
     return root;
+  }
+
+  String _extractRootPlusSuffixTitle(String value) {
+    final trimmed = value.trim();
+    final colonIndex = trimmed.indexOf(':');
+    final dashIndex = trimmed.lastIndexOf(' - ');
+    if (colonIndex <= 0 || dashIndex <= colonIndex) {
+      return trimmed;
+    }
+
+    final root = trimmed.substring(0, colonIndex).trim();
+    final suffix = trimmed.substring(dashIndex + 3).trim();
+    if (root.isEmpty || suffix.isEmpty) {
+      return trimmed;
+    }
+
+    return '$root: $suffix';
+  }
+
+  String _stripTrailingParenthetical(String value) {
+    return value.replaceFirst(RegExp(r'\s*\([^)]*\)\s*$'), '').trim();
+  }
+
+  String _swapSeasonNotation(String value) {
+    final seasonFirst = RegExp(
+      r'\bseason\s+(\d+)\b',
+      caseSensitive: false,
+    ).firstMatch(value);
+    if (seasonFirst != null) {
+      final number = int.tryParse(seasonFirst.group(1) ?? '');
+      if (number != null) {
+        return value.replaceFirst(
+          seasonFirst.group(0)!,
+          '${_ordinal(number)} Season',
+        );
+      }
+    }
+
+    final ordinalFirst = RegExp(
+      r'\b(\d+)(st|nd|rd|th)\s+season\b',
+      caseSensitive: false,
+    ).firstMatch(value);
+    if (ordinalFirst != null) {
+      final number = int.tryParse(ordinalFirst.group(1) ?? '');
+      if (number != null) {
+        return value.replaceFirst(ordinalFirst.group(0)!, 'Season $number');
+      }
+    }
+
+    return value;
+  }
+
+  Iterable<String> _expandSlugVariants(String slug) sync* {
+    if (slug.contains('-sama')) {
+      yield slug.replaceAll('-sama', 'sama');
+    }
+    if (slug.contains('-san')) {
+      yield slug.replaceAll('-san', 'san');
+    }
+    if (slug.contains('-chan')) {
+      yield slug.replaceAll('-chan', 'chan');
+    }
+    if (slug.contains('-kun')) {
+      yield slug.replaceAll('-kun', 'kun');
+    }
+    if (slug.contains('season-2')) {
+      yield slug.replaceAll('season-2', '2nd-season');
+    }
+    if (slug.contains('season-3')) {
+      yield slug.replaceAll('season-3', '3rd-season');
+    }
+    if (slug.contains('season-4')) {
+      yield slug.replaceAll('season-4', '4th-season');
+    }
   }
 
   String _slugify(String value) {
@@ -409,5 +517,23 @@ final class CheckSourceAvailabilityUseCase {
         .replaceAll('\u00FC', 'u')
         .replaceAll('\u00FB', 'u')
         .replaceAll('\u00F1', 'n');
+  }
+
+  String _ordinal(int value) {
+    final remainder100 = value % 100;
+    if (remainder100 >= 11 && remainder100 <= 13) {
+      return '${value}th';
+    }
+
+    switch (value % 10) {
+      case 1:
+        return '${value}st';
+      case 2:
+        return '${value}nd';
+      case 3:
+        return '${value}rd';
+      default:
+        return '${value}th';
+    }
   }
 }

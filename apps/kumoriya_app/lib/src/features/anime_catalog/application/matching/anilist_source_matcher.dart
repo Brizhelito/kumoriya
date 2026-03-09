@@ -21,6 +21,9 @@ final class AnilistSourceMatcher {
     }
 
     final canonicalTitles = _buildCanonicalTitles(anilistDetail.anime.title);
+    final canonicalAliasRoots = _buildCanonicalAliasRoots(
+      anilistDetail.anime.title,
+    );
     final canonicalHasSubtitleBearingTitle = canonicalTitles.any(
       (title) => title.subtitleBearing,
     );
@@ -31,6 +34,7 @@ final class AnilistSourceMatcher {
                 anilistDetail: anilistDetail,
                 candidate: candidate,
                 canonicalTitles: canonicalTitles,
+                canonicalAliasRoots: canonicalAliasRoots,
                 canonicalHasSubtitleBearingTitle:
                     canonicalHasSubtitleBearingTitle,
               ),
@@ -98,6 +102,7 @@ final class AnilistSourceMatcher {
     required AnimeDetail anilistDetail,
     required SourceAnimeMatch candidate,
     required Set<_NormalizedTitle> canonicalTitles,
+    required Set<String> canonicalAliasRoots,
     required bool canonicalHasSubtitleBearingTitle,
   }) {
     var score = 0;
@@ -110,6 +115,7 @@ final class AnilistSourceMatcher {
         score: -100,
         hasStrongTitleAlignment: false,
         sharedRootTitle: false,
+        rootTitleWordCount: 0,
         normalizedTitleLength: 0,
         canonicalHasSubtitleBearingTitle: false,
         decision: SourceMatchDecision(
@@ -122,13 +128,20 @@ final class AnilistSourceMatcher {
       );
     }
 
-    final exactTitle = canonicalTitles.contains(normalizedCandidateTitle);
+    final exactTitle = canonicalTitles.any(
+      (title) =>
+          title.normalized == normalizedCandidateTitle.normalized ||
+          title.compactNormalized == normalizedCandidateTitle.compactNormalized,
+    );
     final sharedRootTitle = canonicalTitles.any(
       (title) =>
           title.rootTitle.isNotEmpty &&
           title.rootTitle == normalizedCandidateTitle.rootTitle,
     );
     var groupedSeasonTitle = false;
+    var candidateSubtitleExpansion = false;
+    var sharedSubtitleRootTitle = false;
+    var genericSuffixAliasTitle = false;
     if (exactTitle) {
       score += 100;
       acceptanceSignals.add('exact-title');
@@ -144,14 +157,53 @@ final class AnilistSourceMatcher {
         score += 92;
         acceptanceSignals.add('grouped-season-title');
       } else {
-        final tokenOverlap = _maxTokenOverlap(
-          normalizedCandidateTitle,
-          canonicalTitles,
+        candidateSubtitleExpansion = canonicalTitles.any(
+          (title) =>
+              !title.subtitleBearing &&
+              title.normalized == normalizedCandidateTitle.rootTitle &&
+              normalizedCandidateTitle.subtitleBearing,
         );
-        if (tokenOverlap >= 0.75) {
-          rejectionSignals.add('weak-token-overlap');
+        if (candidateSubtitleExpansion) {
+          score += 91;
+          acceptanceSignals.add('candidate-subtitle-expansion');
         } else {
-          rejectionSignals.add('title-mismatch');
+          sharedSubtitleRootTitle = canonicalTitles.any((title) {
+            if (!title.subtitleBearing ||
+                !normalizedCandidateTitle.subtitleBearing ||
+                title.rootTitle.isEmpty ||
+                title.rootTitle != normalizedCandidateTitle.rootTitle) {
+              return false;
+            }
+
+            final metrics = _subtitleTailMetrics(
+              title,
+              normalizedCandidateTitle,
+            );
+            return metrics.overlap >= 0.45 && metrics.lengthRatio >= 0.75;
+          });
+          if (sharedSubtitleRootTitle) {
+            score += 89;
+            acceptanceSignals.add('shared-subtitle-root');
+          } else {
+            genericSuffixAliasTitle = _matchesCanonicalAliasWithGenericSuffix(
+              canonicalAliasRoots: canonicalAliasRoots,
+              candidate: normalizedCandidateTitle,
+            );
+            if (genericSuffixAliasTitle) {
+              score += 88;
+              acceptanceSignals.add('canonical-prefix-generic-suffix');
+            } else {
+              final tokenOverlap = _maxTokenOverlap(
+                normalizedCandidateTitle,
+                canonicalTitles,
+              );
+              if (tokenOverlap >= 0.75) {
+                rejectionSignals.add('weak-token-overlap');
+              } else {
+                rejectionSignals.add('title-mismatch');
+              }
+            }
+          }
         }
       }
     }
@@ -185,14 +237,25 @@ final class AnilistSourceMatcher {
 
     final confidence = _confidenceFor(
       score: score,
-      hasStrongTitleAlignment: exactTitle || groupedSeasonTitle,
+      hasStrongTitleAlignment:
+          exactTitle ||
+          groupedSeasonTitle ||
+          candidateSubtitleExpansion ||
+          sharedSubtitleRootTitle ||
+          genericSuffixAliasTitle,
     );
-    final hasStrongTitleAlignment = exactTitle || groupedSeasonTitle;
+    final hasStrongTitleAlignment =
+        exactTitle ||
+        groupedSeasonTitle ||
+        candidateSubtitleExpansion ||
+        sharedSubtitleRootTitle ||
+        genericSuffixAliasTitle;
 
     return _ScoredDecision(
       score: score,
       hasStrongTitleAlignment: hasStrongTitleAlignment,
       sharedRootTitle: sharedRootTitle,
+      rootTitleWordCount: normalizedCandidateTitle.rootTitleWordCount,
       normalizedTitleLength: normalizedCandidateTitle.normalized.length,
       canonicalHasSubtitleBearingTitle: canonicalHasSubtitleBearingTitle,
       decision: SourceMatchDecision(
@@ -226,6 +289,9 @@ final class AnilistSourceMatcher {
       return null;
     }
     if (rootCompatible.length < 2) {
+      return null;
+    }
+    if (rootCompatible.any((candidate) => candidate.rootTitleWordCount < 2)) {
       return null;
     }
 
@@ -281,11 +347,41 @@ final class AnilistSourceMatcher {
       if (title.native != null) title.native!,
       ...title.synonyms,
     };
+    final expanded = <String>{};
+    for (final value in values) {
+      expanded.add(value);
+      final withoutSeason = _swapSeasonNotation(value);
+      expanded.add(withoutSeason);
+    }
 
-    return values
+    return expanded
         .map(_normalizeTitle)
         .where((value) => value.normalized.isNotEmpty)
         .toSet();
+  }
+
+  Set<String> _buildCanonicalAliasRoots(AnimeTitle title) {
+    final rawValues = <String>{
+      title.romaji,
+      if (title.english != null) title.english!,
+      if (title.native != null) title.native!,
+      ...title.synonyms,
+    };
+    final roots = <String>{};
+
+    for (final raw in rawValues) {
+      final stripped = _stripTrailingParenthetical(raw);
+      final normalized = _normalizeLoose(stripped);
+      final tokens = normalized
+          .split(' ')
+          .where((token) => token.isNotEmpty)
+          .toList(growable: false);
+      if (tokens.length == 1 && tokens.first.length >= 7) {
+        roots.add(normalized);
+      }
+    }
+
+    return roots;
   }
 
   double _maxTokenOverlap(
@@ -325,6 +421,7 @@ final class AnilistSourceMatcher {
 
     return _NormalizedTitle(
       normalized: normalized,
+      compactNormalized: normalized.replaceAll(' ', ''),
       orderedTokens: orderedTokens,
       baseTitle: baseTitle,
       rootTitle: _extractRootTitle(input, baseTitle),
@@ -344,7 +441,9 @@ final class AnilistSourceMatcher {
     final splitOnDash = trimmed.split(' - ');
     final dashCandidate = splitOnDash.length > 1 ? splitOnDash.first : trimmed;
     final root = dashCandidate.split(':').first.trim();
-    if (root.split(' ').length >= 2 && root.length >= 10) {
+    final hasExplicitSubtitle =
+        trimmed.contains(':') || trimmed.contains(' - ');
+    if (hasExplicitSubtitle && root.length >= 4) {
       return _normalizeLoose(root);
     }
     if (baseTitle.split(' ').length >= 2 && baseTitle.length >= 10) {
@@ -353,12 +452,28 @@ final class AnilistSourceMatcher {
     return '';
   }
 
+  String _extractRootPlusSuffixTitle(String rawInput) {
+    final trimmed = rawInput.trim();
+    final colonIndex = trimmed.indexOf(':');
+    final dashIndex = trimmed.lastIndexOf(' - ');
+    if (colonIndex <= 0 || dashIndex <= colonIndex) {
+      return trimmed;
+    }
+
+    final root = trimmed.substring(0, colonIndex).trim();
+    final suffix = trimmed.substring(dashIndex + 3).trim();
+    if (root.isEmpty || suffix.isEmpty) {
+      return trimmed;
+    }
+
+    return '$root: $suffix';
+  }
+
   String _normalizeLoose(String input) {
     final lower = _stripDiacritics(input.toLowerCase());
-    final romanizationNormalized = lower.replaceAll(
-      RegExp(r'\bno de\b', caseSensitive: false),
-      'node',
-    );
+    final romanizationNormalized = lower
+        .replaceAll(RegExp(r'\bno de\b', caseSensitive: false), 'node')
+        .replaceAll(RegExp(r'\bomou na\b', caseSensitive: false), 'omouna');
     final normalizedSeparators = romanizationNormalized
         .replaceAll('-', ' ')
         .replaceAll('_', ' ')
@@ -483,9 +598,137 @@ final class AnilistSourceMatcher {
         .replaceAll('\u00F1', 'n');
   }
 
+  String _stripTrailingParenthetical(String value) {
+    return value.replaceFirst(RegExp(r'\s*\([^)]*\)\s*$'), '').trim();
+  }
+
+  String _swapSeasonNotation(String value) {
+    final seasonFirst = RegExp(
+      r'\bseason\s+(\d+)\b',
+      caseSensitive: false,
+    ).firstMatch(value);
+    if (seasonFirst != null) {
+      final number = int.tryParse(seasonFirst.group(1) ?? '');
+      if (number != null) {
+        return value.replaceFirst(
+          seasonFirst.group(0)!,
+          '${_ordinal(number)} Season',
+        );
+      }
+    }
+
+    final ordinalFirst = RegExp(
+      r'\b(\d+)(st|nd|rd|th)\s+season\b',
+      caseSensitive: false,
+    ).firstMatch(value);
+    if (ordinalFirst != null) {
+      final number = int.tryParse(ordinalFirst.group(1) ?? '');
+      if (number != null) {
+        return value.replaceFirst(ordinalFirst.group(0)!, 'Season $number');
+      }
+    }
+
+    return value;
+  }
+
+  _SubtitleTailMetrics _subtitleTailMetrics(
+    _NormalizedTitle canonical,
+    _NormalizedTitle candidate,
+  ) {
+    final canonicalRootTokens = canonical.rootTitle
+        .split(' ')
+        .where((token) => token.isNotEmpty)
+        .toSet();
+    final candidateRootTokens = candidate.rootTitle
+        .split(' ')
+        .where((token) => token.isNotEmpty)
+        .toSet();
+    final canonicalTail = canonical.tokens.difference(canonicalRootTokens);
+    final candidateTail = candidate.tokens.difference(candidateRootTokens);
+    if (canonicalTail.isEmpty || candidateTail.isEmpty) {
+      return const _SubtitleTailMetrics(overlap: 0, lengthRatio: 0);
+    }
+
+    final intersection = canonicalTail.intersection(candidateTail).length;
+    final union = canonicalTail.union(candidateTail).length;
+    final overlap = union == 0 ? 0.0 : intersection / union;
+    final shorter = canonicalTail.length < candidateTail.length
+        ? canonicalTail.length
+        : candidateTail.length;
+    final longer = canonicalTail.length > candidateTail.length
+        ? canonicalTail.length
+        : candidateTail.length;
+    final lengthRatio = longer == 0 ? 0.0 : shorter / longer;
+    return _SubtitleTailMetrics(overlap: overlap, lengthRatio: lengthRatio);
+  }
+
+  bool _matchesCanonicalAliasWithGenericSuffix({
+    required Set<String> canonicalAliasRoots,
+    required _NormalizedTitle candidate,
+  }) {
+    const genericSuffixTokens = <String>{'anime', 'shinsaku', 'tv', 'series'};
+
+    for (final alias in canonicalAliasRoots) {
+      final aliasTokens = alias
+          .split(' ')
+          .where((token) => token.isNotEmpty)
+          .toList(growable: false);
+      if (aliasTokens.isEmpty ||
+          candidate.orderedTokens.length <= aliasTokens.length) {
+        continue;
+      }
+
+      var prefixMatches = true;
+      for (var index = 0; index < aliasTokens.length; index++) {
+        if (candidate.orderedTokens[index] != aliasTokens[index]) {
+          prefixMatches = false;
+          break;
+        }
+      }
+
+      if (!prefixMatches) {
+        continue;
+      }
+
+      final suffixTokens = candidate.orderedTokens.sublist(aliasTokens.length);
+      if (suffixTokens.every(genericSuffixTokens.contains)) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  String _ordinal(int value) {
+    final remainder100 = value % 100;
+    if (remainder100 >= 11 && remainder100 <= 13) {
+      return '${value}th';
+    }
+
+    switch (value % 10) {
+      case 1:
+        return '${value}st';
+      case 2:
+        return '${value}nd';
+      case 3:
+        return '${value}rd';
+      default:
+        return '${value}th';
+    }
+  }
+
   int _titleSignalRank(SourceMatchDecision decision) {
     final acceptanceSignals = decision.acceptanceSignals;
     if (acceptanceSignals.contains('exact-title')) {
+      return 5;
+    }
+    if (acceptanceSignals.contains('candidate-subtitle-expansion')) {
+      return 4;
+    }
+    if (acceptanceSignals.contains('shared-subtitle-root')) {
+      return 3;
+    }
+    if (acceptanceSignals.contains('canonical-prefix-generic-suffix')) {
       return 2;
     }
     if (acceptanceSignals.contains('grouped-season-title')) {
@@ -500,6 +743,7 @@ final class _ScoredDecision {
     required this.score,
     required this.hasStrongTitleAlignment,
     required this.sharedRootTitle,
+    required this.rootTitleWordCount,
     required this.normalizedTitleLength,
     required this.canonicalHasSubtitleBearingTitle,
     required this.decision,
@@ -508,14 +752,26 @@ final class _ScoredDecision {
   final int score;
   final bool hasStrongTitleAlignment;
   final bool sharedRootTitle;
+  final int rootTitleWordCount;
   final int normalizedTitleLength;
   final bool canonicalHasSubtitleBearingTitle;
   final SourceMatchDecision decision;
 }
 
+final class _SubtitleTailMetrics {
+  const _SubtitleTailMetrics({
+    required this.overlap,
+    required this.lengthRatio,
+  });
+
+  final double overlap;
+  final double lengthRatio;
+}
+
 final class _NormalizedTitle {
   const _NormalizedTitle({
     required this.normalized,
+    required this.compactNormalized,
     required this.orderedTokens,
     required this.baseTitle,
     required this.rootTitle,
@@ -524,6 +780,7 @@ final class _NormalizedTitle {
   });
 
   final String normalized;
+  final String compactNormalized;
   final List<String> orderedTokens;
   final String baseTitle;
   final String rootTitle;
@@ -531,6 +788,9 @@ final class _NormalizedTitle {
   final bool hasSeasonMarker;
 
   Set<String> get tokens => orderedTokens.toSet();
+
+  int get rootTitleWordCount =>
+      rootTitle.split(' ').where((token) => token.isNotEmpty).length;
 
   @override
   bool operator ==(Object other) {

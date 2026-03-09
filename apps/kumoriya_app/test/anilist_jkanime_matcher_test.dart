@@ -263,6 +263,167 @@ void main() {
     expect(decision.confidence, MatchConfidence.high);
     expect(decision.acceptanceSignals, contains('exact-title'));
   });
+
+  test('collapsed honorific title still matches conservatively', () {
+    final decision = matcher.decideMatch(
+      anilistDetail: _anilistDetail(
+        title: const AnimeTitle(
+          romaji: 'Hime-sama, "Goumon" no Jikan desu 2nd Season',
+        ),
+        releaseYear: 2026,
+      ),
+      candidates: const <SourceAnimeMatch>[
+        SourceAnimeMatch(
+          sourceId: 'himesama-goumon-no-jikan-desu-2nd-season',
+          title: 'Himesama "Goumon" no Jikan desu 2nd Season',
+          format: AnimeFormat.tv,
+          releaseYear: 2026,
+        ),
+      ],
+    );
+
+    expect(decision.verdict, isTrue);
+    expect(decision.acceptanceSignals, contains('exact-title'));
+  });
+
+  test('candidate subtitle expansion can match a single-title work', () {
+    final decision = matcher.decideMatch(
+      anilistDetail: _anilistDetail(
+        title: const AnimeTitle(romaji: 'Hikuidori'),
+        releaseYear: 2026,
+      ),
+      candidates: const <SourceAnimeMatch>[
+        SourceAnimeMatch(
+          sourceId: 'hikuidori-ushuu-boro-tobigumi',
+          title: 'Hikuidori: Ushuu Boro Tobi-gumi',
+          format: AnimeFormat.tv,
+          releaseYear: 2026,
+        ),
+      ],
+    );
+
+    expect(decision.verdict, isTrue);
+    expect(
+      decision.acceptanceSignals,
+      contains('candidate-subtitle-expansion'),
+    );
+  });
+
+  test(
+    'shared subtitle root can match source subtitle elision conservatively',
+    () {
+      final decision = matcher.decideMatch(
+        anilistDetail: _anilistDetail(
+          title: const AnimeTitle(
+            romaji: 'DARK MOON: Kuro no Tsuki - Tsuki no Saidan',
+          ),
+          releaseYear: 2026,
+        ),
+        candidates: const <SourceAnimeMatch>[
+          SourceAnimeMatch(
+            sourceId: 'dark-moon-tsuki-no-saidan',
+            title: 'Dark Moon: Tsuki no Saidan',
+            format: AnimeFormat.tv,
+            releaseYear: 2026,
+          ),
+        ],
+      );
+
+      expect(decision.verdict, isTrue);
+      expect(decision.acceptanceSignals, contains('shared-subtitle-root'));
+    },
+  );
+
+  test(
+    'generic suffix alias can match pokemon shinsaku anime conservatively',
+    () {
+      final decision = matcher.decideMatch(
+        anilistDetail: _anilistDetail(
+          title: const AnimeTitle(
+            romaji: 'Pocket Monsters (2023)',
+            english: 'Pokémon Horizons: The Series',
+            synonyms: <String>['Pokémon (2023)'],
+          ),
+          releaseYear: 2023,
+        ),
+        candidates: const <SourceAnimeMatch>[
+          SourceAnimeMatch(
+            sourceId: 'pokemon-shinsaku-anime',
+            title: 'Pokemon (Shinsaku Anime)',
+            format: AnimeFormat.tv,
+          ),
+          SourceAnimeMatch(
+            sourceId: 'pokemon',
+            title: 'Pokemon',
+            format: AnimeFormat.tv,
+          ),
+        ],
+      );
+
+      expect(decision.verdict, isTrue);
+      expect(decision.candidate?.sourceId, 'pokemon-shinsaku-anime');
+      expect(
+        decision.acceptanceSignals,
+        contains('canonical-prefix-generic-suffix'),
+      );
+    },
+  );
+
+  test('shared subtitle root covers romaji spacing variants like hell mode', () {
+    final decision = matcher.decideMatch(
+      anilistDetail: _anilistDetail(
+        title: const AnimeTitle(
+          romaji:
+              'Hell Mode: Yarikomi Suki no Gamer wa Haisettei no Isekai de Musou Suru',
+        ),
+        releaseYear: 2026,
+      ),
+      candidates: const <SourceAnimeMatch>[
+        SourceAnimeMatch(
+          sourceId:
+              'hell-mode-yarikomizuki-no-gamer-wa-hai-settei-no-isekai-de-musou-suru',
+          title:
+              'Hell Mode: Yarikomizuki no Gamer wa Hai Settei no Isekai de Musou suru',
+          format: AnimeFormat.tv,
+          releaseYear: 2026,
+        ),
+      ],
+    );
+
+    expect(decision.verdict, isTrue);
+    expect(decision.acceptanceSignals, contains('shared-subtitle-root'));
+  });
+
+  test('franchise root fallback does not fire for generic one-word roots', () {
+    final decision = matcher.decideMatch(
+      anilistDetail: _anilistDetail(
+        title: const AnimeTitle(
+          romaji: 'Pocket Monsters (2023)',
+          english: 'Pokémon Horizons: The Series',
+          synonyms: <String>['Pokémon (2023)'],
+        ),
+        releaseYear: 2023,
+      ),
+      candidates: const <SourceAnimeMatch>[
+        SourceAnimeMatch(
+          sourceId: 'pokemon',
+          title: 'Pokemon',
+          format: AnimeFormat.tv,
+        ),
+        SourceAnimeMatch(
+          sourceId: 'pokemon-best-wishes',
+          title: 'Pokemon: Best Wishes!',
+          format: AnimeFormat.tv,
+        ),
+      ],
+    );
+
+    expect(decision.verdict, isFalse);
+    expect(
+      decision.acceptanceSignals,
+      isNot(contains('franchise-root-grouping')),
+    );
+  });
 }
 
 AnimeDetail _anilistDetail({
