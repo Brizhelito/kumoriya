@@ -20,6 +20,26 @@ final sourceAvailabilityStoreProvider = Provider<SourceAvailabilityStore>((
   return DriftSourceAvailabilityStore(db);
 });
 
+final downloadStoreProvider = Provider<DownloadStore>((ref) {
+  final db = ref.watch(appDatabaseProvider);
+  return DriftDownloadStore(db);
+});
+
+final libraryStoreProvider = Provider<LibraryStore>((ref) {
+  final db = ref.watch(appDatabaseProvider);
+  return DriftLibraryStore(db);
+});
+
+final anilistCacheStoreProvider = Provider<AnilistCacheStore>((ref) {
+  final db = ref.watch(appDatabaseProvider);
+  return DriftAnilistCacheStore(db);
+});
+
+final favoriteAnimeIdsProvider =
+    FutureProvider.autoDispose<Result<Set<int>, KumoriyaError>>((ref) async {
+      return ref.watch(libraryStoreProvider).getFavoriteAnimeIds();
+    });
+
 final continueWatchingProvider =
     FutureProvider.autoDispose<Result<List<AnimeWatchHistory>, KumoriyaError>>((
       ref,

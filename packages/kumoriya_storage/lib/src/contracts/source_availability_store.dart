@@ -24,4 +24,6 @@ abstract interface class SourceAvailabilityStore {
   );
 
   Future<Result<void, KumoriyaError>> clearAvailability(int anilistId);
+
+  Future<Result<int, KumoriyaError>> deleteOlderThan(Duration maxAge);
 }

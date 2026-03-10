@@ -2,14 +2,10 @@ import 'package:drift/drift.dart';
 
 import '../app_database.dart';
 import '../tables/episode_progress_table.dart';
-import '../tables/playback_preference_table.dart';
-import '../tables/watch_history_table.dart';
 
 part 'progress_dao.g.dart';
 
-@DriftAccessor(
-  tables: [EpisodeProgressTable, WatchHistoryTable, PlaybackPreferenceTable],
-)
+@DriftAccessor(tables: [EpisodeProgressTable])
 class ProgressDao extends DatabaseAccessor<AppDatabase>
     with _$ProgressDaoMixin {
   ProgressDao(super.db);
@@ -43,29 +39,5 @@ class ProgressDao extends DatabaseAccessor<AppDatabase>
           ..where((t) => t.anilistId.equals(anilistId))
           ..orderBy([(t) => OrderingTerm.asc(t.episodeNumber)]))
         .get();
-  }
-
-  Future<void> upsertHistory(WatchHistoryTableCompanion entry) {
-    return into(watchHistoryTable).insertOnConflictUpdate(entry);
-  }
-
-  Future<List<WatchHistoryTableData>> getRecentHistory(int limit) {
-    return (select(watchHistoryTable)
-          ..orderBy([(t) => OrderingTerm.desc(t.lastAccessedAt)])
-          ..limit(limit))
-        .get();
-  }
-
-  Future<void> upsertPlaybackPreference(
-    PlaybackPreferenceTableCompanion entry,
-  ) {
-    return into(playbackPreferenceTable).insertOnConflictUpdate(entry);
-  }
-
-  Future<PlaybackPreferenceTableData?> getPlaybackPreference(int anilistId) {
-    return (select(playbackPreferenceTable)
-          ..where((t) => t.anilistId.equals(anilistId))
-          ..limit(1))
-        .getSingleOrNull();
   }
 }

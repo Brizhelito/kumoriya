@@ -67,7 +67,7 @@ void main() {
       expect(saved.watchState, WatchState.completed);
     });
 
-    test('upsert writes watch history entry', () async {
+    test('upsert does not write watch history entry', () async {
       final progress = EpisodeProgress(
         anilistId: 202,
         episodeNumber: 3.0,
@@ -83,10 +83,38 @@ void main() {
       final history =
           (historyResult as Success<List<AnimeWatchHistory>, KumoriyaError>)
               .value;
-      expect(history.length, 1);
-      expect(history.first.anilistId, 202);
-      expect(history.first.lastEpisodeNumber, 3.0);
-      expect(history.first.lastSourcePluginId, 'jkanime');
+      expect(history, isEmpty);
+    });
+
+    test('upsert clears server metadata when next save omits it', () async {
+      await store.upsert(
+        EpisodeProgress(
+          anilistId: 203,
+          episodeNumber: 4.0,
+          position: const Duration(minutes: 12),
+          watchState: WatchState.watching,
+          updatedAt: DateTime(2025, 6, 1),
+          lastSourcePluginId: 'jkanime',
+          lastServerName: 'Streamwish',
+          lastResolverPluginId: 'kumoriya.resolver.streamwish',
+        ),
+      );
+
+      await store.upsert(
+        EpisodeProgress(
+          anilistId: 203,
+          episodeNumber: 4.0,
+          position: const Duration(minutes: 13),
+          watchState: WatchState.watching,
+          updatedAt: DateTime(2025, 6, 2),
+        ),
+      );
+
+      final result = await store.getProgress(203, 4.0);
+      final saved = (result as Success<EpisodeProgress?, KumoriyaError>).value!;
+      expect(saved.lastSourcePluginId, isNull);
+      expect(saved.lastServerName, isNull);
+      expect(saved.lastResolverPluginId, isNull);
     });
   });
 
@@ -145,18 +173,69 @@ void main() {
     });
   });
 
+  group('DriftAnimeProgressStore.upsertWatchHistory', () {
+    test('saves and retrieves watch history with position', () async {
+      final result = await store.upsertWatchHistory(
+        anilistId: 202,
+        episodeNumber: 3.0,
+        positionSeconds: 480,
+        totalDurationSeconds: 1440,
+        lastSourcePluginId: 'jkanime',
+      );
+      expect(result, isA<Success>());
+
+      final historyResult = await store.getRecentHistory(limit: 5);
+      final history =
+          (historyResult as Success<List<AnimeWatchHistory>, KumoriyaError>)
+              .value;
+      expect(history.length, 1);
+      expect(history.first.anilistId, 202);
+      expect(history.first.lastEpisodeNumber, 3.0);
+      expect(history.first.lastSourcePluginId, 'jkanime');
+      expect(history.first.lastPositionSeconds, 480);
+      expect(history.first.lastTotalDurationSeconds, 1440);
+    });
+
+    test('progressFraction is computed correctly', () async {
+      await store.upsertWatchHistory(
+        anilistId: 203,
+        episodeNumber: 1.0,
+        positionSeconds: 600,
+        totalDurationSeconds: 1200,
+      );
+
+      final historyResult = await store.getRecentHistory(limit: 5);
+      final history =
+          (historyResult as Success<List<AnimeWatchHistory>, KumoriyaError>)
+              .value;
+      expect(history.first.progressFraction, closeTo(0.5, 0.01));
+    });
+
+    test('progressFraction is null when totalDuration is null', () async {
+      await store.upsertWatchHistory(
+        anilistId: 204,
+        episodeNumber: 1.0,
+        positionSeconds: 600,
+      );
+
+      final historyResult = await store.getRecentHistory(limit: 5);
+      final history =
+          (historyResult as Success<List<AnimeWatchHistory>, KumoriyaError>)
+              .value;
+      expect(history.first.progressFraction, isNull);
+    });
+  });
+
   group('DriftAnimeProgressStore.getRecentHistory', () {
     test('returns entries ordered by most recent access', () async {
       for (int i = 1; i <= 5; i++) {
-        await store.upsert(
-          EpisodeProgress(
-            anilistId: i * 100,
-            episodeNumber: 1.0,
-            position: const Duration(minutes: 5),
-            watchState: WatchState.watching,
-            updatedAt: DateTime(2025, 1, i),
-          ),
+        await store.upsertWatchHistory(
+          anilistId: i * 100,
+          episodeNumber: 1.0,
+          positionSeconds: 300,
         );
+        // Small delay so timestamps differ.
+        await Future<void>.delayed(const Duration(milliseconds: 10));
       }
 
       final result = await store.getRecentHistory(limit: 3);
@@ -167,23 +246,15 @@ void main() {
     });
 
     test('history is updated when same anime has new episode access', () async {
-      await store.upsert(
-        EpisodeProgress(
-          anilistId: 777,
-          episodeNumber: 1.0,
-          position: const Duration(minutes: 10),
-          watchState: WatchState.watching,
-          updatedAt: DateTime(2025, 1, 1),
-        ),
+      await store.upsertWatchHistory(
+        anilistId: 777,
+        episodeNumber: 1.0,
+        positionSeconds: 600,
       );
-      await store.upsert(
-        EpisodeProgress(
-          anilistId: 777,
-          episodeNumber: 2.0,
-          position: const Duration(minutes: 10),
-          watchState: WatchState.watching,
-          updatedAt: DateTime(2025, 1, 2),
-        ),
+      await store.upsertWatchHistory(
+        anilistId: 777,
+        episodeNumber: 2.0,
+        positionSeconds: 300,
       );
 
       final result = await store.getRecentHistory(limit: 5);
@@ -256,5 +327,25 @@ void main() {
         expect(value.preferredAudioPreference, PlaybackAudioPreference.dub);
       },
     );
+
+    test('clears persisted playback preference row', () async {
+      await store.upsertPlaybackPreference(
+        PlaybackPreference(
+          anilistId: 903,
+          preferredSourcePluginId: 'kumoriya.source.animeflv',
+          preferredServerName: 'YourUpload',
+          preferredResolverPluginId: 'kumoriya.resolver.yourupload',
+          updatedAt: DateTime(2025, 7, 3),
+        ),
+      );
+
+      final clearResult = await store.clearPlaybackPreference(903);
+      expect(clearResult, isA<Success>());
+
+      final stored = await store.getPlaybackPreference(903);
+      final value =
+          (stored as Success<PlaybackPreference?, KumoriyaError>).value;
+      expect(value, isNull);
+    });
   });
 }

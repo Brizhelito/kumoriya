@@ -6,10 +6,6 @@ part of 'progress_dao.dart';
 mixin _$ProgressDaoMixin on DatabaseAccessor<AppDatabase> {
   $EpisodeProgressTableTable get episodeProgressTable =>
       attachedDatabase.episodeProgressTable;
-  $WatchHistoryTableTable get watchHistoryTable =>
-      attachedDatabase.watchHistoryTable;
-  $PlaybackPreferenceTableTable get playbackPreferenceTable =>
-      attachedDatabase.playbackPreferenceTable;
   ProgressDaoManager get managers => ProgressDaoManager(this);
 }
 
@@ -20,15 +16,5 @@ class ProgressDaoManager {
       $$EpisodeProgressTableTableTableManager(
         _db.attachedDatabase,
         _db.episodeProgressTable,
-      );
-  $$WatchHistoryTableTableTableManager get watchHistoryTable =>
-      $$WatchHistoryTableTableTableManager(
-        _db.attachedDatabase,
-        _db.watchHistoryTable,
-      );
-  $$PlaybackPreferenceTableTableTableManager get playbackPreferenceTable =>
-      $$PlaybackPreferenceTableTableTableManager(
-        _db.attachedDatabase,
-        _db.playbackPreferenceTable,
       );
 }

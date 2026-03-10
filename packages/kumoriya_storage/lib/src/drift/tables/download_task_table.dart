@@ -1,0 +1,25 @@
+import 'package:drift/drift.dart';
+
+class DownloadTaskTable extends Table {
+  @override
+  String get tableName => 'download_task';
+
+  TextColumn get id => text()();
+  IntColumn get anilistId => integer()();
+  RealColumn get episodeNumber => real()();
+  TextColumn get sourceUrl => text()();
+  TextColumn get status => text().withDefault(const Constant('pending'))();
+  TextColumn get fileName => text().nullable()();
+  TextColumn get filePath => text().nullable()();
+  IntColumn get totalBytes => integer().nullable()();
+  IntColumn get downloadedBytes => integer().nullable()();
+  TextColumn get sourcePluginId => text().nullable()();
+  TextColumn get serverName => text().nullable()();
+  TextColumn get detectedHost => text().nullable()();
+  TextColumn get errorMessage => text().nullable()();
+  IntColumn get createdAt => integer()();
+  IntColumn get updatedAt => integer().nullable()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {id};
+}

@@ -7,6 +7,9 @@ class WatchHistoryTable extends Table {
   IntColumn get anilistId => integer()();
   RealColumn get lastEpisodeNumber => real()();
   TextColumn get lastSourcePluginId => text().nullable()();
+  IntColumn get lastPositionSeconds =>
+      integer().withDefault(const Constant(0))();
+  IntColumn get lastTotalDurationSeconds => integer().nullable()();
   IntColumn get lastAccessedAt => integer()();
 
   @override

@@ -34,12 +34,22 @@ final class AnimeWatchHistory {
     required this.lastEpisodeNumber,
     required this.lastAccessedAt,
     this.lastSourcePluginId,
+    this.lastPositionSeconds = 0,
+    this.lastTotalDurationSeconds,
   });
 
   final int anilistId;
   final double lastEpisodeNumber;
   final DateTime lastAccessedAt;
   final String? lastSourcePluginId;
+  final int lastPositionSeconds;
+  final int? lastTotalDurationSeconds;
+
+  double? get progressFraction {
+    final total = lastTotalDurationSeconds;
+    if (total == null || total <= 0) return null;
+    return (lastPositionSeconds / total).clamp(0.0, 1.0);
+  }
 }
 
 final class PlaybackPreference {
@@ -62,6 +72,14 @@ final class PlaybackPreference {
 
 abstract interface class AnimeProgressStore {
   Future<Result<void, KumoriyaError>> upsert(EpisodeProgress progress);
+
+  Future<Result<void, KumoriyaError>> upsertWatchHistory({
+    required int anilistId,
+    required double episodeNumber,
+    required int positionSeconds,
+    int? totalDurationSeconds,
+    String? lastSourcePluginId,
+  });
 
   Future<Result<EpisodeProgress?, KumoriyaError>> getProgress(
     int anilistId,
@@ -87,4 +105,6 @@ abstract interface class AnimeProgressStore {
   Future<Result<PlaybackPreference?, KumoriyaError>> getPlaybackPreference(
     int anilistId,
   );
+
+  Future<Result<void, KumoriyaError>> clearPlaybackPreference(int anilistId);
 }

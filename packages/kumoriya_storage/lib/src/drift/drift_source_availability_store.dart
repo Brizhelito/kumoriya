@@ -85,4 +85,21 @@ final class DriftSourceAvailabilityStore implements SourceAvailabilityStore {
       );
     }
   }
+
+  @override
+  Future<Result<int, KumoriyaError>> deleteOlderThan(Duration maxAge) async {
+    try {
+      final cutoff = DateTime.now().subtract(maxAge).millisecondsSinceEpoch;
+      final count = await _dao.deleteOlderThan(cutoff);
+      return Success(count);
+    } catch (e) {
+      return Failure(
+        SimpleError(
+          code: 'storage.source_availability_cleanup_failed',
+          message: 'Failed to clean up source availability cache: $e',
+          kind: KumoriyaErrorKind.unexpected,
+        ),
+      );
+    }
+  }
 }

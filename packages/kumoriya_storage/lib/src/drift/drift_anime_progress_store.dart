@@ -3,18 +3,25 @@ import 'package:kumoriya_core/kumoriya_core.dart';
 
 import '../contracts/anime_progress_store.dart';
 import 'app_database.dart';
+import 'daos/playback_preference_dao.dart';
 import 'daos/progress_dao.dart';
+import 'daos/watch_history_dao.dart';
 
 final class DriftAnimeProgressStore implements AnimeProgressStore {
-  DriftAnimeProgressStore(AppDatabase db) : _dao = ProgressDao(db);
+  DriftAnimeProgressStore(AppDatabase db)
+    : _progressDao = ProgressDao(db),
+      _historyDao = WatchHistoryDao(db),
+      _preferenceDao = PlaybackPreferenceDao(db);
 
-  final ProgressDao _dao;
+  final ProgressDao _progressDao;
+  final WatchHistoryDao _historyDao;
+  final PlaybackPreferenceDao _preferenceDao;
 
   @override
   Future<Result<void, KumoriyaError>> upsert(EpisodeProgress progress) async {
     try {
       final now = progress.updatedAt.millisecondsSinceEpoch;
-      await _dao.upsertProgress(
+      await _progressDao.upsertProgress(
         EpisodeProgressTableCompanion(
           anilistId: Value(progress.anilistId),
           episodeNumber: Value(progress.episodeNumber),
@@ -23,27 +30,10 @@ final class DriftAnimeProgressStore implements AnimeProgressStore {
               ? Value(progress.totalDuration!.inSeconds)
               : const Value.absent(),
           watchState: Value(progress.watchState.name),
-          lastSourcePluginId: progress.lastSourcePluginId != null
-              ? Value(progress.lastSourcePluginId)
-              : const Value.absent(),
-          lastServerName: progress.lastServerName != null
-              ? Value(progress.lastServerName)
-              : const Value.absent(),
-          lastResolverPluginId: progress.lastResolverPluginId != null
-              ? Value(progress.lastResolverPluginId)
-              : const Value.absent(),
+          lastSourcePluginId: Value(progress.lastSourcePluginId),
+          lastServerName: Value(progress.lastServerName),
+          lastResolverPluginId: Value(progress.lastResolverPluginId),
           updatedAt: Value(now),
-        ),
-      );
-
-      await _dao.upsertHistory(
-        WatchHistoryTableCompanion(
-          anilistId: Value(progress.anilistId),
-          lastEpisodeNumber: Value(progress.episodeNumber),
-          lastSourcePluginId: progress.lastSourcePluginId != null
-              ? Value(progress.lastSourcePluginId)
-              : const Value.absent(),
-          lastAccessedAt: Value(now),
         ),
       );
 
@@ -60,12 +50,46 @@ final class DriftAnimeProgressStore implements AnimeProgressStore {
   }
 
   @override
+  Future<Result<void, KumoriyaError>> upsertWatchHistory({
+    required int anilistId,
+    required double episodeNumber,
+    required int positionSeconds,
+    int? totalDurationSeconds,
+    String? lastSourcePluginId,
+  }) async {
+    try {
+      final now = DateTime.now().millisecondsSinceEpoch;
+      await _historyDao.upsertHistory(
+        WatchHistoryTableCompanion(
+          anilistId: Value(anilistId),
+          lastEpisodeNumber: Value(episodeNumber),
+          lastSourcePluginId: Value(lastSourcePluginId),
+          lastPositionSeconds: Value(positionSeconds),
+          lastTotalDurationSeconds: totalDurationSeconds != null
+              ? Value(totalDurationSeconds)
+              : const Value.absent(),
+          lastAccessedAt: Value(now),
+        ),
+      );
+      return const Success(null);
+    } catch (e) {
+      return Failure(
+        SimpleError(
+          code: 'storage.history_upsert_failed',
+          message: 'Failed to save watch history: $e',
+          kind: KumoriyaErrorKind.unexpected,
+        ),
+      );
+    }
+  }
+
+  @override
   Future<Result<EpisodeProgress?, KumoriyaError>> getProgress(
     int anilistId,
     double episodeNumber,
   ) async {
     try {
-      final row = await _dao.getProgress(anilistId, episodeNumber);
+      final row = await _progressDao.getProgress(anilistId, episodeNumber);
       return Success(row != null ? _rowToProgress(row) : null);
     } catch (e) {
       return Failure(
@@ -83,7 +107,7 @@ final class DriftAnimeProgressStore implements AnimeProgressStore {
     int anilistId,
   ) async {
     try {
-      final row = await _dao.getLatestProgress(anilistId);
+      final row = await _progressDao.getLatestProgress(anilistId);
       return Success(row != null ? _rowToProgress(row) : null);
     } catch (e) {
       return Failure(
@@ -101,7 +125,7 @@ final class DriftAnimeProgressStore implements AnimeProgressStore {
     int anilistId,
   ) async {
     try {
-      final rows = await _dao.getAllProgress(anilistId);
+      final rows = await _progressDao.getAllProgress(anilistId);
       return Success(rows.map(_rowToProgress).toList());
     } catch (e) {
       return Failure(
@@ -119,7 +143,7 @@ final class DriftAnimeProgressStore implements AnimeProgressStore {
     int limit = 20,
   }) async {
     try {
-      final rows = await _dao.getRecentHistory(limit);
+      final rows = await _historyDao.getRecentHistory(limit);
       return Success(
         rows
             .map(
@@ -130,6 +154,8 @@ final class DriftAnimeProgressStore implements AnimeProgressStore {
                   r.lastAccessedAt,
                 ),
                 lastSourcePluginId: r.lastSourcePluginId,
+                lastPositionSeconds: r.lastPositionSeconds,
+                lastTotalDurationSeconds: r.lastTotalDurationSeconds,
               ),
             )
             .toList(),
@@ -150,7 +176,7 @@ final class DriftAnimeProgressStore implements AnimeProgressStore {
     PlaybackPreference preference,
   ) async {
     try {
-      await _dao.upsertPlaybackPreference(
+      await _preferenceDao.upsertPlaybackPreference(
         PlaybackPreferenceTableCompanion(
           anilistId: Value(preference.anilistId),
           preferredSourcePluginId: Value(preference.preferredSourcePluginId),
@@ -181,13 +207,31 @@ final class DriftAnimeProgressStore implements AnimeProgressStore {
     int anilistId,
   ) async {
     try {
-      final row = await _dao.getPlaybackPreference(anilistId);
+      final row = await _preferenceDao.getPlaybackPreference(anilistId);
       return Success(row != null ? _rowToPlaybackPreference(row) : null);
     } catch (e) {
       return Failure(
         SimpleError(
           code: 'storage.preference_read_failed',
           message: 'Failed to read playback preference: $e',
+          kind: KumoriyaErrorKind.unexpected,
+        ),
+      );
+    }
+  }
+
+  @override
+  Future<Result<void, KumoriyaError>> clearPlaybackPreference(
+    int anilistId,
+  ) async {
+    try {
+      await _preferenceDao.deletePlaybackPreference(anilistId);
+      return const Success(null);
+    } catch (e) {
+      return Failure(
+        SimpleError(
+          code: 'storage.preference_clear_failed',
+          message: 'Failed to clear playback preference: $e',
           kind: KumoriyaErrorKind.unexpected,
         ),
       );

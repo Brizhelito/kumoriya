@@ -41,4 +41,10 @@ class SourceAvailabilityCacheDao extends DatabaseAccessor<AppDatabase>
       sourceAvailabilityCacheTable,
     )..where((t) => t.anilistId.equals(anilistId))).go();
   }
+
+  Future<int> deleteOlderThan(int epochMs) {
+    return (delete(
+      sourceAvailabilityCacheTable,
+    )..where((t) => t.updatedAt.isSmallerThanValue(epochMs))).go();
+  }
 }
