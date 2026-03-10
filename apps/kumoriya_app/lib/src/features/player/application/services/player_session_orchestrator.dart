@@ -21,6 +21,7 @@ final class PlayerSessionOrchestrator {
       _playbackEngine.playingStream.listen(_onPlayingChanged),
       _playbackEngine.bufferingStream.listen(_onBufferingChanged),
       _playbackEngine.errorStream.listen(_onPlaybackError),
+      _playbackEngine.positionStream.listen(_onPositionChanged),
     ];
   }
 
@@ -36,8 +37,12 @@ final class PlayerSessionOrchestrator {
   List<ResolvedStream> _rankedCandidates = const <ResolvedStream>[];
   int _currentCandidateIndex = -1;
   int _runtimeErrorRetriesForCurrentCandidate = 0;
+  int _recoveriesForCurrentCandidate = 0;
   bool _isPlaying = false;
   bool _isBuffering = false;
+  Duration _lastKnownPosition = Duration.zero;
+  Duration? _pendingTargetPosition;
+  bool _isRecoveringCurrentCandidate = false;
   Timer? _bufferingTimer;
 
   Stream<PlayerSessionState> get states => _stateController.stream;
@@ -45,6 +50,7 @@ final class PlayerSessionOrchestrator {
 
   Future<Result<ResolvedStream, KumoriyaError>> start({
     required List<ResolvedStream> streamCandidates,
+    Duration? initialPosition,
   }) async {
     _rankedCandidates = _selectionPolicy
         .rankCandidates(streamCandidates)
@@ -61,7 +67,9 @@ final class PlayerSessionOrchestrator {
 
     _currentCandidateIndex = 0;
     _runtimeErrorRetriesForCurrentCandidate = 0;
-    return _openCurrentCandidate();
+    _recoveriesForCurrentCandidate = 0;
+    _pendingTargetPosition = _normalizeNullablePosition(initialPosition);
+    return _openCurrentCandidate(startPosition: _pendingTargetPosition);
   }
 
   Future<Result<ResolvedStream, KumoriyaError>> retry() async {
@@ -77,7 +85,30 @@ final class PlayerSessionOrchestrator {
 
     _currentCandidateIndex = 0;
     _runtimeErrorRetriesForCurrentCandidate = 0;
-    return _openCurrentCandidate();
+    _recoveriesForCurrentCandidate = 0;
+    return _openCurrentCandidate(startPosition: _pendingTargetPosition);
+  }
+
+  Future<void> seekTo(Duration position) async {
+    final candidate = _state.selectedStream;
+    if (candidate == null) {
+      return;
+    }
+
+    final targetPosition = _normalizePosition(position);
+    _pendingTargetPosition = targetPosition;
+
+    if (_shouldReopenForSeek(candidate, targetPosition)) {
+      await _recoverCurrentCandidate(
+        errorCode: 'player.seek_recovery_failed',
+        reason: 'Player could not seek current candidate in place.',
+        recoveryPosition: targetPosition,
+        force: true,
+      );
+      return;
+    }
+
+    await _playbackEngine.seekTo(targetPosition);
   }
 
   Future<void> togglePlayPause() async {
@@ -98,7 +129,9 @@ final class PlayerSessionOrchestrator {
     await _stateController.close();
   }
 
-  Future<Result<ResolvedStream, KumoriyaError>> _openCurrentCandidate() async {
+  Future<Result<ResolvedStream, KumoriyaError>> _openCurrentCandidate({
+    Duration? startPosition,
+  }) async {
     if (_currentCandidateIndex < 0 ||
         _currentCandidateIndex >= _rankedCandidates.length) {
       return _fail(
@@ -109,6 +142,7 @@ final class PlayerSessionOrchestrator {
     }
 
     final candidate = _rankedCandidates[_currentCandidateIndex];
+    _isRecoveringCurrentCandidate = false;
     _emit(
       _state.copyWith(
         status: _state.status == PlayerSessionStatus.fallbacking
@@ -122,7 +156,12 @@ final class PlayerSessionOrchestrator {
     );
 
     try {
-      await _playbackEngine.open(candidate).timeout(_openTimeout);
+      await _playbackEngine
+          .open(
+            candidate,
+            startPosition: _normalizeNullablePosition(startPosition),
+          )
+          .timeout(_openTimeout);
       final nextStatus = _isBuffering
           ? PlayerSessionStatus.buffering
           : (_isPlaying
@@ -130,6 +169,9 @@ final class PlayerSessionOrchestrator {
                 : PlayerSessionStatus.paused);
       if (_isBuffering) {
         _startBufferingTimeoutWatch();
+      }
+      if (startPosition == null || startPosition <= Duration.zero) {
+        _pendingTargetPosition = null;
       }
       _emit(
         _state.copyWith(
@@ -163,6 +205,8 @@ final class PlayerSessionOrchestrator {
     if (hasNext) {
       _currentCandidateIndex++;
       _runtimeErrorRetriesForCurrentCandidate = 0;
+      _recoveriesForCurrentCandidate = 0;
+      _isRecoveringCurrentCandidate = false;
       _emit(
         _state.copyWith(
           status: PlayerSessionStatus.fallbacking,
@@ -233,7 +277,30 @@ final class PlayerSessionOrchestrator {
     );
   }
 
+  void _onPositionChanged(Duration position) {
+    if (position < Duration.zero) {
+      return;
+    }
+    _lastKnownPosition = position;
+    final pendingTargetPosition = _pendingTargetPosition;
+    if (pendingTargetPosition != null &&
+        _isPositionNearTarget(position, pendingTargetPosition)) {
+      _pendingTargetPosition = null;
+    }
+  }
+
   void _onPlaybackError(String error) {
+    if (_shouldDeferRuntimeError(error)) {
+      unawaited(
+        _recoverCurrentCandidate(
+          errorCode: 'player.seek_recovery_failed',
+          reason: 'Runtime playback error while buffering: $error',
+          recoveryPosition: _recoveryPosition,
+        ),
+      );
+      return;
+    }
+
     if (_runtimeErrorRetriesForCurrentCandidate < 1) {
       _runtimeErrorRetriesForCurrentCandidate++;
       unawaited(
@@ -250,10 +317,123 @@ final class PlayerSessionOrchestrator {
     );
   }
 
+  Future<void> _recoverCurrentCandidate({
+    required String errorCode,
+    required String reason,
+    Duration? recoveryPosition,
+    bool force = false,
+  }) async {
+    if (_isRecoveringCurrentCandidate ||
+        (!force && _recoveriesForCurrentCandidate >= 1) ||
+        _currentCandidateIndex < 0 ||
+        _currentCandidateIndex >= _rankedCandidates.length) {
+      return;
+    }
+
+    _isRecoveringCurrentCandidate = true;
+    if (!force) {
+      _recoveriesForCurrentCandidate++;
+    }
+    final candidate = _rankedCandidates[_currentCandidateIndex];
+    final targetPosition = _normalizePosition(
+      recoveryPosition ?? _recoveryPosition,
+    );
+    _pendingTargetPosition = targetPosition > Duration.zero
+        ? targetPosition
+        : _pendingTargetPosition;
+    _emit(
+      _state.copyWith(
+        status: PlayerSessionStatus.buffering,
+        infoMessage: 'player.fallback_in_progress',
+        currentCandidateIndex: _currentCandidateIndex,
+        totalCandidates: _rankedCandidates.length,
+        clearError: true,
+      ),
+    );
+
+    try {
+      await _playbackEngine
+          .open(
+            candidate,
+            startPosition: targetPosition > Duration.zero
+                ? targetPosition
+                : null,
+          )
+          .timeout(_openTimeout);
+      if (!_shouldReopenForSeek(candidate, targetPosition) &&
+          targetPosition > Duration.zero) {
+        await _playbackEngine.seekTo(targetPosition);
+      }
+      _runtimeErrorRetriesForCurrentCandidate = 0;
+      final nextStatus = _isBuffering
+          ? PlayerSessionStatus.buffering
+          : (_isPlaying
+                ? PlayerSessionStatus.playing
+                : PlayerSessionStatus.paused);
+      if (_isBuffering) {
+        _startBufferingTimeoutWatch();
+      }
+      if (targetPosition <= Duration.zero) {
+        _pendingTargetPosition = null;
+      }
+      _emit(
+        _state.copyWith(
+          status: nextStatus,
+          selectedStream: candidate,
+          currentCandidateIndex: _currentCandidateIndex,
+          totalCandidates: _rankedCandidates.length,
+          clearInfo: true,
+          clearError: true,
+        ),
+      );
+      _isRecoveringCurrentCandidate = false;
+    } on TimeoutException {
+      _isRecoveringCurrentCandidate = false;
+      await _handleCandidateFailure(
+        code: errorCode,
+        message: 'Timed out while recovering current playback candidate.',
+      );
+    } catch (error) {
+      _isRecoveringCurrentCandidate = false;
+      await _handleCandidateFailure(
+        code: errorCode,
+        message: '$reason. Recovery failed: $error',
+      );
+    }
+  }
+
+  bool _shouldDeferRuntimeError(String error) {
+    if (_state.selectedStream == null || !_isBuffering) {
+      return false;
+    }
+
+    final message = error.toLowerCase();
+    if (message.contains('seek') ||
+        message.contains('buffer') ||
+        message.contains('segment') ||
+        message.contains('timeout') ||
+        message.contains('network') ||
+        message.contains('eof')) {
+      return true;
+    }
+
+    return _state.selectedStream!.isHls;
+  }
+
   void _startBufferingTimeoutWatch() {
     _bufferingTimer?.cancel();
     _bufferingTimer = Timer(_bufferingTimeout, () {
       if (_state.status != PlayerSessionStatus.buffering) {
+        return;
+      }
+      if (_recoveriesForCurrentCandidate < 1) {
+        unawaited(
+          _recoverCurrentCandidate(
+            errorCode: 'player.buffering_recovery_failed',
+            reason: 'Buffering took too long for current candidate.',
+            recoveryPosition: _recoveryPosition,
+          ),
+        );
         return;
       }
       unawaited(
@@ -306,5 +486,32 @@ final class PlayerSessionOrchestrator {
       return 'player.network_failure';
     }
     return 'player.open_failed';
+  }
+
+  Duration get _recoveryPosition =>
+      _normalizePosition(_pendingTargetPosition ?? _lastKnownPosition);
+
+  bool _shouldReopenForSeek(ResolvedStream candidate, Duration position) {
+    if (position <= Duration.zero) {
+      return false;
+    }
+    return candidate.isHls;
+  }
+
+  Duration _normalizePosition(Duration? position) {
+    if (position == null || position <= Duration.zero) {
+      return Duration.zero;
+    }
+    return position;
+  }
+
+  Duration? _normalizeNullablePosition(Duration? position) {
+    final normalized = _normalizePosition(position);
+    return normalized > Duration.zero ? normalized : null;
+  }
+
+  bool _isPositionNearTarget(Duration position, Duration target) {
+    final delta = position - target;
+    return delta.inSeconds.abs() <= 2;
   }
 }

@@ -22,9 +22,19 @@ final class MediaKitPlaybackEngine implements PlaybackEngine {
   Stream<String> get errorStream => player.stream.error;
 
   @override
-  Future<void> open(ResolvedStream stream) {
+  Stream<Duration> get positionStream => player.stream.position;
+
+  @override
+  Stream<Duration> get durationStream => player.stream.duration;
+
+  @override
+  Future<void> open(ResolvedStream stream, {Duration? startPosition}) {
     return player.open(
-      Media(stream.url.toString(), httpHeaders: stream.headers),
+      Media(
+        stream.url.toString(),
+        httpHeaders: stream.headers,
+        start: startPosition,
+      ),
       play: true,
     );
   }
@@ -34,6 +44,9 @@ final class MediaKitPlaybackEngine implements PlaybackEngine {
 
   @override
   Future<void> play() => player.play();
+
+  @override
+  Future<void> seekTo(Duration position) => player.seek(position);
 
   @override
   Future<void> dispose() async {
