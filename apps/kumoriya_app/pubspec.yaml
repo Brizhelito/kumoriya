@@ -32,7 +32,10 @@ dependencies:
   kumoriya_resolver_streamtape:
   kumoriya_resolver_doodstream:
   kumoriya_resolver_yourupload:
+  kumoriya_resolver_okru:
+  kumoriya_resolver_hqq:
   kumoriya_resolver_zilla:
+  kumoriya_resolver_upnshare:
   kumoriya_storage:
   drift:
   sqlite3_flutter_libs:

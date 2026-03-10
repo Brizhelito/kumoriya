@@ -19,6 +19,9 @@ void main() {
   final packedEvalFixture = File(
     'test/fixtures/streamwish_payload_packed_eval.html',
   ).readAsStringSync();
+  final loadingShellFixture = File(
+    'test/fixtures/streamwish_payload_loading_shell.html',
+  ).readAsStringSync();
 
   test('supports known StreamWish hosts', () {
     final plugin = StreamwishResolverPlugin();
@@ -32,6 +35,10 @@ void main() {
       isTrue,
     );
     expect(plugin.supports(Uri.parse('https://voe.sx/e/abc123')), isFalse);
+    expect(
+      plugin.supports(Uri.parse('https://playnixes.com/e/abc123')),
+      isTrue,
+    );
   });
 
   test('extracts hls/mp4 stream candidates with metadata', () async {
@@ -82,6 +89,42 @@ void main() {
       },
     );
   });
+
+  test(
+    'falls back to known mirror hosts when initial page is loading shell',
+    () async {
+      final requestedHosts = <String>[];
+      final plugin = StreamwishResolverPlugin(
+        httpClient: MockClient((request) async {
+          requestedHosts.add(request.url.host);
+          if (request.url.host == 'streamwish.to') {
+            return http.Response(loadingShellFixture, 200);
+          }
+          if (request.url.host == 'playnixes.com') {
+            return http.Response(packedEvalFixture, 200);
+          }
+          return http.Response('nope', 404);
+        }),
+      );
+
+      final result = await plugin.resolve(
+        Uri.parse('https://streamwish.to/e/abc123'),
+      );
+
+      expect(result.isSuccess, isTrue);
+      expect(
+        requestedHosts,
+        containsAllInOrder(['streamwish.to', 'playnixes.com']),
+      );
+      result.fold(
+        onFailure: (_) => fail('expected success'),
+        onSuccess: (streams) {
+          expect(streams, isNotEmpty);
+          expect(streams.single.url.toString(), contains('master.m3u8'));
+        },
+      );
+    },
+  );
 
   test(
     'returns inconsistent payload when hints exist without playable links',

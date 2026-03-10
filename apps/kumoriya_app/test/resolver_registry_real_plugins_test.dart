@@ -2,11 +2,14 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:kumoriya_app/src/features/anime_catalog/application/services/resolver_registry.dart';
 import 'package:kumoriya_plugins/kumoriya_plugins.dart';
 import 'package:kumoriya_resolver_doodstream/kumoriya_resolver_doodstream.dart';
+import 'package:kumoriya_resolver_hqq/kumoriya_resolver_hqq.dart';
 import 'package:kumoriya_resolver_jkplayer/kumoriya_resolver_jkplayer.dart';
 import 'package:kumoriya_resolver_mp4upload/kumoriya_resolver_mp4upload.dart';
+import 'package:kumoriya_resolver_okru/kumoriya_resolver_okru.dart';
 import 'package:kumoriya_resolver_pixeldrain/kumoriya_resolver_pixeldrain.dart';
 import 'package:kumoriya_resolver_streamtape/kumoriya_resolver_streamtape.dart';
 import 'package:kumoriya_resolver_streamwish/kumoriya_resolver_streamwish.dart';
+import 'package:kumoriya_resolver_upnshare/kumoriya_resolver_upnshare.dart';
 import 'package:kumoriya_resolver_yourupload/kumoriya_resolver_yourupload.dart';
 import 'package:kumoriya_resolver_zilla/kumoriya_resolver_zilla.dart';
 
@@ -214,5 +217,61 @@ void main() {
     expect(selection, isA<ResolverSelected>());
     final selected = selection as ResolverSelected;
     expect(selected.resolver.manifest.id, 'kumoriya.resolver.zilla');
+  });
+
+  test('registry selects okru resolver for okru videoembed host', () {
+    final registry = ResolverRegistry(
+      resolvers: <ResolverPlugin>[
+        StreamwishResolverPlugin(),
+        OkruResolverPlugin(),
+        Mp4uploadResolverPlugin(),
+      ],
+    );
+
+    final selection = registry.selectFor(
+      Uri.parse('https://ok.ru/videoembed/4787623037612'),
+    );
+
+    expect(selection, isA<ResolverSelected>());
+    final selected = selection as ResolverSelected;
+    expect(selected.resolver.manifest.id, 'kumoriya.resolver.okru');
+  });
+
+  test('registry selects hqq resolver for netu hqq host', () {
+    final registry = ResolverRegistry(
+      resolvers: <ResolverPlugin>[
+        StreamwishResolverPlugin(),
+        HqqResolverPlugin(),
+        Mp4uploadResolverPlugin(),
+      ],
+    );
+
+    final selection = registry.selectFor(
+      Uri.parse(
+        'https://hqq.tv/player/embed_player.php?vid=265236238205211208278225263244206267194271217261258',
+      ),
+    );
+
+    expect(selection, isA<ResolverSelected>());
+    final selected = selection as ResolverSelected;
+    expect(selected.resolver.manifest.id, 'kumoriya.resolver.hqq');
+  });
+
+  test('registry selects upnshare resolver for animeav1 uns bio host', () {
+    final registry = ResolverRegistry(
+      resolvers: <ResolverPlugin>[
+        StreamwishResolverPlugin(),
+        UpnshareResolverPlugin(),
+        Mp4uploadResolverPlugin(),
+      ],
+    );
+
+    final selection = registry.selectFor(
+      Uri.parse('https://animeav1.uns.bio/#xhutzl'),
+    );
+
+    expect(selection, isA<ResolverSelected>());
+    final selected = selection as ResolverSelected;
+    expect(selected.resolver.manifest.id, 'kumoriya.resolver.upnshare');
   });
 }

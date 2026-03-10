@@ -21,8 +21,11 @@ workspace:
   - packages/kumoriya_resolver_streamtape
   - packages/kumoriya_resolver_doodstream
   - packages/kumoriya_resolver_yourupload
+  - packages/kumoriya_resolver_okru
+  - packages/kumoriya_resolver_hqq
   - packages/kumoriya_resolver_vidhide
   - packages/kumoriya_resolver_zilla
+  - packages/kumoriya_resolver_upnshare
   - packages/kumoriya_source_animeflv
   - packages/kumoriya_source_animeav1
   - packages/kumoriya_storage

@@ -158,7 +158,6 @@ Map<String, String> _playbackHeaders(Uri embedUrl) {
   return <String, String>{
     'Referer': '$origin/',
     'Origin': origin,
-    'User-Agent': _defaultUserAgent,
   };
 }
 

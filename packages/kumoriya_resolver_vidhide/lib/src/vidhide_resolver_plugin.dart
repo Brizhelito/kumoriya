@@ -85,9 +85,14 @@ final class VidhideResolverPlugin implements ResolverPlugin {
     }
 
     try {
+      final request = http.Request('GET', url)..headers.addAll(_headers(url));
       final response = await _httpClient
-          .get(url, headers: _headers(url))
+          .send(request)
           .timeout(const Duration(seconds: 15));
+      final effectiveUrl = switch (response) {
+        http.BaseResponseWithUrl responseWithUrl => responseWithUrl.url,
+        _ => url,
+      };
 
       if (response.statusCode != 200) {
         return Failure(
@@ -98,8 +103,9 @@ final class VidhideResolverPlugin implements ResolverPlugin {
         );
       }
 
-      final extractionPayload = _buildExtractionPayload(response.body);
-      final streams = _extractStreams(extractionPayload, url);
+      final payload = await response.stream.bytesToString();
+      final extractionPayload = _buildExtractionPayload(payload);
+      final streams = _extractStreams(extractionPayload, effectiveUrl);
       if (streams.isEmpty) {
         if (_hasHints(extractionPayload)) {
           return const Failure(

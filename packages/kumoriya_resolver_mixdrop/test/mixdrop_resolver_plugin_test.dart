@@ -62,7 +62,7 @@ void main() {
         expect(streams.single.mimeType, 'video/mp4');
         expect(streams.single.headers['Referer'], 'https://m1xdrop.bz/');
         expect(streams.single.headers['Origin'], 'https://m1xdrop.bz');
-        expect(streams.single.headers['User-Agent'], isNotEmpty);
+        expect(streams.single.headers.containsKey('User-Agent'), isFalse);
       },
     );
   });
@@ -116,7 +116,7 @@ void main() {
         expect(streams.single.url.path, '/video/abc.file_720p.mp4');
         expect(streams.single.headers['Referer'], 'https://mxdrop.to/');
         expect(streams.single.headers['Origin'], 'https://mxdrop.to');
-        expect(streams.single.headers['User-Agent'], isNotEmpty);
+        expect(streams.single.headers.containsKey('User-Agent'), isFalse);
       },
     );
   });

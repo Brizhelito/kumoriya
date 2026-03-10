@@ -16,7 +16,16 @@ final class StreamwishResolverPlugin implements ResolverPlugin {
     'wishfast.top',
     'awish.pro',
     'strwish.com',
+    'playnixes.com',
+    'medixiru.com',
+    'hgplaycdn.com',
   };
+
+  static const List<String> _mirrorHosts = <String>[
+    'playnixes.com',
+    'medixiru.com',
+    'hgplaycdn.com',
+  ];
 
   @override
   PluginManifest get manifest => const PluginManifest(
@@ -30,6 +39,9 @@ final class StreamwishResolverPlugin implements ResolverPlugin {
       'wishfast.top',
       'awish.pro',
       'strwish.com',
+      'playnixes.com',
+      'medixiru.com',
+      'hgplaycdn.com',
     ],
     baseUrls: <String>['https://streamwish.to/e/'],
   );
@@ -90,7 +102,13 @@ final class StreamwishResolverPlugin implements ResolverPlugin {
       }
 
       final extractionPayload = _buildExtractionPayload(response.body);
-      final streams = _extractStreams(extractionPayload, url);
+      var streams = _extractStreams(extractionPayload, url);
+      if (streams.isEmpty && _isLoadingShell(response.body)) {
+        final fallbackStreams = await _tryKnownMirrorFallback(url);
+        if (fallbackStreams.isNotEmpty) {
+          streams = fallbackStreams;
+        }
+      }
       if (streams.isEmpty) {
         if (_hasHints(extractionPayload)) {
           return const Failure(
@@ -115,6 +133,40 @@ final class StreamwishResolverPlugin implements ResolverPlugin {
         ),
       );
     }
+  }
+
+  Future<List<ResolvedStream>> _tryKnownMirrorFallback(Uri initialUrl) async {
+    if (_mirrorHosts.contains(initialUrl.host.toLowerCase())) {
+      return const <ResolvedStream>[];
+    }
+
+    for (final mirrorHost in _mirrorHosts) {
+      final mirrorUrl = initialUrl.replace(
+        scheme: 'https',
+        host: mirrorHost,
+        query: null,
+        fragment: null,
+      );
+
+      try {
+        final response = await _httpClient
+            .get(mirrorUrl, headers: _headers(initialUrl))
+            .timeout(const Duration(seconds: 15));
+        if (response.statusCode != 200) {
+          continue;
+        }
+
+        final payload = _buildExtractionPayload(response.body);
+        final streams = _extractStreams(payload, mirrorUrl);
+        if (streams.isNotEmpty) {
+          return streams;
+        }
+      } catch (_) {
+        continue;
+      }
+    }
+
+    return const <ResolvedStream>[];
   }
 }
 
@@ -278,6 +330,11 @@ int? _readHex(String value, int start, int length) {
 Map<String, String> _headers(Uri url) {
   final origin = '${url.scheme}://${url.host}';
   return <String, String>{'Referer': '$origin/', 'Origin': origin};
+}
+
+bool _isLoadingShell(String payload) {
+  return payload.contains('Page is loading, please wait') &&
+      payload.contains('/main.js');
 }
 
 List<ResolvedStream> _extractStreams(String payload, Uri baseUrl) {
