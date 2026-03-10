@@ -248,6 +248,133 @@ void main() {
     expect(decision.launch!.option.audioKind, SourceAudioKind.dub);
     expect(decision.launch!.option.serverLink.serverName, 'DubStream');
   });
+
+  test(
+    'falls back to another source when a source-only preference exhausts its servers',
+    () async {
+      final flakyRegistry = ResolverRegistry(
+        resolvers: <ResolverPlugin>[_FlakyResolverPlugin()],
+      );
+      final flakyResolver = ResolveSourceServerLinkUseCase(
+        registry: flakyRegistry,
+      );
+      const failingSource = _FailingSourcePlugin();
+      const fallbackSource = _SingleServerSourcePlugin();
+      final summary = await _summaryFor(const <SourcePlugin>[
+        failingSource,
+        fallbackSource,
+      ], registry: flakyRegistry);
+
+      await store.upsertPlaybackPreference(
+        PlaybackPreference(
+          anilistId: _detail.anime.anilistId,
+          preferredSourcePluginId: failingSource.manifest.id,
+          updatedAt: DateTime(2026, 1, 1),
+        ),
+      );
+
+      final decision =
+          await _buildUseCase(
+            sourcePlugins: const <SourcePlugin>[failingSource, fallbackSource],
+            store: store,
+            registry: flakyRegistry,
+            resolver: flakyResolver,
+          ).call(
+            anilistId: _detail.anime.anilistId,
+            episodeNumber: 1,
+            availabilitySummary: summary,
+          );
+
+      final stored = await store.getPlaybackPreference(_detail.anime.anilistId);
+      final preference =
+          (stored as Success<PlaybackPreference?, KumoriyaError>).value!;
+
+      expect(decision.type, EpisodePlaybackDecisionType.direct);
+      expect(
+        decision.launch!.option.sourcePluginId,
+        fallbackSource.manifest.id,
+      );
+      expect(decision.autoSelectionFailed, isTrue);
+      expect(preference.preferredSourcePluginId, isNull);
+      expect(preference.preferredServerName, isNull);
+      expect(preference.preferredResolverPluginId, isNull);
+    },
+  );
+
+  test(
+    'drops stale DUB preference and degrades to SUB when DUB resolution fails',
+    () async {
+      final flakyRegistry = ResolverRegistry(
+        resolvers: <ResolverPlugin>[_FlakyResolverPlugin()],
+      );
+      final flakyResolver = ResolveSourceServerLinkUseCase(
+        registry: flakyRegistry,
+      );
+      const source = _DualAudioFlakySourcePlugin();
+      final summary = await _summaryFor(const <SourcePlugin>[
+        source,
+      ], registry: flakyRegistry);
+
+      await store.upsertPlaybackPreference(
+        PlaybackPreference(
+          anilistId: _detail.anime.anilistId,
+          preferredSourcePluginId: source.manifest.id,
+          preferredAudioPreference: PlaybackAudioPreference.dub,
+          updatedAt: DateTime(2026, 1, 1),
+        ),
+      );
+
+      final decision =
+          await _buildUseCase(
+            sourcePlugins: const <SourcePlugin>[source],
+            store: store,
+            registry: flakyRegistry,
+            resolver: flakyResolver,
+          ).call(
+            anilistId: _detail.anime.anilistId,
+            episodeNumber: 1,
+            availabilitySummary: summary,
+          );
+
+      final stored = await store.getPlaybackPreference(_detail.anime.anilistId);
+      final preference =
+          (stored as Success<PlaybackPreference?, KumoriyaError>).value!;
+
+      expect(decision.type, EpisodePlaybackDecisionType.direct);
+      expect(decision.launch!.option.audioKind, SourceAudioKind.sub);
+      expect(decision.autoSelectionFailed, isTrue);
+      expect(preference.preferredAudioPreference, isNull);
+    },
+  );
+
+  test(
+    'shows selector when there is no preference and the top source has multiple usable servers',
+    () async {
+      const source = _MultiServerSourcePlugin();
+      final summary = await _summaryFor(const <SourcePlugin>[
+        source,
+      ], registry: registry);
+
+      final decision =
+          await _buildUseCase(
+            sourcePlugins: const <SourcePlugin>[source],
+            store: store,
+            registry: registry,
+            resolver: resolver,
+          ).call(
+            anilistId: _detail.anime.anilistId,
+            episodeNumber: 1,
+            availabilitySummary: summary,
+          );
+
+      expect(decision.type, EpisodePlaybackDecisionType.selection);
+      expect(decision.options, hasLength(3));
+      expect(
+        decision.options.where((option) => option.isRecommended),
+        hasLength(1),
+      );
+    },
+  );
 }
 
 StartEpisodePlaybackUseCase _buildUseCase({
@@ -395,6 +522,80 @@ class _DualAudioSourcePlugin extends _BaseFakeSourcePlugin {
         serverName: 'DubStream',
         initialUrl: Uri.parse('https://video.example/dub/1'),
         language: 'dub',
+      ),
+    ]);
+  }
+}
+
+class _DualAudioFlakySourcePlugin extends _BaseFakeSourcePlugin {
+  const _DualAudioFlakySourcePlugin();
+
+  @override
+  PluginManifest get manifest => const PluginManifest(
+    id: 'kumoriya.source.animeav1',
+    displayName: 'AnimeAV1',
+    type: PluginType.source,
+    capabilities: <PluginCapability>{
+      PluginCapability.search,
+      PluginCapability.episodeList,
+      PluginCapability.linkExtraction,
+    },
+    iconUrl: 'https://example.com/animeav1.png',
+  );
+
+  @override
+  Future<Result<List<SourceServerLink>, KumoriyaError>> getEpisodeServerLinks(
+    SourceEpisode episode,
+  ) async {
+    return Success(<SourceServerLink>[
+      SourceServerLink(
+        serverId: 'dub-auto-fail',
+        serverName: 'DubFail',
+        initialUrl: Uri.parse('https://video.example/fail/1?audio=dub'),
+        language: 'dub',
+      ),
+      SourceServerLink(
+        serverId: 'sub-stream',
+        serverName: 'SubStream',
+        initialUrl: Uri.parse('https://video.example/sub/1'),
+        language: 'sub',
+      ),
+    ]);
+  }
+}
+
+class _FailingSourcePlugin extends _BaseFakeSourcePlugin {
+  const _FailingSourcePlugin();
+
+  @override
+  PluginManifest get manifest => const PluginManifest(
+    id: 'kumoriya.source.failingsource',
+    displayName: 'Failing Source',
+    type: PluginType.source,
+    capabilities: <PluginCapability>{
+      PluginCapability.search,
+      PluginCapability.episodeList,
+      PluginCapability.linkExtraction,
+    },
+    iconUrl: 'https://example.com/failing.png',
+  );
+
+  @override
+  Future<Result<List<SourceServerLink>, KumoriyaError>> getEpisodeServerLinks(
+    SourceEpisode episode,
+  ) async {
+    return Success(<SourceServerLink>[
+      SourceServerLink(
+        serverId: 'auto-fail-1',
+        serverName: 'AutoFail',
+        initialUrl: Uri.parse('https://video.example/fail/1'),
+        language: 'sub',
+      ),
+      SourceServerLink(
+        serverId: 'auto-fail-2',
+        serverName: 'AutoFail 2',
+        initialUrl: Uri.parse('https://video.example/fail/2'),
+        language: 'sub',
       ),
     ]);
   }

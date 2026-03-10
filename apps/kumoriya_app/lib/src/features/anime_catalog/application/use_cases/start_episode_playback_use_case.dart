@@ -85,11 +85,19 @@ final class StartEpisodePlaybackUseCase {
       episodePreference: reconciliation.episodePreference,
       sourcePriorityIndex: _sourceSelectionPolicy.priorityIndex,
     );
-    final autoQueue = _playbackPreferencePolicy.buildAutoQueue(
-      rankedOptions: ranked,
-      durablePreference: durablePreference,
-      episodePreference: reconciliation.episodePreference,
-    );
+    final autoQueue = _playbackPreferencePolicy
+        .buildAutoQueue(
+          rankedOptions: ranked,
+          durablePreference: durablePreference,
+          episodePreference: reconciliation.episodePreference,
+        )
+        .take(
+          _playbackPreferencePolicy.automaticAttemptLimit(
+            durablePreference: durablePreference,
+            episodePreference: reconciliation.episodePreference,
+          ),
+        )
+        .toList(growable: false);
     final attempted = <String>{};
 
     for (final option in autoQueue) {
@@ -111,7 +119,10 @@ final class StartEpisodePlaybackUseCase {
       final invalidated = _playbackPreferencePolicy.invalidateAfterAutoFailure(
         durablePreference: durablePreference,
         failedOption: option,
-        rankedOptions: ranked,
+        rankedOptions: _playbackPreferencePolicy.remainingOptions(
+          options: ranked,
+          attemptedOptionKeys: attempted,
+        ),
       );
       if (invalidated != null) {
         durablePreference = invalidated;
@@ -119,9 +130,13 @@ final class StartEpisodePlaybackUseCase {
       }
     }
 
-    final remaining = ranked
-        .where((option) => !attempted.contains(option.optionKey))
-        .toList(growable: false);
+    final remaining = _playbackPreferencePolicy.rankRemainingOptions(
+      options: options,
+      attemptedOptionKeys: attempted,
+      durablePreference: durablePreference,
+      episodePreference: reconciliation.episodePreference,
+      sourcePriorityIndex: _sourceSelectionPolicy.priorityIndex,
+    );
 
     if (remaining.isEmpty) {
       return EpisodePlaybackDecision.unavailable(

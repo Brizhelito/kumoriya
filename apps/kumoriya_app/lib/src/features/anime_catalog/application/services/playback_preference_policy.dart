@@ -18,6 +18,7 @@ final class PlaybackPreferencePolicy {
   const PlaybackPreferencePolicy();
 
   static const Object _unchanged = Object();
+  static const int _maxAutomaticAttemptsWithPreference = 4;
 
   PlaybackPreferenceReconciliation reconcile({
     required int anilistId,
@@ -166,10 +167,23 @@ final class PlaybackPreferencePolicy {
       }
     }
 
+    void addAllForSource(String? sourcePluginId) {
+      if (sourcePluginId == null) {
+        return;
+      }
+      for (final option in rankedOptions) {
+        if (option.sourcePluginId == sourcePluginId) {
+          add(option);
+        }
+      }
+    }
+
     add(_findExactMatch(rankedOptions, episodePreference));
     add(_findExactMatch(rankedOptions, durablePreference));
     addBestForSource(episodePreference?.preferredSourcePluginId);
+    addAllForSource(episodePreference?.preferredSourcePluginId);
     addBestForSource(durablePreference?.preferredSourcePluginId);
+    addAllForSource(durablePreference?.preferredSourcePluginId);
     add(
       _onlyAudioMatch(
         rankedOptions,
@@ -190,9 +204,25 @@ final class PlaybackPreferencePolicy {
       if (topSourceOptions.length == 1) {
         add(topSourceOptions.first);
       }
+    } else {
+      for (final option in rankedOptions) {
+        add(option);
+        if (queue.length >= _maxAutomaticAttemptsWithPreference) {
+          break;
+        }
+      }
     }
 
     return queue;
+  }
+
+  int automaticAttemptLimit({
+    required PlaybackPreference? durablePreference,
+    required PlaybackPreference? episodePreference,
+  }) {
+    return episodePreference != null || durablePreference != null
+        ? _maxAutomaticAttemptsWithPreference
+        : 1;
   }
 
   PlaybackPreference? invalidateAfterAutoFailure({
@@ -200,24 +230,87 @@ final class PlaybackPreferencePolicy {
     required EpisodePlaybackOption failedOption,
     required List<EpisodePlaybackOption> rankedOptions,
   }) {
-    if (durablePreference == null ||
-        !_matchesExactPreference(failedOption, durablePreference)) {
+    if (durablePreference == null) {
       return null;
     }
+
+    var next = durablePreference;
+    var changed = false;
 
     final sameSourceRemaining = rankedOptions.any(
       (option) =>
           option.optionKey != failedOption.optionKey &&
           option.sourcePluginId == failedOption.sourcePluginId,
     );
+    final sameAudioRemaining =
+        next.preferredAudioPreference != null &&
+        rankedOptions.any(
+          (option) =>
+              option.optionKey != failedOption.optionKey &&
+              option.audioKind?.name == next.preferredAudioPreference!.name,
+        );
 
-    return _copyPreference(
-      base: durablePreference,
-      preferredSourcePluginId: sameSourceRemaining
-          ? failedOption.sourcePluginId
-          : null,
-      preferredServerName: null,
-      preferredResolverPluginId: null,
+    if (_matchesExactPreference(failedOption, next)) {
+      next = _copyPreference(
+        base: next,
+        preferredSourcePluginId: sameSourceRemaining
+            ? failedOption.sourcePluginId
+            : null,
+        preferredServerName: null,
+        preferredResolverPluginId: null,
+      );
+      changed = true;
+    }
+
+    if (next.preferredSourcePluginId == failedOption.sourcePluginId &&
+        !sameSourceRemaining) {
+      next = _copyPreference(
+        base: next,
+        preferredSourcePluginId: null,
+        preferredServerName: null,
+        preferredResolverPluginId: null,
+      );
+      changed = true;
+    }
+
+    if (next.preferredAudioPreference != null &&
+        failedOption.audioKind?.name == next.preferredAudioPreference!.name &&
+        !sameAudioRemaining) {
+      next = _copyPreference(base: next, preferredAudioPreference: null);
+      changed = true;
+    }
+
+    if (!changed || _equivalentSelection(durablePreference, next)) {
+      return null;
+    }
+
+    return next;
+  }
+
+  List<EpisodePlaybackOption> remainingOptions({
+    required List<EpisodePlaybackOption> options,
+    required Set<String> attemptedOptionKeys,
+  }) {
+    return options
+        .where((option) => !attemptedOptionKeys.contains(option.optionKey))
+        .toList(growable: false);
+  }
+
+  List<EpisodePlaybackOption> rankRemainingOptions({
+    required List<EpisodePlaybackOption> options,
+    required Set<String> attemptedOptionKeys,
+    required PlaybackPreference? durablePreference,
+    required PlaybackPreference? episodePreference,
+    required int Function(String pluginId) sourcePriorityIndex,
+  }) {
+    return rankOptions(
+      options: remainingOptions(
+        options: options,
+        attemptedOptionKeys: attemptedOptionKeys,
+      ),
+      durablePreference: durablePreference,
+      episodePreference: episodePreference,
+      sourcePriorityIndex: sourcePriorityIndex,
     );
   }
 
