@@ -42,6 +42,21 @@ Future<void> handlePlaybackDecision({
       );
       return;
     case EpisodePlaybackDecisionType.selection:
+      if (decision.options.length == 1) {
+        await _resolveSelectedOption(
+          context,
+          ref,
+          anilistId: anilistId,
+          animeTitle: animeTitle,
+          selection: ServerPickerSelection(
+            option: decision.options.single,
+            rememberSelection: true,
+          ),
+          remaining: const <EpisodePlaybackOption>[],
+          onUnavailable: onUnavailable,
+        );
+        return;
+      }
       final preferenceResult = await ref
           .read(animeProgressStoreProvider)
           .getPlaybackPreference(anilistId);
