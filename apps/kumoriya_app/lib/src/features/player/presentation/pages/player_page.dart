@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kumoriya_app/src/features/anime_catalog/application/models/resolved_server_link_result.dart';
@@ -54,6 +55,9 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
   StreamSubscription<Duration>? _positionSub;
   StreamSubscription<Duration>? _durationSub;
   Timer? _periodicSaveTimer;
+  Future<void>? _pendingProgressFlush;
+  bool _isExiting = false;
+  bool _historyWrittenForSession = false;
 
   PlayerSessionState _state = const PlayerSessionState.idle();
   String? _startError;
@@ -83,10 +87,20 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
     );
 
     _sessionSub = _orchestrator.states.listen((next) {
+      _log(
+        'session status=${next.status} index=${next.currentCandidateIndex}/${next.totalCandidates} info=${next.infoMessage} error=${next.errorMessage}',
+      );
       if (mounted) setState(() => _state = next);
     });
 
     _positionSub = _engine.positionStream.listen((pos) {
+      if (_isScrubbing || _resumePosition != null) {
+        _log('position stream pos=$pos duration=$_currentDuration');
+      }
+      final resume = _resumePosition;
+      if (resume != null && pos >= resume - const Duration(seconds: 5)) {
+        _resumePosition = null;
+      }
       if (!mounted) {
         _currentPosition = pos;
         return;
@@ -97,6 +111,7 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
       if (dur <= Duration.zero) {
         return;
       }
+      _log('duration stream dur=$dur');
       if (!mounted) {
         _currentDuration = dur;
         return;
@@ -116,19 +131,25 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
     _playingSub?.cancel();
     _positionSub?.cancel();
     _durationSub?.cancel();
-    _saveCurrentProgress();
-    _orchestrator.dispose();
+    unawaited(_saveCurrentProgress());
+    unawaited(_orchestrator.dispose());
     super.dispose();
   }
 
   void _onPlayingChanged(bool playing) {
+    _log('playing stream playing=$playing position=$_currentPosition');
     if (!playing) {
-      _saveCurrentProgress();
+      unawaited(_saveCurrentProgress());
+      unawaited(_updateWatchHistory());
     }
     if (playing) {
+      if (!_historyWrittenForSession) {
+        _historyWrittenForSession = true;
+        unawaited(_updateWatchHistory());
+      }
       _periodicSaveTimer ??= Timer.periodic(
         const Duration(seconds: 15),
-        (_) => _saveCurrentProgress(),
+        (_) => unawaited(_saveCurrentProgress()),
       );
     } else {
       _periodicSaveTimer?.cancel();
@@ -136,31 +157,82 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
     }
   }
 
-  void _saveCurrentProgress() {
+  Future<void> _saveCurrentProgress() async {
     if (_currentPosition < const Duration(seconds: 5)) return;
-    final selected = _state.selectedStream;
-    final persistServerMetadata = widget.persistSelection && selected != null;
-    unawaited(
-      _saveProgress(
-        anilistId: widget.anilistId,
-        episodeNumber: _episodeNumberDouble,
-        position: _currentPosition,
-        totalDuration: _currentDuration > Duration.zero
-            ? _currentDuration
-            : null,
-        lastSourcePluginId: persistServerMetadata
-            ? widget.sourcePluginId
-            : null,
-        lastServerName: persistServerMetadata ? widget.serverName : null,
-        lastResolverPluginId: persistServerMetadata
-            ? widget.resolved.resolverId
-            : null,
-      ),
+    await _saveProgress(
+      anilistId: widget.anilistId,
+      episodeNumber: _episodeNumberDouble,
+      position: _currentPosition,
+      totalDuration: _currentDuration > Duration.zero ? _currentDuration : null,
+      lastSourcePluginId: widget.sourcePluginId,
+      lastServerName: widget.serverName,
+      lastResolverPluginId: widget.resolved.resolverId,
+    );
+  }
+
+  Future<void> _updateWatchHistory() async {
+    if (_currentPosition < const Duration(seconds: 5)) return;
+    final store = ref.read(animeProgressStoreProvider);
+    await store.upsertWatchHistory(
+      anilistId: widget.anilistId,
+      episodeNumber: _episodeNumberDouble,
+      positionSeconds: _currentPosition.inSeconds,
+      totalDurationSeconds: _currentDuration > Duration.zero
+          ? _currentDuration.inSeconds
+          : null,
+      lastSourcePluginId: widget.sourcePluginId,
+    );
+  }
+
+  Future<void> _flushProgressAndRefresh() {
+    final pending = _pendingProgressFlush;
+    if (pending != null) {
+      return pending;
+    }
+
+    final future = _saveCurrentProgress().whenComplete(() {
+      _pendingProgressFlush = null;
+    });
+    _pendingProgressFlush = future;
+    return future;
+  }
+
+  Future<void> _handleExitRequested() async {
+    if (_isExiting) {
+      return;
+    }
+    _isExiting = true;
+    try {
+      await _flushProgressAndRefresh();
+      await _updateWatchHistory();
+      ref.invalidate(continueWatchingProvider);
+      ref.invalidate(latestEpisodeProgressProvider(widget.anilistId));
+      ref.invalidate(animeEpisodeProgressListProvider(widget.anilistId));
+    } finally {
+      if (mounted) {
+        Navigator.of(context).pop();
+      }
+      _isExiting = false;
+    }
+  }
+
+  Widget _wrapWithExitGuard(Widget child) {
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) async {
+        if (!didPop) {
+          await _handleExitRequested();
+        }
+      },
+      child: child,
     );
   }
 
   Future<void> _startPlayback() async {
     _resumePosition = await _loadResumePosition();
+    _log(
+      'startPlayback resumePosition=$_resumePosition streams=${widget.resolved.streams.length}',
+    );
     final result = await _orchestrator.start(
       streamCandidates: widget.resolved.streams,
       initialPosition: _resumePosition,
@@ -176,6 +248,7 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
   }
 
   Future<void> _retryPlayback() async {
+    _log('retryPlayback');
     setState(() => _startError = null);
     final result = await _orchestrator.retry();
     if (!mounted) return;
@@ -222,15 +295,20 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
   }
 
   Future<void> _seekTo(Duration position) async {
+    _log(
+      'ui seek target=$position current=$_currentPosition duration=$_currentDuration',
+    );
     await _orchestrator.seekTo(position);
   }
 
   @override
   Widget build(BuildContext context) {
     if (_startError != null) {
-      return Scaffold(
-        appBar: AppBar(title: Text(context.l10n.playerTitle)),
-        body: ErrorStateView(message: _startError!, onRetry: _retryPlayback),
+      return _wrapWithExitGuard(
+        Scaffold(
+          appBar: AppBar(title: Text(context.l10n.playerTitle)),
+          body: ErrorStateView(message: _startError!, onRetry: _retryPlayback),
+        ),
       );
     }
 
@@ -238,157 +316,161 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
         _state.status == PlayerSessionStatus.opening ||
         _state.status == PlayerSessionStatus.buffering;
 
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(
-          context.l10n.playerEpisodeTitle(
-            widget.animeTitle,
-            widget.episodeNumber,
+    return _wrapWithExitGuard(
+      Scaffold(
+        appBar: AppBar(
+          title: Text(
+            context.l10n.playerEpisodeTitle(
+              widget.animeTitle,
+              widget.episodeNumber,
+            ),
           ),
         ),
-      ),
-      body: Column(
-        children: <Widget>[
-          Expanded(
-            child: Stack(
-              fit: StackFit.expand,
-              children: <Widget>[
-                Video(
-                  controller: _engine.videoController,
-                  controls: NoVideoControls,
-                ),
-                if (isLoading)
-                  Container(
-                    color: Colors.black45,
-                    alignment: Alignment.center,
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: <Widget>[
-                        const CircularProgressIndicator(),
-                        const SizedBox(height: 12),
-                        Text(
-                          context.l10n.playerLoading,
+        body: Column(
+          children: <Widget>[
+            Expanded(
+              child: Stack(
+                fit: StackFit.expand,
+                children: <Widget>[
+                  Video(
+                    controller: _engine.videoController,
+                    controls: NoVideoControls,
+                  ),
+                  if (isLoading)
+                    Container(
+                      color: Colors.black45,
+                      alignment: Alignment.center,
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: <Widget>[
+                          const CircularProgressIndicator(),
+                          const SizedBox(height: 12),
+                          Text(
+                            context.l10n.playerLoading,
+                            style: const TextStyle(color: Colors.white),
+                          ),
+                        ],
+                      ),
+                    ),
+                  if (_state.status == PlayerSessionStatus.error)
+                    Align(
+                      alignment: Alignment.topCenter,
+                      child: Container(
+                        margin: const EdgeInsets.all(12),
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.red.shade700,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          context.l10n.playerPlaybackErrorGeneric,
                           style: const TextStyle(color: Colors.white),
                         ),
-                      ],
-                    ),
-                  ),
-                if (_state.status == PlayerSessionStatus.error)
-                  Align(
-                    alignment: Alignment.topCenter,
-                    child: Container(
-                      margin: const EdgeInsets.all(12),
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: Colors.red.shade700,
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Text(
-                        context.l10n.playerPlaybackErrorGeneric,
-                        style: const TextStyle(color: Colors.white),
                       ),
                     ),
-                  ),
-              ],
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.all(12),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: <Widget>[
-                Text(
-                  context.l10n.playerSourceSummary(
-                    widget.serverName,
-                    widget.resolved.resolverName,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  context.l10n.playerCandidatePosition(
-                    (_state.currentCandidateIndex + 1).toString(),
-                    _state.totalCandidates.toString(),
-                  ),
-                ),
-                if (_state.infoMessage != null &&
-                    _state.infoMessage!.trim().isNotEmpty) ...<Widget>[
-                  const SizedBox(height: 6),
-                  Text(_mapInfoMessage(context, _state.infoMessage!)),
                 ],
-                if (widget.preferredAudioPreference != null) ...<Widget>[
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  Text(
+                    context.l10n.playerSourceSummary(
+                      widget.serverName,
+                      widget.resolved.resolverName,
+                    ),
+                  ),
                   const SizedBox(height: 6),
                   Text(
-                    context.l10n.playerAudioPreference(
-                      widget.preferredAudioPreference!.name.toUpperCase(),
+                    context.l10n.playerCandidatePosition(
+                      (_state.currentCandidateIndex + 1).toString(),
+                      _state.totalCandidates.toString(),
                     ),
                   ),
-                ],
-                const SizedBox(height: 12),
-                Row(
-                  children: <Widget>[
-                    FilledButton.icon(
-                      onPressed: () => _orchestrator.togglePlayPause(),
-                      icon: Icon(
-                        _state.status == PlayerSessionStatus.playing
-                            ? Icons.pause
-                            : Icons.play_arrow,
-                      ),
-                      label: Text(
-                        _state.status == PlayerSessionStatus.playing
-                            ? context.l10n.playerPause
-                            : context.l10n.playerPlay,
+                  if (_state.infoMessage != null &&
+                      _state.infoMessage!.trim().isNotEmpty) ...<Widget>[
+                    const SizedBox(height: 6),
+                    Text(_mapInfoMessage(context, _state.infoMessage!)),
+                  ],
+                  if (widget.preferredAudioPreference != null) ...<Widget>[
+                    const SizedBox(height: 6),
+                    Text(
+                      context.l10n.playerAudioPreference(
+                        widget.preferredAudioPreference!.name.toUpperCase(),
                       ),
                     ),
-                    const SizedBox(width: 12),
-                    OutlinedButton.icon(
-                      onPressed: _retryPlayback,
-                      icon: const Icon(Icons.refresh),
-                      label: Text(context.l10n.retry),
-                    ),
                   ],
-                ),
-                const SizedBox(height: 12),
-                Slider(
-                  value: _sliderValueMs,
-                  max: _sliderMaxMs,
-                  onChanged: _currentDuration > Duration.zero
-                      ? (value) {
-                          setState(() {
-                            _isScrubbing = true;
-                            _scrubPositionMs = value;
-                          });
-                        }
-                      : null,
-                  onChangeEnd: _currentDuration > Duration.zero
-                      ? (value) {
-                          final target = Duration(milliseconds: value.round());
-                          setState(() {
-                            _currentPosition = target;
-                            _isScrubbing = false;
-                            _scrubPositionMs = null;
-                          });
-                          unawaited(_seekTo(target));
-                        }
-                      : null,
-                ),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: <Widget>[
-                    Text(_formatDuration(_effectiveSliderPosition)),
-                    Text(_formatDuration(_currentDuration)),
-                  ],
-                ),
-                if (_state.status == PlayerSessionStatus.error) ...<Widget>[
-                  const SizedBox(height: 8),
-                  Text(
-                    context.l10n.playerAllCandidatesFailed,
-                    style: const TextStyle(color: Colors.redAccent),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: <Widget>[
+                      FilledButton.icon(
+                        onPressed: () => _orchestrator.togglePlayPause(),
+                        icon: Icon(
+                          _state.status == PlayerSessionStatus.playing
+                              ? Icons.pause
+                              : Icons.play_arrow,
+                        ),
+                        label: Text(
+                          _state.status == PlayerSessionStatus.playing
+                              ? context.l10n.playerPause
+                              : context.l10n.playerPlay,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      OutlinedButton.icon(
+                        onPressed: _retryPlayback,
+                        icon: const Icon(Icons.refresh),
+                        label: Text(context.l10n.retry),
+                      ),
+                    ],
                   ),
+                  const SizedBox(height: 12),
+                  Slider(
+                    value: _sliderValueMs,
+                    max: _sliderMaxMs,
+                    onChanged: _currentDuration > Duration.zero
+                        ? (value) {
+                            setState(() {
+                              _isScrubbing = true;
+                              _scrubPositionMs = value;
+                            });
+                          }
+                        : null,
+                    onChangeEnd: _currentDuration > Duration.zero
+                        ? (value) {
+                            final target = Duration(
+                              milliseconds: value.round(),
+                            );
+                            setState(() {
+                              _currentPosition = target;
+                              _isScrubbing = false;
+                              _scrubPositionMs = null;
+                            });
+                            unawaited(_seekTo(target));
+                          }
+                        : null,
+                  ),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: <Widget>[
+                      Text(_formatDuration(_effectiveSliderPosition)),
+                      Text(_formatDuration(_currentDuration)),
+                    ],
+                  ),
+                  if (_state.status == PlayerSessionStatus.error) ...<Widget>[
+                    const SizedBox(height: 8),
+                    Text(
+                      context.l10n.playerAllCandidatesFailed,
+                      style: const TextStyle(color: Colors.redAccent),
+                    ),
+                  ],
                 ],
-              ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -441,5 +523,12 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
     }
     return '${minutes.toString().padLeft(2, '0')}:'
         '${seconds.toString().padLeft(2, '0')}';
+  }
+
+  void _log(String message) {
+    if (!kDebugMode) {
+      return;
+    }
+    debugPrint('[player.page ${DateTime.now().toIso8601String()}] $message');
   }
 }

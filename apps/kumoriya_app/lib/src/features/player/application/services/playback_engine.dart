@@ -5,6 +5,7 @@ import 'package:kumoriya_plugins/kumoriya_plugins.dart';
 abstract interface class PlaybackEngine {
   Stream<bool> get playingStream;
   Stream<bool> get bufferingStream;
+  Stream<bool> get completedStream;
   Stream<String> get errorStream;
   Stream<Duration> get positionStream;
   Stream<Duration> get durationStream;

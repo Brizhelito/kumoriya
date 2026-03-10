@@ -325,6 +325,88 @@ void main() {
       await orchestrator.dispose();
     },
   );
+
+  test(
+    'recovers same hls candidate when playback jumps to end after seek',
+    () async {
+      final engine = _FakePlaybackEngine(
+        openBehaviors: const <_OpenBehavior>[
+          _OpenBehavior.success(),
+          _OpenBehavior.success(),
+          _OpenBehavior.success(),
+        ],
+      );
+      final orchestrator = PlayerSessionOrchestrator(playbackEngine: engine);
+
+      final result = await orchestrator.start(
+        streamCandidates: <ResolvedStream>[
+          ResolvedStream(
+            url: Uri.parse('https://cdn.example/master.m3u8'),
+            isHls: true,
+          ),
+        ],
+      );
+
+      expect(result.isSuccess, isTrue);
+
+      engine.emitDuration(const Duration(minutes: 23, seconds: 40));
+      await orchestrator.seekTo(const Duration(seconds: 50));
+
+      engine.emitPlaying(true);
+      engine.emitBuffering(false);
+      engine.emitPosition(const Duration(minutes: 23, seconds: 40));
+      engine.emitPlaying(false);
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+
+      expect(engine.openCalls, 3);
+      expect(engine.openStartPositions.last, const Duration(seconds: 50));
+      expect(orchestrator.state.currentCandidateIndex, 0);
+
+      await orchestrator.dispose();
+    },
+  );
+
+  test(
+    'recovers same hls candidate when initial resume jumps to end',
+    () async {
+      final engine = _FakePlaybackEngine(
+        openBehaviors: const <_OpenBehavior>[
+          _OpenBehavior.success(),
+          _OpenBehavior.success(),
+          _OpenBehavior.success(),
+        ],
+      );
+      final orchestrator = PlayerSessionOrchestrator(playbackEngine: engine);
+
+      final result = await orchestrator.start(
+        streamCandidates: <ResolvedStream>[
+          ResolvedStream(
+            url: Uri.parse('https://cdn.example/master.m3u8'),
+            isHls: true,
+          ),
+        ],
+        initialPosition: const Duration(minutes: 10, seconds: 33),
+      );
+
+      expect(result.isSuccess, isTrue);
+
+      engine.emitDuration(const Duration(minutes: 23, seconds: 40));
+      engine.emitPlaying(true);
+      engine.emitBuffering(false);
+      engine.emitPosition(const Duration(minutes: 23, seconds: 40));
+      engine.emitCompleted(true);
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+
+      expect(engine.openCalls, 2);
+      expect(
+        engine.openStartPositions.last,
+        const Duration(minutes: 10, seconds: 33),
+      );
+      expect(orchestrator.state.currentCandidateIndex, 0);
+
+      await orchestrator.dispose();
+    },
+  );
 }
 
 final class _FakePlaybackEngine implements PlaybackEngine {
@@ -337,8 +419,10 @@ final class _FakePlaybackEngine implements PlaybackEngine {
 
   final _playingController = StreamController<bool>.broadcast();
   final _bufferingController = StreamController<bool>.broadcast();
+  final _completedController = StreamController<bool>.broadcast();
   final _errorController = StreamController<String>.broadcast();
   final _positionController = StreamController<Duration>.broadcast();
+  final _durationController = StreamController<Duration>.broadcast();
 
   int openCalls = 0;
   int playCalls = 0;
@@ -354,13 +438,16 @@ final class _FakePlaybackEngine implements PlaybackEngine {
   Stream<String> get errorStream => _errorController.stream;
 
   @override
+  Stream<bool> get completedStream => _completedController.stream;
+
+  @override
   Stream<bool> get playingStream => _playingController.stream;
 
   @override
   Stream<Duration> get positionStream => _positionController.stream;
 
   @override
-  Stream<Duration> get durationStream => const Stream<Duration>.empty();
+  Stream<Duration> get durationStream => _durationController.stream;
 
   @override
   Future<void> seekTo(Duration position) async {
@@ -373,8 +460,10 @@ final class _FakePlaybackEngine implements PlaybackEngine {
   Future<void> dispose() async {
     await _playingController.close();
     await _bufferingController.close();
+    await _completedController.close();
     await _errorController.close();
     await _positionController.close();
+    await _durationController.close();
   }
 
   @override
@@ -426,8 +515,16 @@ final class _FakePlaybackEngine implements PlaybackEngine {
     _errorController.add(value);
   }
 
+  void emitCompleted(bool value) {
+    _completedController.add(value);
+  }
+
   void emitPosition(Duration value) {
     _positionController.add(value);
+  }
+
+  void emitDuration(Duration value) {
+    _durationController.add(value);
   }
 }
 
