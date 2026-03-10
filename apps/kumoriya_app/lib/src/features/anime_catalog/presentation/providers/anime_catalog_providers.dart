@@ -206,6 +206,7 @@ final searchCatalogProvider = FutureProvider.autoDispose
 
 final animeDetailProvider = FutureProvider.autoDispose
     .family<Result<AnimeDetail, KumoriyaError>, int>((ref, anilistId) async {
+      ref.keepAlive();
       return ref.watch(getAnimeDetailUseCaseProvider).call(anilistId);
     });
 
@@ -222,6 +223,7 @@ final sourceAvailabilitySummaryProvider = FutureProvider.autoDispose
       ref,
       anilistId,
     ) async {
+      ref.keepAlive();
       final detailResult = await ref.watch(
         animeDetailProvider(anilistId).future,
       );

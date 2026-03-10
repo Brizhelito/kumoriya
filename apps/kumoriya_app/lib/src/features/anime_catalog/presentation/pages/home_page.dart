@@ -7,6 +7,8 @@ import 'package:kumoriya_domain/kumoriya_domain.dart';
 import 'package:kumoriya_storage/kumoriya_storage.dart';
 
 import '../../../../app/l10n.dart';
+import '../../../../shared/theme/kumoriya_theme.dart';
+import '../../../../shared/widgets/continue_watching_card.dart';
 import '../../../../shared/widgets/kumoriya_cached_image.dart';
 import '../../../../shared/widgets/state_views.dart';
 import '../../application/models/episode_playback.dart';
@@ -14,10 +16,8 @@ import '../../application/models/source_availability.dart';
 import '../providers/anime_catalog_providers.dart';
 import '../providers/storage_providers.dart';
 import '../support/playback_launch_flow.dart';
-import '../widgets/anime_list_tile.dart';
 import 'anime_detail_page.dart';
 import 'episode_list_page.dart';
-import 'search_page.dart';
 
 class HomePage extends ConsumerWidget {
   const HomePage({super.key});
@@ -28,7 +28,7 @@ class HomePage extends ConsumerWidget {
     final continueWatching = ref.watch(continueWatchingProvider);
 
     return Scaffold(
-      appBar: AppBar(title: Text(context.l10n.appTitle)),
+      backgroundColor: KumoriyaColors.background,
       body: homeCatalog.when(
         loading: () => LoadingStateView(label: context.l10n.homeLoadingCatalog),
         error: (_, _) => ErrorStateView(
@@ -57,125 +57,264 @@ class _HomeBody extends StatelessWidget {
   final AsyncValue<Result<List<AnimeWatchHistory>, KumoriyaError>>
   continueWatching;
 
+  void _openDetail(BuildContext context, int anilistId) {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => AnimeDetailPage(anilistId: anilistId),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final catalogById = <int, Anime>{
       for (final anime in animeList) anime.anilistId: anime,
     };
 
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
-      children: <Widget>[
-        _HeroSearchCard(),
-        const SizedBox(height: 18),
-        _ContinueWatchingSection(
-          continueWatching: continueWatching,
-          catalogById: catalogById,
-        ),
-        const SizedBox(height: 20),
-        Text(
-          context.l10n.homeTrendingSection,
-          style: Theme.of(
-            context,
-          ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
-        ),
-        const SizedBox(height: 8),
-        Text(
-          context.l10n.homeTrendingHint,
-          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-            color: Theme.of(context).colorScheme.onSurfaceVariant,
-          ),
-        ),
-        const SizedBox(height: 12),
-        if (animeList.isEmpty)
-          EmptyStateView(message: context.l10n.homeEmptyCatalog)
-        else
-          ...animeList.map(
-            (anime) => AnimeListTile(
-              anime: anime,
-              onTap: () {
-                Navigator.of(context).push(
-                  MaterialPageRoute<void>(
-                    builder: (_) => AnimeDetailPage(anilistId: anime.anilistId),
-                  ),
-                );
-              },
+    return CustomScrollView(
+      slivers: <Widget>[
+        SliverSafeArea(
+          sliver: SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+              child: _MobileHeader(),
             ),
           ),
+        ),
+        SliverToBoxAdapter(
+          child: _ContinueWatchingSection(
+            continueWatching: continueWatching,
+            catalogById: catalogById,
+          ),
+        ),
+        if (animeList.isNotEmpty) ...<Widget>[
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 32, 16, 12),
+              child: _SectionHeader(title: context.l10n.homeTrendingSection),
+            ),
+          ),
+          SliverPadding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            sliver: SliverList(
+              delegate: SliverChildBuilderDelegate((context, index) {
+                final anime = animeList[index];
+                return _TrendingRow(
+                  anime: anime,
+                  rank: index + 1,
+                  onTap: () => _openDetail(context, anime.anilistId),
+                );
+              }, childCount: animeList.length),
+            ),
+          ),
+        ] else
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.all(32),
+              child: EmptyStateView(message: context.l10n.homeEmptyCatalog),
+            ),
+          ),
+        const SliverToBoxAdapter(child: SizedBox(height: 32)),
       ],
     );
   }
 }
 
-class _HeroSearchCard extends StatelessWidget {
+class _MobileHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(28),
-        gradient: LinearGradient(
-          colors: <Color>[
-            Theme.of(context).colorScheme.primaryContainer,
-            Theme.of(context).colorScheme.surface,
-          ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(
         children: <Widget>[
-          Text(
-            context.l10n.homeHeroTitle,
-            style: Theme.of(
-              context,
-            ).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w800),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            context.l10n.homeHeroSubtitle,
-            style: Theme.of(context).textTheme.bodyLarge,
-          ),
-          const SizedBox(height: 18),
-          InkWell(
-            onTap: () {
-              Navigator.of(context).push(
-                MaterialPageRoute<void>(builder: (_) => const SearchPage()),
-              );
-            },
-            borderRadius: BorderRadius.circular(999),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-              decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.surface,
-                borderRadius: BorderRadius.circular(999),
-              ),
-              child: Row(
-                children: <Widget>[
-                  const Icon(Icons.search_rounded),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Text(
-                      context.l10n.searchHintTitle,
-                      style: Theme.of(context).textTheme.bodyLarge,
-                    ),
-                  ),
-                  TextButton(
-                    onPressed: () {
-                      Navigator.of(context).push(
-                        MaterialPageRoute<void>(
-                          builder: (_) => const SearchPage(),
-                        ),
-                      );
-                    },
-                    child: Text(context.l10n.homeSearchAction),
-                  ),
-                ],
+          Container(
+            width: 32,
+            height: 32,
+            decoration: BoxDecoration(
+              color: KumoriyaColors.primary,
+              shape: BoxShape.circle,
+              boxShadow: <BoxShadow>[
+                BoxShadow(
+                  color: KumoriyaColors.primary.withValues(alpha: 0.30),
+                  blurRadius: 10,
+                  offset: const Offset(0, 3),
+                ),
+              ],
+            ),
+            alignment: Alignment.center,
+            child: const Text(
+              'K',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 16,
+                fontWeight: FontWeight.w900,
               ),
             ),
           ),
+          const SizedBox(width: 10),
+          const Text(
+            'Kumoriya',
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.w800,
+              color: KumoriyaColors.textPrimary,
+              letterSpacing: -0.3,
+            ),
+          ),
         ],
+      ),
+    );
+  }
+}
+
+class _SectionHeader extends StatelessWidget {
+  const _SectionHeader({required this.title});
+
+  final String title;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        Text(
+          title,
+          style: const TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.w800,
+            color: KumoriyaColors.textPrimary,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _TrendingRow extends StatefulWidget {
+  const _TrendingRow({
+    required this.anime,
+    required this.rank,
+    required this.onTap,
+  });
+
+  final Anime anime;
+  final int rank;
+  final VoidCallback onTap;
+
+  @override
+  State<_TrendingRow> createState() => _TrendingRowState();
+}
+
+class _TrendingRowState extends State<_TrendingRow> {
+  bool _hovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return MouseRegion(
+      onEnter: (_) => setState(() => _hovered = true),
+      onExit: (_) => setState(() => _hovered = false),
+      child: GestureDetector(
+        onTap: widget.onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          margin: const EdgeInsets.only(bottom: 8),
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: _hovered
+                ? KumoriyaColors.surface
+                : KumoriyaColors.surface.withValues(alpha: 0.40),
+            borderRadius: BorderRadius.circular(KumoriyaRadius.xxl),
+            border: Border.all(
+              color: _hovered
+                  ? KumoriyaColors.borderMedium
+                  : KumoriyaColors.borderSubtle,
+            ),
+          ),
+          child: Row(
+            children: <Widget>[
+              SizedBox(
+                width: 32,
+                child: Text(
+                  '${widget.rank}',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800,
+                    color: KumoriyaColors.primary.withValues(alpha: 0.50),
+                    fontStyle: FontStyle.italic,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(KumoriyaRadius.md),
+                child: KumoriyaCachedImage(
+                  url: widget.anime.coverImageUrl,
+                  bucket: KumoriyaImageCacheBucket.artwork,
+                  width: 52,
+                  height: 52,
+                  fit: BoxFit.cover,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Text(
+                      widget.anime.title.romaji,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                        color: KumoriyaColors.textPrimary,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Row(
+                      children: <Widget>[
+                        if (widget.anime.releaseYear != null) ...<Widget>[
+                          Text(
+                            '${widget.anime.releaseYear}',
+                            style: const TextStyle(
+                              fontSize: 11,
+                              color: KumoriyaColors.textDisabled,
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          Container(
+                            width: 3,
+                            height: 3,
+                            decoration: const BoxDecoration(
+                              color: KumoriyaColors.borderMedium,
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                        ],
+                        Text(
+                          widget.anime.format.name.toUpperCase(),
+                          style: const TextStyle(
+                            fontSize: 11,
+                            color: KumoriyaColors.textDisabled,
+                            letterSpacing: 0.3,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              const Icon(
+                Icons.chevron_right_rounded,
+                color: KumoriyaColors.textDisabled,
+                size: 20,
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -197,7 +336,7 @@ class _ContinueWatchingSection extends StatefulWidget {
 }
 
 class _ContinueWatchingSectionState extends State<_ContinueWatchingSection> {
-  static const double _scrollStep = 280;
+  static const double _scrollStep = 340;
 
   final ScrollController _scrollController = ScrollController();
 
@@ -221,42 +360,28 @@ class _ContinueWatchingSectionState extends State<_ContinueWatchingSection> {
   }
 
   void _scrollBy(double delta) {
-    if (!_scrollController.hasClients) {
-      return;
-    }
-
-    final position = _scrollController.position;
+    if (!_scrollController.hasClients) return;
     final target = (_scrollController.offset + delta).clamp(
       0.0,
-      position.maxScrollExtent,
+      _scrollController.position.maxScrollExtent,
     );
-
     _scrollController.animateTo(
       target,
-      duration: const Duration(milliseconds: 220),
+      duration: const Duration(milliseconds: 300),
       curve: Curves.easeOutCubic,
     );
   }
 
   void _handlePointerSignal(PointerSignalEvent event) {
-    if (!_isDesktopPlatform || !_scrollController.hasClients) {
-      return;
-    }
-    if (event is! PointerScrollEvent) {
-      return;
-    }
-
+    if (!_isDesktopPlatform || !_scrollController.hasClients) return;
+    if (event is! PointerScrollEvent) return;
     final delta = event.scrollDelta.dx != 0
         ? event.scrollDelta.dx
         : event.scrollDelta.dy;
-    if (delta == 0) {
-      return;
-    }
-
-    final position = _scrollController.position;
+    if (delta == 0) return;
     final target = (_scrollController.offset + delta).clamp(
       0.0,
-      position.maxScrollExtent,
+      _scrollController.position.maxScrollExtent,
     );
     _scrollController.jumpTo(target);
   }
@@ -269,69 +394,73 @@ class _ContinueWatchingSectionState extends State<_ContinueWatchingSection> {
       data: (result) => result.fold(
         onFailure: (_) => const SizedBox.shrink(),
         onSuccess: (history) {
-          if (history.isEmpty) {
-            return const SizedBox.shrink();
-          }
+          if (history.isEmpty) return const SizedBox.shrink();
 
           final showDesktopControls = _isDesktopPlatform && history.length > 1;
 
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: <Widget>[
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: <Widget>[
-                  Expanded(
-                    child: Text(
-                      context.l10n.continueWatching,
-                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                        fontWeight: FontWeight.w800,
+          return Padding(
+            padding: const EdgeInsets.only(top: 20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
+                  child: Row(
+                    children: <Widget>[
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: <Widget>[
+                            Text(
+                              context.l10n.continueWatching,
+                              style: const TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w800,
+                                color: KumoriyaColors.textPrimary,
+                              ),
+                            ),
+                            const SizedBox(height: 3),
+                            Text(
+                              context.l10n.continueWatchingHint,
+                              style: const TextStyle(
+                                fontSize: 12,
+                                color: KumoriyaColors.textMuted,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
-                  ),
-                  if (showDesktopControls)
-                    Row(
-                      children: <Widget>[
-                        IconButton.filledTonal(
+                      if (showDesktopControls) ...<Widget>[
+                        _NavArrow(
                           key: const Key('continue-watching-scroll-left'),
-                          onPressed: () => _scrollBy(-_scrollStep),
-                          icon: const Icon(Icons.arrow_back_rounded),
+                          icon: Icons.arrow_back_rounded,
+                          onTap: () => _scrollBy(-_scrollStep),
                         ),
                         const SizedBox(width: 8),
-                        IconButton.filled(
+                        _NavArrow(
                           key: const Key('continue-watching-scroll-right'),
-                          onPressed: () => _scrollBy(_scrollStep),
-                          icon: const Icon(Icons.arrow_forward_rounded),
+                          icon: Icons.arrow_forward_rounded,
+                          onTap: () => _scrollBy(_scrollStep),
                         ),
                       ],
-                    ),
-                ],
-              ),
-              const SizedBox(height: 8),
-              Text(
-                context.l10n.continueWatchingHint,
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ],
+                  ),
                 ),
-              ),
-              const SizedBox(height: 12),
-              SizedBox(
-                height: 172,
-                child: Listener(
-                  onPointerSignal: _handlePointerSignal,
-                  child: Scrollbar(
-                    controller: _scrollController,
-                    thumbVisibility: showDesktopControls,
-                    interactive: true,
+                const SizedBox(height: 14),
+                SizedBox(
+                  height: 163,
+                  child: Listener(
+                    onPointerSignal: _handlePointerSignal,
                     child: ListView.separated(
                       key: const Key('continue-watching-list'),
                       controller: _scrollController,
                       scrollDirection: Axis.horizontal,
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
                       itemCount: history.length,
                       separatorBuilder: (_, _) => const SizedBox(width: 12),
                       itemBuilder: (context, index) {
                         final entry = history[index];
-                        return _ContinueWatchingCard(
+                        return _ContinueWatchingCardWrapper(
                           entry: entry,
                           fallbackAnime: widget.catalogById[entry.anilistId],
                         );
@@ -339,8 +468,8 @@ class _ContinueWatchingSectionState extends State<_ContinueWatchingSection> {
                     ),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           );
         },
       ),
@@ -348,8 +477,32 @@ class _ContinueWatchingSectionState extends State<_ContinueWatchingSection> {
   }
 }
 
-class _ContinueWatchingCard extends ConsumerStatefulWidget {
-  const _ContinueWatchingCard({
+class _NavArrow extends StatelessWidget {
+  const _NavArrow({super.key, required this.icon, required this.onTap});
+
+  final IconData icon;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 36,
+        height: 36,
+        decoration: BoxDecoration(
+          color: KumoriyaColors.surface,
+          borderRadius: BorderRadius.circular(KumoriyaRadius.full),
+          border: Border.all(color: KumoriyaColors.borderSubtle),
+        ),
+        child: Icon(icon, color: KumoriyaColors.textMuted, size: 18),
+      ),
+    );
+  }
+}
+
+class _ContinueWatchingCardWrapper extends ConsumerStatefulWidget {
+  const _ContinueWatchingCardWrapper({
     required this.entry,
     required this.fallbackAnime,
   });
@@ -358,11 +511,12 @@ class _ContinueWatchingCard extends ConsumerStatefulWidget {
   final Anime? fallbackAnime;
 
   @override
-  ConsumerState<_ContinueWatchingCard> createState() =>
-      _ContinueWatchingCardState();
+  ConsumerState<_ContinueWatchingCardWrapper> createState() =>
+      _ContinueWatchingCardWrapperState();
 }
 
-class _ContinueWatchingCardState extends ConsumerState<_ContinueWatchingCard> {
+class _ContinueWatchingCardWrapperState
+    extends ConsumerState<_ContinueWatchingCardWrapper> {
   static const Duration _resumePreparationTimeout = Duration(seconds: 6);
 
   bool _isLaunching = false;
@@ -395,107 +549,25 @@ class _ContinueWatchingCardState extends ConsumerState<_ContinueWatchingCard> {
           orElse: () => null,
         );
 
-    return InkWell(
+    return ContinueWatchingCard(
       key: Key('continue-watching-card-${widget.entry.anilistId}'),
-      onTap: _isLaunching ? null : () => _handleResumeTap(title),
-      borderRadius: BorderRadius.circular(24),
-      child: Container(
-        width: 248,
-        clipBehavior: Clip.antiAlias,
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(24),
-          color: Theme.of(context).colorScheme.surface,
-        ),
-        child: Stack(
-          fit: StackFit.expand,
-          children: <Widget>[
-            KumoriyaCachedImage(
-              url: imageUrl,
-              bucket: KumoriyaImageCacheBucket.artwork,
-              fit: BoxFit.cover,
-            ),
-            DecoratedBox(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: <Color>[
-                    Colors.black.withValues(alpha: 0.04),
-                    Colors.black.withValues(alpha: 0.82),
-                  ],
-                ),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: <Widget>[
-                  _PillLabel(
-                    label: context.l10n.continueWatchingEpisode(
-                      widget.entry.lastEpisodeNumber.toInt().toString(),
-                    ),
-                  ),
-                  const Spacer(),
-                  Text(
-                    title,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    _formatTimeAgo(context, widget.entry.lastAccessedAt),
-                    style: Theme.of(
-                      context,
-                    ).textTheme.bodySmall?.copyWith(color: Colors.white70),
-                  ),
-                  const SizedBox(height: 10),
-                  Row(
-                    children: <Widget>[
-                      const Icon(
-                        Icons.play_circle_fill_rounded,
-                        size: 18,
-                        color: Colors.white,
-                      ),
-                      const SizedBox(width: 6),
-                      Text(
-                        context.l10n.continueWatchingResumeAction,
-                        style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
+      entry: widget.entry,
+      title: title,
+      imageUrl: imageUrl,
+      isLaunching: _isLaunching,
+      onResume: () => _handleResumeTap(title),
     );
   }
 
   Future<void> _handleResumeTap(String animeTitle) async {
-    if (_isLaunching) {
-      return;
-    }
-
+    if (_isLaunching) return;
     setState(() => _isLaunching = true);
     showBlockingLoader(context, context.l10n.playbackPreparing);
     var loaderShown = true;
 
     try {
       final summary = await _loadResumeSummary();
-
-      if (!mounted) {
-        return;
-      }
-
+      if (!mounted) return;
       if (summary == null) {
         if (loaderShown) {
           hideBlockingLoader(context);
@@ -504,21 +576,16 @@ class _ContinueWatchingCardState extends ConsumerState<_ContinueWatchingCard> {
         await _openEpisodeListFallback(context, animeTitle);
         return;
       }
-
       final decision = await _prepareResumeDecision(summary);
-      if (!mounted) {
-        return;
-      }
+      if (!mounted) return;
       if (loaderShown) {
         hideBlockingLoader(context);
         loaderShown = false;
       }
-
       if (decision == null) {
         await _openEpisodeListFallback(context, animeTitle);
         return;
       }
-
       await handlePlaybackDecision(
         context: context,
         ref: ref,
@@ -529,9 +596,7 @@ class _ContinueWatchingCardState extends ConsumerState<_ContinueWatchingCard> {
       );
     } finally {
       if (mounted) {
-        if (loaderShown) {
-          hideBlockingLoader(context);
-        }
+        if (loaderShown) hideBlockingLoader(context);
         setState(() => _isLaunching = false);
       }
     }
@@ -577,41 +642,6 @@ class _ContinueWatchingCardState extends ConsumerState<_ContinueWatchingCard> {
           anilistId: widget.entry.anilistId,
           animeTitle: animeTitle,
           focusedEpisodeNumber: widget.entry.lastEpisodeNumber,
-        ),
-      ),
-    );
-  }
-
-  String _formatTimeAgo(BuildContext context, DateTime dt) {
-    final diff = DateTime.now().difference(dt);
-    if (diff.inMinutes < 60) {
-      return context.l10n.timeAgoMinutes(diff.inMinutes);
-    }
-    if (diff.inHours < 24) {
-      return context.l10n.timeAgoHours(diff.inHours);
-    }
-    return context.l10n.timeAgoDays(diff.inDays);
-  }
-}
-
-class _PillLabel extends StatelessWidget {
-  const _PillLabel({required this.label});
-
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(999),
-        color: Colors.white.withValues(alpha: 0.14),
-      ),
-      child: Text(
-        label,
-        style: Theme.of(context).textTheme.labelLarge?.copyWith(
-          color: Colors.white,
-          fontWeight: FontWeight.w700,
         ),
       ),
     );

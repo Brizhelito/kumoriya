@@ -916,6 +916,54 @@ abstract class AppLocalizations {
   /// **'Only servers that can actually open are shown here.'**
   String get serverPickerSubtitle;
 
+  /// No description provided for @serverPickerRememberSelectionTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Remember this selection'**
+  String get serverPickerRememberSelectionTitle;
+
+  /// No description provided for @serverPickerRememberSelectionSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Use this source and server first next time if they are still available.'**
+  String get serverPickerRememberSelectionSubtitle;
+
+  /// No description provided for @serverPickerAllSources.
+  ///
+  /// In en, this message translates to:
+  /// **'All sources'**
+  String get serverPickerAllSources;
+
+  /// No description provided for @serverPickerSourceFilter.
+  ///
+  /// In en, this message translates to:
+  /// **'{sourceName} {count}'**
+  String serverPickerSourceFilter(Object sourceName, Object count);
+
+  /// No description provided for @serverPickerSourceOptionCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} options'**
+  String serverPickerSourceOptionCount(Object count);
+
+  /// No description provided for @serverPickerCurrentRemembered.
+  ///
+  /// In en, this message translates to:
+  /// **'Remembered now: {sourceName} / {serverName}'**
+  String serverPickerCurrentRemembered(Object sourceName, Object serverName);
+
+  /// No description provided for @serverPickerUnknownSource.
+  ///
+  /// In en, this message translates to:
+  /// **'Unknown source'**
+  String get serverPickerUnknownSource;
+
+  /// No description provided for @serverPickerUnknownServer.
+  ///
+  /// In en, this message translates to:
+  /// **'Unknown server'**
+  String get serverPickerUnknownServer;
+
   /// No description provided for @serverOptionLastUsed.
   ///
   /// In en, this message translates to:

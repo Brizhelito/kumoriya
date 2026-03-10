@@ -7,10 +7,12 @@ import 'jkanime_server_links_page.dart';
 class JkAnimeEpisodeListPage extends StatelessWidget {
   const JkAnimeEpisodeListPage({
     super.key,
+    required this.anilistId,
     required this.animeTitle,
     required this.episodes,
   });
 
+  final int anilistId;
   final String animeTitle;
   final List<SourceEpisode> episodes;
 
@@ -33,6 +35,7 @@ class JkAnimeEpisodeListPage extends StatelessWidget {
                 Navigator.of(context).push(
                   MaterialPageRoute<void>(
                     builder: (_) => JkAnimeServerLinksPage(
+                      anilistId: anilistId,
                       animeTitle: animeTitle,
                       episode: episode,
                     ),

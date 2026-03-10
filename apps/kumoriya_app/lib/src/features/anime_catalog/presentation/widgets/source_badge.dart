@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../../shared/theme/kumoriya_theme.dart';
 import '../../../../shared/widgets/kumoriya_cached_image.dart';
 import '../../application/models/source_availability.dart';
 
@@ -21,42 +22,42 @@ class SourceBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    final surface = highlighted
-        ? colorScheme.primaryContainer
-        : colorScheme.surfaceContainerHighest;
+    final bg = highlighted
+        ? KumoriyaColors.primaryContainer
+        : KumoriyaColors.surface;
     final borderColor = highlighted
-        ? colorScheme.primary
-        : colorScheme.outlineVariant;
+        ? KumoriyaColors.primary.withValues(alpha: 0.60)
+        : KumoriyaColors.primary.withValues(alpha: 0.25);
+    final textColor = highlighted
+        ? KumoriyaColors.primaryLight
+        : KumoriyaColors.primary;
 
     return Container(
-      padding: EdgeInsets.symmetric(
-        horizontal: compact ? 10 : 12,
-        vertical: compact ? 6 : 8,
-      ),
+      height: compact ? 26 : 30,
+      padding: EdgeInsets.symmetric(horizontal: compact ? 10 : 12),
       decoration: BoxDecoration(
-        color: surface,
-        borderRadius: BorderRadius.circular(999),
+        color: bg,
+        borderRadius: BorderRadius.circular(KumoriyaRadius.full),
         border: Border.all(color: borderColor),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: <Widget>[
-          _SourceIcon(name: name, iconUrl: iconUrl),
-          const SizedBox(width: 8),
+          _SourceIcon(name: name, iconUrl: iconUrl, size: compact ? 16 : 18),
+          const SizedBox(width: 6),
           Text(
             name,
-            style: Theme.of(
-              context,
-            ).textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w700),
+            style: TextStyle(
+              fontSize: compact ? 10 : 11,
+              fontWeight: FontWeight.w700,
+              color: textColor,
+              letterSpacing: 0.2,
+            ),
           ),
           if (audioKinds.isNotEmpty) ...<Widget>[
-            const SizedBox(width: 8),
-            Wrap(
-              spacing: 4,
-              children: audioKinds
-                  .map((kind) => _VariantPill(label: _audioLabel(kind)))
-                  .toList(growable: false),
+            const SizedBox(width: 6),
+            ...audioKinds.map(
+              (kind) => _AudioPill(label: _audioLabel(kind), compact: compact),
             ),
           ],
         ],
@@ -73,75 +74,78 @@ class SourceBadge extends StatelessWidget {
 }
 
 class _SourceIcon extends StatelessWidget {
-  const _SourceIcon({required this.name, required this.iconUrl});
+  const _SourceIcon({
+    required this.name,
+    required this.iconUrl,
+    required this.size,
+  });
 
   final String name;
   final String? iconUrl;
+  final double size;
 
   @override
   Widget build(BuildContext context) {
     final initials = name.isEmpty ? '?' : name.substring(0, 1).toUpperCase();
+    final fallback = DecoratedBox(
+      decoration: const BoxDecoration(
+        color: KumoriyaColors.primaryContainer,
+        shape: BoxShape.circle,
+      ),
+      child: Center(
+        child: Text(
+          initials,
+          style: TextStyle(
+            fontSize: size * 0.55,
+            fontWeight: FontWeight.w800,
+            color: KumoriyaColors.primary,
+          ),
+        ),
+      ),
+    );
+
     return ClipOval(
       child: SizedBox(
-        width: 24,
-        height: 24,
+        width: size,
+        height: size,
         child: iconUrl == null || iconUrl!.trim().isEmpty
-            ? DecoratedBox(
-                decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.primaryContainer,
-                ),
-                child: Center(
-                  child: Text(
-                    initials,
-                    style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-              )
+            ? fallback
             : KumoriyaCachedImage(
                 url: iconUrl,
                 bucket: KumoriyaImageCacheBucket.sourceIcon,
-                width: 24,
-                height: 24,
+                width: size,
+                height: size,
                 fit: BoxFit.cover,
-                errorFallback: DecoratedBox(
-                  decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.primaryContainer,
-                  ),
-                  child: Center(
-                    child: Text(
-                      initials,
-                      style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                ),
+                errorFallback: fallback,
               ),
       ),
     );
   }
 }
 
-class _VariantPill extends StatelessWidget {
-  const _VariantPill({required this.label});
+class _AudioPill extends StatelessWidget {
+  const _AudioPill({required this.label, required this.compact});
 
   final String label;
+  final bool compact;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      margin: const EdgeInsets.only(left: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surface,
-        borderRadius: BorderRadius.circular(999),
+        color: KumoriyaColors.borderSubtle,
+        borderRadius: BorderRadius.circular(KumoriyaRadius.full),
       ),
       child: Text(
         label,
-        style: Theme.of(
-          context,
-        ).textTheme.labelSmall?.copyWith(fontWeight: FontWeight.w700),
+        style: const TextStyle(
+          fontSize: 9,
+          fontWeight: FontWeight.w700,
+          color: KumoriyaColors.textDisabled,
+          letterSpacing: 0.5,
+        ),
       ),
     );
   }

@@ -20,4 +20,5 @@ dev_dependencies:
   build_runner: ^2.12.2
   drift_dev: ^2.32.0
   lints: ^6.0.0
+  sqlite3: ^3.0.0
   test: ^1.25.6

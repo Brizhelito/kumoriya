@@ -44,10 +44,12 @@ void main() {
       expect(find.text('JKAnime'), findsOneWidget);
       expect(find.text('AnimeAV1'), findsOneWidget);
 
-      await tester.tap(find.text('Episodes').first);
+      // Episodes are inline on the detail page (no separate tab).
+      // Scroll down to reach the episode section.
+      await tester.drag(find.byType(CustomScrollView), const Offset(0, -400));
       await tester.pumpAndSettle();
 
-      expect(find.textContaining('Frieren'), findsWidgets);
+      expect(find.text('Episode preview'), findsOneWidget);
       expect(find.text('Play now'), findsWidgets);
     },
   );
@@ -59,12 +61,14 @@ void main() {
     final db = openInMemoryDatabase();
     addTearDown(db.close);
     const fakeSourcePlugins = <SourcePlugin>[_MultiServerSourcePlugin()];
+    const fakeResolverPlugins = <ResolverPlugin>[_FakeResolverPlugin()];
 
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
           animeCatalogRepositoryProvider.overrideWithValue(fakeRepository),
           sourcePluginsProvider.overrideWithValue(fakeSourcePlugins),
+          resolverPluginsProvider.overrideWithValue(fakeResolverPlugins),
           appDatabaseProvider.overrideWithValue(db),
         ],
         child: const KumoriyaApp(),
@@ -74,8 +78,21 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('Frieren').first);
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Episodes').first);
+
+    // Source availability should have resolved with playable sources.
+    expect(find.textContaining('Ready in'), findsOneWidget);
+
+    // Scroll until a 'Play now' label becomes visible (sliver-lazy build).
+    await tester.scrollUntilVisible(
+      find.text('Play now'),
+      200,
+      scrollable: find.byType(Scrollable).first,
+    );
     await tester.pumpAndSettle();
+
+    // Verify the episode card has a play icon (playable sources present).
+    expect(find.byIcon(Icons.play_circle_outline_rounded), findsWidgets);
+
     await tester.tap(find.text('Play now').first);
     await tester.pumpAndSettle();
 
@@ -307,6 +324,37 @@ final class _MultiServerSourcePlugin extends _BaseFakeSourcePlugin {
         language: 'dub',
         detectedHost: 'hlswish.com',
       ),
+    ]);
+  }
+}
+
+final class _FakeResolverPlugin implements ResolverPlugin {
+  const _FakeResolverPlugin();
+
+  static const _supportedHosts = <String>{
+    'www.mp4upload.com',
+    'mp4upload.com',
+    'hlswish.com',
+  };
+
+  @override
+  PluginManifest get manifest => const PluginManifest(
+    id: 'kumoriya.resolver.fake',
+    displayName: 'FakeResolver',
+    type: PluginType.resolver,
+    capabilities: <PluginCapability>{},
+  );
+
+  @override
+  int get priority => 100;
+
+  @override
+  bool supports(Uri url) => _supportedHosts.contains(url.host);
+
+  @override
+  Future<Result<List<ResolvedStream>, KumoriyaError>> resolve(Uri url) async {
+    return Success(<ResolvedStream>[
+      ResolvedStream(url: Uri.parse('https://cdn.example.com/video.mp4')),
     ]);
   }
 }

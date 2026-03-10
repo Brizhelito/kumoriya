@@ -155,10 +155,7 @@ Map<String, String> _headers(Uri url) {
 
 Map<String, String> _playbackHeaders(Uri embedUrl) {
   final origin = '${embedUrl.scheme}://${embedUrl.host}';
-  return <String, String>{
-    'Referer': '$origin/',
-    'Origin': origin,
-  };
+  return <String, String>{'Referer': '$origin/', 'Origin': origin};
 }
 
 List<ResolvedStream> _extractStreams(String payload, {required Uri baseUrl}) {

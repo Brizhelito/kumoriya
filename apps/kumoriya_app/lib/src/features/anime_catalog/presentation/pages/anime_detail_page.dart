@@ -8,6 +8,7 @@ import 'package:kumoriya_plugins/kumoriya_plugins.dart';
 import 'package:kumoriya_storage/kumoriya_storage.dart';
 
 import '../../../../app/l10n.dart';
+import '../../../../shared/theme/kumoriya_theme.dart';
 import '../../../../shared/widgets/kumoriya_cached_image.dart';
 import '../../../../shared/widgets/state_views.dart';
 import '../../application/models/source_availability.dart';
@@ -183,12 +184,17 @@ class _AnimeDetailBody extends StatelessWidget {
     return CustomScrollView(
       slivers: <Widget>[
         SliverAppBar(
-          expandedHeight: 280,
+          expandedHeight: 420,
           pinned: true,
           stretch: true,
-          backgroundColor: Theme.of(context).colorScheme.surface,
+          backgroundColor: KumoriyaColors.background,
+          elevation: 0,
           flexibleSpace: FlexibleSpaceBar(
             background: _DetailHero(detail: detail),
+            stretchModes: const <StretchMode>[
+              StretchMode.zoomBackground,
+              StretchMode.fadeTitle,
+            ],
           ),
         ),
         SliverPadding(
@@ -200,26 +206,56 @@ class _AnimeDetailBody extends StatelessWidget {
               _PlaybackSummaryCard(availabilityState: availabilityState),
               if (detail.synopsis != null &&
                   detail.synopsis!.trim().isNotEmpty) ...<Widget>[
-                const SizedBox(height: 22),
-                Text(
-                  context.l10n.detailSynopsisTitle,
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                const SizedBox(height: 18),
+                const Text(
+                  'Synopsis',
+                  style: TextStyle(
+                    fontSize: 15,
                     fontWeight: FontWeight.w700,
+                    color: KumoriyaColors.textPrimary,
                   ),
                 ),
-                const SizedBox(height: 10),
+                const SizedBox(height: 8),
                 Text(
                   detail.synopsis!,
-                  style: Theme.of(context).textTheme.bodyLarge,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    height: 1.55,
+                    color: KumoriyaColors.textSecondary,
+                  ),
                 ),
               ],
               if (detail.genres.isNotEmpty) ...<Widget>[
-                const SizedBox(height: 22),
+                const SizedBox(height: 16),
                 Wrap(
                   spacing: 8,
                   runSpacing: 8,
                   children: detail.genres
-                      .map((genre) => Chip(label: Text(genre)))
+                      .map(
+                        (genre) => Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 6,
+                          ),
+                          decoration: BoxDecoration(
+                            color: KumoriyaColors.surface,
+                            borderRadius: BorderRadius.circular(
+                              KumoriyaRadius.full,
+                            ),
+                            border: Border.all(
+                              color: KumoriyaColors.borderSubtle,
+                            ),
+                          ),
+                          child: Text(
+                            genre,
+                            style: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: KumoriyaColors.textSecondary,
+                            ),
+                          ),
+                        ),
+                      )
                       .toList(growable: false),
                 ),
               ],
@@ -364,16 +400,16 @@ class _TitleBlock extends StatelessWidget {
       children: <Widget>[
         Text(
           secondaryTitle,
-          style: Theme.of(
-            context,
-          ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
+          style: const TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.w800,
+            color: KumoriyaColors.textPrimary,
+          ),
         ),
-        const SizedBox(height: 4),
+        const SizedBox(height: 5),
         Text(
           context.l10n.detailDiscoverPrompt,
-          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-            color: Theme.of(context).colorScheme.onSurfaceVariant,
-          ),
+          style: const TextStyle(fontSize: 13, color: KumoriyaColors.textMuted),
         ),
       ],
     );
@@ -389,35 +425,52 @@ class _PlaybackSummaryCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(18),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: <Color>[
-            Theme.of(context).colorScheme.primaryContainer,
-            Theme.of(context).colorScheme.surface,
-          ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
+        color: KumoriyaColors.surface,
+        borderRadius: BorderRadius.circular(KumoriyaRadius.xxl),
+        border: Border.all(
+          color: KumoriyaColors.primary.withValues(alpha: 0.20),
         ),
-        borderRadius: BorderRadius.circular(24),
+        boxShadow: <BoxShadow>[
+          BoxShadow(
+            color: KumoriyaColors.primary.withValues(alpha: 0.06),
+            blurRadius: 20,
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
           availabilityState.when(
-            loading: () => Text(
-              context.l10n.sourceAvailabilityChecking,
-              style: Theme.of(context).textTheme.bodyLarge,
+            loading: () => const Text(
+              'Checking sources…',
+              style: TextStyle(color: KumoriyaColors.textMuted, fontSize: 13),
             ),
-            error: (_, _) => Text(context.l10n.detailPlaybackNotReady),
+            error: (_, _) => Text(
+              context.l10n.detailPlaybackNotReady,
+              style: const TextStyle(
+                color: KumoriyaColors.textMuted,
+                fontSize: 13,
+              ),
+            ),
             data: (result) => result.fold(
-              onFailure: (_) => Text(context.l10n.detailPlaybackNotReady),
+              onFailure: (_) => Text(
+                context.l10n.detailPlaybackNotReady,
+                style: const TextStyle(
+                  color: KumoriyaColors.textMuted,
+                  fontSize: 13,
+                ),
+              ),
               onSuccess: (summary) {
                 final playable = summary.playableSources;
                 if (playable.isEmpty) {
                   return Text(
                     context.l10n.detailPlaybackNotReady,
-                    style: Theme.of(context).textTheme.bodyLarge,
+                    style: const TextStyle(
+                      color: KumoriyaColors.textMuted,
+                      fontSize: 13,
+                    ),
                   );
                 }
 
@@ -426,8 +479,10 @@ class _PlaybackSummaryCard extends StatelessWidget {
                   children: <Widget>[
                     Text(
                       context.l10n.detailPlaybackSources(playable.length),
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w800,
+                      style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: KumoriyaColors.textPrimary,
                       ),
                     ),
                     const SizedBox(height: 10),
@@ -452,10 +507,13 @@ class _PlaybackSummaryCard extends StatelessWidget {
               },
             ),
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 12),
           Text(
             context.l10n.detailPlaybackHint,
-            style: Theme.of(context).textTheme.bodyMedium,
+            style: const TextStyle(
+              fontSize: 12,
+              color: KumoriyaColors.textDisabled,
+            ),
           ),
         ],
       ),
@@ -528,43 +586,37 @@ class _EpisodeDetailSectionState extends ConsumerState<_EpisodeDetailSection> {
 
     return Container(
       key: const Key('anime-detail-episodes-section'),
-      padding: const EdgeInsets.all(18),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(24),
+        color: KumoriyaColors.surface,
+        borderRadius: BorderRadius.circular(KumoriyaRadius.xxl),
+        border: Border.all(color: KumoriyaColors.borderSubtle),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          Text(
-            context.l10n.episodePreviewTitle,
-            style: Theme.of(
-              context,
-            ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            latestProgress != null
-                ? context.l10n.detailContinueEpisode(
-                    latestProgress.episodeNumber.toInt().toString(),
-                  )
-                : rows.isEmpty
-                ? '${widget.detail.episodes.length} ${context.l10n.episodesWord}'
-                : context.l10n.detailContinueEpisode(
-                    rows.first.number.toInt().toString(),
+          Row(
+            children: <Widget>[
+              Expanded(
+                child: Text(
+                  context.l10n.episodePreviewTitle,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w800,
+                    color: KumoriyaColors.textPrimary,
                   ),
-            style: Theme.of(
-              context,
-            ).textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w700),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            rows.isEmpty
-                ? context.l10n.episodeListEmpty
-                : '${rows.length} ${context.l10n.episodesWord}',
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
-            ),
+                ),
+              ),
+              Text(
+                rows.isEmpty
+                    ? context.l10n.episodeListEmpty
+                    : '${rows.length} ${context.l10n.episodesWord}',
+                style: const TextStyle(
+                  fontSize: 12,
+                  color: KumoriyaColors.textDisabled,
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: 14),
           if (summary?.playableSources.isEmpty ?? true)
@@ -677,119 +729,151 @@ class _DetailEpisodeCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
+    final isPlayable = row.playableSources.isNotEmpty;
 
-    return Card(
+    return GestureDetector(
       key: Key('anime-detail-episode-${row.number.toInt()}'),
-      elevation: 0,
-      margin: const EdgeInsets.only(bottom: 12),
-      color: row.isCurrentEpisode
-          ? colorScheme.primaryContainer.withValues(alpha: 0.6)
-          : colorScheme.surface,
-      child: InkWell(
-        borderRadius: BorderRadius.circular(22),
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.all(14),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: <Widget>[
-              Row(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        margin: const EdgeInsets.only(bottom: 8),
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: row.isCurrentEpisode
+              ? KumoriyaColors.primary.withValues(alpha: 0.10)
+              : KumoriyaColors.background,
+          borderRadius: BorderRadius.circular(KumoriyaRadius.xxl),
+          border: Border.all(
+            color: row.isCurrentEpisode
+                ? KumoriyaColors.primary.withValues(alpha: 0.30)
+                : KumoriyaColors.borderSubtle,
+          ),
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: <Widget>[
+            Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                color: row.isCurrentEpisode
+                    ? KumoriyaColors.primary
+                    : isPlayable
+                    ? KumoriyaColors.surface
+                    : KumoriyaColors.borderSubtle,
+                borderRadius: BorderRadius.circular(KumoriyaRadius.md),
+                border: row.isCurrentEpisode
+                    ? null
+                    : Border.all(color: KumoriyaColors.borderSubtle),
+                boxShadow: row.isCurrentEpisode
+                    ? <BoxShadow>[
+                        BoxShadow(
+                          color: KumoriyaColors.primary.withValues(alpha: 0.35),
+                          blurRadius: 8,
+                        ),
+                      ]
+                    : null,
+              ),
+              alignment: Alignment.center,
+              child: Text(
+                row.number.toInt().toString().padLeft(2, '0'),
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w800,
+                  color: row.isCurrentEpisode
+                      ? Colors.white
+                      : isPlayable
+                      ? KumoriyaColors.textMuted
+                      : KumoriyaColors.textDisabled,
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: <Widget>[
-                  Container(
-                    width: 42,
-                    height: 42,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: row.playableSources.isEmpty
-                          ? colorScheme.surfaceContainerHighest
-                          : colorScheme.primaryContainer,
-                    ),
-                    alignment: Alignment.center,
-                    child: Text(
-                      row.number.toInt().toString(),
-                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                        fontWeight: FontWeight.w800,
+                  Row(
+                    children: <Widget>[
+                      Expanded(
+                        child: Text(
+                          row.displayTitle,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w700,
+                            color: row.isCurrentEpisode
+                                ? KumoriyaColors.textPrimary
+                                : KumoriyaColors.textSecondary,
+                          ),
+                        ),
                       ),
-                    ),
+                      if (row.isCurrentEpisode)
+                        _DetailContextChip(
+                          label: context.l10n.detailContinueBadge,
+                        ),
+                    ],
                   ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: <Widget>[
-                        Row(
-                          children: <Widget>[
-                            Expanded(
-                              child: Text(
-                                row.displayTitle,
-                                style: Theme.of(context).textTheme.titleMedium
-                                    ?.copyWith(fontWeight: FontWeight.w700),
+                  const SizedBox(height: 5),
+                  Row(
+                    children: <Widget>[
+                      if (row.playableSources.isNotEmpty) ...<Widget>[
+                        ...row.playableSources
+                            .take(2)
+                            .map(
+                              (source) => Padding(
+                                padding: const EdgeInsets.only(right: 6),
+                                child: SourceBadge(
+                                  name: source.manifest.displayName,
+                                  iconUrl: _sourceIconUrl(source.manifest),
+                                  audioKinds: source.availableAudioKinds,
+                                  compact: true,
+                                ),
                               ),
                             ),
-                            if (row.isCurrentEpisode)
-                              _DetailContextChip(
-                                label: context.l10n.detailContinueBadge,
-                              ),
-                          ],
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          row.secondaryText,
-                          style: Theme.of(context).textTheme.bodyMedium
-                              ?.copyWith(color: colorScheme.onSurfaceVariant),
-                        ),
                       ],
-                    ),
+                      Flexible(
+                        child: Text(
+                          row.secondaryText,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 11,
+                            color: KumoriyaColors.textDisabled,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
+                  if (row.progressFraction != null) ...<Widget>[
+                    const SizedBox(height: 8),
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(KumoriyaRadius.full),
+                      child: LinearProgressIndicator(
+                        value: row.progressFraction,
+                        minHeight: 3,
+                        backgroundColor: KumoriyaColors.borderSubtle,
+                        valueColor: const AlwaysStoppedAnimation<Color>(
+                          KumoriyaColors.primary,
+                        ),
+                      ),
+                    ),
+                  ],
                 ],
               ),
-              const SizedBox(height: 12),
-              if (row.playableSources.isNotEmpty)
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: row.playableSources
-                      .map(
-                        (source) => SourceBadge(
-                          name: source.manifest.displayName,
-                          iconUrl: _sourceIconUrl(source.manifest),
-                          audioKinds: source.availableAudioKinds,
-                          compact: true,
-                        ),
-                      )
-                      .toList(growable: false),
-                )
-              else
-                Text(
-                  context.l10n.episodePlaybackUnavailable,
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: colorScheme.onSurfaceVariant,
-                  ),
-                ),
-              if (row.progressFraction != null) ...<Widget>[
-                const SizedBox(height: 12),
-                LinearProgressIndicator(
-                  value: row.progressFraction,
-                  borderRadius: BorderRadius.circular(999),
-                ),
-              ],
-              const SizedBox(height: 14),
-              Align(
-                alignment: Alignment.centerRight,
-                child: FilledButton.tonalIcon(
-                  onPressed: onTap,
-                  icon: const Icon(Icons.play_arrow_rounded),
-                  label: Text(
-                    row.playableSources.isEmpty
-                        ? context.l10n.episodeLockedLabel
-                        : context.l10n.episodePlayNowLabel,
-                  ),
-                ),
+            ),
+            if (isPlayable) ...<Widget>[
+              const SizedBox(width: 10),
+              Icon(
+                Icons.play_circle_outline_rounded,
+                size: 26,
+                color: row.isCurrentEpisode
+                    ? KumoriyaColors.primary
+                    : KumoriyaColors.textDisabled,
               ),
             ],
-          ),
+          ],
         ),
       ),
     );
@@ -808,23 +892,25 @@ class _DetailInfoBanner extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surface,
-        borderRadius: BorderRadius.circular(24),
+        color: KumoriyaColors.background,
+        borderRadius: BorderRadius.circular(KumoriyaRadius.xl),
+        border: Border.all(color: KumoriyaColors.borderSubtle),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
           Text(
             message,
-            style: Theme.of(
-              context,
-            ).textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w600),
+            style: const TextStyle(
+              fontSize: 12,
+              color: KumoriyaColors.textDisabled,
+            ),
           ),
           if (badges.isNotEmpty) ...<Widget>[
-            const SizedBox(height: 12),
-            Wrap(spacing: 8, runSpacing: 8, children: badges),
+            const SizedBox(height: 10),
+            Wrap(spacing: 6, runSpacing: 6, children: badges),
           ],
         ],
       ),
@@ -840,16 +926,19 @@ class _DetailContextChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(999),
-        color: Theme.of(context).colorScheme.primaryContainer,
+        borderRadius: BorderRadius.circular(KumoriyaRadius.full),
+        color: KumoriyaColors.primary.withValues(alpha: 0.18),
       ),
       child: Text(
         label,
-        style: Theme.of(
-          context,
-        ).textTheme.labelMedium?.copyWith(fontWeight: FontWeight.w700),
+        style: const TextStyle(
+          fontSize: 9,
+          fontWeight: FontWeight.w800,
+          color: KumoriyaColors.primary,
+          letterSpacing: 0.5,
+        ),
       ),
     );
   }
@@ -979,16 +1068,19 @@ class _HeroMetaPill extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(999),
-        color: Colors.white.withValues(alpha: 0.16),
+        borderRadius: BorderRadius.circular(KumoriyaRadius.full),
+        color: Colors.black.withValues(alpha: 0.40),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.18)),
       ),
       child: Text(
         label,
-        style: Theme.of(context).textTheme.labelLarge?.copyWith(
-          color: Colors.white,
+        style: const TextStyle(
+          fontSize: 11,
           fontWeight: FontWeight.w700,
+          color: Colors.white,
+          letterSpacing: 0.3,
         ),
       ),
     );

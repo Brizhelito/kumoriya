@@ -343,6 +343,31 @@
   "playbackOpeningSelectedServer": "Abriendo servidor seleccionado...",
   "serverPickerTitle": "Elige un servidor",
   "serverPickerSubtitle": "Aqui solo aparecen opciones que realmente pueden abrirse.",
+  "serverPickerRememberSelectionTitle": "Recordar esta seleccion",
+  "serverPickerRememberSelectionSubtitle": "Usa esta fuente y este servidor primero la proxima vez si siguen disponibles.",
+  "serverPickerAllSources": "Todas las fuentes",
+  "serverPickerSourceFilter": "{sourceName} {count}",
+  "@serverPickerSourceFilter": {
+    "placeholders": {
+      "sourceName": {},
+      "count": {}
+    }
+  },
+  "serverPickerSourceOptionCount": "{count} opciones",
+  "@serverPickerSourceOptionCount": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "serverPickerCurrentRemembered": "Recordado ahora: {sourceName} / {serverName}",
+  "@serverPickerCurrentRemembered": {
+    "placeholders": {
+      "sourceName": {},
+      "serverName": {}
+    }
+  },
+  "serverPickerUnknownSource": "Fuente desconocida",
+  "serverPickerUnknownServer": "Servidor desconocido",
   "serverOptionLastUsed": "Ultimo usado",
   "serverOptionRecommended": "Recomendado",
   "episodeAutoplayFailed": "Ese atajo no abrio. Elige otro servidor.",

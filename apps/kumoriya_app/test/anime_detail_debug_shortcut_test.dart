@@ -142,4 +142,15 @@ final class _FakeAnimeProgressStore implements AnimeProgressStore {
     currentPreference = preference;
     return const Success(null);
   }
+
+  @override
+  Future<Result<void, KumoriyaError>> upsertWatchHistory({
+    required int anilistId,
+    required double episodeNumber,
+    required int positionSeconds,
+    int? totalDurationSeconds,
+    String? lastSourcePluginId,
+  }) async {
+    return const Success(null);
+  }
 }

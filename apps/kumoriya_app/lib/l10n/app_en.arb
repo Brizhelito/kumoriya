@@ -343,6 +343,31 @@
   "playbackOpeningSelectedServer": "Opening selected server...",
   "serverPickerTitle": "Choose a server",
   "serverPickerSubtitle": "Only servers that can actually open are shown here.",
+  "serverPickerRememberSelectionTitle": "Remember this selection",
+  "serverPickerRememberSelectionSubtitle": "Use this source and server first next time if they are still available.",
+  "serverPickerAllSources": "All sources",
+  "serverPickerSourceFilter": "{sourceName} {count}",
+  "@serverPickerSourceFilter": {
+    "placeholders": {
+      "sourceName": {},
+      "count": {}
+    }
+  },
+  "serverPickerSourceOptionCount": "{count} options",
+  "@serverPickerSourceOptionCount": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "serverPickerCurrentRemembered": "Remembered now: {sourceName} / {serverName}",
+  "@serverPickerCurrentRemembered": {
+    "placeholders": {
+      "sourceName": {},
+      "serverName": {}
+    }
+  },
+  "serverPickerUnknownSource": "Unknown source",
+  "serverPickerUnknownServer": "Unknown server",
   "serverOptionLastUsed": "Last used",
   "serverOptionRecommended": "Recommended",
   "episodeAutoplayFailed": "That shortcut didn't open. Choose another server.",

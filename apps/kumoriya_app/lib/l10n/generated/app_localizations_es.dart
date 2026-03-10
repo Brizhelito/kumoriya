@@ -537,6 +537,37 @@ class AppLocalizationsEs extends AppLocalizations {
       'Aqui solo aparecen opciones que realmente pueden abrirse.';
 
   @override
+  String get serverPickerRememberSelectionTitle => 'Recordar esta seleccion';
+
+  @override
+  String get serverPickerRememberSelectionSubtitle =>
+      'Usa esta fuente y este servidor primero la proxima vez si siguen disponibles.';
+
+  @override
+  String get serverPickerAllSources => 'Todas las fuentes';
+
+  @override
+  String serverPickerSourceFilter(Object sourceName, Object count) {
+    return '$sourceName $count';
+  }
+
+  @override
+  String serverPickerSourceOptionCount(Object count) {
+    return '$count opciones';
+  }
+
+  @override
+  String serverPickerCurrentRemembered(Object sourceName, Object serverName) {
+    return 'Recordado ahora: $sourceName / $serverName';
+  }
+
+  @override
+  String get serverPickerUnknownSource => 'Fuente desconocida';
+
+  @override
+  String get serverPickerUnknownServer => 'Servidor desconocido';
+
+  @override
   String get serverOptionLastUsed => 'Ultimo usado';
 
   @override
