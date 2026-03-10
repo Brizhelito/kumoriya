@@ -32,3 +32,26 @@ auth.json
 # Codex local state (do not commit user-local secrets)
 .codex/auth.json
 .codex/logs/
+
+# Local editor / assistant state
+.windsurf/
+
+# Local runtime data
+*.db
+*.sqlite
+*.sqlite3
+
+# Generated audit outputs
+audit*.json
+audit*.txt
+*_audit*.json
+*_audit*.txt
+apps/audit_runtime_sources.json
+
+# Manual validation artifacts
+apps/kumoriya_app/manual_validation_*.png
+visual_reference/
+
+# Generated icon export artifacts
+easyappicon-icons-*/
+windows.ico
