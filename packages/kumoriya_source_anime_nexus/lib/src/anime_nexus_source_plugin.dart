@@ -210,11 +210,9 @@ final class AnimeNexusSourcePlugin implements SourcePlugin {
         final episodeLabel = number == number.truncateToDouble()
             ? number.toInt().toString()
             : number.toString();
-        final watchPath = slug.startsWith('episode-')
-            ? slug
-            : slug.isEmpty
-            ? 'episode-$episodeLabel'
-            : 'episode-$episodeLabel-$slug';
+        if (slug.isEmpty) {
+          continue;
+        }
 
         episodes.add(
           SourceEpisode(
@@ -223,7 +221,7 @@ final class AnimeNexusSourcePlugin implements SourcePlugin {
             title: item['title']?.toString().trim().isNotEmpty == true
                 ? item['title']!.toString().trim()
                 : 'Episode $episodeLabel',
-            episodeUrl: Uri.parse('$_base/watch/$episodeId/$watchPath'),
+            episodeUrl: Uri.parse('$_base/watch/$episodeId/$slug'),
             thumbnailUrl: _episodeThumbnail(item),
           ),
         );

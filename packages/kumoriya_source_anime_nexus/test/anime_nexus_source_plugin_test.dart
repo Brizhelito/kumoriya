@@ -87,8 +87,9 @@ void main() {
 
       final result = await plugin.getEpisodeServerLinks(episode);
 
-      expect(result.isSuccess, isTrue);
-      final links = result.value!;
+      expect(result, isA<Success<List<SourceServerLink>, KumoriyaError>>());
+      final links =
+          (result as Success<List<SourceServerLink>, KumoriyaError>).value;
       expect(links, isNotEmpty);
 
       // All links should carry the subtitles from the API.
@@ -136,8 +137,10 @@ void main() {
 
         final result = await plugin.getEpisodeServerLinks(episode);
 
-        expect(result.isSuccess, isTrue);
-        for (final link in result.value!) {
+        expect(result, isA<Success<List<SourceServerLink>, KumoriyaError>>());
+        for (final link
+            in (result as Success<List<SourceServerLink>, KumoriyaError>)
+                .value) {
           expect(link.externalSubtitles, isEmpty);
         }
       },
@@ -177,8 +180,10 @@ void main() {
         final result = await plugin.getEpisodeServerLinks(episode);
 
         // The overall call should still succeed with empty subtitles.
-        expect(result.isSuccess, isTrue);
-        for (final link in result.value!) {
+        expect(result, isA<Success<List<SourceServerLink>, KumoriyaError>>());
+        for (final link
+            in (result as Success<List<SourceServerLink>, KumoriyaError>)
+                .value) {
           expect(link.externalSubtitles, isEmpty);
         }
       },
@@ -231,15 +236,67 @@ void main() {
 
       final result = await plugin.getEpisodeServerLinks(episode);
 
-      expect(result.isSuccess, isTrue);
-      for (final link in result.value!) {
+      expect(result, isA<Success<List<SourceServerLink>, KumoriyaError>>());
+      for (final link
+          in (result as Success<List<SourceServerLink>, KumoriyaError>).value) {
         expect(link.externalSubtitles, hasLength(1));
       }
     });
   });
-}
+  group('AnimeNexusSourcePlugin - getEpisodes', () {
+    late Dio dio;
+    late DioAdapter adapter;
+    late AnimeNexusSourcePlugin plugin;
 
-extension on Result<dynamic, KumoriyaError> {
-  bool get isSuccess => this is Success<dynamic, KumoriyaError>;
-  dynamic get value => (this as Success<dynamic, KumoriyaError>).value;
+    setUp(() {
+      dio = Dio(BaseOptions());
+      adapter = DioAdapter(dio: dio);
+      plugin = AnimeNexusSourcePlugin(dio: dio);
+    });
+
+    test('preserves API slug when building watch urls', () async {
+      adapter.onGet(
+        'https://api.anime.nexus/api/anime/details/episodes',
+        (server) => server.reply(200, {
+          'data': [
+            {
+              'id': '019b9e8f-edf6-71a7-87c5-c45f64297245',
+              'title': 'Execution',
+              'slug': 'execution-537a058e13efbfab1729',
+              'number': 1,
+            },
+            {
+              'id': '019cd8e2-05d1-73d3-b322-e5f4efb70043',
+              'title': 'Episode 10',
+              'slug': 'episode-10-15183f0a8751f2cffefa',
+              'number': 10,
+            },
+          ],
+        }),
+        queryParameters: <String, dynamic>{
+          'id': 'series-uuid-001',
+          'page': 1,
+          'perPage': 100,
+          'order': 'asc',
+          'fillers': true,
+          'recaps': true,
+        },
+      );
+
+      final result = await plugin.getEpisodes('series-uuid-001::sample-series');
+
+      expect(result, isA<Success<List<SourceEpisode>, KumoriyaError>>());
+      final episodes =
+          (result as Success<List<SourceEpisode>, KumoriyaError>).value;
+      expect(episodes, hasLength(2));
+      expect(
+        episodes.first.episodeUrl.toString(),
+        'https://anime.nexus/watch/019b9e8f-edf6-71a7-87c5-c45f64297245/execution-537a058e13efbfab1729',
+      );
+      expect(
+        episodes.last.episodeUrl.toString(),
+        'https://anime.nexus/watch/019cd8e2-05d1-73d3-b322-e5f4efb70043/episode-10-15183f0a8751f2cffefa',
+      );
+    });
+  });
 }

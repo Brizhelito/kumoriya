@@ -65,6 +65,27 @@ final class SourceEpisode {
   final Uri? thumbnailUrl;
 }
 
+final class ExternalSubtitleTrack {
+  const ExternalSubtitleTrack({
+    required this.id,
+    required this.label,
+    this.language,
+    this.uri,
+    this.data,
+    this.isDefault = false,
+  }) : assert(
+         uri != null || data != null,
+         'ExternalSubtitleTrack requires a uri or data payload.',
+       );
+
+  final String id;
+  final String label;
+  final String? language;
+  final Uri? uri;
+  final String? data;
+  final bool isDefault;
+}
+
 enum SourceServerLinkType { stream, download }
 
 final class SourceServerLink {
@@ -75,6 +96,7 @@ final class SourceServerLink {
     this.language,
     this.linkType = SourceServerLinkType.stream,
     this.detectedHost,
+    this.externalSubtitles = const <ExternalSubtitleTrack>[],
   });
 
   final String serverId;
@@ -83,6 +105,7 @@ final class SourceServerLink {
   final String? language;
   final SourceServerLinkType linkType;
   final String? detectedHost;
+  final List<ExternalSubtitleTrack> externalSubtitles;
 }
 
 abstract interface class SourcePlugin {

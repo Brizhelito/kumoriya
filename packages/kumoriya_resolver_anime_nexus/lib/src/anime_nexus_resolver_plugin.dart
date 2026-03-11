@@ -3,11 +3,10 @@ import 'package:kumoriya_core/kumoriya_core.dart';
 import 'package:kumoriya_plugins/kumoriya_plugins.dart';
 
 import 'errors/anime_nexus_resolver_error.dart';
-import 'services/m3u8_resolver.dart';
+import 'models/nexus_browser_session.dart';
 import 'services/page_scraper.dart';
+import 'services/signed_hls_builder.dart';
 import 'services/stream_data_fetcher.dart';
-import 'services/ws_client.dart';
-import 'utils/nexus_cdn_headers.dart';
 import 'utils/nexus_constants.dart';
 
 final class AnimeNexusResolverPlugin implements ResolverPlugin {
@@ -48,7 +47,7 @@ final class AnimeNexusResolverPlugin implements ResolverPlugin {
       return false;
     }
 
-    return segments[2].startsWith('episode-');
+    return segments[2].trim().isNotEmpty;
   }
 
   @override
@@ -63,75 +62,51 @@ final class AnimeNexusResolverPlugin implements ResolverPlugin {
 
     try {
       final episodeId = _extractEpisodeId(url);
-
-      // 1. Fetch stream metadata (HLS URL, videoId, subtitles).
+      var browserSession = NexusBrowserSession.generate();
+      final pageData = await NexusPageScraper(
+        _dio,
+      ).scrape(url, session: browserSession);
+      browserSession = browserSession.withCookieHeader(pageData.cookieHeader);
       final streamDataFetcher = NexusStreamDataFetcher(_dio);
-      final streamData = await streamDataFetcher.fetch(episodeId: episodeId);
-
-      // 2. Scrape the watch page to get the attestRef for WS auth.
-      final pageScraper = NexusPageScraper(_dio);
-      final pageData = await pageScraper.scrape(url);
-
-      // 3. Generate a stable fingerprint for this session.
-      final fingerprint = NexusUuid.generate();
-
-      // 4. Establish WebSocket connection and authenticate.
-      final wsClient = NexusWsClient(
-        episodeId: streamData.videoId,
-        fingerprint: fingerprint,
-        m3u8Url: streamData.hlsUrl.toString(),
+      final streamData = await streamDataFetcher.fetch(
+        episodeId: episodeId,
+        session: browserSession,
       );
 
-      try {
-        await wsClient.connect(wsRef: pageData.attestRef);
-        final sessionId = wsClient.session.sessionId;
+      final signedHlsBuilder = NexusSignedHlsBuilder(_dio);
+      final streams = await signedHlsBuilder.build(
+        watchUrl: url,
+        episodeId: episodeId,
+        attestRef: pageData.attestRef,
+        browserSession: browserSession,
+        cookieHeader: streamData.cookieHeader,
+        masterManifestUrl: streamData.hlsUrl,
+      );
 
-        // 5. Get the initial manifest token from the WebSocket.
-        final streamToken = await wsClient.getInitialManifestToken();
-
-        // 6. Build the tokenized manifest URL with session params.
-        final tokenizedManifest = _buildTokenizedManifest(
-          hlsUrl: streamData.hlsUrl,
-          token: streamToken.token,
-          sessionId: sessionId,
+      if (streams.isEmpty) {
+        return const Failure(
+          AnimeNexusParseError(
+            message: 'Anime Nexus resolver returned zero playable streams.',
+          ),
         );
-
-        // 7. Build CDN-specific playback headers.
-        final cdnHeaders = NexusCdnHeaders.build(
-          fingerprint: fingerprint,
-          sessionId: sessionId,
-          videoId: streamData.videoId,
-        );
-
-        // 8. Resolve HLS variants using the tokenized URL + CDN headers.
-        final m3u8Resolver = NexusM3u8Resolver(_dio);
-        final streams = await m3u8Resolver.resolve(
-          manifestUrl: tokenizedManifest,
-          headers: cdnHeaders,
-        );
-
-        if (streams.isEmpty) {
-          return const Failure(
-            AnimeNexusParseError(
-              message: 'Anime Nexus resolver returned zero playable streams.',
-            ),
-          );
-        }
-
-        return Success(streams);
-      } finally {
-        await wsClient.close();
       }
+
+      return Success(streams);
     } on NexusStreamDataException catch (error) {
       return Failure(AnimeNexusParseError(message: error.message));
     } on NexusScraperException catch (error) {
       return Failure(AnimeNexusParseError(message: error.message));
-    } on NexusWsException catch (error) {
-      return Failure(AnimeNexusWebSocketError(message: error.message));
+    } on NexusSignedHlsException catch (error) {
+      return Failure(AnimeNexusParseError(message: error.message));
     } on DioException catch (error) {
+      final status = error.response?.statusCode;
+      final target = error.requestOptions.uri;
       return Failure(
         AnimeNexusTransportError(
-          message: 'Anime Nexus resolver network failure: ${error.message}',
+          message:
+              'Anime Nexus resolver network failure'
+              '${status != null ? ' [$status]' : ''}'
+              ' at $target: ${error.message}',
         ),
       );
     } catch (error) {
@@ -155,22 +130,6 @@ final class AnimeNexusResolverPlugin implements ResolverPlugin {
     return segments[1];
   }
 
-  /// Appends token and session params to the API-provided manifest URL.
-  ///
-  /// The resulting URL follows the pattern the site uses for CDN auth:
-  /// `<hlsUrl>?token=<token>&requestType=manifest&sessionId=<sessionId>`
-  Uri _buildTokenizedManifest({
-    required Uri hlsUrl,
-    required String token,
-    required String sessionId,
-  }) {
-    final existing = Map<String, String>.from(hlsUrl.queryParameters);
-    existing['token'] = token;
-    existing['requestType'] = 'manifest';
-    existing['sessionId'] = sessionId;
-    return hlsUrl.replace(queryParameters: existing);
-  }
-
   static Dio _buildDio() {
     return Dio(
       BaseOptions(
@@ -179,7 +138,9 @@ final class AnimeNexusResolverPlugin implements ResolverPlugin {
         headers: <String, String>{
           'User-Agent': NexusConstants.userAgent,
           'Accept-Language': 'es-419,es;q=0.9,en;q=0.8',
-          'Accept-Encoding': 'gzip, deflate, br, zstd',
+          // Let dart:io negotiate encodings it can actually decode.
+          // Anime Nexus serves `zstd` if we advertise it, which breaks
+          // downstream HTML parsing before attestRef extraction.
         },
       ),
     );

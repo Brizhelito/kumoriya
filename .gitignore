@@ -55,3 +55,11 @@ visual_reference/
 # Generated icon export artifacts
 easyappicon-icons-*/
 windows.ico
+
+# Local investigation / runtime artifacts
+anime.nexus.har
+files/
+proxy_long*.out
+proxy_long*.err
+smoke*.out
+smoke*.err

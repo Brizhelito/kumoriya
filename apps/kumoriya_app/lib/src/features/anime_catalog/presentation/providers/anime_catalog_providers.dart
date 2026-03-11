@@ -16,9 +16,11 @@ import 'package:kumoriya_resolver_okru/kumoriya_resolver_okru.dart';
 import 'package:kumoriya_resolver_yourupload/kumoriya_resolver_yourupload.dart';
 import 'package:kumoriya_resolver_upnshare/kumoriya_resolver_upnshare.dart';
 import 'package:kumoriya_resolver_zilla/kumoriya_resolver_zilla.dart';
+import 'package:kumoriya_resolver_anime_nexus/kumoriya_resolver_anime_nexus.dart';
 import 'package:kumoriya_source_jkanime/kumoriya_source_jkanime.dart';
 import 'package:kumoriya_source_animeflv/kumoriya_source_animeflv.dart';
 import 'package:kumoriya_source_animeav1/kumoriya_source_animeav1.dart';
+import 'package:kumoriya_source_anime_nexus/kumoriya_source_anime_nexus.dart';
 
 import '../../application/use_cases/anime_catalog_use_cases.dart';
 import '../../application/matching/anilist_source_matcher.dart';
@@ -58,6 +60,7 @@ final sourcePluginsProvider = Provider<List<SourcePlugin>>((ref) {
     JkAnimeSourcePlugin(),
     AnimeFlvSourcePlugin(),
     AnimeAv1SourcePlugin(),
+    AnimeNexusSourcePlugin(),
   ];
 });
 
@@ -85,6 +88,7 @@ final sourcePluginProvider = Provider<SourcePlugin>((ref) {
 
 final resolverPluginsProvider = Provider<List<ResolverPlugin>>((ref) {
   return <ResolverPlugin>[
+    AnimeNexusResolverPlugin(),
     JkPlayerJkResolverPlugin(),
     JkPlayerResolverPlugin(),
     StreamwishResolverPlugin(),

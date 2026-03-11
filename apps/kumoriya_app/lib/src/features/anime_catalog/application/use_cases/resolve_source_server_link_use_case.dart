@@ -68,6 +68,7 @@ final class ResolveSourceServerLinkUseCase {
             resolverId: resolver.manifest.id,
             resolverName: resolver.manifest.displayName,
             streams: streams,
+            externalSubtitles: sourceServerLink.externalSubtitles,
           ),
         );
       },

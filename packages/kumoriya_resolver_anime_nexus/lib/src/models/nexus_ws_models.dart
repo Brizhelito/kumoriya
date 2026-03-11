@@ -8,6 +8,22 @@ final class NexusWsSession {
   final String sessionId;
   final bool authenticated;
   final int sessionExpiry;
+
+  Map<String, Object?> toMap() => <String, Object?>{
+    'sessionId': sessionId,
+    'authenticated': authenticated,
+    'sessionExpiry': sessionExpiry,
+  };
+
+  factory NexusWsSession.fromMap(Map<String, dynamic> map) {
+    return NexusWsSession(
+      sessionId: map['sessionId']?.toString() ?? '',
+      authenticated: map['authenticated'] == true,
+      sessionExpiry: map['sessionExpiry'] is int
+          ? map['sessionExpiry'] as int
+          : int.tryParse(map['sessionExpiry']?.toString() ?? '') ?? 0,
+    );
+  }
 }
 
 final class NexusStreamToken {
@@ -20,6 +36,12 @@ final class NexusStreamToken {
   final String token;
   final String nextTokenId;
   final int expires;
+
+  Map<String, Object?> toMap() => <String, Object?>{
+    'token': token,
+    'nextTokenId': nextTokenId,
+    'expires': expires,
+  };
 
   factory NexusStreamToken.fromMap(Map<String, dynamic> map) {
     return NexusStreamToken(

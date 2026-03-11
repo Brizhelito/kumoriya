@@ -1,5 +1,6 @@
 import 'package:dio/dio.dart';
 
+import '../models/nexus_browser_session.dart';
 import '../utils/nexus_constants.dart';
 
 final class NexusSubtitle {
@@ -14,6 +15,7 @@ final class NexusStreamData {
   const NexusStreamData({
     required this.hlsUrl,
     required this.videoId,
+    this.cookieHeader,
     this.subtitles = const <NexusSubtitle>[],
   });
 
@@ -22,6 +24,9 @@ final class NexusStreamData {
 
   /// The video UUID used for CDN headers and WebSocket params.
   final String videoId;
+
+  /// The real cookies returned by Anime Nexus API responses.
+  final String? cookieHeader;
 
   /// Subtitles exposed by the API in `data.subtitles`.
   final List<NexusSubtitle> subtitles;
@@ -41,12 +46,40 @@ final class NexusStreamDataFetcher {
 
   final Dio _dio;
 
-  Future<NexusStreamData> fetch({required String episodeId}) async {
-    var response = await _request(episodeId: episodeId);
+  Future<NexusStreamData> fetch({
+    required String episodeId,
+    NexusBrowserSession? session,
+  }) async {
+    final resolvedSession = session ?? NexusBrowserSession.generate();
+    var cookieHeader = resolvedSession.cookieHeader;
+
+    final authCookies = await _bootstrapAuthSession(cookieHeader: cookieHeader);
+    cookieHeader = _mergeCookieHeaders(cookieHeader, authCookies);
+
+    final viewCookies = await _bootstrapEpisodeView(
+      episodeId: episodeId,
+      cookieHeader: cookieHeader,
+      fingerprint: resolvedSession.fingerprint,
+    );
+    cookieHeader = _mergeCookieHeaders(cookieHeader, viewCookies);
+
+    var response = await _request(
+      episodeId: episodeId,
+      cookieHeader: cookieHeader,
+      fingerprint: resolvedSession.fingerprint,
+    );
     if (response.statusCode == 403) {
-      final cookies = _cookieHeaderFrom(response.headers['set-cookie']);
+      final cookies = _mergeCookieHeaders(
+        cookieHeader,
+        response.headers['set-cookie'],
+      );
       if (cookies != null) {
-        response = await _request(episodeId: episodeId, cookieHeader: cookies);
+        cookieHeader = cookies;
+        response = await _request(
+          episodeId: episodeId,
+          cookieHeader: cookies,
+          fingerprint: resolvedSession.fingerprint,
+        );
       }
     }
 
@@ -86,10 +119,15 @@ final class NexusStreamDataFetcher {
     }
 
     final subtitles = _parseSubtitles(data['subtitles']);
+    final resolvedCookieHeader = _mergeCookieHeaders(
+      cookieHeader,
+      response.headers['set-cookie'],
+    );
 
     return NexusStreamData(
       hlsUrl: hlsUrl,
       videoId: videoId,
+      cookieHeader: resolvedCookieHeader,
       subtitles: subtitles,
     );
   }
@@ -154,6 +192,7 @@ final class NexusStreamDataFetcher {
   Future<Response<Map<String, dynamic>>> _request({
     required String episodeId,
     String? cookieHeader,
+    String? fingerprint,
   }) {
     return _dio.get<Map<String, dynamic>>(
       '${NexusConstants.apiBase}/api/anime/details/episode/stream',
@@ -166,33 +205,113 @@ final class NexusStreamDataFetcher {
         validateStatus: (status) => status != null && status < 500,
         headers: <String, String>{
           'Accept': 'application/json, text/plain, */*',
-          'Referer': '${NexusConstants.mainBase}/watch/$episodeId',
+          'Referer': '${NexusConstants.mainBase}/',
           'Origin': NexusConstants.mainBase,
           'sec-fetch-dest': 'empty',
           'sec-fetch-mode': 'cors',
           'sec-fetch-site': 'same-site',
+          if (fingerprint != null) 'x-client-fingerprint': fingerprint,
+          if (fingerprint != null) 'x-fingerprint': fingerprint,
           if (cookieHeader != null) 'Cookie': cookieHeader,
         },
       ),
     );
   }
 
-  String? _cookieHeaderFrom(List<String>? setCookies) {
-    if (setCookies == null || setCookies.isEmpty) {
-      return null;
-    }
+  Future<List<String>?> _bootstrapAuthSession({
+    required String? cookieHeader,
+  }) async {
+    final response = await _dio.get<dynamic>(
+      '${NexusConstants.mainBase}/api/auth/session',
+      options: Options(
+        validateStatus: (status) => status != null && status < 500,
+        headers: <String, String>{
+          'Accept': 'application/json, text/plain, */*',
+          'Referer': '${NexusConstants.mainBase}/',
+          'sec-fetch-dest': 'empty',
+          'sec-fetch-mode': 'cors',
+          'sec-fetch-site': 'same-origin',
+          if (cookieHeader != null) 'Cookie': cookieHeader,
+        },
+      ),
+    );
 
-    final pairs = <String>[];
-    for (final raw in setCookies) {
-      final cookie = raw.split(';').first.trim();
-      if (cookie.isNotEmpty) {
-        pairs.add(cookie);
+    return response.headers['set-cookie'];
+  }
+
+  Future<List<String>?> _bootstrapEpisodeView({
+    required String episodeId,
+    required String? cookieHeader,
+    required String fingerprint,
+  }) async {
+    final response = await _dio.post<void>(
+      '${NexusConstants.apiBase}/api/anime/details/episode/view',
+      data: <String, String>{'id': episodeId},
+      options: Options(
+        validateStatus: (status) => status != null && status < 500,
+        headers: <String, String>{
+          'Accept': 'application/json, text/plain, */*',
+          'Referer': '${NexusConstants.mainBase}/',
+          'Origin': NexusConstants.mainBase,
+          'sec-fetch-dest': 'empty',
+          'sec-fetch-mode': 'cors',
+          'sec-fetch-site': 'same-site',
+          'x-client-fingerprint': fingerprint,
+          'x-fingerprint': fingerprint,
+          if (cookieHeader != null) 'Cookie': cookieHeader,
+        },
+      ),
+    );
+
+    return response.headers['set-cookie'];
+  }
+
+  String? _mergeCookieHeaders(String? existing, List<String>? setCookies) {
+    final merged = <String, String>{};
+
+    if (existing != null && existing.isNotEmpty) {
+      for (final part in existing.split(';')) {
+        final cookie = part.trim();
+        if (cookie.isEmpty) {
+          continue;
+        }
+        final separator = cookie.indexOf('=');
+        if (separator <= 0) {
+          continue;
+        }
+        merged[cookie.substring(0, separator)] = cookie.substring(
+          separator + 1,
+        );
       }
     }
 
-    if (pairs.isEmpty) {
+    if (setCookies == null || setCookies.isEmpty) {
+      if (merged.isEmpty) {
+        return null;
+      }
+      return merged.entries
+          .map((entry) => '${entry.key}=${entry.value}')
+          .join('; ');
+    }
+
+    for (final raw in setCookies) {
+      final cookie = raw.split(';').first.trim();
+      if (cookie.isNotEmpty) {
+        final separator = cookie.indexOf('=');
+        if (separator <= 0) {
+          continue;
+        }
+        merged[cookie.substring(0, separator)] = cookie.substring(
+          separator + 1,
+        );
+      }
+    }
+
+    if (merged.isEmpty) {
       return null;
     }
-    return pairs.join('; ');
+    return merged.entries
+        .map((entry) => '${entry.key}=${entry.value}')
+        .join('; ');
   }
 }

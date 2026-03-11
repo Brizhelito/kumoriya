@@ -1,10 +1,17 @@
 import 'package:dio/dio.dart';
 
+import '../models/nexus_browser_session.dart';
+
 final class NexusPageData {
-  const NexusPageData({required this.episodeId, required this.attestRef});
+  const NexusPageData({
+    required this.episodeId,
+    required this.attestRef,
+    this.cookieHeader,
+  });
 
   final String episodeId;
   final String attestRef;
+  final String? cookieHeader;
 }
 
 final class NexusScraperException implements Exception {
@@ -21,7 +28,11 @@ final class NexusPageScraper {
 
   final Dio _dio;
 
-  Future<NexusPageData> scrape(Uri watchUrl) async {
+  Future<NexusPageData> scrape(
+    Uri watchUrl, {
+    NexusBrowserSession? session,
+  }) async {
+    final cookieHeader = session?.cookieHeader;
     final response = await _dio.getUri<String>(
       watchUrl,
       options: Options(
@@ -29,10 +40,10 @@ final class NexusPageScraper {
         headers: <String, String>{
           'Accept':
               'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-          'Referer': watchUrl.toString(),
           'sec-fetch-dest': 'document',
           'sec-fetch-mode': 'navigate',
           'sec-fetch-site': 'none',
+          if (cookieHeader != null) 'Cookie': cookieHeader,
         },
       ),
     );
@@ -62,7 +73,11 @@ final class NexusPageScraper {
       );
     }
 
-    return NexusPageData(episodeId: episodeId, attestRef: attestRef);
+    return NexusPageData(
+      episodeId: episodeId,
+      attestRef: attestRef,
+      cookieHeader: _mergeSetCookieHeaders(response.headers['set-cookie']),
+    );
   }
 
   String? _extractAttestRef(String html) {
@@ -75,5 +90,32 @@ final class NexusPageScraper {
       r'episode:\$R\[\d+\]=\{id:"([0-9a-f-]{36})"',
     ).firstMatch(html);
     return match?.group(1);
+  }
+
+  String? _mergeSetCookieHeaders(List<String>? setCookies) {
+    if (setCookies == null || setCookies.isEmpty) {
+      return null;
+    }
+
+    final merged = <String, String>{};
+    for (final raw in setCookies) {
+      final cookie = raw.split(';').first.trim();
+      if (cookie.isEmpty) {
+        continue;
+      }
+      final separator = cookie.indexOf('=');
+      if (separator <= 0) {
+        continue;
+      }
+      merged[cookie.substring(0, separator)] = cookie.substring(separator + 1);
+    }
+
+    if (merged.isEmpty) {
+      return null;
+    }
+
+    return merged.entries
+        .map((entry) => '${entry.key}=${entry.value}')
+        .join('; ');
   }
 }
