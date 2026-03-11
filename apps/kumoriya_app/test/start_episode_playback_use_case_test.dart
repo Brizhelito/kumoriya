@@ -1,4 +1,3 @@
-import 'package:drift/native.dart';
 import 'package:kumoriya_app/src/features/anime_catalog/application/matching/anilist_source_matcher.dart';
 import 'package:kumoriya_app/src/features/anime_catalog/application/models/episode_playback.dart';
 import 'package:kumoriya_app/src/features/anime_catalog/application/models/source_availability.dart';
@@ -15,22 +14,16 @@ import 'package:kumoriya_storage/kumoriya_storage.dart';
 import 'package:test/test.dart';
 
 void main() {
-  late AppDatabase db;
-  late DriftAnimeProgressStore store;
+  late _FakeAnimeProgressStore store;
   late ResolverRegistry registry;
   late ResolveSourceServerLinkUseCase resolver;
 
   setUp(() {
-    db = AppDatabase(NativeDatabase.memory());
-    store = DriftAnimeProgressStore(db);
+    store = _FakeAnimeProgressStore();
     registry = ResolverRegistry(
       resolvers: <ResolverPlugin>[_FakeResolverPlugin()],
     );
     resolver = ResolveSourceServerLinkUseCase(registry: registry);
-  });
-
-  tearDown(() async {
-    await db.close();
   });
 
   test(
@@ -379,7 +372,7 @@ void main() {
 
 StartEpisodePlaybackUseCase _buildUseCase({
   required List<SourcePlugin> sourcePlugins,
-  required DriftAnimeProgressStore store,
+  required AnimeProgressStore store,
   required ResolverRegistry registry,
   required ResolveSourceServerLinkUseCase resolver,
 }) {
@@ -699,4 +692,110 @@ class _FlakyResolverPlugin implements ResolverPlugin {
 
   @override
   bool supports(Uri url) => url.host == 'video.example';
+}
+
+final class _FakeAnimeProgressStore implements AnimeProgressStore {
+  final Map<(int, double), EpisodeProgress> _progressByEpisode =
+      <(int, double), EpisodeProgress>{};
+  final Map<int, PlaybackPreference> _preferencesByAnime =
+      <int, PlaybackPreference>{};
+  final Map<int, AnimeWatchHistory> _historyByAnime =
+      <int, AnimeWatchHistory>{};
+
+  @override
+  Future<Result<void, KumoriyaError>> clearPlaybackPreference(
+    int anilistId,
+  ) async {
+    _preferencesByAnime.remove(anilistId);
+    return const Success(null);
+  }
+
+  @override
+  Future<Result<List<EpisodeProgress>, KumoriyaError>> getAllProgress(
+    int anilistId,
+  ) async {
+    final values =
+        _progressByEpisode.values
+            .where((progress) => progress.anilistId == anilistId)
+            .toList(growable: false)
+          ..sort(
+            (left, right) => left.episodeNumber.compareTo(right.episodeNumber),
+          );
+    return Success(values);
+  }
+
+  @override
+  Future<Result<EpisodeProgress?, KumoriyaError>> getLatestProgress(
+    int anilistId,
+  ) async {
+    EpisodeProgress? latest;
+    for (final progress in _progressByEpisode.values) {
+      if (progress.anilistId != anilistId) {
+        continue;
+      }
+      if (latest == null || progress.updatedAt.isAfter(latest.updatedAt)) {
+        latest = progress;
+      }
+    }
+    return Success(latest);
+  }
+
+  @override
+  Future<Result<PlaybackPreference?, KumoriyaError>> getPlaybackPreference(
+    int anilistId,
+  ) async {
+    return Success(_preferencesByAnime[anilistId]);
+  }
+
+  @override
+  Future<Result<EpisodeProgress?, KumoriyaError>> getProgress(
+    int anilistId,
+    double episodeNumber,
+  ) async {
+    return Success(_progressByEpisode[(anilistId, episodeNumber)]);
+  }
+
+  @override
+  Future<Result<List<AnimeWatchHistory>, KumoriyaError>> getRecentHistory({
+    int limit = 20,
+  }) async {
+    final history = _historyByAnime.values.toList(growable: false)
+      ..sort(
+        (left, right) => right.lastAccessedAt.compareTo(left.lastAccessedAt),
+      );
+    return Success(history.take(limit).toList(growable: false));
+  }
+
+  @override
+  Future<Result<void, KumoriyaError>> upsert(EpisodeProgress progress) async {
+    _progressByEpisode[(progress.anilistId, progress.episodeNumber)] = progress;
+    return const Success(null);
+  }
+
+  @override
+  Future<Result<void, KumoriyaError>> upsertPlaybackPreference(
+    PlaybackPreference preference,
+  ) async {
+    _preferencesByAnime[preference.anilistId] = preference;
+    return const Success(null);
+  }
+
+  @override
+  Future<Result<void, KumoriyaError>> upsertWatchHistory({
+    required int anilistId,
+    required double episodeNumber,
+    required int positionSeconds,
+    int? totalDurationSeconds,
+    String? lastSourcePluginId,
+  }) async {
+    _historyByAnime[anilistId] = AnimeWatchHistory(
+      anilistId: anilistId,
+      lastEpisodeNumber: episodeNumber,
+      lastAccessedAt: DateTime.now(),
+      lastSourcePluginId: lastSourcePluginId,
+      lastPositionSeconds: positionSeconds,
+      lastTotalDurationSeconds: totalDurationSeconds,
+    );
+    return const Success(null);
+  }
 }
