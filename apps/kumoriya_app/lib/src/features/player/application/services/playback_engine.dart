@@ -11,6 +11,8 @@ abstract interface class PlaybackEngine {
   Stream<Duration> get durationStream;
 
   Future<void> open(ResolvedStream stream, {Duration? startPosition});
+  Future<void> setSubtitleTrack(ExternalSubtitleTrack track);
+  Future<void> clearSubtitleTrack();
   Future<void> play();
   Future<void> pause();
   Future<void> seekTo(Duration position);

@@ -33,11 +33,14 @@ final class PlayerSessionOrchestrator {
   final Duration _openTimeout;
   final Duration _bufferingTimeout;
   late final List<StreamSubscription<dynamic>> _subscriptions;
+  late final String _instanceId = identityHashCode(this).toRadixString(16);
 
   final _stateController = StreamController<PlayerSessionState>.broadcast();
   PlayerSessionState _state = const PlayerSessionState.idle();
 
   List<ResolvedStream> _rankedCandidates = const <ResolvedStream>[];
+  List<ExternalSubtitleTrack> _externalSubtitles =
+      const <ExternalSubtitleTrack>[];
   int _currentCandidateIndex = -1;
   int _runtimeErrorRetriesForCurrentCandidate = 0;
   int _recoveriesForCurrentCandidate = 0;
@@ -49,6 +52,7 @@ final class PlayerSessionOrchestrator {
   Duration? _lastRequestedSeekPosition;
   DateTime? _lastRequestedSeekAt;
   bool _isRecoveringCurrentCandidate = false;
+  bool _hasStarted = false;
   Timer? _bufferingTimer;
 
   Stream<PlayerSessionState> get states => _stateController.stream;
@@ -56,11 +60,31 @@ final class PlayerSessionOrchestrator {
 
   Future<Result<ResolvedStream, KumoriyaError>> start({
     required List<ResolvedStream> streamCandidates,
+    List<ExternalSubtitleTrack> externalSubtitles =
+        const <ExternalSubtitleTrack>[],
     Duration? initialPosition,
   }) async {
+    if (_hasStarted && _state.status != PlayerSessionStatus.idle) {
+      _log(
+        'duplicate start ignored incoming=${streamCandidates.length} existing=${_rankedCandidates.length} status=${_state.status} candidates=${_candidateSummary(streamCandidates)}',
+      );
+      final existingCandidate =
+          _state.selectedStream ??
+          (_rankedCandidates.isNotEmpty ? _rankedCandidates.first : null);
+      if (existingCandidate != null) {
+        return Success(existingCandidate);
+      }
+      return _fail(
+        code: 'player.duplicate_start',
+        message: 'Duplicate player start was ignored.',
+        kind: KumoriyaErrorKind.unexpected,
+      );
+    }
+
     _log(
-      'start candidates=${streamCandidates.length} initialPosition=$initialPosition',
+      'start candidates=${streamCandidates.length} initialPosition=$initialPosition candidateUrls=${_candidateSummary(streamCandidates)}',
     );
+    _hasStarted = true;
     _rankedCandidates = _selectionPolicy
         .rankCandidates(streamCandidates)
         .where((candidate) => _isSupportedUrl(candidate.url))
@@ -75,6 +99,7 @@ final class PlayerSessionOrchestrator {
     }
 
     _currentCandidateIndex = 0;
+    _externalSubtitles = externalSubtitles;
     _runtimeErrorRetriesForCurrentCandidate = 0;
     _recoveriesForCurrentCandidate = 0;
     _pendingTargetPosition = _normalizeNullablePosition(initialPosition);
@@ -196,6 +221,7 @@ final class PlayerSessionOrchestrator {
       if (_isBuffering) {
         _startBufferingTimeoutWatch();
       }
+      await _applySubtitleTrack();
       _pendingTargetPosition = null;
       _emit(
         _state.copyWith(
@@ -487,6 +513,7 @@ final class PlayerSessionOrchestrator {
       if (_isBuffering) {
         _startBufferingTimeoutWatch();
       }
+      await _applySubtitleTrack();
       _pendingTargetPosition = null;
       _emit(
         _state.copyWith(
@@ -627,7 +654,19 @@ final class PlayerSessionOrchestrator {
     if (position <= Duration.zero) {
       return false;
     }
+    if (_isLocalLoopbackHls(candidate)) {
+      return false;
+    }
     return candidate.isHls;
+  }
+
+  bool _isLocalLoopbackHls(ResolvedStream candidate) {
+    if (!candidate.isHls) {
+      return false;
+    }
+
+    final host = candidate.url.host.toLowerCase();
+    return host == '127.0.0.1' || host == 'localhost';
   }
 
   Duration _normalizePosition(Duration? position) {
@@ -733,7 +772,35 @@ final class PlayerSessionOrchestrator {
       return;
     }
     debugPrint(
-      '[player.orchestrator ${DateTime.now().toIso8601String()}] $message',
+      '[player.orchestrator#$_instanceId ${DateTime.now().toIso8601String()}] $message',
     );
+  }
+
+  String _candidateSummary(List<ResolvedStream> candidates) {
+    return candidates.map((candidate) => candidate.url.toString()).join(' | ');
+  }
+
+  Future<void> _applySubtitleTrack() async {
+    final track = _preferredSubtitleTrack;
+    if (track == null) {
+      await _playbackEngine.clearSubtitleTrack();
+      return;
+    }
+
+    await _playbackEngine.setSubtitleTrack(track);
+  }
+
+  ExternalSubtitleTrack? get _preferredSubtitleTrack {
+    if (_externalSubtitles.isEmpty) {
+      return null;
+    }
+
+    for (final track in _externalSubtitles) {
+      if (track.isDefault) {
+        return track;
+      }
+    }
+
+    return _externalSubtitles.first;
   }
 }

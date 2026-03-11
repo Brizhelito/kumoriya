@@ -219,6 +219,41 @@ void main() {
     await orchestrator.dispose();
   });
 
+  test('loads preferred external subtitle track after opening', () async {
+    final engine = _FakePlaybackEngine();
+    final orchestrator = PlayerSessionOrchestrator(playbackEngine: engine);
+    final subtitles = <ExternalSubtitleTrack>[
+      ExternalSubtitleTrack(
+        id: 'es',
+        label: 'Spanish',
+        language: 'es',
+        uri: Uri.parse('https://cdn.example/subs/es.vtt'),
+      ),
+      ExternalSubtitleTrack(
+        id: 'en',
+        label: 'English',
+        language: 'en',
+        uri: Uri.parse('https://cdn.example/subs/en.vtt'),
+        isDefault: true,
+      ),
+    ];
+
+    final result = await orchestrator.start(
+      streamCandidates: <ResolvedStream>[
+        ResolvedStream(
+          url: Uri.parse('https://cdn.example/master.m3u8'),
+          isHls: true,
+        ),
+      ],
+      externalSubtitles: subtitles,
+    );
+
+    expect(result.isSuccess, isTrue);
+    expect(engine.lastSubtitleTrack?.id, 'en');
+
+    await orchestrator.dispose();
+  });
+
   test(
     'reopens HLS candidate instead of direct seek for explicit seek',
     () async {
@@ -253,6 +288,34 @@ void main() {
       await orchestrator.dispose();
     },
   );
+
+  test('seeks loopback HLS candidate in place for explicit seek', () async {
+    final engine = _FakePlaybackEngine(
+      openBehaviors: const <_OpenBehavior>[_OpenBehavior.success()],
+    );
+    final orchestrator = PlayerSessionOrchestrator(playbackEngine: engine);
+
+    final result = await orchestrator.start(
+      streamCandidates: <ResolvedStream>[
+        ResolvedStream(
+          url: Uri.parse(
+            'http://127.0.0.1:63164/anime-nexus/session/master.m3u8',
+          ),
+          isHls: true,
+        ),
+      ],
+    );
+
+    expect(result.isSuccess, isTrue);
+
+    await orchestrator.seekTo(const Duration(minutes: 18, seconds: 30));
+
+    expect(engine.openCalls, 1);
+    expect(engine.seekCalls, 1);
+    expect(engine.lastSeekPosition, const Duration(minutes: 18, seconds: 30));
+
+    await orchestrator.dispose();
+  });
 
   test(
     'keeps candidate while buffering when runtime seek-like error is emitted',
@@ -428,7 +491,9 @@ final class _FakePlaybackEngine implements PlaybackEngine {
   int playCalls = 0;
   int pauseCalls = 0;
   int seekCalls = 0;
+  int clearSubtitleCalls = 0;
   Duration? lastSeekPosition;
+  ExternalSubtitleTrack? lastSubtitleTrack;
   final List<Duration?> openStartPositions = <Duration?>[];
 
   @override
@@ -454,6 +519,12 @@ final class _FakePlaybackEngine implements PlaybackEngine {
     seekCalls++;
     lastSeekPosition = position;
     _positionController.add(position);
+  }
+
+  @override
+  Future<void> clearSubtitleTrack() async {
+    clearSubtitleCalls++;
+    lastSubtitleTrack = null;
   }
 
   @override
@@ -489,6 +560,11 @@ final class _FakePlaybackEngine implements PlaybackEngine {
     if (!behavior.bufferingStuck) {
       _bufferingController.add(false);
     }
+  }
+
+  @override
+  Future<void> setSubtitleTrack(ExternalSubtitleTrack track) async {
+    lastSubtitleTrack = track;
   }
 
   @override

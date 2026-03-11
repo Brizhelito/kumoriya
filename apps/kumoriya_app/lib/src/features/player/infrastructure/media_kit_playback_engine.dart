@@ -28,8 +28,10 @@ final class MediaKitPlaybackEngine implements PlaybackEngine {
 
   final Player player;
   late final VideoController videoController;
+  bool _disposed = false;
   final List<StreamSubscription<dynamic>> _debugSubscriptions =
       <StreamSubscription<dynamic>>[];
+  late final String _instanceId = identityHashCode(this).toRadixString(16);
 
   @override
   Stream<bool> get playingStream => player.stream.playing;
@@ -72,6 +74,32 @@ final class MediaKitPlaybackEngine implements PlaybackEngine {
   }
 
   @override
+  Future<void> setSubtitleTrack(ExternalSubtitleTrack track) {
+    if (track.uri != null) {
+      return player.setSubtitleTrack(
+        SubtitleTrack.uri(
+          track.uri.toString(),
+          title: track.label,
+          language: track.language,
+        ),
+      );
+    }
+
+    return player.setSubtitleTrack(
+      SubtitleTrack.data(
+        track.data!,
+        title: track.label,
+        language: track.language,
+      ),
+    );
+  }
+
+  @override
+  Future<void> clearSubtitleTrack() {
+    return player.setSubtitleTrack(SubtitleTrack.no());
+  }
+
+  @override
   Future<void> pause() {
     _log('pause');
     return player.pause();
@@ -91,6 +119,7 @@ final class MediaKitPlaybackEngine implements PlaybackEngine {
 
   @override
   Future<void> dispose() async {
+    _disposed = true;
     for (final subscription in _debugSubscriptions) {
       await subscription.cancel();
     }
@@ -102,8 +131,10 @@ final class MediaKitPlaybackEngine implements PlaybackEngine {
     Duration startPosition,
   ) async {
     _log('hls-reopen start url=${stream.url} target=$startPosition');
+    _throwIfDisposed();
     await player.stop();
     _log('hls-reopen stopped current media');
+    _throwIfDisposed();
     await player.open(
       Media(
         stream.url.toString(),
@@ -115,12 +146,16 @@ final class MediaKitPlaybackEngine implements PlaybackEngine {
     _log(
       'hls-reopen opened playing buffering=${player.state.buffering} duration=${player.state.duration} position=${player.state.position}',
     );
+    _throwIfDisposed();
     await _waitUntilReady();
+    _throwIfDisposed();
     final startApplied = await _waitForRequestedStartPosition(startPosition);
+    _throwIfDisposed();
     if (startApplied) {
       final progressed = await _waitForPlaybackProgressFromTarget(
         startPosition,
       );
+      _throwIfDisposed();
       if (progressed) {
         _log(
           'hls-reopen start-property progressed target=$startPosition buffering=${player.state.buffering} duration=${player.state.duration} position=${player.state.position}',
@@ -133,6 +168,7 @@ final class MediaKitPlaybackEngine implements PlaybackEngine {
       for (final window in _hlsPrerollWindows) {
         final prerollStart = _computePrerollStart(startPosition, window);
         if (prerollStart < startPosition) {
+          _throwIfDisposed();
           final recovered = await _openHlsFromPreroll(
             stream,
             requestedPosition: startPosition,
@@ -145,10 +181,12 @@ final class MediaKitPlaybackEngine implements PlaybackEngine {
       }
     }
 
+    _throwIfDisposed();
     await _waitForPlaybackWarmup();
     _log(
       'hls-reopen start-property fallback buffering=${player.state.buffering} duration=${player.state.duration} position=${player.state.position}',
     );
+    _throwIfDisposed();
     await _seekWhenReady(startPosition);
     _log(
       'hls-reopen seeked buffering=${player.state.buffering} duration=${player.state.duration} position=${player.state.position}',
@@ -213,6 +251,7 @@ final class MediaKitPlaybackEngine implements PlaybackEngine {
 
   Future<void> _seekWhenReady(Duration targetPosition) async {
     for (var attempt = 1; attempt <= 3; attempt++) {
+      _throwIfDisposed();
       await player.seek(targetPosition);
       _log(
         'seekWhenReady attempt=$attempt target=$targetPosition buffering=${player.state.buffering} duration=${player.state.duration} position=${player.state.position}',
@@ -425,7 +464,9 @@ final class MediaKitPlaybackEngine implements PlaybackEngine {
     _log(
       'hls-reopen preroll start requested=$requestedPosition preroll=$prerollStart',
     );
+    _throwIfDisposed();
     await player.stop();
+    _throwIfDisposed();
     await player.open(
       Media(
         stream.url.toString(),
@@ -513,6 +554,14 @@ final class MediaKitPlaybackEngine implements PlaybackEngine {
     }
   }
 
+  void _throwIfDisposed() {
+    if (_disposed) {
+      throw StateError(
+        'MediaKitPlaybackEngine was disposed during hls-reopen sequence.',
+      );
+    }
+  }
+
   bool _isPositionNear(Duration actual, Duration expected) {
     return (actual - expected).inSeconds.abs() <= 2;
   }
@@ -573,6 +622,8 @@ final class MediaKitPlaybackEngine implements PlaybackEngine {
     if (!kDebugMode) {
       return;
     }
-    debugPrint('[player.engine ${DateTime.now().toIso8601String()}] $message');
+    debugPrint(
+      '[player.engine#$_instanceId ${DateTime.now().toIso8601String()}] $message',
+    );
   }
 }

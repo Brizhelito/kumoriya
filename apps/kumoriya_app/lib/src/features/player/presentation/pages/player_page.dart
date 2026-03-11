@@ -67,6 +67,7 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
   Duration? _resumePosition;
   bool _isScrubbing = false;
   double? _scrubPositionMs;
+  late final String _instanceId = identityHashCode(this).toRadixString(16);
 
   double get _episodeNumberDouble =>
       double.tryParse(widget.episodeNumber) ?? 0.0;
@@ -121,11 +122,15 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
 
     _playingSub = _engine.playingStream.listen(_onPlayingChanged);
 
+    _log(
+      'init resolver=${widget.resolved.resolverId} server=${widget.serverName} streams=${widget.resolved.streams.map((stream) => stream.url.toString()).join(" | ")}',
+    );
     _startPlayback();
   }
 
   @override
   void dispose() {
+    _log('dispose');
     _periodicSaveTimer?.cancel();
     _sessionSub?.cancel();
     _playingSub?.cancel();
@@ -235,6 +240,7 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
     );
     final result = await _orchestrator.start(
       streamCandidates: widget.resolved.streams,
+      externalSubtitles: widget.resolved.externalSubtitles,
       initialPosition: _resumePosition,
     );
     if (!mounted) return;
@@ -529,6 +535,8 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
     if (!kDebugMode) {
       return;
     }
-    debugPrint('[player.page ${DateTime.now().toIso8601String()}] $message');
+    debugPrint(
+      '[player.page#$_instanceId ${DateTime.now().toIso8601String()}] $message',
+    );
   }
 }
