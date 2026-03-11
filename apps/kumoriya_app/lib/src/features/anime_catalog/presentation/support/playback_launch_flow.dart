@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kumoriya_storage/kumoriya_storage.dart';
@@ -179,7 +180,10 @@ Future<void> _resolveSelectedOption(
   hideBlockingLoader(context);
 
   await result.fold(
-    onFailure: (_) async {
+    onFailure: (error) async {
+      _log(
+        'manual-open failure source=${selection.option.sourcePluginId} server=${selection.option.serverLink.serverName} resolver=${selection.option.resolverId} code=${error.code} message=${error.message}',
+      );
       showPlaybackMessage(context, context.l10n.episodeSelectedServerFailed);
       if (remaining.isNotEmpty) {
         final next = await showServerPicker(
@@ -220,6 +224,13 @@ Future<void> _resolveSelectedOption(
       );
     },
   );
+}
+
+void _log(String message) {
+  if (!kDebugMode) {
+    return;
+  }
+  debugPrint('[playback.launch ${DateTime.now().toIso8601String()}] $message');
 }
 
 Future<void> _openPlayer(

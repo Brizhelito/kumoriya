@@ -1,3 +1,5 @@
+import 'dart:developer' as developer;
+
 import 'package:kumoriya_plugins/kumoriya_plugins.dart';
 import 'package:kumoriya_storage/kumoriya_storage.dart';
 
@@ -102,6 +104,9 @@ final class StartEpisodePlaybackUseCase {
 
     for (final option in autoQueue) {
       attempted.add(option.optionKey);
+      _log(
+        'auto-open start source=${option.sourcePluginId} server=${option.serverLink.serverName} resolver=${option.resolverId}',
+      );
       final resolved = await _resolver.call(option.serverLink);
       if (resolved.isSuccess) {
         final result = resolved.fold(
@@ -115,6 +120,14 @@ final class StartEpisodePlaybackUseCase {
           );
         }
       }
+      resolved.fold(
+        onFailure: (error) {
+          _log(
+            'auto-open failure source=${option.sourcePluginId} server=${option.serverLink.serverName} resolver=${option.resolverId} code=${error.code} message=${error.message}',
+          );
+        },
+        onSuccess: (_) {},
+      );
 
       final invalidated = _playbackPreferencePolicy.invalidateAfterAutoFailure(
         durablePreference: durablePreference,
@@ -242,16 +255,11 @@ final class StartEpisodePlaybackUseCase {
   }
 
   String? _fallbackIconUrl(PluginManifest manifest) {
-    if (manifest.baseUrls.isEmpty) {
-      return null;
-    }
+    return null;
+  }
 
-    final base = Uri.tryParse(manifest.baseUrls.first);
-    if (base == null || !base.hasScheme) {
-      return null;
-    }
-
-    return base.resolve('/favicon.ico').toString();
+  void _log(String message) {
+    developer.log(message, name: 'kumoriya.start_episode_playback');
   }
 }
 

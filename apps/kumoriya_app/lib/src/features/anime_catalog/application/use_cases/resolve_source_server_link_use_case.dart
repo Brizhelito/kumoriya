@@ -1,3 +1,5 @@
+import 'dart:developer' as developer;
+
 import 'package:kumoriya_core/kumoriya_core.dart';
 import 'package:kumoriya_plugins/kumoriya_plugins.dart';
 
@@ -15,6 +17,7 @@ final class ResolveSourceServerLinkUseCase {
   ) async {
     final url = sourceServerLink.initialUrl;
     if (!url.hasScheme || url.host.trim().isEmpty) {
+      _log('reject malformed server=${sourceServerLink.serverName} url=$url');
       return const Failure(
         SimpleError(
           code: 'resolver.malformed_link',
@@ -26,6 +29,7 @@ final class ResolveSourceServerLinkUseCase {
 
     final selection = _registry.selectFor(url);
     if (selection is ResolverNotFound) {
+      _log('reject no-resolver server=${sourceServerLink.serverName} url=$url');
       return Failure(
         SimpleError(
           code: 'resolver.no_resolver',
@@ -39,6 +43,9 @@ final class ResolveSourceServerLinkUseCase {
       final resolverIds = selection.resolvers
           .map((r) => r.manifest.id)
           .join(', ');
+      _log(
+        'reject ambiguous server=${sourceServerLink.serverName} url=$url resolvers=$resolverIds',
+      );
       return Failure(
         SimpleError(
           code: 'resolver.ambiguous',
@@ -49,12 +56,23 @@ final class ResolveSourceServerLinkUseCase {
       );
     }
     final resolver = (selection as ResolverSelected).resolver;
+    _log(
+      'resolve start server=${sourceServerLink.serverName} resolver=${resolver.manifest.id} url=$url',
+    );
 
     final result = await resolver.resolve(url);
     return result.fold(
-      onFailure: Failure.new,
+      onFailure: (error) {
+        _log(
+          'resolve failure server=${sourceServerLink.serverName} resolver=${resolver.manifest.id} code=${error.code} message=${error.message}',
+        );
+        return Failure(error);
+      },
       onSuccess: (streams) {
         if (streams.isEmpty) {
+          _log(
+            'resolve empty server=${sourceServerLink.serverName} resolver=${resolver.manifest.id}',
+          );
           return const Failure(
             SimpleError(
               code: 'resolver.empty',
@@ -63,6 +81,9 @@ final class ResolveSourceServerLinkUseCase {
             ),
           );
         }
+        _log(
+          'resolve success server=${sourceServerLink.serverName} resolver=${resolver.manifest.id} streams=${streams.length}',
+        );
         return Success(
           ResolvedServerLinkResult(
             resolverId: resolver.manifest.id,
@@ -73,5 +94,9 @@ final class ResolveSourceServerLinkUseCase {
         );
       },
     );
+  }
+
+  void _log(String message) {
+    developer.log(message, name: 'kumoriya.resolve_source_server_link');
   }
 }
