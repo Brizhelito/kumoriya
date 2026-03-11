@@ -28,5 +28,7 @@ workspace:
   - packages/kumoriya_resolver_upnshare
   - packages/kumoriya_source_animeflv
   - packages/kumoriya_source_animeav1
+  - packages/kumoriya_source_anime_nexus
+  - packages/kumoriya_resolver_anime_nexus
   - packages/kumoriya_storage
   - packages/kumoriya_testing

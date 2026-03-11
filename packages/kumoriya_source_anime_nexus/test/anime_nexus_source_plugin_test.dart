@@ -1,0 +1,245 @@
+import 'package:dio/dio.dart';
+import 'package:http_mock_adapter/http_mock_adapter.dart';
+import 'package:kumoriya_core/kumoriya_core.dart';
+import 'package:kumoriya_plugins/kumoriya_plugins.dart';
+import 'package:kumoriya_source_anime_nexus/kumoriya_source_anime_nexus.dart';
+import 'package:test/test.dart';
+
+void main() {
+  group('AnimeNexusSourcePlugin – manifest', () {
+    test('manifest exposes source capabilities', () {
+      final plugin = AnimeNexusSourcePlugin();
+
+      expect(plugin.manifest.id, 'kumoriya.source.anime_nexus');
+      expect(plugin.manifest.type, PluginType.source);
+      expect(
+        plugin.manifest.capabilities,
+        containsAll(<PluginCapability>[
+          PluginCapability.search,
+          PluginCapability.animeDetail,
+          PluginCapability.episodeList,
+          PluginCapability.linkExtraction,
+        ]),
+      );
+    });
+  });
+
+  group('AnimeNexusSourcePlugin – _fetchApiSubtitles via getEpisodeServerLinks', () {
+    late Dio dio;
+    late DioAdapter adapter;
+    late AnimeNexusSourcePlugin plugin;
+
+    setUp(() {
+      dio = Dio(BaseOptions());
+      adapter = DioAdapter(dio: dio);
+      plugin = AnimeNexusSourcePlugin(dio: dio);
+    });
+
+    test('builds ExternalSubtitleTrack list from API subtitles data', () async {
+      const episodeId = '019cd8e2-05d1-73d3-b322-e5f4efb70043';
+      final watchUrl = Uri.parse(
+        'https://anime.nexus/watch/$episodeId/episode-10-abc',
+      );
+
+      // Mock the watch-page fetch (for language detection).
+      adapter.onGet(
+        watchUrl.toString(),
+        (server) => server.reply(
+          200,
+          '<html>English subbed, English dubbed subtitles</html>',
+        ),
+      );
+
+      // Mock the episode/stream API (for subtitles).
+      adapter.onGet(
+        'https://api.anime.nexus/api/anime/details/episode/stream',
+        (server) => server.reply(200, {
+          'data': {
+            'hls':
+                'https://api.anime.nexus/api/anime/video/vid-001/stream/video.m3u8',
+            'subtitles': [
+              {
+                'src': 'https://cdn.example.com/subs/en.vtt',
+                'label': 'English',
+                'srcLang': 'en',
+              },
+              {
+                'src': 'https://cdn.example.com/subs/es.vtt',
+                'label': 'Spanish',
+                'srcLang': 'es',
+              },
+            ],
+          },
+        }),
+        queryParameters: <String, dynamic>{
+          'id': episodeId,
+          'fillers': true,
+          'recaps': true,
+        },
+      );
+
+      final episode = SourceEpisode(
+        sourceEpisodeId: episodeId,
+        number: 10,
+        title: 'Episode 10',
+        episodeUrl: watchUrl,
+      );
+
+      final result = await plugin.getEpisodeServerLinks(episode);
+
+      expect(result.isSuccess, isTrue);
+      final links = result.value!;
+      expect(links, isNotEmpty);
+
+      // All links should carry the subtitles from the API.
+      for (final link in links) {
+        expect(link.externalSubtitles, hasLength(2));
+        expect(link.externalSubtitles.any((s) => s.language == 'en'), isTrue);
+        expect(link.externalSubtitles.any((s) => s.language == 'es'), isTrue);
+      }
+    });
+
+    test(
+      'returns empty subtitles when API returns no subtitles field',
+      () async {
+        const episodeId = '019cd8e2-05d1-0000-b322-e5f4efb70044';
+        final watchUrl = Uri.parse(
+          'https://anime.nexus/watch/$episodeId/episode-1-abc',
+        );
+
+        adapter.onGet(
+          watchUrl.toString(),
+          (server) => server.reply(200, '<html>subtitles</html>'),
+        );
+
+        adapter.onGet(
+          'https://api.anime.nexus/api/anime/details/episode/stream',
+          (server) => server.reply(200, {
+            'data': {
+              'hls':
+                  'https://api.anime.nexus/api/anime/video/v/stream/video.m3u8',
+            },
+          }),
+          queryParameters: <String, dynamic>{
+            'id': episodeId,
+            'fillers': true,
+            'recaps': true,
+          },
+        );
+
+        final episode = SourceEpisode(
+          sourceEpisodeId: episodeId,
+          number: 1,
+          title: 'Episode 1',
+          episodeUrl: watchUrl,
+        );
+
+        final result = await plugin.getEpisodeServerLinks(episode);
+
+        expect(result.isSuccess, isTrue);
+        for (final link in result.value!) {
+          expect(link.externalSubtitles, isEmpty);
+        }
+      },
+    );
+
+    test(
+      'subtitle API failure is non-fatal and returns empty subtitle list',
+      () async {
+        const episodeId = '019cd8e2-ffff-ffff-b322-e5f4efb70045';
+        final watchUrl = Uri.parse(
+          'https://anime.nexus/watch/$episodeId/episode-2-abc',
+        );
+
+        adapter.onGet(
+          watchUrl.toString(),
+          (server) => server.reply(200, '<html>subtitles</html>'),
+        );
+
+        // API call for subtitles returns 500 — should be treated as non-fatal.
+        adapter.onGet(
+          'https://api.anime.nexus/api/anime/details/episode/stream',
+          (server) => server.reply(500, 'Internal Server Error'),
+          queryParameters: <String, dynamic>{
+            'id': episodeId,
+            'fillers': true,
+            'recaps': true,
+          },
+        );
+
+        final episode = SourceEpisode(
+          sourceEpisodeId: episodeId,
+          number: 2,
+          title: 'Episode 2',
+          episodeUrl: watchUrl,
+        );
+
+        final result = await plugin.getEpisodeServerLinks(episode);
+
+        // The overall call should still succeed with empty subtitles.
+        expect(result.isSuccess, isTrue);
+        for (final link in result.value!) {
+          expect(link.externalSubtitles, isEmpty);
+        }
+      },
+    );
+
+    test('deduplicates subtitle entries with the same src url', () async {
+      const episodeId = '019cd8e2-dddd-dddd-b322-e5f4efb70046';
+      final watchUrl = Uri.parse(
+        'https://anime.nexus/watch/$episodeId/episode-3-abc',
+      );
+
+      adapter.onGet(
+        watchUrl.toString(),
+        (server) => server.reply(200, '<html>sub</html>'),
+      );
+
+      adapter.onGet(
+        'https://api.anime.nexus/api/anime/details/episode/stream',
+        (server) => server.reply(200, {
+          'data': {
+            'hls':
+                'https://api.anime.nexus/api/anime/video/v/stream/video.m3u8',
+            'subtitles': [
+              {
+                'src': 'https://cdn.example.com/en.vtt',
+                'label': 'English',
+                'srcLang': 'en',
+              },
+              {
+                'src': 'https://cdn.example.com/en.vtt',
+                'label': 'Duplicate',
+                'srcLang': 'en',
+              },
+            ],
+          },
+        }),
+        queryParameters: <String, dynamic>{
+          'id': episodeId,
+          'fillers': true,
+          'recaps': true,
+        },
+      );
+
+      final episode = SourceEpisode(
+        sourceEpisodeId: episodeId,
+        number: 3,
+        title: 'Episode 3',
+        episodeUrl: watchUrl,
+      );
+
+      final result = await plugin.getEpisodeServerLinks(episode);
+
+      expect(result.isSuccess, isTrue);
+      for (final link in result.value!) {
+        expect(link.externalSubtitles, hasLength(1));
+      }
+    });
+  });
+}
+
+extension on Result<dynamic, KumoriyaError> {
+  bool get isSuccess => this is Success<dynamic, KumoriyaError>;
+  dynamic get value => (this as Success<dynamic, KumoriyaError>).value;
+}

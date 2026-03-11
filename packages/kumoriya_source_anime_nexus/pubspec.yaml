@@ -1,0 +1,20 @@
+name: kumoriya_source_anime_nexus
+description: Anime Nexus source plugin implementation for Kumoriya.
+version: 0.1.0
+publish_to: none
+
+resolution: workspace
+
+environment:
+  sdk: ^3.11.1
+
+dependencies:
+  dio: ^5.9.0
+  kumoriya_core:
+  kumoriya_domain:
+  kumoriya_plugins:
+
+dev_dependencies:
+  http_mock_adapter: ^0.6.1
+  lints: ^6.0.0
+  test: ^1.25.6
