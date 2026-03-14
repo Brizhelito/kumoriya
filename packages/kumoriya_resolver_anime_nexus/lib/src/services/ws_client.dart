@@ -21,15 +21,18 @@ final class NexusWsClient {
     required String fingerprint,
     String? cookieHeader,
     required String m3u8Url,
+    void Function(String message)? onDebugLog,
   }) : _episodeId = episodeId,
        _fingerprint = fingerprint,
        _cookieHeader = cookieHeader,
-       _m3u8Url = m3u8Url;
+       _m3u8Url = m3u8Url,
+       _debugLogSink = onDebugLog;
 
   final String _episodeId;
   final String _fingerprint;
   final String? _cookieHeader;
   final String _m3u8Url;
+  final void Function(String message)? _debugLogSink;
 
   WebSocket? _socket;
   StreamSubscription<dynamic>? _subscription;
@@ -61,6 +64,7 @@ final class NexusWsClient {
   }
 
   Future<void> connect({required String wsRef}) async {
+    _log('connect wsRef=$wsRef');
     _closed = false;
     _wsRef = wsRef;
     await _openAndAuthenticate(wsRef: wsRef);
@@ -73,10 +77,12 @@ final class NexusWsClient {
     if (!forceReconnect && !_needsReconnect && _session != null) {
       return;
     }
+    _log('ensure-active-session forceReconnect=$forceReconnect');
     await _reconnect(force: forceReconnect);
   }
 
   Future<void> refreshSession({bool requestResetStream = false}) async {
+    _log('refresh-session requestResetStream=$requestResetStream');
     if (requestResetStream) {
       _send('42/video,${jsonEncode(<Object>['reset-stream'])}');
     }
@@ -185,8 +191,7 @@ final class NexusWsClient {
       return prefetched;
     }
 
-    final previousToken = _latestManifestTokenByKey[request.key];
-    final params = request.toSocketParams(previousToken: previousToken);
+    final params = request.toSocketParams(previousToken: null);
     final token = await _getToken(params);
     _rememberManifestToken(request, token);
     return token;
@@ -194,6 +199,7 @@ final class NexusWsClient {
 
   Future<NexusStreamToken> _getToken(Map<String, Object?> params) async {
     await ensureActiveSession();
+    _log('get-token requestType=${params['requestType']} params=$params');
 
     final socket = _socket;
     if (socket == null) {
@@ -232,6 +238,10 @@ final class NexusWsClient {
         'Anime Nexus token response did not include a token.',
       );
     }
+    _log(
+      'get-token success requestType=${params['requestType']} '
+      'token=${token.token.substring(0, 12)}...',
+    );
     return token;
   }
 
@@ -377,6 +387,7 @@ final class NexusWsClient {
       final data = list[1] as Map<String, dynamic>;
 
       if (event == 'connected') {
+        _log('connected sessionId=${data['sessionId']}');
         _session = NexusWsSession(
           sessionId: data['sessionId']?.toString() ?? '',
           authenticated: data['authenticated'] == true,
@@ -400,6 +411,7 @@ final class NexusWsClient {
       }
 
       if (event == 'reset-challenge') {
+        _log('reset-challenge');
         _needsReconnect = true;
         return;
       }
@@ -407,6 +419,10 @@ final class NexusWsClient {
       if (event == 'authentication-error') {
         final message =
             data['message']?.toString().trim() ?? 'Authentication failed.';
+        _log('authentication-error message=$message');
+        if (_session?.authenticated == true) {
+          return;
+        }
         final error = NexusWsException(
           'Anime Nexus WebSocket auth failed: $message',
         );
@@ -503,11 +519,9 @@ final class NexusWsClient {
       ..set('Origin', NexusConstants.mainBase)
       ..set(HttpHeaders.userAgentHeader, NexusConstants.userAgent);
 
-    final cookieHeader = _cookieHeader;
-    if (cookieHeader != null) {
-      for (final cookie in _parseCookies(cookieHeader)) {
-        request.cookies.add(cookie);
-      }
+    final cookieHeader = _cookieHeader?.trim() ?? '';
+    if (cookieHeader.isNotEmpty) {
+      request.headers.set(HttpHeaders.cookieHeader, cookieHeader);
     }
 
     final response = await request.close();
@@ -518,6 +532,7 @@ final class NexusWsClient {
     }
 
     final socket = await response.detachSocket();
+    _log('socket-upgraded uri=$wsUri');
     return WebSocket.fromUpgradedSocket(socket, serverSide: false);
   }
 
@@ -527,28 +542,18 @@ final class NexusWsClient {
     return base64Encode(bytes);
   }
 
-  List<Cookie> _parseCookies(String cookieHeader) {
-    return cookieHeader
-        .split(';')
-        .map((part) => part.trim())
-        .where((part) => part.isNotEmpty && part.contains('='))
-        .map((part) {
-          final separator = part.indexOf('=');
-          return Cookie(
-            part.substring(0, separator),
-            part.substring(separator + 1),
-          );
-        })
-        .toList(growable: false);
-  }
-
   Future<void> sendProgress({required int segmentIndex}) async {
     await ensureActiveSession();
+    _log('send-progress segmentIndex=$segmentIndex');
     final payload = jsonEncode(<Object>[
       'progress',
       <String, int>{'segIdx': segmentIndex},
     ]);
     _send('42/video,$payload');
+  }
+
+  void _log(String message) {
+    _debugLogSink?.call('[anime-nexus.ws] $message');
   }
 }
 
@@ -564,10 +569,20 @@ final class _ManifestTokenRequest {
   final String? videoId;
 
   Map<String, Object?> toSocketParams({required String? previousToken}) {
+    if (previousToken != null) {
+      return <String, Object?>{
+        'requestType': 'manifest',
+        'prevToken': previousToken,
+      };
+    }
+
+    if (manifestPath == null) {
+      return <String, Object?>{'requestType': 'manifest', 'prevToken': null};
+    }
+
     return <String, Object?>{
       'requestType': 'manifest',
-      'prevToken': previousToken,
-      if (manifestPath != null) 'manifestUrl': manifestPath,
+      'manifestUrl': manifestPath,
       if (videoId != null) 'videoId': videoId,
     };
   }

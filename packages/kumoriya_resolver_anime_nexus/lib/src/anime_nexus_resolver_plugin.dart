@@ -5,14 +5,21 @@ import 'package:kumoriya_plugins/kumoriya_plugins.dart';
 import 'errors/anime_nexus_resolver_error.dart';
 import 'models/nexus_browser_session.dart';
 import 'services/page_scraper.dart';
+import 'services/playback_session_worker.dart';
 import 'services/signed_hls_builder.dart';
 import 'services/stream_data_fetcher.dart';
+import 'services/ws_client.dart';
 import 'utils/nexus_constants.dart';
 
 final class AnimeNexusResolverPlugin implements ResolverPlugin {
-  AnimeNexusResolverPlugin({Dio? dio}) : _dio = dio ?? _buildDio();
+  AnimeNexusResolverPlugin({
+    Dio? dio,
+    void Function(String message)? onDebugLog,
+  }) : _dio = dio ?? _buildDio(),
+       _debugLogSink = onDebugLog;
 
   final Dio _dio;
+  final void Function(String message)? _debugLogSink;
 
   @override
   PluginManifest get manifest => const PluginManifest(
@@ -61,46 +68,89 @@ final class AnimeNexusResolverPlugin implements ResolverPlugin {
     }
 
     try {
-      final episodeId = _extractEpisodeId(url);
-      var browserSession = NexusBrowserSession.generate();
-      final pageData = await NexusPageScraper(
-        _dio,
-      ).scrape(url, session: browserSession);
-      browserSession = browserSession.withCookieHeader(pageData.cookieHeader);
-      final streamDataFetcher = NexusStreamDataFetcher(_dio);
-      final streamData = await streamDataFetcher.fetch(
-        episodeId: episodeId,
-        session: browserSession,
-      );
+      _log('resolve start url=$url');
+      const maxAttempts = 3;
+      for (var attempt = 1; attempt <= maxAttempts; attempt++) {
+        try {
+          _log('resolve attempt=$attempt url=$url');
+          final episodeId = _extractEpisodeId(url);
+          var browserSession = NexusBrowserSession.generate();
+          final pageData = await NexusPageScraper(
+            _dio,
+          ).scrape(url, session: browserSession);
+          browserSession = browserSession.withCookieHeader(
+            pageData.cookieHeader,
+          );
+          final streamDataFetcher = NexusStreamDataFetcher(_dio);
+          final streamData = await streamDataFetcher.fetch(
+            episodeId: episodeId,
+            session: browserSession,
+          );
 
-      final signedHlsBuilder = NexusSignedHlsBuilder(_dio);
-      final streams = await signedHlsBuilder.build(
-        watchUrl: url,
-        episodeId: episodeId,
-        attestRef: pageData.attestRef,
-        browserSession: browserSession,
-        cookieHeader: streamData.cookieHeader,
-        masterManifestUrl: streamData.hlsUrl,
-      );
+          final signedHlsBuilder = NexusSignedHlsBuilder(
+            _dio,
+            onDebugLog: _debugLogSink,
+          );
+          final streams = await signedHlsBuilder.build(
+            watchUrl: url,
+            episodeId: episodeId,
+            videoId: streamData.videoId,
+            attestRef: pageData.attestRef,
+            browserSession: browserSession,
+            cookieHeader: streamData.cookieHeader,
+            masterManifestUrl: streamData.hlsUrl,
+          );
 
-      if (streams.isEmpty) {
-        return const Failure(
-          AnimeNexusParseError(
-            message: 'Anime Nexus resolver returned zero playable streams.',
-          ),
-        );
+          if (streams.isEmpty) {
+            return const Failure(
+              AnimeNexusParseError(
+                message: 'Anime Nexus resolver returned zero playable streams.',
+              ),
+            );
+          }
+
+          _log('resolve success url=$url streams=${streams.length}');
+          return Success(streams);
+        } on NexusPlaybackSessionWorkerException catch (error) {
+          _log(
+            'resolve worker-error attempt=$attempt message=${error.message}',
+          );
+          if (attempt < maxAttempts && _isRetryableWorkerError(error.message)) {
+            continue;
+          }
+          return Failure(AnimeNexusParseError(message: error.message));
+        } on NexusWsException catch (error) {
+          _log('resolve ws-error attempt=$attempt message=${error.message}');
+          if (attempt < maxAttempts && _isRetryableWorkerError(error.message)) {
+            continue;
+          }
+          return Failure(AnimeNexusParseError(message: error.message));
+        } on NexusSignedHlsException catch (error) {
+          _log('resolve hls-error attempt=$attempt message=${error.message}');
+          if (attempt < maxAttempts && _isRetryableWorkerError(error.message)) {
+            continue;
+          }
+          return Failure(AnimeNexusParseError(message: error.message));
+        }
       }
-
-      return Success(streams);
+      return const Failure(
+        AnimeNexusParseError(
+          message: 'Anime Nexus resolver exhausted session retries.',
+        ),
+      );
     } on NexusStreamDataException catch (error) {
+      _log('resolve stream-data-error message=${error.message}');
       return Failure(AnimeNexusParseError(message: error.message));
     } on NexusScraperException catch (error) {
-      return Failure(AnimeNexusParseError(message: error.message));
-    } on NexusSignedHlsException catch (error) {
+      _log('resolve scraper-error message=${error.message}');
       return Failure(AnimeNexusParseError(message: error.message));
     } on DioException catch (error) {
       final status = error.response?.statusCode;
       final target = error.requestOptions.uri;
+      _log(
+        'resolve transport-error status=$status target=$target '
+        'message=${error.message}',
+      );
       return Failure(
         AnimeNexusTransportError(
           message:
@@ -110,6 +160,7 @@ final class AnimeNexusResolverPlugin implements ResolverPlugin {
         ),
       );
     } catch (error) {
+      _log('resolve unexpected-error error=$error');
       return Failure(
         AnimeNexusParseError(
           message: 'Anime Nexus resolver unexpected failure: $error',
@@ -144,5 +195,15 @@ final class AnimeNexusResolverPlugin implements ResolverPlugin {
         },
       ),
     );
+  }
+
+  bool _isRetryableWorkerError(String message) {
+    final normalized = message.toLowerCase();
+    return normalized.contains('websocket auth failed') ||
+        normalized.contains('authentication failed');
+  }
+
+  void _log(String message) {
+    _debugLogSink?.call('[anime-nexus.resolver] $message');
   }
 }

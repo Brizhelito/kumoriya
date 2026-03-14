@@ -206,6 +206,10 @@ final class SourceAvailabilityCacheCodec {
       'thumbnailUrl': match.thumbnailUrl?.toString(),
       'releaseYear': match.releaseYear,
       'format': match.format.name,
+      'aliases': match.aliases,
+      'totalEpisodes': match.totalEpisodes,
+      'seasonNumber': match.seasonNumber,
+      'partNumber': match.partNumber,
     };
   }
 
@@ -216,6 +220,12 @@ final class SourceAvailabilityCacheCodec {
       thumbnailUrl: _uriOrNull(json['thumbnailUrl'] as String?),
       releaseYear: json['releaseYear'] as int?,
       format: _animeFormatFromName(json['format'] as String?),
+      aliases: (json['aliases'] as List<dynamic>? ?? const <dynamic>[])
+          .whereType<String>()
+          .toList(growable: false),
+      totalEpisodes: json['totalEpisodes'] as int?,
+      seasonNumber: json['seasonNumber'] as int?,
+      partNumber: json['partNumber'] as int?,
     );
   }
 

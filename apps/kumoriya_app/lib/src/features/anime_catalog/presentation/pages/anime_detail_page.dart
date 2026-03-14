@@ -1091,16 +1091,7 @@ String? _sourceIconUrl(PluginManifest manifest) {
   if (manifest.iconUrl != null && manifest.iconUrl!.trim().isNotEmpty) {
     return manifest.iconUrl;
   }
-  if (manifest.baseUrls.isEmpty) {
-    return null;
-  }
-
-  final base = Uri.tryParse(manifest.baseUrls.first);
-  if (base == null || !base.hasScheme) {
-    return null;
-  }
-
-  return base.resolve('/favicon.ico').toString();
+  return null;
 }
 
 String _debugPreferenceSummary(PlaybackPreference preference) {

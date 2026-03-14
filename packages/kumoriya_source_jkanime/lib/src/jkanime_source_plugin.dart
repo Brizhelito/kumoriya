@@ -35,61 +35,49 @@ final class JkAnimeSourcePlugin implements SourcePlugin {
   Future<Result<List<SourceAnimeMatch>, KumoriyaError>> search(
     SourceSearchQuery query,
   ) async {
-    final path = 'buscar/${Uri.encodeComponent(query.query.trim())}/';
-    final htmlResult = await _fetchHtml(path);
+    KumoriyaError? lastError;
 
-    return htmlResult.fold(
-      onFailure: Failure.new,
-      onSuccess: (html) {
-        try {
-          final document = html_parser.parse(html);
-          final cards = document.querySelectorAll(
-            '.page_directorio .anime__item',
+    for (final candidateQuery in _buildSearchFallbacks(query.query)) {
+      final path = 'buscar/${Uri.encodeComponent(candidateQuery)}/';
+      final htmlResult = await _fetchHtml(path);
+
+      final parsedResult = htmlResult
+          .fold<Result<List<SourceAnimeMatch>, KumoriyaError>>(
+            onFailure: (error) {
+              lastError = error;
+              return Failure(error);
+            },
+            onSuccess: (html) {
+              try {
+                return Success(_parseSearchMatches(html, limit: query.limit));
+              } catch (error) {
+                final parseError = JkAnimeParseError(
+                  message: 'Failed to parse JKAnime search: $error',
+                );
+                lastError = parseError;
+                return Failure(parseError);
+              }
+            },
           );
-          final matches = <SourceAnimeMatch>[];
-          final seenSourceIds = <String>{};
 
-          for (final card in cards) {
-            final title = card.querySelector('h5 a')?.text.trim() ?? '';
-            final href = card.querySelector('h5 a')?.attributes['href'] ?? '';
-            final sourceId = _extractSourceIdFromUrl(href);
-            if (title.isEmpty ||
-                sourceId == null ||
-                seenSourceIds.contains(sourceId)) {
-              continue;
-            }
-            seenSourceIds.add(sourceId);
+      if (!parsedResult.isSuccess) {
+        continue;
+      }
 
-            final imageUrl = card
-                .querySelector('.anime__item__pic')
-                ?.attributes['data-setbg']
-                ?.trim();
+      final matches = parsedResult.fold(
+        onFailure: (_) => const <SourceAnimeMatch>[],
+        onSuccess: (items) => items,
+      );
+      if (matches.isNotEmpty) {
+        return Success(matches);
+      }
+    }
 
-            final rawFormat = card.querySelector('li.anime')?.text.trim();
-            matches.add(
-              SourceAnimeMatch(
-                sourceId: sourceId,
-                title: title,
-                thumbnailUrl: _asUri(imageUrl),
-                format: _mapFormat(rawFormat),
-              ),
-            );
+    if (lastError != null) {
+      return Failure(lastError!);
+    }
 
-            if (matches.length >= query.limit) {
-              break;
-            }
-          }
-
-          return Success(matches);
-        } catch (error) {
-          return Failure(
-            JkAnimeParseError(
-              message: 'Failed to parse JKAnime search: $error',
-            ),
-          );
-        }
-      },
-    );
+    return const Success(<SourceAnimeMatch>[]);
   }
 
   @override
@@ -438,6 +426,77 @@ final class JkAnimeSourcePlugin implements SourcePlugin {
     return trimmed.replaceAll('/', '');
   }
 
+  List<String> _buildSearchFallbacks(String rawQuery) {
+    final ordered = <String>[];
+    final seen = <String>{};
+
+    void add(String value) {
+      final normalized = value.trim().replaceAll(RegExp(r'\s+'), ' ');
+      if (normalized.isEmpty) {
+        return;
+      }
+      final key = normalized.toLowerCase();
+      if (seen.add(key)) {
+        ordered.add(normalized);
+      }
+    }
+
+    final query = rawQuery.trim();
+    add(query);
+
+    final withoutSeason = _stripSeasonDescriptor(query);
+    add(withoutSeason);
+    add(_stripTrailingParenthetical(withoutSeason));
+    add(_extractRootTitle(withoutSeason));
+    add(_slugify(query));
+    add(_slugify(withoutSeason));
+
+    return ordered;
+  }
+
+  List<SourceAnimeMatch> _parseSearchMatches(
+    String html, {
+    required int limit,
+  }) {
+    final document = html_parser.parse(html);
+    final cards = document.querySelectorAll('.page_directorio .anime__item');
+    final matches = <SourceAnimeMatch>[];
+    final seenSourceIds = <String>{};
+
+    for (final card in cards) {
+      final title = card.querySelector('h5 a')?.text.trim() ?? '';
+      final href = card.querySelector('h5 a')?.attributes['href'] ?? '';
+      final sourceId = _extractSourceIdFromUrl(href);
+      if (title.isEmpty ||
+          sourceId == null ||
+          seenSourceIds.contains(sourceId)) {
+        continue;
+      }
+      seenSourceIds.add(sourceId);
+
+      final imageUrl = card
+          .querySelector('.anime__item__pic')
+          ?.attributes['data-setbg']
+          ?.trim();
+
+      final rawFormat = card.querySelector('li.anime')?.text.trim();
+      matches.add(
+        SourceAnimeMatch(
+          sourceId: sourceId,
+          title: title,
+          thumbnailUrl: _asUri(imageUrl),
+          format: _mapFormat(rawFormat),
+        ),
+      );
+
+      if (matches.length >= limit) {
+        break;
+      }
+    }
+
+    return matches;
+  }
+
   String? _extractSourceIdFromUrl(String rawUrl) {
     final uri = Uri.tryParse(rawUrl);
     if (uri == null) {
@@ -456,6 +515,55 @@ final class JkAnimeSourcePlugin implements SourcePlugin {
     }
 
     return segments.first;
+  }
+
+  String _stripSeasonDescriptor(String value) {
+    var result = value.trim();
+    const patterns = <String>[
+      r'\s*[-:]?\s*\b\d+(?:st|nd|rd|th)?\s+season\b$',
+      r'\s*[-:]?\s*\bseason\s+\d+\b$',
+      r'\s*[-:]?\s*\bpart\s+\d+\b$',
+      r'\s*[-:]?\s*\bcour\s+\d+\b$',
+      r'\s*[-:]?\s*\b(?:ii|iii|iv|v)\b$',
+    ];
+
+    for (final pattern in patterns) {
+      result = result.replaceFirst(RegExp(pattern, caseSensitive: false), '');
+    }
+
+    return result.trim();
+  }
+
+  String _stripTrailingParenthetical(String value) {
+    return value.replaceFirst(RegExp(r'\s*\([^)]*\)\s*$'), '').trim();
+  }
+
+  String _extractRootTitle(String value) {
+    final trimmed = value.trim();
+    if (trimmed.isEmpty) {
+      return trimmed;
+    }
+
+    final colonIndex = trimmed.indexOf(':');
+    final dashIndex = trimmed.indexOf(' - ');
+    final splitIndex = <int>[colonIndex, dashIndex]
+        .where((index) => index > 0)
+        .fold<int?>(null, (current, index) {
+          if (current == null || index < current) {
+            return index;
+          }
+          return current;
+        });
+
+    if (splitIndex == null) {
+      return trimmed;
+    }
+
+    final root = trimmed.substring(0, splitIndex).trim();
+    if (root.split(' ').length < 2 || root.length < 6) {
+      return trimmed;
+    }
+    return root;
   }
 
   String _extractTitleFromOgTitle(String? ogTitle) {
@@ -535,6 +643,66 @@ final class JkAnimeSourcePlugin implements SourcePlugin {
     }
 
     return Uri.tryParse(raw.trim());
+  }
+
+  String _slugify(String value) {
+    final lower = _stripDiacritics(value.toLowerCase());
+    final buffer = StringBuffer();
+    var previousWasDash = false;
+
+    for (final codeUnit in lower.codeUnits) {
+      final isLetter = codeUnit >= 97 && codeUnit <= 122;
+      final isDigit = codeUnit >= 48 && codeUnit <= 57;
+      if (isLetter || isDigit) {
+        buffer.writeCharCode(codeUnit);
+        previousWasDash = false;
+        continue;
+      }
+
+      final isCollapsedSeparator =
+          codeUnit == 47 ||
+          codeUnit == 92 ||
+          codeUnit == 39 ||
+          codeUnit == 8217;
+      if (isCollapsedSeparator) {
+        continue;
+      }
+
+      if (!previousWasDash) {
+        buffer.write('-');
+        previousWasDash = true;
+      }
+    }
+
+    return buffer
+        .toString()
+        .replaceAll(RegExp(r'-+'), '-')
+        .replaceAll(RegExp(r'^-|-$'), '');
+  }
+
+  String _stripDiacritics(String value) {
+    return value
+        .replaceAll('\u00E1', 'a')
+        .replaceAll('\u00E0', 'a')
+        .replaceAll('\u00E4', 'a')
+        .replaceAll('\u00E2', 'a')
+        .replaceAll('\u00E9', 'e')
+        .replaceAll('\u00E8', 'e')
+        .replaceAll('\u00EB', 'e')
+        .replaceAll('\u00EA', 'e')
+        .replaceAll('\u00ED', 'i')
+        .replaceAll('\u00EC', 'i')
+        .replaceAll('\u00EF', 'i')
+        .replaceAll('\u00EE', 'i')
+        .replaceAll('\u00F3', 'o')
+        .replaceAll('\u00F2', 'o')
+        .replaceAll('\u00F6', 'o')
+        .replaceAll('\u00F4', 'o')
+        .replaceAll('\u00FA', 'u')
+        .replaceAll('\u00F9', 'u')
+        .replaceAll('\u00FC', 'u')
+        .replaceAll('\u00FB', 'u')
+        .replaceAll('\u00F1', 'n');
   }
 
   List<SourceServerLink> _extractServerLinksFromEpisodeHtml(String html) {

@@ -10,7 +10,7 @@ final class NexusBrowserSession {
   NexusBrowserSession withCookieHeader(String? value) {
     return NexusBrowserSession._(
       fingerprint: fingerprint,
-      cookieHeader: value ?? cookieHeader,
+      cookieHeader: _mergeCookieHeaders(cookieHeader, value),
     );
   }
 
@@ -39,5 +39,40 @@ final class NexusBrowserSession {
     final p4b = hex(1).substring(1);
     final p5 = hex(6);
     return '$p1-$p2-$p3-$p4a$p4b-$p5';
+  }
+
+  static String? _mergeCookieHeaders(String? existing, String? incoming) {
+    final merged = <String, String>{};
+
+    void absorb(String? header) {
+      if (header == null || header.trim().isEmpty) {
+        return;
+      }
+
+      for (final part in header.split(';')) {
+        final cookie = part.trim();
+        if (cookie.isEmpty) {
+          continue;
+        }
+        final separator = cookie.indexOf('=');
+        if (separator <= 0) {
+          continue;
+        }
+        merged[cookie.substring(0, separator)] = cookie.substring(
+          separator + 1,
+        );
+      }
+    }
+
+    absorb(existing);
+    absorb(incoming);
+
+    if (merged.isEmpty) {
+      return null;
+    }
+
+    return merged.entries
+        .map((entry) => '${entry.key}=${entry.value}')
+        .join('; ');
   }
 }

@@ -299,4 +299,121 @@ void main() {
       );
     });
   });
+
+  group('AnimeNexusSourcePlugin - search', () {
+    late Dio dio;
+    late DioAdapter adapter;
+    late AnimeNexusSourcePlugin plugin;
+
+    setUp(() {
+      dio = Dio(BaseOptions());
+      adapter = DioAdapter(dio: dio);
+      plugin = AnimeNexusSourcePlugin(dio: dio);
+    });
+
+    test('falls back to a simplified query after transport failure', () async {
+      adapter.onGet(
+        'https://api.anime.nexus/api/anime/shows',
+        (server) => server.reply(503, {'error': 'unavailable'}),
+        queryParameters: <String, dynamic>{
+          'search': 'JUJUTSU KAISEN Season 3: The Culling Game Part 1',
+          'page': 1,
+          'sortBy': 'name asc',
+          'hasVideos': true,
+          'includes[]': <String>['poster', 'genres', 'background'],
+        },
+      );
+      adapter.onGet(
+        'https://api.anime.nexus/api/anime/shows',
+        (server) => server.reply(200, {
+          'data': [
+            {
+              'id': 'series-1',
+              'slug': 'jujutsu-kaisen-season-3-the-culling-game',
+              'name': 'JUJUTSU KAISEN Season 3',
+              'type': 'tv',
+            },
+          ],
+        }),
+        queryParameters: <String, dynamic>{
+          'search': 'JUJUTSU KAISEN Season 3',
+          'page': 1,
+          'sortBy': 'name asc',
+          'hasVideos': true,
+          'includes[]': <String>['poster', 'genres', 'background'],
+        },
+      );
+
+      final result = await plugin.search(
+        const SourceSearchQuery(
+          query: 'JUJUTSU KAISEN Season 3: The Culling Game Part 1',
+        ),
+      );
+
+      expect(result, isA<Success<List<SourceAnimeMatch>, KumoriyaError>>());
+      final matches =
+          (result as Success<List<SourceAnimeMatch>, KumoriyaError>).value;
+      expect(matches, hasLength(1));
+      expect(matches.single.title, 'JUJUTSU KAISEN Season 3');
+    });
+
+    test('retries transient search failures before giving up', () async {
+      var attempts = 0;
+      dio.interceptors.add(
+        InterceptorsWrapper(
+          onRequest: (options, handler) {
+            final searchValue = options.queryParameters['search'];
+            if (options.path == 'https://api.anime.nexus/api/anime/shows' &&
+                searchValue == 'Koe no Katachi') {
+              attempts++;
+              if (attempts < 3) {
+                handler.reject(
+                  DioException(
+                    requestOptions: options,
+                    type: DioExceptionType.connectionError,
+                    message: 'transient failure',
+                  ),
+                );
+                return;
+              }
+            }
+            handler.next(options);
+          },
+        ),
+      );
+
+      adapter.onGet(
+        'https://api.anime.nexus/api/anime/shows',
+        (server) => server.reply(200, {
+          'data': [
+            {
+              'id': 'movie-1',
+              'slug': 'koe-no-katachi',
+              'name': 'Koe no Katachi',
+              'type': 'movie',
+              'year': 2016,
+            },
+          ],
+        }),
+        queryParameters: <String, dynamic>{
+          'search': 'Koe no Katachi',
+          'page': 1,
+          'sortBy': 'name asc',
+          'hasVideos': true,
+          'includes[]': <String>['poster', 'genres', 'background'],
+        },
+      );
+
+      final result = await plugin.search(
+        const SourceSearchQuery(query: 'Koe no Katachi'),
+      );
+
+      expect(result, isA<Success<List<SourceAnimeMatch>, KumoriyaError>>());
+      final matches =
+          (result as Success<List<SourceAnimeMatch>, KumoriyaError>).value;
+      expect(matches, hasLength(1));
+      expect(matches.single.title, 'Koe no Katachi');
+      expect(attempts, 3);
+    });
+  });
 }

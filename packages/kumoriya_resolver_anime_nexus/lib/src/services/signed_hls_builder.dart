@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import 'dart:async';
 import 'package:kumoriya_plugins/kumoriya_plugins.dart';
 
 import '../models/nexus_browser_session.dart';
@@ -18,22 +19,29 @@ final class NexusSignedHlsException implements Exception {
 }
 
 final class NexusSignedHlsBuilder {
-  NexusSignedHlsBuilder(this._dio)
-    : _edgeSelector = NexusCdnEdgeSelector(_dio),
+  NexusSignedHlsBuilder(this._dio, {void Function(String message)? onDebugLog})
+    : _debugLogSink = onDebugLog,
+      _edgeSelector = NexusCdnEdgeSelector(_dio),
       _parser = const NexusHlsManifestParser();
 
   final Dio _dio;
   final NexusCdnEdgeSelector _edgeSelector;
   final NexusHlsManifestParser _parser;
+  final void Function(String message)? _debugLogSink;
 
   Future<List<ResolvedStream>> build({
     required Uri watchUrl,
     required String episodeId,
+    required String videoId,
     required String attestRef,
     required NexusBrowserSession browserSession,
     required String? cookieHeader,
     required Uri masterManifestUrl,
   }) async {
+    _log(
+      'build start episodeId=$episodeId videoId=$videoId '
+      'manifest=$masterManifestUrl',
+    );
     final masterResponse = await _dio.get<String>(
       masterManifestUrl.toString(),
       options: Options(
@@ -65,6 +73,10 @@ final class NexusSignedHlsBuilder {
     final candidateHosts = await _edgeSelector.candidateHosts(
       fallbackHost: fallbackHost,
     );
+    _log(
+      'build candidate-hosts hosts=${candidateHosts.join(",")} '
+      'streams=${masterManifest.streamEntries.length}',
+    );
 
     final worker = await NexusPlaybackSessionWorker.spawn(
       episodeId: episodeId,
@@ -72,6 +84,7 @@ final class NexusSignedHlsBuilder {
       cookieHeader: cookieHeader,
       m3u8Url: masterManifestUrl.toString(),
       wsRef: attestRef,
+      onDebugLog: _debugLogSink,
     );
 
     try {
@@ -79,10 +92,12 @@ final class NexusSignedHlsBuilder {
         playbackId: generateNexusPlaybackId(),
         dio: _dio,
         episodeId: episodeId,
+        videoId: videoId,
         fingerprint: browserSession.fingerprint,
         candidateHosts: candidateHosts,
         masterManifest: masterManifest,
         worker: worker,
+        onDebugLog: _debugLogSink,
       );
       final proxyServer = NexusPlaybackProxyServer.instance;
       await proxyServer.registerSession(proxySession);
@@ -94,14 +109,23 @@ final class NexusSignedHlsBuilder {
           ).compareTo(_numericLabel(a.qualityLabel)),
         );
 
-      await proxyServer.primeStream(
-        session: proxySession,
-        stream: sortedStreams.first,
+      await _validateWorkerSession(
+        worker: worker,
+        masterManifest: masterManifest,
+        primaryStream: sortedStreams.first,
+        episodeId: episodeId,
       );
 
-      final streams = sortedStreams
-          .map(
-            (stream) => ResolvedStream(
+      final streams = <ResolvedStream>[];
+      for (final stream in sortedStreams) {
+        try {
+          _log(
+            'build prime-stream quality=${stream.qualityLabel} '
+            'variant=${stream.metadata.variant} track=${stream.metadata.track}',
+          );
+          await proxyServer.primeStream(session: proxySession, stream: stream);
+          streams.add(
+            ResolvedStream(
               url: proxyServer.qualityMasterUri(
                 session: proxySession,
                 stream: stream,
@@ -110,11 +134,20 @@ final class NexusSignedHlsBuilder {
               mimeType: 'application/vnd.apple.mpegurl',
               isHls: true,
             ),
-          )
-          .toList(growable: false);
+          );
+        } catch (_) {
+          // Skip qualities that cannot produce a playable local proxy manifest.
+          _log(
+            'build skip-quality quality=${stream.qualityLabel} '
+            'variant=${stream.metadata.variant} track=${stream.metadata.track}',
+          );
+        }
+      }
 
+      _log('build completed playable-streams=${streams.length}');
       return streams;
     } catch (error) {
+      _log('build error error=$error');
       await worker.close();
       rethrow;
     }
@@ -135,5 +168,41 @@ final class NexusSignedHlsBuilder {
 
   int _numericLabel(String? label) {
     return int.tryParse(label?.replaceAll(RegExp(r'[^0-9]'), '') ?? '') ?? 0;
+  }
+
+  Future<void> _validateWorkerSession({
+    required NexusPlaybackSessionWorker worker,
+    required NexusMasterManifest masterManifest,
+    required NexusVideoStreamEntry primaryStream,
+    required String episodeId,
+  }) async {
+    _log(
+      'validate-worker episodeId=$episodeId '
+      'primaryVariant=${primaryStream.metadata.variant}',
+    );
+    await worker.getSessionId();
+
+    final audioGroupId = primaryStream.audioGroupId;
+    if (audioGroupId != null) {
+      final audioStream = masterManifest.audioEntries.firstWhere(
+        (entry) => entry.groupId == audioGroupId,
+        orElse: () => throw const NexusSignedHlsException(
+          'Anime Nexus primary stream did not expose a matching audio track.',
+        ),
+      );
+      await worker.getManifestToken(
+        manifestPath: audioStream.uri.path,
+        videoId: episodeId,
+      );
+    }
+
+    await worker.getManifestToken(
+      manifestPath: primaryStream.uri.path,
+      videoId: episodeId,
+    );
+  }
+
+  void _log(String message) {
+    _debugLogSink?.call('[anime-nexus.builder] $message');
   }
 }

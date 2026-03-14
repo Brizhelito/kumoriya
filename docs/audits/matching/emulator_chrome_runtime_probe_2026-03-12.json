@@ -1,0 +1,44 @@
+{
+  "captured_at": "2026-03-12",
+  "device": {
+    "adb_serial": "emulator-5554",
+    "model": "sdk_gphone64_x86_64"
+  },
+  "chrome": {
+    "package": "com.android.chrome",
+    "version": "124.0.6367.219",
+    "protocol_version": "1.3",
+    "debug_endpoint": "http://127.0.0.1:9222"
+  },
+  "targets": [
+    {
+      "source": "jkanime",
+      "probe_type": "mobile_search_page",
+      "query": "Frieren",
+      "target_id": "0",
+      "title": "Buscar frieren \u2014 JkAnime",
+      "url": "https://jkanime.net/buscar/frieren/"
+    },
+    {
+      "source": "animeflv",
+      "probe_type": "mobile_search_page",
+      "query": "Frieren",
+      "target_id": "1",
+      "title": "Buscador Avanzado - AnimeFLV",
+      "url": "https://m.animeflv.net/browse?q=Frieren"
+    },
+    {
+      "source": "animeav1",
+      "probe_type": "mobile_search_page",
+      "query": "Frieren",
+      "target_id": "2",
+      "title": "Directorio Completo de Animes Online Sub Espa\u00f1ol - AnimeAV1",
+      "url": "https://animeav1.com/catalogo?search=Frieren"
+    },
+    {
+      "source": "anime_nexus",
+      "probe_type": "api_first_source",
+      "note": "This source was exercised through the live source plugin and bulk dataset generation. A direct Chrome mobile page target was not captured in this pass."
+    }
+  ]
+}

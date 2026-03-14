@@ -9,26 +9,47 @@ import '../application/services/playback_engine.dart';
 
 final class MediaKitPlaybackEngine implements PlaybackEngine {
   static const List<Duration> _hlsPrerollWindows = <Duration>[
-    Duration(seconds: 6),
-    Duration(seconds: 15),
-    Duration(seconds: 30),
-    Duration(seconds: 60),
+    Duration(seconds: 4),
+    Duration(seconds: 10),
+    Duration(seconds: 20),
   ];
 
-  MediaKitPlaybackEngine()
-    : player = Player(
-        configuration: PlayerConfiguration(
-          logLevel: kDebugMode ? MPVLogLevel.debug : MPVLogLevel.error,
-          bufferSize: 128 * 1024 * 1024,
-        ),
-      ) {
-    videoController = VideoController(player);
+  MediaKitPlaybackEngine({
+    void Function(String message)? onDebugLog,
+    void Function(String reason)? onVideoOutputFallbackRequested,
+    bool forceSoftwareVideoOutput = false,
+  }) : _debugLogSink = onDebugLog,
+       _videoOutputFallbackSink = onVideoOutputFallbackRequested,
+       _forceSoftwareVideoOutput = forceSoftwareVideoOutput,
+       player = Player(
+         configuration: PlayerConfiguration(
+           logLevel: kDebugMode ? MPVLogLevel.debug : MPVLogLevel.error,
+           bufferSize: 128 * 1024 * 1024,
+         ),
+       ) {
+    final useSoftwareVideoOutput = _shouldUseSoftwareVideoOutput();
+    videoController = VideoController(
+      player,
+      configuration: VideoControllerConfiguration(
+        enableHardwareAcceleration: !useSoftwareVideoOutput,
+      ),
+    );
+    _log(
+      'video-controller-config softwareOutput=$useSoftwareVideoOutput platform=$defaultTargetPlatform',
+    );
+    _attachVideoControllerDebugStreams();
     _attachNativeDebugStreams();
   }
 
   final Player player;
   late final VideoController videoController;
+  final void Function(String message)? _debugLogSink;
+  final void Function(String reason)? _videoOutputFallbackSink;
+  final bool _forceSoftwareVideoOutput;
   bool _disposed = false;
+  bool _firstFrameRendered = false;
+  bool _videoOutputFallbackTriggered = false;
+  Timer? _videoOutputFallbackTimer;
   final List<StreamSubscription<dynamic>> _debugSubscriptions =
       <StreamSubscription<dynamic>>[];
   late final String _instanceId = identityHashCode(this).toRadixString(16);
@@ -56,9 +77,23 @@ final class MediaKitPlaybackEngine implements PlaybackEngine {
     _log(
       'open url=${stream.url} hls=${stream.isHls} start=$startPosition headers=${stream.headers.keys.join(",")}',
     );
+    await _configureDecoderForStream(stream);
+    _scheduleVideoOutputFallbackCheck(stream);
+    if (_isAnimeNexusLoopback(stream.url) &&
+        (startPosition == null || startPosition <= Duration.zero)) {
+      await _openAnimeNexusInitialStream(stream);
+      return;
+    }
     if (stream.isHls &&
         startPosition != null &&
         startPosition > Duration.zero) {
+      if (_isAnimeNexusManagedSeekWindow(stream.url)) {
+        await _openAnimeNexusManagedSeekWindow(
+          stream,
+          requestedPosition: startPosition,
+        );
+        return;
+      }
       await _openHlsAtPosition(stream, startPosition);
       return;
     }
@@ -70,6 +105,38 @@ final class MediaKitPlaybackEngine implements PlaybackEngine {
         start: startPosition,
       ),
       play: true,
+    );
+  }
+
+  Future<void> _openAnimeNexusInitialStream(ResolvedStream stream) async {
+    _log('anime-nexus-open start url=${stream.url}');
+    _throwIfDisposed();
+    await player.stop();
+    _throwIfDisposed();
+    await player.open(
+      Media(stream.url.toString(), httpHeaders: stream.headers),
+      play: true,
+    );
+    _log(
+      'anime-nexus-open opened playing buffering=${player.state.buffering} duration=${player.state.duration} position=${player.state.position}',
+    );
+    _throwIfDisposed();
+    await _waitUntilReady();
+    _throwIfDisposed();
+    final warmedUp = await _waitForPlaybackWarmup(
+      timeout: const Duration(seconds: 8),
+    );
+    if (!warmedUp) {
+      _throwIfDisposed();
+      throw StateError(
+        'Anime Nexus playback did not warm up. '
+        'buffering=${player.state.buffering} '
+        'position=${player.state.position} '
+        'duration=${player.state.duration}',
+      );
+    }
+    _log(
+      'anime-nexus-open ready buffering=${player.state.buffering} duration=${player.state.duration} position=${player.state.position}',
     );
   }
 
@@ -120,6 +187,7 @@ final class MediaKitPlaybackEngine implements PlaybackEngine {
   @override
   Future<void> dispose() async {
     _disposed = true;
+    _videoOutputFallbackTimer?.cancel();
     for (final subscription in _debugSubscriptions) {
       await subscription.cancel();
     }
@@ -190,6 +258,32 @@ final class MediaKitPlaybackEngine implements PlaybackEngine {
     await _seekWhenReady(startPosition);
     _log(
       'hls-reopen seeked buffering=${player.state.buffering} duration=${player.state.duration} position=${player.state.position}',
+    );
+  }
+
+  Future<void> _openAnimeNexusManagedSeekWindow(
+    ResolvedStream stream, {
+    required Duration requestedPosition,
+  }) async {
+    _log(
+      'hls-windowed-reopen start url=${stream.url} requested=$requestedPosition',
+    );
+    _throwIfDisposed();
+    await player.stop();
+    _throwIfDisposed();
+    await player.open(
+      Media(stream.url.toString(), httpHeaders: stream.headers),
+      play: true,
+    );
+    _log(
+      'hls-windowed-reopen opened playing buffering=${player.state.buffering} duration=${player.state.duration} position=${player.state.position}',
+    );
+    _throwIfDisposed();
+    await _waitUntilReady();
+    _throwIfDisposed();
+    await _waitForPlaybackWarmup();
+    _log(
+      'hls-windowed-reopen ready requested=$requestedPosition buffering=${player.state.buffering} duration=${player.state.duration} position=${player.state.position}',
     );
   }
 
@@ -267,31 +361,33 @@ final class MediaKitPlaybackEngine implements PlaybackEngine {
     }
   }
 
-  Future<void> _waitForPlaybackWarmup() async {
+  Future<bool> _waitForPlaybackWarmup({
+    Duration timeout = const Duration(seconds: 3),
+  }) async {
     if (player.state.position > Duration.zero && !player.state.buffering) {
       _log(
         'waitForPlaybackWarmup immediate position=${player.state.position} buffering=${player.state.buffering}',
       );
-      return;
+      return true;
     }
 
-    final completer = Completer<void>();
+    final completer = Completer<bool>();
     late final StreamSubscription<Duration> positionSub;
     late final StreamSubscription<bool> bufferingSub;
     Timer? timeoutTimer;
     var buffering = player.state.buffering;
 
-    void complete() {
+    void complete(bool value) {
       if (completer.isCompleted) {
         return;
       }
-      completer.complete();
+      completer.complete(value);
     }
 
     positionSub = player.stream.position.listen((position) {
       if (position > Duration.zero && !buffering) {
         _log('waitForPlaybackWarmup position=$position');
-        complete();
+        complete(true);
       }
     });
 
@@ -301,19 +397,19 @@ final class MediaKitPlaybackEngine implements PlaybackEngine {
         _log(
           'waitForPlaybackWarmup buffering-false position=${player.state.position}',
         );
-        complete();
+        complete(true);
       }
     });
 
-    timeoutTimer = Timer(const Duration(seconds: 3), () {
+    timeoutTimer = Timer(timeout, () {
       _log(
         'waitForPlaybackWarmup timeout position=${player.state.position} buffering=${player.state.buffering}',
       );
-      complete();
+      complete(false);
     });
 
     try {
-      await completer.future;
+      return await completer.future;
     } finally {
       timeoutTimer.cancel();
       await positionSub.cancel();
@@ -566,6 +662,105 @@ final class MediaKitPlaybackEngine implements PlaybackEngine {
     return (actual - expected).inSeconds.abs() <= 2;
   }
 
+  Future<void> _configureDecoderForStream(ResolvedStream stream) async {
+    final platform = player.platform;
+    if (platform is! NativePlayer) {
+      return;
+    }
+
+    final isAnimeNexus = _isAnimeNexusLoopback(stream.url);
+    final hwdec =
+        isAnimeNexus && defaultTargetPlatform == TargetPlatform.android
+        ? 'no'
+        : 'auto-safe';
+
+    try {
+      await platform.setProperty('hwdec', hwdec);
+      await platform.setProperty('vd-lavc-software-fallback', 'yes');
+      _log(
+        'decoder-config hwdec=$hwdec platform=$defaultTargetPlatform animeNexus=${_isAnimeNexusLoopback(stream.url)}',
+      );
+    } catch (error) {
+      _log('decoder-config failed hwdec=$hwdec error=$error');
+    }
+  }
+
+  bool _isAnimeNexusLoopback(Uri url) {
+    if (!(url.host == '127.0.0.1' || url.host == 'localhost')) {
+      return false;
+    }
+    return url.pathSegments.contains('anime-nexus');
+  }
+
+  bool _isAnimeNexusManagedSeekWindow(Uri url) {
+    if (!_isAnimeNexusLoopback(url)) {
+      return false;
+    }
+    if (!url.queryParameters.containsKey('seekNonce')) {
+      return false;
+    }
+    return true;
+  }
+
+  bool _shouldUseSoftwareVideoOutput() {
+    return _forceSoftwareVideoOutput;
+  }
+
+  void _attachVideoControllerDebugStreams() {
+    if (!kDebugMode) {
+      return;
+    }
+
+    void logTexture() {
+      _log('video-controller textureId=${videoController.id.value}');
+    }
+
+    void logRect() {
+      _log('video-controller rect=${videoController.rect.value}');
+    }
+
+    videoController.id.addListener(logTexture);
+    videoController.rect.addListener(logRect);
+
+    _debugSubscriptions.add(
+      Stream<void>.fromFuture(
+        videoController.waitUntilFirstFrameRendered,
+      ).listen(
+        (_) {
+          _firstFrameRendered = true;
+          _videoOutputFallbackTimer?.cancel();
+          _log(
+            'video-controller first-frame-rendered rect=${videoController.rect.value} textureId=${videoController.id.value}',
+          );
+        },
+        onError: (Object error, StackTrace stackTrace) {
+          _log('video-controller first-frame error=$error');
+        },
+      ),
+    );
+  }
+
+  void _scheduleVideoOutputFallbackCheck(ResolvedStream stream) {
+    _videoOutputFallbackTimer?.cancel();
+    if (_disposed || _forceSoftwareVideoOutput || _firstFrameRendered) {
+      return;
+    }
+    if (!(defaultTargetPlatform == TargetPlatform.windows &&
+        _isAnimeNexusLoopback(stream.url))) {
+      return;
+    }
+    _videoOutputFallbackTimer = Timer(const Duration(seconds: 4), () {
+      if (_disposed || _firstFrameRendered || _videoOutputFallbackTriggered) {
+        return;
+      }
+      _videoOutputFallbackTriggered = true;
+      _log(
+        'video-output-fallback-requested reason=no_first_frame textureId=${videoController.id.value} rect=${videoController.rect.value}',
+      );
+      _videoOutputFallbackSink?.call('no_first_frame');
+    });
+  }
+
   void _attachNativeDebugStreams() {
     if (!kDebugMode) {
       return;
@@ -622,8 +817,10 @@ final class MediaKitPlaybackEngine implements PlaybackEngine {
     if (!kDebugMode) {
       return;
     }
-    debugPrint(
-      '[player.engine#$_instanceId ${DateTime.now().toIso8601String()}] $message',
-    );
+    final formatted =
+        '[player.engine#$_instanceId ${DateTime.now().toIso8601String()}] '
+        '$message';
+    debugPrint(formatted);
+    _debugLogSink?.call(formatted);
   }
 }

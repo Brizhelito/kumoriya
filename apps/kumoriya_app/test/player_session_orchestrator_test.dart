@@ -289,9 +289,12 @@ void main() {
     },
   );
 
-  test('seeks loopback HLS candidate in place for explicit seek', () async {
+  test('reopens loopback HLS candidate for explicit seek', () async {
     final engine = _FakePlaybackEngine(
-      openBehaviors: const <_OpenBehavior>[_OpenBehavior.success()],
+      openBehaviors: const <_OpenBehavior>[
+        _OpenBehavior.success(),
+        _OpenBehavior.success(),
+      ],
     );
     final orchestrator = PlayerSessionOrchestrator(playbackEngine: engine);
 
@@ -310,12 +313,115 @@ void main() {
 
     await orchestrator.seekTo(const Duration(minutes: 18, seconds: 30));
 
-    expect(engine.openCalls, 1);
-    expect(engine.seekCalls, 1);
-    expect(engine.lastSeekPosition, const Duration(minutes: 18, seconds: 30));
+    expect(engine.openCalls, 2);
+    expect(engine.seekCalls, 0);
+    expect(
+      engine.openStartPositions.last,
+      const Duration(minutes: 18, seconds: 30),
+    );
+    expect(engine.openUrls.last.queryParameters['run'], isNotEmpty);
+    expect(
+      engine.openUrls.last.queryParameters['seekNonce'],
+      '${const Duration(minutes: 18, seconds: 30).inMilliseconds}',
+    );
 
     await orchestrator.dispose();
   });
+
+  test(
+    'publishes absolute timeline for anime nexus loopback seek windows',
+    () async {
+      final engine = _FakePlaybackEngine(
+        openBehaviors: const <_OpenBehavior>[
+          _OpenBehavior.success(),
+          _OpenBehavior.success(),
+        ],
+      );
+      final orchestrator = PlayerSessionOrchestrator(playbackEngine: engine);
+      var latestPosition = Duration.zero;
+      var latestDuration = Duration.zero;
+      final positionSub = orchestrator.positionStream.listen(
+        (value) => latestPosition = value,
+      );
+      final durationSub = orchestrator.durationStream.listen(
+        (value) => latestDuration = value,
+      );
+
+      final result = await orchestrator.start(
+        streamCandidates: <ResolvedStream>[
+          ResolvedStream(
+            url: Uri.parse(
+              'http://127.0.0.1:63164/anime-nexus/session/master/5300/1.m3u8',
+            ),
+            isHls: true,
+          ),
+        ],
+      );
+
+      expect(result.isSuccess, isTrue);
+
+      engine.emitDuration(const Duration(minutes: 18, seconds: 15));
+      await orchestrator.seekTo(const Duration(minutes: 9, seconds: 0));
+      engine.emitDuration(const Duration(minutes: 14, seconds: 51));
+      engine.emitPosition(Duration.zero);
+      engine.emitPosition(const Duration(seconds: 5));
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+
+      expect(latestDuration, const Duration(minutes: 18, seconds: 15));
+      expect(latestPosition, const Duration(minutes: 9, seconds: 5));
+
+      await positionSub.cancel();
+      await durationSub.cancel();
+      await orchestrator.dispose();
+    },
+  );
+
+  test(
+    'retries same candidate when seek reopen stalls without progress',
+    () async {
+      final engine = _FakePlaybackEngine(
+        openBehaviors: const <_OpenBehavior>[
+          _OpenBehavior.success(),
+          _OpenBehavior.success(),
+          _OpenBehavior.success(),
+        ],
+      );
+      final orchestrator = PlayerSessionOrchestrator(playbackEngine: engine);
+
+      final result = await orchestrator.start(
+        streamCandidates: <ResolvedStream>[
+          ResolvedStream(
+            url: Uri.parse(
+              'http://127.0.0.1:63164/anime-nexus/session/master/5300/1.m3u8',
+            ),
+            isHls: true,
+          ),
+        ],
+      );
+
+      expect(result.isSuccess, isTrue);
+
+      engine.emitDuration(const Duration(minutes: 23, seconds: 40));
+      engine.emitPosition(const Duration(seconds: 17));
+      await orchestrator.seekTo(const Duration(minutes: 7, seconds: 34));
+
+      expect(engine.openCalls, 2);
+
+      engine.emitPlaying(true);
+      engine.emitBuffering(false);
+      engine.emitPosition(Duration.zero);
+      await Future<void>.delayed(const Duration(seconds: 7));
+
+      expect(engine.openCalls, 3);
+      expect(orchestrator.state.currentCandidateIndex, 0);
+      expect(
+        engine.openStartPositions.last,
+        const Duration(minutes: 7, seconds: 34),
+      );
+
+      await orchestrator.dispose();
+    },
+  );
 
   test(
     'keeps candidate while buffering when runtime seek-like error is emitted',
@@ -351,6 +457,52 @@ void main() {
       expect(engine.openStartPositions.last, const Duration(minutes: 7));
       expect(orchestrator.state.currentCandidateIndex, 0);
       expect(orchestrator.state.status, isNot(PlayerSessionStatus.error));
+
+      await orchestrator.dispose();
+    },
+  );
+
+  test(
+    'falls back to next candidate when buffering runtime error is codec-related',
+    () async {
+      final engine = _FakePlaybackEngine(
+        openBehaviors: const <_OpenBehavior>[
+          _OpenBehavior.success(bufferingStuck: true),
+          _OpenBehavior.success(),
+        ],
+      );
+      final orchestrator = PlayerSessionOrchestrator(playbackEngine: engine);
+
+      final result = await orchestrator.start(
+        streamCandidates: <ResolvedStream>[
+          ResolvedStream(
+            url: Uri.parse(
+              'http://127.0.0.1:63164/anime-nexus/session/master/4400/1.m3u8',
+            ),
+            qualityLabel: '720p',
+            isHls: true,
+          ),
+          ResolvedStream(
+            url: Uri.parse(
+              'http://127.0.0.1:63164/anime-nexus/session/master/1600/1.m3u8',
+            ),
+            qualityLabel: '480p',
+            isHls: true,
+          ),
+        ],
+      );
+
+      expect(result.isSuccess, isTrue);
+      expect(engine.openCalls, 1);
+
+      engine.emitBuffering(true);
+      await Future<void>.delayed(const Duration(milliseconds: 10));
+      engine.emitError('Could not open codec.');
+      await Future<void>.delayed(const Duration(milliseconds: 60));
+
+      expect(engine.openCalls, 2);
+      expect(orchestrator.state.currentCandidateIndex, 1);
+      expect(engine.openUrls.last.path, contains('/1600/'));
 
       await orchestrator.dispose();
     },
@@ -470,6 +622,43 @@ void main() {
       await orchestrator.dispose();
     },
   );
+
+  test('emits debug callback entries for start and seek flow', () async {
+    final logs = <String>[];
+    final engine = _FakePlaybackEngine(
+      openBehaviors: const <_OpenBehavior>[
+        _OpenBehavior.success(),
+        _OpenBehavior.success(),
+      ],
+    );
+    final orchestrator = PlayerSessionOrchestrator(
+      playbackEngine: engine,
+      onDebugLog: logs.add,
+    );
+
+    final result = await orchestrator.start(
+      streamCandidates: <ResolvedStream>[
+        ResolvedStream(
+          url: Uri.parse('https://cdn.example/master.m3u8'),
+          isHls: true,
+        ),
+      ],
+    );
+
+    expect(result.isSuccess, isTrue);
+    expect(logs.any((entry) => entry.contains('start candidates=')), isTrue);
+
+    await orchestrator.seekTo(const Duration(minutes: 3, seconds: 15));
+
+    expect(
+      logs.any(
+        (entry) => entry.contains('seek requested target=0:03:15.000000'),
+      ),
+      isTrue,
+    );
+
+    await orchestrator.dispose();
+  });
 }
 
 final class _FakePlaybackEngine implements PlaybackEngine {
@@ -495,6 +684,7 @@ final class _FakePlaybackEngine implements PlaybackEngine {
   Duration? lastSeekPosition;
   ExternalSubtitleTrack? lastSubtitleTrack;
   final List<Duration?> openStartPositions = <Duration?>[];
+  final List<Uri> openUrls = <Uri>[];
 
   @override
   Stream<bool> get bufferingStream => _bufferingController.stream;
@@ -541,6 +731,7 @@ final class _FakePlaybackEngine implements PlaybackEngine {
   Future<void> open(ResolvedStream stream, {Duration? startPosition}) async {
     openCalls++;
     openStartPositions.add(startPosition);
+    openUrls.add(stream.url);
     final behavior =
         _openBehaviors[_openBehaviorIndex.clamp(0, _openBehaviors.length - 1)];
     if (_openBehaviorIndex < _openBehaviors.length - 1) {

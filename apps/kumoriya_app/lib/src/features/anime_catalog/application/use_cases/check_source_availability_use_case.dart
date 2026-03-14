@@ -68,7 +68,8 @@ final class CheckSourceAvailabilityUseCase {
         status: SourceAvailabilityStatus.unavailable,
         decision: decision,
         unavailableReason:
-            decision.rejectionSignals.contains('ambiguous-top-candidates')
+            decision.rejectionSignals.contains('ambiguous_runner_up') ||
+                decision.rejectionSignals.contains('ambiguous-top-candidates')
             ? SourceUnavailableReason.ambiguousMatch
             : SourceUnavailableReason.noMatch,
       );
@@ -192,6 +193,10 @@ final class CheckSourceAvailabilityUseCase {
                 thumbnailUrl: detail.thumbnailUrl,
                 releaseYear: detail.releaseYear,
                 format: detail.format,
+                aliases: detail.aliases,
+                totalEpisodes: detail.totalEpisodes,
+                seasonNumber: detail.seasonNumber,
+                partNumber: detail.partNumber,
               ),
             );
           },
@@ -268,7 +273,12 @@ final class CheckSourceAvailabilityUseCase {
       }
     }
 
-    for (final title in rawTitles) {
+    final prioritizedTitles = rawTitles.toList(growable: false)
+      ..sort((left, right) {
+        return _titleQueryPriority(left).compareTo(_titleQueryPriority(right));
+      });
+
+    for (final title in prioritizedTitles) {
       for (final variant in _expandQueryVariants(title)) {
         addQuery(variant);
       }
@@ -444,6 +454,34 @@ final class CheckSourceAvailabilityUseCase {
     return value;
   }
 
+  int _titleQueryPriority(String value) {
+    final trimmed = value.trim();
+    if (trimmed.isEmpty) {
+      return 3;
+    }
+    if (_containsMojibake(trimmed)) {
+      return 2;
+    }
+    if (_containsCjk(trimmed)) {
+      return 1;
+    }
+    return 0;
+  }
+
+  bool _containsCjk(String value) {
+    return RegExp(
+      r'[\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff]',
+      unicode: true,
+    ).hasMatch(value);
+  }
+
+  bool _containsMojibake(String value) {
+    return value.contains('Ã') ||
+        value.contains('â') ||
+        value.contains('å') ||
+        value.contains('ð');
+  }
+
   Iterable<String> _expandSlugVariants(String slug) sync* {
     if (slug.contains('-sama')) {
       yield slug.replaceAll('-sama', 'sama');
@@ -479,6 +517,15 @@ final class CheckSourceAvailabilityUseCase {
       if (isLetter || isDigit) {
         buffer.writeCharCode(codeUnit);
         previousWasDash = false;
+        continue;
+      }
+
+      final isCollapsedSeparator =
+          codeUnit == 47 ||
+          codeUnit == 92 ||
+          codeUnit == 39 ||
+          codeUnit == 8217;
+      if (isCollapsedSeparator) {
         continue;
       }
 

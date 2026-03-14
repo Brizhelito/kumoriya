@@ -23,6 +23,19 @@ void main() {
   final searchDuplicatesFixture = File(
     'test/fixtures/jkanime_search_duplicates_and_external.html',
   ).readAsStringSync();
+  const searchFateFallbackFixture = '''
+<div class="row page_directorio">
+  <div class="anime__item">
+    <a href="https://jkanime.net/fatestrange-fake/">
+      <div class="anime__item__pic" data-setbg="https://cdn.example.com/fatestrange-fake.jpg"></div>
+    </a>
+    <div class="anime__item__text">
+      <ul><li>En emision</li><li class="anime">Serie</li></ul>
+      <h5><a href="https://jkanime.net/fatestrange-fake/">Fate/strange Fake</a></h5>
+    </div>
+  </div>
+</div>
+''';
   final serverLinksFixture = File(
     'test/fixtures/jkanime_episode_server_links_page.html',
   ).readAsStringSync();
@@ -101,6 +114,37 @@ void main() {
       },
     );
   });
+
+  test(
+    'search falls back to slug-compatible query when encoded slash 404s',
+    () async {
+      final plugin = JkAnimeSourcePlugin(
+        httpClient: MockClient((request) async {
+          if (request.url.path == '/buscar/Fate%2Fstrange%20Fake/') {
+            return http.Response('not found', 404);
+          }
+          if (request.url.path == '/buscar/fatestrange-fake/') {
+            return http.Response(searchFateFallbackFixture, 200);
+          }
+          return http.Response('unexpected ${request.url.path}', 404);
+        }),
+      );
+
+      final result = await plugin.search(
+        const SourceSearchQuery(query: 'Fate/strange Fake'),
+      );
+
+      expect(result.isSuccess, isTrue);
+      result.fold(
+        onFailure: (_) => fail('expected success'),
+        onSuccess: (items) {
+          expect(items, hasLength(1));
+          expect(items.first.sourceId, 'fatestrange-fake');
+          expect(items.first.title, 'Fate/strange Fake');
+        },
+      );
+    },
+  );
 
   test('getAnimeDetail parses minimal useful fields', () async {
     final plugin = JkAnimeSourcePlugin(

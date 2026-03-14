@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:kumoriya_anilist/kumoriya_anilist.dart';
@@ -41,6 +43,34 @@ void main() {
     result.fold(
       onFailure: (error) => expect(error, isA<AnilistMappingError>()),
       onSuccess: (_) => fail('expected failure'),
+    );
+  });
+
+  test('graphql client decodes utf8 payloads without mojibake', () async {
+    final payload = utf8.encode(
+      '{"data":{"Page":{"media":[{"title":{"native":"葬送のフリーレン","english":"Frieren: Beyond Journey’s End"}}]}}}',
+    );
+    final client = HttpAnilistGraphqlClient(
+      httpClient: MockClient((_) async {
+        return http.Response.bytes(
+          payload,
+          200,
+          headers: <String, String>{'content-type': 'application/json'},
+        );
+      }),
+    );
+
+    final result = await client.execute(query: 'query {}');
+
+    result.fold(
+      onFailure: (_) => fail('expected success'),
+      onSuccess: (data) {
+        final page = data['Page']! as Map<String, dynamic>;
+        final media = page['media']! as List<dynamic>;
+        final title = media.first['title']! as Map<String, dynamic>;
+        expect(title['native'], '葬送のフリーレン');
+        expect(title['english'], 'Frieren: Beyond Journey’s End');
+      },
     );
   });
 }

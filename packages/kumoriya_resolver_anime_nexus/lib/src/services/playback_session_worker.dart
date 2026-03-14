@@ -18,15 +18,18 @@ final class NexusPlaybackSessionWorker {
     required Isolate isolate,
     required SendPort commandPort,
     required ReceivePort eventPort,
+    void Function(String message)? onDebugLog,
   }) : _isolate = isolate,
        _commandPort = commandPort,
-       _eventPort = eventPort {
+       _eventPort = eventPort,
+       _debugLogSink = onDebugLog {
     _subscription = _eventPort.listen(_handleMessage);
   }
 
   final Isolate _isolate;
   final SendPort _commandPort;
   final ReceivePort _eventPort;
+  final void Function(String message)? _debugLogSink;
   final Map<int, Completer<Map<String, dynamic>>> _pending =
       <int, Completer<Map<String, dynamic>>>{};
 
@@ -40,6 +43,7 @@ final class NexusPlaybackSessionWorker {
     required String? cookieHeader,
     required String m3u8Url,
     required String wsRef,
+    void Function(String message)? onDebugLog,
   }) async {
     final readyPort = ReceivePort();
     final eventPort = ReceivePort();
@@ -55,7 +59,7 @@ final class NexusPlaybackSessionWorker {
     });
 
     final readyMessage = await readyPort.first.timeout(
-      const Duration(seconds: 20),
+      const Duration(seconds: 15),
       onTimeout: () => throw const NexusPlaybackSessionWorkerException(
         'Anime Nexus worker startup timed out.',
       ),
@@ -84,6 +88,7 @@ final class NexusPlaybackSessionWorker {
       isolate: isolate,
       commandPort: commandPort,
       eventPort: eventPort,
+      onDebugLog: onDebugLog,
     );
   }
 
@@ -190,15 +195,36 @@ final class NexusPlaybackSessionWorker {
 
     _commandPort.send(<String, Object?>{'id': id, 'type': type, ...payload});
 
+    final timeout = _timeoutForCommand(type);
     return completer.future.timeout(
-      const Duration(seconds: 20),
+      timeout,
       onTimeout: () {
         _pending.remove(id);
         throw NexusPlaybackSessionWorkerException(
-          'Anime Nexus worker command timed out: $type',
+          'Anime Nexus worker command timed out: $type after ${timeout.inSeconds}s',
         );
       },
     );
+  }
+
+  Duration _timeoutForCommand(String type) {
+    switch (type) {
+      case 'ensureReady':
+      case 'refreshSession':
+        return const Duration(seconds: 12);
+      case 'getInitialManifestToken':
+      case 'getManifestToken':
+        return const Duration(seconds: 8);
+      case 'getSegmentToken':
+        return const Duration(seconds: 6);
+      case 'sendProgress':
+        return const Duration(seconds: 3);
+      case 'getSessionId':
+      case 'close':
+        return const Duration(seconds: 5);
+      default:
+        return const Duration(seconds: 10);
+    }
   }
 
   void _handleMessage(dynamic raw) {
@@ -207,6 +233,13 @@ final class NexusPlaybackSessionWorker {
     }
 
     final message = Map<String, dynamic>.from(raw);
+    if (message['kind'] == 'log') {
+      final payload = message['message']?.toString().trim() ?? '';
+      if (payload.isNotEmpty) {
+        _debugLogSink?.call(payload);
+      }
+      return;
+    }
     final id = message['id'];
     if (id is! int) {
       return;
@@ -280,6 +313,9 @@ final class _NexusPlaybackSessionWorkerRuntime {
          fingerprint: fingerprint,
          cookieHeader: cookieHeader,
          m3u8Url: m3u8Url,
+         onDebugLog: (message) {
+           eventPort.send(<String, Object?>{'kind': 'log', 'message': message});
+         },
        );
 
   final SendPort _eventPort;
@@ -289,6 +325,7 @@ final class _NexusPlaybackSessionWorkerRuntime {
   bool _closed = false;
 
   Future<void> initialize() async {
+    _log('initialize');
     await _client.connect(wsRef: _wsRef);
     await _client.getInitialManifestToken();
   }
@@ -308,6 +345,7 @@ final class _NexusPlaybackSessionWorkerRuntime {
 
         final type = command['type']?.toString() ?? '';
         try {
+          _log('command type=$type');
           final data = await _handleCommand(type, command);
           _eventPort.send(<String, Object?>{
             'id': id,
@@ -386,5 +424,12 @@ final class _NexusPlaybackSessionWorkerRuntime {
           'Anime Nexus worker received unknown command: $type',
         );
     }
+  }
+
+  void _log(String message) {
+    _eventPort.send(<String, Object?>{
+      'kind': 'log',
+      'message': '[anime-nexus.worker] $message',
+    });
   }
 }

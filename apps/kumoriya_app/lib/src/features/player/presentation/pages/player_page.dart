@@ -44,8 +44,8 @@ class PlayerPage extends ConsumerStatefulWidget {
 }
 
 class _PlayerPageState extends ConsumerState<PlayerPage> {
-  late final MediaKitPlaybackEngine _engine;
-  late final PlayerSessionOrchestrator _orchestrator;
+  MediaKitPlaybackEngine? _engine;
+  PlayerSessionOrchestrator? _orchestrator;
   late final SaveProgressUseCase _saveProgress;
   late final SavePlaybackPreferenceUseCase _savePlaybackPreference;
   late final ClearPlaybackPreferenceUseCase _clearPlaybackPreference;
@@ -58,6 +58,7 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
   Future<void>? _pendingProgressFlush;
   bool _isExiting = false;
   bool _historyWrittenForSession = false;
+  bool _forceSoftwareVideoOutput = false;
 
   PlayerSessionState _state = const PlayerSessionState.idle();
   String? _startError;
@@ -75,8 +76,6 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
   @override
   void initState() {
     super.initState();
-    _engine = MediaKitPlaybackEngine();
-    _orchestrator = PlayerSessionOrchestrator(playbackEngine: _engine);
     _saveProgress = SaveProgressUseCase(
       store: ref.read(animeProgressStoreProvider),
     );
@@ -86,15 +85,41 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
     _clearPlaybackPreference = ClearPlaybackPreferenceUseCase(
       store: ref.read(animeProgressStoreProvider),
     );
+    _log(
+      'init resolver=${widget.resolved.resolverId} server=${widget.serverName} streams=${widget.resolved.streams.map((stream) => stream.url.toString()).join(" | ")}',
+    );
+    unawaited(_initializeRuntimeAndStartPlayback());
+  }
 
-    _sessionSub = _orchestrator.states.listen((next) {
+  @override
+  void dispose() {
+    _log('dispose');
+    _periodicSaveTimer?.cancel();
+    unawaited(_saveCurrentProgress());
+    unawaited(_disposeRuntime());
+    super.dispose();
+  }
+
+  Future<void> _installRuntime() async {
+    await _disposeRuntime();
+    final engine = MediaKitPlaybackEngine(
+      forceSoftwareVideoOutput: _forceSoftwareVideoOutput,
+      onVideoOutputFallbackRequested: _handleVideoOutputFallback,
+    );
+    final orchestrator = PlayerSessionOrchestrator(playbackEngine: engine);
+
+    _sessionSub = orchestrator.states.listen((next) {
       _log(
         'session status=${next.status} index=${next.currentCandidateIndex}/${next.totalCandidates} info=${next.infoMessage} error=${next.errorMessage}',
       );
-      if (mounted) setState(() => _state = next);
+      if (mounted) {
+        setState(() => _state = next);
+      } else {
+        _state = next;
+      }
     });
 
-    _positionSub = _engine.positionStream.listen((pos) {
+    _positionSub = orchestrator.positionStream.listen((pos) {
       if (_isScrubbing || _resumePosition != null) {
         _log('position stream pos=$pos duration=$_currentDuration');
       }
@@ -108,7 +133,7 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
       }
       setState(() => _currentPosition = pos);
     });
-    _durationSub = _engine.durationStream.listen((dur) {
+    _durationSub = orchestrator.durationStream.listen((dur) {
       if (dur <= Duration.zero) {
         return;
       }
@@ -120,25 +145,31 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
       setState(() => _currentDuration = dur);
     });
 
-    _playingSub = _engine.playingStream.listen(_onPlayingChanged);
-
-    _log(
-      'init resolver=${widget.resolved.resolverId} server=${widget.serverName} streams=${widget.resolved.streams.map((stream) => stream.url.toString()).join(" | ")}',
-    );
-    _startPlayback();
+    _playingSub = engine.playingStream.listen(_onPlayingChanged);
+    _engine = engine;
+    _orchestrator = orchestrator;
   }
 
-  @override
-  void dispose() {
-    _log('dispose');
-    _periodicSaveTimer?.cancel();
-    _sessionSub?.cancel();
-    _playingSub?.cancel();
-    _positionSub?.cancel();
-    _durationSub?.cancel();
-    unawaited(_saveCurrentProgress());
-    unawaited(_orchestrator.dispose());
-    super.dispose();
+  Future<void> _initializeRuntimeAndStartPlayback() async {
+    await _installRuntime();
+    await _startPlayback();
+  }
+
+  Future<void> _disposeRuntime() async {
+    await _sessionSub?.cancel();
+    await _playingSub?.cancel();
+    await _positionSub?.cancel();
+    await _durationSub?.cancel();
+    _sessionSub = null;
+    _playingSub = null;
+    _positionSub = null;
+    _durationSub = null;
+    final orchestrator = _orchestrator;
+    _orchestrator = null;
+    _engine = null;
+    if (orchestrator != null) {
+      await orchestrator.dispose();
+    }
   }
 
   void _onPlayingChanged(bool playing) {
@@ -235,13 +266,21 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
 
   Future<void> _startPlayback() async {
     _resumePosition = await _loadResumePosition();
+    await _startPlaybackFromPosition(_resumePosition);
+  }
+
+  Future<void> _startPlaybackFromPosition(Duration? initialPosition) async {
+    final orchestrator = _orchestrator;
+    if (orchestrator == null) {
+      return;
+    }
     _log(
-      'startPlayback resumePosition=$_resumePosition streams=${widget.resolved.streams.length}',
+      'startPlayback resumePosition=$initialPosition streams=${widget.resolved.streams.length} softwareOutput=$_forceSoftwareVideoOutput',
     );
-    final result = await _orchestrator.start(
+    final result = await orchestrator.start(
       streamCandidates: widget.resolved.streams,
       externalSubtitles: widget.resolved.externalSubtitles,
-      initialPosition: _resumePosition,
+      initialPosition: initialPosition,
     );
     if (!mounted) return;
     result.fold(
@@ -256,7 +295,11 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
   Future<void> _retryPlayback() async {
     _log('retryPlayback');
     setState(() => _startError = null);
-    final result = await _orchestrator.retry();
+    final orchestrator = _orchestrator;
+    if (orchestrator == null) {
+      return;
+    }
+    final result = await orchestrator.retry();
     if (!mounted) return;
     result.fold(
       onFailure: (error) =>
@@ -304,11 +347,25 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
     _log(
       'ui seek target=$position current=$_currentPosition duration=$_currentDuration',
     );
-    await _orchestrator.seekTo(position);
+    await _orchestrator?.seekTo(position);
+  }
+
+  Future<void> _handleVideoOutputFallback(String reason) async {
+    if (_forceSoftwareVideoOutput) {
+      return;
+    }
+    _log('video output fallback requested reason=$reason');
+    _forceSoftwareVideoOutput = true;
+    await _installRuntime();
+    final resumePosition = _currentPosition > Duration.zero
+        ? _currentPosition
+        : _resumePosition;
+    await _startPlaybackFromPosition(resumePosition);
   }
 
   @override
   Widget build(BuildContext context) {
+    final engine = _engine;
     if (_startError != null) {
       return _wrapWithExitGuard(
         Scaffold(
@@ -338,10 +395,16 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
               child: Stack(
                 fit: StackFit.expand,
                 children: <Widget>[
-                  Video(
-                    controller: _engine.videoController,
-                    controls: NoVideoControls,
-                  ),
+                  if (engine != null)
+                    Video(
+                      controller: engine.videoController,
+                      controls: NoVideoControls,
+                    )
+                  else
+                    const ColoredBox(
+                      color: Colors.black,
+                      child: Center(child: CircularProgressIndicator()),
+                    ),
                   if (isLoading)
                     Container(
                       color: Colors.black45,
@@ -412,7 +475,9 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
                   Row(
                     children: <Widget>[
                       FilledButton.icon(
-                        onPressed: () => _orchestrator.togglePlayPause(),
+                        onPressed: _orchestrator == null
+                            ? null
+                            : () => _orchestrator!.togglePlayPause(),
                         icon: Icon(
                           _state.status == PlayerSessionStatus.playing
                               ? Icons.pause

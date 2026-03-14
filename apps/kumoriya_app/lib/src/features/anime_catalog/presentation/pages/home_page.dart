@@ -13,6 +13,7 @@ import '../../../../shared/widgets/kumoriya_cached_image.dart';
 import '../../../../shared/widgets/state_views.dart';
 import '../../application/models/episode_playback.dart';
 import '../../application/models/source_availability.dart';
+import '../../../player/presentation/pages/anime_nexus_playground_page.dart';
 import '../providers/anime_catalog_providers.dart';
 import '../providers/storage_providers.dart';
 import '../support/playback_launch_flow.dart';
@@ -161,6 +162,19 @@ class _MobileHeader extends StatelessWidget {
               letterSpacing: -0.3,
             ),
           ),
+          const Spacer(),
+          if (kDebugMode)
+            IconButton(
+              tooltip: 'Anime Nexus playground',
+              onPressed: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => const AnimeNexusPlaygroundPage(),
+                  ),
+                );
+              },
+              icon: const Icon(Icons.bug_report_rounded),
+            ),
         ],
       ),
     );

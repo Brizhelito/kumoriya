@@ -32,3 +32,4 @@ workspace:
   - packages/kumoriya_resolver_anime_nexus
   - packages/kumoriya_storage
   - packages/kumoriya_testing
+  - packages/kumoriya_matching

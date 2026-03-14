@@ -14,10 +14,12 @@ final class PlayerSessionOrchestrator {
     StreamSelectionPolicy? selectionPolicy,
     Duration? openTimeout,
     Duration? bufferingTimeout,
+    void Function(String message)? onDebugLog,
   }) : _playbackEngine = playbackEngine,
        _selectionPolicy = selectionPolicy ?? const StreamSelectionPolicy(),
-       _openTimeout = openTimeout ?? const Duration(seconds: 18),
-       _bufferingTimeout = bufferingTimeout ?? const Duration(seconds: 25) {
+       _openTimeout = openTimeout ?? const Duration(seconds: 15),
+       _bufferingTimeout = bufferingTimeout ?? const Duration(seconds: 18),
+       _debugLogSink = onDebugLog {
     _subscriptions = <StreamSubscription<dynamic>>[
       _playbackEngine.playingStream.listen(_onPlayingChanged),
       _playbackEngine.bufferingStream.listen(_onBufferingChanged),
@@ -32,10 +34,13 @@ final class PlayerSessionOrchestrator {
   final StreamSelectionPolicy _selectionPolicy;
   final Duration _openTimeout;
   final Duration _bufferingTimeout;
+  final void Function(String message)? _debugLogSink;
   late final List<StreamSubscription<dynamic>> _subscriptions;
   late final String _instanceId = identityHashCode(this).toRadixString(16);
 
   final _stateController = StreamController<PlayerSessionState>.broadcast();
+  final _positionController = StreamController<Duration>.broadcast();
+  final _durationController = StreamController<Duration>.broadcast();
   PlayerSessionState _state = const PlayerSessionState.idle();
 
   List<ResolvedStream> _rankedCandidates = const <ResolvedStream>[];
@@ -54,8 +59,17 @@ final class PlayerSessionOrchestrator {
   bool _isRecoveringCurrentCandidate = false;
   bool _hasStarted = false;
   Timer? _bufferingTimer;
+  Timer? _seekStallTimer;
+  Duration? _seekWatchTargetPosition;
+  Duration? _seekWatchBaselinePosition;
+  int _seekStallRecoveriesForCurrentTarget = 0;
+  Duration _timelineBasePosition = Duration.zero;
+  Duration _fullTimelineDurationHint = Duration.zero;
+  bool _isManagedTimelineWindow = false;
 
   Stream<PlayerSessionState> get states => _stateController.stream;
+  Stream<Duration> get positionStream => _positionController.stream;
+  Stream<Duration> get durationStream => _durationController.stream;
   PlayerSessionState get state => _state;
 
   Future<Result<ResolvedStream, KumoriyaError>> start({
@@ -102,6 +116,7 @@ final class PlayerSessionOrchestrator {
     _externalSubtitles = externalSubtitles;
     _runtimeErrorRetriesForCurrentCandidate = 0;
     _recoveriesForCurrentCandidate = 0;
+    _resetSeekRecoveryTracking();
     _pendingTargetPosition = _normalizeNullablePosition(initialPosition);
     _lastRequestedSeekPosition = _pendingTargetPosition;
     _lastRequestedSeekAt = _pendingTargetPosition != null
@@ -125,6 +140,7 @@ final class PlayerSessionOrchestrator {
     _currentCandidateIndex = 0;
     _runtimeErrorRetriesForCurrentCandidate = 0;
     _recoveriesForCurrentCandidate = 0;
+    _resetSeekRecoveryTracking();
     return _openCurrentCandidate(startPosition: _pendingTargetPosition);
   }
 
@@ -139,6 +155,7 @@ final class PlayerSessionOrchestrator {
     _pendingTargetPosition = targetPosition;
     _lastRequestedSeekPosition = targetPosition;
     _lastRequestedSeekAt = DateTime.now();
+    _resetSeekRecoveryTracking();
     _log(
       'seek requested target=$targetPosition current=$_lastKnownPosition hls=${candidate.isHls} candidateIndex=$_currentCandidateIndex',
     );
@@ -167,11 +184,14 @@ final class PlayerSessionOrchestrator {
 
   Future<void> dispose() async {
     _bufferingTimer?.cancel();
+    _seekStallTimer?.cancel();
     for (final subscription in _subscriptions) {
       await subscription.cancel();
     }
     await _playbackEngine.dispose();
     await _stateController.close();
+    await _positionController.close();
+    await _durationController.close();
   }
 
   Future<Result<ResolvedStream, KumoriyaError>> _openCurrentCandidate({
@@ -187,8 +207,12 @@ final class PlayerSessionOrchestrator {
     }
 
     final candidate = _rankedCandidates[_currentCandidateIndex];
+    final openCandidate = _prepareCandidateForOpen(
+      candidate,
+      startPosition: startPosition,
+    );
     _log(
-      'openCurrentCandidate index=$_currentCandidateIndex/${_rankedCandidates.length} url=${candidate.url} startPosition=$startPosition',
+      'openCurrentCandidate index=$_currentCandidateIndex/${_rankedCandidates.length} url=${openCandidate.url} startPosition=$startPosition',
     );
     _isRecoveringCurrentCandidate = false;
     _emit(
@@ -206,7 +230,7 @@ final class PlayerSessionOrchestrator {
     try {
       await _playbackEngine
           .open(
-            candidate,
+            openCandidate,
             startPosition: _normalizeNullablePosition(startPosition),
           )
           .timeout(_openTimeoutFor(candidate, startPosition));
@@ -221,6 +245,12 @@ final class PlayerSessionOrchestrator {
       if (_isBuffering) {
         _startBufferingTimeoutWatch();
       }
+      _applyTimelineWindow(
+        candidate: candidate,
+        openCandidate: openCandidate,
+        requestedStartPosition: startPosition,
+      );
+      _startSeekStallWatch(candidate: candidate, targetPosition: startPosition);
       await _applySubtitleTrack();
       _pendingTargetPosition = null;
       _emit(
@@ -264,6 +294,7 @@ final class PlayerSessionOrchestrator {
       _runtimeErrorRetriesForCurrentCandidate = 0;
       _recoveriesForCurrentCandidate = 0;
       _isRecoveringCurrentCandidate = false;
+      _resetSeekRecoveryTracking();
       _emit(
         _state.copyWith(
           status: PlayerSessionStatus.fallbacking,
@@ -347,6 +378,9 @@ final class PlayerSessionOrchestrator {
     }
 
     _bufferingTimer?.cancel();
+    if (_seekWatchTargetPosition == null) {
+      _seekStallTimer?.cancel();
+    }
     _emit(
       _state.copyWith(
         status: _isPlaying
@@ -356,12 +390,14 @@ final class PlayerSessionOrchestrator {
     );
   }
 
-  void _onPositionChanged(Duration position) {
-    if (position < Duration.zero) {
+  void _onPositionChanged(Duration rawPosition) {
+    if (rawPosition < Duration.zero) {
       return;
     }
+    final position = _effectivePosition(rawPosition);
     final previousPosition = _lastKnownPosition;
     _lastKnownPosition = position;
+    _emitPosition(position);
     if (_shouldRecoverFalseEofFromPositionJump(previousPosition, position)) {
       _log(
         'positionChanged detected false-eof jump previous=$previousPosition current=$position duration=$_lastKnownDuration lastSeek=$_lastRequestedSeekPosition',
@@ -386,13 +422,19 @@ final class PlayerSessionOrchestrator {
         _isPositionNearTarget(position, pendingTargetPosition)) {
       _pendingTargetPosition = null;
     }
+    _handleSeekProgress(position);
   }
 
-  void _onDurationChanged(Duration duration) {
-    if (duration <= Duration.zero) {
+  void _onDurationChanged(Duration rawDuration) {
+    if (rawDuration <= Duration.zero) {
       return;
     }
+    if (!_isManagedTimelineWindow || rawDuration > _fullTimelineDurationHint) {
+      _fullTimelineDurationHint = rawDuration;
+    }
+    final duration = _effectiveDuration(rawDuration);
     _lastKnownDuration = duration;
+    _emitDuration(duration);
   }
 
   void _onCompletedChanged(bool completed) {
@@ -435,7 +477,7 @@ final class PlayerSessionOrchestrator {
       _runtimeErrorRetriesForCurrentCandidate++;
       unawaited(
         _handleCandidateFailure(
-          code: 'player.candidate_failed',
+          code: _classifyRuntimeErrorCode(error),
           message: 'Runtime playback error: $error',
         ),
       );
@@ -471,6 +513,10 @@ final class PlayerSessionOrchestrator {
     final targetPosition = _normalizePosition(
       recoveryPosition ?? _recoveryPosition,
     );
+    final openCandidate = _prepareCandidateForOpen(
+      candidate,
+      startPosition: targetPosition,
+    );
     _log(
       'recoverCurrentCandidate opening url=${candidate.url} target=$targetPosition hls=${candidate.isHls}',
     );
@@ -490,7 +536,7 @@ final class PlayerSessionOrchestrator {
     try {
       await _playbackEngine
           .open(
-            candidate,
+            openCandidate,
             startPosition: targetPosition > Duration.zero
                 ? targetPosition
                 : null,
@@ -513,6 +559,15 @@ final class PlayerSessionOrchestrator {
       if (_isBuffering) {
         _startBufferingTimeoutWatch();
       }
+      _applyTimelineWindow(
+        candidate: candidate,
+        openCandidate: openCandidate,
+        requestedStartPosition: targetPosition,
+      );
+      _startSeekStallWatch(
+        candidate: candidate,
+        targetPosition: targetPosition,
+      );
       await _applySubtitleTrack();
       _pendingTargetPosition = null;
       _emit(
@@ -554,6 +609,10 @@ final class PlayerSessionOrchestrator {
     }
 
     final message = error.toLowerCase();
+    if (message.contains('codec') || message.contains('unsupported')) {
+      return false;
+    }
+
     if (message.contains('ffurl_read') ||
         message.contains('tcp:') ||
         message.contains('tls:') ||
@@ -647,6 +706,21 @@ final class PlayerSessionOrchestrator {
     return 'player.open_failed';
   }
 
+  String _classifyRuntimeErrorCode(String error) {
+    final value = error.toLowerCase();
+    if (value.contains('unsupported') || value.contains('codec')) {
+      return 'player.unsupported_stream';
+    }
+    if (value.contains('network') ||
+        value.contains('http') ||
+        value.contains('ffurl_read') ||
+        value.contains('tcp:') ||
+        value.contains('tls:')) {
+      return 'player.network_failure';
+    }
+    return 'player.candidate_failed';
+  }
+
   Duration get _recoveryPosition =>
       _normalizePosition(_pendingTargetPosition ?? _lastKnownPosition);
 
@@ -654,19 +728,171 @@ final class PlayerSessionOrchestrator {
     if (position <= Duration.zero) {
       return false;
     }
-    if (_isLocalLoopbackHls(candidate)) {
-      return false;
-    }
     return candidate.isHls;
   }
 
-  bool _isLocalLoopbackHls(ResolvedStream candidate) {
-    if (!candidate.isHls) {
-      return false;
+  ResolvedStream _prepareCandidateForOpen(
+    ResolvedStream candidate, {
+    Duration? startPosition,
+  }) {
+    final normalizedStart = _normalizePosition(startPosition);
+    if (!_isAnimeNexusLoopbackHls(candidate.url) ||
+        normalizedStart <= Duration.zero) {
+      return candidate;
     }
 
-    final host = candidate.url.host.toLowerCase();
-    return host == '127.0.0.1' || host == 'localhost';
+    final nonce = DateTime.now().microsecondsSinceEpoch.toString();
+    final url = candidate.url.replace(
+      queryParameters: <String, String>{
+        ...candidate.url.queryParameters,
+        'run': nonce,
+        'seekNonce': normalizedStart.inMilliseconds.toString(),
+      },
+    );
+    _log(
+      'prepareCandidateForOpen anime-nexus-loopback start=$normalizedStart url=$url',
+    );
+    return ResolvedStream(
+      url: url,
+      qualityLabel: candidate.qualityLabel,
+      mimeType: candidate.mimeType,
+      isHls: candidate.isHls,
+      headers: candidate.headers,
+    );
+  }
+
+  bool _isAnimeNexusLoopbackHls(Uri url) {
+    if (!(url.host == '127.0.0.1' || url.host == 'localhost')) {
+      return false;
+    }
+    final segments = url.pathSegments.where((segment) => segment.isNotEmpty);
+    return segments.contains('anime-nexus');
+  }
+
+  void _startSeekStallWatch({
+    required ResolvedStream candidate,
+    required Duration? targetPosition,
+  }) {
+    _seekStallTimer?.cancel();
+    final normalizedTarget = _normalizePosition(targetPosition);
+    if (!candidate.isHls || normalizedTarget <= Duration.zero) {
+      _seekWatchTargetPosition = null;
+      _seekWatchBaselinePosition = null;
+      return;
+    }
+
+    _seekWatchTargetPosition = normalizedTarget;
+    _seekWatchBaselinePosition = _lastKnownPosition;
+    _log(
+      'seekStallWatch start target=$normalizedTarget baseline=$_seekWatchBaselinePosition recoveries=$_seekStallRecoveriesForCurrentTarget',
+    );
+    _seekStallTimer = Timer(const Duration(seconds: 6), () {
+      final watchTarget = _seekWatchTargetPosition;
+      if (watchTarget == null ||
+          _state.selectedStream == null ||
+          !_state.selectedStream!.isHls ||
+          _isRecoveringCurrentCandidate ||
+          _isBuffering ||
+          !_isPlaying ||
+          _seekStallRecoveriesForCurrentTarget >= 2 ||
+          !_isPositionNearTarget(_lastKnownPosition, watchTarget)) {
+        return;
+      }
+
+      _seekStallRecoveriesForCurrentTarget++;
+      _log(
+        'seekStallWatch stalled target=$watchTarget position=$_lastKnownPosition recoveries=$_seekStallRecoveriesForCurrentTarget',
+      );
+      unawaited(
+        _recoverCurrentCandidate(
+          errorCode: 'player.seek_stalled_recovery_failed',
+          reason: 'Playback stalled after seek without buffer progress.',
+          recoveryPosition: watchTarget,
+          force: true,
+        ),
+      );
+    });
+  }
+
+  void _handleSeekProgress(Duration position) {
+    final watchTarget = _seekWatchTargetPosition;
+    if (watchTarget == null) {
+      return;
+    }
+
+    if (position >= watchTarget + const Duration(seconds: 2)) {
+      _log(
+        'seekStallWatch cleared target=$watchTarget position=$position recoveries=$_seekStallRecoveriesForCurrentTarget',
+      );
+      _resetSeekRecoveryTracking();
+    }
+  }
+
+  void _resetSeekRecoveryTracking() {
+    _seekStallTimer?.cancel();
+    _seekWatchTargetPosition = null;
+    _seekWatchBaselinePosition = null;
+    _seekStallRecoveriesForCurrentTarget = 0;
+  }
+
+  void _applyTimelineWindow({
+    required ResolvedStream candidate,
+    required ResolvedStream openCandidate,
+    required Duration? requestedStartPosition,
+  }) {
+    final normalizedStart = _normalizePosition(requestedStartPosition);
+    final managedWindow =
+        _isAnimeNexusLoopbackHls(openCandidate.url) &&
+        openCandidate.url.queryParameters.containsKey('seekNonce') &&
+        normalizedStart > Duration.zero;
+    _isManagedTimelineWindow = managedWindow;
+    _timelineBasePosition = managedWindow ? normalizedStart : Duration.zero;
+    if (!managedWindow && _lastKnownDuration > _fullTimelineDurationHint) {
+      _fullTimelineDurationHint = _lastKnownDuration;
+    }
+    if (managedWindow) {
+      _lastKnownPosition = normalizedStart;
+      _emitPosition(_lastKnownPosition);
+      if (_fullTimelineDurationHint > Duration.zero) {
+        _lastKnownDuration = _fullTimelineDurationHint;
+        _emitDuration(_lastKnownDuration);
+      }
+    } else if (!candidate.isHls) {
+      _fullTimelineDurationHint = Duration.zero;
+    }
+    _log(
+      'applyTimelineWindow managed=$managedWindow base=$_timelineBasePosition '
+      'durationHint=$_fullTimelineDurationHint',
+    );
+  }
+
+  Duration _effectivePosition(Duration rawPosition) {
+    if (!_isManagedTimelineWindow) {
+      return rawPosition;
+    }
+    return _timelineBasePosition + rawPosition;
+  }
+
+  Duration _effectiveDuration(Duration rawDuration) {
+    if (!_isManagedTimelineWindow) {
+      return rawDuration;
+    }
+    if (_fullTimelineDurationHint > Duration.zero) {
+      return _fullTimelineDurationHint;
+    }
+    return _timelineBasePosition + rawDuration;
+  }
+
+  void _emitPosition(Duration position) {
+    if (!_positionController.isClosed) {
+      _positionController.add(position);
+    }
+  }
+
+  void _emitDuration(Duration duration) {
+    if (!_durationController.isClosed) {
+      _durationController.add(duration);
+    }
   }
 
   Duration _normalizePosition(Duration? position) {
@@ -771,9 +997,11 @@ final class PlayerSessionOrchestrator {
     if (!kDebugMode) {
       return;
     }
-    debugPrint(
-      '[player.orchestrator#$_instanceId ${DateTime.now().toIso8601String()}] $message',
-    );
+    final formatted =
+        '[player.orchestrator#$_instanceId ${DateTime.now().toIso8601String()}] '
+        '$message';
+    debugPrint(formatted);
+    _debugLogSink?.call(formatted);
   }
 
   String _candidateSummary(List<ResolvedStream> candidates) {

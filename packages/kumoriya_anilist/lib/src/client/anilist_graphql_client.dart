@@ -47,7 +47,7 @@ final class HttpAnilistGraphqlClient implements AnilistGraphqlClient {
         );
       }
 
-      final decoded = jsonDecode(response.body);
+      final decoded = jsonDecode(utf8.decode(response.bodyBytes));
       if (decoded is! Map<String, dynamic>) {
         return const Failure(
           AnilistMappingError(

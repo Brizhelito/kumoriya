@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kumoriya_app/src/features/player/application/services/stream_selection_policy.dart';
 import 'package:kumoriya_plugins/kumoriya_plugins.dart';
@@ -55,4 +56,36 @@ void main() {
     expect(ranked.length, 2);
     expect(ranked.first.url.path, contains('720p.m3u8'));
   });
+
+  test(
+    'prefers lower Anime Nexus quality on Android when top profile is codec-risky',
+    () {
+      const androidPolicy = StreamSelectionPolicy(
+        platform: TargetPlatform.android,
+      );
+
+      final selected = androidPolicy.selectBest(<ResolvedStream>[
+        ResolvedStream(
+          url: Uri.parse(
+            'http://127.0.0.1:41421/anime-nexus/session/master/5300/1.m3u8',
+          ),
+          qualityLabel: '1080p',
+          mimeType: 'application/vnd.apple.mpegurl',
+          isHls: true,
+        ),
+        ResolvedStream(
+          url: Uri.parse(
+            'http://127.0.0.1:41421/anime-nexus/session/master/4400/1.m3u8',
+          ),
+          qualityLabel: '720p',
+          mimeType: 'application/vnd.apple.mpegurl',
+          isHls: true,
+        ),
+      ]);
+
+      expect(selected, isNotNull);
+      expect(selected!.qualityLabel, '720p');
+      expect(selected.url.path, contains('/4400/'));
+    },
+  );
 }

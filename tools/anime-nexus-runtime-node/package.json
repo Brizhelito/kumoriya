@@ -1,0 +1,15 @@
+{
+  "name": "anime-nexus-runtime-node",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node src/runtimeServer.mjs",
+    "smoke": "node scripts/smoke.mjs",
+    "test": "node --test",
+    "test:live": "node scripts/liveMatrix.mjs"
+  },
+  "dependencies": {
+    "ws": "^8.18.3"
+  }
+}

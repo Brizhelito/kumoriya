@@ -13,23 +13,28 @@ final class NexusPlaybackProxySession {
     required this.playbackId,
     required this.dio,
     required this.episodeId,
+    required this.videoId,
     required this.fingerprint,
     required this.candidateHosts,
     required this.masterManifest,
     required this.worker,
-  });
+    void Function(String message)? onDebugLog,
+  }) : _debugLogSink = onDebugLog;
 
   final String playbackId;
   final Dio dio;
   final String episodeId;
+  final String videoId;
   final String fingerprint;
   final List<String> candidateHosts;
   final NexusMasterManifest masterManifest;
   final NexusPlaybackSessionWorker worker;
+  final void Function(String message)? _debugLogSink;
   final Map<String, Future<_FetchedManifest>> _variantManifestCache =
       <String, Future<_FetchedManifest>>{};
 
   String? edgeHost;
+  String? _sessionId;
   DateTime lastAccessed = DateTime.now();
   int _lastProgressSegmentIndex = -1;
 
@@ -42,21 +47,37 @@ final class NexusPlaybackProxySession {
       return;
     }
     _lastProgressSegmentIndex = segmentIndex;
-    await worker.sendProgress(segmentIndex: segmentIndex);
+    _log('reportProgress segmentIndex=$segmentIndex');
+    try {
+      await worker.sendProgress(segmentIndex: segmentIndex);
+    } catch (_) {
+      // Progress is advisory; segment delivery takes priority.
+    }
   }
 
   Future<void> ensureReady({bool forceReconnect = false}) {
+    _log('ensureReady forceReconnect=$forceReconnect');
     return worker.ensureReady(forceReconnect: forceReconnect);
   }
 
   Future<void> refreshRuntime({bool requestResetStream = false}) async {
+    _log('refreshRuntime requestResetStream=$requestResetStream');
     _lastProgressSegmentIndex = -1;
     edgeHost = null;
+    _sessionId = null;
     await worker.refreshSession(requestResetStream: requestResetStream);
   }
 
-  Future<String> getSessionId() {
-    return worker.getSessionId();
+  Future<String> ensureSessionId() async {
+    final cached = _sessionId?.trim() ?? '';
+    if (cached.isNotEmpty) {
+      _log('ensureSessionId cached sessionId=$cached');
+      return cached;
+    }
+    final sessionId = await worker.getSessionId();
+    _sessionId = sessionId;
+    _log('ensureSessionId fetched sessionId=$sessionId');
+    return sessionId;
   }
 
   NexusVideoStreamEntry? findVideoStream({
@@ -110,6 +131,10 @@ final class NexusPlaybackProxySession {
     );
     return future;
   }
+
+  void _log(String message) {
+    _debugLogSink?.call('[anime-nexus.proxy:$playbackId] $message');
+  }
 }
 
 final class NexusPlaybackProxyServer {
@@ -125,12 +150,18 @@ final class NexusPlaybackProxyServer {
   Future<void> registerSession(NexusPlaybackProxySession session) async {
     await _ensureStarted();
     _sessions[session.playbackId] = session;
+    session._log(
+      'registerSession server=${_server?.address.address}:${_server?.port}',
+    );
   }
 
   Future<void> primeStream({
     required NexusPlaybackProxySession session,
     required NexusVideoStreamEntry stream,
   }) async {
+    session._log(
+      'primeStream variant=${stream.metadata.variant} track=${stream.metadata.track}',
+    );
     await session.ensureReady();
     await Future.wait(
       _variantManifestFutures(session: session, stream: stream),
@@ -212,6 +243,9 @@ final class NexusPlaybackProxyServer {
       }
 
       session.touch();
+      session._log(
+        'request route=${segments[2]} path=${request.uri.path} query=${request.uri.query}',
+      );
       switch (segments[2]) {
         case 'master':
           await _serveMasterManifest(request, session, segments);
@@ -246,7 +280,11 @@ final class NexusPlaybackProxyServer {
     NexusPlaybackProxySession session,
     List<String> segments,
   ) async {
-    await session.ensureReady();
+    try {
+      await session.ensureReady();
+    } catch (error) {
+      throw StateError('Anime Nexus master ensureReady failed: $error');
+    }
     final variant = segments[3];
     final track = _parseTerminalInt(segments[4]);
     final stream = session.findVideoStream(variant: variant, track: track);
@@ -262,6 +300,9 @@ final class NexusPlaybackProxyServer {
     final matchingAudio = _matchingAudioStreams(
       session: session,
       stream: stream,
+    );
+    session._log(
+      'serveMasterManifest variant=$variant track=$track audio=${matchingAudio.length}',
     );
 
     _startVariantPrewarm(
@@ -302,19 +343,31 @@ final class NexusPlaybackProxyServer {
     NexusPlaybackProxySession session,
     List<String> segments,
   ) async {
-    await session.ensureReady();
+    try {
+      await session.ensureReady();
+    } catch (error) {
+      throw StateError('Anime Nexus variant ensureReady failed: $error');
+    }
     final variant = segments[3];
     final track = _parseTerminalInt(segments[4]);
-    final manifest = await session.getOrCreateVariantManifest(
-      variant: variant,
-      track: track,
-      loader: () => _loadVariantManifest(
-        session: session,
-        variant: variant,
-        track: track,
-        request: request,
-      ),
+    final seekTargetMs = _parseSeekTargetMs(request.requestedUri);
+    session._log(
+      'serveVariantManifest variant=$variant track=$track seekTargetMs=$seekTargetMs',
     );
+    final Future<_FetchedManifest> Function() loader = () =>
+        _loadVariantManifest(
+          session: session,
+          variant: variant,
+          track: track,
+          request: request,
+        );
+    final manifest = seekTargetMs != null
+        ? await loader()
+        : await session.getOrCreateVariantManifest(
+            variant: variant,
+            track: track,
+            loader: loader,
+          );
     _writeManifest(request.response, manifest.body);
   }
 
@@ -393,6 +446,7 @@ final class NexusPlaybackProxyServer {
     final videoEntry = session.findVideoStream(variant: variant, track: track);
     final audioEntry = session.findAudioStream(variant: variant, track: track);
     final manifestPath = videoEntry?.uri.path ?? audioEntry?.uri.path;
+    final manifestHost = videoEntry?.uri.host ?? audioEntry?.uri.host;
     if (manifestPath == null) {
       throw StateError('Unknown Anime Nexus variant manifest: $variant/$track');
     }
@@ -400,48 +454,24 @@ final class NexusPlaybackProxyServer {
     final manifest = await _fetchSignedManifest(
       session: session,
       manifestPath: manifestPath,
+      preferredHost: manifestHost,
+    );
+    final seekTargetMs = _parseSeekTargetMs(request?.requestedUri);
+    session._log(
+      'loadVariantManifest variant=$variant track=$track manifestPath=$manifestPath realUri=${manifest.uri} seekTargetMs=$seekTargetMs',
     );
     final baseUri = manifest.uri.replace(query: '');
-    final rewritten = <String>[];
+    final rewritten = _rewriteVariantManifest(
+      request: request,
+      session: session,
+      variant: variant,
+      track: track,
+      manifestBody: manifest.body,
+      baseUri: baseUri,
+      seekTargetMs: seekTargetMs,
+    );
 
-    for (final rawLine in manifest.body.split('\n')) {
-      final line = rawLine.trim();
-      if (line.startsWith('#EXT-X-MAP:')) {
-        final initPath = _extractMapPath(line, baseUri);
-        rewritten.add(
-          _replaceMapUri(
-            line,
-            _initUri(
-              request,
-              session: session,
-              variant: variant,
-              track: track,
-              path: initPath,
-            ).toString(),
-          ),
-        );
-        continue;
-      }
-
-      if (line.isEmpty || line.startsWith('#')) {
-        rewritten.add(rawLine);
-        continue;
-      }
-
-      final segmentPath = baseUri.resolve(line).path;
-      rewritten.add(
-        _segmentUri(
-          request,
-          session: session,
-          variant: variant,
-          track: track,
-          segmentIndex: _parseSegmentIndex(segmentPath),
-          path: segmentPath,
-        ).toString(),
-      );
-    }
-
-    return _FetchedManifest(body: rewritten.join('\n'), uri: manifest.uri);
+    return _FetchedManifest(body: rewritten, uri: manifest.uri);
   }
 
   Future<void> _serveInitSegment(
@@ -459,6 +489,7 @@ final class NexusPlaybackProxyServer {
       );
       return;
     }
+    session._log('serveInitSegment path=$path');
 
     final upstream = await _fetchManifestProtectedBytes(
       session: session,
@@ -494,14 +525,16 @@ final class NexusPlaybackProxyServer {
       return;
     }
 
-    if (track == 1) {
-      await session.reportProgress(segmentIndex);
-    }
+    final effectiveVariant = _parseVariantFromMediaPath(path) ?? variant;
+    final effectiveTrack = _parseTrackFromMediaPath(path) ?? track;
+    session._log(
+      'serveMediaSegment variant=$effectiveVariant track=$effectiveTrack segmentIndex=$segmentIndex path=$path',
+    );
 
     final upstream = await _fetchSegmentWithRetry(
       session: session,
-      variant: variant,
-      track: track,
+      variant: effectiveVariant,
+      track: effectiveTrack,
       segmentIndex: segmentIndex,
       path: path,
     );
@@ -519,23 +552,40 @@ final class NexusPlaybackProxyServer {
   Future<_FetchedManifest> _fetchSignedManifest({
     required NexusPlaybackProxySession session,
     required String manifestPath,
+    String? preferredHost,
   }) async {
     Response<String>? response;
     String body = '';
     Uri? signedUrl;
 
-    for (var attempt = 0; attempt < 4; attempt++) {
+    for (var attempt = 0; attempt < 3; attempt++) {
       if (attempt > 0) {
-        await session.refreshRuntime(requestResetStream: attempt > 1);
+        session._log(
+          'fetchSignedManifest retry attempt=${attempt + 1} manifestPath=$manifestPath',
+        );
+        await session.refreshRuntime(requestResetStream: attempt >= 2);
+      }
+      late final String sessionId;
+      late final dynamic token;
+      try {
+        sessionId = await session.ensureSessionId();
+      } catch (error) {
+        throw StateError(
+          'Anime Nexus manifest session id failed on attempt ${attempt + 1}: $error',
+        );
+      }
+      try {
+        token = await session.worker.getManifestToken(
+          manifestPath: manifestPath,
+          videoId: session.episodeId,
+        );
+      } catch (error) {
+        throw StateError(
+          'Anime Nexus manifest token failed on attempt ${attempt + 1}: $error',
+        );
       }
 
-      final token = await session.worker.getManifestToken(
-        manifestPath: manifestPath,
-        videoId: session.episodeId,
-      );
-      final sessionId = await session.getSessionId();
-
-      for (final host in _orderedHosts(session)) {
+      for (final host in _orderedHosts(session, preferredHost: preferredHost)) {
         signedUrl = _signedManifestUrl(
           host: host,
           path: manifestPath,
@@ -556,8 +606,14 @@ final class NexusPlaybackProxyServer {
         );
 
         body = response.data?.trim() ?? '';
+        session._log(
+          'fetchSignedManifest attempt=${attempt + 1} host=$host status=${response.statusCode} manifestPath=$manifestPath bodyPrefix=${body.substring(0, min(body.length, 24))}',
+        );
         if (response.statusCode == 200 && body.startsWith('#EXTM3U')) {
           session.edgeHost = host;
+          session._log(
+            'fetchSignedManifest success host=$host manifestPath=$manifestPath',
+          );
           return _FetchedManifest(body: body, uri: response.realUri);
         }
       }
@@ -572,20 +628,24 @@ final class NexusPlaybackProxyServer {
   }) async {
     Response<List<int>>? upstream;
 
-    for (var attempt = 0; attempt < 3; attempt++) {
+    for (var attempt = 0; attempt < 2; attempt++) {
       if (attempt > 0) {
-        await session.refreshRuntime(requestResetStream: attempt > 1);
+        session._log(
+          'fetchManifestProtectedBytes retry attempt=${attempt + 1} path=$path',
+        );
+        await session.refreshRuntime(requestResetStream: attempt >= 1);
       }
+      final sessionId = await session.ensureSessionId();
 
       final token = await session.worker.getManifestToken(
         manifestPath: path,
         videoId: session.episodeId,
       );
-      final sessionId = await session.getSessionId();
 
       for (final host in _orderedHosts(session)) {
         upstream = await _fetchUpstreamBytes(
           session: session,
+          sessionId: sessionId,
           url: _signedSegmentUrl(
             host: host,
             path: path,
@@ -593,9 +653,15 @@ final class NexusPlaybackProxyServer {
             sessionId: sessionId,
           ),
         );
+        session._log(
+          'fetchManifestProtectedBytes attempt=${attempt + 1} host=$host status=${upstream.statusCode} path=$path',
+        );
 
         if (upstream.statusCode == HttpStatus.ok) {
           session.edgeHost = host;
+          session._log(
+            'fetchManifestProtectedBytes success host=$host path=$path bytes=${upstream.data?.length ?? 0}',
+          );
           return upstream;
         }
       }
@@ -611,9 +677,9 @@ final class NexusPlaybackProxyServer {
 
   Future<Response<List<int>>> _fetchUpstreamBytes({
     required NexusPlaybackProxySession session,
+    required String sessionId,
     required Uri url,
   }) async {
-    final sessionId = await session.getSessionId();
     return session.dio.get<List<int>>(
       url.toString(),
       options: Options(
@@ -637,10 +703,14 @@ final class NexusPlaybackProxyServer {
   }) async {
     Response<List<int>>? upstream;
 
-    for (var attempt = 0; attempt < 3; attempt++) {
+    for (var attempt = 0; attempt < 2; attempt++) {
       if (attempt > 0) {
-        await session.refreshRuntime(requestResetStream: attempt > 1);
+        session._log(
+          'fetchSegmentWithRetry retry attempt=${attempt + 1} variant=$variant track=$track segmentIndex=$segmentIndex',
+        );
+        await session.refreshRuntime(requestResetStream: attempt >= 1);
       }
+      final sessionId = await session.ensureSessionId();
 
       final token = await session.worker.getSegmentToken(
         variant: variant,
@@ -648,11 +718,11 @@ final class NexusPlaybackProxyServer {
         track: track,
         videoId: session.episodeId,
       );
-      final sessionId = await session.getSessionId();
 
       for (final host in _orderedHosts(session)) {
         upstream = await _fetchUpstreamBytes(
           session: session,
+          sessionId: sessionId,
           url: _signedSegmentUrl(
             host: host,
             path: path,
@@ -660,17 +730,20 @@ final class NexusPlaybackProxyServer {
             sessionId: sessionId,
           ),
         );
+        session._log(
+          'fetchSegmentWithRetry attempt=${attempt + 1} host=$host status=${upstream.statusCode} variant=$variant track=$track segmentIndex=$segmentIndex path=$path',
+        );
 
         if (upstream.statusCode == HttpStatus.ok) {
           session.edgeHost = host;
+          if (track == 0) {
+            await session.reportProgress(segmentIndex);
+          }
+          session._log(
+            'fetchSegmentWithRetry success host=$host variant=$variant track=$track segmentIndex=$segmentIndex bytes=${upstream.data?.length ?? 0}',
+          );
           return upstream;
         }
-      }
-
-      if (track == 1) {
-        await session.reportProgress(segmentIndex);
-      } else if (segmentIndex > 0) {
-        await session.reportProgress(segmentIndex - 1);
       }
     }
 
@@ -682,15 +755,21 @@ final class NexusPlaybackProxyServer {
         );
   }
 
-  List<String> _orderedHosts(NexusPlaybackProxySession session) {
-    final preferredHost = session.edgeHost;
-    if (preferredHost == null || preferredHost.isEmpty) {
+  List<String> _orderedHosts(
+    NexusPlaybackProxySession session, {
+    String? preferredHost,
+  }) {
+    final activePreferredHost =
+        preferredHost != null && preferredHost.isNotEmpty
+        ? preferredHost
+        : session.edgeHost;
+    if (activePreferredHost == null || activePreferredHost.isEmpty) {
       return session.candidateHosts;
     }
 
     return <String>[
-      preferredHost,
-      ...session.candidateHosts.where((host) => host != preferredHost),
+      activePreferredHost,
+      ...session.candidateHosts.where((host) => host != activePreferredHost),
     ];
   }
 
@@ -716,7 +795,7 @@ final class NexusPlaybackProxyServer {
         variant,
         '$track.m3u8',
       ],
-      queryParameters: const <String, String>{},
+      queryParameters: _forwardedQuery(request?.requestedUri),
     );
   }
 
@@ -738,7 +817,10 @@ final class NexusPlaybackProxyServer {
         variant,
         '$track.mp4',
       ],
-      queryParameters: <String, String>{'path': path},
+      queryParameters: <String, String>{
+        ..._forwardedQuery(request?.requestedUri),
+        'path': path,
+      },
     );
   }
 
@@ -762,8 +844,209 @@ final class NexusPlaybackProxyServer {
         '$track',
         '$segmentIndex.m4s',
       ],
-      queryParameters: <String, String>{'path': path},
+      queryParameters: <String, String>{
+        ..._forwardedQuery(request?.requestedUri),
+        'path': path,
+      },
     );
+  }
+
+  Map<String, String> _forwardedQuery(Uri? uri) {
+    if (uri == null) {
+      return const <String, String>{};
+    }
+
+    final forwarded = <String, String>{};
+    for (final key in const <String>{'run', 'seekNonce'}) {
+      final value = uri.queryParameters[key]?.trim() ?? '';
+      if (value.isNotEmpty) {
+        forwarded[key] = value;
+      }
+    }
+    return forwarded;
+  }
+
+  int? _parseSeekTargetMs(Uri? uri) {
+    if (uri == null) {
+      return null;
+    }
+
+    final raw = uri.queryParameters['seekNonce']?.trim() ?? '';
+    final value = int.tryParse(raw);
+    return value != null && value > 0 ? value : null;
+  }
+
+  String _rewriteVariantManifest({
+    required HttpRequest? request,
+    required NexusPlaybackProxySession session,
+    required String variant,
+    required int track,
+    required String manifestBody,
+    required Uri baseUri,
+    required int? seekTargetMs,
+  }) {
+    final headerLines = <String>[];
+    final footerLines = <String>[];
+    final pendingSegmentLines = <String>[];
+    final segmentBlocks = <_VariantSegmentBlock>[];
+
+    for (final rawLine in manifestBody.split('\n')) {
+      final line = rawLine.trim();
+      if (line.isEmpty) {
+        if (segmentBlocks.isEmpty && pendingSegmentLines.isEmpty) {
+          headerLines.add(rawLine);
+        } else if (pendingSegmentLines.isNotEmpty) {
+          pendingSegmentLines.add(rawLine);
+        }
+        continue;
+      }
+
+      if (line.startsWith('#EXT-X-ENDLIST')) {
+        footerLines.add(rawLine);
+        continue;
+      }
+
+      if (line.startsWith('#EXT-X-MAP:')) {
+        final initPath = _extractMapPath(line, baseUri);
+        final rewrittenMapLine = _replaceMapUri(
+          line,
+          _initUri(
+            request,
+            session: session,
+            variant: variant,
+            track: track,
+            path: initPath,
+          ).toString(),
+        );
+        if (segmentBlocks.isEmpty && pendingSegmentLines.isEmpty) {
+          headerLines.add(rewrittenMapLine);
+        } else {
+          pendingSegmentLines.add(rewrittenMapLine);
+        }
+        continue;
+      }
+
+      if (line.startsWith('#')) {
+        final isSegmentMetadata =
+            line.startsWith('#EXTINF:') || pendingSegmentLines.isNotEmpty;
+        if (segmentBlocks.isEmpty &&
+            pendingSegmentLines.isEmpty &&
+            !isSegmentMetadata) {
+          headerLines.add(rawLine);
+        } else {
+          pendingSegmentLines.add(rawLine);
+        }
+        continue;
+      }
+
+      final segmentPath = baseUri.resolve(line).path;
+      final segmentIndex = _parseSegmentIndex(segmentPath);
+      segmentBlocks.add(
+        _VariantSegmentBlock(
+          lines: <String>[
+            ...pendingSegmentLines,
+            _segmentUri(
+              request,
+              session: session,
+              variant: variant,
+              track: track,
+              segmentIndex: segmentIndex,
+              path: segmentPath,
+            ).toString(),
+          ],
+          durationSeconds: _parseSegmentDurationSeconds(pendingSegmentLines),
+          segmentIndex: segmentIndex,
+        ),
+      );
+      pendingSegmentLines.clear();
+    }
+
+    if (segmentBlocks.isEmpty) {
+      return <String>[...headerLines, ...footerLines].join('\n');
+    }
+
+    var startBlockIndex = 0;
+    var relativeStartOffsetSeconds = 0.0;
+    if (seekTargetMs != null && seekTargetMs > 0) {
+      final selection = _selectSeekStartBlock(
+        blocks: segmentBlocks,
+        seekTargetMs: seekTargetMs,
+      );
+      startBlockIndex = selection.blockIndex;
+      relativeStartOffsetSeconds = selection.relativeStartOffsetSeconds;
+      session._log(
+        'rewriteVariantManifest seekTargetMs=$seekTargetMs '
+        'startBlockIndex=$startBlockIndex segmentIndex=${segmentBlocks[startBlockIndex].segmentIndex} '
+        'relativeStart=${relativeStartOffsetSeconds.toStringAsFixed(3)}',
+      );
+    }
+
+    final filteredHeaderLines = headerLines
+        .where(
+          (line) =>
+              !line.trim().startsWith('#EXT-X-MEDIA-SEQUENCE') &&
+              !line.trim().startsWith('#EXT-X-START'),
+        )
+        .toList(growable: false);
+
+    final rewritten = <String>[
+      ...filteredHeaderLines,
+      if (seekTargetMs != null && seekTargetMs > 0)
+        '#EXT-X-START:TIME-OFFSET=${relativeStartOffsetSeconds.toStringAsFixed(3)},PRECISE=YES',
+      if (seekTargetMs != null && seekTargetMs > 0)
+        '#EXT-X-MEDIA-SEQUENCE:${segmentBlocks[startBlockIndex].segmentIndex}',
+    ];
+
+    for (final block in segmentBlocks.skip(startBlockIndex)) {
+      rewritten.addAll(block.lines);
+    }
+    rewritten.addAll(footerLines);
+    return rewritten.join('\n');
+  }
+
+  _SeekWindowSelection _selectSeekStartBlock({
+    required List<_VariantSegmentBlock> blocks,
+    required int seekTargetMs,
+  }) {
+    final prerollMs = max(4000, min(seekTargetMs, 10000));
+    final desiredStartMs = max(0, seekTargetMs - prerollMs);
+    var accumulatedMs = 0.0;
+
+    for (var index = 0; index < blocks.length; index++) {
+      final nextAccumulatedMs =
+          accumulatedMs + (blocks[index].durationSeconds * 1000);
+      if (nextAccumulatedMs >= desiredStartMs) {
+        final relativeStartSeconds =
+            max(0, seekTargetMs - accumulatedMs) / 1000;
+        return _SeekWindowSelection(
+          blockIndex: index,
+          relativeStartOffsetSeconds: relativeStartSeconds,
+        );
+      }
+      accumulatedMs = nextAccumulatedMs;
+    }
+
+    final lastIndex = max(0, blocks.length - 1);
+    return _SeekWindowSelection(
+      blockIndex: lastIndex,
+      relativeStartOffsetSeconds: 0,
+    );
+  }
+
+  double _parseSegmentDurationSeconds(List<String> lines) {
+    for (final rawLine in lines) {
+      final line = rawLine.trim();
+      if (!line.startsWith('#EXTINF:')) {
+        continue;
+      }
+      final payload = line.substring('#EXTINF:'.length);
+      final rawValue = payload.split(',').first.trim();
+      final durationSeconds = double.tryParse(rawValue);
+      if (durationSeconds != null && durationSeconds >= 0) {
+        return durationSeconds;
+      }
+    }
+    return 0;
   }
 
   Map<String, String> _browserFetchHeaders() {
@@ -850,6 +1133,22 @@ final class NexusPlaybackProxyServer {
     return int.tryParse(match.group(1)!) ?? 0;
   }
 
+  String? _parseVariantFromMediaPath(String path) {
+    final match = RegExp(
+      r'_(\d+)(?:_init)?_(?:\d+|[a-z]+)-\d+\.(?:mp4|m4s|ts)$',
+      caseSensitive: false,
+    ).firstMatch(path);
+    return match?.group(1);
+  }
+
+  int? _parseTrackFromMediaPath(String path) {
+    final match = RegExp(
+      r'_(?:\d+)(?:_init)?_(?:\d+|[a-z]+)-(\d+)\.(?:mp4|m4s|ts)$',
+      caseSensitive: false,
+    ).firstMatch(path);
+    return match == null ? null : int.tryParse(match.group(1)!);
+  }
+
   int _parseTerminalInt(String segment) {
     final raw = segment.split('.').first;
     return int.tryParse(raw) ?? 0;
@@ -864,6 +1163,7 @@ final class NexusPlaybackProxyServer {
 
     for (final playbackId in expired) {
       final session = _sessions.remove(playbackId);
+      session?._log('evictExpiredSession');
       unawaited(session?.worker.close());
     }
   }
@@ -914,6 +1214,28 @@ final class _FetchedManifest {
 
   final String body;
   final Uri uri;
+}
+
+final class _VariantSegmentBlock {
+  const _VariantSegmentBlock({
+    required this.lines,
+    required this.durationSeconds,
+    required this.segmentIndex,
+  });
+
+  final List<String> lines;
+  final double durationSeconds;
+  final int segmentIndex;
+}
+
+final class _SeekWindowSelection {
+  const _SeekWindowSelection({
+    required this.blockIndex,
+    required this.relativeStartOffsetSeconds,
+  });
+
+  final int blockIndex;
+  final double relativeStartOffsetSeconds;
 }
 
 String generateNexusPlaybackId() {

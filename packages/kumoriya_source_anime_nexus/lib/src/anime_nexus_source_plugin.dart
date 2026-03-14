@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:dio/dio.dart';
 import 'package:kumoriya_core/kumoriya_core.dart';
 import 'package:kumoriya_domain/kumoriya_domain.dart';
@@ -12,6 +14,7 @@ final class AnimeNexusSourcePlugin implements SourcePlugin {
 
   static const String _base = 'https://anime.nexus';
   static const String _apiBase = 'https://api.anime.nexus';
+  static const int _searchRetryAttempts = 3;
 
   @override
   PluginManifest get manifest => const PluginManifest(
@@ -32,59 +35,60 @@ final class AnimeNexusSourcePlugin implements SourcePlugin {
   Future<Result<List<SourceAnimeMatch>, KumoriyaError>> search(
     SourceSearchQuery query,
   ) async {
-    try {
-      final response = await _dio.get<Map<String, dynamic>>(
-        '$_apiBase/api/anime/shows',
-        queryParameters: <String, Object>{
-          'search': query.query.trim(),
-          'page': query.page,
-          'sortBy': 'name asc',
-          'hasVideos': true,
-          'includes[]': <String>['poster', 'genres', 'background'],
-        },
-        options: Options(headers: _apiHeaders()),
-      );
+    KumoriyaError? lastError;
+    for (final candidateQuery in _buildSearchFallbacks(query.query)) {
+      try {
+        final response = await _searchShows(
+          query: candidateQuery,
+          page: query.page,
+        );
 
-      final items = response.data?['data'] as List<dynamic>? ?? const [];
-      final matches = <SourceAnimeMatch>[];
+        final items = response.data?['data'] as List<dynamic>? ?? const [];
+        final matches = <SourceAnimeMatch>[];
 
-      for (final item in items) {
-        if (item is! Map<String, dynamic>) {
-          continue;
+        for (final item in items) {
+          if (item is! Map<String, dynamic>) {
+            continue;
+          }
+          final sourceId = item['id']?.toString().trim() ?? '';
+          final slug = item['slug']?.toString().trim() ?? '';
+          final title = item['name']?.toString().trim() ?? '';
+          if (sourceId.isEmpty || slug.isEmpty || title.isEmpty) {
+            continue;
+          }
+
+          matches.add(
+            SourceAnimeMatch(
+              sourceId: _encodeSourceId(sourceId, slug),
+              title: title,
+              thumbnailUrl: _thumbnailUrl(item),
+              releaseYear:
+                  _parseYear(item['year']) ?? _parseYear(item['release_date']),
+              format: _parseFormat(item['type']),
+            ),
+          );
         }
-        final sourceId = item['id']?.toString().trim() ?? '';
-        final slug = item['slug']?.toString().trim() ?? '';
-        final title = item['name']?.toString().trim() ?? '';
-        if (sourceId.isEmpty || slug.isEmpty || title.isEmpty) {
-          continue;
-        }
 
-        matches.add(
-          SourceAnimeMatch(
-            sourceId: _encodeSourceId(sourceId, slug),
-            title: title,
-            thumbnailUrl: _thumbnailUrl(item),
-            releaseYear:
-                _parseYear(item['year']) ?? _parseYear(item['release_date']),
-            format: _parseFormat(item['type']),
-          ),
+        if (matches.isNotEmpty || candidateQuery == query.query.trim()) {
+          return Success(matches.take(query.limit).toList(growable: false));
+        }
+      } on DioException catch (error) {
+        lastError = AnimeNexusSourceTransportError(
+          message: _searchErrorMessage(error, candidateQuery),
+        );
+      } catch (error) {
+        lastError = AnimeNexusSourceParseError(
+          message:
+              'Anime Nexus search parse error for "$candidateQuery": $error',
         );
       }
-
-      return Success(matches.take(query.limit).toList(growable: false));
-    } on DioException catch (error) {
-      return Failure(
-        AnimeNexusSourceTransportError(
-          message: 'Anime Nexus search failed: ${error.message}',
-        ),
-      );
-    } catch (error) {
-      return Failure(
-        AnimeNexusSourceParseError(
-          message: 'Anime Nexus search parse error: $error',
-        ),
-      );
     }
+
+    if (lastError != null) {
+      return Failure(lastError);
+    }
+
+    return const Success(<SourceAnimeMatch>[]);
   }
 
   @override
@@ -429,6 +433,94 @@ final class AnimeNexusSourcePlugin implements SourcePlugin {
     return withoutGuid.replaceAll('-', ' ').trim();
   }
 
+  List<String> _buildSearchFallbacks(String rawQuery) {
+    final ordered = <String>[];
+    final seen = <String>{};
+
+    void add(String value) {
+      final normalized = value.trim().replaceAll(RegExp(r'\s+'), ' ');
+      if (normalized.isEmpty) {
+        return;
+      }
+      final key = normalized.toLowerCase();
+      if (seen.add(key)) {
+        ordered.add(normalized);
+      }
+    }
+
+    final query = rawQuery.trim();
+    add(query);
+
+    final withoutSeason = _stripSeasonDescriptor(query);
+    add(withoutSeason);
+    add(_stripTrailingParenthetical(withoutSeason));
+    add(_extractRootTitle(withoutSeason));
+    add(_searchQueryFromSlug(_slugify(query)));
+
+    return ordered;
+  }
+
+  Future<Response<Map<String, dynamic>>> _searchShows({
+    required String query,
+    required int page,
+  }) async {
+    DioException? lastError;
+
+    for (var attempt = 1; attempt <= _searchRetryAttempts; attempt++) {
+      try {
+        return await _dio.get<Map<String, dynamic>>(
+          '$_apiBase/api/anime/shows',
+          queryParameters: <String, Object>{
+            'search': query,
+            'page': page,
+            'sortBy': 'name asc',
+            'hasVideos': true,
+            'includes[]': <String>['poster', 'genres', 'background'],
+          },
+          options: Options(headers: _apiHeaders()),
+        );
+      } on DioException catch (error) {
+        lastError = error;
+        if (!_shouldRetrySearch(error) || attempt == _searchRetryAttempts) {
+          rethrow;
+        }
+        await Future<void>.delayed(Duration(milliseconds: 250 * attempt));
+      }
+    }
+
+    throw lastError ??
+        DioException(
+          requestOptions: RequestOptions(path: '$_apiBase/api/anime/shows'),
+          message: 'Anime Nexus search failed without a concrete Dio error.',
+        );
+  }
+
+  bool _shouldRetrySearch(DioException error) {
+    switch (error.type) {
+      case DioExceptionType.connectionTimeout:
+      case DioExceptionType.sendTimeout:
+      case DioExceptionType.receiveTimeout:
+      case DioExceptionType.connectionError:
+      case DioExceptionType.unknown:
+        return true;
+      case DioExceptionType.badResponse:
+        final statusCode = error.response?.statusCode;
+        return statusCode == 429 || (statusCode != null && statusCode >= 500);
+      case DioExceptionType.badCertificate:
+      case DioExceptionType.cancel:
+        return false;
+    }
+  }
+
+  String _searchErrorMessage(DioException error, String query) {
+    final statusCode = error.response?.statusCode;
+    final detail = error.message?.trim();
+    return 'Anime Nexus search failed for "$query" '
+        '(type=${error.type.name}'
+        '${statusCode == null ? '' : ', status=$statusCode'}): '
+        '${detail?.isNotEmpty == true ? detail : 'unknown transport error'}';
+  }
+
   Map<String, String> _apiHeaders() {
     return const <String, String>{
       'Referer': _base,
@@ -437,6 +529,106 @@ final class AnimeNexusSourcePlugin implements SourcePlugin {
       'sec-fetch-mode': 'cors',
       'sec-fetch-site': 'same-site',
     };
+  }
+
+  String _stripSeasonDescriptor(String value) {
+    var result = value.trim();
+    const patterns = <String>[
+      r'\s*[-:]?\s*\b\d+(?:st|nd|rd|th)?\s+season\b$',
+      r'\s*[-:]?\s*\bseason\s+\d+\b$',
+      r'\s*[-:]?\s*\bpart\s+\d+\b$',
+      r'\s*[-:]?\s*\bcour\s+\d+\b$',
+      r'\s*[-:]?\s*\b(?:ii|iii|iv|v)\b$',
+    ];
+
+    for (final pattern in patterns) {
+      result = result.replaceFirst(RegExp(pattern, caseSensitive: false), '');
+    }
+
+    return result.trim();
+  }
+
+  String _stripTrailingParenthetical(String value) {
+    return value.replaceFirst(RegExp(r'\s*\([^)]*\)\s*$'), '').trim();
+  }
+
+  String _extractRootTitle(String value) {
+    final trimmed = value.trim();
+    if (trimmed.isEmpty) {
+      return trimmed;
+    }
+
+    final colonIndex = trimmed.indexOf(':');
+    final dashIndex = trimmed.indexOf(' - ');
+    final splitIndex = <int>[colonIndex, dashIndex]
+        .where((index) => index > 0)
+        .fold<int?>(null, (current, index) {
+          if (current == null || index < current) {
+            return index;
+          }
+          return current;
+        });
+
+    if (splitIndex == null) {
+      return trimmed;
+    }
+
+    final root = trimmed.substring(0, splitIndex).trim();
+    if (root.split(' ').length < 2 || root.length < 6) {
+      return trimmed;
+    }
+    return root;
+  }
+
+  String _slugify(String value) {
+    final lower = _stripDiacritics(value.toLowerCase());
+    final buffer = StringBuffer();
+    var previousWasDash = false;
+
+    for (final codeUnit in lower.codeUnits) {
+      final isLetter = codeUnit >= 97 && codeUnit <= 122;
+      final isDigit = codeUnit >= 48 && codeUnit <= 57;
+      if (isLetter || isDigit) {
+        buffer.writeCharCode(codeUnit);
+        previousWasDash = false;
+        continue;
+      }
+
+      if (!previousWasDash) {
+        buffer.write('-');
+        previousWasDash = true;
+      }
+    }
+
+    return buffer
+        .toString()
+        .replaceAll(RegExp(r'-+'), '-')
+        .replaceAll(RegExp(r'^-|-$'), '');
+  }
+
+  String _stripDiacritics(String value) {
+    return value
+        .replaceAll('\u00E1', 'a')
+        .replaceAll('\u00E0', 'a')
+        .replaceAll('\u00E4', 'a')
+        .replaceAll('\u00E2', 'a')
+        .replaceAll('\u00E9', 'e')
+        .replaceAll('\u00E8', 'e')
+        .replaceAll('\u00EB', 'e')
+        .replaceAll('\u00EA', 'e')
+        .replaceAll('\u00ED', 'i')
+        .replaceAll('\u00EC', 'i')
+        .replaceAll('\u00EF', 'i')
+        .replaceAll('\u00EE', 'i')
+        .replaceAll('\u00F3', 'o')
+        .replaceAll('\u00F2', 'o')
+        .replaceAll('\u00F6', 'o')
+        .replaceAll('\u00F4', 'o')
+        .replaceAll('\u00FA', 'u')
+        .replaceAll('\u00F9', 'u')
+        .replaceAll('\u00FC', 'u')
+        .replaceAll('\u00FB', 'u')
+        .replaceAll('\u00F1', 'n');
   }
 
   Map<String, String> _pageHeaders(Uri referer) {

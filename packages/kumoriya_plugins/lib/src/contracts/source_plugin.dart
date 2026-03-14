@@ -22,6 +22,10 @@ final class SourceAnimeMatch {
     this.thumbnailUrl,
     this.releaseYear,
     this.format = AnimeFormat.unknown,
+    this.aliases = const <String>[],
+    this.totalEpisodes,
+    this.seasonNumber,
+    this.partNumber,
   });
 
   final String sourceId;
@@ -29,6 +33,10 @@ final class SourceAnimeMatch {
   final Uri? thumbnailUrl;
   final int? releaseYear;
   final AnimeFormat format;
+  final List<String> aliases;
+  final int? totalEpisodes;
+  final int? seasonNumber;
+  final int? partNumber;
 }
 
 final class SourceAnimeDetail {
@@ -39,6 +47,10 @@ final class SourceAnimeDetail {
     this.thumbnailUrl,
     this.releaseYear,
     this.format = AnimeFormat.unknown,
+    this.aliases = const <String>[],
+    this.totalEpisodes,
+    this.seasonNumber,
+    this.partNumber,
   });
 
   final String sourceId;
@@ -47,6 +59,10 @@ final class SourceAnimeDetail {
   final Uri? thumbnailUrl;
   final int? releaseYear;
   final AnimeFormat format;
+  final List<String> aliases;
+  final int? totalEpisodes;
+  final int? seasonNumber;
+  final int? partNumber;
 }
 
 final class SourceEpisode {

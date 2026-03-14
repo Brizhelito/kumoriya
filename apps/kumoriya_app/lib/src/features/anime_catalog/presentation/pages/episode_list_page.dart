@@ -502,15 +502,7 @@ String? _sourceIcon(PluginManifest manifest) {
   if (manifest.iconUrl != null && manifest.iconUrl!.trim().isNotEmpty) {
     return manifest.iconUrl;
   }
-  if (manifest.baseUrls.isEmpty) {
-    return null;
-  }
-
-  final uri = Uri.tryParse(manifest.baseUrls.first);
-  if (uri == null || !uri.hasScheme) {
-    return null;
-  }
-  return uri.resolve('/favicon.ico').toString();
+  return null;
 }
 
 final class _EpisodeRowData {

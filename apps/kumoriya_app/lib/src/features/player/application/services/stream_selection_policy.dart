@@ -1,7 +1,11 @@
+import 'package:flutter/foundation.dart';
 import 'package:kumoriya_plugins/kumoriya_plugins.dart';
 
 final class StreamSelectionPolicy {
-  const StreamSelectionPolicy();
+  const StreamSelectionPolicy({TargetPlatform? platform})
+    : _platform = platform;
+
+  final TargetPlatform? _platform;
 
   List<ResolvedStream> rankCandidates(List<ResolvedStream> candidates) {
     if (candidates.isEmpty) {
@@ -43,7 +47,34 @@ final class StreamSelectionPolicy {
       score += 10;
     }
 
+    score -= _androidAnimeNexusCompatibilityPenalty(stream);
+
     return score;
+  }
+
+  int _androidAnimeNexusCompatibilityPenalty(ResolvedStream stream) {
+    if (_effectivePlatform != TargetPlatform.android ||
+        !_isAnimeNexusLoopback(stream.url)) {
+      return 0;
+    }
+
+    final quality = _extractQualityScore(
+      (stream.qualityLabel ?? '').toLowerCase(),
+    );
+    if (quality == null || quality <= 720) {
+      return 0;
+    }
+
+    // Android devices are currently failing codec init on the highest
+    // Anime Nexus profile, so prefer the next compatible HLS variant first.
+    return 1000 + quality;
+  }
+
+  TargetPlatform get _effectivePlatform => _platform ?? defaultTargetPlatform;
+
+  bool _isAnimeNexusLoopback(Uri url) {
+    return url.pathSegments.isNotEmpty &&
+        url.pathSegments.first == 'anime-nexus';
   }
 
   int? _extractQualityScore(String qualityLabel) {
