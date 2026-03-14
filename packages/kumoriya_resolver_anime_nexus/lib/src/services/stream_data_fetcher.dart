@@ -53,14 +53,19 @@ final class NexusStreamDataFetcher {
     final resolvedSession = session ?? NexusBrowserSession.generate();
     var cookieHeader = resolvedSession.cookieHeader;
 
-    final authCookies = await _bootstrapAuthSession(cookieHeader: cookieHeader);
+    // Auth session and episode view bootstraps are independent cookie
+    // sources — run them in parallel to save one round-trip.
+    final bootstrapResults = await Future.wait(<Future<List<String>?>>[
+      _bootstrapAuthSession(cookieHeader: cookieHeader),
+      _bootstrapEpisodeView(
+        episodeId: episodeId,
+        cookieHeader: cookieHeader,
+        fingerprint: resolvedSession.fingerprint,
+      ),
+    ]);
+    final authCookies = bootstrapResults[0];
+    final viewCookies = bootstrapResults[1];
     cookieHeader = _mergeCookieHeaders(cookieHeader, authCookies);
-
-    final viewCookies = await _bootstrapEpisodeView(
-      episodeId: episodeId,
-      cookieHeader: cookieHeader,
-      fingerprint: resolvedSession.fingerprint,
-    );
     cookieHeader = _mergeCookieHeaders(cookieHeader, viewCookies);
 
     var response = await _request(

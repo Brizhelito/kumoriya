@@ -116,14 +116,36 @@ final class NexusSignedHlsBuilder {
         episodeId: episodeId,
       );
 
-      final streams = <ResolvedStream>[];
-      for (final stream in sortedStreams) {
+      // Prime only the primary (highest) quality eagerly to minimize
+      // resolve-to-play latency.  Remaining qualities are registered as
+      // lazy candidates — the proxy will prime them on-demand when the
+      // player first requests their manifest.
+      final primaryStream = sortedStreams.first;
+      _log(
+        'build prime-primary quality=${primaryStream.qualityLabel} '
+        'variant=${primaryStream.metadata.variant} '
+        'track=${primaryStream.metadata.track}',
+      );
+      await proxyServer.primeStream(
+        session: proxySession,
+        stream: primaryStream,
+      );
+
+      final streams = <ResolvedStream>[
+        ResolvedStream(
+          url: proxyServer.qualityMasterUri(
+            session: proxySession,
+            stream: primaryStream,
+          ),
+          qualityLabel: primaryStream.qualityLabel,
+          mimeType: 'application/vnd.apple.mpegurl',
+          isHls: true,
+        ),
+      ];
+
+      // Register remaining qualities without eagerly priming them.
+      for (final stream in sortedStreams.skip(1)) {
         try {
-          _log(
-            'build prime-stream quality=${stream.qualityLabel} '
-            'variant=${stream.metadata.variant} track=${stream.metadata.track}',
-          );
-          await proxyServer.primeStream(session: proxySession, stream: stream);
           streams.add(
             ResolvedStream(
               url: proxyServer.qualityMasterUri(
@@ -135,8 +157,12 @@ final class NexusSignedHlsBuilder {
               isHls: true,
             ),
           );
+          _log(
+            'build lazy-register quality=${stream.qualityLabel} '
+            'variant=${stream.metadata.variant} '
+            'track=${stream.metadata.track}',
+          );
         } catch (_) {
-          // Skip qualities that cannot produce a playable local proxy manifest.
           _log(
             'build skip-quality quality=${stream.qualityLabel} '
             'variant=${stream.metadata.variant} track=${stream.metadata.track}',

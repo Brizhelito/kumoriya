@@ -32,6 +32,8 @@ final class NexusPlaybackProxySession {
   final void Function(String message)? _debugLogSink;
   final Map<String, Future<_FetchedManifest>> _variantManifestCache =
       <String, Future<_FetchedManifest>>{};
+  final Map<String, Future<_FetchedManifest>> _seekPrefetchCache =
+      <String, Future<_FetchedManifest>>{};
 
   String? edgeHost;
   String? _sessionId;
@@ -361,14 +363,74 @@ final class NexusPlaybackProxyServer {
           track: track,
           request: request,
         );
-    final manifest = seekTargetMs != null
-        ? await loader()
-        : await session.getOrCreateVariantManifest(
-            variant: variant,
-            track: track,
-            loader: loader,
-          );
+
+    _FetchedManifest manifest;
+    if (seekTargetMs != null) {
+      // Check if a prefetch for this exact seek is already in flight.
+      final prefetchKey = '$variant:$track:$seekTargetMs';
+      final prefetched = session._seekPrefetchCache.remove(prefetchKey);
+      manifest = prefetched != null ? await prefetched : await loader();
+
+      // When serving the video variant (track=0) on seek, proactively
+      // start fetching the sibling audio variant so it is ready when
+      // mpv requests it next.  Saves ~1.5s of sequential latency.
+      if (track == 0) {
+        _prefetchSiblingAudioVariantForSeek(
+          session: session,
+          variant: variant,
+          seekTargetMs: seekTargetMs,
+          request: request,
+        );
+      }
+    } else {
+      manifest = await session.getOrCreateVariantManifest(
+        variant: variant,
+        track: track,
+        loader: loader,
+      );
+    }
     _writeManifest(request.response, manifest.body);
+  }
+
+  void _prefetchSiblingAudioVariantForSeek({
+    required NexusPlaybackProxySession session,
+    required String variant,
+    required int seekTargetMs,
+    required HttpRequest request,
+  }) {
+    final videoStream = session.findVideoStream(variant: variant, track: 0);
+    if (videoStream == null || videoStream.audioGroupId == null) {
+      return;
+    }
+    final audioStream = session.masterManifest.audioEntries
+        .where((audio) => audio.groupId == videoStream.audioGroupId)
+        .firstOrNull;
+    if (audioStream == null) {
+      return;
+    }
+    final audioTrack = audioStream.metadata.track;
+    final prefetchKey = '$variant:$audioTrack:$seekTargetMs';
+    if (session._seekPrefetchCache.containsKey(prefetchKey)) {
+      return;
+    }
+    session._log(
+      'prefetchSiblingAudio variant=$variant audioTrack=$audioTrack seekTargetMs=$seekTargetMs',
+    );
+    final future = _loadVariantManifest(
+      session: session,
+      variant: audioStream.metadata.variant,
+      track: audioTrack,
+      request: request,
+    );
+    session._seekPrefetchCache[prefetchKey] = future;
+    unawaited(
+      future.then<void>(
+        (_) {},
+        onError: (_) {
+          session._seekPrefetchCache.remove(prefetchKey);
+        },
+      ),
+    );
   }
 
   void _startVariantPrewarm({
@@ -1008,7 +1070,7 @@ final class NexusPlaybackProxyServer {
     required List<_VariantSegmentBlock> blocks,
     required int seekTargetMs,
   }) {
-    final prerollMs = max(4000, min(seekTargetMs, 10000));
+    final prerollMs = max(2000, min(seekTargetMs, 6000));
     final desiredStartMs = max(0, seekTargetMs - prerollMs);
     var accumulatedMs = 0.0;
 

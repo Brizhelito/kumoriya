@@ -786,7 +786,7 @@ final class PlayerSessionOrchestrator {
     _log(
       'seekStallWatch start target=$normalizedTarget baseline=$_seekWatchBaselinePosition recoveries=$_seekStallRecoveriesForCurrentTarget',
     );
-    _seekStallTimer = Timer(const Duration(seconds: 6), () {
+    _seekStallTimer = Timer(const Duration(seconds: 12), () {
       final watchTarget = _seekWatchTargetPosition;
       if (watchTarget == null ||
           _state.selectedStream == null ||

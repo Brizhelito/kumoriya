@@ -410,7 +410,7 @@ void main() {
       engine.emitPlaying(true);
       engine.emitBuffering(false);
       engine.emitPosition(Duration.zero);
-      await Future<void>.delayed(const Duration(seconds: 7));
+      await Future<void>.delayed(const Duration(seconds: 13));
 
       expect(engine.openCalls, 3);
       expect(orchestrator.state.currentCandidateIndex, 0);
