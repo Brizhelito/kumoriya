@@ -42,6 +42,19 @@ final class NexusSignedHlsBuilder {
       'build start episodeId=$episodeId videoId=$videoId '
       'manifest=$masterManifestUrl',
     );
+
+    // Worker spawn only depends on parameters already available — run it
+    // in parallel with the master manifest fetch to overlap the isolate
+    // boot + WebSocket connect with the HTTP round-trip.
+    final workerFuture = NexusPlaybackSessionWorker.spawn(
+      episodeId: episodeId,
+      fingerprint: browserSession.fingerprint,
+      cookieHeader: cookieHeader,
+      m3u8Url: masterManifestUrl.toString(),
+      wsRef: attestRef,
+      onDebugLog: _debugLogSink,
+    );
+
     final masterResponse = await _dio.get<String>(
       masterManifestUrl.toString(),
       options: Options(
@@ -78,14 +91,7 @@ final class NexusSignedHlsBuilder {
       'streams=${masterManifest.streamEntries.length}',
     );
 
-    final worker = await NexusPlaybackSessionWorker.spawn(
-      episodeId: episodeId,
-      fingerprint: browserSession.fingerprint,
-      cookieHeader: cookieHeader,
-      m3u8Url: masterManifestUrl.toString(),
-      wsRef: attestRef,
-      onDebugLog: _debugLogSink,
-    );
+    final worker = await workerFuture;
 
     try {
       final proxySession = NexusPlaybackProxySession(
@@ -108,13 +114,6 @@ final class NexusSignedHlsBuilder {
             b.qualityLabel,
           ).compareTo(_numericLabel(a.qualityLabel)),
         );
-
-      await _validateWorkerSession(
-        worker: worker,
-        masterManifest: masterManifest,
-        primaryStream: sortedStreams.first,
-        episodeId: episodeId,
-      );
 
       // Prime only the primary (highest) quality eagerly to minimize
       // resolve-to-play latency.  Remaining qualities are registered as
@@ -194,38 +193,6 @@ final class NexusSignedHlsBuilder {
 
   int _numericLabel(String? label) {
     return int.tryParse(label?.replaceAll(RegExp(r'[^0-9]'), '') ?? '') ?? 0;
-  }
-
-  Future<void> _validateWorkerSession({
-    required NexusPlaybackSessionWorker worker,
-    required NexusMasterManifest masterManifest,
-    required NexusVideoStreamEntry primaryStream,
-    required String episodeId,
-  }) async {
-    _log(
-      'validate-worker episodeId=$episodeId '
-      'primaryVariant=${primaryStream.metadata.variant}',
-    );
-    await worker.getSessionId();
-
-    final audioGroupId = primaryStream.audioGroupId;
-    if (audioGroupId != null) {
-      final audioStream = masterManifest.audioEntries.firstWhere(
-        (entry) => entry.groupId == audioGroupId,
-        orElse: () => throw const NexusSignedHlsException(
-          'Anime Nexus primary stream did not expose a matching audio track.',
-        ),
-      );
-      await worker.getManifestToken(
-        manifestPath: audioStream.uri.path,
-        videoId: episodeId,
-      );
-    }
-
-    await worker.getManifestToken(
-      manifestPath: primaryStream.uri.path,
-      videoId: episodeId,
-    );
   }
 
   void _log(String message) {

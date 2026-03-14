@@ -151,8 +151,12 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
   }
 
   Future<void> _initializeRuntimeAndStartPlayback() async {
+    // Start loading resume position in parallel with runtime install
+    // so the DB read overlaps with engine/orchestrator setup.
+    final resumeFuture = _loadResumePosition();
     await _installRuntime();
-    await _startPlayback();
+    _resumePosition = await resumeFuture;
+    await _startPlaybackFromPosition(_resumePosition);
   }
 
   Future<void> _disposeRuntime() async {

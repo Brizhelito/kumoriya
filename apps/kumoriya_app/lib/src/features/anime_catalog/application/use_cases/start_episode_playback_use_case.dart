@@ -38,11 +38,14 @@ final class StartEpisodePlaybackUseCase {
     required double episodeNumber,
     required SourceAvailabilitySummary availabilitySummary,
   }) async {
-    final preference = await _loadPreference(anilistId);
-    final episodeProgress = await _loadEpisodeProgress(
-      anilistId,
-      episodeNumber,
-    );
+    // Preference and episode progress are independent DB reads — fetch
+    // them in parallel to shave one round-trip off the decision path.
+    final prefAndProgress = await Future.wait(<Future<Object?>>[
+      _loadPreference(anilistId),
+      _loadEpisodeProgress(anilistId, episodeNumber),
+    ]);
+    final preference = prefAndProgress[0] as PlaybackPreference?;
+    final episodeProgress = prefAndProgress[1] as EpisodeProgress?;
     final sourcesWithEpisode = _episodeCandidates(
       availabilitySummary: availabilitySummary,
       episodeNumber: episodeNumber,
