@@ -8,6 +8,30 @@ import '../models/player_session_state.dart';
 import 'playback_engine.dart';
 import 'stream_selection_policy.dart';
 
+/// Represents an active seek operation with a sticky target that survives
+/// candidate fallbacks, recovery attempts, and engine reopens.
+class _SeekSession {
+  _SeekSession({
+    required this.generation,
+    required this.targetPosition,
+    required this.originCandidateIndex,
+    required this.startedAt,
+    this.isUserInitiated = true,
+  });
+
+  final int generation;
+  final Duration targetPosition;
+  final int originCandidateIndex;
+  final DateTime startedAt;
+  final bool isUserInitiated;
+
+  /// Current escalation level: 1=local seek, 2=reopen same candidate, 3=fallback.
+  int currentLevel = 1;
+
+  /// Number of reopen attempts at the current level before escalating.
+  int reopenAttempts = 0;
+}
+
 final class PlayerSessionOrchestrator {
   PlayerSessionOrchestrator({
     required PlaybackEngine playbackEngine,
@@ -17,7 +41,7 @@ final class PlayerSessionOrchestrator {
     void Function(String message)? onDebugLog,
   }) : _playbackEngine = playbackEngine,
        _selectionPolicy = selectionPolicy ?? const StreamSelectionPolicy(),
-       _openTimeout = openTimeout ?? const Duration(seconds: 15),
+       _openTimeout = openTimeout ?? const Duration(seconds: 30),
        _bufferingTimeout = bufferingTimeout ?? const Duration(seconds: 18),
        _debugLogSink = onDebugLog {
     _subscriptions = <StreamSubscription<dynamic>>[
@@ -53,6 +77,7 @@ final class PlayerSessionOrchestrator {
   bool _isBuffering = false;
   Duration _lastKnownPosition = Duration.zero;
   Duration _lastKnownDuration = Duration.zero;
+  Duration _lastRawDurationFromEngine = Duration.zero;
   Duration? _pendingTargetPosition;
   Duration? _lastRequestedSeekPosition;
   DateTime? _lastRequestedSeekAt;
@@ -66,6 +91,17 @@ final class PlayerSessionOrchestrator {
   Duration _timelineBasePosition = Duration.zero;
   Duration _fullTimelineDurationHint = Duration.zero;
   bool _isManagedTimelineWindow = false;
+  int _seekGeneration = 0;
+  int _predictivePrewarmGeneration = 0;
+  _SeekSession? _activeSeekSession;
+  Timer? _seekPositionValidationTimer;
+
+  /// Monotonically increasing counter incremented at the top of every
+  /// [_openCurrentCandidate] call.  Used to detect stale errors: if
+  /// [PlayerSessionState.errorGeneration] < [_openGeneration] at the time of
+  /// a successful open, the error was produced by a superseded open and must
+  /// be cleared.
+  int _openGeneration = 0;
 
   Stream<PlayerSessionState> get states => _stateController.stream;
   Stream<Duration> get positionStream => _positionController.stream;
@@ -117,6 +153,7 @@ final class PlayerSessionOrchestrator {
     _runtimeErrorRetriesForCurrentCandidate = 0;
     _recoveriesForCurrentCandidate = 0;
     _resetSeekRecoveryTracking();
+    _cancelSeekSession('new-start');
     _pendingTargetPosition = _normalizeNullablePosition(initialPosition);
     _lastRequestedSeekPosition = _pendingTargetPosition;
     _lastRequestedSeekAt = _pendingTargetPosition != null
@@ -141,6 +178,7 @@ final class PlayerSessionOrchestrator {
     _runtimeErrorRetriesForCurrentCandidate = 0;
     _recoveriesForCurrentCandidate = 0;
     _resetSeekRecoveryTracking();
+    _cancelSeekSession('retry');
     return _openCurrentCandidate(startPosition: _pendingTargetPosition);
   }
 
@@ -152,25 +190,70 @@ final class PlayerSessionOrchestrator {
     }
 
     final targetPosition = _normalizePosition(position);
+    final seekGen = ++_seekGeneration;
+    final seekStartTime = DateTime.now();
+
+    // R4: Cancel all stale seek operations before setting up new session.
+    _cancelStaleSeekOperations(seekGen);
+
+    _activeSeekSession = _SeekSession(
+      generation: seekGen,
+      targetPosition: targetPosition,
+      originCandidateIndex: _currentCandidateIndex,
+      startedAt: seekStartTime,
+    );
     _pendingTargetPosition = targetPosition;
     _lastRequestedSeekPosition = targetPosition;
-    _lastRequestedSeekAt = DateTime.now();
+    _lastRequestedSeekAt = seekStartTime;
     _resetSeekRecoveryTracking();
     _log(
-      'seek requested target=$targetPosition current=$_lastKnownPosition hls=${candidate.isHls} candidateIndex=$_currentCandidateIndex',
+      'seek-phase start target=$targetPosition generation=$seekGen '
+      'candidateIndex=$_currentCandidateIndex hls=${candidate.isHls}',
+    );
+    _log(
+      'seekQuality start currentVariant=${_variantFromUrl(candidate.url)} '
+      'candidateIndex=$_currentCandidateIndex',
     );
 
-    if (_shouldReopenForSeek(candidate, targetPosition)) {
-      await _recoverCurrentCandidate(
-        errorCode: 'player.seek_recovery_failed',
-        reason: 'Player could not seek current candidate in place.',
-        recoveryPosition: targetPosition,
-        force: true,
+    // Level 1: Try native seek if the candidate/manifest supports it.
+    if (!_shouldReopenForSeek(candidate, targetPosition)) {
+      _activeSeekSession!.currentLevel = 1;
+
+      // R1: Convert absolute target to local position for managed windows.
+      final engineTarget = _isManagedTimelineWindow
+          ? targetPosition - _timelineBasePosition
+          : targetPosition;
+      _log(
+        'seekWindowHit target=$targetPosition '
+        'windowStart=$_timelineBasePosition '
+        'windowEnd=${_timelineBasePosition + _lastRawDurationFromEngine} '
+        'action=native-seek localTarget=$engineTarget',
+      );
+
+      await _playbackEngine.seekTo(engineTarget);
+      final elapsed = DateTime.now().difference(seekStartTime);
+      _log('seek-phase native-seek-done elapsed=${elapsed.inMilliseconds}ms');
+      _startSeekStallWatch(
+        candidate: candidate,
+        targetPosition: targetPosition,
       );
       return;
     }
 
-    await _playbackEngine.seekTo(targetPosition);
+    // Level 2: Reopen same candidate with windowed HLS anchored to target.
+    _activeSeekSession!.currentLevel = 2;
+    _log(
+      'seekWindowMiss target=$targetPosition '
+      'windowStart=$_timelineBasePosition '
+      'windowEnd=${_timelineBasePosition + _lastRawDurationFromEngine} '
+      'action=reopen',
+    );
+    await _recoverCurrentCandidate(
+      errorCode: 'player.seek_recovery_failed',
+      reason: 'Player could not seek current candidate in place.',
+      recoveryPosition: targetPosition,
+      force: true,
+    );
   }
 
   Future<void> togglePlayPause() async {
@@ -185,6 +268,7 @@ final class PlayerSessionOrchestrator {
   Future<void> dispose() async {
     _bufferingTimer?.cancel();
     _seekStallTimer?.cancel();
+    _seekPositionValidationTimer?.cancel();
     for (final subscription in _subscriptions) {
       await subscription.cancel();
     }
@@ -197,12 +281,18 @@ final class PlayerSessionOrchestrator {
   Future<Result<ResolvedStream, KumoriyaError>> _openCurrentCandidate({
     Duration? startPosition,
   }) async {
+    // Capture this open's generation before any await so that concurrent opens
+    // can be detected in the catch block and in the success emit.
+    final thisGeneration = ++_openGeneration;
+    final openStartTime = DateTime.now(); // Pass 5: Track open start time
+
     if (_currentCandidateIndex < 0 ||
         _currentCandidateIndex >= _rankedCandidates.length) {
       return _fail(
         code: 'player.all_candidates_failed',
         message: 'All playable stream candidates failed to open.',
         kind: KumoriyaErrorKind.transport,
+        errorGeneration: thisGeneration,
       );
     }
 
@@ -212,7 +302,7 @@ final class PlayerSessionOrchestrator {
       startPosition: startPosition,
     );
     _log(
-      'openCurrentCandidate index=$_currentCandidateIndex/${_rankedCandidates.length} url=${openCandidate.url} startPosition=$startPosition',
+      'seek-phase open-start generation=$thisGeneration index=$_currentCandidateIndex/${_rankedCandidates.length} url=${openCandidate.url} startPosition=$startPosition',
     );
     _isRecoveringCurrentCandidate = false;
     _emit(
@@ -234,9 +324,51 @@ final class PlayerSessionOrchestrator {
             startPosition: _normalizeNullablePosition(startPosition),
           )
           .timeout(_openTimeoutFor(candidate, startPosition));
+      final openElapsed = DateTime.now().difference(openStartTime);
       _log(
-        'openCurrentCandidate success index=$_currentCandidateIndex buffering=$_isBuffering playing=$_isPlaying pendingTarget=$_pendingTargetPosition',
+        'seek-phase open-done generation=$thisGeneration elapsed=${openElapsed.inMilliseconds}ms buffering=$_isBuffering playing=$_isPlaying pendingTarget=$_pendingTargetPosition',
       );
+      _log('seekLatency phase=open-success ms=${openElapsed.inMilliseconds}');
+
+      _applyTimelineWindow(
+        candidate: candidate,
+        openCandidate: openCandidate,
+        requestedStartPosition: startPosition,
+      );
+
+      final timelineReadyElapsed = DateTime.now().difference(openStartTime);
+      _log(
+        'seekLatency phase=timeline-ready ms=${timelineReadyElapsed.inMilliseconds}',
+      );
+
+      // Fix 2: Visual gate - wait for usable frame before emitting success
+      // Only apply for HLS with non-zero startPosition (seek scenarios)
+      if (candidate.isHls &&
+          startPosition != null &&
+          startPosition > Duration.zero) {
+        final isWindows = defaultTargetPlatform == TargetPlatform.windows;
+        final gateStartTime = DateTime.now();
+        _log(
+          'seek-phase visual-gate-start windows=$isWindows target=$startPosition',
+        );
+        final frameReady = await _waitForUsableFrame(
+          timeout: const Duration(seconds: 5),
+        );
+        final gateElapsed = DateTime.now().difference(gateStartTime);
+        if (frameReady) {
+          _log(
+            'seek-phase visual-gate-done windows=$isWindows elapsed=${gateElapsed.inMilliseconds}ms '
+            'position=$_lastKnownPosition duration=$_lastKnownDuration',
+          );
+        } else {
+          _log(
+            'seek-phase visual-gate-timeout windows=$isWindows elapsed=${gateElapsed.inMilliseconds}ms '
+            'position=$_lastKnownPosition duration=$_lastKnownDuration '
+            'buffering=$_isBuffering',
+          );
+        }
+      }
+
       final nextStatus = _isBuffering
           ? PlayerSessionStatus.buffering
           : (_isPlaying
@@ -245,14 +377,28 @@ final class PlayerSessionOrchestrator {
       if (_isBuffering) {
         _startBufferingTimeoutWatch();
       }
-      _applyTimelineWindow(
-        candidate: candidate,
-        openCandidate: openCandidate,
-        requestedStartPosition: startPosition,
-      );
       _startSeekStallWatch(candidate: candidate, targetPosition: startPosition);
       await _applySubtitleTrack();
-      _pendingTargetPosition = null;
+      if (_activeSeekSession != null) {
+        _log(
+          'pendingTarget preserved seekSession.target=${_activeSeekSession!.targetPosition}',
+        );
+        _log('seek-phase validation-start');
+        _startSeekPositionValidation();
+      }
+      // Task 3.4: Do NOT clear pendingTarget here - only clear in _confirmSeekSuccess()
+      // Clear a stale error only when the error was produced by a prior
+      // generation.  If errorGeneration == thisGeneration the error is
+      // concurrent and must be preserved.
+      final shouldClearError =
+          _state.errorMessage != null &&
+          _state.errorGeneration < thisGeneration;
+      if (shouldClearError) {
+        _log(
+          'openCurrentCandidate clearing stale error '
+          'previousGeneration=${_state.errorGeneration} thisGeneration=$thisGeneration',
+        );
+      }
       _emit(
         _state.copyWith(
           status: nextStatus,
@@ -260,19 +406,54 @@ final class PlayerSessionOrchestrator {
           currentCandidateIndex: _currentCandidateIndex,
           totalCandidates: _rankedCandidates.length,
           clearInfo: true,
+          clearError: shouldClearError,
         ),
       );
+      final totalElapsed = DateTime.now().difference(openStartTime);
+      _log('seek-phase completed total=${totalElapsed.inMilliseconds}ms');
       return Success(candidate);
     } on TimeoutException {
-      _log('openCurrentCandidate timeout index=$_currentCandidateIndex');
+      _log(
+        'openCurrentCandidate timeout generation=$thisGeneration index=$_currentCandidateIndex',
+      );
       return _handleCandidateFailure(
         code: 'player.open_timeout',
         message: 'Timed out while opening playback candidate.',
       );
     } catch (error) {
       _log(
-        'openCurrentCandidate error index=$_currentCandidateIndex error=$error',
+        'openCurrentCandidate error generation=$thisGeneration index=$_currentCandidateIndex error=$error',
       );
+      if (_isStaleGenerationError(error)) {
+        // A newer open generation superseded this one — total silent no-op.
+        // Must NOT: call _fail(), touch errorMessage, emit any state, or
+        // trigger any fallback.  The only allowed side-effect is this log.
+        _log(
+          'openCurrentCandidate stale-generation silent no-op '
+          'generation=$thisGeneration error=$error',
+        );
+        return Success(_rankedCandidates[_currentCandidateIndex]);
+      }
+      if (_isEngineDisposedError(error)) {
+        _log(
+          'openCurrentCandidate engine-disposed generation=$thisGeneration — stopping cascade',
+        );
+        return _fail(
+          code: 'player.engine_disposed',
+          message: 'Playback engine was disposed during open sequence.',
+          kind: KumoriyaErrorKind.cancelled,
+          errorGeneration: thisGeneration,
+        );
+      }
+      if (_isProxyRuntimeUnavailableError(error)) {
+        _log(
+          'openCurrentCandidate proxy-runtime-unavailable generation=$thisGeneration — quarantining anime-nexus family',
+        );
+        return _handleAnimeNexusFamilyFailure(
+          code: 'player.proxy_auth_failed',
+          message: 'Anime Nexus proxy runtime unavailable: $error',
+        );
+      }
       return _handleCandidateFailure(
         code: _classifyOpenFailureCode(error.toString()),
         message: 'Player failed to open candidate: $error',
@@ -295,6 +476,21 @@ final class PlayerSessionOrchestrator {
       _recoveriesForCurrentCandidate = 0;
       _isRecoveringCurrentCandidate = false;
       _resetSeekRecoveryTracking();
+      _log(
+        'seekQuality fallback reason=candidate-failure '
+        'fromVariant=${_variantFromUrl(_rankedCandidates[_currentCandidateIndex - 1].url)} '
+        'toVariant=${_variantFromUrl(_rankedCandidates[_currentCandidateIndex].url)}',
+      );
+      // Inherit seek target from active seek session or pending target.
+      final seekTarget =
+          _activeSeekSession?.targetPosition ?? _pendingTargetPosition;
+      if (_activeSeekSession != null) {
+        _activeSeekSession!.currentLevel = 3;
+        _log(
+          'seekFallbackNextCandidate from=${_currentCandidateIndex - 1} '
+          'to=$_currentCandidateIndex target=${_activeSeekSession!.targetPosition}',
+        );
+      }
       _emit(
         _state.copyWith(
           status: PlayerSessionStatus.fallbacking,
@@ -304,10 +500,11 @@ final class PlayerSessionOrchestrator {
           clearError: true,
         ),
       );
-      return _openCurrentCandidate();
+      return _openCurrentCandidate(startPosition: seekTarget);
     }
 
     if (_rankedCandidates.length <= 1) {
+      _cancelSeekSession('all-candidates-exhausted');
       return _fail(
         code: code,
         message: message,
@@ -315,6 +512,7 @@ final class PlayerSessionOrchestrator {
       );
     }
 
+    _cancelSeekSession('all-candidates-exhausted');
     return _fail(
       code: 'player.all_candidates_failed',
       message: 'All playback candidates failed. Last error: $message',
@@ -353,12 +551,30 @@ final class PlayerSessionOrchestrator {
       return;
     }
 
+    // Fix B: Clear stale error when playback has recovered successfully.
+    // If we're transitioning to playing/paused and there's a residual error
+    // from a previous failed/stale open, clear it now.
+    final shouldClearStaleError = _state.errorMessage != null;
+    _log(
+      'playingChanged before-emit playing=$playing currentError=${_state.errorMessage} willClearError=$shouldClearStaleError',
+    );
+    if (shouldClearStaleError) {
+      _log(
+        'stale error cleared on successful recovery playing=$playing error=${_state.errorMessage}',
+      );
+    }
+
     _emit(
       _state.copyWith(
         status: playing
             ? PlayerSessionStatus.playing
             : PlayerSessionStatus.paused,
+        clearError: shouldClearStaleError,
       ),
+    );
+
+    _log(
+      'playingChanged after-emit playing=$playing newError=${_state.errorMessage}',
     );
   }
 
@@ -381,12 +597,31 @@ final class PlayerSessionOrchestrator {
     if (_seekWatchTargetPosition == null) {
       _seekStallTimer?.cancel();
     }
+
+    // Fix B: Clear stale error when exiting buffering successfully.
+    // If we're transitioning out of buffering and there's a residual error
+    // from a previous failed/stale open, clear it now.
+    final shouldClearStaleError = _state.errorMessage != null;
+    _log(
+      'bufferingChanged before-emit buffering=$buffering playing=$_isPlaying currentError=${_state.errorMessage} willClearError=$shouldClearStaleError',
+    );
+    if (shouldClearStaleError) {
+      _log(
+        'stale error cleared on buffering exit playing=$_isPlaying error=${_state.errorMessage}',
+      );
+    }
+
     _emit(
       _state.copyWith(
         status: _isPlaying
             ? PlayerSessionStatus.playing
             : PlayerSessionStatus.paused,
+        clearError: shouldClearStaleError,
       ),
+    );
+
+    _log(
+      'bufferingChanged after-emit buffering=$buffering newError=${_state.errorMessage}',
     );
   }
 
@@ -398,6 +633,15 @@ final class PlayerSessionOrchestrator {
     final previousPosition = _lastKnownPosition;
     _lastKnownPosition = position;
     _emitPosition(position);
+
+    if (_isManagedTimelineWindow && position.inSeconds % 5 == 0) {
+      final rawDuration = _lastKnownDuration - _timelineBasePosition;
+      _log(
+        'timelineDomain managed=$_isManagedTimelineWindow '
+        'rawPosition=$rawPosition rawDuration=${rawDuration > Duration.zero ? rawDuration : Duration.zero} '
+        'effectivePosition=$position effectiveDuration=$_lastKnownDuration',
+      );
+    }
     if (_shouldRecoverFalseEofFromPositionJump(previousPosition, position)) {
       _log(
         'positionChanged detected false-eof jump previous=$previousPosition current=$position duration=$_lastKnownDuration lastSeek=$_lastRequestedSeekPosition',
@@ -417,11 +661,49 @@ final class PlayerSessionOrchestrator {
         'positionChanged position=$position pendingTarget=$_pendingTargetPosition',
       );
     }
-    final pendingTargetPosition = _pendingTargetPosition;
-    if (pendingTargetPosition != null &&
-        _isPositionNearTarget(position, pendingTargetPosition)) {
-      _pendingTargetPosition = null;
+    // Validate active seek session: confirm position reached target.
+    final seekSession = _activeSeekSession;
+    if (seekSession != null &&
+        seekSession.generation == _seekGeneration &&
+        _isPositionNearTarget(position, seekSession.targetPosition)) {
+      _confirmSeekSuccess();
     }
+
+    // Fix A: Confirm and clear pendingTarget when position reaches target,
+    // even without active seek session (e.g., after seekStallWatch cleared).
+    // CRITICAL: Never confirm pendingTarget at zero position for non-zero targets.
+    final pendingTarget = _pendingTargetPosition;
+    if (pendingTarget != null && _activeSeekSession == null) {
+      // Fix A.1: Stricter guard - reject confirmation during transient reopen state
+      // Block confirmation if:
+      // - Target is non-zero but position is near zero (< 500ms)
+      // - Timeline window is managed but not yet stable
+      // - Visual gate may still be running
+      final isTransientState =
+          pendingTarget > Duration.zero &&
+          position < const Duration(milliseconds: 500);
+
+      if (isTransientState) {
+        _log(
+          'pendingTarget guard reject-zero-position target=$pendingTarget '
+          'effectivePosition=$position reopenStable=false',
+        );
+        // Don't confirm - this is a transient state during reopen
+      } else if (_isPositionNearTarget(position, pendingTarget)) {
+        // Fix A.2: Only confirm when position is actually near target AND stable
+        _log(
+          'pendingTarget confirm-check effectivePosition=$position '
+          'target=$pendingTarget reopenStable=true',
+        );
+        _log(
+          'pendingTarget confirmed effectivePosition=$position '
+          'target=$pendingTarget',
+        );
+        _log('pendingTarget cleared reason=position-reached-target-no-session');
+        _pendingTargetPosition = null;
+      }
+    }
+
     _handleSeekProgress(position);
   }
 
@@ -429,12 +711,33 @@ final class PlayerSessionOrchestrator {
     if (rawDuration <= Duration.zero) {
       return;
     }
-    if (!_isManagedTimelineWindow || rawDuration > _fullTimelineDurationHint) {
-      _fullTimelineDurationHint = rawDuration;
+
+    _lastRawDurationFromEngine = rawDuration;
+    _recomputeTimelineDomain('onDurationChanged');
+  }
+
+  void _recomputeTimelineDomain(String reason) {
+    Duration effective;
+    if (_lastRawDurationFromEngine > Duration.zero) {
+      effective = _effectiveDuration(_lastRawDurationFromEngine);
+      if (!_isManagedTimelineWindow) {
+        _fullTimelineDurationHint = effective;
+      } else if (effective > _fullTimelineDurationHint) {
+        _fullTimelineDurationHint = effective;
+      }
+    } else {
+      effective = _fullTimelineDurationHint;
     }
-    final duration = _effectiveDuration(rawDuration);
-    _lastKnownDuration = duration;
-    _emitDuration(duration);
+
+    if (effective > Duration.zero) {
+      _lastKnownDuration = effective;
+      _emitDuration(effective);
+    }
+
+    _log(
+      'timelineDomain recompute reason=$reason raw=$_lastRawDurationFromEngine '
+      'effective=$effective managed=$_isManagedTimelineWindow',
+    );
   }
 
   void _onCompletedChanged(bool completed) {
@@ -534,6 +837,7 @@ final class PlayerSessionOrchestrator {
     );
 
     try {
+      final openStartTime = DateTime.now();
       await _playbackEngine
           .open(
             openCandidate,
@@ -542,14 +846,57 @@ final class PlayerSessionOrchestrator {
                 : null,
           )
           .timeout(_openTimeoutFor(candidate, targetPosition));
+
+      final openElapsed = DateTime.now().difference(openStartTime);
       _log(
         'recoverCurrentCandidate open-success target=$targetPosition buffering=$_isBuffering playing=$_isPlaying',
       );
-      if (!_shouldReopenForSeek(candidate, targetPosition) &&
-          targetPosition > Duration.zero) {
-        await _playbackEngine.seekTo(targetPosition);
-        _log('recoverCurrentCandidate direct-seek target=$targetPosition');
+      _log(
+        'seekLatency phase=reopen-open-done '
+        'elapsed=${openElapsed.inMilliseconds}ms',
+      );
+
+      _applyTimelineWindow(
+        candidate: candidate,
+        openCandidate: openCandidate,
+        requestedStartPosition: targetPosition,
+      );
+
+      final timelineReadyElapsed = DateTime.now().difference(openStartTime);
+      _log(
+        'seekLatency phase=timeline-ready ms=${timelineReadyElapsed.inMilliseconds}',
+      );
+
+      // Fix 2: Visual gate - wait for usable frame before emitting success
+      // Only apply for HLS with non-zero targetPosition (seek scenarios)
+      if (candidate.isHls && targetPosition > Duration.zero) {
+        final isWindows = defaultTargetPlatform == TargetPlatform.windows;
+        _log(
+          'reopen visual-gate waiting-first-frame windows=$isWindows target=$targetPosition',
+        );
+        final frameReady = await _waitForUsableFrame(
+          timeout: const Duration(seconds: 5),
+        );
+        final gateElapsed = DateTime.now().difference(openStartTime);
+        if (frameReady) {
+          _log(
+            'reopen visual-gate frame-ready windows=$isWindows '
+            'position=$_lastKnownPosition duration=$_lastKnownDuration',
+          );
+        } else {
+          _log(
+            'reopen visual-gate timeout windows=$isWindows '
+            'position=$_lastKnownPosition duration=$_lastKnownDuration '
+            'buffering=$_isBuffering',
+          );
+        }
+        _log(
+          'seekLatency phase=visual-gate-done '
+          'elapsed=${gateElapsed.inMilliseconds}ms '
+          'frameReady=$frameReady',
+        );
       }
+
       _runtimeErrorRetriesForCurrentCandidate = 0;
       final nextStatus = _isBuffering
           ? PlayerSessionStatus.buffering
@@ -559,17 +906,23 @@ final class PlayerSessionOrchestrator {
       if (_isBuffering) {
         _startBufferingTimeoutWatch();
       }
-      _applyTimelineWindow(
-        candidate: candidate,
-        openCandidate: openCandidate,
-        requestedStartPosition: targetPosition,
-      );
+      if (!_shouldReopenForSeek(candidate, targetPosition) &&
+          targetPosition > Duration.zero) {
+        await _playbackEngine.seekTo(targetPosition);
+        _log('recoverCurrentCandidate direct-seek target=$targetPosition');
+      }
       _startSeekStallWatch(
         candidate: candidate,
         targetPosition: targetPosition,
       );
       await _applySubtitleTrack();
-      _pendingTargetPosition = null;
+      if (_activeSeekSession != null) {
+        _log(
+          'pendingTarget preserved seekSession.target=${_activeSeekSession!.targetPosition}',
+        );
+        _startSeekPositionValidation();
+      }
+      // Task 3.4: Do NOT clear pendingTarget here - only clear in _confirmSeekSuccess()
       _emit(
         _state.copyWith(
           status: nextStatus,
@@ -583,6 +936,18 @@ final class PlayerSessionOrchestrator {
       _log(
         'recoverCurrentCandidate completed status=$nextStatus pendingTarget=$_pendingTargetPosition position=$_lastKnownPosition',
       );
+      _log(
+        'seekQuality reopen openedVariant=${_variantFromUrl(candidate.url)} '
+        'candidateIndex=$_currentCandidateIndex',
+      );
+
+      // R3: Predictive prewarm — after a successful reopen, schedule
+      // background warmup for the next likely window so the second seek
+      // in the same direction is near-instant.
+      if (_isManagedTimelineWindow && targetPosition > Duration.zero) {
+        _schedulePredictivePrewarm(targetPosition, seekGen: _seekGeneration);
+      }
+
       _isRecoveringCurrentCandidate = false;
     } on TimeoutException {
       _isRecoveringCurrentCandidate = false;
@@ -596,6 +961,17 @@ final class PlayerSessionOrchestrator {
       _log(
         'recoverCurrentCandidate error target=$recoveryPosition error=$error',
       );
+      if (_isProxyRuntimeUnavailableError(error)) {
+        _log(
+          'recoverCurrentCandidate proxy-runtime-unavailable — quarantining anime-nexus family',
+        );
+        await _handleAnimeNexusFamilyFailure(
+          code: 'player.proxy_auth_failed',
+          message:
+              'Anime Nexus proxy runtime unavailable during recovery: $error',
+        );
+        return;
+      }
       await _handleCandidateFailure(
         code: errorCode,
         message: '$reason. Recovery failed: $error',
@@ -665,12 +1041,14 @@ final class PlayerSessionOrchestrator {
     required String message,
     required KumoriyaErrorKind kind,
     String? infoMessage,
+    int errorGeneration = -1,
   }) {
     _emit(
       _state.copyWith(
         status: PlayerSessionStatus.error,
         errorMessage: message,
         infoMessage: infoMessage,
+        errorGeneration: errorGeneration,
       ),
     );
 
@@ -693,6 +1071,85 @@ final class PlayerSessionOrchestrator {
     }
 
     return url.scheme == 'http' || url.scheme == 'https';
+  }
+
+  bool _isEngineDisposedError(Object error) {
+    return error is StateError &&
+        error.message.contains('disposed') &&
+        !error.message.contains('invalidated');
+  }
+
+  /// Returns true when the engine threw because a newer open generation
+  /// superseded this one.  This is a normal race condition during rapid seeks
+  /// and must be handled as a total silent no-op — no error state, no fallback.
+  bool _isStaleGenerationError(Object error) {
+    return error is StateError && error.message.contains('invalidated');
+  }
+
+  /// Detects errors from the proxy's circuit breaker or ensure-playable
+  /// endpoint indicating persistent auth failure.
+  bool _isProxyRuntimeUnavailableError(Object error) {
+    final msg = error.toString().toLowerCase();
+    return msg.contains('proxy runtime not playable') ||
+        msg.contains('circuit-breaker active') ||
+        msg.contains('ensureplayable failed');
+  }
+
+  /// Quarantines the entire anime-nexus candidate family when auth fails.
+  ///
+  /// When the proxy runtime is unavailable (persistent auth failure), all
+  /// anime-nexus candidates share the same broken session — cycling through
+  /// bitrate variants (5300 → 4400 → 1600) doesn't help.  This method
+  /// skips all anime-nexus candidates and jumps to the first non-anime-nexus
+  /// candidate, or emits a terminal error if none exist.
+  Future<Result<ResolvedStream, KumoriyaError>> _handleAnimeNexusFamilyFailure({
+    required String code,
+    required String message,
+  }) async {
+    _log(
+      'handleAnimeNexusFamilyFailure quarantining from index '
+      '$_currentCandidateIndex total=${_rankedCandidates.length}',
+    );
+
+    // Skip all anime-nexus candidates.
+    while (_currentCandidateIndex < _rankedCandidates.length &&
+        _isAnimeNexusLoopbackHls(
+          _rankedCandidates[_currentCandidateIndex].url,
+        )) {
+      _log(
+        'handleAnimeNexusFamilyFailure skip index=$_currentCandidateIndex '
+        'url=${_rankedCandidates[_currentCandidateIndex].url}',
+      );
+      _currentCandidateIndex++;
+    }
+
+    if (_currentCandidateIndex < _rankedCandidates.length) {
+      _runtimeErrorRetriesForCurrentCandidate = 0;
+      _recoveriesForCurrentCandidate = 0;
+      _isRecoveringCurrentCandidate = false;
+      _resetSeekRecoveryTracking();
+      _emit(
+        _state.copyWith(
+          status: PlayerSessionStatus.fallbacking,
+          infoMessage: 'player.proxy_family_quarantined',
+          currentCandidateIndex: _currentCandidateIndex,
+          totalCandidates: _rankedCandidates.length,
+          clearError: true,
+        ),
+      );
+      return _openCurrentCandidate(
+        startPosition:
+            _activeSeekSession?.targetPosition ?? _pendingTargetPosition,
+      );
+    }
+
+    _cancelSeekSession('proxy-family-exhausted');
+    return _fail(
+      code: code,
+      message: message,
+      kind: KumoriyaErrorKind.transport,
+      infoMessage: 'player.proxy_family_quarantined',
+    );
   }
 
   String _classifyOpenFailureCode(String error) {
@@ -721,14 +1178,101 @@ final class PlayerSessionOrchestrator {
     return 'player.candidate_failed';
   }
 
-  Duration get _recoveryPosition =>
-      _normalizePosition(_pendingTargetPosition ?? _lastKnownPosition);
+  Duration get _recoveryPosition => _normalizePosition(
+    _activeSeekSession?.targetPosition ??
+        _pendingTargetPosition ??
+        _lastKnownPosition,
+  );
 
   bool _shouldReopenForSeek(ResolvedStream candidate, Duration position) {
     if (position <= Duration.zero) {
       return false;
     }
+    // Anime Nexus streams with full (non-windowed) manifest support native
+    // mpv seek — no need to stop + reopen the entire stream.  This cuts
+    // seek latency from ~5-15 s down to near-instant for cached segments.
+    if (_isAnimeNexusLoopbackHls(candidate.url) && !_isManagedTimelineWindow) {
+      return false;
+    }
+    // R1: If the target falls within the currently open managed window,
+    // native seek is safe (convert absolute → local in seekTo).
+    if (_isTargetInCurrentWindow(position)) {
+      return false;
+    }
     return candidate.isHls;
+  }
+
+  /// R1: Returns `true` when [absoluteTarget] falls within the absolute
+  /// range of the currently loaded managed HLS window.
+  ///
+  /// The window range is `[base, base + rawDuration]` where `base` is the
+  /// `_timelineBasePosition` set at open time and `rawDuration` is the
+  /// local duration reported by the engine.
+  bool _isTargetInCurrentWindow(Duration absoluteTarget) {
+    if (!_isManagedTimelineWindow) return false;
+    if (_lastRawDurationFromEngine <= Duration.zero) return false;
+    final windowStart = _timelineBasePosition;
+    final windowEnd = _timelineBasePosition + _lastRawDurationFromEngine;
+    return absoluteTarget >= windowStart && absoluteTarget <= windowEnd;
+  }
+
+  /// R4: Cancels all stale seek-related operations when a new seek begins.
+  ///
+  /// Ensures that only the most recent seek's timers, sessions, and
+  /// predictive prewarms survive.
+  void _cancelStaleSeekOperations(int newGeneration) {
+    _seekStallTimer?.cancel();
+    _seekPositionValidationTimer?.cancel();
+    _bufferingTimer?.cancel();
+    if (_activeSeekSession != null) {
+      _log(
+        'seekGeneration superseded '
+        'old=${_activeSeekSession!.generation} new=$newGeneration',
+      );
+    }
+    _activeSeekSession = null;
+    // Invalidate any pending predictive prewarm.
+    _predictivePrewarmGeneration = newGeneration;
+  }
+
+  /// R3: Schedules a best-effort background warmup for the next probable
+  /// window after a successful reopen seek.
+  ///
+  /// The next window is estimated as starting at `currentTarget + rawDuration`.
+  /// If the user seeks again before the prewarm completes, the generation
+  /// check silently discards the stale prewarm.
+  void _schedulePredictivePrewarm(
+    Duration currentTarget, {
+    required int seekGen,
+  }) {
+    if (_lastRawDurationFromEngine <= Duration.zero) return;
+    final nextWindowStart = currentTarget + _lastRawDurationFromEngine;
+    if (_fullTimelineDurationHint > Duration.zero &&
+        nextWindowStart > _fullTimelineDurationHint) {
+      _log('predictivePrewarm skip — already near end');
+      return;
+    }
+    _log(
+      'predictivePrewarm scheduled fromTarget=$currentTarget '
+      'nextWindowStart=$nextWindowStart',
+    );
+    _predictivePrewarmGeneration = seekGen;
+    unawaited(
+      _playbackEngine
+          .signalPredictivePrewarm(nextWindowStart)
+          .then((_) {
+            if (_predictivePrewarmGeneration != seekGen) {
+              _log(
+                'predictivePrewarm cancelled reason=stale-seek generation=$seekGen',
+              );
+              return;
+            }
+            _log(
+              'predictivePrewarm completed nextWindowStart=$nextWindowStart',
+            );
+          })
+          .catchError((_) {}),
+    );
   }
 
   ResolvedStream _prepareCandidateForOpen(
@@ -769,6 +1313,16 @@ final class PlayerSessionOrchestrator {
     return segments.contains('anime-nexus');
   }
 
+  /// Extracts the variant from an anime-nexus proxy URL for logging.
+  ///
+  /// URL format: /anime-nexus/{playbackId}/master/{variant}/{track}.m3u8
+  String _variantFromUrl(Uri url) {
+    final segments = url.pathSegments;
+    final idx = segments.indexOf('master');
+    if (idx < 0 || idx + 1 >= segments.length) return 'unknown';
+    return segments[idx + 1];
+  }
+
   void _startSeekStallWatch({
     required ResolvedStream candidate,
     required Duration? targetPosition,
@@ -791,17 +1345,42 @@ final class PlayerSessionOrchestrator {
       if (watchTarget == null ||
           _state.selectedStream == null ||
           !_state.selectedStream!.isHls ||
-          _isRecoveringCurrentCandidate ||
-          _isBuffering ||
+          _isRecoveringCurrentCandidate) {
+        return;
+      }
+
+      // Position already past target → seek succeeded, nothing to do.
+      if (_lastKnownPosition >
+          watchTarget + const Duration(milliseconds: 500)) {
+        return;
+      }
+
+      // Position far from target (e.g., opened at 0 instead of target).
+      // Use seek escalation if there's an active session.
+      if (!_isPositionNearTarget(_lastKnownPosition, watchTarget)) {
+        if (_activeSeekSession != null &&
+            _activeSeekSession!.generation == _seekGeneration) {
+          _log(
+            'seekStallWatch position-far-from-target '
+            'target=$watchTarget position=$_lastKnownPosition',
+          );
+          _escalateSeekSession();
+        }
+        return;
+      }
+
+      // Position near target but not progressing — classic stall.
+      if (_isBuffering ||
           !_isPlaying ||
-          _seekStallRecoveriesForCurrentTarget >= 2 ||
-          !_isPositionNearTarget(_lastKnownPosition, watchTarget)) {
+          _seekStallRecoveriesForCurrentTarget >= 2) {
         return;
       }
 
       _seekStallRecoveriesForCurrentTarget++;
       _log(
-        'seekStallWatch stalled target=$watchTarget position=$_lastKnownPosition recoveries=$_seekStallRecoveriesForCurrentTarget',
+        'seekStallWatch stalled target=$watchTarget '
+        'position=$_lastKnownPosition '
+        'recoveries=$_seekStallRecoveriesForCurrentTarget',
       );
       unawaited(
         _recoverCurrentCandidate(
@@ -825,6 +1404,38 @@ final class PlayerSessionOrchestrator {
         'seekStallWatch cleared target=$watchTarget position=$position recoveries=$_seekStallRecoveriesForCurrentTarget',
       );
       _resetSeekRecoveryTracking();
+
+      // Fix A: Clear pendingTarget when seekStallWatch clears successfully
+      // (position progressed past target), even without active seek session.
+      // CRITICAL: Never confirm at zero position for non-zero targets.
+      final pendingTarget = _pendingTargetPosition;
+      if (pendingTarget != null && _activeSeekSession == null) {
+        // Fix A.1: Stricter guard - reject confirmation during transient state
+        final isTransientState =
+            pendingTarget > Duration.zero &&
+            position < const Duration(milliseconds: 500);
+
+        if (isTransientState) {
+          _log(
+            'pendingTarget guard reject-zero-position target=$pendingTarget '
+            'effectivePosition=$position source=seekStallWatch reopenStable=false',
+          );
+          // Don't confirm - this is a transient state
+        } else {
+          _log(
+            'pendingTarget confirm-check effectivePosition=$position '
+            'target=$pendingTarget source=seekStallWatch reopenStable=true',
+          );
+          _log(
+            'pendingTarget confirmed effectivePosition=$position '
+            'target=$pendingTarget',
+          );
+          _log(
+            'pendingTarget cleared reason=seekStallWatch-cleared-successfully',
+          );
+          _pendingTargetPosition = null;
+        }
+      }
     }
   }
 
@@ -833,6 +1444,281 @@ final class PlayerSessionOrchestrator {
     _seekWatchTargetPosition = null;
     _seekWatchBaselinePosition = null;
     _seekStallRecoveriesForCurrentTarget = 0;
+  }
+
+  /// Confirms the seek reached the target position and cleans up the session.
+  void _confirmSeekSuccess() {
+    final session = _activeSeekSession;
+    if (session == null) return;
+    _seekPositionValidationTimer?.cancel();
+    final totalElapsed = DateTime.now().difference(session.startedAt);
+    _log(
+      'seekOpen accepted target=${session.targetPosition} '
+      'actual=$_lastKnownPosition '
+      'delta=${(_lastKnownPosition - session.targetPosition).inMilliseconds}ms '
+      'generation=${session.generation}',
+    );
+    _log(
+      'seekLatency phase=seek-confirmed '
+      'total=${totalElapsed.inMilliseconds}ms '
+      'level=${session.currentLevel}',
+    );
+    final activeCandidate = _state.selectedStream;
+    _log(
+      'seekQuality final activeVariant=${activeCandidate != null ? _variantFromUrl(activeCandidate.url) : "null"} '
+      'candidateIndex=$_currentCandidateIndex',
+    );
+    _log('pendingTarget cleared reason=seek-confirmed');
+    _pendingTargetPosition = null;
+    _activeSeekSession = null;
+  }
+
+  /// Fix 2: Visual gate - waits for usable frame signals before declaring
+  /// playback ready. Prevents black screen by ensuring the engine has
+  /// progressed beyond initial buffering state.
+  ///
+  /// Waits until: (duration > 0) AND (position > threshold) AND (playing=true OR !buffering)
+  /// Returns true if frame is ready, false if timeout.
+  ///
+  /// Fix B: Windows-specific stricter validation to prevent black screen.
+  /// Pass 5: Increased threshold to 1500ms and added playing=true validation.
+  Future<bool> _waitForUsableFrame({required Duration timeout}) async {
+    final isWindows = defaultTargetPlatform == TargetPlatform.windows;
+
+    // Fix B.1: Windows requires MUCH stricter criteria to prove visible frame
+    // Pass 5: Increased from 800ms to 1500ms - more conservative but safer
+    // The issue: position=800ms does NOT guarantee frame is visible on Windows
+    // Windows needs: significant position progress AND engine actually playing
+    final positionThreshold = isWindows
+        ? const Duration(
+            milliseconds: 1500,
+          ) // Windows: wait for substantial progress
+        : const Duration(milliseconds: 1); // Android: minimal progress OK
+
+    // Pass 5: Added playing validation for Windows
+    final playingRequired = isWindows;
+
+    // Check immediate state
+    final immediateReady =
+        _lastKnownDuration > Duration.zero &&
+        _lastKnownPosition > positionThreshold &&
+        (!playingRequired || _isPlaying);
+
+    if (immediateReady) {
+      _log(
+        'waitForUsableFrame immediate windows=$isWindows '
+        'duration=$_lastKnownDuration position=$_lastKnownPosition '
+        'buffering=$_isBuffering playing=$_isPlaying threshold=$positionThreshold',
+      );
+      return true;
+    }
+
+    final completer = Completer<bool>();
+    Timer? timeoutTimer;
+
+    void checkAndComplete() {
+      if (completer.isCompleted) return;
+
+      // Fix B.2: Log candidate signal for debugging
+      _log(
+        'waitForUsableFrame candidate-signal windows=$isWindows '
+        'duration=$_lastKnownDuration position=$_lastKnownPosition '
+        'buffering=$_isBuffering playing=$_isPlaying threshold=$positionThreshold',
+      );
+
+      // Pass 5: Stricter validation - require position AND playing (on Windows)
+      final signalReady =
+          _lastKnownDuration > Duration.zero &&
+          _lastKnownPosition > positionThreshold &&
+          (!playingRequired || _isPlaying);
+
+      if (signalReady) {
+        _log(
+          'waitForUsableFrame ready windows=$isWindows '
+          'duration=$_lastKnownDuration position=$_lastKnownPosition '
+          'buffering=$_isBuffering playing=$_isPlaying',
+        );
+        completer.complete(true);
+      } else if (isWindows && _lastKnownPosition <= positionThreshold) {
+        // Fix B.3: Reject early signal on Windows - position too low
+        _log(
+          'waitForUsableFrame reject-early-signal windows=$isWindows '
+          'position=$_lastKnownPosition threshold=$positionThreshold '
+          'buffering=$_isBuffering playing=$_isPlaying',
+        );
+      } else if (isWindows && !_isPlaying) {
+        // Pass 5: Reject if not playing yet on Windows
+        _log(
+          'waitForUsableFrame reject-not-playing windows=$isWindows '
+          'position=$_lastKnownPosition playing=$_isPlaying',
+        );
+      }
+    }
+
+    // Listen to state changes via existing streams
+    final durationSub = _durationController.stream.listen((_) {
+      checkAndComplete();
+    });
+    final positionSub = _positionController.stream.listen((_) {
+      checkAndComplete();
+    });
+
+    timeoutTimer = Timer(timeout, () {
+      if (!completer.isCompleted) {
+        _log(
+          'waitForUsableFrame timeout windows=$isWindows '
+          'duration=$_lastKnownDuration position=$_lastKnownPosition '
+          'buffering=$_isBuffering playing=$_isPlaying '
+          'threshold=$positionThreshold',
+        );
+        completer.complete(false);
+      }
+    });
+
+    try {
+      return await completer.future;
+    } finally {
+      timeoutTimer?.cancel();
+      await durationSub.cancel();
+      await positionSub.cancel();
+    }
+  }
+
+  /// Cancels the active seek session without confirming success.
+  void _cancelSeekSession(String reason) {
+    final session = _activeSeekSession;
+    if (session == null) return;
+    _seekPositionValidationTimer?.cancel();
+    _log(
+      'seekSession cancelled reason=$reason '
+      'target=${session.targetPosition} generation=${session.generation}',
+    );
+    _activeSeekSession = null;
+  }
+
+  /// Starts a timer-based position validation after a seek-driven open.
+  ///
+  /// If the position has not reached the target within the timeout,
+  /// the seek session is escalated to the next level.
+  void _startSeekPositionValidation() {
+    _seekPositionValidationTimer?.cancel();
+    final session = _activeSeekSession;
+    if (session == null) return;
+    final seekGen = session.generation;
+
+    // Task 3.3: Check effective absolute position immediately.
+    // _lastKnownPosition is already remapped by _effectivePosition in
+    // _onPositionChanged, so it represents the absolute timeline position.
+    // If position already matches target within tolerance, confirm seek
+    // success immediately (no artificial latency).
+    if (_isPositionNearTarget(_lastKnownPosition, session.targetPosition)) {
+      _log(
+        'seekValidation immediate-success '
+        'effectivePosition=$_lastKnownPosition '
+        'target=${session.targetPosition}',
+      );
+      _confirmSeekSuccess();
+      return;
+    }
+
+    // Task 3.3: If position does NOT match target, start validation timer
+    // as fallback mechanism. Timer validates periodically until position
+    // reaches target or timeout occurs.
+    _log(
+      'seekValidation start-timer '
+      'effectivePosition=$_lastKnownPosition '
+      'target=${session.targetPosition}',
+    );
+    _seekPositionValidationTimer = Timer(const Duration(seconds: 6), () {
+      if (_activeSeekSession == null ||
+          _activeSeekSession!.generation != seekGen) {
+        return;
+      }
+
+      final delta = (_lastKnownPosition - session.targetPosition).inSeconds
+          .abs();
+      _log(
+        'seekOpen validate target=${session.targetPosition} '
+        'actual=$_lastKnownPosition delta=${delta}s '
+        'level=${session.currentLevel}',
+      );
+
+      if (_isPositionNearTarget(_lastKnownPosition, session.targetPosition)) {
+        _confirmSeekSuccess();
+        return;
+      }
+
+      _log(
+        'seekOpen rejected out-of-target '
+        'target=${session.targetPosition} actual=$_lastKnownPosition '
+        'delta=${delta}s',
+      );
+      _escalateSeekSession();
+    });
+  }
+
+  /// Escalates the active seek session to the next recovery level.
+  ///
+  /// Level 1 (local seek) → Level 2 (reopen same candidate).
+  /// Level 2 (reopen) → retry up to 2 times, then accept current position.
+  ///
+  /// IMPORTANT: Seek position failures do NOT trigger quality downgrade.
+  /// Quality downgrade via [_handleCandidateFailure] is reserved for real
+  /// transport failures (open timeout, segment fetch 4xx/5xx, proxy
+  /// unavailable).  A seek that can't land on the exact target is not a
+  /// reason to drop from 5300 → 4400 → 1600.
+  void _escalateSeekSession() {
+    final session = _activeSeekSession;
+    if (session == null) return;
+    final candidate = _state.selectedStream;
+    if (candidate == null) return;
+
+    if (session.currentLevel <= 1) {
+      // Level 1 → Level 2: reopen same candidate with windowed HLS.
+      session.currentLevel = 2;
+      session.reopenAttempts = 0;
+      _log(
+        'seekLocal failed reason=position-out-of-target '
+        'target=${session.targetPosition} actual=$_lastKnownPosition',
+      );
+      _log('seekReopenSameCandidate target=${session.targetPosition}');
+      unawaited(
+        _recoverCurrentCandidate(
+          errorCode: 'player.seek_position_validation_failed',
+          reason: 'Seek landed out of target position.',
+          recoveryPosition: session.targetPosition,
+          force: true,
+        ),
+      );
+    } else if (session.currentLevel == 2) {
+      session.reopenAttempts++;
+      if (session.reopenAttempts < 2) {
+        _log(
+          'seekReopenSameCandidate retry=${session.reopenAttempts} '
+          'target=${session.targetPosition}',
+        );
+        unawaited(
+          _recoverCurrentCandidate(
+            errorCode: 'player.seek_position_validation_failed',
+            reason: 'Reopen same candidate landed out of target.',
+            recoveryPosition: session.targetPosition,
+            force: true,
+          ),
+        );
+      } else {
+        // Level 2 exhausted → Accept current position, do NOT drop quality.
+        // Seek position mismatch is NOT a candidate failure — the stream
+        // itself is healthy, just the position landing was imprecise.
+        _log(
+          'seekQuality preserved — seek position exhausted but quality locked '
+          'candidateIndex=$_currentCandidateIndex '
+          'target=${session.targetPosition} '
+          'actual=$_lastKnownPosition',
+        );
+        _cancelSeekSession('seek-position-exhausted-quality-preserved');
+        _pendingTargetPosition = null;
+      }
+    }
   }
 
   void _applyTimelineWindow({
@@ -847,23 +1733,23 @@ final class PlayerSessionOrchestrator {
         normalizedStart > Duration.zero;
     _isManagedTimelineWindow = managedWindow;
     _timelineBasePosition = managedWindow ? normalizedStart : Duration.zero;
+    _log(
+      'applyTimelineWindow managed=$managedWindow base=$_timelineBasePosition '
+      'durationHint=$_fullTimelineDurationHint',
+    );
     if (!managedWindow && _lastKnownDuration > _fullTimelineDurationHint) {
       _fullTimelineDurationHint = _lastKnownDuration;
     }
     if (managedWindow) {
       _lastKnownPosition = normalizedStart;
       _emitPosition(_lastKnownPosition);
-      if (_fullTimelineDurationHint > Duration.zero) {
-        _lastKnownDuration = _fullTimelineDurationHint;
-        _emitDuration(_lastKnownDuration);
-      }
+      _recomputeTimelineDomain('applyTimelineWindow-managed');
     } else if (!candidate.isHls) {
       _fullTimelineDurationHint = Duration.zero;
+      _recomputeTimelineDomain('applyTimelineWindow-unmanaged');
+    } else {
+      _recomputeTimelineDomain('applyTimelineWindow-unmanaged-hls');
     }
-    _log(
-      'applyTimelineWindow managed=$managedWindow base=$_timelineBasePosition '
-      'durationHint=$_fullTimelineDurationHint',
-    );
   }
 
   Duration _effectivePosition(Duration rawPosition) {
@@ -877,19 +1763,34 @@ final class PlayerSessionOrchestrator {
     if (!_isManagedTimelineWindow) {
       return rawDuration;
     }
-    if (_fullTimelineDurationHint > Duration.zero) {
-      return _fullTimelineDurationHint;
-    }
-    return _timelineBasePosition + rawDuration;
+
+    final absoluteWindowDuration = _timelineBasePosition + rawDuration;
+    return absoluteWindowDuration > _fullTimelineDurationHint
+        ? absoluteWindowDuration
+        : _fullTimelineDurationHint;
   }
 
   void _emitPosition(Duration position) {
+    // Pass 5: Log position emission with context for timeline debugging
+    if (_isManagedTimelineWindow || position.inSeconds % 30 == 0) {
+      _log(
+        'emitPosition position=$position managed=$_isManagedTimelineWindow '
+        'base=$_timelineBasePosition',
+      );
+    }
     if (!_positionController.isClosed) {
       _positionController.add(position);
     }
   }
 
   void _emitDuration(Duration duration) {
+    // Pass 5: Log duration emission with context for timeline debugging
+    if (_isManagedTimelineWindow) {
+      _log(
+        'emitDuration duration=$duration managed=$_isManagedTimelineWindow '
+        'base=$_timelineBasePosition hint=$_fullTimelineDurationHint',
+      );
+    }
     if (!_durationController.isClosed) {
       _durationController.add(duration);
     }
