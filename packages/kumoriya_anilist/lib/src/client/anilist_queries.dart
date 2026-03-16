@@ -137,6 +137,7 @@ query AnimeDetail($id: Int) {
       }
       nodes {
         id
+        type
         title {
           romaji
           english

@@ -209,6 +209,10 @@ final class AnilistAnimeMapper {
       }
 
       try {
+        final mediaType = node['type'];
+        if (mediaType is String && mediaType != 'ANIME') {
+          continue;
+        }
         final anime = mapAnime(node);
         relations.add(
           AnimeRelation(
