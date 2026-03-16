@@ -1,3 +1,4 @@
+import 'dart:developer' as developer;
 import 'package:kumoriya_core/kumoriya_core.dart';
 
 import '../client/anilist_graphql_client.dart';
@@ -34,7 +35,15 @@ final class GraphqlAnilistMetadataGateway implements AnilistMetadataGateway {
 
         return Success(media);
       },
-      onFailure: Failure.new,
+      onFailure: (err) {
+        if (err is AnilistTransportError) {
+          developer.log(
+            'AniList transport error in fetchHomeCatalog: ${err.message} status=${err.statusCode}',
+            name: 'GraphqlAnilistMetadataGateway',
+          );
+        }
+        return Failure(err);
+      },
     );
   }
 
@@ -73,7 +82,15 @@ final class GraphqlAnilistMetadataGateway implements AnilistMetadataGateway {
 
         return Success(media);
       },
-      onFailure: Failure.new,
+      onFailure: (err) {
+        if (err is AnilistTransportError) {
+          developer.log(
+            'AniList transport error in fetchAiringCalendar: ${err.message} status=${err.statusCode}',
+            name: 'GraphqlAnilistMetadataGateway',
+          );
+        }
+        return Failure(err);
+      },
     );
   }
 
@@ -105,7 +122,15 @@ final class GraphqlAnilistMetadataGateway implements AnilistMetadataGateway {
 
         return Success(media);
       },
-      onFailure: Failure.new,
+      onFailure: (err) {
+        if (err is AnilistTransportError) {
+          developer.log(
+            'AniList transport error in searchAnime(query=$query): ${err.message} status=${err.statusCode}',
+            name: 'GraphqlAnilistMetadataGateway',
+          );
+        }
+        return Failure(err);
+      },
     );
   }
 
@@ -137,7 +162,15 @@ final class GraphqlAnilistMetadataGateway implements AnilistMetadataGateway {
 
         return Success(media);
       },
-      onFailure: Failure.new,
+      onFailure: (err) {
+        if (err is AnilistTransportError) {
+          developer.log(
+            'AniList transport error in fetchAnimeDetail(id=$anilistId): ${err.message} status=${err.statusCode}',
+            name: 'GraphqlAnilistMetadataGateway',
+          );
+        }
+        return Failure(err);
+      },
     );
   }
 
