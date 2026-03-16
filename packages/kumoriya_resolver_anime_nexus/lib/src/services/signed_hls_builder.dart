@@ -42,19 +42,6 @@ final class NexusSignedHlsBuilder {
       'build start episodeId=$episodeId videoId=$videoId '
       'manifest=$masterManifestUrl',
     );
-
-    // Worker spawn only depends on parameters already available — run it
-    // in parallel with the master manifest fetch to overlap the isolate
-    // boot + WebSocket connect with the HTTP round-trip.
-    final workerFuture = NexusPlaybackSessionWorker.spawn(
-      episodeId: episodeId,
-      fingerprint: browserSession.fingerprint,
-      cookieHeader: cookieHeader,
-      m3u8Url: masterManifestUrl.toString(),
-      wsRef: attestRef,
-      onDebugLog: _debugLogSink,
-    );
-
     final masterResponse = await _dio.get<String>(
       masterManifestUrl.toString(),
       options: Options(
@@ -83,15 +70,25 @@ final class NexusSignedHlsBuilder {
     final fallbackHost = masterManifest.streamEntries.first.uri.host.isNotEmpty
         ? masterManifest.streamEntries.first.uri.host
         : Uri.parse(NexusConstants.cdnBase).host;
-    final candidateHosts = await _edgeSelector.candidateHosts(
-      fallbackHost: fallbackHost,
-    );
+    final candidateHosts = await _edgeSelector
+        .candidateHosts(fallbackHost: fallbackHost)
+        .timeout(
+          const Duration(milliseconds: 1200),
+          onTimeout: () => <String>[fallbackHost],
+        );
     _log(
       'build candidate-hosts hosts=${candidateHosts.join(",")} '
       'streams=${masterManifest.streamEntries.length}',
     );
 
-    final worker = await workerFuture;
+    final worker = await NexusPlaybackSessionWorker.spawn(
+      episodeId: episodeId,
+      fingerprint: browserSession.fingerprint,
+      cookieHeader: cookieHeader,
+      m3u8Url: masterManifestUrl.toString(),
+      wsRef: attestRef,
+      onDebugLog: _debugLogSink,
+    );
 
     try {
       final proxySession = NexusPlaybackProxySession(
@@ -114,59 +111,31 @@ final class NexusSignedHlsBuilder {
             b.qualityLabel,
           ).compareTo(_numericLabel(a.qualityLabel)),
         );
-
-      // Prime only the primary (highest) quality eagerly to minimize
-      // resolve-to-play latency.  Remaining qualities are registered as
-      // lazy candidates — the proxy will prime them on-demand when the
-      // player first requests their manifest.
-      final primaryStream = sortedStreams.first;
-      _log(
-        'build prime-primary quality=${primaryStream.qualityLabel} '
-        'variant=${primaryStream.metadata.variant} '
-        'track=${primaryStream.metadata.track}',
-      );
-      await proxyServer.primeStream(
-        session: proxySession,
-        stream: primaryStream,
+      // Startup optimization: return playable proxy URLs immediately and
+      // perform quality warmup in the background.
+      _startBackgroundWarmup(
+        worker: worker,
+        proxyServer: proxyServer,
+        proxySession: proxySession,
+        masterManifest: masterManifest,
+        sortedStreams: sortedStreams,
+        episodeId: episodeId,
       );
 
-      final streams = <ResolvedStream>[
-        ResolvedStream(
-          url: proxyServer.qualityMasterUri(
-            session: proxySession,
-            stream: primaryStream,
-          ),
-          qualityLabel: primaryStream.qualityLabel,
-          mimeType: 'application/vnd.apple.mpegurl',
-          isHls: true,
-        ),
-      ];
-
-      // Register remaining qualities without eagerly priming them.
-      for (final stream in sortedStreams.skip(1)) {
-        try {
-          streams.add(
-            ResolvedStream(
-              url: proxyServer.qualityMasterUri(
-                session: proxySession,
-                stream: stream,
-              ),
-              qualityLabel: stream.qualityLabel,
-              mimeType: 'application/vnd.apple.mpegurl',
-              isHls: true,
+      // Build local proxy URLs immediately for all qualities.
+      final streams = <ResolvedStream>[];
+      for (final stream in sortedStreams) {
+        streams.add(
+          ResolvedStream(
+            url: proxyServer.qualityMasterUri(
+              session: proxySession,
+              stream: stream,
             ),
-          );
-          _log(
-            'build lazy-register quality=${stream.qualityLabel} '
-            'variant=${stream.metadata.variant} '
-            'track=${stream.metadata.track}',
-          );
-        } catch (_) {
-          _log(
-            'build skip-quality quality=${stream.qualityLabel} '
-            'variant=${stream.metadata.variant} track=${stream.metadata.track}',
-          );
-        }
+            qualityLabel: stream.qualityLabel,
+            mimeType: 'application/vnd.apple.mpegurl',
+            isHls: true,
+          ),
+        );
       }
 
       _log('build completed playable-streams=${streams.length}');
@@ -193,6 +162,80 @@ final class NexusSignedHlsBuilder {
 
   int _numericLabel(String? label) {
     return int.tryParse(label?.replaceAll(RegExp(r'[^0-9]'), '') ?? '') ?? 0;
+  }
+
+  Future<void> _validateWorkerSession({
+    required NexusPlaybackSessionWorker worker,
+    required NexusMasterManifest masterManifest,
+    required NexusVideoStreamEntry primaryStream,
+    required String episodeId,
+  }) async {
+    _log(
+      'validate-worker episodeId=$episodeId '
+      'primaryVariant=${primaryStream.metadata.variant}',
+    );
+    await worker.getSessionId();
+
+    final audioGroupId = primaryStream.audioGroupId;
+    if (audioGroupId != null) {
+      final audioStream = masterManifest.audioEntries.firstWhere(
+        (entry) => entry.groupId == audioGroupId,
+        orElse: () => throw const NexusSignedHlsException(
+          'Anime Nexus primary stream did not expose a matching audio track.',
+        ),
+      );
+      await worker.getManifestToken(
+        manifestPath: audioStream.uri.path,
+        videoId: episodeId,
+      );
+    }
+
+    await worker.getManifestToken(
+      manifestPath: primaryStream.uri.path,
+      videoId: episodeId,
+    );
+  }
+
+  void _startBackgroundWarmup({
+    required NexusPlaybackSessionWorker worker,
+    required NexusPlaybackProxyServer proxyServer,
+    required NexusPlaybackProxySession proxySession,
+    required NexusMasterManifest masterManifest,
+    required List<NexusVideoStreamEntry> sortedStreams,
+    required String episodeId,
+  }) {
+    unawaited(
+      Future<void>(() async {
+        try {
+          await _validateWorkerSession(
+            worker: worker,
+            masterManifest: masterManifest,
+            primaryStream: sortedStreams.first,
+            episodeId: episodeId,
+          );
+        } catch (error) {
+          _log('build background-validate-failed error=$error');
+        }
+
+        for (final stream in sortedStreams) {
+          try {
+            await proxyServer.primeStream(
+              session: proxySession,
+              stream: stream,
+            );
+            _log(
+              'build prime-stream-background quality=${stream.qualityLabel} '
+              'variant=${stream.metadata.variant} track=${stream.metadata.track}',
+            );
+          } catch (error) {
+            _log(
+              'build background-prime-failed quality=${stream.qualityLabel} '
+              'variant=${stream.metadata.variant} track=${stream.metadata.track} error=$error',
+            );
+          }
+        }
+      }),
+    );
   }
 
   void _log(String message) {

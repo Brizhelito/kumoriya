@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
 
@@ -45,6 +46,14 @@ final class NexusPlaybackProxySession {
   final Map<String, Future<Response<List<int>>>> _mediaSegmentCache =
       <String, Future<Response<List<int>>>>{};
 
+  /// Parsed segment blocks keyed by `'$variant:$track'`.
+  /// Populated lazily on the first variant manifest serve and reused
+  /// for playlist-info queries and seek calculations.
+  final Map<String, List<_VariantSegmentBlock>> _parsedSegmentBlocks =
+      <String, List<_VariantSegmentBlock>>{};
+  final Map<String, _AbrVariantSampleStats> _abrVariantStats =
+      <String, _AbrVariantSampleStats>{};
+
   String? edgeHost;
   String? _sessionId;
   DateTime lastAccessed = DateTime.now();
@@ -69,6 +78,16 @@ final class NexusPlaybackProxySession {
   int _authFailureCount = 0;
   DateTime? _authFailureBackoffUntil;
 
+  /// Returns `true` when the circuit-breaker backoff window is still active.
+  ///
+  /// Unlike [ensurePlayable], this does **not** throw.  Used by segment
+  /// handlers to decide whether a cache-miss should attempt an upstream
+  /// fetch or return 500 immediately.
+  bool get isCircuitBreakerActive {
+    final backoffUntil = _authFailureBackoffUntil;
+    return backoffUntil != null && DateTime.now().isBefore(backoffUntil);
+  }
+
   void touch() {
     lastAccessed = DateTime.now();
   }
@@ -84,6 +103,58 @@ final class NexusPlaybackProxySession {
     } catch (_) {
       // Progress is advisory; segment delivery takes priority.
     }
+  }
+
+  void recordAbrSample({
+    required String variant,
+    required int track,
+    required int segmentIndex,
+    required int bytes,
+    required int fetchElapsedMs,
+  }) {
+    if (bytes <= 0) {
+      return;
+    }
+    // Use video track only for quality estimation to avoid audio-size bias.
+    if (track != 0) {
+      return;
+    }
+    if (fetchElapsedMs <= 0) {
+      return;
+    }
+
+    final mediaDurationMs = _segmentDurationMs(
+      variant: variant,
+      track: track,
+      segmentIndex: segmentIndex,
+    );
+
+    final stats = _abrVariantStats.putIfAbsent(
+      variant,
+      () => _AbrVariantSampleStats(),
+    );
+    stats.addSample(
+      bytes: bytes,
+      fetchElapsedMs: fetchElapsedMs,
+      mediaDurationMs: mediaDurationMs,
+    );
+  }
+
+  int _segmentDurationMs({
+    required String variant,
+    required int track,
+    required int segmentIndex,
+  }) {
+    final blocks = _parsedSegmentBlocks['$variant:$track'];
+    if (blocks == null || blocks.isEmpty) {
+      return 0;
+    }
+    for (final block in blocks) {
+      if (block.segmentIndex == segmentIndex) {
+        return (block.durationSeconds * 1000).round();
+      }
+    }
+    return 0;
   }
 
   /// Ensures the session runtime is in a playable state.
@@ -435,7 +506,11 @@ final class NexusPlaybackProxyServer {
       return;
     }
 
-    _server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+    _server = await HttpServer.bind(
+      InternetAddress.loopbackIPv4,
+      0,
+      backlog: 256,
+    );
     _server!.listen(_handleRequest, onError: (_) {});
     _cleanupTimer ??= Timer.periodic(
       const Duration(minutes: 2),
@@ -444,8 +519,10 @@ final class NexusPlaybackProxyServer {
   }
 
   Future<void> _handleRequest(HttpRequest request) async {
+    NexusPlaybackProxySession? session;
+    List<String>? segments;
     try {
-      final segments = request.uri.pathSegments;
+      segments = request.uri.pathSegments;
       if (segments.length < 3 || segments.first != 'anime-nexus') {
         _writeText(
           request.response,
@@ -455,7 +532,7 @@ final class NexusPlaybackProxyServer {
         return;
       }
 
-      final session = _sessions[segments[1]];
+      session = _sessions[segments[1]];
       if (session == null) {
         _writeText(
           request.response,
@@ -491,6 +568,12 @@ final class NexusPlaybackProxyServer {
         case 'warmup-seek-window':
           await _handleWarmupSeekWindow(request, session);
           return;
+        case 'playlist-info':
+          _handlePlaylistInfo(request, session);
+          return;
+        case 'abr-metrics':
+          _handleAbrMetrics(request, session);
+          return;
         default:
           _writeText(
             request.response,
@@ -498,7 +581,13 @@ final class NexusPlaybackProxyServer {
             body: 'Unknown route',
           );
       }
-    } catch (error) {
+    } catch (error, stackTrace) {
+      final route = segments != null && segments.length >= 3
+          ? segments[2]
+          : 'unknown';
+      session?._log(
+        'request failed route=$route error=$error stack=$stackTrace',
+      );
       _writeText(
         request.response,
         statusCode: HttpStatus.internalServerError,
@@ -585,10 +674,12 @@ final class NexusPlaybackProxyServer {
     NexusPlaybackProxySession session,
     List<String> segments,
   ) async {
+    var degradedMode = false;
     try {
       await session.ensurePlayable().timeout(const Duration(seconds: 15));
     } catch (error) {
-      throw StateError('Anime Nexus variant ensurePlayable failed: $error');
+      degradedMode = true;
+      session._log('serveVariantManifest degraded-continue error=$error');
     }
     final variant = segments[3];
     final track = _parseTerminalInt(segments[4]);
@@ -605,30 +696,57 @@ final class NexusPlaybackProxyServer {
         );
 
     _FetchedManifest manifest;
-    if (seekTargetMs != null) {
-      // Check if a prefetch for this exact seek is already in flight.
-      final prefetchKey = '$variant:$track:$seekTargetMs';
-      final prefetched = session._seekPrefetchCache.remove(prefetchKey);
-      manifest = prefetched != null ? await prefetched : await loader();
+    try {
+      if (seekTargetMs != null) {
+        // Check if a prefetch for this exact seek is already in flight.
+        final prefetchKey = '$variant:$track:$seekTargetMs';
+        final prefetched = session._seekPrefetchCache.remove(prefetchKey);
+        manifest = prefetched != null ? await prefetched : await loader();
 
-      // When serving the video variant (track=0) on seek, proactively
-      // start fetching the sibling audio variant so it is ready when
-      // mpv requests it next.  Saves ~1.5s of sequential latency.
-      if (track == 0) {
-        _prefetchSiblingAudioVariantForSeek(
-          session: session,
-          variant: variant,
-          seekTargetMs: seekTargetMs,
-          request: request,
-        );
+        // When serving the video variant (track=0) on seek, proactively
+        // start fetching the sibling audio variant so it is ready when
+        // mpv requests it next.  Saves ~1.5s of sequential latency.
+        if (track == 0) {
+          _prefetchSiblingAudioVariantForSeek(
+            session: session,
+            variant: variant,
+            seekTargetMs: seekTargetMs,
+            request: request,
+          );
+        }
+      } else {
+        final cacheKey = '$variant:$track';
+        if (degradedMode) {
+          final cachedManifest = session._variantManifestCache[cacheKey];
+          if (cachedManifest != null) {
+            session._log(
+              'serveVariantManifest degraded-cache-hit variant=$variant track=$track',
+            );
+            manifest = await cachedManifest;
+          } else {
+            manifest = await loader();
+          }
+        } else {
+          manifest = await session.getOrCreateVariantManifest(
+            variant: variant,
+            track: track,
+            loader: loader,
+          );
+        }
       }
-    } else {
-      manifest = await session.getOrCreateVariantManifest(
-        variant: variant,
-        track: track,
-        loader: loader,
+    } catch (error) {
+      session._log(
+        'serveVariantManifest failed variant=$variant track=$track '
+        'seekTargetMs=$seekTargetMs error=$error',
       );
+      _writeText(
+        request.response,
+        statusCode: HttpStatus.badGateway,
+        body: 'Variant manifest unavailable',
+      );
+      return;
     }
+
     _writeManifest(request.response, manifest.body);
   }
 
@@ -905,7 +1023,6 @@ final class NexusPlaybackProxyServer {
     NexusPlaybackProxySession session,
     List<String> segments,
   ) async {
-    await session.ensurePlayable().timeout(const Duration(seconds: 15));
     final path = request.uri.queryParameters['path']?.trim() ?? '';
     if (path.isEmpty) {
       _writeText(
@@ -915,6 +1032,38 @@ final class NexusPlaybackProxyServer {
       );
       return;
     }
+
+    // Serve cached init segments without consulting the circuit-breaker.
+    // This prevents native-seek cascading failures where mpv requests
+    // segments that were already prefetched but the breaker is active.
+    final cached = session._initSegmentCache[path];
+    if (cached != null) {
+      session._log('serveInitSegment cache-hit path=$path');
+      try {
+        final upstream = await cached;
+        final bodyLen = upstream.data?.length ?? 0;
+        session._log(
+          'serveInitSegment cache-serve path=$path '
+          'status=${upstream.statusCode} bytes=$bodyLen',
+        );
+        await _writeBinary(
+          request.response,
+          statusCode: upstream.statusCode ?? HttpStatus.badGateway,
+          body: upstream.data ?? const <int>[],
+          contentType:
+              upstream.headers.value(Headers.contentTypeHeader) ??
+              'application/octet-stream',
+          contentLength: upstream.data?.length,
+        );
+      } catch (e) {
+        session._log('serveInitSegment cache-serve-error path=$path error=$e');
+        rethrow;
+      }
+      return;
+    }
+
+    // Cache miss — need upstream fetch.  Enforce playable state.
+    await session.ensurePlayable().timeout(const Duration(seconds: 15));
     session._log('serveInitSegment path=$path');
 
     final upstream = await session.getOrCreateInitSegment(
@@ -937,7 +1086,6 @@ final class NexusPlaybackProxyServer {
     NexusPlaybackProxySession session,
     List<String> segments,
   ) async {
-    await session.ensurePlayable().timeout(const Duration(seconds: 15));
     final variant = segments[3];
     final track = _parseTerminalInt(segments[4]);
     final localSegmentIndex = _parseTerminalInt(segments[5]);
@@ -971,13 +1119,63 @@ final class NexusPlaybackProxyServer {
       );
     }
 
+    final segmentCacheKey = '$effectiveVariant:$effectiveTrack:$segmentIndex';
+
+    // Serve cached segments without consulting the circuit-breaker so that
+    // native-seek doesn't cascade into 500s for already-prefetched data.
+    final cached = session._mediaSegmentCache[segmentCacheKey];
+    if (cached != null) {
+      session._log(
+        'serveMediaSegment cache-hit variant=$effectiveVariant '
+        'track=$effectiveTrack seg=$segmentIndex',
+      );
+      Response<List<int>> upstream;
+      try {
+        upstream = await cached;
+      } catch (error) {
+        session._mediaSegmentCache.remove(segmentCacheKey);
+        session._log(
+          'serveMediaSegment cache-hit-error variant=$effectiveVariant '
+          'track=$effectiveTrack seg=$segmentIndex error=$error',
+        );
+        _writeText(
+          request.response,
+          statusCode: HttpStatus.badGateway,
+          body: 'Segment cache error',
+        );
+        return;
+      }
+      await _writeBinary(
+        request.response,
+        statusCode: upstream.statusCode ?? HttpStatus.badGateway,
+        body: upstream.data ?? const <int>[],
+        contentType:
+            upstream.headers.value(Headers.contentTypeHeader) ??
+            'application/octet-stream',
+        contentLength: upstream.data?.length,
+      );
+      return;
+    }
+
+    // Cache miss — need upstream fetch.
+    // Best-effort gate: do not hard-fail segment delivery when runtime is
+    // temporarily degraded, otherwise we can cascade into 500 loops while
+    // the soft-handover session still has valid tokens.
+    try {
+      await session.ensurePlayable().timeout(const Duration(seconds: 15));
+    } catch (error) {
+      session._log(
+        'serveMediaSegment degraded-continue variant=$effectiveVariant '
+        'track=$effectiveTrack segmentIndex=$segmentIndex error=$error',
+      );
+    }
+
     session._log(
       'serveMediaSegment variant=$effectiveVariant track=$effectiveTrack '
       'segmentIndex=$segmentIndex (absolute=${absoluteSegmentIndex ?? "null"} '
       'local=$localSegmentIndex) path=$path',
     );
 
-    final segmentCacheKey = '$effectiveVariant:$effectiveTrack:$segmentIndex';
     final upstream = await session.getOrCreateMediaSegment(
       cacheKey: segmentCacheKey,
       loader: () => _fetchSegmentWithRetry(
@@ -1097,6 +1295,30 @@ final class NexusPlaybackProxyServer {
       _writeText(request.response, statusCode: HttpStatus.ok, body: 'playable');
     } catch (error) {
       session._log('handleEnsurePlayable failed error=$error');
+
+      // Soft fallback: if we still have (or can fetch) a sessionId,
+      // allow playback attempt in degraded mode instead of hard 503.
+      try {
+        final sessionId = await session.ensureSessionId().timeout(
+          const Duration(seconds: 3),
+        );
+        if (sessionId.trim().isNotEmpty) {
+          session._log(
+            'handleEnsurePlayable degraded-pass sessionId=$sessionId',
+          );
+          _writeText(
+            request.response,
+            statusCode: HttpStatus.ok,
+            body: 'playable-degraded',
+          );
+          return;
+        }
+      } catch (fallbackError) {
+        session._log(
+          'handleEnsurePlayable degraded-pass failed error=$fallbackError',
+        );
+      }
+
       _writeText(
         request.response,
         statusCode: HttpStatus.serviceUnavailable,
@@ -1277,8 +1499,8 @@ final class NexusPlaybackProxyServer {
     }
 
     unawaited(
-      manifestFuture.then((manifest) {
-        _doSegmentSeekPrefetch(
+      manifestFuture.then((manifest) async {
+        await _doSegmentSeekPrefetch(
           session: session,
           manifest: manifest,
           variant: variant,
@@ -1311,13 +1533,13 @@ final class NexusPlaybackProxyServer {
     return <int>[for (var i = start; i <= end; i++) i];
   }
 
-  void _doSegmentSeekPrefetch({
+  Future<void> _doSegmentSeekPrefetch({
     required NexusPlaybackProxySession session,
     required _FetchedManifest manifest,
     required String variant,
     required int track,
     required int targetMs,
-  }) {
+  }) async {
     // FIX 1.3: Log active variant/track for warmup
     session._log(
       'seekWarmup active-variant variant=$variant track=$track targetMs=$targetMs',
@@ -1423,10 +1645,20 @@ final class NexusPlaybackProxyServer {
       return;
     }
 
-    final window = buildAbsoluteSeekWindow(
-      targetSegmentIndex: absoluteTargetIndex,
-      maxSegmentIndex: maxAbsoluteIndex ?? absoluteTargetIndex + 3,
-    );
+    final maxIndex = maxAbsoluteIndex ?? absoluteTargetIndex + 3;
+    final window = track == 0
+        ? <int>[
+            for (
+              var i = max(0, absoluteTargetIndex - 1);
+              i <= min(maxIndex, absoluteTargetIndex + 1);
+              i++
+            )
+              i,
+          ]
+        : buildAbsoluteSeekWindow(
+            targetSegmentIndex: absoluteTargetIndex,
+            maxSegmentIndex: maxIndex,
+          );
 
     // FIX 1.4: Enhanced logging for absolute window
     session._log(
@@ -1440,24 +1672,21 @@ final class NexusPlaybackProxyServer {
 
       final padded = segIdx.toString().padLeft(4, '0');
       final segPath = '${basePath}_${v}_$padded-$t.m4s';
-      unawaited(
-        session
-            .getOrCreateMediaSegment(
-              cacheKey: segCacheKey,
-              loader: () => _fetchSegmentWithRetry(
-                session: session,
-                variant: v,
-                track: trackInt,
-                segmentIndex: segIdx,
-                path: segPath,
-              ),
-            )
-            .then<void>((_) {
-              session._log(
-                'seekPrefetch hit variant=$v track=$trackInt seg=$segIdx',
-              );
-            }, onError: (_) {}),
-      );
+      try {
+        await session.getOrCreateMediaSegment(
+          cacheKey: segCacheKey,
+          loader: () => _fetchSegmentWithRetry(
+            session: session,
+            variant: v,
+            track: trackInt,
+            segmentIndex: segIdx,
+            path: segPath,
+          ),
+        );
+        session._log('seekPrefetch hit variant=$v track=$trackInt seg=$segIdx');
+      } catch (_) {
+        // Best-effort warmup; playback can still fetch segments on demand.
+      }
     }
 
     session._log('seekWarmup complete targetSegment=$absoluteTargetIndex');
@@ -1500,7 +1729,7 @@ final class NexusPlaybackProxyServer {
       try {
         token = await session.worker.getManifestToken(
           manifestPath: manifestPath,
-          videoId: session.episodeId,
+          videoId: session.videoId,
         );
       } catch (error) {
         throw StateError(
@@ -1572,7 +1801,7 @@ final class NexusPlaybackProxyServer {
 
       final token = await session.worker.getManifestToken(
         manifestPath: path,
-        videoId: session.episodeId,
+        videoId: session.videoId,
       );
 
       for (final host in _orderedHosts(session)) {
@@ -1662,10 +1891,11 @@ final class NexusPlaybackProxyServer {
           variant: variant,
           segmentIndex: segmentIndex,
           track: track,
-          videoId: session.episodeId,
+          videoId: session.videoId,
         );
 
         for (final host in _orderedHosts(session)) {
+          final fetchStartedAt = DateTime.now();
           upstream = await _fetchUpstreamBytes(
             session: session,
             sessionId: sessionId,
@@ -1686,6 +1916,15 @@ final class NexusPlaybackProxyServer {
             if (track == 0) {
               unawaited(session.reportProgress(segmentIndex));
             }
+            session.recordAbrSample(
+              variant: variant,
+              track: track,
+              segmentIndex: segmentIndex,
+              bytes: upstream.data?.length ?? 0,
+              fetchElapsedMs: DateTime.now()
+                  .difference(fetchStartedAt)
+                  .inMilliseconds,
+            );
             session._log(
               'fetchSegmentWithRetry success host=$host variant=$variant track=$track segmentIndex=$segmentIndex bytes=${upstream.data?.length ?? 0}',
             );
@@ -1724,6 +1963,12 @@ final class NexusPlaybackProxyServer {
     // Explicit auth/token rejection from CDN → rebuild.
     if (lastUpstreamStatus == 401 || lastUpstreamStatus == 403) {
       return true;
+    }
+    // Non-auth 4xx are usually path/range/content misses or throttling.
+    // Rebuilding the session is counter-productive and can trigger
+    // circuit-breaker cascades.
+    if (lastUpstreamStatus >= 400 && lastUpstreamStatus < 500) {
+      return false;
     }
     // CDN server errors (502, 503, 504) → transient, don't rebuild.
     if (lastUpstreamStatus >= 500) {
@@ -1965,6 +2210,10 @@ final class NexusPlaybackProxyServer {
     if (segmentBlocks.isEmpty) {
       return <String>[...headerLines, ...footerLines].join('\n');
     }
+
+    // Cache parsed blocks on first parse for this variant/track.
+    final cacheKey = '$variant:$track';
+    session._parsedSegmentBlocks.putIfAbsent(cacheKey, () => segmentBlocks);
 
     var startBlockIndex = 0;
     var relativeStartOffsetSeconds = 0.0;
@@ -2266,6 +2515,94 @@ final class NexusPlaybackProxyServer {
     response.write(body);
     unawaited(response.close());
   }
+
+  /// Returns the parsed segment table for all cached variant/track pairs.
+  ///
+  /// The engine can call this once after warmup to obtain the full segment
+  /// map (durations, indices, total duration) without re-parsing manifests.
+  void _handlePlaylistInfo(
+    HttpRequest request,
+    NexusPlaybackProxySession session,
+  ) {
+    final blocks = session._parsedSegmentBlocks;
+    if (blocks.isEmpty) {
+      session._log('playlistInfo empty — no manifests parsed yet');
+      _writeText(request.response, statusCode: HttpStatus.ok, body: '{}');
+      return;
+    }
+
+    final result = <String, Object>{};
+    for (final entry in blocks.entries) {
+      final parts = entry.key.split(':');
+      final variant = parts.first;
+      final track = parts.length > 1 ? int.tryParse(parts[1]) ?? 0 : 0;
+      final segBlocks = entry.value;
+
+      var accumulatedMs = 0.0;
+      final segmentList = <Map<String, Object>>[];
+      for (final block in segBlocks) {
+        final durationMs = (block.durationSeconds * 1000).round();
+        segmentList.add(<String, Object>{
+          'index': block.segmentIndex,
+          'startMs': accumulatedMs.round(),
+          'durationMs': durationMs,
+        });
+        accumulatedMs += block.durationSeconds * 1000;
+      }
+
+      result[entry.key] = <String, Object>{
+        'variant': variant,
+        'track': track,
+        'totalDurationMs': accumulatedMs.round(),
+        'segmentCount': segBlocks.length,
+        'segments': segmentList,
+      };
+    }
+
+    session._log('playlistInfo tracks=${blocks.length}');
+    final response = request.response;
+    response.statusCode = HttpStatus.ok;
+    response.headers.contentType = ContentType.json;
+    response.write(jsonEncode(result));
+    unawaited(response.close());
+  }
+
+  void _handleAbrMetrics(
+    HttpRequest request,
+    NexusPlaybackProxySession session,
+  ) {
+    final result = <String, Object>{};
+    for (final stream in session.masterManifest.streamEntries) {
+      final variant = stream.metadata.variant;
+      final stats = session._abrVariantStats[variant];
+      final networkBytesPerSecond = stats?.estimatedNetworkBytesPerSecond ?? 0;
+      final mediaBytesPerSecond = stats?.estimatedMediaBytesPerSecond ?? 0;
+      result[variant] = <String, Object>{
+        'variant': variant,
+        'declaredBitsPerSecond': _parseBandwidthFromInfoLine(stream.infoLine),
+        'sampleCount': stats?.sampleCount ?? 0,
+        'avgSegmentBytes': stats?.averageSegmentBytes.round() ?? 0,
+        'avgFetchMs': stats?.averageFetchMs.round() ?? 0,
+        'avgMediaDurationMs': stats?.averageMediaDurationMs.round() ?? 0,
+        'measuredNetworkBitsPerSecond': (networkBytesPerSecond * 8).round(),
+        'measuredMediaBitsPerSecond': (mediaBytesPerSecond * 8).round(),
+      };
+    }
+    session._log('abrMetrics variants=${result.length}');
+    final response = request.response;
+    response.statusCode = HttpStatus.ok;
+    response.headers.contentType = ContentType.json;
+    response.write(jsonEncode(result));
+    unawaited(response.close());
+  }
+
+  int _parseBandwidthFromInfoLine(String infoLine) {
+    final match = RegExp(r'BANDWIDTH=(\d+)').firstMatch(infoLine);
+    if (match == null) {
+      return 0;
+    }
+    return int.tryParse(match.group(1) ?? '') ?? 0;
+  }
 }
 
 final class _FetchedManifest {
@@ -2295,6 +2632,50 @@ final class _SeekWindowSelection {
 
   final int blockIndex;
   final double relativeStartOffsetSeconds;
+}
+
+final class _AbrVariantSampleStats {
+  int _sampleCount = 0;
+  int _totalBytes = 0;
+  int _totalFetchMs = 0;
+  int _totalMediaDurationMs = 0;
+
+  int get sampleCount => _sampleCount;
+  double get averageSegmentBytes =>
+      _sampleCount <= 0 ? 0 : _totalBytes / _sampleCount;
+  double get averageFetchMs =>
+      _sampleCount <= 0 ? 0 : _totalFetchMs / _sampleCount;
+  double get averageMediaDurationMs =>
+      _sampleCount <= 0 ? 0 : _totalMediaDurationMs / _sampleCount;
+  double get estimatedNetworkBytesPerSecond {
+    if (_totalFetchMs <= 0) {
+      return 0;
+    }
+    return _totalBytes * 1000 / _totalFetchMs;
+  }
+
+  double get estimatedMediaBytesPerSecond {
+    if (_totalMediaDurationMs <= 0) {
+      return 0;
+    }
+    return _totalBytes * 1000 / _totalMediaDurationMs;
+  }
+
+  void addSample({
+    required int bytes,
+    required int fetchElapsedMs,
+    required int mediaDurationMs,
+  }) {
+    if (bytes <= 0 || fetchElapsedMs <= 0) {
+      return;
+    }
+    _sampleCount++;
+    _totalBytes += bytes;
+    _totalFetchMs += fetchElapsedMs;
+    if (mediaDurationMs > 0) {
+      _totalMediaDurationMs += mediaDurationMs;
+    }
+  }
 }
 
 String generateNexusPlaybackId() {
