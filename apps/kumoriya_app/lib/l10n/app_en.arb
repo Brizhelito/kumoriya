@@ -395,5 +395,21 @@
     "placeholders": {
       "value": {}
     }
-  }
+  },
+  "myListHistory": "History",
+  "myListFavorites": "Favorites",
+  "myListSubscribed": "Subscribed",
+  "myListDownloads": "Downloads",
+  "myListHistoryHint": "Your watch history",
+  "myListFavoritesEmpty": "No favorites yet. Tap the heart on any anime to save it.",
+  "myListSubscribedEmpty": "No subscriptions yet. Subscribe to an anime to get notified of new episodes.",
+  "myListDownloadsEmpty": "Downloads coming soon.",
+  "addFavorite": "Add to favorites",
+  "removeFavorite": "Remove from favorites",
+  "subscribe": "Notify new episodes",
+  "unsubscribe": "Stop notifications",
+  "favoriteAdded": "Added to favorites",
+  "favoriteRemoved": "Removed from favorites",
+  "subscribedLabel": "Subscribed",
+  "unsubscribedLabel": "Unsubscribed"
 }

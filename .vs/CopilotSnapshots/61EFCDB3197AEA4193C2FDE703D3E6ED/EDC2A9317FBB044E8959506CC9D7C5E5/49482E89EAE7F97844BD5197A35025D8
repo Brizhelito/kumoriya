@@ -1,0 +1,77 @@
+﻿import 'package:kumoriya_plugins/kumoriya_plugins.dart';
+
+sealed class ResolverSelection {
+  const ResolverSelection();
+}
+
+final class ResolverSelected extends ResolverSelection {
+  const ResolverSelected({required this.resolver});
+
+  final ResolverPlugin resolver;
+}
+
+final class ResolverNotFound extends ResolverSelection {
+  const ResolverNotFound();
+}
+
+final class ResolverAmbiguous extends ResolverSelection {
+  const ResolverAmbiguous({required this.resolvers});
+
+  final List<ResolverPlugin> resolvers;
+}
+
+final class ResolverRegistry {
+  const ResolverRegistry({required List<ResolverPlugin> resolvers})
+    : _resolvers = resolvers;
+
+  final List<ResolverPlugin> _resolvers;
+
+  ResolverSelection selectFor(Uri url) {
+    final candidates = <ResolverPlugin>[];
+
+    ResolverPlugin? best;
+    var bestPriority = 0;
+    var bestPriorityCount = 0;
+
+    for (final resolver in _resolvers) {
+      if (!resolver.supports(url)) {
+        continue;
+      }
+
+      candidates.add(resolver);
+
+      final resolverPriority = resolver.priority;
+      if (best == null || resolverPriority > bestPriority) {
+        best = resolver;
+        bestPriority = resolverPriority;
+        bestPriorityCount = 1;
+        continue;
+      }
+
+      if (resolverPriority == bestPriority) {
+        bestPriorityCount++;
+        if (resolver.manifest.id.compareTo(best.manifest.id) < 0) {
+          best = resolver;
+        }
+      }
+    }
+
+    if (best == null) {
+      return const ResolverNotFound();
+    }
+
+    if (bestPriorityCount > 1) {
+      candidates.sort((a, b) {
+        final priorityCompare = b.priority.compareTo(a.priority);
+        if (priorityCompare != 0) {
+          return priorityCompare;
+        }
+        return a.manifest.id.compareTo(b.manifest.id);
+      });
+
+      return ResolverAmbiguous(resolvers: candidates);
+    }
+
+    return ResolverSelected(resolver: best);
+  }
+}

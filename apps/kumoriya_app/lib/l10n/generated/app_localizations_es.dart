@@ -612,4 +612,54 @@ class AppLocalizationsEs extends AppLocalizations {
   String playerAudioPreference(Object value) {
     return 'Audio: $value';
   }
+
+  @override
+  String get myListHistory => 'Historial';
+
+  @override
+  String get myListFavorites => 'Favoritos';
+
+  @override
+  String get myListSubscribed => 'Suscritos';
+
+  @override
+  String get myListDownloads => 'Descargas';
+
+  @override
+  String get myListHistoryHint => 'Tu historial de reproduccion';
+
+  @override
+  String get myListFavoritesEmpty =>
+      'Sin favoritos aun. Toca el corazon en cualquier anime para guardarlo.';
+
+  @override
+  String get myListSubscribedEmpty =>
+      'Sin suscripciones aun. Suscribete a un anime para recibir notificaciones de nuevos episodios.';
+
+  @override
+  String get myListDownloadsEmpty => 'Descargas proximamente.';
+
+  @override
+  String get addFavorite => 'Agregar a favoritos';
+
+  @override
+  String get removeFavorite => 'Quitar de favoritos';
+
+  @override
+  String get subscribe => 'Notificar nuevos episodios';
+
+  @override
+  String get unsubscribe => 'Dejar de notificar';
+
+  @override
+  String get favoriteAdded => 'Agregado a favoritos';
+
+  @override
+  String get favoriteRemoved => 'Quitado de favoritos';
+
+  @override
+  String get subscribedLabel => 'Suscrito';
+
+  @override
+  String get unsubscribedLabel => 'No suscrito';
 }

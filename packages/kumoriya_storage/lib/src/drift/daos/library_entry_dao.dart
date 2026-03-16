@@ -30,4 +30,17 @@ class LibraryEntryDao extends DatabaseAccessor<AppDatabase>
       libraryEntryTable,
     )..orderBy([(t) => OrderingTerm.desc(t.addedAt)])).get();
   }
+
+  Future<void> updateSubscription(int anilistId, {required bool notify}) {
+    return (update(libraryEntryTable)
+          ..where((t) => t.anilistId.equals(anilistId)))
+        .write(LibraryEntryTableCompanion(notifyNewEpisodes: Value(notify)));
+  }
+
+  Future<List<LibraryEntryTableData>> getSubscribedEntries() {
+    return (select(libraryEntryTable)
+          ..where((t) => t.notifyNewEpisodes.equals(true))
+          ..orderBy([(t) => OrderingTerm.desc(t.addedAt)]))
+        .get();
+  }
 }

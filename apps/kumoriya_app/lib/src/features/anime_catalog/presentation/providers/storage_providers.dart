@@ -40,6 +40,33 @@ final favoriteAnimeIdsProvider =
       return ref.watch(libraryStoreProvider).getFavoriteAnimeIds();
     });
 
+final subscribedAnimeIdsProvider =
+    FutureProvider.autoDispose<Result<Set<int>, KumoriyaError>>((ref) async {
+      return ref.watch(libraryStoreProvider).getSubscribedAnimeIds();
+    });
+
+final isFavoriteProvider = FutureProvider.autoDispose.family<bool, int>((
+  ref,
+  anilistId,
+) async {
+  final result = await ref.watch(favoriteAnimeIdsProvider.future);
+  return result.fold(
+    onFailure: (_) => false,
+    onSuccess: (ids) => ids.contains(anilistId),
+  );
+});
+
+final isSubscribedProvider = FutureProvider.autoDispose.family<bool, int>((
+  ref,
+  anilistId,
+) async {
+  final result = await ref.watch(subscribedAnimeIdsProvider.future);
+  return result.fold(
+    onFailure: (_) => false,
+    onSuccess: (ids) => ids.contains(anilistId),
+  );
+});
+
 final continueWatchingProvider =
     FutureProvider.autoDispose<Result<List<AnimeWatchHistory>, KumoriyaError>>((
       ref,

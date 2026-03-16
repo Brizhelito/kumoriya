@@ -41,6 +41,13 @@ final class NexusPlaybackProxySession {
       <String, Future<_FetchedManifest>>{};
   final Map<String, Future<_FetchedManifest>> _seekPrefetchCache =
       <String, Future<_FetchedManifest>>{};
+
+  /// O8: Cache for RAW (pre-rewrite) variant manifests keyed by
+  /// `'$variant:$track'`.  The raw body is the CDN response before any
+  /// seek-trimming.  On subsequent seeks we rewrite the cached body locally
+  /// instead of re-fetching from CDN, saving ~300-700ms per variant per seek.
+  final Map<String, _FetchedManifest> _rawVariantManifestCache =
+      <String, _FetchedManifest>{};
   final Map<String, Future<Response<List<int>>>> _initSegmentCache =
       <String, Future<Response<List<int>>>>{};
   final Map<String, Future<Response<List<int>>>> _mediaSegmentCache =
@@ -180,7 +187,6 @@ final class NexusPlaybackProxySession {
 
     // Fast path: runtime is confirmed playable and no rebuild pending.
     if (_readiness == RuntimeReadiness.playable && _rebuildFuture == null) {
-      _log('ensurePlayable fast-path playable');
       return;
     }
 
@@ -313,7 +319,6 @@ final class NexusPlaybackProxySession {
   Future<String> ensureSessionId() async {
     final cached = _sessionId?.trim() ?? '';
     if (cached.isNotEmpty) {
-      _log('ensureSessionId cached sessionId=$cached');
       return cached;
     }
     final sessionId = await worker.getSessionId();
@@ -451,14 +456,15 @@ final class NexusPlaybackProxyServer {
       _variantManifestFutures(session: session, stream: stream),
     );
 
-    // After variant manifests are fetched, prefetch init segments and the
-    // first media segment for each track.  These are the next resources the
-    // HLS demuxer will request — having them cached eliminates ~4-8s of
-    // sequential WS-token + CDN round-trips from the open path.
+    // After variant manifests are fetched, prefetch init segments only.
+    // Media segments are skipped during background priming to avoid congesting
+    // the WS token pipeline — segment tokens are expensive round-trips that
+    // can starve the active variant's critical requests.
     _prefetchInitAndFirstSegments(
       session: session,
       variant: stream.metadata.variant,
       manifests: manifests,
+      prefetchMediaSegments: false,
     );
   }
 
@@ -755,6 +761,7 @@ final class NexusPlaybackProxyServer {
     required String variant,
     required List<_FetchedManifest> manifests,
     int? seekTargetMs,
+    bool prefetchMediaSegments = true,
   }) {
     // When called during a seek, the seek-prefetch path (_doSegmentSeekPrefetch)
     // already handles segment warming using absolute CDN indices.  Fetching
@@ -798,6 +805,10 @@ final class NexusPlaybackProxyServer {
       );
 
       // Prefetch segments 0-2 so ffmpeg has ~12s of content cached per track.
+      // bestEffort: true → single attempt, no rebuild on failure.
+      // Background priming must never trigger runtime rebuilds that could
+      // poison the auth pipeline for the active stream.
+      if (!prefetchMediaSegments) continue;
       for (var segIdx = 0; segIdx < 3; segIdx++) {
         final padded = segIdx.toString().padLeft(4, '0');
         final segPath = '${basePath}_${v}_$padded-$t.m4s';
@@ -812,6 +823,7 @@ final class NexusPlaybackProxyServer {
                   track: trackInt,
                   segmentIndex: segIdx,
                   path: segPath,
+                  bestEffort: true,
                 ),
               )
               .then<void>((_) {}, onError: (_) {}),
@@ -987,35 +999,61 @@ final class NexusPlaybackProxyServer {
     required int track,
     HttpRequest? request,
   }) async {
-    final videoEntry = session.findVideoStream(variant: variant, track: track);
-    final audioEntry = session.findAudioStream(variant: variant, track: track);
-    final manifestPath = videoEntry?.uri.path ?? audioEntry?.uri.path;
-    final manifestHost = videoEntry?.uri.host ?? audioEntry?.uri.host;
-    if (manifestPath == null) {
-      throw StateError('Unknown Anime Nexus variant manifest: $variant/$track');
+    final rawCacheKey = '$variant:$track';
+    final seekTargetMs = _parseSeekTargetMs(request?.requestedUri);
+
+    // O8: Reuse the raw (pre-rewrite) manifest from cache when available.
+    // The raw body from CDN is stable for VOD content — only the seek
+    // trimming differs between calls.  This saves a WS token request
+    // (~100ms) + CDN HTTP fetch (~200-500ms) per variant per seek.
+    var rawManifest = session._rawVariantManifestCache[rawCacheKey];
+    if (rawManifest == null) {
+      final videoEntry = session.findVideoStream(
+        variant: variant,
+        track: track,
+      );
+      final audioEntry = session.findAudioStream(
+        variant: variant,
+        track: track,
+      );
+      final manifestPath = videoEntry?.uri.path ?? audioEntry?.uri.path;
+      final manifestHost = videoEntry?.uri.host ?? audioEntry?.uri.host;
+      if (manifestPath == null) {
+        throw StateError(
+          'Unknown Anime Nexus variant manifest: $variant/$track',
+        );
+      }
+
+      rawManifest = await _fetchSignedManifest(
+        session: session,
+        manifestPath: manifestPath,
+        preferredHost: manifestHost,
+      );
+      session._rawVariantManifestCache[rawCacheKey] = rawManifest;
+      session._log(
+        'loadVariantManifest cdn-fetch variant=$variant track=$track '
+        'manifestPath=$manifestPath realUri=${rawManifest.uri} '
+        'seekTargetMs=$seekTargetMs',
+      );
+    } else {
+      session._log(
+        'loadVariantManifest raw-cache-hit variant=$variant track=$track '
+        'seekTargetMs=$seekTargetMs',
+      );
     }
 
-    final manifest = await _fetchSignedManifest(
-      session: session,
-      manifestPath: manifestPath,
-      preferredHost: manifestHost,
-    );
-    final seekTargetMs = _parseSeekTargetMs(request?.requestedUri);
-    session._log(
-      'loadVariantManifest variant=$variant track=$track manifestPath=$manifestPath realUri=${manifest.uri} seekTargetMs=$seekTargetMs',
-    );
-    final baseUri = manifest.uri.replace(query: '');
+    final baseUri = rawManifest.uri.replace(query: '');
     final rewritten = _rewriteVariantManifest(
       request: request,
       session: session,
       variant: variant,
       track: track,
-      manifestBody: manifest.body,
+      manifestBody: rawManifest.body,
       baseUri: baseUri,
       seekTargetMs: seekTargetMs,
     );
 
-    return _FetchedManifest(body: rewritten, uri: manifest.uri);
+    return _FetchedManifest(body: rewritten, uri: rawManifest.uri);
   }
 
   Future<void> _serveInitSegment(
@@ -1387,13 +1425,11 @@ final class NexusPlaybackProxyServer {
               _variantManifestFutures(session: session, stream: currentStream),
             ).timeout(const Duration(seconds: 10));
 
-            // 2. Await init segments — critical for playback start.
-            await _warmupInitSegments(
-              session: session,
-              manifests: manifests,
-            ).timeout(const Duration(seconds: 8));
-
-            // 3. Fire-and-forget target segment prefetch (non-blocking).
+            // O7: Fire target segment prefetch concurrently with init segment
+            // warmup.  Init segments use manifest tokens while media segments
+            // use segment tokens — different WS commands that can overlap.
+            // This saves ~500ms by starting segment token acquisition while
+            // init segments are still downloading.
             if (targetMs != null && targetMs > 0) {
               final variant = currentStream.metadata.variant;
               final tracksToWarm = <({String variant, int track})>[
@@ -1418,6 +1454,12 @@ final class NexusPlaybackProxyServer {
                 );
               }
             }
+
+            // 2. Await init segments — critical for playback start.
+            await _warmupInitSegments(
+              session: session,
+              manifests: manifests,
+            ).timeout(const Duration(seconds: 8));
 
             session._log(
               'warmupSeekWindow background complete targetMs=$targetMs',
@@ -1646,11 +1688,14 @@ final class NexusPlaybackProxyServer {
     }
 
     final maxIndex = maxAbsoluteIndex ?? absoluteTargetIndex + 3;
+    // O4: Widen video seek window from [N-1..N+1] to [N-2..N+2] (5 segments
+    // ≈ 20s) so ffmpeg has enough cached content for both the keyframe scan
+    // and the first few seconds of playback after seek.
     final window = track == 0
         ? <int>[
             for (
-              var i = max(0, absoluteTargetIndex - 1);
-              i <= min(maxIndex, absoluteTargetIndex + 1);
+              var i = max(0, absoluteTargetIndex - 2);
+              i <= min(maxIndex, absoluteTargetIndex + 2);
               i++
             )
               i,
@@ -1666,28 +1711,39 @@ final class NexusPlaybackProxyServer {
       'window=[${window.join(", ")}] maxIndex=${maxAbsoluteIndex ?? "unknown"}',
     );
 
+    // O3: Parallelize segment prefetch — fire all fetches concurrently instead
+    // of sequential await.  Each getOrCreateMediaSegment is singleflight so
+    // concurrent calls for the same key coalesce safely.
+    final prefetchFutures = <Future<void>>[];
     for (final segIdx in window) {
       final segCacheKey = '$v:$trackInt:$segIdx';
       if (session._mediaSegmentCache.containsKey(segCacheKey)) continue;
 
       final padded = segIdx.toString().padLeft(4, '0');
       final segPath = '${basePath}_${v}_$padded-$t.m4s';
-      try {
-        await session.getOrCreateMediaSegment(
-          cacheKey: segCacheKey,
-          loader: () => _fetchSegmentWithRetry(
-            session: session,
-            variant: v,
-            track: trackInt,
-            segmentIndex: segIdx,
-            path: segPath,
-          ),
-        );
-        session._log('seekPrefetch hit variant=$v track=$trackInt seg=$segIdx');
-      } catch (_) {
-        // Best-effort warmup; playback can still fetch segments on demand.
-      }
+      prefetchFutures.add(
+        session
+            .getOrCreateMediaSegment(
+              cacheKey: segCacheKey,
+              loader: () => _fetchSegmentWithRetry(
+                session: session,
+                variant: v,
+                track: trackInt,
+                segmentIndex: segIdx,
+                path: segPath,
+              ),
+            )
+            .then<void>((_) {
+              session._log(
+                'seekPrefetch hit variant=$v track=$trackInt seg=$segIdx',
+              );
+            })
+            .catchError((_) {
+              // Best-effort warmup; playback can still fetch segments on demand.
+            }),
+      );
     }
+    await Future.wait(prefetchFutures);
 
     session._log('seekWarmup complete targetSegment=$absoluteTargetIndex');
   }
@@ -1713,7 +1769,7 @@ final class NexusPlaybackProxyServer {
           session._log(
             'fetchSignedManifest transient-retry attempt=${attempt + 1} manifestPath=$manifestPath',
           );
-          await Future<void>.delayed(const Duration(milliseconds: 500));
+          await Future<void>.delayed(const Duration(milliseconds: 200));
         }
       }
       lastUpstreamStatus = 0;
@@ -1793,7 +1849,7 @@ final class NexusPlaybackProxyServer {
           session._log(
             'fetchManifestProtectedBytes transient-retry attempt=${attempt + 1} path=$path',
           );
-          await Future<void>.delayed(const Duration(milliseconds: 500));
+          await Future<void>.delayed(const Duration(milliseconds: 200));
         }
       }
       lastMpbStatus = 0;
@@ -1863,12 +1919,14 @@ final class NexusPlaybackProxyServer {
     required int track,
     required int segmentIndex,
     required String path,
+    bool bestEffort = false,
   }) async {
     Response<List<int>>? upstream;
     Object? lastError;
     int lastUpstreamStatus = 0;
+    final maxAttempts = bestEffort ? 1 : 3;
 
-    for (var attempt = 0; attempt < 3; attempt++) {
+    for (var attempt = 0; attempt < maxAttempts; attempt++) {
       if (attempt > 0) {
         if (_shouldRebuildSessionOnRetry(lastError, lastUpstreamStatus)) {
           session._log(
@@ -1879,7 +1937,7 @@ final class NexusPlaybackProxyServer {
           session._log(
             'fetchSegmentWithRetry transient-retry attempt=${attempt + 1} variant=$variant track=$track segmentIndex=$segmentIndex',
           );
-          await Future<void>.delayed(const Duration(milliseconds: 500));
+          await Future<void>.delayed(const Duration(milliseconds: 200));
         }
       }
       lastError = null;
@@ -1991,6 +2049,7 @@ final class NexusPlaybackProxyServer {
     if (msg.contains('connection closed') ||
         msg.contains('eof') ||
         msg.contains('timeout') ||
+        msg.contains('timed out') ||
         msg.contains('reset') ||
         msg.contains('partial') ||
         msg.contains('broken pipe') ||

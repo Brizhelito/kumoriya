@@ -1029,6 +1029,102 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Audio: {value}'**
   String playerAudioPreference(Object value);
+
+  /// No description provided for @myListHistory.
+  ///
+  /// In en, this message translates to:
+  /// **'History'**
+  String get myListHistory;
+
+  /// No description provided for @myListFavorites.
+  ///
+  /// In en, this message translates to:
+  /// **'Favorites'**
+  String get myListFavorites;
+
+  /// No description provided for @myListSubscribed.
+  ///
+  /// In en, this message translates to:
+  /// **'Subscribed'**
+  String get myListSubscribed;
+
+  /// No description provided for @myListDownloads.
+  ///
+  /// In en, this message translates to:
+  /// **'Downloads'**
+  String get myListDownloads;
+
+  /// No description provided for @myListHistoryHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Your watch history'**
+  String get myListHistoryHint;
+
+  /// No description provided for @myListFavoritesEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No favorites yet. Tap the heart on any anime to save it.'**
+  String get myListFavoritesEmpty;
+
+  /// No description provided for @myListSubscribedEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No subscriptions yet. Subscribe to an anime to get notified of new episodes.'**
+  String get myListSubscribedEmpty;
+
+  /// No description provided for @myListDownloadsEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'Downloads coming soon.'**
+  String get myListDownloadsEmpty;
+
+  /// No description provided for @addFavorite.
+  ///
+  /// In en, this message translates to:
+  /// **'Add to favorites'**
+  String get addFavorite;
+
+  /// No description provided for @removeFavorite.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove from favorites'**
+  String get removeFavorite;
+
+  /// No description provided for @subscribe.
+  ///
+  /// In en, this message translates to:
+  /// **'Notify new episodes'**
+  String get subscribe;
+
+  /// No description provided for @unsubscribe.
+  ///
+  /// In en, this message translates to:
+  /// **'Stop notifications'**
+  String get unsubscribe;
+
+  /// No description provided for @favoriteAdded.
+  ///
+  /// In en, this message translates to:
+  /// **'Added to favorites'**
+  String get favoriteAdded;
+
+  /// No description provided for @favoriteRemoved.
+  ///
+  /// In en, this message translates to:
+  /// **'Removed from favorites'**
+  String get favoriteRemoved;
+
+  /// No description provided for @subscribedLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Subscribed'**
+  String get subscribedLabel;
+
+  /// No description provided for @unsubscribedLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Unsubscribed'**
+  String get unsubscribedLabel;
 }
 
 class _AppLocalizationsDelegate

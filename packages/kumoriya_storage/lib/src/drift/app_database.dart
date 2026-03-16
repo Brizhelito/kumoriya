@@ -41,7 +41,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase(super.e);
 
   @override
-  int get schemaVersion => 4;
+  int get schemaVersion => 5;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -49,6 +49,13 @@ class AppDatabase extends _$AppDatabase {
     onUpgrade: (m, from, to) async {
       if (from < 4) {
         await _repairLegacySchema(m);
+      }
+      if (from < 5) {
+        await _ensureColumn(
+          tableName: 'library_entry',
+          columnName: 'notify_new_episodes',
+          sqlDefinition: 'INTEGER NOT NULL DEFAULT 0',
+        );
       }
     },
     beforeOpen: (details) async {

@@ -10,6 +10,7 @@ import 'package:media_kit_video/media_kit_video.dart';
 import '../../../../app/l10n.dart';
 import '../../../../shared/widgets/state_views.dart';
 import '../../../anime_catalog/presentation/providers/storage_providers.dart';
+import '../../application/models/embedded_tracks.dart';
 import '../../application/models/player_session_state.dart';
 import '../../application/services/player_session_orchestrator.dart';
 import '../../application/use_cases/clear_playback_preference_use_case.dart';
@@ -69,6 +70,8 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
   Duration? _resumePosition;
   bool _isScrubbing = false;
   double? _scrubPositionMs;
+  EmbeddedTracks _embeddedTracks = EmbeddedTracks.empty;
+  StreamSubscription<EmbeddedTracks>? _tracksSub;
   late final String _instanceId = identityHashCode(this).toRadixString(16);
 
   double get _episodeNumberDouble =>
@@ -147,6 +150,13 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
     });
 
     _playingSub = engine.playingStream.listen(_onPlayingChanged);
+    _tracksSub = orchestrator.embeddedTracksStream.listen((tracks) {
+      if (!mounted) {
+        _embeddedTracks = tracks;
+        return;
+      }
+      setState(() => _embeddedTracks = tracks);
+    });
     _engine = engine;
     _orchestrator = orchestrator;
   }
@@ -165,10 +175,13 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
     await _playingSub?.cancel();
     await _positionSub?.cancel();
     await _durationSub?.cancel();
+    await _tracksSub?.cancel();
     _sessionSub = null;
     _playingSub = null;
     _positionSub = null;
     _durationSub = null;
+    _tracksSub = null;
+    _embeddedTracks = EmbeddedTracks.empty;
     final orchestrator = _orchestrator;
     _orchestrator = null;
     _engine = null;
@@ -287,7 +300,7 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
       externalSubtitles: widget.resolved.externalSubtitles,
       initialPosition: initialPosition,
     );
-    if (!mounted) return;
+    if (!mounted || _orchestrator != orchestrator) return;
     result.fold(
       onFailure: (error) =>
           setState(() => _startError = mapErrorMessage(context, error)),
@@ -468,8 +481,7 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
                     children: <Widget>[
                       ChoiceChip(
                         label: const Text('Auto'),
-                        selected:
-                            _orchestrator?.isAutoQualityEnabled ?? true,
+                        selected: _orchestrator?.isAutoQualityEnabled ?? true,
                         onSelected: _orchestrator == null
                             ? null
                             : (_) async {
@@ -508,6 +520,36 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
                       ),
                     ],
                   ),
+                  if (_embeddedTracks.hasMultipleAudio ||
+                      _embeddedTracks.hasSubtitles) ...<Widget>[
+                    const SizedBox(height: 8),
+                    Row(
+                      children: <Widget>[
+                        if (_embeddedTracks.hasMultipleAudio)
+                          OutlinedButton.icon(
+                            onPressed: _orchestrator == null
+                                ? null
+                                : () =>
+                                      unawaited(_showAudioTrackPicker(context)),
+                            icon: const Icon(Icons.audiotrack),
+                            label: const Text('Audio'),
+                          ),
+                        if (_embeddedTracks.hasMultipleAudio &&
+                            _embeddedTracks.hasSubtitles)
+                          const SizedBox(width: 8),
+                        if (_embeddedTracks.hasSubtitles)
+                          OutlinedButton.icon(
+                            onPressed: _orchestrator == null
+                                ? null
+                                : () => unawaited(
+                                    _showSubtitleTrackPicker(context),
+                                  ),
+                            icon: const Icon(Icons.subtitles),
+                            label: const Text('Subtítulos'),
+                          ),
+                      ],
+                    ),
+                  ],
                   if (_state.infoMessage != null &&
                       _state.infoMessage!.trim().isNotEmpty) ...<Widget>[
                     const SizedBox(height: 6),
@@ -634,7 +676,8 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
             itemBuilder: (context, index) {
               final stream = items[index];
               final selected =
-                  _state.selectedStream?.url.toString() == stream.url.toString();
+                  _state.selectedStream?.url.toString() ==
+                  stream.url.toString();
               final label = stream.qualityLabel ?? stream.url.toString();
               return ListTile(
                 title: Text(label),
@@ -646,6 +689,93 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
                 },
               );
             },
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _showAudioTrackPicker(BuildContext context) async {
+    final orchestrator = _orchestrator;
+    if (orchestrator == null) return;
+    final tracks = _embeddedTracks.audio;
+    if (tracks.isEmpty) return;
+
+    await showModalBottomSheet<void>(
+      context: context,
+      builder: (context) {
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              const Padding(
+                padding: EdgeInsets.all(16),
+                child: Text(
+                  'Audio',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
+              ),
+              ...tracks.map(
+                (track) => ListTile(
+                  leading: const Icon(Icons.audiotrack),
+                  title: Text(track.displayLabel),
+                  subtitle: track.language != null
+                      ? Text(track.language!)
+                      : null,
+                  onTap: () {
+                    Navigator.of(context).pop();
+                    unawaited(orchestrator.selectEmbeddedAudioTrack(track));
+                  },
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _showSubtitleTrackPicker(BuildContext context) async {
+    final orchestrator = _orchestrator;
+    if (orchestrator == null) return;
+    final tracks = _embeddedTracks.subtitle;
+
+    await showModalBottomSheet<void>(
+      context: context,
+      builder: (context) {
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              const Padding(
+                padding: EdgeInsets.all(16),
+                child: Text(
+                  'Subtítulos',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
+              ),
+              ListTile(
+                leading: const Icon(Icons.subtitles_off),
+                title: const Text('Desactivar'),
+                onTap: () {
+                  Navigator.of(context).pop();
+                  unawaited(orchestrator.clearEmbeddedSubtitleTrack());
+                },
+              ),
+              ...tracks.map(
+                (track) => ListTile(
+                  leading: const Icon(Icons.subtitles),
+                  title: Text(track.displayLabel),
+                  subtitle: track.language != null
+                      ? Text(track.language!)
+                      : null,
+                  onTap: () {
+                    Navigator.of(context).pop();
+                    unawaited(orchestrator.selectEmbeddedSubtitleTrack(track));
+                  },
+                ),
+              ),
+            ],
           ),
         );
       },

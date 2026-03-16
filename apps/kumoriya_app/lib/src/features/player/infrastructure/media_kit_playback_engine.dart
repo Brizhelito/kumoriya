@@ -7,6 +7,7 @@ import 'package:media_kit_video/media_kit_video.dart';
 import 'package:kumoriya_plugins/kumoriya_plugins.dart';
 
 import '../application/services/playback_engine.dart';
+import '../application/models/embedded_tracks.dart';
 
 final class MediaKitPlaybackEngine implements PlaybackEngine {
   static const List<Duration> _hlsPrerollWindows = <Duration>[
@@ -55,9 +56,16 @@ final class MediaKitPlaybackEngine implements PlaybackEngine {
   Uri? _currentAnimeNexusProxyBaseUri;
   String? _currentAnimeNexusPlaybackId;
   String? _currentAnimeNexusVariant;
+
   /// Base master URL for the current anime-nexus stream, without query params.
   /// Used by seekTo() to rebuild the URL with a fresh seekNonce.
   Uri? _currentAnimeNexusMasterUri;
+
+  /// O9: Reused HttpClient for loopback proxy communication.  Avoids
+  /// repeated TCP connection setup overhead across seek-prefetch,
+  /// ensure-playable, and warmup calls.
+  HttpClient? _proxyHttpClient;
+  HttpClient get _proxyClient => _proxyHttpClient ??= HttpClient();
   final List<StreamSubscription<dynamic>> _debugSubscriptions =
       <StreamSubscription<dynamic>>[];
   late final String _instanceId = identityHashCode(this).toRadixString(16);
@@ -88,6 +96,36 @@ final class MediaKitPlaybackEngine implements PlaybackEngine {
       player.stream.bufferingPercentage;
 
   @override
+  Stream<EmbeddedTracks> get embeddedTracksStream =>
+      player.stream.tracks.map(_mapTracks);
+
+  static EmbeddedTracks _mapTracks(Tracks tracks) {
+    final audio = tracks.audio
+        .where((t) => t.id != 'auto' && t.id != 'no')
+        .map(
+          (t) => EmbeddedAudioTrack(
+            id: t.id,
+            title: t.title,
+            language: t.language,
+          ),
+        )
+        .toList(growable: false);
+
+    final subtitle = tracks.subtitle
+        .where((t) => t.id != 'auto' && t.id != 'no')
+        .map(
+          (t) => EmbeddedSubtitleTrack(
+            id: t.id,
+            title: t.title,
+            language: t.language,
+          ),
+        )
+        .toList(growable: false);
+
+    return EmbeddedTracks(audio: audio, subtitle: subtitle);
+  }
+
+  @override
   Future<void> open(ResolvedStream stream, {Duration? startPosition}) async {
     final generation = ++_openGeneration;
     _log(
@@ -103,7 +141,9 @@ final class MediaKitPlaybackEngine implements PlaybackEngine {
       _currentAnimeNexusPlaybackId = _extractAnimeNexusPlaybackId(stream.url);
       _currentAnimeNexusVariant = _extractAnimeNexusVariant(stream.url);
       // Store the base master URL (sans seekNonce) so seekTo() can rebuild it.
-      _currentAnimeNexusMasterUri = stream.url.replace(queryParameters: <String, String>{});
+      _currentAnimeNexusMasterUri = stream.url.replace(
+        queryParameters: <String, String>{},
+      );
       // P0-B: Block until the proxy runtime is confirmed playable.
       await _ensureProxyPlayable();
       // P0-C: Fire-and-forget seek window warmup. The proxy responds
@@ -229,6 +269,28 @@ final class MediaKitPlaybackEngine implements PlaybackEngine {
   }
 
   @override
+  Future<void> setEmbeddedAudioTrack(EmbeddedAudioTrack track) {
+    _log('setEmbeddedAudioTrack id=${track.id} title=${track.title}');
+    return player.setAudioTrack(
+      AudioTrack(track.id, track.title, track.language),
+    );
+  }
+
+  @override
+  Future<void> setEmbeddedSubtitleTrack(EmbeddedSubtitleTrack track) {
+    _log('setEmbeddedSubtitleTrack id=${track.id} title=${track.title}');
+    return player.setSubtitleTrack(
+      SubtitleTrack(track.id, track.title, track.language),
+    );
+  }
+
+  @override
+  Future<void> clearEmbeddedSubtitleTrack() {
+    _log('clearEmbeddedSubtitleTrack');
+    return player.setSubtitleTrack(SubtitleTrack.no());
+  }
+
+  @override
   Future<void> pause() {
     _log('pause');
     return player.pause();
@@ -253,14 +315,9 @@ final class MediaKitPlaybackEngine implements PlaybackEngine {
       // the target position.
       final seekUrl = _buildAnimeNexusSeekUrl(position);
       if (seekUrl != null) {
-        _log(
-          'seekTo anime-nexus-reopen target=$position seekUrl=$seekUrl',
-        );
+        _log('seekTo anime-nexus-reopen target=$position seekUrl=$seekUrl');
         await _openAnimeNexusManagedSeekWindow(
-          ResolvedStream(
-            url: seekUrl,
-            isHls: true,
-          ),
+          ResolvedStream(url: seekUrl, isHls: true),
           requestedPosition: position,
         );
         return;
@@ -297,7 +354,7 @@ final class MediaKitPlaybackEngine implements PlaybackEngine {
 
     // Fire-and-forget — prefetch is best-effort and must not block seek.
     unawaited(
-      HttpClient()
+      _proxyClient
           .getUrl(prefetchUri)
           .then((req) => req.close())
           .then((_) {})
@@ -322,8 +379,7 @@ final class MediaKitPlaybackEngine implements PlaybackEngine {
     _log('recovery open blocked waiting for playable runtime');
 
     try {
-      final client = HttpClient();
-      final request = await client
+      final request = await _proxyClient
           .getUrl(uri)
           .timeout(const Duration(seconds: 18));
       final response = await request.close().timeout(
@@ -331,7 +387,6 @@ final class MediaKitPlaybackEngine implements PlaybackEngine {
       );
       final statusCode = response.statusCode;
       await response.drain<void>();
-      client.close(force: false);
       _log('ensureProxyPlayable status=$statusCode');
 
       if (statusCode != HttpStatus.ok) {
@@ -368,15 +423,13 @@ final class MediaKitPlaybackEngine implements PlaybackEngine {
     _log('warmupProxySeekWindow start target=$startPosition uri=$uri');
 
     try {
-      final client = HttpClient();
-      final request = await client
+      final request = await _proxyClient
           .getUrl(uri)
           .timeout(const Duration(seconds: 12));
       final response = await request.close().timeout(
         const Duration(seconds: 12),
       );
       await response.drain<void>();
-      client.close(force: false);
       _log('warmupProxySeekWindow complete status=${response.statusCode}');
     } catch (error) {
       // Warmup is best-effort — don't block open on warmup failure.
@@ -388,6 +441,8 @@ final class MediaKitPlaybackEngine implements PlaybackEngine {
   Future<void> dispose() async {
     _disposed = true;
     _videoOutputFallbackTimer?.cancel();
+    _proxyHttpClient?.close(force: true);
+    _proxyHttpClient = null;
     for (final subscription in _debugSubscriptions) {
       await subscription.cancel();
     }
@@ -472,7 +527,14 @@ final class MediaKitPlaybackEngine implements PlaybackEngine {
       'hls-windowed-reopen start url=${stream.url} requested=$requestedPosition',
     );
     _throwIfInvalidated(generation);
-    await player.stop();
+    // O11: Fire warmup-seek-window concurrently with player.stop().
+    // player.stop() takes ~100-300ms and is independent of the proxy's
+    // warmup work (fetching init segments + target media segments).
+    // Overlapping them shaves ~100-300ms off the seek critical path.
+    await Future.wait(<Future<void>>[
+      player.stop(),
+      _warmupProxySeekWindow(requestedPosition),
+    ]);
     _throwIfInvalidated(generation);
     final openPhaseStart = DateTime.now();
     await player.open(
@@ -935,6 +997,11 @@ final class MediaKitPlaybackEngine implements PlaybackEngine {
         // fill — the proxy pre-warms init segments and first media segments
         // so data is already available when mpv begins requesting it.
         properties.add(platform.setProperty('cache-pause-initial', 'no'));
+        // O12: Disable cache-induced pause entirely.  The proxy guarantees
+        // pre-warmed content for both initial open and seeks, so mpv should
+        // never stall waiting for cache to fill.  cache-pause-wait defaults
+        // to 1s which adds unnecessary latency after every seek.
+        properties.add(platform.setProperty('cache-pause', 'no'));
         // Keep a seekable demuxer cache so backward seeks within
         // already-downloaded content are near-instant without re-fetching.
         properties.add(platform.setProperty('demuxer-seekable-cache', 'yes'));
@@ -1081,6 +1148,16 @@ final class MediaKitPlaybackEngine implements PlaybackEngine {
       player.stream.log.listen((event) {
         final lower = '${event.prefix} ${event.level} ${event.text}'
             .toLowerCase();
+        // Suppress known benign mpv/platform messages that are not actionable.
+        const suppressed = [
+          'failed to create egl surface',
+          'property not found',
+          'failed to create file cache',
+          'reading plaintext playlist',
+        ];
+        if (suppressed.any((p) => lower.contains(p))) {
+          return;
+        }
         final shouldLog =
             event.level == 'error' ||
             event.level == 'warn' ||

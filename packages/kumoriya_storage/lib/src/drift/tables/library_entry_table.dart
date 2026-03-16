@@ -6,6 +6,8 @@ class LibraryEntryTable extends Table {
 
   IntColumn get anilistId => integer()();
   IntColumn get addedAt => integer()();
+  BoolColumn get notifyNewEpisodes =>
+      boolean().withDefault(const Constant(false))();
 
   @override
   Set<Column<Object>> get primaryKey => {anilistId};

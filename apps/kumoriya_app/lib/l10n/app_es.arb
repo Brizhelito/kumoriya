@@ -395,5 +395,21 @@
     "placeholders": {
       "value": {}
     }
-  }
+  },
+  "myListHistory": "Historial",
+  "myListFavorites": "Favoritos",
+  "myListSubscribed": "Suscritos",
+  "myListDownloads": "Descargas",
+  "myListHistoryHint": "Tu historial de reproduccion",
+  "myListFavoritesEmpty": "Sin favoritos aun. Toca el corazon en cualquier anime para guardarlo.",
+  "myListSubscribedEmpty": "Sin suscripciones aun. Suscribete a un anime para recibir notificaciones de nuevos episodios.",
+  "myListDownloadsEmpty": "Descargas proximamente.",
+  "addFavorite": "Agregar a favoritos",
+  "removeFavorite": "Quitar de favoritos",
+  "subscribe": "Notificar nuevos episodios",
+  "unsubscribe": "Dejar de notificar",
+  "favoriteAdded": "Agregado a favoritos",
+  "favoriteRemoved": "Quitado de favoritos",
+  "subscribedLabel": "Suscrito",
+  "unsubscribedLabel": "No suscrito"
 }

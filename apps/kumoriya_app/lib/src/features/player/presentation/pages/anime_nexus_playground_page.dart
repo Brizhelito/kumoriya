@@ -46,6 +46,7 @@ class _AnimeNexusPlaygroundPageState extends State<AnimeNexusPlaygroundPage> {
   Duration _currentDuration = Duration.zero;
   bool _isPlaying = false;
   bool _isBuffering = false;
+  DateTime _lastTimelineLogTime = DateTime(0);
   bool _forceSoftwareVideoOutput =
       defaultTargetPlatform == TargetPlatform.windows;
   bool _isResolving = false;
@@ -101,12 +102,16 @@ class _AnimeNexusPlaygroundPageState extends State<AnimeNexusPlaygroundPage> {
       final orch = _orchestrator;
       final orchManaged = orch?.isManagedTimeline ?? false;
       final orchBase = orch?.timelineBase ?? Duration.zero;
-      _appendLog(
-        'timelineDomain ui-received managed=$orchManaged '
-        'base=${orchBase.inMilliseconds}ms '
-        'position=${position.inMilliseconds}ms '
-        'duration=${_currentDuration.inMilliseconds}ms',
-      );
+      final now = DateTime.now();
+      if (now.difference(_lastTimelineLogTime) > const Duration(seconds: 1)) {
+        _lastTimelineLogTime = now;
+        _appendLog(
+          'timelineDomain ui-received managed=$orchManaged '
+          'base=${orchBase.inMilliseconds}ms '
+          'position=${position.inMilliseconds}ms '
+          'duration=${_currentDuration.inMilliseconds}ms',
+        );
+      }
       setState(() => _currentPosition = position);
     });
     _durationSubscription = orchestrator.durationStream.listen((duration) {
@@ -120,12 +125,16 @@ class _AnimeNexusPlaygroundPageState extends State<AnimeNexusPlaygroundPage> {
       final orch = _orchestrator;
       final orchManaged = orch?.isManagedTimeline ?? false;
       final orchBase = orch?.timelineBase ?? Duration.zero;
-      _appendLog(
-        'timelineDomain ui-received managed=$orchManaged '
-        'base=${orchBase.inMilliseconds}ms '
-        'position=${_currentPosition.inMilliseconds}ms '
-        'duration=${duration.inMilliseconds}ms',
-      );
+      final now = DateTime.now();
+      if (now.difference(_lastTimelineLogTime) > const Duration(seconds: 1)) {
+        _lastTimelineLogTime = now;
+        _appendLog(
+          'timelineDomain ui-received managed=$orchManaged '
+          'base=${orchBase.inMilliseconds}ms '
+          'position=${_currentPosition.inMilliseconds}ms '
+          'duration=${duration.inMilliseconds}ms',
+        );
+      }
       setState(() => _currentDuration = duration);
     });
     _playingSubscription = engine.playingStream.listen((playing) {
@@ -234,7 +243,7 @@ class _AnimeNexusPlaygroundPageState extends State<AnimeNexusPlaygroundPage> {
           return;
         }
         final startResult = await orchestrator.start(streamCandidates: streams);
-        if (!mounted) {
+        if (!mounted || _orchestrator != orchestrator) {
           return;
         }
         startResult.fold(
@@ -300,7 +309,7 @@ class _AnimeNexusPlaygroundPageState extends State<AnimeNexusPlaygroundPage> {
       streamCandidates: _resolvedStreams,
       initialPosition: resumePosition,
     );
-    if (!mounted) {
+    if (!mounted || _orchestrator != orchestrator) {
       return;
     }
     result.fold(
@@ -398,7 +407,7 @@ class _AnimeNexusPlaygroundPageState extends State<AnimeNexusPlaygroundPage> {
     }
     setState(() {
       _logs.add(message);
-        if (_logs.length > 5000) {
+      if (_logs.length > 5000) {
         _logs.removeAt(0);
       }
     });
@@ -528,12 +537,16 @@ class _AnimeNexusPlaygroundPageState extends State<AnimeNexusPlaygroundPage> {
     final orchManaged = orch?.isManagedTimeline ?? false;
     final orchBase = orch?.timelineBase ?? Duration.zero;
     if (effectiveDuration > Duration.zero) {
-      _appendLog(
-        'timelineDomain ui-render managed=$orchManaged '
-        'sliderValue=${effectivePositionMs.toStringAsFixed(0)}ms '
-        'sliderMax=${effectiveDurationMs.toStringAsFixed(0)}ms '
-        'left=$leftLabel right=$rightLabel',
-      );
+      final now = DateTime.now();
+      if (now.difference(_lastTimelineLogTime) > const Duration(seconds: 1)) {
+        _lastTimelineLogTime = now;
+        _appendLog(
+          'timelineDomain ui-render managed=$orchManaged '
+          'sliderValue=${effectivePositionMs.toStringAsFixed(0)}ms '
+          'sliderMax=${effectiveDurationMs.toStringAsFixed(0)}ms '
+          'left=$leftLabel right=$rightLabel',
+        );
+      }
       // Defensive invariant: if orchestrator says managed=false, the UI must
       // not behave as if managed=true.  Since the UI derives everything from
       // the orchestrator's streams, this should never fire.

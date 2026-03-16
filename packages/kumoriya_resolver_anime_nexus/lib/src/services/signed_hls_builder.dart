@@ -70,24 +70,33 @@ final class NexusSignedHlsBuilder {
     final fallbackHost = masterManifest.streamEntries.first.uri.host.isNotEmpty
         ? masterManifest.streamEntries.first.uri.host
         : Uri.parse(NexusConstants.cdnBase).host;
-    final candidateHosts = await _edgeSelector
-        .candidateHosts(fallbackHost: fallbackHost)
-        .timeout(
-          const Duration(milliseconds: 1200),
-          onTimeout: () => <String>[fallbackHost],
-        );
+    // O6: Parallelize worker spawn with CDN edge selection.  They are
+    // independent — the worker needs masterManifestUrl (already available)
+    // while edge selection needs fallbackHost (just computed).  Running
+    // both concurrently saves ~200-500ms on the critical open path.
+    late final List<String> candidateHosts;
+    late final NexusPlaybackSessionWorker worker;
+    final results = await Future.wait(<Future<Object>>[
+      _edgeSelector
+          .candidateHosts(fallbackHost: fallbackHost)
+          .timeout(
+            const Duration(milliseconds: 1200),
+            onTimeout: () => <String>[fallbackHost],
+          ),
+      NexusPlaybackSessionWorker.spawn(
+        episodeId: episodeId,
+        fingerprint: browserSession.fingerprint,
+        cookieHeader: cookieHeader,
+        m3u8Url: masterManifestUrl.toString(),
+        wsRef: attestRef,
+        onDebugLog: _debugLogSink,
+      ),
+    ]);
+    candidateHosts = results[0] as List<String>;
+    worker = results[1] as NexusPlaybackSessionWorker;
     _log(
       'build candidate-hosts hosts=${candidateHosts.join(",")} '
       'streams=${masterManifest.streamEntries.length}',
-    );
-
-    final worker = await NexusPlaybackSessionWorker.spawn(
-      episodeId: episodeId,
-      fingerprint: browserSession.fingerprint,
-      cookieHeader: cookieHeader,
-      m3u8Url: masterManifestUrl.toString(),
-      wsRef: attestRef,
-      onDebugLog: _debugLogSink,
     );
 
     try {
@@ -114,12 +123,9 @@ final class NexusSignedHlsBuilder {
       // Startup optimization: return playable proxy URLs immediately and
       // perform quality warmup in the background.
       _startBackgroundWarmup(
-        worker: worker,
         proxyServer: proxyServer,
         proxySession: proxySession,
-        masterManifest: masterManifest,
         sortedStreams: sortedStreams,
-        episodeId: episodeId,
       );
 
       // Build local proxy URLs immediately for all qualities.
@@ -164,75 +170,38 @@ final class NexusSignedHlsBuilder {
     return int.tryParse(label?.replaceAll(RegExp(r'[^0-9]'), '') ?? '') ?? 0;
   }
 
-  Future<void> _validateWorkerSession({
-    required NexusPlaybackSessionWorker worker,
-    required NexusMasterManifest masterManifest,
-    required NexusVideoStreamEntry primaryStream,
-    required String episodeId,
-  }) async {
-    _log(
-      'validate-worker episodeId=$episodeId '
-      'primaryVariant=${primaryStream.metadata.variant}',
-    );
-    await worker.getSessionId();
-
-    final audioGroupId = primaryStream.audioGroupId;
-    if (audioGroupId != null) {
-      final audioStream = masterManifest.audioEntries.firstWhere(
-        (entry) => entry.groupId == audioGroupId,
-        orElse: () => throw const NexusSignedHlsException(
-          'Anime Nexus primary stream did not expose a matching audio track.',
-        ),
-      );
-      await worker.getManifestToken(
-        manifestPath: audioStream.uri.path,
-        videoId: episodeId,
-      );
-    }
-
-    await worker.getManifestToken(
-      manifestPath: primaryStream.uri.path,
-      videoId: episodeId,
-    );
-  }
-
   void _startBackgroundWarmup({
-    required NexusPlaybackSessionWorker worker,
     required NexusPlaybackProxyServer proxyServer,
     required NexusPlaybackProxySession proxySession,
-    required NexusMasterManifest masterManifest,
     required List<NexusVideoStreamEntry> sortedStreams,
-    required String episodeId,
   }) {
     unawaited(
       Future<void>(() async {
         try {
-          await _validateWorkerSession(
-            worker: worker,
-            masterManifest: masterManifest,
-            primaryStream: sortedStreams.first,
-            episodeId: episodeId,
-          );
+          // Grace period so the first player open gets priority on the WS
+          // command channel.  Increased back to 1500ms from 300ms: the active
+          // variant needs several WS round-trips for manifests + init segments
+          // before background priming should compete for WS bandwidth.
+          await Future<void>.delayed(const Duration(milliseconds: 1500));
         } catch (error) {
-          _log('build background-validate-failed error=$error');
+          _log('build background-warmup-delay-failed error=$error');
         }
 
-        for (final stream in sortedStreams) {
-          try {
-            await proxyServer.primeStream(
-              session: proxySession,
-              stream: stream,
-            );
-            _log(
-              'build prime-stream-background quality=${stream.qualityLabel} '
-              'variant=${stream.metadata.variant} track=${stream.metadata.track}',
-            );
-          } catch (error) {
-            _log(
-              'build background-prime-failed quality=${stream.qualityLabel} '
-              'variant=${stream.metadata.variant} track=${stream.metadata.track} error=$error',
-            );
-          }
+        // Conservative warmup on mobile: avoid priming all qualities in the
+        // background, which can starve the initial open and cause 500s on
+        // init/segment fetch under constrained devices.
+        final primary = sortedStreams.first;
+        try {
+          await proxyServer.primeStream(session: proxySession, stream: primary);
+          _log(
+            'build prime-stream-background quality=${primary.qualityLabel} '
+            'variant=${primary.metadata.variant} track=${primary.metadata.track}',
+          );
+        } catch (error) {
+          _log(
+            'build background-prime-failed quality=${primary.qualityLabel} '
+            'variant=${primary.metadata.variant} track=${primary.metadata.track} error=$error',
+          );
         }
       }),
     );

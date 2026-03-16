@@ -202,6 +202,8 @@ class _AnimeDetailBody extends StatelessWidget {
           sliver: SliverList(
             delegate: SliverChildListDelegate(<Widget>[
               _TitleBlock(detail: detail),
+              const SizedBox(height: 12),
+              _LibraryActions(anilistId: detail.anime.anilistId),
               const SizedBox(height: 18),
               _PlaybackSummaryCard(availabilityState: availabilityState),
               if (detail.synopsis != null &&
@@ -281,6 +283,17 @@ class _AnimeDetailBody extends StatelessWidget {
                         contentPadding: EdgeInsets.zero,
                         title: Text(relation.anime.title.romaji),
                         subtitle: Text(relation.type.name),
+                        trailing: const Icon(
+                          Icons.chevron_right_rounded,
+                          color: KumoriyaColors.textDisabled,
+                        ),
+                        onTap: () => Navigator.of(context).push(
+                          MaterialPageRoute<void>(
+                            builder: (_) => AnimeDetailPage(
+                              anilistId: relation.anime.anilistId,
+                            ),
+                          ),
+                        ),
                       ),
                     ),
               ],
@@ -938,6 +951,110 @@ class _DetailContextChip extends StatelessWidget {
           fontWeight: FontWeight.w800,
           color: KumoriyaColors.primary,
           letterSpacing: 0.5,
+        ),
+      ),
+    );
+  }
+}
+
+class _LibraryActions extends ConsumerWidget {
+  const _LibraryActions({required this.anilistId});
+
+  final int anilistId;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final isFavAsync = ref.watch(isFavoriteProvider(anilistId));
+    final isSubAsync = ref.watch(isSubscribedProvider(anilistId));
+
+    final isFav = isFavAsync.maybeWhen(data: (v) => v, orElse: () => false);
+    final isSub = isSubAsync.maybeWhen(data: (v) => v, orElse: () => false);
+
+    return Row(
+      children: <Widget>[
+        _ActionButton(
+          icon: isFav ? Icons.favorite_rounded : Icons.favorite_border_rounded,
+          label: isFav ? context.l10n.removeFavorite : context.l10n.addFavorite,
+          active: isFav,
+          onTap: () async {
+            await ref
+                .read(libraryStoreProvider)
+                .setFavorite(anilistId, isFavorite: !isFav);
+            ref.invalidate(favoriteAnimeIdsProvider);
+          },
+        ),
+        const SizedBox(width: 10),
+        _ActionButton(
+          icon: isSub
+              ? Icons.notifications_active_rounded
+              : Icons.notifications_none_rounded,
+          label: isSub ? context.l10n.unsubscribe : context.l10n.subscribe,
+          active: isSub,
+          onTap: isFav
+              ? () async {
+                  await ref
+                      .read(libraryStoreProvider)
+                      .setSubscription(anilistId, notify: !isSub);
+                  ref.invalidate(subscribedAnimeIdsProvider);
+                }
+              : null,
+        ),
+      ],
+    );
+  }
+}
+
+class _ActionButton extends StatelessWidget {
+  const _ActionButton({
+    required this.icon,
+    required this.label,
+    required this.active,
+    this.onTap,
+  });
+
+  final IconData icon;
+  final String label;
+  final bool active;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final disabled = onTap == null;
+    final color = disabled
+        ? KumoriyaColors.textDisabled
+        : active
+        ? KumoriyaColors.primary
+        : KumoriyaColors.textSecondary;
+
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        decoration: BoxDecoration(
+          color: active
+              ? KumoriyaColors.primary.withValues(alpha: 0.12)
+              : KumoriyaColors.surface,
+          borderRadius: BorderRadius.circular(KumoriyaRadius.full),
+          border: Border.all(
+            color: active
+                ? KumoriyaColors.primary.withValues(alpha: 0.35)
+                : KumoriyaColors.borderSubtle,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            Icon(icon, size: 16, color: color),
+            const SizedBox(width: 6),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: color,
+              ),
+            ),
+          ],
         ),
       ),
     );

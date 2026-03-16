@@ -7,4 +7,11 @@ abstract interface class LibraryStore {
   });
 
   Future<Result<Set<int>, KumoriyaError>> getFavoriteAnimeIds();
+
+  Future<Result<void, KumoriyaError>> setSubscription(
+    int anilistId, {
+    required bool notify,
+  });
+
+  Future<Result<Set<int>, KumoriyaError>> getSubscribedAnimeIds();
 }

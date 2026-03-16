@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart';
 import 'package:kumoriya_core/kumoriya_core.dart';
 import 'package:kumoriya_plugins/kumoriya_plugins.dart';
 
+import '../models/embedded_tracks.dart';
 import '../models/player_session_state.dart';
 import 'playback_engine.dart';
 import 'stream_selection_policy.dart';
@@ -134,6 +135,30 @@ final class PlayerSessionOrchestrator {
   bool get isAutoQualityEnabled => _autoQualityEnabled;
   List<ResolvedStream> get qualityCandidates =>
       List<ResolvedStream>.unmodifiable(_rankedCandidates);
+
+  /// Embedded audio/subtitle tracks reported by the playback engine.
+  Stream<EmbeddedTracks> get embeddedTracksStream =>
+      _playbackEngine.embeddedTracksStream;
+
+  /// Select an embedded audio track for the current playback session.
+  Future<void> selectEmbeddedAudioTrack(EmbeddedAudioTrack track) async {
+    _log('selectEmbeddedAudioTrack id=${track.id} label=${track.displayLabel}');
+    await _playbackEngine.setEmbeddedAudioTrack(track);
+  }
+
+  /// Select an embedded subtitle track for the current playback session.
+  Future<void> selectEmbeddedSubtitleTrack(EmbeddedSubtitleTrack track) async {
+    _log(
+      'selectEmbeddedSubtitleTrack id=${track.id} label=${track.displayLabel}',
+    );
+    await _playbackEngine.setEmbeddedSubtitleTrack(track);
+  }
+
+  /// Disable the currently active embedded subtitle track.
+  Future<void> clearEmbeddedSubtitleTrack() async {
+    _log('clearEmbeddedSubtitleTrack');
+    await _playbackEngine.clearEmbeddedSubtitleTrack();
+  }
 
   Future<void> setAutoQualityEnabled(bool enabled) async {
     _autoQualityEnabled = enabled;
@@ -346,6 +371,9 @@ final class PlayerSessionOrchestrator {
 
       if (_isAnimeNexusLoopbackHls(candidate.url) &&
           targetPosition > Duration.zero) {
+        // O2: Fire seek-prefetch BEFORE native seek so the proxy starts
+        // warming target segments while ffmpeg prepares the seek internally.
+        _playbackEngine.signalPredictivePrewarm(targetPosition);
         _applySeekTimelineAnchor(targetPosition);
       }
 
@@ -646,7 +674,8 @@ final class PlayerSessionOrchestrator {
       // _lastRequestedSeekPosition survives confirmation and is never
       // cleared, so it acts as a durable fallback that prevents position
       // loss during candidate failover.
-      final seekTarget = _activeSeekSession?.targetPosition ??
+      final seekTarget =
+          _activeSeekSession?.targetPosition ??
           _pendingTargetPosition ??
           _lastRequestedSeekPosition ??
           (_lastKnownPosition > Duration.zero ? _lastKnownPosition : null);
@@ -983,6 +1012,12 @@ final class PlayerSessionOrchestrator {
     _log(
       'playbackError error=$error buffering=$_isBuffering position=$_lastKnownPosition pendingTarget=$_pendingTargetPosition',
     );
+    // Late runtime errors from a superseded open must not override a stream
+    // that is already playing.
+    if (_isPlaying && !_isBuffering) {
+      _log('playbackError ignored while actively playing error=$error');
+      return;
+    }
     if (_isAnimeNexusSeekSessionActive) {
       _log(
         'playbackError anime-nexus-seek-session error=$error action=escalate-seek-session',
@@ -1263,12 +1298,25 @@ final class PlayerSessionOrchestrator {
   }
 
   void _startBufferingTimeoutWatch() {
+    final timerGeneration = _openGeneration;
+    final timerCandidateIndex = _currentCandidateIndex;
     _bufferingTimer?.cancel();
     _bufferingTimer = Timer(_bufferingTimeout, () {
       _log(
-        'bufferingTimeout fired status=${_state.status} recoveries=$_recoveriesForCurrentCandidate pendingTarget=$_pendingTargetPosition position=$_lastKnownPosition',
+        'bufferingTimeout fired status=${_state.status} recoveries=$_recoveriesForCurrentCandidate pendingTarget=$_pendingTargetPosition position=$_lastKnownPosition generation=$timerGeneration currentGeneration=$_openGeneration timerIndex=$timerCandidateIndex currentIndex=$_currentCandidateIndex',
       );
+      if (timerGeneration != _openGeneration ||
+          timerCandidateIndex != _currentCandidateIndex) {
+        _log(
+          'bufferingTimeout stale ignored generation=$timerGeneration currentGeneration=$_openGeneration timerIndex=$timerCandidateIndex currentIndex=$_currentCandidateIndex',
+        );
+        return;
+      }
       if (_state.status != PlayerSessionStatus.buffering) {
+        return;
+      }
+      if (_isPlaying) {
+        _log('bufferingTimeout ignored because playback is already active');
         return;
       }
       if (_isAnimeNexusSeekSessionActive) {
@@ -1351,29 +1399,36 @@ final class PlayerSessionOrchestrator {
     }
 
     final first = _rankedCandidates.first;
-    final isAnimeNexusHls =
-        first.isHls && _isAnimeNexusLoopbackHls(first.url);
-    if (!isAnimeNexusHls) {
-      return 0;
+    final isAnimeNexusHls = first.isHls && _isAnimeNexusLoopbackHls(first.url);
+
+    // Throughput-based selection (Anime Nexus only — requires proxy ABR endpoint).
+    if (isAnimeNexusHls) {
+      await _refreshAbrMetricsFromProxy();
+      final throughputIndex = _indexByThroughputEstimate();
+      if (throughputIndex >= 0) {
+        _log(
+          'autoQuality startup throughput-index=$throughputIndex '
+          'variant=${_variantFromUrl(_rankedCandidates[throughputIndex].url)}',
+        );
+        return throughputIndex;
+      }
     }
 
-    await _refreshAbrMetricsFromProxy();
-
-    var preferredIndex = _indexByThroughputEstimate();
-    if (preferredIndex < 0) {
-      // Fallback heuristic: safer startup around 720p.
-      preferredIndex = _rankedCandidates.length - 1;
-      var bestDelta = 1 << 30;
-      for (var i = 0; i < _rankedCandidates.length; i++) {
-        final score = _qualityScore(_rankedCandidates[i]);
-        if (score == null) {
-          continue;
-        }
-        final delta = (score - 720).abs();
-        if (score <= 720 && delta < bestDelta) {
-          preferredIndex = i;
-          bestDelta = delta;
-        }
+    // Universal 720p-first heuristic: pick the candidate closest to 720p
+    // (but not above) regardless of resolver.  This is the YouTube-like
+    // "safe startup" behaviour — start at a moderate quality, then auto-
+    // upgrade once playback is stable.
+    var preferredIndex = _rankedCandidates.length - 1;
+    var bestDelta = 1 << 30;
+    for (var i = 0; i < _rankedCandidates.length; i++) {
+      final score = _qualityScore(_rankedCandidates[i]);
+      if (score == null) {
+        continue;
+      }
+      final delta = (score - 720).abs();
+      if (score <= 720 && delta < bestDelta) {
+        preferredIndex = i;
+        bestDelta = delta;
       }
     }
 
@@ -1433,9 +1488,9 @@ final class PlayerSessionOrchestrator {
 
     final client = HttpClient()..connectionTimeout = const Duration(seconds: 1);
     try {
-      final request = await client.getUrl(uri).timeout(
-        const Duration(milliseconds: 900),
-      );
+      final request = await client
+          .getUrl(uri)
+          .timeout(const Duration(milliseconds: 900));
       final response = await request.close().timeout(
         const Duration(milliseconds: 900),
       );
@@ -1585,7 +1640,8 @@ final class PlayerSessionOrchestrator {
         ),
       );
       return _openCurrentCandidate(
-        startPosition: _activeSeekSession?.targetPosition ??
+        startPosition:
+            _activeSeekSession?.targetPosition ??
             _pendingTargetPosition ??
             _lastRequestedSeekPosition ??
             (_lastKnownPosition > Duration.zero ? _lastKnownPosition : null),
@@ -1916,6 +1972,15 @@ final class PlayerSessionOrchestrator {
           _pendingTargetPosition != null ||
           _isRecoveringCurrentCandidate ||
           _currentCandidateIndex >= _rankedCandidates.length - 1) {
+        return;
+      }
+      // Don't downshift if the demuxer hasn't parsed content yet — the player
+      // is still loading manifests/init segments and the buffering is expected.
+      if (_lastKnownDuration <= Duration.zero) {
+        _log(
+          'autoQuality downshift skip reason=no-duration-yet '
+          'index=$_currentCandidateIndex',
+        );
         return;
       }
       final lowOccupancy =

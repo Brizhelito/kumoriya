@@ -214,11 +214,11 @@ final class NexusPlaybackSessionWorker {
         return const Duration(seconds: 12);
       case 'getInitialManifestToken':
       case 'getManifestToken':
-        return const Duration(seconds: 15);
+        return const Duration(seconds: 8);
       case 'getSegmentToken':
-        return const Duration(seconds: 15);
+        return const Duration(seconds: 6);
       case 'sendProgress':
-        return const Duration(seconds: 5);
+        return const Duration(seconds: 3);
       case 'getSessionId':
       case 'close':
         return const Duration(seconds: 5);
