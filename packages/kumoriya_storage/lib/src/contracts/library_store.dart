@@ -14,4 +14,13 @@ abstract interface class LibraryStore {
   });
 
   Future<Result<Set<int>, KumoriyaError>> getSubscribedAnimeIds();
+
+  /// Returns a map of anilistId → lastNotifiedEpisode (null if never notified)
+  /// for all subscribed entries.
+  Future<Result<Map<int, int?>, KumoriyaError>> getSubscribedWithLastEpisode();
+
+  Future<Result<void, KumoriyaError>> updateLastNotifiedEpisode(
+    int anilistId,
+    int episodeNumber,
+  );
 }

@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -6,6 +8,7 @@ import 'package:kumoriya_core/kumoriya_core.dart';
 import 'package:kumoriya_domain/kumoriya_domain.dart';
 import 'package:kumoriya_plugins/kumoriya_plugins.dart';
 import 'package:kumoriya_storage/kumoriya_storage.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 import '../../../../app/l10n.dart';
 import '../../../../shared/theme/kumoriya_theme.dart';
@@ -992,6 +995,12 @@ class _LibraryActions extends ConsumerWidget {
           active: isSub,
           onTap: isFav
               ? () async {
+                  // Request POST_NOTIFICATIONS permission on Android 13+
+                  // before toggling subscription on.
+                  if (!isSub && Platform.isAndroid) {
+                    final status = await Permission.notification.request();
+                    if (!status.isGranted) return;
+                  }
                   await ref
                       .read(libraryStoreProvider)
                       .setSubscription(anilistId, notify: !isSub);

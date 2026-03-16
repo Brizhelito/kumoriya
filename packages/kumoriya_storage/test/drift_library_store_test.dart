@@ -139,5 +139,53 @@ void main() {
       final ids = (idsResult as Success<Set<int>, KumoriyaError>).value;
       expect(ids.length, 1);
     });
+
+    // ─── lastNotifiedEpisode tests ───────────────────────────────────────
+
+    test('updateLastNotifiedEpisode persists value', () async {
+      await store.setFavorite(100, isFavorite: true);
+      await store.setSubscription(100, notify: true);
+
+      final result = await store.updateLastNotifiedEpisode(100, 7);
+      expect(result, isA<Success>());
+
+      final mapResult = await store.getSubscribedWithLastEpisode();
+      final map =
+          (mapResult as Success<Map<int, int?>, KumoriyaError>).value;
+      expect(map[100], equals(7));
+    });
+
+    test('getSubscribedWithLastEpisode returns null for unset episode', () async {
+      await store.setFavorite(200, isFavorite: true);
+      await store.setSubscription(200, notify: true);
+
+      final mapResult = await store.getSubscribedWithLastEpisode();
+      final map =
+          (mapResult as Success<Map<int, int?>, KumoriyaError>).value;
+      expect(map[200], isNull);
+    });
+
+    test('getSubscribedWithLastEpisode only returns subscribed entries', () async {
+      await store.setFavorite(100, isFavorite: true);
+      await store.setFavorite(200, isFavorite: true);
+      await store.setSubscription(100, notify: true);
+      // 200 is favorite but NOT subscribed
+
+      final mapResult = await store.getSubscribedWithLastEpisode();
+      final map =
+          (mapResult as Success<Map<int, int?>, KumoriyaError>).value;
+      expect(map.containsKey(100), isTrue);
+      expect(map.containsKey(200), isFalse);
+    });
+
+    test('updateLastNotifiedEpisode on non-existent row is no-op', () async {
+      final result = await store.updateLastNotifiedEpisode(999, 5);
+      expect(result, isA<Success>());
+
+      final mapResult = await store.getSubscribedWithLastEpisode();
+      final map =
+          (mapResult as Success<Map<int, int?>, KumoriyaError>).value;
+      expect(map.containsKey(999), isFalse);
+    });
   });
 }

@@ -85,4 +85,42 @@ final class DriftLibraryStore implements LibraryStore {
       );
     }
   }
+
+  @override
+  Future<Result<Map<int, int?>, KumoriyaError>>
+  getSubscribedWithLastEpisode() async {
+    try {
+      final rows = await _dao.getSubscribedEntries();
+      return Success({
+        for (final r in rows) r.anilistId: r.lastNotifiedEpisode,
+      });
+    } catch (e) {
+      return Failure(
+        SimpleError(
+          code: 'storage.library_read_subscribed_failed',
+          message: 'Failed to read subscribed with episode: $e',
+          kind: KumoriyaErrorKind.unexpected,
+        ),
+      );
+    }
+  }
+
+  @override
+  Future<Result<void, KumoriyaError>> updateLastNotifiedEpisode(
+    int anilistId,
+    int episodeNumber,
+  ) async {
+    try {
+      await _dao.updateLastNotifiedEpisode(anilistId, episodeNumber);
+      return const Success(null);
+    } catch (e) {
+      return Failure(
+        SimpleError(
+          code: 'storage.library_update_last_notified_failed',
+          message: 'Failed to update last notified episode: $e',
+          kind: KumoriyaErrorKind.unexpected,
+        ),
+      );
+    }
+  }
 }

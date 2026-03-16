@@ -2836,8 +2836,23 @@ class $LibraryEntryTableTable extends LibraryEntryTable
     ),
     defaultValue: const Constant(false),
   );
+  static const VerificationMeta _lastNotifiedEpisodeMeta =
+      const VerificationMeta('lastNotifiedEpisode');
   @override
-  List<GeneratedColumn> get $columns => [anilistId, addedAt, notifyNewEpisodes];
+  late final GeneratedColumn<int> lastNotifiedEpisode = GeneratedColumn<int>(
+    'last_notified_episode',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    anilistId,
+    addedAt,
+    notifyNewEpisodes,
+    lastNotifiedEpisode,
+  ];
   @override
   String get aliasedName => _alias ?? actualTableName;
   @override
@@ -2873,6 +2888,15 @@ class $LibraryEntryTableTable extends LibraryEntryTable
         ),
       );
     }
+    if (data.containsKey('last_notified_episode')) {
+      context.handle(
+        _lastNotifiedEpisodeMeta,
+        lastNotifiedEpisode.isAcceptableOrUnknown(
+          data['last_notified_episode']!,
+          _lastNotifiedEpisodeMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -2894,6 +2918,10 @@ class $LibraryEntryTableTable extends LibraryEntryTable
         DriftSqlType.bool,
         data['${effectivePrefix}notify_new_episodes'],
       )!,
+      lastNotifiedEpisode: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}last_notified_episode'],
+      ),
     );
   }
 
@@ -2908,10 +2936,12 @@ class LibraryEntryTableData extends DataClass
   final int anilistId;
   final int addedAt;
   final bool notifyNewEpisodes;
+  final int? lastNotifiedEpisode;
   const LibraryEntryTableData({
     required this.anilistId,
     required this.addedAt,
     required this.notifyNewEpisodes,
+    this.lastNotifiedEpisode,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -2919,6 +2949,9 @@ class LibraryEntryTableData extends DataClass
     map['anilist_id'] = Variable<int>(anilistId);
     map['added_at'] = Variable<int>(addedAt);
     map['notify_new_episodes'] = Variable<bool>(notifyNewEpisodes);
+    if (!nullToAbsent || lastNotifiedEpisode != null) {
+      map['last_notified_episode'] = Variable<int>(lastNotifiedEpisode);
+    }
     return map;
   }
 
@@ -2927,6 +2960,9 @@ class LibraryEntryTableData extends DataClass
       anilistId: Value(anilistId),
       addedAt: Value(addedAt),
       notifyNewEpisodes: Value(notifyNewEpisodes),
+      lastNotifiedEpisode: lastNotifiedEpisode == null && nullToAbsent
+          ? const Value.absent()
+          : Value(lastNotifiedEpisode),
     );
   }
 
@@ -2939,6 +2975,9 @@ class LibraryEntryTableData extends DataClass
       anilistId: serializer.fromJson<int>(json['anilistId']),
       addedAt: serializer.fromJson<int>(json['addedAt']),
       notifyNewEpisodes: serializer.fromJson<bool>(json['notifyNewEpisodes']),
+      lastNotifiedEpisode: serializer.fromJson<int?>(
+        json['lastNotifiedEpisode'],
+      ),
     );
   }
   @override
@@ -2948,6 +2987,7 @@ class LibraryEntryTableData extends DataClass
       'anilistId': serializer.toJson<int>(anilistId),
       'addedAt': serializer.toJson<int>(addedAt),
       'notifyNewEpisodes': serializer.toJson<bool>(notifyNewEpisodes),
+      'lastNotifiedEpisode': serializer.toJson<int?>(lastNotifiedEpisode),
     };
   }
 
@@ -2955,10 +2995,14 @@ class LibraryEntryTableData extends DataClass
     int? anilistId,
     int? addedAt,
     bool? notifyNewEpisodes,
+    Value<int?> lastNotifiedEpisode = const Value.absent(),
   }) => LibraryEntryTableData(
     anilistId: anilistId ?? this.anilistId,
     addedAt: addedAt ?? this.addedAt,
     notifyNewEpisodes: notifyNewEpisodes ?? this.notifyNewEpisodes,
+    lastNotifiedEpisode: lastNotifiedEpisode.present
+        ? lastNotifiedEpisode.value
+        : this.lastNotifiedEpisode,
   );
   LibraryEntryTableData copyWithCompanion(LibraryEntryTableCompanion data) {
     return LibraryEntryTableData(
@@ -2967,6 +3011,9 @@ class LibraryEntryTableData extends DataClass
       notifyNewEpisodes: data.notifyNewEpisodes.present
           ? data.notifyNewEpisodes.value
           : this.notifyNewEpisodes,
+      lastNotifiedEpisode: data.lastNotifiedEpisode.present
+          ? data.lastNotifiedEpisode.value
+          : this.lastNotifiedEpisode,
     );
   }
 
@@ -2975,20 +3022,23 @@ class LibraryEntryTableData extends DataClass
     return (StringBuffer('LibraryEntryTableData(')
           ..write('anilistId: $anilistId, ')
           ..write('addedAt: $addedAt, ')
-          ..write('notifyNewEpisodes: $notifyNewEpisodes')
+          ..write('notifyNewEpisodes: $notifyNewEpisodes, ')
+          ..write('lastNotifiedEpisode: $lastNotifiedEpisode')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode => Object.hash(anilistId, addedAt, notifyNewEpisodes);
+  int get hashCode =>
+      Object.hash(anilistId, addedAt, notifyNewEpisodes, lastNotifiedEpisode);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
       (other is LibraryEntryTableData &&
           other.anilistId == this.anilistId &&
           other.addedAt == this.addedAt &&
-          other.notifyNewEpisodes == this.notifyNewEpisodes);
+          other.notifyNewEpisodes == this.notifyNewEpisodes &&
+          other.lastNotifiedEpisode == this.lastNotifiedEpisode);
 }
 
 class LibraryEntryTableCompanion
@@ -2996,25 +3046,31 @@ class LibraryEntryTableCompanion
   final Value<int> anilistId;
   final Value<int> addedAt;
   final Value<bool> notifyNewEpisodes;
+  final Value<int?> lastNotifiedEpisode;
   const LibraryEntryTableCompanion({
     this.anilistId = const Value.absent(),
     this.addedAt = const Value.absent(),
     this.notifyNewEpisodes = const Value.absent(),
+    this.lastNotifiedEpisode = const Value.absent(),
   });
   LibraryEntryTableCompanion.insert({
     this.anilistId = const Value.absent(),
     required int addedAt,
     this.notifyNewEpisodes = const Value.absent(),
+    this.lastNotifiedEpisode = const Value.absent(),
   }) : addedAt = Value(addedAt);
   static Insertable<LibraryEntryTableData> custom({
     Expression<int>? anilistId,
     Expression<int>? addedAt,
     Expression<bool>? notifyNewEpisodes,
+    Expression<int>? lastNotifiedEpisode,
   }) {
     return RawValuesInsertable({
       if (anilistId != null) 'anilist_id': anilistId,
       if (addedAt != null) 'added_at': addedAt,
       if (notifyNewEpisodes != null) 'notify_new_episodes': notifyNewEpisodes,
+      if (lastNotifiedEpisode != null)
+        'last_notified_episode': lastNotifiedEpisode,
     });
   }
 
@@ -3022,11 +3078,13 @@ class LibraryEntryTableCompanion
     Value<int>? anilistId,
     Value<int>? addedAt,
     Value<bool>? notifyNewEpisodes,
+    Value<int?>? lastNotifiedEpisode,
   }) {
     return LibraryEntryTableCompanion(
       anilistId: anilistId ?? this.anilistId,
       addedAt: addedAt ?? this.addedAt,
       notifyNewEpisodes: notifyNewEpisodes ?? this.notifyNewEpisodes,
+      lastNotifiedEpisode: lastNotifiedEpisode ?? this.lastNotifiedEpisode,
     );
   }
 
@@ -3042,6 +3100,9 @@ class LibraryEntryTableCompanion
     if (notifyNewEpisodes.present) {
       map['notify_new_episodes'] = Variable<bool>(notifyNewEpisodes.value);
     }
+    if (lastNotifiedEpisode.present) {
+      map['last_notified_episode'] = Variable<int>(lastNotifiedEpisode.value);
+    }
     return map;
   }
 
@@ -3050,7 +3111,8 @@ class LibraryEntryTableCompanion
     return (StringBuffer('LibraryEntryTableCompanion(')
           ..write('anilistId: $anilistId, ')
           ..write('addedAt: $addedAt, ')
-          ..write('notifyNewEpisodes: $notifyNewEpisodes')
+          ..write('notifyNewEpisodes: $notifyNewEpisodes, ')
+          ..write('lastNotifiedEpisode: $lastNotifiedEpisode')
           ..write(')'))
         .toString();
   }
@@ -5357,12 +5419,14 @@ typedef $$LibraryEntryTableTableCreateCompanionBuilder =
       Value<int> anilistId,
       required int addedAt,
       Value<bool> notifyNewEpisodes,
+      Value<int?> lastNotifiedEpisode,
     });
 typedef $$LibraryEntryTableTableUpdateCompanionBuilder =
     LibraryEntryTableCompanion Function({
       Value<int> anilistId,
       Value<int> addedAt,
       Value<bool> notifyNewEpisodes,
+      Value<int?> lastNotifiedEpisode,
     });
 
 class $$LibraryEntryTableTableFilterComposer
@@ -5386,6 +5450,11 @@ class $$LibraryEntryTableTableFilterComposer
 
   ColumnFilters<bool> get notifyNewEpisodes => $composableBuilder(
     column: $table.notifyNewEpisodes,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get lastNotifiedEpisode => $composableBuilder(
+    column: $table.lastNotifiedEpisode,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -5413,6 +5482,11 @@ class $$LibraryEntryTableTableOrderingComposer
     column: $table.notifyNewEpisodes,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<int> get lastNotifiedEpisode => $composableBuilder(
+    column: $table.lastNotifiedEpisode,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$LibraryEntryTableTableAnnotationComposer
@@ -5432,6 +5506,11 @@ class $$LibraryEntryTableTableAnnotationComposer
 
   GeneratedColumn<bool> get notifyNewEpisodes => $composableBuilder(
     column: $table.notifyNewEpisodes,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get lastNotifiedEpisode => $composableBuilder(
+    column: $table.lastNotifiedEpisode,
     builder: (column) => column,
   );
 }
@@ -5479,20 +5558,24 @@ class $$LibraryEntryTableTableTableManager
                 Value<int> anilistId = const Value.absent(),
                 Value<int> addedAt = const Value.absent(),
                 Value<bool> notifyNewEpisodes = const Value.absent(),
+                Value<int?> lastNotifiedEpisode = const Value.absent(),
               }) => LibraryEntryTableCompanion(
                 anilistId: anilistId,
                 addedAt: addedAt,
                 notifyNewEpisodes: notifyNewEpisodes,
+                lastNotifiedEpisode: lastNotifiedEpisode,
               ),
           createCompanionCallback:
               ({
                 Value<int> anilistId = const Value.absent(),
                 required int addedAt,
                 Value<bool> notifyNewEpisodes = const Value.absent(),
+                Value<int?> lastNotifiedEpisode = const Value.absent(),
               }) => LibraryEntryTableCompanion.insert(
                 anilistId: anilistId,
                 addedAt: addedAt,
                 notifyNewEpisodes: notifyNewEpisodes,
+                lastNotifiedEpisode: lastNotifiedEpisode,
               ),
           withReferenceMapper: (p0) => p0
               .map((e) => (e.readTable(table), BaseReferences(db, table, e)))

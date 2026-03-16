@@ -157,3 +157,23 @@ query AnimeDetail($id: Int) {
   }
 }
 ''';
+
+/// Lightweight batch query used by the background worker to check for
+/// newly-aired episodes across all subscribed animes in a single request.
+const String batchAiringStatusQuery = r'''
+query BatchAiringStatus($ids: [Int]) {
+  Page(perPage: 50) {
+    media(id_in: $ids, type: ANIME) {
+      id
+      title {
+        romaji
+        english
+      }
+      nextAiringEpisode {
+        episode
+        airingAt
+      }
+    }
+  }
+}
+''';

@@ -8,6 +8,8 @@ class LibraryEntryTable extends Table {
   IntColumn get addedAt => integer()();
   BoolColumn get notifyNewEpisodes =>
       boolean().withDefault(const Constant(false))();
+  // Last episode number for which a notification was sent (null = never notified)
+  IntColumn get lastNotifiedEpisode => integer().nullable()();
 
   @override
   Set<Column<Object>> get primaryKey => {anilistId};

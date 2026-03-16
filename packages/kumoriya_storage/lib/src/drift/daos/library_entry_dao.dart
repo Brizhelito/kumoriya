@@ -43,4 +43,12 @@ class LibraryEntryDao extends DatabaseAccessor<AppDatabase>
           ..orderBy([(t) => OrderingTerm.desc(t.addedAt)]))
         .get();
   }
+
+  Future<void> updateLastNotifiedEpisode(int anilistId, int episodeNumber) {
+    return (update(
+      libraryEntryTable,
+    )..where((t) => t.anilistId.equals(anilistId))).write(
+      LibraryEntryTableCompanion(lastNotifiedEpisode: Value(episodeNumber)),
+    );
+  }
 }
