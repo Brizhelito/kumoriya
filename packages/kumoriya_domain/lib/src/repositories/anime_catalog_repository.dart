@@ -22,6 +22,13 @@ abstract interface class AnimeCatalogRepository {
     int perPage = 20,
   });
 
+  Future<Result<List<Anime>, KumoriyaError>> fetchAiringCalendar({
+    DateTime? from,
+    DateTime? to,
+    int page = 1,
+    int perPage = 50,
+  });
+
   Future<Result<List<Anime>, KumoriyaError>> searchAnime(
     AnimeSearchRequest request,
   );

@@ -16,6 +16,10 @@ query TrendingAnime(
       episodes
       averageScore
       status
+      nextAiringEpisode {
+        episode
+        airingAt
+      }
       coverImage {
         large
         medium
@@ -44,9 +48,51 @@ query SearchAnime(
       episodes
       averageScore
       status
+      nextAiringEpisode {
+        episode
+        airingAt
+      }
       coverImage {
         large
         medium
+      }
+    }
+  }
+}
+''';
+
+const String airingCalendarQuery = r'''
+query AiringCalendar(
+  $page: Int,
+  $perPage: Int,
+  $airingAtGreater: Int,
+  $airingAtLesser: Int
+) {
+  Page(page: $page, perPage: $perPage) {
+    airingSchedules(
+      notYetAired: true,
+      sort: [TIME],
+      airingAt_greater: $airingAtGreater,
+      airingAt_lesser: $airingAtLesser
+    ) {
+      episode
+      airingAt
+      media {
+        id
+        title {
+          romaji
+          english
+          native
+        }
+        format
+        seasonYear
+        episodes
+        averageScore
+        status
+        coverImage {
+          large
+          medium
+        }
       }
     }
   }

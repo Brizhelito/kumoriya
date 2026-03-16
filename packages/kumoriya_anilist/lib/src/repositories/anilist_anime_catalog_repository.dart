@@ -24,6 +24,22 @@ final class AnilistAnimeCatalogRepository implements AnimeCatalogRepository {
   }
 
   @override
+  Future<Result<List<Anime>, KumoriyaError>> fetchAiringCalendar({
+    DateTime? from,
+    DateTime? to,
+    int page = 1,
+    int perPage = 50,
+  }) async {
+    final result = await _gateway.fetchAiringCalendar(
+      from: from,
+      to: to,
+      page: page,
+      perPage: perPage,
+    );
+    return result.fold(onSuccess: _mapAnimeList, onFailure: Failure.new);
+  }
+
+  @override
   Future<Result<List<Anime>, KumoriyaError>> searchAnime(
     AnimeSearchRequest request,
   ) async {

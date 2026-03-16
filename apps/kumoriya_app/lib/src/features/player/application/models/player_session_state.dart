@@ -18,6 +18,7 @@ final class PlayerSessionState {
     this.infoMessage,
     this.currentCandidateIndex = 0,
     this.totalCandidates = 0,
+    this.errorGeneration = -1,
   });
 
   const PlayerSessionState.idle() : this(status: PlayerSessionStatus.idle);
@@ -29,6 +30,15 @@ final class PlayerSessionState {
   final int currentCandidateIndex;
   final int totalCandidates;
 
+  /// The open generation that produced the current [errorMessage].
+  ///
+  /// Defaults to `-1` (no error generation).  Set by [_fail] calls inside
+  /// `_openCurrentCandidate` to the generation counter at the time of failure.
+  /// Used by the success emit to decide whether to clear a stale error:
+  /// if [errorGeneration] < current open generation, the error is stale and
+  /// should be cleared.
+  final int errorGeneration;
+
   PlayerSessionState copyWith({
     PlayerSessionStatus? status,
     ResolvedStream? selectedStream,
@@ -36,6 +46,7 @@ final class PlayerSessionState {
     String? infoMessage,
     int? currentCandidateIndex,
     int? totalCandidates,
+    int? errorGeneration,
     bool clearError = false,
     bool clearInfo = false,
   }) {
@@ -47,6 +58,9 @@ final class PlayerSessionState {
       currentCandidateIndex:
           currentCandidateIndex ?? this.currentCandidateIndex,
       totalCandidates: totalCandidates ?? this.totalCandidates,
+      errorGeneration: clearError
+          ? -1
+          : errorGeneration ?? this.errorGeneration,
     );
   }
 }

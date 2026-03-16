@@ -55,6 +55,9 @@ final class MediaKitPlaybackEngine implements PlaybackEngine {
   Uri? _currentAnimeNexusProxyBaseUri;
   String? _currentAnimeNexusPlaybackId;
   String? _currentAnimeNexusVariant;
+  /// Base master URL for the current anime-nexus stream, without query params.
+  /// Used by seekTo() to rebuild the URL with a fresh seekNonce.
+  Uri? _currentAnimeNexusMasterUri;
   final List<StreamSubscription<dynamic>> _debugSubscriptions =
       <StreamSubscription<dynamic>>[];
   late final String _instanceId = identityHashCode(this).toRadixString(16);
@@ -78,6 +81,13 @@ final class MediaKitPlaybackEngine implements PlaybackEngine {
   Stream<Duration> get durationStream => player.stream.duration;
 
   @override
+  Stream<Duration> get bufferStream => player.stream.buffer;
+
+  @override
+  Stream<double> get bufferingPercentageStream =>
+      player.stream.bufferingPercentage;
+
+  @override
   Future<void> open(ResolvedStream stream, {Duration? startPosition}) async {
     final generation = ++_openGeneration;
     _log(
@@ -92,6 +102,8 @@ final class MediaKitPlaybackEngine implements PlaybackEngine {
       );
       _currentAnimeNexusPlaybackId = _extractAnimeNexusPlaybackId(stream.url);
       _currentAnimeNexusVariant = _extractAnimeNexusVariant(stream.url);
+      // Store the base master URL (sans seekNonce) so seekTo() can rebuild it.
+      _currentAnimeNexusMasterUri = stream.url.replace(queryParameters: <String, String>{});
       // P0-B: Block until the proxy runtime is confirmed playable.
       await _ensureProxyPlayable();
       // P0-C: Fire-and-forget seek window warmup. The proxy responds
@@ -102,11 +114,34 @@ final class MediaKitPlaybackEngine implements PlaybackEngine {
       _currentAnimeNexusProxyBaseUri = null;
       _currentAnimeNexusPlaybackId = null;
       _currentAnimeNexusVariant = null;
+      _currentAnimeNexusMasterUri = null;
     }
     await _configureDecoderForStream(stream);
     _scheduleVideoOutputFallbackCheck(stream);
-    if (_isAnimeNexusLoopback(stream.url) &&
-        (startPosition == null || startPosition <= Duration.zero)) {
+    if (_isAnimeNexusLoopback(stream.url)) {
+      if (startPosition != null && startPosition > Duration.zero) {
+        // Trimmed-manifest seek: add seekNonce so the proxy trims both
+        // video and audio variant manifests to start at the target segment.
+        // mpv's ffmpeg HLS demuxer only re-fetches video segments on native
+        // seek, leaving audio stuck — trimmed manifests avoid native seek
+        // entirely by letting mpv start at the right segment for all tracks.
+        final seekUrl = _appendSeekNonce(stream.url, startPosition);
+        _log(
+          'anime-nexus-seek-open reopen-with-trimmed-manifest '
+          'target=$startPosition seekUrl=$seekUrl',
+        );
+        await _openAnimeNexusManagedSeekWindow(
+          ResolvedStream(
+            url: seekUrl,
+            qualityLabel: stream.qualityLabel,
+            mimeType: stream.mimeType,
+            isHls: stream.isHls,
+            headers: stream.headers,
+          ),
+          requestedPosition: startPosition,
+        );
+        return;
+      }
       await _openAnimeNexusInitialStream(stream);
       return;
     }
@@ -206,9 +241,34 @@ final class MediaKitPlaybackEngine implements PlaybackEngine {
   }
 
   @override
-  Future<void> seekTo(Duration position) {
+  Future<void> seekTo(Duration position) async {
     _log('seekTo position=$position');
     _signalSeekPrefetch(position);
+    if (_currentAnimeNexusProxyBaseUri != null) {
+      // Anime Nexus multi-track HLS: reopen with trimmed manifest instead
+      // of native seek.  mpv's ffmpeg HLS demuxer does not re-fetch audio
+      // segments on native seek — only video — leaving playback stuck in
+      // buffering forever.  Reopening with seekNonce makes the proxy trim
+      // both audio and video manifests so mpv initialises all tracks from
+      // the target position.
+      final seekUrl = _buildAnimeNexusSeekUrl(position);
+      if (seekUrl != null) {
+        _log(
+          'seekTo anime-nexus-reopen target=$position seekUrl=$seekUrl',
+        );
+        await _openAnimeNexusManagedSeekWindow(
+          ResolvedStream(
+            url: seekUrl,
+            isHls: true,
+          ),
+          requestedPosition: position,
+        );
+        return;
+      }
+      // Fallback: if we can't build the seek URL, try native seek.
+      await _seekWhenReady(position);
+      return;
+    }
     return player.seek(position);
   }
 
@@ -922,6 +982,28 @@ final class MediaKitPlaybackEngine implements PlaybackEngine {
       return false;
     }
     return true;
+  }
+
+  /// Appends `seekNonce` query parameter to an anime-nexus master URL.
+  /// The proxy uses this to serve trimmed variant manifests starting at
+  /// the target segment — ensuring both video and audio tracks initialize
+  /// from the seek position.
+  Uri _appendSeekNonce(Uri url, Duration position) {
+    return url.replace(
+      queryParameters: <String, String>{
+        ...url.queryParameters,
+        'seekNonce': position.inMilliseconds.toString(),
+      },
+    );
+  }
+
+  /// Builds an anime-nexus master URL with seekNonce from the stored master URI.
+  /// Preserves the original variant/track path so the proxy routes correctly.
+  /// Returns null if no stream is currently open.
+  Uri? _buildAnimeNexusSeekUrl(Duration position) {
+    final masterUri = _currentAnimeNexusMasterUri;
+    if (masterUri == null) return null;
+    return _appendSeekNonce(masterUri, position);
   }
 
   bool _shouldUseSoftwareVideoOutput() {

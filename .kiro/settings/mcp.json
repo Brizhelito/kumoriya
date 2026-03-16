@@ -1,0 +1,27 @@
+{
+  "mcpServers": {
+    "dart-mcp-server": {
+      "args": [
+        "mcp-server"
+      ],
+      "command": "C:\\flutter\\bin\\dart.bat",
+      "disabled": false,
+      "autoApprove": [
+        "*",
+        "run_tests",
+        "remove_roots",
+        "add_roots"
+      ]
+    },
+    "kumoriya-mcp": {
+      "args": [
+        "C:\\Users\\Reny\\Documents\\MCP\\kumoriya_mcp_premium\\dist"
+      ],
+      "command": "node",
+      "autoApprove": [
+        "*"
+      ],
+      "disabled": false
+    }
+  }
+}

@@ -126,6 +126,12 @@ final getHomeCatalogUseCaseProvider = Provider<GetHomeCatalogUseCase>((ref) {
   return GetHomeCatalogUseCase(ref.watch(animeCatalogRepositoryProvider));
 });
 
+final getCalendarCatalogUseCaseProvider = Provider<GetCalendarCatalogUseCase>((
+  ref,
+) {
+  return GetCalendarCatalogUseCase(ref.watch(animeCatalogRepositoryProvider));
+});
+
 final searchAnimeUseCaseProvider = Provider<SearchAnimeUseCase>((ref) {
   return SearchAnimeUseCase(ref.watch(animeCatalogRepositoryProvider));
 });
@@ -197,6 +203,14 @@ final startEpisodePlaybackUseCaseProvider =
 final homeCatalogProvider =
     FutureProvider.autoDispose<Result<List<Anime>, KumoriyaError>>((ref) async {
       return ref.watch(getHomeCatalogUseCaseProvider).call();
+    });
+
+final calendarCatalogProvider =
+    FutureProvider.autoDispose<Result<List<Anime>, KumoriyaError>>((ref) async {
+      final now = DateTime.now();
+      return ref
+          .watch(getCalendarCatalogUseCaseProvider)
+          .call(from: now, to: now.add(const Duration(days: 7)), perPage: 100);
     });
 
 final searchCatalogProvider = FutureProvider.autoDispose

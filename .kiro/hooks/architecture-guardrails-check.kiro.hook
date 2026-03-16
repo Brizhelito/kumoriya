@@ -1,0 +1,16 @@
+{
+  "enabled": true,
+  "name": "Architecture Guardrails Check",
+  "description": "Checks that edited Dart files respect Kumoriya's layer boundaries and plugin-first architecture rules",
+  "version": "1",
+  "when": {
+    "type": "fileEdited",
+    "patterns": [
+      "**/*.dart"
+    ]
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "A Dart file was just edited. Before proceeding, verify the change respects Kumoriya architecture guardrails:\n1. UI does not import concrete plugin implementations — contracts only\n2. Domain models have no Flutter/Riverpod framework imports\n3. Storage (Drift) classes do not leak above the repository boundary\n4. The player layer does not call resolver or scraper logic\n5. Source plugins and resolver plugins remain independent packages\n\nIf any violation is detected, report it clearly with the file path and the specific rule broken. If all rules pass, confirm with a single line: \"Architecture guardrails: OK\""
+  }
+}

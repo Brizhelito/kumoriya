@@ -1,0 +1,1212 @@
+A Dart VM Service on moto g72 is available at: http://127.0.0.1:63952/Pe0D3YRxmmo=/
+The Flutter DevTools debugger and profiler on moto g72 is available at:
+http://127.0.0.1:63952/Pe0D3YRxmmo=/devtools/?uri=ws://127.0.0.1:63952/Pe0D3YRxmmo=/ws
+I/Choreographer(28186): Skipped 208 frames!  The application may be doing too much work on its main thread.
+I/le.kumoriya_app(28186): Compiler allocated 4291KB to compile void android.view.ViewRootImpl.performTraversals()
+D/FlutterRenderer(28186): Width is zero. 0,0
+D/BufferQueueConsumer(28186): [](id:6e1a00000000,api:0,p:-1,c:28186) connect: controlledByApp=false
+E/FBI     (28186): Can't load library: dlopen failed: library "libmagtsync.so" not found
+D/libMEOW (28186): meow new tls: 0xb40000729a48b0c0
+D/libMEOW (28186): applied 1 plugins for [com.example.kumoriya_app]:
+D/libMEOW (28186):   plugin 1: [libMEOW_gift.so]: 0xb40000725a3ea030
+D/FlutterJNI(28186): Sending viewport metrics to the engine.
+D/libMEOW (28186): rebuild call chain: 0xb40000729a4bb0f0
+D/BufferQueueConsumer(28186): [](id:6e1a00000001,api:0,p:-1,c:28186) connect: controlledByApp=false
+E/gralloc4(28186): ERROR: Format allocation info not found for format: 38
+E/gralloc4(28186): ERROR: Format allocation info not found for format: 0
+E/gralloc4(28186): Invalid base format! req_base_format = 0x0, req_format = 0x38, type = 0x0
+E/gralloc4(28186): ERROR: Unrecognized and/or unsupported format 0x38 and usage 0xb00
+E/Gralloc4(28186): isSupported(1, 1, 56, 1, ...) failed with 5
+E/GraphicBufferAllocator(28186): Failed to allocate (4 x 4) layerCount 1 format 56 usage b00: 5
+E/AHardwareBuffer(28186): GraphicBuffer(w=4, h=4, lc=1) failed (Unknown error -5), handle=0x0
+E/gralloc4(28186): ERROR: Format allocation info not found for format: 38
+E/gralloc4(28186): ERROR: Format allocation info not found for format: 0
+E/gralloc4(28186): Invalid base format! req_base_format = 0x0, req_format = 0x38, type = 0x0
+E/gralloc4(28186): ERROR: Unrecognized and/or unsupported format 0x38 and usage 0xb00
+E/Gralloc4(28186): isSupported(1, 1, 56, 1, ...) failed with 5
+E/GraphicBufferAllocator(28186): Failed to allocate (4 x 4) layerCount 1 format 56 usage b00: 5
+E/AHardwareBuffer(28186): GraphicBuffer(w=4, h=4, lc=1) failed (Unknown error -5), handle=0x0
+I/OpenGLRenderer(28186): setGrContext nullptr-->validptr
+E/OpenGLRenderer(28186): Unable to match the desired swap behavior.
+W/libc    (28186): Access denied finding property "persist.vendor.debug.gpud.enable"
+I/gralloc4(28186): @set_metadata: update dataspace from GM (0x08010000 -> 0x00000000)
+D/BLASTBufferQueue(28186): [SurfaceView[com.example.kumoriya_app/com.example.kumoriya_app.MainActivity]#1](f:0,a:1) acquireNextBufferLocked size=1080x2340 mFrameNumber=1 applyTransaction=true mTimestamp=141289892909728(auto) mPendingTransactions.size=0 graphicBufferId=121057948205066 transform=0
+I/flutter (28186): media_kit: NativeReferenceHolder: Allocated -5476376657621155264
+I/gralloc4(28186): @set_metadata: update dataspace from GM (0x08010000 -> 0x00000000)
+I/gralloc4(28186): @set_metadata: update dataspace from GM (0x08010000 -> 0x00000000)
+I/gralloc4(28186): @set_metadata: update dataspace from GM (0x08010000 -> 0x00000000)
+I/gralloc4(28186): @set_metadata: update dataspace from GM (0x08010000 -> 0x00000000)
+I/Choreographer(28186): Skipped 108 frames!  The application may be doing too much work on its main thread.
+I/mali    (28186): [DebugProp] GPU Debug-Mechanism Disable !
+D/BLASTBufferQueue(28186): [VRI[MainActivity]#0](f:0,a:1) acquireNextBufferLocked size=1080x2400 mFrameNumber=1 applyTransaction=true mTimestamp=141291091622728(auto) mPendingTransactions.size=0 graphicBufferId=121057948205074 transform=0
+W/Parcel  (28186): Expecting binder but got null!
+I/OpenGLRenderer(28186): Davey! duration=1837ms; Flags=1, FrameTimelineVsyncId=39161058, IntendedVsync=141289255114867, Vsync=141291055114903, InputEventId=0, HandleInputStart=141291071562113, AnimationStart=141291071563344, PerformTraversalsStart=141291071564267, DrawStart=141291071874113, FrameDeadline=141289275114867, FrameInterval=141291071491036, FrameStartTime=16666667, SyncQueued=141291072781420, SyncStart=141291072948497, IssueDrawCommandsStart=141291073402728, SwapBuffers=141291087663267, FrameCompleted=141291092961113, DequeueBufferDuration=1702230, QueueBufferDuration=793308, GpuCompleted=141291092961113, SwapBuffersCompleted=141291092621420, DisplayPresentTime=0, CommandSubmissionCompleted=141291087663267,
+I/gralloc4(28186): @set_metadata: update dataspace from GM (0x08010000 -> 0x00000000)
+I/gralloc4(28186): @set_metadata: update dataspace from GM (0x08010000 -> 0x00000000)
+W/OnBackInvokedCallback(28186): OnBackInvokedCallback is not enabled for the application.
+W/OnBackInvokedCallback(28186): Set 'android:enableOnBackInvokedCallback="true"' in the application manifest.
+I/gralloc4(28186): @set_metadata: update dataspace from GM (0x08010000 -> 0x00000000)
+D/FlutterJNI(28186): Sending viewport metrics to the engine.
+W/OnBackInvokedCallback(28186): OnBackInvokedCallback is not enabled for the application.
+W/OnBackInvokedCallback(28186): Set 'android:enableOnBackInvokedCallback="true"' in the application manifest.
+D/ProfileInstaller(28186): Installing profile for com.example.kumoriya_app
+W/le.kumoriya_app(28186): userfaultfd: MOVE ioctl seems unsupported: Connection timed out
+I/flutter (28186): [player.page#e871064 2026-03-16T00:35:07.743682] init resolver=kumoriya.resolver.jkplayer.um server=Desu streams=https://nika.playmudos.com/Sy8zQjZQemVQdGhQMlhvaXk2RXVjQ3BQMjBsaEYzMW8yNmkvY3pYdHBIZHN5ZzlWS241a2dvQUdhSjlkWTRUQw.m3u8?st=2U43kjVmAvYkKXoMei_-RA&e=1773646508
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:08.021101] video-controller-config softwareOutput=false platform=TargetPlatform.android
+I/flutter (28186): [player.page#e871064 2026-03-16T00:35:08.039483] startPlayback resumePosition=0:00:07.000000 streams=1 softwareOutput=false
+I/flutter (28186): [player.orchestrator#1b36136d 2026-03-16T00:35:08.041402] start candidates=1 initialPosition=0:00:07.000000 candidateUrls=https://nika.playmudos.com/Sy8zQjZQemVQdGhQMlhvaXk2RXVjQ3BQMjBsaEYzMW8yNmkvY3pYdHBIZHN5ZzlWS241a2dvQUdhSjlkWTRUQw.m3u8?st=2U43kjVmAvYkKXoMei_-RA&e=1773646508
+I/flutter (28186): [player.orchestrator#1b36136d 2026-03-16T00:35:08.046626] seek-phase open-start generation=1 index=0/1 url=https://nika.playmudos.com/Sy8zQjZQemVQdGhQMlhvaXk2RXVjQ3BQMjBsaEYzMW8yNmkvY3pYdHBIZHN5ZzlWS241a2dvQUdhSjlkWTRUQw.m3u8?st=2U43kjVmAvYkKXoMei_-RA&e=1773646508 startPosition=0:00:07.000000
+I/flutter (28186): [player.orchestrator#1b36136d 2026-03-16T00:35:08.047241] timelineDomain reset-for-new-open wasManaged=false
+I/flutter (28186): [player.orchestrator#1b36136d 2026-03-16T00:35:08.048939] emit status=PlayerSessionStatus.opening index=0/1 hasStream=true info=null error=null
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:08.051387] open url=https://nika.playmudos.com/Sy8zQjZQemVQdGhQMlhvaXk2RXVjQ3BQMjBsaEYzMW8yNmkvY3pYdHBIZHN5ZzlWS241a2dvQUdhSjlkWTRUQw.m3u8?st=2U43kjVmAvYkKXoMei_-RA&e=1773646508 hls=true start=0:00:07.000000 generation=1 headers=Referer,Origin
+I/flutter (28186): [player.page#e871064 2026-03-16T00:35:08.054003] session status=PlayerSessionStatus.opening index=0/1 info=null error=null
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:08.088432] native-log prefix=media_kit level=error text=error: property not found _setProperty(osc, 1)
+I/VideoOutputManager(28186): com.alexmercerind.media_kit_video.VideoOutputManager.create: -5476376659499012592
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:08.259856] decoder-config hwdec=auto-safe platform=TargetPlatform.android animeNexus=false
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:08.262272] hls-reopen start url=https://nika.playmudos.com/Sy8zQjZQemVQdGhQMlhvaXk2RXVjQ3BQMjBsaEYzMW8yNmkvY3pYdHBIZHN5ZzlWS241a2dvQUdhSjlkWTRUQw.m3u8?st=2U43kjVmAvYkKXoMei_-RA&e=1773646508 target=0:00:07.000000
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:08.320546] hls-reopen stopped current media
+I/flutter (28186): [player.orchestrator#1b36136d 2026-03-16T00:35:08.328114] playingChanged playing=false buffering=false
+I/flutter (28186): [player.orchestrator#1b36136d 2026-03-16T00:35:08.328460] playingChanged before-emit playing=false currentError=null willClearError=false
+I/flutter (28186): [player.orchestrator#1b36136d 2026-03-16T00:35:08.328763] emit status=PlayerSessionStatus.paused index=0/1 hasStream=true info=null error=null
+I/flutter (28186): [player.orchestrator#1b36136d 2026-03-16T00:35:08.328975] playingChanged after-emit playing=false newError=null
+I/flutter (28186): [player.page#e871064 2026-03-16T00:35:08.329805] playing stream playing=false position=0:00:00.000000
+I/flutter (28186): [player.orchestrator#1b36136d 2026-03-16T00:35:08.331758] completedChanged completed=false position=0:00:00.000000 duration=0:00:00.000000 lastSeek=0:00:07.000000
+I/flutter (28186): [player.orchestrator#1b36136d 2026-03-16T00:35:08.333910] emitPosition position=0:00:00.000000 managed=false base=0:00:00.000000
+I/flutter (28186): [player.orchestrator#1b36136d 2026-03-16T00:35:08.334775] positionChanged position=0:00:00.000000 pendingTarget=0:00:07.000000
+I/flutter (28186): [player.orchestrator#1b36136d 2026-03-16T00:35:08.335063] pendingTarget guard reject-zero-position target=0:00:07.000000 effectivePosition=0:00:00.000000 reopenStable=false
+I/flutter (28186): [player.orchestrator#1b36136d 2026-03-16T00:35:08.336948] bufferingChanged buffering=false playing=false position=0:00:00.000000 pendingTarget=0:00:07.000000
+I/flutter (28186): [player.orchestrator#1b36136d 2026-03-16T00:35:08.337325] bufferingChanged before-emit buffering=false playing=false currentError=null willClearError=false
+I/flutter (28186): [player.orchestrator#1b36136d 2026-03-16T00:35:08.337607] emit status=PlayerSessionStatus.paused index=0/1 hasStream=true info=null error=null
+I/flutter (28186): [player.orchestrator#1b36136d 2026-03-16T00:35:08.337856] bufferingChanged after-emit buffering=false newError=null
+I/flutter (28186): [player.page#e871064 2026-03-16T00:35:08.342398] session status=PlayerSessionStatus.paused index=0/1 info=null error=null
+I/flutter (28186): [player.page#e871064 2026-03-16T00:35:08.343174] position stream pos=0:00:00.000000 duration=0:00:00.000000
+I/flutter (28186): [player.page#e871064 2026-03-16T00:35:08.344355] session status=PlayerSessionStatus.paused index=0/1 info=null error=null
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:08.364677] native-log prefix=demux level=v text=Trying demuxers for level=request.
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:08.365337] native-log prefix=demux level=debug text=Trying demuxer: playlist (force-level: request)
+I/flutter (28186): [player.orchestrator#1b36136d 2026-03-16T00:35:08.366439] playingChanged playing=true buffering=false
+I/flutter (28186): [player.orchestrator#1b36136d 2026-03-16T00:35:08.366694] playingChanged before-emit playing=true currentError=null willClearError=false
+I/flutter (28186): [player.orchestrator#1b36136d 2026-03-16T00:35:08.366901] emit status=PlayerSessionStatus.playing index=0/1 hasStream=true info=null error=null
+I/flutter (28186): [player.orchestrator#1b36136d 2026-03-16T00:35:08.367093] playingChanged after-emit playing=true newError=null
+I/flutter (28186): [player.page#e871064 2026-03-16T00:35:08.368033] playing stream playing=true position=0:00:00.000000
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:08.372509] hls-reopen opened playing buffering=false duration=0:00:00.000000 position=0:00:00.000000
+I/flutter (28186): [player.page#e871064 2026-03-16T00:35:08.374306] session status=PlayerSessionStatus.playing index=0/1 info=null error=null
+I/flutter (28186): [player.orchestrator#1b36136d 2026-03-16T00:35:08.374662] bufferingChanged buffering=true playing=true position=0:00:00.000000 pendingTarget=0:00:07.000000
+I/flutter (28186): [player.orchestrator#1b36136d 2026-03-16T00:35:08.375615] emit status=PlayerSessionStatus.buffering index=0/1 hasStream=true info=null error=null
+I/flutter (28186): [player.page#e871064 2026-03-16T00:35:08.377719] session status=PlayerSessionStatus.buffering index=0/1 info=null error=null
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:08.386463] native-log prefix=playlist level=warn text=Reading plaintext playlist.
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:08.386874] native-log prefix=playlist level=v text=demuxer read all data; closing stream
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:08.387299] native-log prefix=demux level=v text=Detected file format: txt (Playlist file)
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:08.388211] native-log prefix=cplayer level=v text=Set property: http-header-fields=["Referer: https://jkanime.net/","Origin: https://jkanime.net"] -> 1
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:08.388846] native-log prefix=ffmpeg level=v text=Opening https://nika.playmudos.com/Sy8zQjZQemVQdGhQMlhvaXk2RXVjQ3BQMjBsaEYzMW8yNmkvY3pYdHBIZHN5ZzlWS241a2dvQUdhSjlkWTRUQw.m3u8?st=2U43kjVmAvYkKXoMei_-RA&e=1773646508
+D/VRI[MainActivity](28186): update {(0,0)(fillxfill) sim={adjust=resize} ty=BASE_APPLICATION wanim=0x1030001
+D/VRI[MainActivity](28186):   fl=KEEP_SCREEN_ON LAYOUT_IN_SCREEN LAYOUT_INSET_DECOR SPLIT_TOUCH HARDWARE_ACCELERATED DRAWS_SYSTEM_BAR_BACKGROUNDS
+D/VRI[MainActivity](28186):   pfl=NO_MOVE_ANIMATION FORCE_DRAW_STATUS_BAR_BACKGROUND FIT_INSETS_CONTROLLED
+D/VRI[MainActivity](28186):   bhv=DEFAULT
+D/VRI[MainActivity](28186):   fitSides=} by setLayoutParams
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:08.432923] native-log prefix=ffmpeg level=debug text=tcp: Starting connection attempt to 104.21.89.108 port 443
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:08.466424] native-log prefix=ffmpeg level=debug text=tcp: Successfully connected to 104.21.89.108 port 443
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:08.986988] native-log prefix=demux level=v text=Trying demuxers for level=normal.
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:08.987426] native-log prefix=demux level=debug text=Trying demuxer: disc (force-level: normal)
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:08.987798] native-log prefix=demux level=debug text=Trying demuxer: edl (force-level: normal)
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:08.988191] native-log prefix=demux level=debug text=Trying demuxer: cue (force-level: normal)
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:08.988650] native-log prefix=demux level=debug text=Trying demuxer: rawaudio (force-level: normal)
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:08.989144] native-log prefix=demux level=debug text=Trying demuxer: rawvideo (force-level: normal)
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:08.989676] native-log prefix=demux level=debug text=Trying demuxer: mkv (force-level: normal)
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:08.990326] native-log prefix=demux level=debug text=Trying demuxer: lavf (force-level: normal)
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:08.990994] native-log prefix=lavf level=v text=Found 'hls' at score=100 size=2048.
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:08.991638] native-log prefix=ffmpeg level=debug text=tcp: Starting connection attempt to 104.21.89.108 port 443
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:09.037861] native-log prefix=ffmpeg level=debug text=tcp: Successfully connected to 104.21.89.108 port 443
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:09.510792] native-log prefix=ffmpeg/demuxer level=v text=hls: Skip ('#EXT-X-VERSION:3')
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:09.813522] native-log prefix=ffmpeg/demuxer level=debug text=hls: HLS request for url 'https://s3.2000myschoolcdn.xyz/ja/segs/3/v1x/Sy8zQjZQemVQdGhQMlhvaXk2RXVjQ3BQMjBsaEYzMW8yNmkvY3pYdHBIZHN5ZzlWS241a2dvQUdhSjlkWTRUQw/30v2x.ts', offset 0, playlist 0
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:09.814311] native-log prefix=ffmpeg/demuxer level=v text=hls: Opening 'https://s3.2000myschoolcdn.xyz/ja/segs/3/v1x/Sy8zQjZQemVQdGhQMlhvaXk2RXVjQ3BQMjBsaEYzMW8yNmkvY3pYdHBIZHN5ZzlWS241a2dvQUdhSjlkWTRUQw/30v2x.ts' for reading
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:09.826671] native-log prefix=ffmpeg level=debug text=tcp: Starting connection attempt to 91.134.70.100 port 443
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:09.976194] native-log prefix=ffmpeg level=debug text=tcp: Successfully connected to 91.134.70.100 port 443
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:10.827053] native-log prefix=ffmpeg/demuxer level=debug text=hls: HLS request for url 'https://cdn1.2026schob2.xyz/ja/segs/3/v1x/Sy8zQjZQemVQdGhQMlhvaXk2RXVjQ3BQMjBsaEYzMW8yNmkvY3pYdHBIZHN5ZzlWS241a2dvQUdhSjlkWTRUQw/31v2x.ts', offset 0, playlist 0
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:10.827552] native-log prefix=ffmpeg/demuxer level=v text=hls: Opening 'https://cdn1.2026schob2.xyz/ja/segs/3/v1x/Sy8zQjZQemVQdGhQMlhvaXk2RXVjQ3BQMjBsaEYzMW8yNmkvY3pYdHBIZHN5ZzlWS241a2dvQUdhSjlkWTRUQw/31v2x.ts' for reading
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:10.830597] native-log prefix=ffmpeg level=debug text=tcp: Starting connection attempt to 46.33.8.107 port 443
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:10.974981] native-log prefix=ffmpeg level=debug text=tcp: Successfully connected to 46.33.8.107 port 443
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:11.955520] native-log prefix=demux level=v text=Detected file format: hls (libavformat)
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:11.958181] native-log prefix=global level=debug text=cache path: '' -> '-'
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:11.959934] native-log prefix=lavf level=error text=Failed to create file cache.
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:11.960918] native-log prefix=cplayer level=v text=Opening done: https://nika.playmudos.com/Sy8zQjZQemVQdGhQMlhvaXk2RXVjQ3BQMjBsaEYzMW8yNmkvY3pYdHBIZHN5ZzlWS241a2dvQUdhSjlkWTRUQw.m3u8?st=2U43kjVmAvYkKXoMei_-RA&e=1773646508
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:11.964996] native-log prefix=ffmpeg/video level=error text=h264_mediacodec: Both surface and native_window are NULL
+W/VideoCapabilities(28186): Unsupported mime image/vnd.android.heic
+W/VideoCapabilities(28186): Unsupported mime image/vnd.android.heic
+W/VideoCapabilities(28186): Unsupported mime image/vnd.android.heic
+W/VideoCapabilities(28186): Unsupported mime image/vnd.android.heic
+W/VideoCapabilities(28186): Unrecognized profile/level 32768/256 for video/mp4v-es
+W/VideoCapabilities(28186): Unrecognized profile/level 32768/256 for video/mp4v-es
+D/MediaCodec(28186): CreateByComponentName: name c2.mtk.avc.decoder
+I/MediaCodec(28186): (0xb4000071ea587aa0) init name(c2.mtk.avc.decoder)
+D/CCodecBufferChannel(28186): mBufferCountDebug=0 mIsUserLoad=1
+D/MediaCodec(28186): [0xb4000071ea587aa0] init: CCodec 0xb40000716a44df90, CCodecBufferChannel 0xb4000071aa4f3e00
+D/MediaCodec(28186): [0xb4000071ea587aa0] setState: 1
+D/CCodec  (28186): allocate(c2.mtk.avc.decoder)
+I/Codec2Client(28186): Available Codec2 services: "default" "default1" "software"
+I/CCodec  (28186): setting up 'default' as default (vendor) store
+I/CCodec  (28186): Created component [c2.mtk.avc.decoder]
+D/CCodecBufferChannel(28186): [0xb4000071aa4f3e00] setComponent: mName c2.mtk.avc.decoder#554, mPipelineWatcher 0xb4000071aa4f4268
+D/CCodecBufferChannel(28186): PipelineWatcher debug info [c2.mtk.avc.decoder#554] enable=0
+D/CCodecConfig(28186): read media type: video/avc
+D/ReflectedParamUpdater(28186): extent() != 1 for single value type: algo.buffers.max-count.values
+D/ReflectedParamUpdater(28186): extent() != 1 for single value type: output.subscribed-indices.values
+D/ReflectedParamUpdater(28186): extent() != 1 for single value type: input.buffers.allocator-ids.values
+D/ReflectedParamUpdater(28186): extent() != 1 for single value type: output.buffers.allocator-ids.values
+D/ReflectedParamUpdater(28186): extent() != 1 for single value type: algo.buffers.allocator-ids.values
+D/ReflectedParamUpdater(28186): extent() != 1 for single value type: output.buffers.pool-ids.values
+D/ReflectedParamUpdater(28186): extent() != 1 for single value type: algo.buffers.pool-ids.values
+D/ReflectedParamUpdater(28186): ignored struct field coded.color-format.locations
+D/CCodecConfig(28186): ignoring local param raw.size (0xd2001800) as it is already supported
+D/CCodecConfig(28186): ignoring local param raw.crop (0xd2001801) as it is already supported
+D/CCodecConfig(28186): ignoring local param default.color (0x5200180b) as it is already supported
+D/CCodecConfig(28186): ignoring local param raw.hdr-static-info (0xd200180a) as it is already supported
+I/CCodecConfig(28186): query failed after returning 17 values (BAD_INDEX)
+D/CCodecConfig(28186): c2 config diff is Dict {
+D/CCodecConfig(28186):   c2::i32 algo.priority.value = 1
+D/CCodecConfig(28186):   c2::float algo.rate.value = 0
+D/CCodecConfig(28186):   c2::float coded.frame-rate.value = 30
+D/CCodecConfig(28186):   c2::u32 coded.pl.level = 20495
+D/CCodecConfig(28186):   c2::u32 coded.pl.profile = 20481
+D/CCodecConfig(28186):   c2::u32 coded.vui.color.matrix = 0
+D/CCodecConfig(28186):   c2::u32 coded.vui.color.primaries = 0
+D/CCodecConfig(28186):   c2::u32 coded.vui.color.range = 2
+D/CCodecConfig(28186):   c2::u32 coded.vui.color.transfer = 0
+D/CCodecConfig(28186):   c2::u32 default.color.matrix = 0
+D/CCodecConfig(28186):   c2::u32 default.color.primaries = 0
+D/CCodecConfig(28186):   c2::u32 default.color.range = 0
+D/CCodecConfig(28186):   c2::u32 default.color.transfer = 0
+D/CCodecConfig(28186):   c2::u32 input.buffers.max-size.value = 2097152
+D/CCodecConfig(28186):   c2::u32 input.delay.value = 4
+D/CCodecConfig(28186):   string input.media-type.value = "video/avc"
+D/CCodecConfig(28186):   c2::u32 output.delay.value = 12
+D/CCodecConfig(28186):   string output.media-type.value = "video/raw"
+D/CCodecConfig(28186):   c2::u32 raw.color.matrix = 0
+D/CCodecConfig(28186):   c2::u32 raw.color.primaries = 0
+D/CCodecConfig(28186):   c2::u32 raw.color.range = 2
+D/CCodecConfig(28186):   c2::u32 raw.color.transfer = 0
+D/CCodecConfig(28186):   c2::u32 raw.crop.height = 239
+D/CCodecConfig(28186):   c2::u32 raw.crop.left = 0
+D/CCodecConfig(28186):   c2::u32 raw.crop.top = 0
+D/CCodecConfig(28186):   c2::u32 raw.crop.width = 319
+D/CCodecConfig(28186):   c2::float raw.hdr-static-info.mastering.blue.x = 0
+D/CCodecConfig(28186):   c2::float raw.hdr-s
+W/ColorUtils(28186): expected specified color aspects (2:0:0:0)
+D/MediaCodec(28186): [0xb4000071ea587aa0] setState: 2
+I/MediaCodec(28186): (0xb4000071ea587aa0) Component Allocated (c2.mtk.avc.decoder)
+D/MediaCodec(28186): createbyComponent:pid:-1 28186 tid=28407
+I/MediaCodec(28186): (0xb4000071ea587aa0) configure surface(0x0) crypto(0x0) flags(0)
+D/MediaCodec(28186): (0xb4000071ea587aa0) configure format: AMessage(what = 0x00000000) = {
+D/MediaCodec(28186):       Buffer csd-1 = {
+D/MediaCodec(28186):         00000000:  00 00 00 01 68 ef 84 f2  c0                       ....h....
+D/MediaCodec(28186):       }
+D/MediaCodec(28186):       string mime = "video/avc"
+D/MediaCodec(28186):       int32_t width = 1920
+D/MediaCodec(28186):       Buffer csd-0 = {
+D/MediaCodec(28186):         00000000:  00 00 00 01 67 64 00 28  ac d9 40 78 02 27 e5 c0  ....gd.(..@x.'..
+D/MediaCodec(28186):         00000010:  5a 80 80 80 a0 00 00 7d  20 00 17 70 01 e3 06 32  Z......} ..p...2
+D/MediaCodec(28186):         00000020:  c0                                                .
+D/MediaCodec(28186):       }
+D/MediaCodec(28186):       int32_t height = 1080
+D/MediaCodec(28186):     }
+D/MediaCodec(28186): flushMediametrics
+D/MediaCodec(28186): [0xb4000071ea587aa0] setState: 3
+D/MediaCodec(28186): [c2.mtk.avc.decoder] config set c2 sleep timeout 500 kC2SleepTimeoutMs=500
+D/CCodec  (28186): [c2.mtk.avc.decoder] buffers are bound to CCodec for this session
+D/CCodec  (28186): Client requested ByteBuffer mode decoder w/o color format set: using default planar color format
+D/CCodecConfig(28186): no c2 equivalents for csd-1
+D/CCodecConfig(28186): no c2 equivalents for flags
+D/CCodecConfig(28186): c2 config diff is   c2::u32 raw.size.height = 1080
+D/CCodecConfig(28186):   c2::u32 raw.size.width = 1920
+W/ColorUtils(28186): expected specified color aspects (2:0:0:0)
+W/Codec2Client(28186): query -- param skipped: index = 1107298332.
+D/CCodec  (28186): encoding statistics level = 0
+D/CCodec  (28186): setup formats input: AMessage(what = 0x00000000) = {
+D/CCodec  (28186):   string mime = "video/avc"
+D/CCodec  (28186):   int32_t width = 1920
+D/CCodec  (28186):   int32_t profile = 65536
+D/CCodec  (28186):   int32_t priority = -1
+D/CCodec  (28186):   int32_t frame-rate = 30
+D/CCodec  (28186):   int32_t height = 1080
+D/CCodec  (28186):   int32_t level = 32768
+D/CCodec  (28186):   int32_t max-input-size = 2097152
+D/CCodec  (28186):   Rect crop(0, 0, 318, 238)
+D/CCodec  (28186): }
+D/CCodec  (28186): setup formats output: AMessage(what = 0x00000000) = {
+D/CCodec  (28186):   int32_t android._color-format = 2135033992
+D/CCodec  (28186):   int32_t android._video-scaling = 1
+D/CCodec  (28186):   int32_t sar-width = 1
+D/CCodec  (28186):   int32_t color-standard = 0
+D/CCodec  (28186):   int32_t color-range = 2
+D/CCodec  (28186):   int32_t color-transfer = 0
+D/CCodec  (28186):   int32_t android._dataspace = 268435456
+D/CCodec  (28186):   int32_t width = 1920
+D/CCodec  (28186):   int32_t rotation-degrees = 0
+D/CCodec  (28186):   int32_t sar-height = 1
+D/CCodec  (28186):   int32_t max-width = 320
+D/CCodec  (28186):   int32_t max-height = 240
+D/CCodec  (28186):   int32_t priority = -1
+D/CCodec  (28186):   string mime = "video/raw"
+D/CCodec  (28186):   Rect crop(0, 0, 318, 238)
+D/CCodec  (28186):   Buffer hdr-static-info = {
+D/CCodec  (28186):     00000000:  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  ................
+D/CCodec  (28186):     00000010:  00 00 00 00 00 00 00 00  00                       .........
+D/CCodec  (28186):   }
+D/CCodec  (28186):   int32_t frame-rate = 30
+D/CCodec  (28186):   int32_t height = 1080
+D/CCodec  (28186):   int32_t color-format = 19
+D/CCodec  (28186): }
+I/CCodecConfig(28186): query failed after returning 17 values (BAD_INDEX)
+D/CCodecConfig(28186): c2 config diff is   c2::u32 raw.max-size.height = 1080
+D/CCodecConfig(28186):   c2::u32 raw.max-size.width = 1920
+W/ColorUtils(28186): expected specified color aspects (2:0:0:0)
+D/MediaCodec(28186): [0xb4000071ea587aa0] setState: 4
+I/MediaCodec(28186): (0xb4000071ea587aa0) start
+D/MediaCodec(28186): [0xb4000071ea587aa0] setState: 5
+W/Codec2Client(28186): query -- param skipped: index = 1342179345.
+W/Codec2Client(28186): query -- param skipped: index = 2415921170.
+W/Codec2Client(28186): query -- param skipped: index = 1610614798.
+D/C2Store (28186): Using DMABUF Heaps
+D/CCodecBufferChannel(28186): [c2.mtk.avc.decoder#554] Created input block pool with allocatorID 16 => poolID 17 - OK (0)
+D/CCodecBufferChannel(28186): [c2.mtk.avc.decoder#554] Configured output block pool ids 1 => OK
+D/CCodecBufferChannel(28186): [0xb4000071aa4f3e00] [c2.mtk.avc.decoder#554] start: output->outputDelay 12, output->numSlots 16
+D/CCodecBufferChannel(28186): [c2.mtk.avc.decoder#554] Configured output usage [0x1]
+I/DMABUFHEAPS(28186): Using DMA-BUF heap named: mtk_mm
+I/MediaCodec(28186): (0xb4000071ea587aa0) kWhatStartCompleted
+D/MediaCodec(28186): [0xb4000071ea587aa0] setState: 6
+I/MediaCodec(28186): [0xb4000071ea587aa0] enqueue first input frame, timeUs = 0
+I/MediaCodec(28186): [0xb4000071ea587aa0] enqueue first input frame, timeUs = 0
+I/MediaCodec(28186): (0xb4000071ea587aa0) flush
+D/MediaCodec(28186): [0xb4000071ea587aa0] setState: 7
+D/PipelineWatcher(28186): onWorkDone: frameIndex not found (0); ignored
+D/MediaCodec(28186): [0xb4000071ea587aa0] setState: 6
+I/CCodecConfig(28186): query failed after returning 17 values (BAD_INDEX)
+D/CCodecConfig(28186): c2 config diff is   c2::u32 coded.vui.color.matrix = 1
+D/CCodecConfig(28186):   c2::u32 coded.vui.color.primaries = 1
+D/CCodecConfig(28186):   c2::u32 coded.vui.color.transfer = 3
+D/CCodecConfig(28186):   c2::u32 raw.color.matrix = 1
+D/CCodecConfig(28186):   c2::u32 raw.color.primaries = 1
+D/CCodecConfig(28186):   c2::u32 raw.color.transfer = 3
+D/CCodecConfig(28186):   c2::u32 raw.crop.height = 1080
+D/CCodecConfig(28186):   c2::u32 raw.crop.width = 1920
+D/CCodecConfig(28186):   c2::u32 raw.pixel-format.value = 2130706433
+W/Codec2Client(28186): query -- param skipped: index = 1342179345.
+W/Codec2Client(28186): query -- param skipped: index = 2415921170.
+W/Codec2Client(28186): query -- param skipped: index = 1610614798.
+I/MediaCodec(28186): (0xb4000071ea587aa0) flush
+D/MediaCodec(28186): [0xb4000071ea587aa0] setState: 7
+D/MediaCodec(28186): [0xb4000071ea587aa0] setState: 6
+I/CCodecConfig(28186): query failed after returning 17 values (BAD_INDEX)
+W/Codec2Client(28186): query -- param skipped: index = 1342179345.
+W/Codec2Client(28186): query -- param skipped: index = 2415921170.
+W/Codec2Client(28186): query -- param skipped: index = 1610614798.
+D/CCodecBufferChannel(28186): [c2.mtk.avc.decoder#554] Ignoring stale input buffer done callback: last flush index = 4, frameIndex = 4
+I/flutter (28186): [player.orchestrator#1b36136d 2026-03-16T00:35:12.227777] positionChanged position=0:00:07.000000 pendingTarget=0:00:07.000000
+I/flutter (28186): [player.orchestrator#1b36136d 2026-03-16T00:35:12.229355] pendingTarget confirm-check effectivePosition=0:00:07.000000 target=0:00:07.000000 reopenStable=true
+I/flutter (28186): [player.orchestrator#1b36136d 2026-03-16T00:35:12.230022] pendingTarget confirmed effectivePosition=0:00:07.000000 target=0:00:07.000000
+I/flutter (28186): [player.orchestrator#1b36136d 2026-03-16T00:35:12.230702] pendingTarget cleared reason=position-reached-target-no-session
+I/flutter (28186): [player.page#e871064 2026-03-16T00:35:12.234528] position stream pos=0:00:07.000000 duration=0:00:00.000000
+I/flutter (28186): [player.orchestrator#1b36136d 2026-03-16T00:35:12.238841] timelineDomain recompute reason=onDurationChanged raw=0:23:40.043942 effective=0:23:40.043942 managed=false
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:12.240329] waitUntilReady duration-ready duration=0:23:40.043942
+I/flutter (28186): [player.page#e871064 2026-03-16T00:35:12.244783] duration stream dur=0:23:40.043942
+I/flutter (28186): [player.orchestrator#1b36136d 2026-03-16T00:35:12.254358] bufferingChanged buffering=false playing=true position=0:00:07.000000 pendingTarget=null
+I/flutter (28186): [player.orchestrator#1b36136d 2026-03-16T00:35:12.254768] bufferingChanged before-emit buffering=false playing=true currentError=null willClearError=false
+I/flutter (28186): [player.orchestrator#1b36136d 2026-03-16T00:35:12.254961] emit status=PlayerSessionStatus.playing index=0/1 hasStream=true info=null error=null
+I/flutter (28186): [player.orchestrator#1b36136d 2026-03-16T00:35:12.255108] bufferingChanged after-emit buffering=false newError=null
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:12.255319] waitUntilReady buffering-false duration=0:23:40.043942
+I/flutter (28186): [player.page#e871064 2026-03-16T00:35:12.255872] session status=PlayerSessionStatus.playing index=0/1 info=null error=null
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:12.256923] native-buffering percent=100.0 buffer=0:00:00.000000 position=0:00:07.000000 duration=0:23:40.043942
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:12.259887] waitForRequestedStartPosition immediate target=0:00:07.000000 position=0:00:07.000000
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:12.264554] native-log prefix=ffmpeg/demuxer level=debug text=hls: HLS request for url 'https://s1.2024myschoolcdn.xyz/ja/segs/3/v1x/Sy8zQjZQemVQdGhQMlhvaXk2RXVjQ3BQMjBsaEYzMW8yNmkvY3pYdHBIZHN5ZzlWS241a2dvQUdhSjlkWTRUQw/32v2x.ts', offset 0, playlist 0
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:12.264959] native-log prefix=ffmpeg/demuxer level=v text=hls: Opening 'https://s1.2024myschoolcdn.xyz/ja/segs/3/v1x/Sy8zQjZQemVQdGhQMlhvaXk2RXVjQ3BQMjBsaEYzMW8yNmkvY3pYdHBIZHN5ZzlWS241a2dvQUdhSjlkWTRUQw/32v2x.ts' for reading
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:12.265390] native-log prefix=ffmpeg level=debug text=tcp: Starting connection attempt to 46.33.11.13 port 443
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:12.376341] native-log prefix=ffmpeg level=debug text=tcp: Successfully connected to 46.33.11.13 port 443
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:13.262325] native-log prefix=ffmpeg/demuxer level=debug text=hls: HLS request for url 'https://s1.2000myschoolcdn.xyz/ja/segs/3/v1x/Sy8zQjZQemVQdGhQMlhvaXk2RXVjQ3BQMjBsaEYzMW8yNmkvY3pYdHBIZHN5ZzlWS241a2dvQUdhSjlkWTRUQw/33v2x.ts', offset 0, playlist 0
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:13.263951] native-log prefix=ffmpeg/demuxer level=v text=hls: Opening 'https://s1.2000myschoolcdn.xyz/ja/segs/3/v1x/Sy8zQjZQemVQdGhQMlhvaXk2RXVjQ3BQMjBsaEYzMW8yNmkvY3pYdHBIZHN5ZzlWS241a2dvQUdhSjlkWTRUQw/33v2x.ts' for reading
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:13.272083] progress-poll playing=true buffering=false completed=false position=0:00:07.000000 duration=0:23:40.043942 buffer=0:00:00.000000 percent=100.0
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:13.276954] native-log prefix=ffmpeg level=debug text=tcp: Starting connection attempt to 91.134.70.100 port 443
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:13.421237] native-log prefix=ffmpeg level=debug text=tcp: Successfully connected to 91.134.70.100 port 443
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:14.264619] progress-poll playing=true buffering=false completed=false position=0:00:07.000000 duration=0:23:40.043942 buffer=0:00:00.000000 percent=100.0
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:14.317902] native-log prefix=ffmpeg/demuxer level=debug text=hls: HLS request for url 'https://s3.2024myschoolcdn.xyz/ja/segs/3/v1x/Sy8zQjZQemVQdGhQMlhvaXk2RXVjQ3BQMjBsaEYzMW8yNmkvY3pYdHBIZHN5ZzlWS241a2dvQUdhSjlkWTRUQw/34v2x.ts', offset 0, playlist 0
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:14.320490] native-log prefix=ffmpeg level=error text=https: Cannot reuse HTTP connection for different host: s1.2024myschoolcdn.xyz:-1 != s3.2024myschoolcdn.xyz:-1
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:14.323214] native-log prefix=ffmpeg/demuxer level=warn text=hls: keepalive request failed for 'https://s3.2024myschoolcdn.xyz/ja/segs/3/v1x/Sy8zQjZQemVQdGhQMlhvaXk2RXVjQ3BQMjBsaEYzMW8yNmkvY3pYdHBIZHN5ZzlWS241a2dvQUdhSjlkWTRUQw/34v2x.ts' with error: 'Invalid argument' when opening url, retrying with new connection
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:14.325024] native-log prefix=ffmpeg/demuxer level=v text=hls: Opening 'https://s3.2024myschoolcdn.xyz/ja/segs/3/v1x/Sy8zQjZQemVQdGhQMlhvaXk2RXVjQ3BQMjBsaEYzMW8yNmkvY3pYdHBIZHN5ZzlWS241a2dvQUdhSjlkWTRUQw/34v2x.ts' for reading
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:14.349210] native-log prefix=ffmpeg level=debug text=tcp: Starting connection attempt to 46.33.11.13 port 443
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:14.509702] native-log prefix=ffmpeg level=debug text=tcp: Successfully connected to 46.33.11.13 port 443
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:15.266180] progress-poll playing=true buffering=false completed=false position=0:00:07.000000 duration=0:23:40.043942 buffer=0:00:00.000000 percent=100.0
+D/CCodecBufferChannel(28186): elapsed: mInputMetEos 0, hasPendingOutputsInClient 0, n 16
+D/PipelineWatcher(28186): [0xb4000071aa4f4268] elapsed: mFramesInPipeline 2, n 16
+I/MediaCodec(28186): [0xb4000071ea587aa0] enqueue 2 input frames in last 3414 ms, latest timeUs 14452422
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:15.549662] native-log prefix=ffmpeg/demuxer level=debug text=hls: HLS request for url 'https://s2.2024myschoolcdn.xyz/ja/segs/3/v1x/Sy8zQjZQemVQdGhQMlhvaXk2RXVjQ3BQMjBsaEYzMW8yNmkvY3pYdHBIZHN5ZzlWS241a2dvQUdhSjlkWTRUQw/35v2x.ts', offset 0, playlist 0
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:15.551712] native-log prefix=ffmpeg level=error text=https: Cannot reuse HTTP connection for different host: s1.2000myschoolcdn.xyz:-1 != s2.2024myschoolcdn.xyz:-1
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:15.553634] native-log prefix=ffmpeg/demuxer level=warn text=hls: keepalive request failed for 'https://s2.2024myschoolcdn.xyz/ja/segs/3/v1x/Sy8zQjZQemVQdGhQMlhvaXk2RXVjQ3BQMjBsaEYzMW8yNmkvY3pYdHBIZHN5ZzlWS241a2dvQUdhSjlkWTRUQw/35v2x.ts' with error: 'Invalid argument' when opening url, retrying with new connection
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:15.555265] native-log prefix=ffmpeg/demuxer level=v text=hls: Opening 'https://s2.2024myschoolcdn.xyz/ja/segs/3/v1x/Sy8zQjZQemVQdGhQMlhvaXk2RXVjQ3BQMjBsaEYzMW8yNmkvY3pYdHBIZHN5ZzlWS241a2dvQUdhSjlkWTRUQw/35v2x.ts' for reading
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:15.590421] native-log prefix=ffmpeg level=debug text=tcp: Starting connection attempt to 46.33.11.13 port 443
+D/CCodecConfig(28186): c2 config diff is   c2::u32 raw.pixel-format.value = 842094169
+D/CCodecBuffers(28186): [c2.mtk.avc.decoder#554:2D-BB-Output] popFromStashAndRegister: at 14452422us, output format changed to AMessage(what = 0x00000000) = {
+D/CCodecBuffers(28186):   int32_t android._color-format = 2135033992
+D/CCodecBuffers(28186):   int32_t android._video-scaling = 1
+D/CCodecBuffers(28186):   int32_t sar-width = 1
+D/CCodecBuffers(28186):   int32_t color-standard = 1
+D/CCodecBuffers(28186):   int32_t color-range = 2
+D/CCodecBuffers(28186):   int32_t color-transfer = 3
+D/CCodecBuffers(28186):   int32_t android._dataspace = 260
+D/CCodecBuffers(28186):   int32_t width = 1920
+D/CCodecBuffers(28186):   int32_t rotation-degrees = 0
+D/CCodecBuffers(28186):   int32_t sar-height = 1
+D/CCodecBuffers(28186):   int32_t max-width = 1920
+D/CCodecBuffers(28186):   int32_t max-height = 1080
+D/CCodecBuffers(28186):   int32_t priority = -1
+D/CCodecBuffers(28186):   string mime = "video/raw"
+D/CCodecBuffers(28186):   Rect crop(0, 0, 1919, 1079)
+D/CCodecBuffers(28186):   Buffer hdr-static-info = {
+D/CCodecBuffers(28186):     00000000:  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  ................
+D/CCodecBuffers(28186):     00000010:  00 00 00 00 00 00 00 00  00                       .........
+D/CCodecBuffers(28186):   }
+D/CCodecBuffers(28186):   int32_t frame-rate = 30
+D/CCodecBuffers(28186):   int32_t height = 1080
+D/CCodecBuffers(28186):   int32_t color-format = 19
+D/CCodecBuffers(28186): }
+I/DMABUFHEAPS(28186): Using DMA-BUF heap named: mtk_mm
+I/DMABUFHEAPS(28186): Using DMA-BUF heap named: mtk_mm-uncached
+I/DMABUFHEAPS(28186): Using DMA-BUF heap named: mtk_svp_region-aligned
+I/DMABUFHEAPS(28186): Using DMA-BUF heap named: mtk_prot_region
+I/DMABUFHEAPS(28186): Using DMA-BUF heap named: mtk_2d_fr_region
+I/DMABUFHEAPS(28186): Using DMA-BUF heap named: mtk_wfd_region-aligned
+D/CCodecBuffers(28186): [c2.mtk.avc.decoder#554:2D-BB-Output] updating image-data
+D/CCodecBuffers(28186): [c2.mtk.avc.decoder#554:2D-BB-Output] updating stride = 1920, width: 1920, height: 1080
+D/CCodecBuffers(28186): [c2.mtk.avc.decoder#554:2D-BB-Output] updating vstride = 1080
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:15.663654] native-log prefix=ffmpeg/video level=v text=h264_mediacodec: Output MediaFormat changed to {max-height=1080, crop-right=1919, sar-width=1, color-format=19, slice-height=1080, image-data=java.nio.HeapByteBuffer[pos=0 lim=104 cap=104], mime=video/raw, hdr-static-info=java.nio.HeapByteBuffer[pos=0 lim=25 cap=25], priority=-1, stride=1920, color-standard=1, color-transfer=3, sar-height=1, crop-bottom=1079, max-width=1920, width=1920, crop-left=0, color-range=2, crop-top=0, rotation-degrees=0, frame-rate=30, height=1080}
+I/MediaCodec(28186): [0xb4000071ea587aa0] dequeue first output frame, timeUs = 14452422
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:15.743261] native-log prefix=ffmpeg level=debug text=tcp: Successfully connected to 46.33.11.13 port 443
+D/le.kumoriya_app(28186): PlayerBase::PlayerBase()
+D/le.kumoriya_app(28186): TrackPlayerBase::TrackPlayerBase()
+I/libOpenSLES(28186): Emulating old channel mask behavior (ignoring positional mask 0x3, using default mask 0x3 based on channel count of 2)
+D/AudioTrack(28186): INSP: type=audio,case=1,set=0xb4000071aa50e6e0,stream_type=3,sample_rate=48000,format=0x5,channel_mask=0x3,frame_count=0,flags=0x104,notification_frames=-8,session_id=12769,transfer_type=0,uid=-1,pid=-1
+E/AudioSystem(28186): invalid attributes { Content type: AUDIO_CONTENT_TYPE_UNKNOWN Usage: AUDIO_USAGE_UNKNOWN Source: AUDIO_SOURCE_DEFAULT Flags: 0x0 Tags:  } when converting to stream
+I/AudioTrack(28186): createTrack_l(1120010240): AUDIO_OUTPUT_FLAG_FAST successful; frameCount 0 -> 2048
+D/AudioTrack(28186): createTrack_l(2222): 0xb4000071aa50e6e0, mCblk = 0x7346150000, mLatency = 84, mAfLatency = 42, frameCount = 2048, mSampleRate = 48000, mFlags = 0x4, mReqFrameCount = 2048, mNotificationFramesAct = 256
+D/AudioTrack(28186): start(2222): 0xb4000071aa50e6e0, prior state:STATE_STOPPED
+E/libOpenSLES(28186): Configuration error: unknown key
+W/libOpenSLES(28186): Leaving AndroidConfiguration::GetConfiguration (SL_RESULT_PARAMETER_INVALID)
+D/le.kumoriya_app(28186): PlayerBase::stop() from IPlayer
+D/AudioTrack(28186): stop(2222): 0xb4000071aa50e6e0, prior state:STATE_ACTIVE
+D/AudioTrackShared(28186): this(0xb40000714a450ef0), mCblk(0x7346150000), front(0), mIsOut 1, interrupt() FUTEX_WAKE
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:15.966780] native-log prefix=ao/opensles level=v text=device buffer: 12000 samples.
+D/AudioTrack(28186): stop(2222): 0xb4000071aa50e6e0 stop done
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:15.969722] native-log prefix=ao/opensles level=v text=using soft-buffer of 12000 samples.
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:15.975665] native-buffer time=0:00:18.730499 percent=100.0 position=0:00:07.000000 duration=0:23:40.043942
+D/AudioTrack(28186): start(2222): 0xb4000071aa50e6e0, prior state:STATE_STOPPED
+I/VideoOutputManager(28186): com.alexmercerind.media_kit_video.VideoOutputManager.setSurfaceSize: -5476376659499012592 1920 1080
+I/VideoOutput(28186): onSurfaceAvailable
+D/BufferQueueConsumer(28186): [](id:6e1a00000002,api:0,p:-1,c:28186) connect: controlledByApp=true
+I/VideoOutput(28186): newGlobalRef: object = Surface(name=null)/@0x37aed07
+I/flutter (28186): VideoOutput.Resize
+I/flutter (28186): {rect: {top: 0, left: 0, width: 1920, height: 1080}, wid: 12838, handle: -5476376659499012592, id: 0}
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:15.997374] video-controller rect=Rect.fromLTRB(0.0, 0.0, 1920.0, 1080.0)
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:15.998177] video-controller textureId=0
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:16.001163] waitForPlaybackProgressFromTarget advanced target=0:00:07.000000 position=0:00:14.494122
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:16.003188] hls-reopen start-property progressed target=0:00:07.000000 buffering=false duration=0:23:40.043942 position=0:00:14.494122
+I/flutter (28186): [player.orchestrator#1b36136d 2026-03-16T00:35:16.003536] seek-phase open-done generation=1 elapsed=7957ms buffering=false playing=true pendingTarget=null
+I/flutter (28186): [player.orchestrator#1b36136d 2026-03-16T00:35:16.003851] seekLatency phase=open-success ms=7957
+I/flutter (28186): [player.orchestrator#1b36136d 2026-03-16T00:35:16.005004] applyTimelineWindow managed=false base=0:00:00.000000 durationHint=0:23:40.043942
+I/flutter (28186): [player.orchestrator#1b36136d 2026-03-16T00:35:16.005475] timelineDomain recompute reason=applyTimelineWindow-unmanaged-hls raw=0:23:40.043942 effective=0:23:40.043942 managed=false
+I/flutter (28186): [player.orchestrator#1b36136d 2026-03-16T00:35:16.005721] seekLatency phase=timeline-ready ms=7959
+I/flutter (28186): [player.orchestrator#1b36136d 2026-03-16T00:35:16.006401] seek-phase visual-gate-start windows=false target=0:00:07.000000 timeout=0:00:00.040165
+I/flutter (28186): [player.orchestrator#1b36136d 2026-03-16T00:35:16.007783] waitForUsableFrame immediate windows=false duration=0:23:40.043942 position=0:00:14.494122 buffering=false playing=true threshold=0:00:00.001000
+I/flutter (28186): [player.page#e871064 2026-03-16T00:35:16.008312] duration stream dur=0:23:40.043942
+I/flutter (28186): [player.orchestrator#1b36136d 2026-03-16T00:35:16.008792] seek-phase visual-gate-done windows=false elapsed=2ms position=0:00:14.494122 duration=0:23:40.043942
+I/flutter (28186): [player.orchestrator#1b36136d 2026-03-16T00:35:16.010152] seekStallWatch start target=0:00:07.000000 baseline=0:00:14.494122 recoveries=0
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:16.019333] video-controller first-frame-rendered rect=Rect.fromLTRB(0.0, 0.0, 1920.0, 1080.0) textureId=0
+I/MediaCodec(28186): (0xb4000071ea587aa0) flush
+D/MediaCodec(28186): [0xb4000071ea587aa0] setState: 7
+D/CCodecBufferChannel(28186): [c2.mtk.avc.decoder#554] no linear codec config data found
+D/CCodecBufferChannel(28186): [c2.mtk.avc.decoder#554] no linear codec config data found
+D/MediaCodec(28186): [0xb4000071ea587aa0] setState: 6
+I/CCodecConfig(28186): query failed after returning 17 values (BAD_INDEX)
+W/Codec2Client(28186): query -- param skipped: index = 1342179345.
+W/Codec2Client(28186): query -- param skipped: index = 2415921170.
+W/Codec2Client(28186): query -- param skipped: index = 1610614798.
+D/MediaCodec(28186): [0xb4000071ea587aa0] [c2.mtk.avc.decoder] releaseAsync
+D/MediaCodec(28186): [0xb4000071ea587aa0] setState: 10
+D/CCodecBufferChannel(28186): [c2.mtk.avc.decoder#554] MediaCodec discarded an unknown buffer
+D/CCodecBufferChannel(28186): [c2.mtk.avc.decoder#554] MediaCodec discarded an unknown buffer
+D/CCodecBufferChannel(28186): [c2.mtk.avc.decoder#554] MediaCodec discarded an unknown buffer
+D/CCodecBufferChannel(28186): [c2.mtk.avc.decoder#554] MediaCodec discarded an unknown buffer
+D/CCodecBufferChannel(28186): [c2.mtk.avc.decoder#554] MediaCodec discarded an unknown buffer
+D/CCodecBufferChannel(28186): [c2.mtk.avc.decoder#554] MediaCodec discarded an unknown buffer
+D/CCodecBufferChannel(28186): [c2.mtk.avc.decoder#554] MediaCodec discarded an unknown buffer
+D/CCodecBufferChannel(28186): [c2.mtk.avc.decoder#554] MediaCodec discarded an unknown buffer
+D/MediaCodec(28186): [0xb4000071ea587aa0] [c2.mtk.avc.decoder] kWhatReleaseCompleted
+D/MediaCodec(28186): [0xb4000071ea587aa0] setState: 0
+I/hw-BpHwBinder(28186): onLastStrongRef automatically unlinking death recipients
+D/MediaCodec(28186): flushMediametrics
+D/MediaCodec(28186): [0xb4000071ea587aa0] ~MediaCodec
+D/libMEOW (28186): meow new tls: 0xb40000729abeb820
+D/libMEOW (28186): applied 1 plugins for [com.example.kumoriya_app]:
+D/libMEOW (28186):   plugin 1: [libMEOW_gift.so]: 0xb40000725a3ea030
+D/MediaCodec(28186): flushMediametrics
+D/libMEOW (28186): rebuild call chain: 0xb40000729ac7b8b0
+D/MediaCodec(28186): CreateByComponentName: name c2.mtk.avc.decoder
+I/MediaCodec(28186): (0xb4000071ea587aa0) init name(c2.mtk.avc.decoder)
+D/CCodecBufferChannel(28186): mBufferCountDebug=0 mIsUserLoad=1
+D/MediaCodec(28186): [0xb4000071ea587aa0] init: CCodec 0xb40000716a422710, CCodecBufferChannel 0xb4000071aa4f3e00
+D/MediaCodec(28186): [0xb4000071ea587aa0] setState: 1
+D/CCodec  (28186): allocate(c2.mtk.avc.decoder)
+I/CCodec  (28186): setting up 'default' as default (vendor) store
+I/CCodec  (28186): Created component [c2.mtk.avc.decoder]
+D/CCodecBufferChannel(28186): [0xb4000071aa4f3e00] setComponent: mName c2.mtk.avc.decoder#99, mPipelineWatcher 0xb4000071aa4f4268
+D/CCodecBufferChannel(28186): PipelineWatcher debug info [c2.mtk.avc.decoder#99] enable=0
+D/CCodecConfig(28186): read media type: video/avc
+D/ReflectedParamUpdater(28186): extent() != 1 for single value type: algo.buffers.max-count.values
+D/ReflectedParamUpdater(28186): extent() != 1 for single value type: output.subscribed-indices.values
+D/ReflectedParamUpdater(28186): extent() != 1 for single value type: input.buffers.allocator-ids.values
+D/ReflectedParamUpdater(28186): extent() != 1 for single value type: output.buffers.allocator-ids.values
+D/ReflectedParamUpdater(28186): extent() != 1 for single value type: algo.buffers.allocator-ids.values
+D/ReflectedParamUpdater(28186): extent() != 1 for single value type: output.buffers.pool-ids.values
+D/ReflectedParamUpdater(28186): extent() != 1 for single value type: algo.buffers.pool-ids.values
+D/ReflectedParamUpdater(28186): ignored struct field coded.color-format.locations
+D/CCodecConfig(28186): ignoring local param raw.size (0xd2001800) as it is already supported
+D/CCodecConfig(28186): ignoring local param raw.crop (0xd2001801) as it is already supported
+D/CCodecConfig(28186): ignoring local param default.color (0x5200180b) as it is already supported
+D/CCodecConfig(28186): ignoring local param raw.hdr-static-info (0xd200180a) as it is already supported
+I/CCodecConfig(28186): query failed after returning 17 values (BAD_INDEX)
+D/CCodecConfig(28186): c2 config diff is Dict {
+D/CCodecConfig(28186):   c2::i32 algo.priority.value = 1
+D/CCodecConfig(28186):   c2::float algo.rate.value = 0
+D/CCodecConfig(28186):   c2::float coded.frame-rate.value = 30
+D/CCodecConfig(28186):   c2::u32 coded.pl.level = 20495
+D/CCodecConfig(28186):   c2::u32 coded.pl.profile = 20481
+D/CCodecConfig(28186):   c2::u32 coded.vui.color.matrix = 0
+D/CCodecConfig(28186):   c2::u32 coded.vui.color.primaries = 0
+D/CCodecConfig(28186):   c2::u32 coded.vui.color.range = 2
+D/CCodecConfig(28186):   c2::u32 coded.vui.color.transfer = 0
+D/CCodecConfig(28186):   c2::u32 default.color.matrix = 0
+D/CCodecConfig(28186):   c2::u32 default.color.primaries = 0
+D/CCodecConfig(28186):   c2::u32 default.color.range = 0
+D/CCodecConfig(28186):   c2::u32 default.color.transfer = 0
+D/CCodecConfig(28186):   c2::u32 input.buffers.max-size.value = 2097152
+D/CCodecConfig(28186):   c2::u32 input.delay.value = 4
+D/CCodecConfig(28186):   string input.media-type.value = "video/avc"
+D/CCodecConfig(28186):   c2::u32 output.delay.value = 12
+D/CCodecConfig(28186):   string output.media-type.value = "video/raw"
+D/CCodecConfig(28186):   c2::u32 raw.color.matrix = 0
+D/CCodecConfig(28186):   c2::u32 raw.color.primaries = 0
+D/CCodecConfig(28186):   c2::u32 raw.color.range = 2
+D/CCodecConfig(28186):   c2::u32 raw.color.transfer = 0
+D/CCodecConfig(28186):   c2::u32 raw.crop.height = 239
+D/CCodecConfig(28186):   c2::u32 raw.crop.left = 0
+D/CCodecConfig(28186):   c2::u32 raw.crop.top = 0
+D/CCodecConfig(28186):   c2::u32 raw.crop.width = 319
+D/CCodecConfig(28186):   c2::float raw.hdr-static-info.mastering.blue.x = 0
+D/CCodecConfig(28186):   c2::float raw.hdr-s
+W/ColorUtils(28186): expected specified color aspects (2:0:0:0)
+D/MediaCodec(28186): [0xb4000071ea587aa0] setState: 2
+I/MediaCodec(28186): (0xb4000071ea587aa0) Component Allocated (c2.mtk.avc.decoder)
+D/MediaCodec(28186): createbyComponent:pid:-1 28186 tid=28186
+I/MediaCodec(28186): (0xb4000071ea587aa0) configure surface(0x0) crypto(0x0) flags(0)
+D/MediaCodec(28186): (0xb4000071ea587aa0) configure format: AMessage(what = 0x00000000) = {
+D/MediaCodec(28186):       Buffer csd-1 = {
+D/MediaCodec(28186):         00000000:  00 00 00 01 68 ef 84 f2  c0                       ....h....
+D/MediaCodec(28186):       }
+D/MediaCodec(28186):       string mime = "video/avc"
+D/MediaCodec(28186):       int32_t width = 1920
+D/MediaCodec(28186):       Buffer csd-0 = {
+D/MediaCodec(28186):         00000000:  00 00 00 01 67 64 00 28  ac d9 40 78 02 27 e5 c0  ....gd.(..@x.'..
+D/MediaCodec(28186):         00000010:  5a 80 80 80 a0 00 00 7d  20 00 17 70 01 e3 06 32  Z......} ..p...2
+D/MediaCodec(28186):         00000020:  c0                                                .
+D/MediaCodec(28186):       }
+D/MediaCodec(28186):       int32_t height = 1080
+D/MediaCodec(28186):     }
+D/MediaCodec(28186): flushMediametrics
+D/MediaCodec(28186): [0xb4000071ea587aa0] setState: 3
+D/MediaCodec(28186): [c2.mtk.avc.decoder] config set c2 sleep timeout 500 kC2SleepTimeoutMs=500
+D/CCodec  (28186): [c2.mtk.avc.decoder] buffers are bound to CCodec for this session
+D/CCodec  (28186): Client requested ByteBuffer mode decoder w/o color format set: using default planar color format
+D/CCodecConfig(28186): no c2 equivalents for csd-1
+D/CCodecConfig(28186): no c2 equivalents for flags
+D/CCodecConfig(28186): c2 config diff is   c2::u32 raw.size.height = 1080
+D/CCodecConfig(28186):   c2::u32 raw.size.width = 1920
+W/ColorUtils(28186): expected specified color aspects (2:0:0:0)
+W/Codec2Client(28186): query -- param skipped: index = 1107298332.
+D/CCodec  (28186): encoding statistics level = 0
+D/CCodec  (28186): setup formats input: AMessage(what = 0x00000000) = {
+D/CCodec  (28186):   string mime = "video/avc"
+D/CCodec  (28186):   int32_t width = 1920
+D/CCodec  (28186):   int32_t profile = 65536
+D/CCodec  (28186):   int32_t priority = -1
+D/CCodec  (28186):   int32_t frame-rate = 30
+D/CCodec  (28186):   int32_t height = 1080
+D/CCodec  (28186):   int32_t level = 32768
+D/CCodec  (28186):   int32_t max-input-size = 2097152
+D/CCodec  (28186):   Rect crop(0, 0, 318, 238)
+D/CCodec  (28186): }
+D/CCodec  (28186): setup formats output: AMessage(what = 0x00000000) = {
+D/CCodec  (28186):   int32_t android._color-format = 2135033992
+D/CCodec  (28186):   int32_t android._video-scaling = 1
+D/CCodec  (28186):   int32_t sar-width = 1
+D/CCodec  (28186):   int32_t color-standard = 0
+D/CCodec  (28186):   int32_t color-range = 2
+D/CCodec  (28186):   int32_t color-transfer = 0
+D/CCodec  (28186):   int32_t android._dataspace = 268435456
+D/CCodec  (28186):   int32_t width = 1920
+D/CCodec  (28186):   int32_t rotation-degrees = 0
+D/CCodec  (28186):   int32_t sar-height = 1
+D/CCodec  (28186):   int32_t max-width = 320
+D/CCodec  (28186):   int32_t max-height = 240
+D/CCodec  (28186):   int32_t priority = -1
+D/CCodec  (28186):   string mime = "video/raw"
+D/CCodec  (28186):   Rect crop(0, 0, 318, 238)
+D/CCodec  (28186):   Buffer hdr-static-info = {
+D/CCodec  (28186):     00000000:  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  ................
+D/CCodec  (28186):     00000010:  00 00 00 00 00 00 00 00  00                       .........
+D/CCodec  (28186):   }
+D/CCodec  (28186):   int32_t frame-rate = 30
+D/CCodec  (28186):   int32_t height = 1080
+D/CCodec  (28186):   int32_t color-format = 19
+D/CCodec  (28186): }
+I/CCodecConfig(28186): query failed after returning 17 values (BAD_INDEX)
+D/CCodecConfig(28186): c2 config diff is   c2::u32 raw.max-size.height = 1080
+D/CCodecConfig(28186):   c2::u32 raw.max-size.width = 1920
+W/ColorUtils(28186): expected specified color aspects (2:0:0:0)
+D/MediaCodec(28186): [0xb4000071ea587aa0] setState: 4
+I/MediaCodec(28186): (0xb4000071ea587aa0) start
+D/MediaCodec(28186): [0xb4000071ea587aa0] setState: 5
+W/Codec2Client(28186): query -- param skipped: index = 1342179345.
+W/Codec2Client(28186): query -- param skipped: index = 2415921170.
+W/Codec2Client(28186): query -- param skipped: index = 1610614798.
+D/CCodecBufferChannel(28186): [c2.mtk.avc.decoder#99] Created input block pool with allocatorID 16 => poolID 18 - OK (0)
+D/CCodecBufferChannel(28186): [c2.mtk.avc.decoder#99] Configured output block pool ids 1 => OK
+D/CCodecBufferChannel(28186): [0xb4000071aa4f3e00] [c2.mtk.avc.decoder#99] start: output->outputDelay 12, output->numSlots 16
+D/CCodecBufferChannel(28186): [c2.mtk.avc.decoder#99] Configured output usage [0x1]
+I/MediaCodec(28186): (0xb4000071ea587aa0) kWhatStartCompleted
+D/MediaCodec(28186): [0xb4000071ea587aa0] setState: 6
+I/MediaCodec(28186): [0xb4000071ea587aa0] enqueue first input frame, timeUs = 0
+I/MediaCodec(28186): [0xb4000071ea587aa0] enqueue first input frame, timeUs = 0
+D/AudioTrack(28186): flush(2222): 0xb4000071aa50e6e0, prior state:STATE_ACTIVE
+D/le.kumoriya_app(28186): PlayerBase::stop() from IPlayer
+D/AudioTrack(28186): stop(2222): 0xb4000071aa50e6e0, prior state:STATE_ACTIVE
+D/AudioTrackShared(28186): this(0xb40000714a450ef0), mCblk(0x7346150000), front(1024), mIsOut 1, interrupt() FUTEX_WAKE
+D/AudioTrack(28186): stop(2222): 0xb4000071aa50e6e0 stop done
+I/flutter (28186): [player.orchestrator#1b36136d 2026-03-16T00:35:16.166007] emit status=PlayerSessionStatus.playing index=0/1 hasStream=true info=null error=null
+I/flutter (28186): [player.orchestrator#1b36136d 2026-03-16T00:35:16.167301] seek-phase completed total=8120ms
+I/flutter (28186): [player.page#e871064 2026-03-16T00:35:16.174482] session status=PlayerSessionStatus.playing index=0/1 info=null error=null
+D/AudioTrack(28186): flush(2222): 0xb4000071aa50e6e0, prior state:STATE_STOPPED
+I/MediaCodec(28186): (0xb4000071ea587aa0) flush
+I/flutter (28186): [player.orchestrator#1b36136d 2026-03-16T00:35:16.178080] seekStallWatch cleared target=0:00:07.000000 position=0:00:14.535833 recoveries=0
+D/MediaCodec(28186): [0xb4000071ea587aa0] setState: 7
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:16.181679] native-log prefix=vo/gpu/opengl level=debug text=EGL_COLOR_BUFFER_TYPE=0x308e
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:16.183470] native-log prefix=vo/gpu/opengl level=debug text=EGL_ANDROID_front_buffer_auto_refresh EGL_ANDROID_get_frame_timestamps EGL_ANDROID_get_native_client_buffer EGL_ANDROID_presentation_time EGL_EXT_surface_CTA861_3_metadata EGL_EXT_surface_SMPTE2086_metadata EGL_KHR_get_all_proc_addresses EGL_KHR_swap_buffers_with_damage EGL_EXT_gl_colorspace_scrgb EGL_EXT_gl_colorspace_scrgb_linear EGL_EXT_gl_colorspace_display_p3_linear EGL_EXT_gl_colorspace_display_p3 EGL_EXT_gl_colorspace_display_p3_passthrough EGL_ANDROID_image_native_buffer EGL_ANDROID_native_fence_sync EGL_ANDROID_recordable EGL_EXT_create_context_robustness EGL_EXT_image_gl_colorspace EGL_EXT_pixel_format_float EGL_EXT_protected_content EGL_EXT_yuv_surface EGL_IMG_context_priority EGL_KHR_config_attribs EGL_KHR_create_context EGL_KHR_fence_sync EGL_KHR_gl_colorspace EGL_KHR_gl_renderbuffer_image EGL_KHR_gl_texture_2D_image EGL_KHR_gl_texture_cubemap_image EGL_KHR_image EGL_KHR_image_base EGL_KHR_mutabl
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:16.184429] native-log prefix=vo/gpu/opengl level=v text=Loaded extension GL_EXT_buffer_storage.
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:16.204770] native-log prefix=ffmpeg/video level=error text=h264_mediacodec: Both surface and native_window are NULL
+D/PipelineWatcher(28186): onWorkDone: frameIndex not found (0); ignored
+D/MediaCodec(28186): [0xb4000071ea587aa0] setState: 6
+I/CCodecConfig(28186): query failed after returning 17 values (BAD_INDEX)
+D/CCodecConfig(28186): c2 config diff is   c2::u32 coded.vui.color.matrix = 1
+D/CCodecConfig(28186):   c2::u32 coded.vui.color.primaries = 1
+D/CCodecConfig(28186):   c2::u32 coded.vui.color.transfer = 3
+D/CCodecConfig(28186):   c2::u32 raw.color.matrix = 1
+D/CCodecConfig(28186):   c2::u32 raw.color.primaries = 1
+D/CCodecConfig(28186):   c2::u32 raw.color.transfer = 3
+D/CCodecConfig(28186):   c2::u32 raw.crop.height = 1080
+D/CCodecConfig(28186):   c2::u32 raw.crop.width = 1920
+D/CCodecConfig(28186):   c2::u32 raw.pixel-format.value = 2130706433
+W/Codec2Client(28186): query -- param skipped: index = 1342179345.
+W/Codec2Client(28186): query -- param skipped: index = 2415921170.
+W/Codec2Client(28186): query -- param skipped: index = 1610614798.
+I/MediaCodec(28186): (0xb4000071ea587aa0) flush
+D/MediaCodec(28186): [0xb4000071ea587aa0] setState: 7
+D/MediaCodec(28186): [0xb4000071ea587aa0] setState: 6
+I/CCodecConfig(28186): query failed after returning 17 values (BAD_INDEX)
+W/Codec2Client(28186): query -- param skipped: index = 1342179345.
+W/Codec2Client(28186): query -- param skipped: index = 2415921170.
+W/Codec2Client(28186): query -- param skipped: index = 1610614798.
+D/CCodecBufferChannel(28186): [c2.mtk.avc.decoder#99] Ignoring stale input buffer done callback: last flush index = 4, frameIndex = 4
+I/flutter (28186): [player.orchestrator#1b36136d 2026-03-16T00:35:16.286487] bufferingChanged buffering=true playing=true position=0:00:14.494000 pendingTarget=null
+I/flutter (28186): [player.orchestrator#1b36136d 2026-03-16T00:35:16.286782] emit status=PlayerSessionStatus.buffering index=0/1 hasStream=true info=null error=null
+I/flutter (28186): [player.page#e871064 2026-03-16T00:35:16.287249] session status=PlayerSessionStatus.buffering index=0/1 info=null error=null
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:16.725644] native-log prefix=ffmpeg/demuxer level=warn text=hls: The m3u8 list sequence may have been wrapped.
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:16.726132] native-log prefix=ffmpeg/demuxer level=debug text=hls: HLS request for url 'https://s1.2000myschoolcdn.xyz/ja/segs/3/v1x/Sy8zQjZQemVQdGhQMlhvaXk2RXVjQ3BQMjBsaEYzMW8yNmkvY3pYdHBIZHN5ZzlWS241a2dvQUdhSjlkWTRUQw/33v2x.ts', offset 0, playlist 0
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:16.726634] native-log prefix=ffmpeg/demuxer level=v text=hls: Opening 'https://s1.2000myschoolcdn.xyz/ja/segs/3/v1x/Sy8zQjZQemVQdGhQMlhvaXk2RXVjQ3BQMjBsaEYzMW8yNmkvY3pYdHBIZHN5ZzlWS241a2dvQUdhSjlkWTRUQw/33v2x.ts' for reading
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:16.727110] native-log prefix=ffmpeg level=debug text=tcp: Starting connection attempt to 91.134.70.100 port 443
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:16.882970] native-log prefix=ffmpeg level=debug text=tcp: Successfully connected to 91.134.70.100 port 443
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:17.826921] native-log prefix=ffmpeg/demuxer level=debug text=hls: HLS request for url 'https://s3.2024myschoolcdn.xyz/ja/segs/3/v1x/Sy8zQjZQemVQdGhQMlhvaXk2RXVjQ3BQMjBsaEYzMW8yNmkvY3pYdHBIZHN5ZzlWS241a2dvQUdhSjlkWTRUQw/34v2x.ts', offset 0, playlist 0
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:17.827857] native-log prefix=ffmpeg/demuxer level=v text=hls: Opening 'https://s3.2024myschoolcdn.xyz/ja/segs/3/v1x/Sy8zQjZQemVQdGhQMlhvaXk2RXVjQ3BQMjBsaEYzMW8yNmkvY3pYdHBIZHN5ZzlWS241a2dvQUdhSjlkWTRUQw/34v2x.ts' for reading
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:17.843828] native-log prefix=ffmpeg level=debug text=tcp: Starting connection attempt to 46.33.11.13 port 443
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:17.981915] native-log prefix=ffmpeg level=debug text=tcp: Successfully connected to 46.33.11.13 port 443
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:18.876635] native-log prefix=ffmpeg/demuxer level=debug text=hls: HLS request for url 'https://s2.2024myschoolcdn.xyz/ja/segs/3/v1x/Sy8zQjZQemVQdGhQMlhvaXk2RXVjQ3BQMjBsaEYzMW8yNmkvY3pYdHBIZHN5ZzlWS241a2dvQUdhSjlkWTRUQw/35v2x.ts', offset 0, playlist 0
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:18.878839] native-log prefix=ffmpeg level=error text=https: Cannot reuse HTTP connection for different host: s1.2000myschoolcdn.xyz:-1 != s2.2024myschoolcdn.xyz:-1
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:18.881225] native-log prefix=ffmpeg/demuxer level=warn text=hls: keepalive request failed for 'https://s2.2024myschoolcdn.xyz/ja/segs/3/v1x/Sy8zQjZQemVQdGhQMlhvaXk2RXVjQ3BQMjBsaEYzMW8yNmkvY3pYdHBIZHN5ZzlWS241a2dvQUdhSjlkWTRUQw/35v2x.ts' with error: 'Invalid argument' when opening url, retrying with new connection
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:18.883082] native-log prefix=ffmpeg/demuxer level=v text=hls: Opening 'https://s2.2024myschoolcdn.xyz/ja/segs/3/v1x/Sy8zQjZQemVQdGhQMlhvaXk2RXVjQ3BQMjBsaEYzMW8yNmkvY3pYdHBIZHN5ZzlWS241a2dvQUdhSjlkWTRUQw/35v2x.ts' for reading
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:18.884930] native-log prefix=ffmpeg level=debug text=tcp: Starting connection attempt to 46.33.11.13 port 443
+D/CCodecBufferChannel(28186): elapsed: mInputMetEos 0, hasPendingOutputsInClient 0, n 16
+D/PipelineWatcher(28186): [0xb4000071aa4f4268] elapsed: mFramesInPipeline 2, n 16
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:19.006778] native-log prefix=ffmpeg level=debug text=tcp: Successfully connected to 46.33.11.13 port 443
+I/MediaCodec(28186): [0xb4000071ea587aa0] enqueue 2 input frames in last 3657 ms, latest timeUs 18831789
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:19.825608] native-log prefix=ffmpeg/demuxer level=debug text=hls: HLS request for url 'https://s2.2000myschoolcdn.xyz/ja/segs/3/v1x/Sy8zQjZQemVQdGhQMlhvaXk2RXVjQ3BQMjBsaEYzMW8yNmkvY3pYdHBIZHN5ZzlWS241a2dvQUdhSjlkWTRUQw/36v2x.ts', offset 0, playlist 0
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:19.826084] native-log prefix=ffmpeg level=error text=https: Cannot reuse HTTP connection for different host: s3.2024myschoolcdn.xyz:-1 != s2.2000myschoolcdn.xyz:-1
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:19.826746] native-log prefix=ffmpeg/demuxer level=warn text=hls: keepalive request failed for 'https://s2.2000myschoolcdn.xyz/ja/segs/3/v1x/Sy8zQjZQemVQdGhQMlhvaXk2RXVjQ3BQMjBsaEYzMW8yNmkvY3pYdHBIZHN5ZzlWS241a2dvQUdhSjlkWTRUQw/36v2x.ts' with error: 'Invalid argument' when opening url, retrying with new connection
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:19.827176] native-log prefix=ffmpeg/demuxer level=v text=hls: Opening 'https://s2.2000myschoolcdn.xyz/ja/segs/3/v1x/Sy8zQjZQemVQdGhQMlhvaXk2RXVjQ3BQMjBsaEYzMW8yNmkvY3pYdHBIZHN5ZzlWS241a2dvQUdhSjlkWTRUQw/36v2x.ts' for reading
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:19.835164] native-log prefix=ffmpeg level=debug text=tcp: Starting connection attempt to 91.134.70.100 port 443
+D/CCodecConfig(28186): c2 config diff is   c2::u32 raw.pixel-format.value = 842094169
+D/CCodecBuffers(28186): [c2.mtk.avc.decoder#99:2D-BB-Output] popFromStashAndRegister: at 18831789us, output format changed to AMessage(what = 0x00000000) = {
+D/CCodecBuffers(28186):   int32_t android._color-format = 2135033992
+D/CCodecBuffers(28186):   int32_t android._video-scaling = 1
+D/CCodecBuffers(28186):   int32_t sar-width = 1
+D/CCodecBuffers(28186):   int32_t color-standard = 1
+D/CCodecBuffers(28186):   int32_t color-range = 2
+D/CCodecBuffers(28186):   int32_t color-transfer = 3
+D/CCodecBuffers(28186):   int32_t android._dataspace = 260
+D/CCodecBuffers(28186):   int32_t width = 1920
+D/CCodecBuffers(28186):   int32_t rotation-degrees = 0
+D/CCodecBuffers(28186):   int32_t sar-height = 1
+D/CCodecBuffers(28186):   int32_t max-width = 1920
+D/CCodecBuffers(28186):   int32_t max-height = 1080
+D/CCodecBuffers(28186):   int32_t priority = -1
+D/CCodecBuffers(28186):   string mime = "video/raw"
+D/CCodecBuffers(28186):   Rect crop(0, 0, 1919, 1079)
+D/CCodecBuffers(28186):   Buffer hdr-static-info = {
+D/CCodecBuffers(28186):     00000000:  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  ................
+D/CCodecBuffers(28186):     00000010:  00 00 00 00 00 00 00 00  00                       .........
+D/CCodecBuffers(28186):   }
+D/CCodecBuffers(28186):   int32_t frame-rate = 30
+D/CCodecBuffers(28186):   int32_t height = 1080
+D/CCodecBuffers(28186):   int32_t color-format = 19
+D/CCodecBuffers(28186): }
+D/CCodecBuffers(28186): [c2.mtk.avc.decoder#99:2D-BB-Output] updating image-data
+D/CCodecBuffers(28186): [c2.mtk.avc.decoder#99:2D-BB-Output] updating stride = 1920, width: 1920, height: 1080
+D/CCodecBuffers(28186): [c2.mtk.avc.decoder#99:2D-BB-Output] updating vstride = 1080
+I/MediaCodec(28186): [0xb4000071ea587aa0] dequeue first output frame, timeUs = 18831789
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:19.867233] native-log prefix=ffmpeg/video level=v text=h264_mediacodec: Output MediaFormat changed to {max-height=1080, crop-right=1919, sar-width=1, color-format=19, slice-height=1080, image-data=java.nio.HeapByteBuffer[pos=0 lim=104 cap=104], mime=video/raw, hdr-static-info=java.nio.HeapByteBuffer[pos=0 lim=25 cap=25], priority=-1, stride=1920, color-standard=1, color-transfer=3, sar-height=1, crop-bottom=1079, max-width=1920, width=1920, crop-left=0, color-range=2, crop-top=0, rotation-degrees=0, frame-rate=30, height=1080}
+D/AudioTrack(28186): start(2222): 0xb4000071aa50e6e0, prior state:STATE_FLUSHED
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:19.948437] native-buffer time=0:00:23.444833 percent=100.0 position=0:00:14.494000 duration=0:23:40.043942
+I/flutter (28186): [player.orchestrator#1b36136d 2026-03-16T00:35:19.981297] bufferingChanged buffering=false playing=true position=0:00:14.494000 pendingTarget=null
+I/flutter (28186): [player.orchestrator#1b36136d 2026-03-16T00:35:19.981679] bufferingChanged before-emit buffering=false playing=true currentError=null willClearError=false
+I/flutter (28186): [player.orchestrator#1b36136d 2026-03-16T00:35:19.982038] emit status=PlayerSessionStatus.playing index=0/1 hasStream=true info=null error=null
+I/flutter (28186): [player.orchestrator#1b36136d 2026-03-16T00:35:19.982747] bufferingChanged after-emit buffering=false newError=null
+I/flutter (28186): [player.page#e871064 2026-03-16T00:35:19.983317] session status=PlayerSessionStatus.playing index=0/1 info=null error=null
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:19.984124] native-log prefix=ffmpeg level=debug text=tcp: Successfully connected to 91.134.70.100 port 443
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:20.845036] native-log prefix=ffmpeg/demuxer level=debug text=hls: HLS request for url 'https://cdn2.2026schob2.xyz/ja/segs/3/v1x/Sy8zQjZQemVQdGhQMlhvaXk2RXVjQ3BQMjBsaEYzMW8yNmkvY3pYdHBIZHN5ZzlWS241a2dvQUdhSjlkWTRUQw/37v2x.ts', offset 0, playlist 0
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:20.845593] native-log prefix=ffmpeg level=error text=https: Cannot reuse HTTP connection for different host: s2.2024myschoolcdn.xyz:-1 != cdn2.2026schob2.xyz:-1
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:20.845977] native-log prefix=ffmpeg/demuxer level=warn text=hls: keepalive request failed for 'https://cdn2.2026schob2.xyz/ja/segs/3/v1x/Sy8zQjZQemVQdGhQMlhvaXk2RXVjQ3BQMjBsaEYzMW8yNmkvY3pYdHBIZHN5ZzlWS241a2dvQUdhSjlkWTRUQw/37v2x.ts' with error: 'Invalid argument' when opening url, retrying with new connection
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:20.846271] native-log prefix=ffmpeg/demuxer level=v text=hls: Opening 'https://cdn2.2026schob2.xyz/ja/segs/3/v1x/Sy8zQjZQemVQdGhQMlhvaXk2RXVjQ3BQMjBsaEYzMW8yNmkvY3pYdHBIZHN5ZzlWS241a2dvQUdhSjlkWTRUQw/37v2x.ts' for reading
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:20.846607] native-log prefix=ffmpeg level=debug text=tcp: Starting connection attempt to 46.33.8.107 port 443
+I/MediaCodec(28186): [0xb4000071ea587aa0] dequeue 25 output frames in last 1009 ms, latest timeUs 19832789, flags 0
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:20.957456] native-buffer time=0:00:26.751833 percent=100.0 position=0:00:19.749377 duration=0:23:40.043942
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:21.002280] native-log prefix=ffmpeg level=debug text=tcp: Successfully connected to 46.33.8.107 port 443
+D/BufferPoolAccessor2.0(28186): bufferpool2 0xb40000717a5be3d8 : 0(0 size) total buffers - 0(0 size) used buffers - 38/48 (recycle/alloc) - 10/26 (fetch/transfer)
+D/BufferPoolAccessor2.0(28186): evictor expired: 1, evicted: 1
+I/MediaCodec(28186): [0xb4000071ea587aa0] enqueue 32 input frames in last 1320 ms, latest timeUs 20208167
+D/BufferPoolAccessor2.0(28186): bufferpool2 0xb40000717a54ef38 : 10(20971520 size) total buffers - 9(18874368 size) used buffers - 62/72 (recycle/alloc) - 10/62 (fetch/transfer)
+I/MediaCodec(28186): [0xb4000071ea587aa0] dequeue 24 output frames in last 1003 ms, latest timeUs 20833789, flags 0
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:21.984689] native-buffer time=0:00:28.949166 percent=100.0 position=0:00:20.750377 duration=0:23:40.043942
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:22.193856] native-log prefix=ffmpeg/demuxer level=debug text=hls: HLS request for url 'https://cdn2.2026schob2.xyz/ja/segs/3/v1x/Sy8zQjZQemVQdGhQMlhvaXk2RXVjQ3BQMjBsaEYzMW8yNmkvY3pYdHBIZHN5ZzlWS241a2dvQUdhSjlkWTRUQw/38v2x.ts', offset 0, playlist 0
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:22.194290] native-log prefix=ffmpeg level=error text=https: Cannot reuse HTTP connection for different host: s2.2000myschoolcdn.xyz:-1 != cdn2.2026schob2.xyz:-1
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:22.194759] native-log prefix=ffmpeg/demuxer level=warn text=hls: keepalive request failed for 'https://cdn2.2026schob2.xyz/ja/segs/3/v1x/Sy8zQjZQemVQdGhQMlhvaXk2RXVjQ3BQMjBsaEYzMW8yNmkvY3pYdHBIZHN5ZzlWS241a2dvQUdhSjlkWTRUQw/38v2x.ts' with error: 'Invalid argument' when opening url, retrying with new connection
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:22.195493] native-log prefix=ffmpeg/demuxer level=v text=hls: Opening 'https://cdn2.2026schob2.xyz/ja/segs/3/v1x/Sy8zQjZQemVQdGhQMlhvaXk2RXVjQ3BQMjBsaEYzMW8yNmkvY3pYdHBIZHN5ZzlWS241a2dvQUdhSjlkWTRUQw/38v2x.ts' for reading
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:22.197910] native-buffer time=0:00:30.122499 percent=100.0 position=0:00:20.958922 duration=0:23:40.043942
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:22.198622] native-log prefix=ffmpeg level=debug text=tcp: Starting connection attempt to 46.33.8.107 port 443
+I/MediaCodec(28186): [0xb4000071ea587aa0] enqueue 28 input frames in last 1128 ms, latest timeUs 21292589
+I/MediaCodec(28186): [0xb4000071ea587aa0] dequeue 24 output frames in last 1030 ms, latest timeUs 21834789, flags 0
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:22.933674] native-log prefix=ffmpeg level=debug text=tcp: Successfully connected to 46.33.8.107 port 443
+D/CCodecBufferChannel(28186): elapsed: mInputMetEos 0, hasPendingOutputsInClient 0, n 16
+D/PipelineWatcher(28186): [0xb4000071aa4f4268] elapsed: mFramesInPipeline 11, n 16
+I/MediaCodec(28186): [0xb4000071ea587aa0] enqueue 28 input frames in last 1122 ms, latest timeUs 22418711
+I/MediaCodec(28186): [0xb4000071ea587aa0] dequeue 25 output frames in last 1014 ms, latest timeUs 22877500, flags 0
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:24.210540] native-buffer time=0:00:33.721666 percent=100.0 position=0:00:23.002622 duration=0:23:40.043942
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:24.318818] native-log prefix=ffmpeg/demuxer level=debug text=hls: HLS request for url 'https://s2.2024myschoolcdn.xyz/ja/segs/3/v1x/Sy8zQjZQemVQdGhQMlhvaXk2RXVjQ3BQMjBsaEYzMW8yNmkvY3pYdHBIZHN5ZzlWS241a2dvQUdhSjlkWTRUQw/39v2x.ts', offset 0, playlist 0
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:24.319170] native-log prefix=ffmpeg level=error text=https: Cannot reuse HTTP connection for different host: cdn2.2026schob2.xyz:-1 != s2.2024myschoolcdn.xyz:-1
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:24.319532] native-log prefix=ffmpeg/demuxer level=warn text=hls: keepalive request failed for 'https://s2.2024myschoolcdn.xyz/ja/segs/3/v1x/Sy8zQjZQemVQdGhQMlhvaXk2RXVjQ3BQMjBsaEYzMW8yNmkvY3pYdHBIZHN5ZzlWS241a2dvQUdhSjlkWTRUQw/39v2x.ts' with error: 'Invalid argument' when opening url, retrying with new connection
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:24.319822] native-log prefix=ffmpeg/demuxer level=v text=hls: Opening 'https://s2.2024myschoolcdn.xyz/ja/segs/3/v1x/Sy8zQjZQemVQdGhQMlhvaXk2RXVjQ3BQMjBsaEYzMW8yNmkvY3pYdHBIZHN5ZzlWS241a2dvQUdhSjlkWTRUQw/39v2x.ts' for reading
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:24.320089] native-log prefix=ffmpeg level=debug text=tcp: Starting connection attempt to 46.33.11.13 port 443
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:24.505162] native-buffer time=0:00:35.967499 percent=100.0 position=0:00:23.294588 duration=0:23:40.043942
+I/MediaCodec(28186): [0xb4000071ea587aa0] enqueue 26 input frames in last 1210 ms, latest timeUs 23669956
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:24.900559] native-log prefix=ffmpeg level=debug text=tcp: Successfully connected to 46.33.11.13 port 443
+I/MediaCodec(28186): [0xb4000071ea587aa0] dequeue 25 output frames in last 1074 ms, latest timeUs 23920211, flags 0
+I/MediaCodec(28186): [0xb4000071ea587aa0] enqueue 32 input frames in last 1243 ms, latest timeUs 24879500
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:25.971672] native-buffer time=0:00:38.810088 percent=100.0 position=0:00:24.754377 duration=0:23:40.043942
+I/MediaCodec(28186): [0xb4000071ea587aa0] dequeue 25 output frames in last 1011 ms, latest timeUs 24962922, flags 0
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:26.201898] native-buffer time=0:00:39.560833 percent=100.0 position=0:00:24.962922 duration=0:23:40.043942
+D/CCodecBufferChannel(28186): elapsed: mInputMetEos 0, hasPendingOutputsInClient 1, n 16
+D/PipelineWatcher(28186): [0xb4000071aa4f4268] elapsed: mFramesInPipeline 5, n 16
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:26.486500] native-buffer time=0:00:40.561833 percent=100.0 position=0:00:25.254877 duration=0:23:40.043942
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:26.671085] native-log prefix=ffmpeg/demuxer level=debug text=hls: HLS request for url 'https://s1.2024myschoolcdn.xyz/ja/segs/3/v1x/Sy8zQjZQemVQdGhQMlhvaXk2RXVjQ3BQMjBsaEYzMW8yNmkvY3pYdHBIZHN5ZzlWS241a2dvQUdhSjlkWTRUQw/310v2x.ts', offset 0, playlist 0
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:26.672399] native-log prefix=ffmpeg level=error text=https: Cannot reuse HTTP connection for different host: cdn2.2026schob2.xyz:-1 != s1.2024myschoolcdn.xyz:-1
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:26.675507] native-log prefix=ffmpeg/demuxer level=warn text=hls: keepalive request failed for 'https://s1.2024myschoolcdn.xyz/ja/segs/3/v1x/Sy8zQjZQemVQdGhQMlhvaXk2RXVjQ3BQMjBsaEYzMW8yNmkvY3pYdHBIZHN5ZzlWS241a2dvQUdhSjlkWTRUQw/310v2x.ts' with error: 'Invalid argument' when opening url, retrying with new connection
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:26.676489] native-log prefix=ffmpeg/demuxer level=v text=hls: Opening 'https://s1.2024myschoolcdn.xyz/ja/segs/3/v1x/Sy8zQjZQemVQdGhQMlhvaXk2RXVjQ3BQMjBsaEYzMW8yNmkvY3pYdHBIZHN5ZzlWS241a2dvQUdhSjlkWTRUQw/310v2x.ts' for reading
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:26.677226] native-log prefix=ffmpeg level=debug text=tcp: Starting connection attempt to 46.33.11.13 port 443
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:26.726889] native-buffer time=0:00:41.342833 percent=100.0 position=0:00:25.505122 duration=0:23:40.043942
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:26.785461] native-log prefix=ffmpeg level=debug text=tcp: Successfully connected to 46.33.11.13 port 443
+I/MediaCodec(28186): [0xb4000071ea587aa0] enqueue 27 input frames in last 1130 ms, latest timeUs 26005622
+I/MediaCodec(28186): [0xb4000071ea587aa0] dequeue 25 output frames in last 1040 ms, latest timeUs 26005622, flags 0
+D/BufferPoolAccessor2.0(28186): bufferpool2 0xb40000717a54ef38 : 10(20971520 size) total buffers - 8(16777216 size) used buffers - 193/203 (recycle/alloc) - 10/190 (fetch/transfer)
+I/flutter (28186): [player.page#e871064 2026-03-16T00:35:27.386832] ui seek target=0:10:01.799000 current=0:10:01.799000 duration=0:23:40.043942
+I/flutter (28186): [player.orchestrator#1b36136d 2026-03-16T00:35:27.389777] seek-phase start target=0:10:01.799000 generation=1 candidateIndex=0 hls=true
+I/flutter (28186): [player.orchestrator#1b36136d 2026-03-16T00:35:27.390421] seekQuality start currentVariant=unknown candidateIndex=0
+I/flutter (28186): [player.orchestrator#1b36136d 2026-03-16T00:35:27.391398] seekWindowMiss target=0:10:01.799000 windowStart=0:00:00.000000 windowEnd=0:23:40.043942 action=reopen
+I/flutter (28186): [player.orchestrator#1b36136d 2026-03-16T00:35:27.394638] recoverCurrentCandidate force=true recoveryPosition=0:10:01.799000 currentIndex=0 recoveries=0 pendingTarget=0:10:01.799000 lastRequestedSeek=0:10:01.799000 lastKnown=0:00:26.130755
+I/flutter (28186): [player.orchestrator#1b36136d 2026-03-16T00:35:27.395028] recoverCurrentCandidate opening url=https://nika.playmudos.com/Sy8zQjZQemVQdGhQMlhvaXk2RXVjQ3BQMjBsaEYzMW8yNmkvY3pYdHBIZHN5ZzlWS241a2dvQUdhSjlkWTRUQw.m3u8?st=2U43kjVmAvYkKXoMei_-RA&e=1773646508 target=0:10:01.799000 hls=true
+I/flutter (28186): [player.orchestrator#1b36136d 2026-03-16T00:35:27.395279] timelineDomain reset-for-new-open wasManaged=false
+I/flutter (28186): [player.orchestrator#1b36136d 2026-03-16T00:35:27.395586] emit status=PlayerSessionStatus.buffering index=0/1 hasStream=true info=player.fallback_in_progress error=null
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:27.395885] open url=https://nika.playmudos.com/Sy8zQjZQemVQdGhQMlhvaXk2RXVjQ3BQMjBsaEYzMW8yNmkvY3pYdHBIZHN5ZzlWS241a2dvQUdhSjlkWTRUQw.m3u8?st=2U43kjVmAvYkKXoMei_-RA&e=1773646508 hls=true start=0:10:01.799000 generation=2 headers=Referer,Origin
+I/flutter (28186): [player.page#e871064 2026-03-16T00:35:27.396891] session status=PlayerSessionStatus.buffering index=0/1 info=player.fallback_in_progress error=null
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:27.397468] decoder-config hwdec=auto-safe platform=TargetPlatform.android animeNexus=false
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:27.397745] hls-reopen start url=https://nika.playmudos.com/Sy8zQjZQemVQdGhQMlhvaXk2RXVjQ3BQMjBsaEYzMW8yNmkvY3pYdHBIZHN5ZzlWS241a2dvQUdhSjlkWTRUQw.m3u8?st=2U43kjVmAvYkKXoMei_-RA&e=1773646508 target=0:10:01.799000
+I/flutter (28186): [player.orchestrator#1b36136d 2026-03-16T00:35:27.399149] positionChanged position=0:00:26.172455 pendingTarget=0:10:01.799000
+D/AudioTrack(28186): flush(2222): 0xb4000071aa50e6e0, prior state:STATE_ACTIVE
+D/le.kumoriya_app(28186): PlayerBase::stop() from IPlayer
+D/AudioTrack(28186): stop(2222): 0xb4000071aa50e6e0, prior state:STATE_ACTIVE
+D/AudioTrackShared(28186): this(0xb40000714a450ef0), mCblk(0x7346150000), front(352512), mIsOut 1, interrupt() FUTEX_WAKE
+D/AudioTrack(28186): stop(2222): 0xb4000071aa50e6e0 stop done
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:27.433299] native-log prefix=cplayer level=v text=EOF code: 4
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:27.433697] native-log prefix=cplayer level=v text=Set property: http-header-fields=null -> -2
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:27.434108] native-log prefix=ffmpeg level=error text=tls: mbedtls_ssl_read returned -0x0
+I/MediaCodec(28186): (0xb4000071ea587aa0) flush
+D/MediaCodec(28186): [0xb4000071ea587aa0] setState: 7
+D/CCodecBufferChannel(28186): [c2.mtk.avc.decoder#99] no linear codec config data found
+D/CCodecBufferChannel(28186): [c2.mtk.avc.decoder#99] no linear codec config data found
+D/MediaCodec(28186): [0xb4000071ea587aa0] setState: 6
+I/CCodecConfig(28186): query failed after returning 17 values (BAD_INDEX)
+W/Codec2Client(28186): query -- param skipped: index = 1342179345.
+W/Codec2Client(28186): query -- param skipped: index = 2415921170.
+W/Codec2Client(28186): query -- param skipped: index = 1610614798.
+D/MediaCodec(28186): [0xb4000071ea587aa0] [c2.mtk.avc.decoder] releaseAsync
+D/MediaCodec(28186): [0xb4000071ea587aa0] setState: 10
+D/CCodecBufferChannel(28186): [c2.mtk.avc.decoder#99] MediaCodec discarded an unknown buffer
+D/CCodecBufferChannel(28186): [c2.mtk.avc.decoder#99] MediaCodec discarded an unknown buffer
+D/CCodecBufferChannel(28186): [c2.mtk.avc.decoder#99] MediaCodec discarded an unknown buffer
+D/CCodecBufferChannel(28186): [c2.mtk.avc.decoder#99] MediaCodec discarded an unknown buffer
+D/CCodecBufferChannel(28186): [c2.mtk.avc.decoder#99] MediaCodec discarded an unknown buffer
+D/CCodecBufferChannel(28186): [c2.mtk.avc.decoder#99] MediaCodec discarded an unknown buffer
+D/CCodecBufferChannel(28186): [c2.mtk.avc.decoder#99] MediaCodec discarded an unknown buffer
+D/CCodecBufferChannel(28186): [c2.mtk.avc.decoder#99] MediaCodec discarded an unknown buffer
+I/hw-BpHwBinder(28186): onLastStrongRef automatically unlinking death recipients
+D/MediaCodec(28186): [0xb4000071ea587aa0] [c2.mtk.avc.decoder] kWhatReleaseCompleted
+D/MediaCodec(28186): [0xb4000071ea587aa0] setState: 0
+D/MediaCodec(28186): flushMediametrics
+D/MediaCodec(28186): [0xb4000071ea587aa0] ~MediaCodec
+D/MediaCodec(28186): flushMediametrics
+D/AudioTrack(28186): stop(2222): 0xb4000071aa50e6e0, prior state:STATE_STOPPED
+D/AudioTrack(28186): ~AudioTrack(2222): 0xb4000071aa50e6e0
+D/AudioTrack(28186): stop(2222): 0xb4000071aa50e6e0, prior state:STATE_STOPPED
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:27.504414] hls-reopen stopped current media
+I/flutter (28186): [player.orchestrator#1b36136d 2026-03-16T00:35:27.505766] playingChanged playing=false buffering=false
+I/flutter (28186): [player.orchestrator#1b36136d 2026-03-16T00:35:27.508405] playingChanged before-emit playing=false currentError=null willClearError=false
+I/flutter (28186): [player.orchestrator#1b36136d 2026-03-16T00:35:27.509591] emit status=PlayerSessionStatus.paused index=0/1 hasStream=true info=player.fallback_in_progress error=null
+I/flutter (28186): [player.orchestrator#1b36136d 2026-03-16T00:35:27.510681] playingChanged after-emit playing=false newError=null
+I/flutter (28186): [player.page#e871064 2026-03-16T00:35:27.511405] playing stream playing=false position=0:00:26.172455
+I/flutter (28186): [player.orchestrator#1b36136d 2026-03-16T00:35:27.518564] emitPosition position=0:00:00.000000 managed=false base=0:00:00.000000
+I/flutter (28186): [player.orchestrator#1b36136d 2026-03-16T00:35:27.518850] positionChanged position=0:00:00.000000 pendingTarget=0:10:01.799000
+I/flutter (28186): [player.page#e871064 2026-03-16T00:35:27.519589] session status=PlayerSessionStatus.paused index=0/1 info=player.fallback_in_progress error=null
+D/VRI[MainActivity](28186): update {(0,0)(fillxfill) sim={adjust=resize} ty=BASE_APPLICATION wanim=0x1030001
+D/VRI[MainActivity](28186):   fl=LAYOUT_IN_SCREEN LAYOUT_INSET_DECOR SPLIT_TOUCH HARDWARE_ACCELERATED DRAWS_SYSTEM_BAR_BACKGROUNDS
+D/VRI[MainActivity](28186):   pfl=NO_MOVE_ANIMATION FORCE_DRAW_STATUS_BAR_BACKGROUND FIT_INSETS_CONTROLLED
+D/VRI[MainActivity](28186):   bhv=DEFAULT
+D/VRI[MainActivity](28186):   fitSides=} by setLayoutParams
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:27.595954] native-log prefix=demux level=v text=Trying demuxers for level=request.
+I/flutter (28186): [player.orchestrator#1b36136d 2026-03-16T00:35:27.596633] playingChanged playing=true buffering=false
+I/flutter (28186): [player.orchestrator#1b36136d 2026-03-16T00:35:27.596880] playingChanged before-emit playing=true currentError=null willClearError=false
+I/flutter (28186): [player.orchestrator#1b36136d 2026-03-16T00:35:27.597185] emit status=PlayerSessionStatus.playing index=0/1 hasStream=true info=player.fallback_in_progress error=null
+I/flutter (28186): [player.orchestrator#1b36136d 2026-03-16T00:35:27.597407] playingChanged after-emit playing=true newError=null
+I/flutter (28186): [player.page#e871064 2026-03-16T00:35:27.597723] playing stream playing=true position=0:00:00.000000
+I/flutter (28186): [player.page#e871064 2026-03-16T00:35:27.598500] session status=PlayerSessionStatus.playing index=0/1 info=player.fallback_in_progress error=null
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:27.598910] hls-reopen opened playing buffering=false duration=0:00:00.000000 position=0:00:00.000000
+I/flutter (28186): [player.orchestrator#1b36136d 2026-03-16T00:35:27.599528] bufferingChanged buffering=true playing=true position=0:00:00.000000 pendingTarget=0:10:01.799000
+I/flutter (28186): [player.orchestrator#1b36136d 2026-03-16T00:35:27.599843] emit status=PlayerSessionStatus.buffering index=0/1 hasStream=true info=player.fallback_in_progress error=null
+I/flutter (28186): [player.page#e871064 2026-03-16T00:35:27.600314] session status=PlayerSessionStatus.buffering index=0/1 info=player.fallback_in_progress error=null
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:27.601845] native-log prefix=demux level=debug text=Trying demuxer: playlist (force-level: request)
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:27.602295] native-log prefix=playlist level=warn text=Reading plaintext playlist.
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:27.602709] native-log prefix=playlist level=v text=demuxer read all data; closing stream
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:27.603107] native-log prefix=demux level=v text=Detected file format: txt (Playlist file)
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:27.603805] native-log prefix=cplayer level=v text=Set property: http-header-fields=["Referer: https://jkanime.net/","Origin: https://jkanime.net"] -> 1
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:27.604390] native-log prefix=ffmpeg level=v text=Opening https://nika.playmudos.com/Sy8zQjZQemVQdGhQMlhvaXk2RXVjQ3BQMjBsaEYzMW8yNmkvY3pYdHBIZHN5ZzlWS241a2dvQUdhSjlkWTRUQw.m3u8?st=2U43kjVmAvYkKXoMei_-RA&e=1773646508
+D/VRI[MainActivity](28186): update {(0,0)(fillxfill) sim={adjust=resize} ty=BASE_APPLICATION wanim=0x1030001
+D/VRI[MainActivity](28186):   fl=KEEP_SCREEN_ON LAYOUT_IN_SCREEN LAYOUT_INSET_DECOR SPLIT_TOUCH HARDWARE_ACCELERATED DRAWS_SYSTEM_BAR_BACKGROUNDS
+D/VRI[MainActivity](28186):   pfl=NO_MOVE_ANIMATION FORCE_DRAW_STATUS_BAR_BACKGROUND FIT_INSETS_CONTROLLED
+D/VRI[MainActivity](28186):   bhv=DEFAULT
+D/VRI[MainActivity](28186):   fitSides=} by setLayoutParams
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:27.609149] native-log prefix=ffmpeg level=debug text=tcp: Starting connection attempt to 104.21.89.108 port 443
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:27.643635] native-log prefix=ffmpeg level=debug text=tcp: Successfully connected to 104.21.89.108 port 443
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:28.137551] native-log prefix=demux level=v text=Trying demuxers for level=normal.
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:28.138619] native-log prefix=demux level=debug text=Trying demuxer: disc (force-level: normal)
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:28.139556] native-log prefix=demux level=debug text=Trying demuxer: edl (force-level: normal)
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:28.140586] native-log prefix=demux level=debug text=Trying demuxer: cue (force-level: normal)
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:28.141634] native-log prefix=demux level=debug text=Trying demuxer: rawaudio (force-level: normal)
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:28.142700] native-log prefix=demux level=debug text=Trying demuxer: rawvideo (force-level: normal)
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:28.143706] native-log prefix=demux level=debug text=Trying demuxer: mkv (force-level: normal)
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:28.144811] native-log prefix=demux level=debug text=Trying demuxer: lavf (force-level: normal)
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:28.154714] native-log prefix=lavf level=v text=Found 'hls' at score=100 size=2048.
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:28.162392] native-log prefix=ffmpeg level=debug text=tcp: Starting connection attempt to 104.21.89.108 port 443
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:28.197051] native-log prefix=ffmpeg level=debug text=tcp: Successfully connected to 104.21.89.108 port 443
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:28.711713] native-log prefix=ffmpeg/demuxer level=v text=hls: Skip ('#EXT-X-VERSION:3')
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:29.015658] native-log prefix=ffmpeg/demuxer level=debug text=hls: HLS request for url 'https://s3.2000myschoolcdn.xyz/ja/segs/3/v1x/Sy8zQjZQemVQdGhQMlhvaXk2RXVjQ3BQMjBsaEYzMW8yNmkvY3pYdHBIZHN5ZzlWS241a2dvQUdhSjlkWTRUQw/30v2x.ts', offset 0, playlist 0
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:29.016374] native-log prefix=ffmpeg/demuxer level=v text=hls: Opening 'https://s3.2000myschoolcdn.xyz/ja/segs/3/v1x/Sy8zQjZQemVQdGhQMlhvaXk2RXVjQ3BQMjBsaEYzMW8yNmkvY3pYdHBIZHN5ZzlWS241a2dvQUdhSjlkWTRUQw/30v2x.ts' for reading
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:29.033264] native-log prefix=ffmpeg level=debug text=tcp: Starting connection attempt to 91.134.70.100 port 443
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:29.180904] native-log prefix=ffmpeg level=debug text=tcp: Successfully connected to 91.134.70.100 port 443
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:30.100343] native-log prefix=ffmpeg/demuxer level=debug text=hls: HLS request for url 'https://cdn1.2026schob2.xyz/ja/segs/3/v1x/Sy8zQjZQemVQdGhQMlhvaXk2RXVjQ3BQMjBsaEYzMW8yNmkvY3pYdHBIZHN5ZzlWS241a2dvQUdhSjlkWTRUQw/31v2x.ts', offset 0, playlist 0
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:30.101090] native-log prefix=ffmpeg/demuxer level=v text=hls: Opening 'https://cdn1.2026schob2.xyz/ja/segs/3/v1x/Sy8zQjZQemVQdGhQMlhvaXk2RXVjQ3BQMjBsaEYzMW8yNmkvY3pYdHBIZHN5ZzlWS241a2dvQUdhSjlkWTRUQw/31v2x.ts' for reading
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:30.101753] native-log prefix=ffmpeg level=debug text=tcp: Starting connection attempt to 46.33.8.107 port 443
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:30.282524] native-log prefix=ffmpeg level=debug text=tcp: Successfully connected to 46.33.8.107 port 443
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:31.291063] native-log prefix=demux level=v text=Detected file format: hls (libavformat)
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:31.291575] native-log prefix=global level=debug text=cache path: '' -> '-'
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:31.292521] native-log prefix=lavf level=error text=Failed to create file cache.
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:31.292940] native-log prefix=cplayer level=v text=Opening done: https://nika.playmudos.com/Sy8zQjZQemVQdGhQMlhvaXk2RXVjQ3BQMjBsaEYzMW8yNmkvY3pYdHBIZHN5ZzlWS241a2dvQUdhSjlkWTRUQw.m3u8?st=2U43kjVmAvYkKXoMei_-RA&e=1773646508
+D/MediaCodec(28186): CreateByComponentName: name c2.mtk.avc.decoder
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:31.298326] native-log prefix=ffmpeg/video level=error text=h264_mediacodec: Both surface and native_window are NULL
+I/MediaCodec(28186): (0xb4000071ea6b2d40) init name(c2.mtk.avc.decoder)
+D/CCodecBufferChannel(28186): mBufferCountDebug=0 mIsUserLoad=1
+D/MediaCodec(28186): [0xb4000071ea6b2d40] init: CCodec 0xb40000716a44ca90, CCodecBufferChannel 0xb4000071aa528950
+D/MediaCodec(28186): [0xb4000071ea6b2d40] setState: 1
+D/CCodec  (28186): allocate(c2.mtk.avc.decoder)
+I/CCodec  (28186): setting up 'default' as default (vendor) store
+I/CCodec  (28186): Created component [c2.mtk.avc.decoder]
+D/CCodecBufferChannel(28186): [0xb4000071aa528950] setComponent: mName c2.mtk.avc.decoder#147, mPipelineWatcher 0xb4000071aa528db8
+D/CCodecBufferChannel(28186): PipelineWatcher debug info [c2.mtk.avc.decoder#147] enable=0
+D/CCodecConfig(28186): read media type: video/avc
+D/ReflectedParamUpdater(28186): extent() != 1 for single value type: algo.buffers.max-count.values
+D/ReflectedParamUpdater(28186): extent() != 1 for single value type: output.subscribed-indices.values
+D/ReflectedParamUpdater(28186): extent() != 1 for single value type: input.buffers.allocator-ids.values
+D/ReflectedParamUpdater(28186): extent() != 1 for single value type: output.buffers.allocator-ids.values
+D/ReflectedParamUpdater(28186): extent() != 1 for single value type: algo.buffers.allocator-ids.values
+D/ReflectedParamUpdater(28186): extent() != 1 for single value type: output.buffers.pool-ids.values
+D/ReflectedParamUpdater(28186): extent() != 1 for single value type: algo.buffers.pool-ids.values
+D/ReflectedParamUpdater(28186): ignored struct field coded.color-format.locations
+D/CCodecConfig(28186): ignoring local param raw.size (0xd2001800) as it is already supported
+D/CCodecConfig(28186): ignoring local param raw.crop (0xd2001801) as it is already supported
+D/CCodecConfig(28186): ignoring local param default.color (0x5200180b) as it is already supported
+D/CCodecConfig(28186): ignoring local param raw.hdr-static-info (0xd200180a) as it is already supported
+I/CCodecConfig(28186): query failed after returning 17 values (BAD_INDEX)
+D/CCodecConfig(28186): c2 config diff is Dict {
+D/CCodecConfig(28186):   c2::i32 algo.priority.value = 1
+D/CCodecConfig(28186):   c2::float algo.rate.value = 0
+D/CCodecConfig(28186):   c2::float coded.frame-rate.value = 30
+D/CCodecConfig(28186):   c2::u32 coded.pl.level = 20495
+D/CCodecConfig(28186):   c2::u32 coded.pl.profile = 20481
+D/CCodecConfig(28186):   c2::u32 coded.vui.color.matrix = 0
+D/CCodecConfig(28186):   c2::u32 coded.vui.color.primaries = 0
+D/CCodecConfig(28186):   c2::u32 coded.vui.color.range = 2
+D/CCodecConfig(28186):   c2::u32 coded.vui.color.transfer = 0
+D/CCodecConfig(28186):   c2::u32 default.color.matrix = 0
+D/CCodecConfig(28186):   c2::u32 default.color.primaries = 0
+D/CCodecConfig(28186):   c2::u32 default.color.range = 0
+D/CCodecConfig(28186):   c2::u32 default.color.transfer = 0
+D/CCodecConfig(28186):   c2::u32 input.buffers.max-size.value = 2097152
+D/CCodecConfig(28186):   c2::u32 input.delay.value = 4
+D/CCodecConfig(28186):   string input.media-type.value = "video/avc"
+D/CCodecConfig(28186):   c2::u32 output.delay.value = 12
+D/CCodecConfig(28186):   string output.media-type.value = "video/raw"
+D/CCodecConfig(28186):   c2::u32 raw.color.matrix = 0
+D/CCodecConfig(28186):   c2::u32 raw.color.primaries = 0
+D/CCodecConfig(28186):   c2::u32 raw.color.range = 2
+D/CCodecConfig(28186):   c2::u32 raw.color.transfer = 0
+D/CCodecConfig(28186):   c2::u32 raw.crop.height = 239
+D/CCodecConfig(28186):   c2::u32 raw.crop.left = 0
+D/CCodecConfig(28186):   c2::u32 raw.crop.top = 0
+D/CCodecConfig(28186):   c2::u32 raw.crop.width = 319
+D/CCodecConfig(28186):   c2::float raw.hdr-static-info.mastering.blue.x = 0
+D/CCodecConfig(28186):   c2::float raw.hdr-s
+W/ColorUtils(28186): expected specified color aspects (2:0:0:0)
+D/MediaCodec(28186): [0xb4000071ea6b2d40] setState: 2
+I/MediaCodec(28186): (0xb4000071ea6b2d40) Component Allocated (c2.mtk.avc.decoder)
+D/MediaCodec(28186): createbyComponent:pid:-1 28186 tid=28407
+I/MediaCodec(28186): (0xb4000071ea6b2d40) configure surface(0x0) crypto(0x0) flags(0)
+D/MediaCodec(28186): (0xb4000071ea6b2d40) configure format: AMessage(what = 0x00000000) = {
+D/MediaCodec(28186):       Buffer csd-1 = {
+D/MediaCodec(28186):         00000000:  00 00 00 01 68 ef 84 f2  c0                       ....h....
+D/MediaCodec(28186):       }
+D/MediaCodec(28186):       string mime = "video/avc"
+D/MediaCodec(28186):       int32_t width = 1920
+D/MediaCodec(28186):       Buffer csd-0 = {
+D/MediaCodec(28186):         00000000:  00 00 00 01 67 64 00 28  ac d9 40 78 02 27 e5 c0  ....gd.(..@x.'..
+D/MediaCodec(28186):         00000010:  5a 80 80 80 a0 00 00 7d  20 00 17 70 01 e3 06 32  Z......} ..p...2
+D/MediaCodec(28186):         00000020:  c0                                                .
+D/MediaCodec(28186):       }
+D/MediaCodec(28186):       int32_t height = 1080
+D/MediaCodec(28186):     }
+D/MediaCodec(28186): flushMediametrics
+D/MediaCodec(28186): [0xb4000071ea6b2d40] setState: 3
+D/MediaCodec(28186): [c2.mtk.avc.decoder] config set c2 sleep timeout 500 kC2SleepTimeoutMs=500
+D/CCodec  (28186): [c2.mtk.avc.decoder] buffers are bound to CCodec for this session
+D/CCodec  (28186): Client requested ByteBuffer mode decoder w/o color format set: using default planar color format
+D/CCodecConfig(28186): no c2 equivalents for csd-1
+D/CCodecConfig(28186): no c2 equivalents for flags
+D/CCodecConfig(28186): c2 config diff is   c2::u32 raw.size.height = 1080
+D/CCodecConfig(28186):   c2::u32 raw.size.width = 1920
+W/ColorUtils(28186): expected specified color aspects (2:0:0:0)
+W/Codec2Client(28186): query -- param skipped: index = 1107298332.
+D/CCodec  (28186): encoding statistics level = 0
+D/CCodec  (28186): setup formats input: AMessage(what = 0x00000000) = {
+D/CCodec  (28186):   string mime = "video/avc"
+D/CCodec  (28186):   int32_t width = 1920
+D/CCodec  (28186):   int32_t profile = 65536
+D/CCodec  (28186):   int32_t priority = -1
+D/CCodec  (28186):   int32_t frame-rate = 30
+D/CCodec  (28186):   int32_t height = 1080
+D/CCodec  (28186):   int32_t level = 32768
+D/CCodec  (28186):   int32_t max-input-size = 2097152
+D/CCodec  (28186):   Rect crop(0, 0, 318, 238)
+D/CCodec  (28186): }
+D/CCodec  (28186): setup formats output: AMessage(what = 0x00000000) = {
+D/CCodec  (28186):   int32_t android._color-format = 2135033992
+D/CCodec  (28186):   int32_t android._video-scaling = 1
+D/CCodec  (28186):   int32_t sar-width = 1
+D/CCodec  (28186):   int32_t color-standard = 0
+D/CCodec  (28186):   int32_t color-range = 2
+D/CCodec  (28186):   int32_t color-transfer = 0
+D/CCodec  (28186):   int32_t android._dataspace = 268435456
+D/CCodec  (28186):   int32_t width = 1920
+D/CCodec  (28186):   int32_t rotation-degrees = 0
+D/CCodec  (28186):   int32_t sar-height = 1
+D/CCodec  (28186):   int32_t max-width = 320
+D/CCodec  (28186):   int32_t max-height = 240
+D/CCodec  (28186):   int32_t priority = -1
+D/CCodec  (28186):   string mime = "video/raw"
+D/CCodec  (28186):   Rect crop(0, 0, 318, 238)
+D/CCodec  (28186):   Buffer hdr-static-info = {
+D/CCodec  (28186):     00000000:  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  ................
+D/CCodec  (28186):     00000010:  00 00 00 00 00 00 00 00  00                       .........
+D/CCodec  (28186):   }
+D/CCodec  (28186):   int32_t frame-rate = 30
+D/CCodec  (28186):   int32_t height = 1080
+D/CCodec  (28186):   int32_t color-format = 19
+D/CCodec  (28186): }
+I/CCodecConfig(28186): query failed after returning 17 values (BAD_INDEX)
+D/CCodecConfig(28186): c2 config diff is   c2::u32 raw.max-size.height = 1080
+D/CCodecConfig(28186):   c2::u32 raw.max-size.width = 1920
+W/ColorUtils(28186): expected specified color aspects (2:0:0:0)
+D/MediaCodec(28186): [0xb4000071ea6b2d40] setState: 4
+I/MediaCodec(28186): (0xb4000071ea6b2d40) start
+D/MediaCodec(28186): [0xb4000071ea6b2d40] setState: 5
+W/Codec2Client(28186): query -- param skipped: index = 1342179345.
+W/Codec2Client(28186): query -- param skipped: index = 2415921170.
+W/Codec2Client(28186): query -- param skipped: index = 1610614798.
+D/CCodecBufferChannel(28186): [c2.mtk.avc.decoder#147] Created input block pool with allocatorID 16 => poolID 19 - OK (0)
+D/CCodecBufferChannel(28186): [c2.mtk.avc.decoder#147] Configured output block pool ids 1 => OK
+D/CCodecBufferChannel(28186): [0xb4000071aa528950] [c2.mtk.avc.decoder#147] start: output->outputDelay 12, output->numSlots 16
+D/CCodecBufferChannel(28186): [c2.mtk.avc.decoder#147] Configured output usage [0x1]
+I/MediaCodec(28186): (0xb4000071ea6b2d40) kWhatStartCompleted
+D/MediaCodec(28186): [0xb4000071ea6b2d40] setState: 6
+D/BufferPoolAccessor2.0(28186): bufferpool2 0xb40000717a5be3d8 : 0(0 size) total buffers - 0(0 size) used buffers - 38/48 (recycle/alloc) - 10/26 (fetch/transfer)
+D/BufferPoolAccessor2.0(28186): Destruction - bufferpool2 0xb40000717a5be3d8 cached: 0/0M, 0/0% in use; allocs: 48, 79% recycled; transfers: 26, 62% unfetched
+I/MediaCodec(28186): [0xb4000071ea6b2d40] enqueue first input frame, timeUs = 0
+I/MediaCodec(28186): [0xb4000071ea6b2d40] enqueue first input frame, timeUs = 0
+I/MediaCodec(28186): (0xb4000071ea6b2d40) flush
+D/MediaCodec(28186): [0xb4000071ea6b2d40] setState: 7
+D/PipelineWatcher(28186): onWorkDone: frameIndex not found (0); ignored
+D/MediaCodec(28186): [0xb4000071ea6b2d40] setState: 6
+I/CCodecConfig(28186): query failed after returning 17 values (BAD_INDEX)
+D/CCodecConfig(28186): c2 config diff is   c2::u32 coded.vui.color.matrix = 1
+D/CCodecConfig(28186):   c2::u32 coded.vui.color.primaries = 1
+D/CCodecConfig(28186):   c2::u32 coded.vui.color.transfer = 3
+D/CCodecConfig(28186):   c2::u32 raw.color.matrix = 1
+D/CCodecConfig(28186):   c2::u32 raw.color.primaries = 1
+D/CCodecConfig(28186):   c2::u32 raw.color.transfer = 3
+D/CCodecConfig(28186):   c2::u32 raw.crop.height = 1080
+D/CCodecConfig(28186):   c2::u32 raw.crop.width = 1920
+D/CCodecConfig(28186):   c2::u32 raw.pixel-format.value = 2130706433
+W/Codec2Client(28186): query -- param skipped: index = 1342179345.
+W/Codec2Client(28186): query -- param skipped: index = 2415921170.
+W/Codec2Client(28186): query -- param skipped: index = 1610614798.
+I/MediaCodec(28186): (0xb4000071ea6b2d40) flush
+D/MediaCodec(28186): [0xb4000071ea6b2d40] setState: 7
+D/MediaCodec(28186): [0xb4000071ea6b2d40] setState: 6
+I/CCodecConfig(28186): query failed after returning 17 values (BAD_INDEX)
+W/Codec2Client(28186): query -- param skipped: index = 1342179345.
+W/Codec2Client(28186): query -- param skipped: index = 2415921170.
+W/Codec2Client(28186): query -- param skipped: index = 1610614798.
+D/CCodecBufferChannel(28186): [c2.mtk.avc.decoder#147] Ignoring stale input buffer done callback: last flush index = 4, frameIndex = 4
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:31.477521] native-log prefix=ffmpeg/demuxer level=debug text=hls: HLS request for url 'https://s1.2000myschoolcdn.xyz/ja/segs/3/v1x/Sy8zQjZQemVQdGhQMlhvaXk2RXVjQ3BQMjBsaEYzMW8yNmkvY3pYdHBIZHN5ZzlWS241a2dvQUdhSjlkWTRUQw/3166v2x.ts', offset 0, playlist 0
+I/flutter (28186): [player.orchestrator#1b36136d 2026-03-16T00:35:31.478691] positionChanged position=0:10:01.799000 pendingTarget=0:10:01.799000
+I/flutter (28186): [player.orchestrator#1b36136d 2026-03-16T00:35:31.480485] seekOpen accepted target=0:10:01.799000 actual=0:10:01.799000 delta=0ms generation=1
+I/flutter (28186): [player.orchestrator#1b36136d 2026-03-16T00:35:31.480833] seekLatency phase=seek-confirmed total=4091ms level=2
+I/flutter (28186): [player.orchestrator#1b36136d 2026-03-16T00:35:31.481135] seekQuality final activeVariant=unknown candidateIndex=0
+I/flutter (28186): [player.orchestrator#1b36136d 2026-03-16T00:35:31.481333] pendingTarget cleared reason=seek-confirmed
+I/flutter (28186): [player.orchestrator#1b36136d 2026-03-16T00:35:31.481464] seek-phase completed total=4091ms
+I/flutter (28186): [player.orchestrator#1b36136d 2026-03-16T00:35:31.481963] timelineDomain recompute reason=onDurationChanged raw=0:23:40.043942 effective=0:23:40.043942 managed=false
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:31.482199] waitUntilReady duration-ready duration=0:23:40.043942
+I/flutter (28186): [player.page#e871064 2026-03-16T00:35:31.482506] duration stream dur=0:23:40.043942
+I/flutter (28186): [player.orchestrator#1b36136d 2026-03-16T00:35:31.482735] bufferingChanged buffering=false playing=true position=0:10:01.799000 pendingTarget=null
+I/flutter (28186): [player.orchestrator#1b36136d 2026-03-16T00:35:31.482952] bufferingChanged before-emit buffering=false playing=true currentError=null willClearError=false
+I/flutter (28186): [player.orchestrator#1b36136d 2026-03-16T00:35:31.483144] emit status=PlayerSessionStatus.playing index=0/1 hasStream=true info=player.fallback_in_progress error=null
+I/flutter (28186): [player.orchestrator#1b36136d 2026-03-16T00:35:31.483296] bufferingChanged after-emit buffering=false newError=null
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:31.483490] waitUntilReady buffering-false duration=0:23:40.043942
+I/flutter (28186): [player.page#e871064 2026-03-16T00:35:31.483775] session status=PlayerSessionStatus.playing index=0/1 info=player.fallback_in_progress error=null
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:31.484614] waitForRequestedStartPosition immediate target=0:10:01.799000 position=0:10:01.799000
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:31.485688] native-log prefix=ffmpeg/demuxer level=v text=hls: Opening 'https://s1.2000myschoolcdn.xyz/ja/segs/3/v1x/Sy8zQjZQemVQdGhQMlhvaXk2RXVjQ3BQMjBsaEYzMW8yNmkvY3pYdHBIZHN5ZzlWS241a2dvQUdhSjlkWTRUQw/3166v2x.ts' for reading
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:31.486003] native-log prefix=ffmpeg level=debug text=tcp: Starting connection attempt to 91.134.70.100 port 443
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:31.630897] native-log prefix=ffmpeg level=debug text=tcp: Successfully connected to 91.134.70.100 port 443
+D/BufferPoolAccessor2.0(28186): evictor expired: 1, evicted: 1
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:32.488569] progress-poll playing=true buffering=false completed=false position=0:10:01.799000 duration=0:23:40.043942 buffer=0:00:00.000000 percent=100.0
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:32.555856] native-log prefix=ffmpeg/demuxer level=debug text=hls: HLS request for url 'https://s1.2000myschoolcdn.xyz/ja/segs/3/v1x/Sy8zQjZQemVQdGhQMlhvaXk2RXVjQ3BQMjBsaEYzMW8yNmkvY3pYdHBIZHN5ZzlWS241a2dvQUdhSjlkWTRUQw/3167v2x.ts', offset 0, playlist 0
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:32.557079] native-log prefix=ffmpeg/demuxer level=v text=hls: Opening 'https://s1.2000myschoolcdn.xyz/ja/segs/3/v1x/Sy8zQjZQemVQdGhQMlhvaXk2RXVjQ3BQMjBsaEYzMW8yNmkvY3pYdHBIZHN5ZzlWS241a2dvQUdhSjlkWTRUQw/3167v2x.ts' for reading
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:32.560521] native-log prefix=ffmpeg level=debug text=tcp: Starting connection attempt to 91.134.70.100 port 443
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:32.705536] native-log prefix=ffmpeg level=debug text=tcp: Successfully connected to 91.134.70.100 port 443
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:33.487713] progress-poll playing=true buffering=false completed=false position=0:10:01.799000 duration=0:23:40.043942 buffer=0:00:00.000000 percent=100.0
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:33.551810] native-log prefix=ffmpeg/demuxer level=debug text=hls: HLS request for url 'https://cdn2.2026schob2.xyz/ja/segs/3/v1x/Sy8zQjZQemVQdGhQMlhvaXk2RXVjQ3BQMjBsaEYzMW8yNmkvY3pYdHBIZHN5ZzlWS241a2dvQUdhSjlkWTRUQw/3168v2x.ts', offset 0, playlist 0
+I/MediaCodec(28186): [0xb4000071ea6b2d40] enqueue 2 input frames in last 2173 ms, latest timeUs 600037422
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:33.553956] native-log prefix=ffmpeg level=error text=https: Cannot reuse HTTP connection for different host: s1.2000myschoolcdn.xyz:-1 != cdn2.2026schob2.xyz:-1
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:33.556386] native-log prefix=ffmpeg/demuxer level=warn text=hls: keepalive request failed for 'https://cdn2.2026schob2.xyz/ja/segs/3/v1x/Sy8zQjZQemVQdGhQMlhvaXk2RXVjQ3BQMjBsaEYzMW8yNmkvY3pYdHBIZHN5ZzlWS241a2dvQUdhSjlkWTRUQw/3168v2x.ts' with error: 'Invalid argument' when opening url, retrying with new connection
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:33.558448] native-log prefix=ffmpeg/demuxer level=v text=hls: Opening 'https://cdn2.2026schob2.xyz/ja/segs/3/v1x/Sy8zQjZQemVQdGhQMlhvaXk2RXVjQ3BQMjBsaEYzMW8yNmkvY3pYdHBIZHN5ZzlWS241a2dvQUdhSjlkWTRUQw/3168v2x.ts' for reading
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:33.560050] native-log prefix=ffmpeg level=debug text=tcp: Starting connection attempt to 46.33.8.107 port 443
+D/CCodecConfig(28186): c2 config diff is   c2::u32 raw.pixel-format.value = 842094169
+D/CCodecBuffers(28186): [c2.mtk.avc.decoder#147:2D-BB-Output] popFromStashAndRegister: at 600037422us, output format changed to AMessage(what = 0x00000000) = {
+D/CCodecBuffers(28186):   int32_t android._color-format = 2135033992
+D/CCodecBuffers(28186):   int32_t android._video-scaling = 1
+D/CCodecBuffers(28186):   int32_t sar-width = 1
+D/CCodecBuffers(28186):   int32_t color-standard = 1
+D/CCodecBuffers(28186):   int32_t color-range = 2
+D/CCodecBuffers(28186):   int32_t color-transfer = 3
+D/CCodecBuffers(28186):   int32_t android._dataspace = 260
+D/CCodecBuffers(28186):   int32_t width = 1920
+D/CCodecBuffers(28186):   int32_t rotation-degrees = 0
+D/CCodecBuffers(28186):   int32_t sar-height = 1
+D/CCodecBuffers(28186):   int32_t max-width = 1920
+D/CCodecBuffers(28186):   int32_t max-height = 1080
+D/CCodecBuffers(28186):   int32_t priority = -1
+D/CCodecBuffers(28186):   string mime = "video/raw"
+D/CCodecBuffers(28186):   Rect crop(0, 0, 1919, 1079)
+D/CCodecBuffers(28186):   Buffer hdr-static-info = {
+D/CCodecBuffers(28186):     00000000:  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  ................
+D/CCodecBuffers(28186):     00000010:  00 00 00 00 00 00 00 00  00                       .........
+D/CCodecBuffers(28186):   }
+D/CCodecBuffers(28186):   int32_t frame-rate = 30
+D/CCodecBuffers(28186):   int32_t height = 1080
+D/CCodecBuffers(28186):   int32_t color-format = 19
+D/CCodecBuffers(28186): }
+D/CCodecBuffers(28186): [c2.mtk.avc.decoder#147:2D-BB-Output] updating image-data
+D/CCodecBuffers(28186): [c2.mtk.avc.decoder#147:2D-BB-Output] updating stride = 1920, width: 1920, height: 1080
+D/CCodecBuffers(28186): [c2.mtk.avc.decoder#147:2D-BB-Output] updating vstride = 1080
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:33.647010] native-log prefix=ffmpeg/video level=v text=h264_mediacodec: Output MediaFormat changed to {max-height=1080, crop-right=1919, sar-width=1, color-format=19, slice-height=1080, image-data=java.nio.HeapByteBuffer[pos=0 lim=104 cap=104], mime=video/raw, hdr-static-info=java.nio.HeapByteBuffer[pos=0 lim=25 cap=25], priority=-1, stride=1920, color-standard=1, color-transfer=3, sar-height=1, crop-bottom=1079, max-width=1920, width=1920, crop-left=0, color-range=2, crop-top=0, rotation-degrees=0, frame-rate=30, height=1080}
+I/MediaCodec(28186): [0xb4000071ea6b2d40] dequeue first output frame, timeUs = 600037422
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:33.696342] native-log prefix=ffmpeg level=debug text=tcp: Successfully connected to 46.33.8.107 port 443
+D/le.kumoriya_app(28186): PlayerBase::PlayerBase()
+D/le.kumoriya_app(28186): TrackPlayerBase::TrackPlayerBase()
+I/libOpenSLES(28186): Emulating old channel mask behavior (ignoring positional mask 0x3, using default mask 0x3 based on channel count of 2)
+D/AudioTrack(28186): INSP: type=audio,case=1,set=0xb4000071aa52aff0,stream_type=3,sample_rate=48000,format=0x5,channel_mask=0x3,frame_count=0,flags=0x104,notification_frames=-8,session_id=12777,transfer_type=0,uid=-1,pid=-1
+E/AudioSystem(28186): invalid attributes { Content type: AUDIO_CONTENT_TYPE_UNKNOWN Usage: AUDIO_USAGE_UNKNOWN Source: AUDIO_SOURCE_DEFAULT Flags: 0x0 Tags:  } when converting to stream
+I/AudioTrack(28186): createTrack_l(-1275068304): AUDIO_OUTPUT_FLAG_FAST successful; frameCount 0 -> 2048
+D/AudioTrack(28186): createTrack_l(2223): 0xb4000071aa52aff0, mCblk = 0x7346140000, mLatency = 84, mAfLatency = 42, frameCount = 2048, mSampleRate = 48000, mFlags = 0x4, mReqFrameCount = 2048, mNotificationFramesAct = 256
+D/AudioTrack(28186): start(2223): 0xb4000071aa52aff0, prior state:STATE_STOPPED
+E/libOpenSLES(28186): Configuration error: unknown key
+W/libOpenSLES(28186): Leaving AndroidConfiguration::GetConfiguration (SL_RESULT_PARAMETER_INVALID)
+D/le.kumoriya_app(28186): PlayerBase::stop() from IPlayer
+D/AudioTrack(28186): stop(2223): 0xb4000071aa52aff0, prior state:STATE_ACTIVE
+D/AudioTrackShared(28186): this(0xb40000714a43f130), mCblk(0x7346140000), front(0), mIsOut 1, interrupt() FUTEX_WAKE
+D/AudioTrack(28186): stop(2223): 0xb4000071aa52aff0 stop done
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:33.762134] native-log prefix=ao/opensles level=v text=device buffer: 12000 samples.
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:33.765523] native-log prefix=ao/opensles level=v text=using soft-buffer of 12000 samples.
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:33.771171] native-buffer time=0:10:02.687833 percent=100.0 position=0:10:01.799000 duration=0:23:40.043942
+D/AudioTrack(28186): start(2223): 0xb4000071aa52aff0, prior state:STATE_STOPPED
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:34.487204] progress-poll playing=true buffering=false completed=false position=0:10:02.164544 duration=0:23:40.043942 buffer=0:10:02.687833 percent=100.0
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:34.520749] waitForPlaybackProgressFromTarget advanced target=0:10:01.799000 position=0:10:02.206255
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:34.521500] native-buffer time=0:10:02.706755 percent=100.0 position=0:10:02.206255 duration=0:23:40.043942
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:34.522119] hls-reopen start-property progressed target=0:10:01.799000 buffering=false duration=0:23:40.043942 position=0:10:02.206255
+I/flutter (28186): [player.orchestrator#1b36136d 2026-03-16T00:35:34.523686] recoverCurrentCandidate open-success target=0:10:01.799000 buffering=false playing=true
+I/flutter (28186): [player.orchestrator#1b36136d 2026-03-16T00:35:34.524110] seekLatency phase=reopen-open-done elapsed=7126ms
+I/flutter (28186): [player.orchestrator#1b36136d 2026-03-16T00:35:34.524383] applyTimelineWindow managed=false base=0:00:00.000000 durationHint=0:23:40.043942
+I/flutter (28186): [player.orchestrator#1b36136d 2026-03-16T00:35:34.524621] timelineDomain recompute reason=applyTimelineWindow-unmanaged-hls raw=0:23:40.043942 effective=0:23:40.043942 managed=false
+I/flutter (28186): [player.orchestrator#1b36136d 2026-03-16T00:35:34.524984] seekLatency phase=timeline-ready ms=7128
+I/flutter (28186): [player.orchestrator#1b36136d 2026-03-16T00:35:34.525849] reopen visual-gate waiting-first-frame windows=false target=0:10:01.799000 timeout=0:00:00.870017
+I/flutter (28186): [player.orchestrator#1b36136d 2026-03-16T00:35:34.526097] waitForUsableFrame immediate windows=false duration=0:23:40.043942 position=0:10:02.206255 buffering=false playing=true threshold=0:00:00.001000
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:34.526333] native-log prefix=ffmpeg/demuxer level=debug text=hls: HLS request for url 'https://s3.2000myschoolcdn.xyz/ja/segs/3/v1x/Sy8zQjZQemVQdGhQMlhvaXk2RXVjQ3BQMjBsaEYzMW8yNmkvY3pYdHBIZHN5ZzlWS241a2dvQUdhSjlkWTRUQw/3169v2x.ts', offset 0, playlist 0
+I/flutter (28186): [player.page#e871064 2026-03-16T00:35:34.526651] duration stream dur=0:23:40.043942
+I/flutter (28186): [player.orchestrator#1b36136d 2026-03-16T00:35:34.527022] reopen visual-gate frame-ready windows=false position=0:10:02.206255 duration=0:23:40.043942
+I/flutter (28186): [player.orchestrator#1b36136d 2026-03-16T00:35:34.527339] seekLatency phase=visual-gate-done elapsed=7131ms frameReady=true
+I/flutter (28186): [player.orchestrator#1b36136d 2026-03-16T00:35:34.528274] seekStallWatch start target=0:10:01.799000 baseline=0:10:02.206255 recoveries=0
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:34.528831] native-log prefix=ffmpeg level=error text=https: Cannot reuse HTTP connection for different host: s1.2000myschoolcdn.xyz:-1 != s3.2000myschoolcdn.xyz:-1
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:34.529433] native-log prefix=ffmpeg/demuxer level=warn text=hls: keepalive request failed for 'https://s3.2000myschoolcdn.xyz/ja/segs/3/v1x/Sy8zQjZQemVQdGhQMlhvaXk2RXVjQ3BQMjBsaEYzMW8yNmkvY3pYdHBIZHN5ZzlWS241a2dvQUdhSjlkWTRUQw/3169v2x.ts' with error: 'Invalid argument' when opening url, retrying with new connection
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:34.529770] native-log prefix=ffmpeg/demuxer level=v text=hls: Opening 'https://s3.2000myschoolcdn.xyz/ja/segs/3/v1x/Sy8zQjZQemVQdGhQMlhvaXk2RXVjQ3BQMjBsaEYzMW8yNmkvY3pYdHBIZHN5ZzlWS241a2dvQUdhSjlkWTRUQw/3169v2x.ts' for reading
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:34.530065] native-log prefix=ffmpeg level=debug text=tcp: Starting connection attempt to 91.134.70.100 port 443
+I/MediaCodec(28186): [0xb4000071ea6b2d40] enqueue 67 input frames in last 1001 ms, latest timeUs 603040422
+I/flutter (28186): [player.orchestrator#1b36136d 2026-03-16T00:35:34.566366] emit status=PlayerSessionStatus.playing index=0/1 hasStream=true info=null error=null
+I/flutter (28186): [player.orchestrator#1b36136d 2026-03-16T00:35:34.566724] recoverCurrentCandidate completed status=PlayerSessionStatus.playing pendingTarget=null position=0:10:02.206255
+I/flutter (28186): [player.orchestrator#1b36136d 2026-03-16T00:35:34.566987] seekQuality reopen openedVariant=unknown candidateIndex=0
+I/flutter (28186): [player.page#e871064 2026-03-16T00:35:34.567566] session status=PlayerSessionStatus.playing index=0/1 info=null error=null
+D/CCodecBufferChannel(28186): elapsed: mInputMetEos 0, hasPendingOutputsInClient 1, n 16
+D/PipelineWatcher(28186): [0xb4000071aa528db8] elapsed: mFramesInPipeline 8, n 16
+I/MediaCodec(28186): [0xb4000071ea6b2d40] dequeue 61 output frames in last 1046 ms, latest timeUs 602539922, flags 0
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:34.736847] native-log prefix=ffmpeg level=debug text=tcp: Successfully connected to 91.134.70.100 port 443
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:34.772786] native-buffer time=0:10:04.457833 percent=100.0 position=0:10:02.456500 duration=0:23:40.043942
+I/MediaCodec(28186): [0xb4000071ea6b2d40] dequeue 25 output frames in last 1039 ms, latest timeUs 603582622, flags 0
+I/MediaCodec(28186): [0xb4000071ea6b2d40] enqueue 25 input frames in last 1389 ms, latest timeUs 603916289
+I/flutter (28186): [player.orchestrator#1b36136d 2026-03-16T00:35:36.173348] seekStallWatch cleared target=0:10:01.799000 position=0:10:03.832877 recoveries=0
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:36.334197] native-log prefix=ffmpeg/demuxer level=debug text=hls: HLS request for url 'https://s1.2000myschoolcdn.xyz/ja/segs/3/v1x/Sy8zQjZQemVQdGhQMlhvaXk2RXVjQ3BQMjBsaEYzMW8yNmkvY3pYdHBIZHN5ZzlWS241a2dvQUdhSjlkWTRUQw/3170v2x.ts', offset 0, playlist 0
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:36.334531] native-log prefix=ffmpeg level=error text=https: Cannot reuse HTTP connection for different host: cdn2.2026schob2.xyz:-1 != s1.2000myschoolcdn.xyz:-1
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:36.334864] native-log prefix=ffmpeg/demuxer level=warn text=hls: keepalive request failed for 'https://s1.2000myschoolcdn.xyz/ja/segs/3/v1x/Sy8zQjZQemVQdGhQMlhvaXk2RXVjQ3BQMjBsaEYzMW8yNmkvY3pYdHBIZHN5ZzlWS241a2dvQUdhSjlkWTRUQw/3170v2x.ts' with error: 'Invalid argument' when opening url, retrying with new connection
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:36.335148] native-log prefix=ffmpeg/demuxer level=v text=hls: Opening 'https://s1.2000myschoolcdn.xyz/ja/segs/3/v1x/Sy8zQjZQemVQdGhQMlhvaXk2RXVjQ3BQMjBsaEYzMW8yNmkvY3pYdHBIZHN5ZzlWS241a2dvQUdhSjlkWTRUQw/3170v2x.ts' for reading
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:36.335418] native-log prefix=ffmpeg level=debug text=tcp: Starting connection attempt to 91.134.70.100 port 443
+D/BufferPoolAccessor2.0(28186): bufferpool2 0xb40000717a629568 : 10(20971520 size) total buffers - 8(16777216 size) used buffers - 120/130 (recycle/alloc) - 10/119 (fetch/transfer)
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:36.451163] native-log prefix=ffmpeg level=debug text=tcp: Successfully connected to 91.134.70.100 port 443
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:36.538171] native-buffer time=0:10:07.359499 percent=100.0 position=0:10:04.208255 duration=0:23:40.043942
+I/MediaCodec(28186): [0xb4000071ea6b2d40] dequeue 25 output frames in last 1071 ms, latest timeUs 604625333, flags 0
+D/BufferPoolAccessor2.0(28186): evictor expired: 1, evicted: 0
+I/MediaCodec(28186): [0xb4000071ea6b2d40] enqueue 30 input frames in last 1244 ms, latest timeUs 605167544
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:37.298840] native-buffer time=0:10:10.111166 percent=100.0 position=0:10:04.959000 duration=0:23:40.043942
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:37.299916] native-log prefix=ffmpeg/demuxer level=debug text=hls: HLS request for url 'https://cdn2.2090schob.xyz/ja/segs/3/v1x/Sy8zQjZQemVQdGhQMlhvaXk2RXVjQ3BQMjBsaEYzMW8yNmkvY3pYdHBIZHN5ZzlWS241a2dvQUdhSjlkWTRUQw/3171v2x.ts', offset 0, playlist 0
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:37.300208] native-log prefix=ffmpeg level=error text=https: Cannot reuse HTTP connection for different host: s3.2000myschoolcdn.xyz:-1 != cdn2.2090schob.xyz:-1
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:37.300549] native-log prefix=ffmpeg/demuxer level=warn text=hls: keepalive request failed for 'https://cdn2.2090schob.xyz/ja/segs/3/v1x/Sy8zQjZQemVQdGhQMlhvaXk2RXVjQ3BQMjBsaEYzMW8yNmkvY3pYdHBIZHN5ZzlWS241a2dvQUdhSjlkWTRUQw/3171v2x.ts' with error: 'Invalid argument' when opening url, retrying with new connection
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:37.300817] native-log prefix=ffmpeg/demuxer level=v text=hls: Opening 'https://cdn2.2090schob.xyz/ja/segs/3/v1x/Sy8zQjZQemVQdGhQMlhvaXk2RXVjQ3BQMjBsaEYzMW8yNmkvY3pYdHBIZHN5ZzlWS241a2dvQUdhSjlkWTRUQw/3171v2x.ts' for reading
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:37.301047] native-log prefix=ffmpeg level=debug text=tcp: Starting connection attempt to 95.133.242.31 port 443
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:37.423137] native-log prefix=ffmpeg level=debug text=tcp: Successfully connected to 95.133.242.31 port 443
+I/MediaCodec(28186): [0xb4000071ea6b2d40] dequeue 25 output frames in last 1014 ms, latest timeUs 605668044, flags 0
+D/CCodecBufferChannel(28186): elapsed: mInputMetEos 0, hasPendingOutputsInClient 1, n 16
+D/PipelineWatcher(28186): [0xb4000071aa528db8] elapsed: mFramesInPipeline 5, n 16
+I/MediaCodec(28186): [0xb4000071ea6b2d40] enqueue 25 input frames in last 1004 ms, latest timeUs 606126833
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:38.267420] native-log prefix=ffmpeg/demuxer level=debug text=hls: HLS request for url 'https://cdn2.2026schob2.xyz/ja/segs/3/v1x/Sy8zQjZQemVQdGhQMlhvaXk2RXVjQ3BQMjBsaEYzMW8yNmkvY3pYdHBIZHN5ZzlWS241a2dvQUdhSjlkWTRUQw/3172v2x.ts', offset 0, playlist 0
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:38.267936] native-log prefix=ffmpeg level=error text=https: Cannot reuse HTTP connection for different host: s1.2000myschoolcdn.xyz:-1 != cdn2.2026schob2.xyz:-1
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:38.268557] native-log prefix=ffmpeg/demuxer level=warn text=hls: keepalive request failed for 'https://cdn2.2026schob2.xyz/ja/segs/3/v1x/Sy8zQjZQemVQdGhQMlhvaXk2RXVjQ3BQMjBsaEYzMW8yNmkvY3pYdHBIZHN5ZzlWS241a2dvQUdhSjlkWTRUQw/3172v2x.ts' with error: 'Invalid argument' when opening url, retrying with new connection
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:38.269156] native-log prefix=ffmpeg/demuxer level=v text=hls: Opening 'https://cdn2.2026schob2.xyz/ja/segs/3/v1x/Sy8zQjZQemVQdGhQMlhvaXk2RXVjQ3BQMjBsaEYzMW8yNmkvY3pYdHBIZHN5ZzlWS241a2dvQUdhSjlkWTRUQw/3172v2x.ts' for reading
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:38.269594] native-log prefix=ffmpeg level=debug text=tcp: Starting connection attempt to 46.33.8.107 port 443
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:38.272548] native-buffer time=0:10:12.287166 percent=100.0 position=0:10:05.960000 duration=0:23:40.043942
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:38.427994] native-log prefix=ffmpeg level=debug text=tcp: Successfully connected to 46.33.8.107 port 443
+I/MediaCodec(28186): [0xb4000071ea6b2d40] dequeue 25 output frames in last 1040 ms, latest timeUs 606710756, flags 0
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:39.205135] native-log prefix=ffmpeg/demuxer level=debug text=hls: HLS request for url 'https://s2.2000myschoolcdn.xyz/ja/segs/3/v1x/Sy8zQjZQemVQdGhQMlhvaXk2RXVjQ3BQMjBsaEYzMW8yNmkvY3pYdHBIZHN5ZzlWS241a2dvQUdhSjlkWTRUQw/3173v2x.ts', offset 0, playlist 0
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:39.205490] native-log prefix=ffmpeg level=error text=https: Cannot reuse HTTP connection for different host: cdn2.2090schob.xyz:-1 != s2.2000myschoolcdn.xyz:-1
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:39.205811] native-log prefix=ffmpeg/demuxer level=warn text=hls: keepalive request failed for 'https://s2.2000myschoolcdn.xyz/ja/segs/3/v1x/Sy8zQjZQemVQdGhQMlhvaXk2RXVjQ3BQMjBsaEYzMW8yNmkvY3pYdHBIZHN5ZzlWS241a2dvQUdhSjlkWTRUQw/3173v2x.ts' with error: 'Invalid argument' when opening url, retrying with new connection
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:39.206080] native-log prefix=ffmpeg/demuxer level=v text=hls: Opening 'https://s2.2000myschoolcdn.xyz/ja/segs/3/v1x/Sy8zQjZQemVQdGhQMlhvaXk2RXVjQ3BQMjBsaEYzMW8yNmkvY3pYdHBIZHN5ZzlWS241a2dvQUdhSjlkWTRUQw/3173v2x.ts' for reading
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:39.206359] native-log prefix=ffmpeg level=debug text=tcp: Starting connection attempt to 91.134.70.100 port 443
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:39.280906] native-buffer time=0:10:14.655833 percent=100.0 position=0:10:06.961000 duration=0:23:40.043942
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:39.358181] native-log prefix=ffmpeg level=debug text=tcp: Successfully connected to 91.134.70.100 port 443
+I/MediaCodec(28186): [0xb4000071ea6b2d40] enqueue 27 input frames in last 1172 ms, latest timeUs 607294667
+I/MediaCodec(28186): [0xb4000071ea6b2d40] dequeue 24 output frames in last 1002 ms, latest timeUs 607711756, flags 0
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:40.197900] native-log prefix=ffmpeg/demuxer level=debug text=hls: HLS request for url 'https://cdn2.2026schob2.xyz/ja/segs/3/v1x/Sy8zQjZQemVQdGhQMlhvaXk2RXVjQ3BQMjBsaEYzMW8yNmkvY3pYdHBIZHN5ZzlWS241a2dvQUdhSjlkWTRUQw/3174v2x.ts', offset 0, playlist 0
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:40.198275] native-log prefix=ffmpeg level=v text=https: Opening 'https://cdn2.2026schob2.xyz/ja/segs/3/v1x/Sy8zQjZQemVQdGhQMlhvaXk2RXVjQ3BQMjBsaEYzMW8yNmkvY3pYdHBIZHN5ZzlWS241a2dvQUdhSjlkWTRUQw/3174v2x.ts' for reading
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:40.289529] native-buffer time=0:10:18.410166 percent=100.0 position=0:10:07.962000 duration=0:23:40.043942
+I/MediaCodec(28186): [0xb4000071ea6b2d40] enqueue 27 input frames in last 1081 ms, latest timeUs 608379089
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:40.550917] native-buffer time=0:10:19.014711 percent=100.0 position=0:10:08.212255 duration=0:23:40.043942
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:40.810972] native-buffer time=0:10:23.188833 percent=100.0 position=0:10:08.462500 duration=0:23:40.043942
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:40.820079] native-log prefix=ffmpeg/demuxer level=debug text=hls: HLS request for url 'https://cdn3.2090schob.xyz/ja/segs/3/v1x/Sy8zQjZQemVQdGhQMlhvaXk2RXVjQ3BQMjBsaEYzMW8yNmkvY3pYdHBIZHN5ZzlWS241a2dvQUdhSjlkWTRUQw/3175v2x.ts', offset 0, playlist 0
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:40.822236] native-log prefix=ffmpeg level=error text=https: Cannot reuse HTTP connection for different host: s2.2000myschoolcdn.xyz:-1 != cdn3.2090schob.xyz:-1
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:40.824103] native-log prefix=ffmpeg/demuxer level=warn text=hls: keepalive request failed for 'https://cdn3.2090schob.xyz/ja/segs/3/v1x/Sy8zQjZQemVQdGhQMlhvaXk2RXVjQ3BQMjBsaEYzMW8yNmkvY3pYdHBIZHN5ZzlWS241a2dvQUdhSjlkWTRUQw/3175v2x.ts' with error: 'Invalid argument' when opening url, retrying with new connection
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:40.825897] native-log prefix=ffmpeg/demuxer level=v text=hls: Opening 'https://cdn3.2090schob.xyz/ja/segs/3/v1x/Sy8zQjZQemVQdGhQMlhvaXk2RXVjQ3BQMjBsaEYzMW8yNmkvY3pYdHBIZHN5ZzlWS241a2dvQUdhSjlkWTRUQw/3175v2x.ts' for reading
+I/MediaCodec(28186): [0xb4000071ea6b2d40] dequeue 24 output frames in last 1000 ms, latest timeUs 608712756, flags 0
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:40.872740] native-log prefix=ffmpeg level=debug text=tcp: Starting connection attempt to 95.133.242.31 port 443
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:41.019761] native-log prefix=ffmpeg level=debug text=tcp: Successfully connected to 95.133.242.31 port 443
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:41.034657] native-buffer time=0:10:26.218166 percent=100.0 position=0:10:08.712755 duration=0:23:40.043942
+D/CCodecBufferChannel(28186): elapsed: mInputMetEos 0, hasPendingOutputsInClient 1, n 16
+D/PipelineWatcher(28186): [0xb4000071aa528db8] elapsed: mFramesInPipeline 5, n 16
+D/BufferPoolAccessor2.0(28186): bufferpool2 0xb40000717a629568 : 10(20971520 size) total buffers - 8(16777216 size) used buffers - 243/253 (recycle/alloc) - 10/240 (fetch/transfer)
+I/MediaCodec(28186): [0xb4000071ea6b2d40] enqueue 28 input frames in last 1168 ms, latest timeUs 609505211
+I/MediaCodec(28186): [0xb4000071ea6b2d40] dequeue 24 output frames in last 1001 ms, latest timeUs 609713756, flags 0
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:41.901223] native-log prefix=ffmpeg/demuxer level=debug text=hls: HLS request for url 'https://s2.2000myschoolcdn.xyz/ja/segs/3/v1x/Sy8zQjZQemVQdGhQMlhvaXk2RXVjQ3BQMjBsaEYzMW8yNmkvY3pYdHBIZHN5ZzlWS241a2dvQUdhSjlkWTRUQw/3176v2x.ts', offset 0, playlist 0
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:41.903087] native-log prefix=ffmpeg level=error text=https: Cannot reuse HTTP connection for different host: cdn2.2026schob2.xyz:-1 != s2.2000myschoolcdn.xyz:-1
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:41.904763] native-log prefix=ffmpeg/demuxer level=warn text=hls: keepalive request failed for 'https://s2.2000myschoolcdn.xyz/ja/segs/3/v1x/Sy8zQjZQemVQdGhQMlhvaXk2RXVjQ3BQMjBsaEYzMW8yNmkvY3pYdHBIZHN5ZzlWS241a2dvQUdhSjlkWTRUQw/3176v2x.ts' with error: 'Invalid argument' when opening url, retrying with new connection
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:41.906019] native-log prefix=ffmpeg/demuxer level=v text=hls: Opening 'https://s2.2000myschoolcdn.xyz/ja/segs/3/v1x/Sy8zQjZQemVQdGhQMlhvaXk2RXVjQ3BQMjBsaEYzMW8yNmkvY3pYdHBIZHN5ZzlWS241a2dvQUdhSjlkWTRUQw/3176v2x.ts' for reading
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:41.908146] native-log prefix=ffmpeg level=debug text=tcp: Starting connection attempt to 91.134.70.100 port 443
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:42.095928] native-buffer time=0:10:31.722166 percent=100.0 position=0:10:09.755455 duration=0:23:40.043942
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:42.096348] native-log prefix=ffmpeg level=debug text=tcp: Successfully connected to 91.134.70.100 port 443
+I/MediaCodec(28186): [0xb4000071ea6b2d40] enqueue 26 input frames in last 1081 ms, latest timeUs 610631333
+I/MediaCodec(28186): [0xb4000071ea6b2d40] dequeue 25 output frames in last 1080 ms, latest timeUs 610756456, flags 0
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:43.597607] native-buffer time=0:10:33.612622 percent=100.0 position=0:10:11.256955 duration=0:23:40.043942
+I/MediaCodec(28186): [0xb4000071ea6b2d40] enqueue 28 input frames in last 1129 ms, latest timeUs 611757456
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:43.895122] native-buffer time=0:10:34.090499 percent=100.0 position=0:10:11.548922 duration=0:23:40.043942
+I/MediaCodec(28186): [0xb4000071ea6b2d40] dequeue 25 output frames in last 1005 ms, latest timeUs 611799167, flags 0
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:44.138474] native-buffer time=0:10:34.453166 percent=100.0 position=0:10:11.799166 duration=0:23:40.043942
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:44.398994] native-buffer time=0:10:35.322666 percent=100.0 position=0:10:12.049422 duration=0:23:40.043942
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:44.611428] native-buffer time=0:10:35.948288 percent=100.0 position=0:10:12.299666 duration=0:23:40.043942
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:44.671918] native-log prefix=ffmpeg/demuxer level=debug text=hls: HLS request for url 'https://cdn2.2026schob2.xyz/ja/segs/3/v1x/Sy8zQjZQemVQdGhQMlhvaXk2RXVjQ3BQMjBsaEYzMW8yNmkvY3pYdHBIZHN5ZzlWS241a2dvQUdhSjlkWTRUQw/3177v2x.ts', offset 0, playlist 0
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:44.672275] native-log prefix=ffmpeg level=error text=https: Cannot reuse HTTP connection for different host: cdn3.2090schob.xyz:-1 != cdn2.2026schob2.xyz:-1
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:44.672672] native-log prefix=ffmpeg/demuxer level=warn text=hls: keepalive request failed for 'https://cdn2.2026schob2.xyz/ja/segs/3/v1x/Sy8zQjZQemVQdGhQMlhvaXk2RXVjQ3BQMjBsaEYzMW8yNmkvY3pYdHBIZHN5ZzlWS241a2dvQUdhSjlkWTRUQw/3177v2x.ts' with error: 'Invalid argument' when opening url, retrying with new connection
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:44.672961] native-log prefix=ffmpeg/demuxer level=v text=hls: Opening 'https://cdn2.2026schob2.xyz/ja/segs/3/v1x/Sy8zQjZQemVQdGhQMlhvaXk2RXVjQ3BQMjBsaEYzMW8yNmkvY3pYdHBIZHN5ZzlWS241a2dvQUdhSjlkWTRUQw/3177v2x.ts' for reading
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:44.673213] native-log prefix=ffmpeg level=debug text=tcp: Starting connection attempt to 46.33.8.107 port 443
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:44.813509] native-log prefix=ffmpeg level=debug text=tcp: Successfully connected to 46.33.8.107 port 443
+I/flutter (28186): [player.engine#2b393f14 2026-03-16T00:35:44.863144] native-buffer time=0:10:36.479499 percent=100.0 position=0:10:12.549922 duration=0:23:40.043942

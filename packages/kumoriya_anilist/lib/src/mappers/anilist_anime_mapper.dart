@@ -10,6 +10,8 @@ final class AnilistAnimeMapper {
     }
 
     final title = _mapTitle(media['title'], media['synonyms']);
+    final nextAiringEpisode = _extractNextEpisode(media['nextAiringEpisode']);
+    final nextAiringAt = _extractNextAiringAt(media['nextAiringEpisode']);
 
     return Anime(
       anilistId: id,
@@ -18,6 +20,8 @@ final class AnilistAnimeMapper {
       releaseYear: media['seasonYear'] as int?,
       coverImageUrl: _extractCoverImage(media['coverImage']),
       totalEpisodes: media['episodes'] as int?,
+      nextAiringEpisodeNumber: nextAiringEpisode,
+      nextAiringAt: nextAiringAt,
       averageScore: media['averageScore'] as int?,
       status: _mapStatus(media['status'] as String?),
     );
@@ -274,6 +278,19 @@ final class AnilistAnimeMapper {
 
     final episode = value['episode'];
     return episode is int && episode > 0 ? episode : null;
+  }
+
+  static DateTime? _extractNextAiringAt(dynamic value) {
+    if (value is! Map<String, dynamic>) {
+      return null;
+    }
+
+    final airingAt = value['airingAt'];
+    if (airingAt is! int || airingAt <= 0) {
+      return null;
+    }
+
+    return DateTime.fromMillisecondsSinceEpoch(airingAt * 1000, isUtc: true);
   }
 
   static bool _isEpisodeAired(

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -6,6 +7,7 @@ import 'package:flutter/services.dart';
 import 'package:kumoriya_plugins/kumoriya_plugins.dart';
 import 'package:kumoriya_resolver_anime_nexus/kumoriya_resolver_anime_nexus.dart';
 import 'package:media_kit_video/media_kit_video.dart';
+import 'package:path_provider/path_provider.dart';
 
 import '../../../../shared/theme/kumoriya_theme.dart';
 import '../../application/models/player_session_state.dart';
@@ -44,7 +46,8 @@ class _AnimeNexusPlaygroundPageState extends State<AnimeNexusPlaygroundPage> {
   Duration _currentDuration = Duration.zero;
   bool _isPlaying = false;
   bool _isBuffering = false;
-  bool _forceSoftwareVideoOutput = false;
+  bool _forceSoftwareVideoOutput =
+      defaultTargetPlatform == TargetPlatform.windows;
   bool _isResolving = false;
   bool _isScrubbing = false;
   double? _scrubPositionMs;
@@ -95,6 +98,15 @@ class _AnimeNexusPlaygroundPageState extends State<AnimeNexusPlaygroundPage> {
         _currentPosition = position;
         return;
       }
+      final orch = _orchestrator;
+      final orchManaged = orch?.isManagedTimeline ?? false;
+      final orchBase = orch?.timelineBase ?? Duration.zero;
+      _appendLog(
+        'timelineDomain ui-received managed=$orchManaged '
+        'base=${orchBase.inMilliseconds}ms '
+        'position=${position.inMilliseconds}ms '
+        'duration=${_currentDuration.inMilliseconds}ms',
+      );
       setState(() => _currentPosition = position);
     });
     _durationSubscription = orchestrator.durationStream.listen((duration) {
@@ -105,6 +117,15 @@ class _AnimeNexusPlaygroundPageState extends State<AnimeNexusPlaygroundPage> {
         _currentDuration = duration;
         return;
       }
+      final orch = _orchestrator;
+      final orchManaged = orch?.isManagedTimeline ?? false;
+      final orchBase = orch?.timelineBase ?? Duration.zero;
+      _appendLog(
+        'timelineDomain ui-received managed=$orchManaged '
+        'base=${orchBase.inMilliseconds}ms '
+        'position=${_currentPosition.inMilliseconds}ms '
+        'duration=${duration.inMilliseconds}ms',
+      );
       setState(() => _currentDuration = duration);
     });
     _playingSubscription = engine.playingStream.listen((playing) {
@@ -138,6 +159,7 @@ class _AnimeNexusPlaygroundPageState extends State<AnimeNexusPlaygroundPage> {
       _isScrubbing = false;
       _scrubPositionMs = null;
     });
+    _appendLog('timelineDomain ui-reset managed=false base=0');
     _appendPlaygroundLog('runtime reset');
   }
 
@@ -351,7 +373,14 @@ class _AnimeNexusPlaygroundPageState extends State<AnimeNexusPlaygroundPage> {
     if (value < 0) {
       return 0;
     }
+    // Pass 5: Defensive validation - clamp to max if position > duration
+    // This prevents visual inconsistency during transient states
     if (value > _sliderMaxMs) {
+      _appendLog(
+        'timelineUi defensive-clamp value=${value.toStringAsFixed(0)}ms '
+        'max=${_sliderMaxMs.toStringAsFixed(0)}ms '
+        'position=$_currentPosition duration=$_currentDuration',
+      );
       return _sliderMaxMs;
     }
     return value;
@@ -369,7 +398,7 @@ class _AnimeNexusPlaygroundPageState extends State<AnimeNexusPlaygroundPage> {
     }
     setState(() {
       _logs.add(message);
-      if (_logs.length > 300) {
+        if (_logs.length > 5000) {
         _logs.removeAt(0);
       }
     });
@@ -406,6 +435,62 @@ class _AnimeNexusPlaygroundPageState extends State<AnimeNexusPlaygroundPage> {
     ).showSnackBar(const SnackBar(content: Text('Runtime log copied.')));
   }
 
+  Future<void> _saveLogToFile() async {
+    final text = _logs.join('\n');
+    if (text.trim().isEmpty) {
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Runtime log is empty.')));
+      return;
+    }
+
+    try {
+      final baseDir = await getApplicationDocumentsDirectory();
+      final logsDir = Directory(
+        '${baseDir.path}${Platform.pathSeparator}anime_nexus_logs',
+      );
+      if (!await logsDir.exists()) {
+        await logsDir.create(recursive: true);
+      }
+
+      final now = DateTime.now();
+      final stamp =
+          '${now.year.toString().padLeft(4, '0')}'
+          '${now.month.toString().padLeft(2, '0')}'
+          '${now.day.toString().padLeft(2, '0')}_'
+          '${now.hour.toString().padLeft(2, '0')}'
+          '${now.minute.toString().padLeft(2, '0')}'
+          '${now.second.toString().padLeft(2, '0')}';
+      final file = File(
+        '${logsDir.path}${Platform.pathSeparator}anime_nexus_runtime_$stamp.log',
+      );
+
+      await file.writeAsString(text, flush: true);
+      _appendPlaygroundLog('log exported path=${file.path}');
+
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Runtime log saved: ${file.path}'),
+          duration: const Duration(seconds: 5),
+        ),
+      );
+    } catch (error) {
+      _appendPlaygroundLog('log export failed error=$error');
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to save runtime log: $error')),
+      );
+    }
+  }
+
   String _formatDuration(Duration duration) {
     final totalSeconds = duration.inSeconds;
     final hours = totalSeconds ~/ 3600;
@@ -424,11 +509,52 @@ class _AnimeNexusPlaygroundPageState extends State<AnimeNexusPlaygroundPage> {
   Widget build(BuildContext context) {
     final engine = _engine;
     final selectedStream = _state.selectedStream;
+
+    // Compute effective values once for slider + labels + logs
+    final effectivePositionMs = _sliderValueMs;
+    final effectiveDurationMs = _sliderMaxMs;
+    final effectivePosition = _effectiveSliderPosition;
+    final effectiveDuration = _currentDuration;
+    final remainingDuration = effectiveDuration - effectivePosition;
+    final clampedRemaining = remainingDuration > Duration.zero
+        ? remainingDuration
+        : Duration.zero;
+
+    final leftLabel = _formatDuration(effectivePosition);
+    final rightLabel = _formatDuration(clampedRemaining);
+
+    // Log timeline UI mapping before render
+    final orch = _orchestrator;
+    final orchManaged = orch?.isManagedTimeline ?? false;
+    final orchBase = orch?.timelineBase ?? Duration.zero;
+    if (effectiveDuration > Duration.zero) {
+      _appendLog(
+        'timelineDomain ui-render managed=$orchManaged '
+        'sliderValue=${effectivePositionMs.toStringAsFixed(0)}ms '
+        'sliderMax=${effectiveDurationMs.toStringAsFixed(0)}ms '
+        'left=$leftLabel right=$rightLabel',
+      );
+      // Defensive invariant: if orchestrator says managed=false, the UI must
+      // not behave as if managed=true.  Since the UI derives everything from
+      // the orchestrator's streams, this should never fire.
+      if (!orchManaged && orchBase > Duration.zero) {
+        _appendLog(
+          'timelineDomain invariant-broken '
+          'orchManaged=false but orchBase=${orchBase.inMilliseconds}ms',
+        );
+      }
+    }
+
     return Scaffold(
       backgroundColor: KumoriyaColors.background,
       appBar: AppBar(
         title: const Text('Anime Nexus Playground'),
         actions: <Widget>[
+          IconButton(
+            tooltip: 'Save log to file',
+            onPressed: _saveLogToFile,
+            icon: const Icon(Icons.save_alt_rounded),
+          ),
           IconButton(
             tooltip: 'Copy log',
             onPressed: _copyLog,
@@ -567,13 +693,13 @@ class _AnimeNexusPlaygroundPageState extends State<AnimeNexusPlaygroundPage> {
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: <Widget>[
                             Text(
-                              _formatDuration(_effectiveSliderPosition),
+                              leftLabel,
                               style: const TextStyle(
                                 color: KumoriyaColors.textPrimary,
                               ),
                             ),
                             Text(
-                              _formatDuration(_currentDuration),
+                              rightLabel,
                               style: const TextStyle(
                                 color: KumoriyaColors.textPrimary,
                               ),

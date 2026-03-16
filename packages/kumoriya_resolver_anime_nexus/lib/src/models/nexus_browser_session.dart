@@ -3,6 +3,16 @@ import 'dart:math';
 final class NexusBrowserSession {
   NexusBrowserSession._({required this.fingerprint, this.cookieHeader});
 
+  /// Creates a session with an explicit fingerprint (for testing / replay).
+  factory NexusBrowserSession.withValues({
+    required String fingerprint,
+    String? cookieHeader,
+  }) =>
+      NexusBrowserSession._(
+        fingerprint: fingerprint,
+        cookieHeader: cookieHeader,
+      );
+
   final String fingerprint;
 
   final String? cookieHeader;
@@ -23,21 +33,27 @@ final class NexusBrowserSession {
     ).join();
 
     final fingerprint = _uuidV4(rng, hex);
-    final sid = hex(16);
 
+    // Seed with a synthetic sid cookie – the JS reference
+    // (`createBrowserSession`) always starts with `sid=<random_hex>`,
+    // and the server binds session state to this value from the very
+    // first page scrape onward.  Without it the subsequent WebSocket
+    // auth handshake fails with "Authentication failed".
     return NexusBrowserSession._(
       fingerprint: fingerprint,
-      cookieHeader: 'sid=$sid',
+      cookieHeader: 'sid=${hex(16)}',
     );
   }
 
   static String _uuidV4(Random rng, String Function(int bytes) hex) {
-    final p1 = hex(4);
-    final p2 = hex(2);
-    final p3 = '4${hex(1).substring(1)}';
+    final p1 = hex(4); // 8 hex chars
+    final p2 = hex(2); // 4 hex chars
+    // hex(2) = 4 hex chars; drop the first to keep 3, then prepend '4' → 4xxx
+    final p3 = '4${hex(2).substring(1)}';
     final p4a = (8 + rng.nextInt(4)).toRadixString(16);
-    final p4b = hex(1).substring(1);
-    final p5 = hex(6);
+    // hex(2) = 4 hex chars; drop the first to keep 3 → y + xxx = 4 chars
+    final p4b = hex(2).substring(1);
+    final p5 = hex(6); // 12 hex chars
     return '$p1-$p2-$p3-$p4a$p4b-$p5';
   }
 

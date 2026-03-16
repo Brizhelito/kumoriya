@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 
 import '../models/nexus_browser_session.dart';
+import '../utils/nexus_constants.dart';
 
 final class NexusPageData {
   const NexusPageData({
@@ -40,6 +41,8 @@ final class NexusPageScraper {
         headers: <String, String>{
           'Accept':
               'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+          'Origin': NexusConstants.mainBase,
+          'Referer': '${NexusConstants.mainBase}/',
           'sec-fetch-dest': 'document',
           'sec-fetch-mode': 'navigate',
           'sec-fetch-site': 'none',

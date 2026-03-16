@@ -39,6 +39,45 @@ final class GraphqlAnilistMetadataGateway implements AnilistMetadataGateway {
   }
 
   @override
+  Future<Result<List<Map<String, dynamic>>, KumoriyaError>>
+  fetchAiringCalendar({
+    DateTime? from,
+    DateTime? to,
+    int page = 1,
+    int perPage = 50,
+  }) async {
+    final fromDate = (from ?? DateTime.now()).toUtc();
+    final toDate = (to ?? fromDate.add(const Duration(days: 7))).toUtc();
+
+    final result = await _client.execute(
+      query: airingCalendarQuery,
+      variables: <String, dynamic>{
+        'page': page,
+        'perPage': perPage,
+        'airingAtGreater': fromDate.millisecondsSinceEpoch ~/ 1000,
+        'airingAtLesser': toDate.millisecondsSinceEpoch ~/ 1000,
+      },
+    );
+
+    return result.fold(
+      onSuccess: (data) {
+        final media = _extractAiringScheduleMediaList(data);
+        if (media == null) {
+          return const Failure(
+            AnilistMappingError(
+              message:
+                  'Airing calendar payload does not contain Page.airingSchedules list.',
+            ),
+          );
+        }
+
+        return Success(media);
+      },
+      onFailure: Failure.new,
+    );
+  }
+
+  @override
   Future<Result<List<Map<String, dynamic>>, KumoriyaError>> searchAnime({
     required String query,
     int page = 1,
@@ -121,5 +160,62 @@ final class GraphqlAnilistMetadataGateway implements AnilistMetadataGateway {
     }
 
     return mapped;
+  }
+
+  List<Map<String, dynamic>>? _extractAiringScheduleMediaList(
+    Map<String, dynamic> data,
+  ) {
+    final page = data['Page'];
+    if (page is! Map<String, dynamic>) {
+      return null;
+    }
+
+    final schedules = page['airingSchedules'];
+    if (schedules is! List) {
+      return null;
+    }
+
+    final deduped = <int, Map<String, dynamic>>{};
+    for (final item in schedules) {
+      if (item is! Map<String, dynamic>) {
+        continue;
+      }
+
+      final media = item['media'];
+      final animeId = media is Map<String, dynamic> ? media['id'] : null;
+      if (media is! Map<String, dynamic> || animeId is! int) {
+        continue;
+      }
+
+      final enrichedMedia = Map<String, dynamic>.from(media);
+      enrichedMedia['nextAiringEpisode'] = <String, dynamic>{
+        'episode': item['episode'],
+        'airingAt': item['airingAt'],
+      };
+
+      final existing = deduped[animeId];
+      if (existing == null ||
+          _nextAiringTimestamp(enrichedMedia) <
+              _nextAiringTimestamp(existing)) {
+        deduped[animeId] = enrichedMedia;
+      }
+    }
+
+    final result = deduped.values.toList(growable: false)
+      ..sort(
+        (left, right) =>
+            _nextAiringTimestamp(left).compareTo(_nextAiringTimestamp(right)),
+      );
+    return result;
+  }
+
+  int _nextAiringTimestamp(Map<String, dynamic> media) {
+    final nextAiring = media['nextAiringEpisode'];
+    if (nextAiring is! Map<String, dynamic>) {
+      return 1 << 31;
+    }
+
+    final airingAt = nextAiring['airingAt'];
+    return airingAt is int ? airingAt : 1 << 31;
   }
 }

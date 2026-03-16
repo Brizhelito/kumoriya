@@ -58,7 +58,8 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
   Future<void>? _pendingProgressFlush;
   bool _isExiting = false;
   bool _historyWrittenForSession = false;
-  bool _forceSoftwareVideoOutput = false;
+  bool _forceSoftwareVideoOutput =
+      defaultTargetPlatform == TargetPlatform.windows;
 
   PlayerSessionState _state = const PlayerSessionState.idle();
   String? _startError;
@@ -462,6 +463,51 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
                       _state.totalCandidates.toString(),
                     ),
                   ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: <Widget>[
+                      ChoiceChip(
+                        label: const Text('Auto'),
+                        selected:
+                            _orchestrator?.isAutoQualityEnabled ?? true,
+                        onSelected: _orchestrator == null
+                            ? null
+                            : (_) async {
+                                await _orchestrator!.setAutoQualityEnabled(
+                                  true,
+                                );
+                                if (mounted) setState(() {});
+                              },
+                      ),
+                      const SizedBox(width: 8),
+                      ChoiceChip(
+                        label: const Text('Manual'),
+                        selected:
+                            !(_orchestrator?.isAutoQualityEnabled ?? true),
+                        onSelected: _orchestrator == null
+                            ? null
+                            : (_) async {
+                                await _orchestrator!.setAutoQualityEnabled(
+                                  false,
+                                );
+                                if (mounted) setState(() {});
+                              },
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: _orchestrator == null
+                              ? null
+                              : () => unawaited(_showQualityPicker(context)),
+                          icon: const Icon(Icons.high_quality),
+                          label: Text(
+                            'Calidad: ${_state.selectedStream?.qualityLabel ?? _state.selectedStream?.url.toString() ?? '-'}',
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                   if (_state.infoMessage != null &&
                       _state.infoMessage!.trim().isNotEmpty) ...<Widget>[
                     const SizedBox(height: 6),
@@ -556,9 +602,54 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
         return context.l10n.playerCandidateFailedTryingFallback;
       case 'player.tried_all_candidates':
         return context.l10n.playerAllCandidatesFailed;
+      case 'player.manual_quality_switch':
+        return 'Cambiando calidad manual...';
+      case 'player.manual_quality_failed':
+        return 'La calidad manual falló. Cambia a otra calidad o usa Auto.';
+      case 'player.auto_quality_downshift':
+        return 'Auto: bajando calidad por buffering.';
+      case 'player.auto_quality_upshift':
+        return 'Auto: subiendo calidad por reproducción estable.';
       default:
         return code;
     }
+  }
+
+  Future<void> _showQualityPicker(BuildContext context) async {
+    final orchestrator = _orchestrator;
+    if (orchestrator == null) {
+      return;
+    }
+    final items = orchestrator.qualityCandidates;
+    if (items.isEmpty) {
+      return;
+    }
+
+    await showModalBottomSheet<void>(
+      context: context,
+      builder: (context) {
+        return SafeArea(
+          child: ListView.builder(
+            itemCount: items.length,
+            itemBuilder: (context, index) {
+              final stream = items[index];
+              final selected =
+                  _state.selectedStream?.url.toString() == stream.url.toString();
+              final label = stream.qualityLabel ?? stream.url.toString();
+              return ListTile(
+                title: Text(label),
+                subtitle: Text(stream.url.toString(), maxLines: 1),
+                trailing: selected ? const Icon(Icons.check) : null,
+                onTap: () {
+                  Navigator.of(context).pop();
+                  unawaited(orchestrator.selectQualityByIndex(index));
+                },
+              );
+            },
+          ),
+        );
+      },
+    );
   }
 
   Duration get _effectiveSliderPosition => Duration(

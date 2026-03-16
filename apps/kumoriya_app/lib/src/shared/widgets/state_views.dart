@@ -127,6 +127,8 @@ String mapErrorMessage(BuildContext context, KumoriyaError error) {
         return context.l10n.resolverNoResolverFound;
       case KumoriyaErrorKind.unexpected:
         return context.l10n.resolverUnexpectedFailure;
+      case KumoriyaErrorKind.cancelled:
+        return context.l10n.resolverTransportFailure;
     }
   }
 
@@ -149,17 +151,55 @@ String mapErrorMessage(BuildContext context, KumoriyaError error) {
         return context.l10n.errorNotFoundSource;
       case KumoriyaErrorKind.unexpected:
         return context.l10n.errorUnexpectedSource;
+      case KumoriyaErrorKind.cancelled:
+        return context.l10n.errorTransportSource;
+    }
+  }
+
+  if (error.code.startsWith('anilist.')) {
+    switch (error.kind) {
+      case KumoriyaErrorKind.transport:
+        return context.l10n.errorTransportAnilist;
+      case KumoriyaErrorKind.mapping:
+        return context.l10n.errorMappingAnilist;
+      case KumoriyaErrorKind.notFound:
+        return context.l10n.errorNotFoundAnilist;
+      case KumoriyaErrorKind.unexpected:
+        return context.l10n.errorUnexpectedAnilist;
+      case KumoriyaErrorKind.cancelled:
+        return context.l10n.errorTransportAnilist;
+    }
+  }
+
+  if (error.code.startsWith('anime_nexus.') ||
+      error.code.startsWith('animeflv.') ||
+      error.code.startsWith('animeav1.') ||
+      error.code.startsWith('source.') ||
+      error.code.startsWith('storage.')) {
+    switch (error.kind) {
+      case KumoriyaErrorKind.transport:
+        return context.l10n.errorTransportSource;
+      case KumoriyaErrorKind.mapping:
+        return context.l10n.errorMappingSource;
+      case KumoriyaErrorKind.notFound:
+        return context.l10n.errorNotFoundSource;
+      case KumoriyaErrorKind.unexpected:
+        return context.l10n.errorUnexpectedSource;
+      case KumoriyaErrorKind.cancelled:
+        return context.l10n.errorTransportSource;
     }
   }
 
   switch (error.kind) {
     case KumoriyaErrorKind.transport:
-      return context.l10n.errorTransportAnilist;
+      return context.l10n.errorTransportSource;
     case KumoriyaErrorKind.mapping:
-      return context.l10n.errorMappingAnilist;
+      return context.l10n.errorMappingSource;
     case KumoriyaErrorKind.notFound:
-      return context.l10n.errorNotFoundAnilist;
+      return context.l10n.errorNotFoundSource;
     case KumoriyaErrorKind.unexpected:
-      return context.l10n.errorUnexpectedAnilist;
+      return context.l10n.errorUnexpectedSource;
+    case KumoriyaErrorKind.cancelled:
+      return context.l10n.errorTransportSource;
   }
 }

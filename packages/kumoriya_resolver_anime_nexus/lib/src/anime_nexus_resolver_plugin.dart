@@ -1,9 +1,12 @@
+import 'dart:async';
+
 import 'package:dio/dio.dart';
 import 'package:kumoriya_core/kumoriya_core.dart';
 import 'package:kumoriya_plugins/kumoriya_plugins.dart';
 
 import 'errors/anime_nexus_resolver_error.dart';
 import 'models/nexus_browser_session.dart';
+import 'services/cdn_edge_selector.dart';
 import 'services/page_scraper.dart';
 import 'services/playback_session_worker.dart';
 import 'services/signed_hls_builder.dart';
@@ -75,6 +78,17 @@ final class AnimeNexusResolverPlugin implements ResolverPlugin {
           _log('resolve attempt=$attempt url=$url');
           final episodeId = _extractEpisodeId(url);
           var browserSession = NexusBrowserSession.generate();
+
+          // Pre-warm the static CDN edge cache in parallel with the page
+          // scrape so it's ready by the time build() needs it.
+          unawaited(
+            NexusCdnEdgeSelector(_dio)
+                .candidateHosts(
+                  fallbackHost: Uri.parse(NexusConstants.cdnBase).host,
+                )
+                .catchError((_) => <String>[]),
+          );
+
           final pageData = await NexusPageScraper(
             _dio,
           ).scrape(url, session: browserSession);
@@ -185,7 +199,7 @@ final class AnimeNexusResolverPlugin implements ResolverPlugin {
     return Dio(
       BaseOptions(
         connectTimeout: const Duration(seconds: 15),
-        receiveTimeout: const Duration(seconds: 20),
+        receiveTimeout: const Duration(seconds: 45),
         headers: <String, String>{
           'User-Agent': NexusConstants.userAgent,
           'Accept-Language': 'es-419,es;q=0.9,en;q=0.8',

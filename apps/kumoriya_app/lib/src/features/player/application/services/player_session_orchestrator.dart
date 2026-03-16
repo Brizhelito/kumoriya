@@ -1,4 +1,6 @@
 import 'dart:async';
+import 'dart:convert';
+import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:kumoriya_core/kumoriya_core.dart';
@@ -33,6 +35,12 @@ class _SeekSession {
 }
 
 final class PlayerSessionOrchestrator {
+  static const Duration _seekReadyBudget = Duration(seconds: 8);
+  static const Duration _seekVisualGateMax = Duration(seconds: 5);
+  static const Duration _autoQualityStableFor = Duration(seconds: 45);
+  static const Duration _autoQualityCooldown = Duration(seconds: 30);
+  static const Duration _autoQualityDownshiftBuffering = Duration(seconds: 8);
+
   PlayerSessionOrchestrator({
     required PlaybackEngine playbackEngine,
     StreamSelectionPolicy? selectionPolicy,
@@ -51,6 +59,10 @@ final class PlayerSessionOrchestrator {
       _playbackEngine.errorStream.listen(_onPlaybackError),
       _playbackEngine.positionStream.listen(_onPositionChanged),
       _playbackEngine.durationStream.listen(_onDurationChanged),
+      _playbackEngine.bufferStream.listen(_onBufferChanged),
+      _playbackEngine.bufferingPercentageStream.listen(
+        _onBufferingPercentageChanged,
+      ),
     ];
   }
 
@@ -82,9 +94,21 @@ final class PlayerSessionOrchestrator {
   Duration? _lastRequestedSeekPosition;
   DateTime? _lastRequestedSeekAt;
   bool _isRecoveringCurrentCandidate = false;
+  bool _isDisposed = false;
   bool _hasStarted = false;
   Timer? _bufferingTimer;
+  Timer? _autoQualityUpgradeTimer;
+  Timer? _autoQualityDownshiftTimer;
   Timer? _seekStallTimer;
+  DateTime? _lastBufferingAt;
+  DateTime? _lastQualitySwitchAt;
+  int? _lastStableCandidateIndex;
+  bool _autoQualityEnabled = true;
+  int? _manualQualityIndex;
+  Duration _lastBufferedDuration = Duration.zero;
+  double _lastBufferingPercentage = 0;
+  final Map<String, double> _variantThroughputBps = <String, double>{};
+  final Map<String, double> _variantRequiredBps = <String, double>{};
   Duration? _seekWatchTargetPosition;
   Duration? _seekWatchBaselinePosition;
   int _seekStallRecoveriesForCurrentTarget = 0;
@@ -107,6 +131,74 @@ final class PlayerSessionOrchestrator {
   Stream<Duration> get positionStream => _positionController.stream;
   Stream<Duration> get durationStream => _durationController.stream;
   PlayerSessionState get state => _state;
+  bool get isAutoQualityEnabled => _autoQualityEnabled;
+  List<ResolvedStream> get qualityCandidates =>
+      List<ResolvedStream>.unmodifiable(_rankedCandidates);
+
+  Future<void> setAutoQualityEnabled(bool enabled) async {
+    _autoQualityEnabled = enabled;
+    if (enabled) {
+      _manualQualityIndex = null;
+      _log('qualityMode auto');
+      _startAutoQualityUpgradeWatch();
+      return;
+    }
+    _autoQualityUpgradeTimer?.cancel();
+    _autoQualityDownshiftTimer?.cancel();
+    _manualQualityIndex ??= _currentCandidateIndex >= 0
+        ? _currentCandidateIndex
+        : null;
+    _log('qualityMode manual index=$_manualQualityIndex');
+  }
+
+  Future<void> selectQualityByIndex(int index) async {
+    if (index < 0 || index >= _rankedCandidates.length) {
+      return;
+    }
+    _manualQualityIndex = index;
+    _autoQualityEnabled = false;
+    _autoQualityUpgradeTimer?.cancel();
+    _autoQualityDownshiftTimer?.cancel();
+
+    if (index == _currentCandidateIndex) {
+      _log('qualityManual unchanged index=$index');
+      return;
+    }
+
+    final resumeFrom = _lastKnownPosition > Duration.zero
+        ? _lastKnownPosition
+        : null;
+    _currentCandidateIndex = index;
+    _runtimeErrorRetriesForCurrentCandidate = 0;
+    _recoveriesForCurrentCandidate = 0;
+    _lastQualitySwitchAt = DateTime.now();
+    _log(
+      'qualityManual switch toIndex=$index '
+      'variant=${_variantFromUrl(_rankedCandidates[index].url)} '
+      'resumeFrom=$resumeFrom',
+    );
+    _emit(
+      _state.copyWith(
+        status: PlayerSessionStatus.fallbacking,
+        infoMessage: 'player.manual_quality_switch',
+        currentCandidateIndex: _currentCandidateIndex,
+        totalCandidates: _rankedCandidates.length,
+        clearError: true,
+      ),
+    );
+    await _openCurrentCandidate(startPosition: resumeFrom);
+  }
+
+  /// Whether the orchestrator is operating in a managed timeline window.
+  ///
+  /// Exposed for UI instrumentation only — the UI must NOT use this to derive
+  /// slider/label values; it should use [positionStream] and [durationStream].
+  bool get isManagedTimeline => _isManagedTimelineWindow;
+
+  /// The base offset of the current managed timeline window.
+  ///
+  /// Zero when [isManagedTimeline] is `false`.
+  Duration get timelineBase => _timelineBasePosition;
 
   Future<Result<ResolvedStream, KumoriyaError>> start({
     required List<ResolvedStream> streamCandidates,
@@ -139,6 +231,8 @@ final class PlayerSessionOrchestrator {
         .rankCandidates(streamCandidates)
         .where((candidate) => _isSupportedUrl(candidate.url))
         .toList(growable: false);
+    _variantThroughputBps.clear();
+    _variantRequiredBps.clear();
 
     if (_rankedCandidates.isEmpty) {
       return _fail(
@@ -148,7 +242,7 @@ final class PlayerSessionOrchestrator {
       );
     }
 
-    _currentCandidateIndex = 0;
+    _currentCandidateIndex = await _pickInitialCandidateIndex();
     _externalSubtitles = externalSubtitles;
     _runtimeErrorRetriesForCurrentCandidate = 0;
     _recoveriesForCurrentCandidate = 0;
@@ -174,7 +268,7 @@ final class PlayerSessionOrchestrator {
       );
     }
 
-    _currentCandidateIndex = 0;
+    _currentCandidateIndex = await _pickInitialCandidateIndex();
     _runtimeErrorRetriesForCurrentCandidate = 0;
     _recoveriesForCurrentCandidate = 0;
     _resetSeekRecoveryTracking();
@@ -219,6 +313,26 @@ final class PlayerSessionOrchestrator {
     if (!_shouldReopenForSeek(candidate, targetPosition)) {
       _activeSeekSession!.currentLevel = 1;
 
+      // Managed-window escape: if a previous code path left us in a managed
+      // window and the target is outside that window, reopen with the full
+      // manifest first, then native-seek.  This is the safety net — under
+      // normal operation managed windows are no longer created.
+      if (_isManagedTimelineWindow &&
+          _isAnimeNexusLoopbackHls(candidate.url) &&
+          !_isTargetInCurrentWindow(targetPosition)) {
+        _log(
+          'seek managed-window-escape target=$targetPosition '
+          'window=[$_timelineBasePosition .. '
+          '${_timelineBasePosition + _lastRawDurationFromEngine}]',
+        );
+        await _reopenFullManifestThenSeek(
+          candidate,
+          targetPosition,
+          seekStartTime: seekStartTime,
+        );
+        return;
+      }
+
       // R1: Convert absolute target to local position for managed windows.
       final engineTarget = _isManagedTimelineWindow
           ? targetPosition - _timelineBasePosition
@@ -230,7 +344,19 @@ final class PlayerSessionOrchestrator {
         'action=native-seek localTarget=$engineTarget',
       );
 
+      if (_isAnimeNexusLoopbackHls(candidate.url) &&
+          targetPosition > Duration.zero) {
+        _applySeekTimelineAnchor(targetPosition);
+      }
+
+      // Guard: if another seek superseded ours during the async gap, bail.
+      if (seekGen != _seekGeneration) return;
+
       await _playbackEngine.seekTo(engineTarget);
+
+      // Guard: another seek may have arrived while the engine was seeking.
+      if (seekGen != _seekGeneration) return;
+
       final elapsed = DateTime.now().difference(seekStartTime);
       _log('seek-phase native-seek-done elapsed=${elapsed.inMilliseconds}ms');
       _startSeekStallWatch(
@@ -266,7 +392,10 @@ final class PlayerSessionOrchestrator {
   }
 
   Future<void> dispose() async {
+    _isDisposed = true;
     _bufferingTimer?.cancel();
+    _autoQualityUpgradeTimer?.cancel();
+    _autoQualityDownshiftTimer?.cancel();
     _seekStallTimer?.cancel();
     _seekPositionValidationTimer?.cancel();
     for (final subscription in _subscriptions) {
@@ -281,6 +410,16 @@ final class PlayerSessionOrchestrator {
   Future<Result<ResolvedStream, KumoriyaError>> _openCurrentCandidate({
     Duration? startPosition,
   }) async {
+    if (_isDisposed) {
+      return const Failure(
+        SimpleError(
+          code: 'player.engine_disposed',
+          message: 'Playback engine was disposed during open sequence.',
+          kind: KumoriyaErrorKind.cancelled,
+        ),
+      );
+    }
+
     // Capture this open's generation before any await so that concurrent opens
     // can be detected in the catch block and in the success emit.
     final thisGeneration = ++_openGeneration;
@@ -305,6 +444,7 @@ final class PlayerSessionOrchestrator {
       'seek-phase open-start generation=$thisGeneration index=$_currentCandidateIndex/${_rankedCandidates.length} url=${openCandidate.url} startPosition=$startPosition',
     );
     _isRecoveringCurrentCandidate = false;
+    _resetTimelineDomainForNewOpen();
     _emit(
       _state.copyWith(
         status: _state.status == PlayerSessionStatus.fallbacking
@@ -348,12 +488,11 @@ final class PlayerSessionOrchestrator {
           startPosition > Duration.zero) {
         final isWindows = defaultTargetPlatform == TargetPlatform.windows;
         final gateStartTime = DateTime.now();
+        final gateTimeout = _seekVisualGateTimeoutFrom(openStartTime);
         _log(
-          'seek-phase visual-gate-start windows=$isWindows target=$startPosition',
+          'seek-phase visual-gate-start windows=$isWindows target=$startPosition timeout=$gateTimeout',
         );
-        final frameReady = await _waitForUsableFrame(
-          timeout: const Duration(seconds: 5),
-        );
+        final frameReady = await _waitForUsableFrame(timeout: gateTimeout);
         final gateElapsed = DateTime.now().difference(gateStartTime);
         if (frameReady) {
           _log(
@@ -399,6 +538,7 @@ final class PlayerSessionOrchestrator {
           'previousGeneration=${_state.errorGeneration} thisGeneration=$thisGeneration',
         );
       }
+      _lastStableCandidateIndex = _currentCandidateIndex;
       _emit(
         _state.copyWith(
           status: nextStatus,
@@ -438,11 +578,14 @@ final class PlayerSessionOrchestrator {
         _log(
           'openCurrentCandidate engine-disposed generation=$thisGeneration — stopping cascade',
         );
-        return _fail(
-          code: 'player.engine_disposed',
-          message: 'Playback engine was disposed during open sequence.',
-          kind: KumoriyaErrorKind.cancelled,
-          errorGeneration: thisGeneration,
+        // During route teardown or runtime replacement, open may race with
+        // dispose. Treat it as cancellation, not a user-visible error.
+        return const Failure(
+          SimpleError(
+            code: 'player.engine_disposed',
+            message: 'Playback engine was disposed during open sequence.',
+            kind: KumoriyaErrorKind.cancelled,
+          ),
         );
       }
       if (_isProxyRuntimeUnavailableError(error)) {
@@ -468,6 +611,21 @@ final class PlayerSessionOrchestrator {
     _log(
       'handleCandidateFailure code=$code message=$message currentIndex=$_currentCandidateIndex total=${_rankedCandidates.length}',
     );
+    final manualLocked = !_autoQualityEnabled && _manualQualityIndex != null;
+    if (manualLocked) {
+      _log(
+        'handleCandidateFailure manual-lock active index=$_currentCandidateIndex '
+        'message=$message',
+      );
+      _cancelSeekSession('manual-quality-failed');
+      return _fail(
+        code: code,
+        message: message,
+        kind: KumoriyaErrorKind.transport,
+        infoMessage: 'player.manual_quality_failed',
+      );
+    }
+
     final hasNext = (_currentCandidateIndex + 1) < _rankedCandidates.length;
 
     if (hasNext) {
@@ -481,9 +639,24 @@ final class PlayerSessionOrchestrator {
         'fromVariant=${_variantFromUrl(_rankedCandidates[_currentCandidateIndex - 1].url)} '
         'toVariant=${_variantFromUrl(_rankedCandidates[_currentCandidateIndex].url)}',
       );
-      // Inherit seek target from active seek session or pending target.
-      final seekTarget =
-          _activeSeekSession?.targetPosition ?? _pendingTargetPosition;
+      // Inherit seek target from active seek session, pending target,
+      // last-requested seek, or current known position.  When a seek was
+      // confirmed but the player is still buffering at that position, both
+      // _activeSeekSession and _pendingTargetPosition are already cleared.
+      // _lastRequestedSeekPosition survives confirmation and is never
+      // cleared, so it acts as a durable fallback that prevents position
+      // loss during candidate failover.
+      final seekTarget = _activeSeekSession?.targetPosition ??
+          _pendingTargetPosition ??
+          _lastRequestedSeekPosition ??
+          (_lastKnownPosition > Duration.zero ? _lastKnownPosition : null);
+      _log(
+        'handleCandidateFailure seekTarget=$seekTarget '
+        'activeSeek=${_activeSeekSession?.targetPosition} '
+        'pending=$_pendingTargetPosition '
+        'lastRequestedSeek=$_lastRequestedSeekPosition '
+        'lastKnown=$_lastKnownPosition',
+      );
       if (_activeSeekSession != null) {
         _activeSeekSession!.currentLevel = 3;
         _log(
@@ -576,6 +749,12 @@ final class PlayerSessionOrchestrator {
     _log(
       'playingChanged after-emit playing=$playing newError=${_state.errorMessage}',
     );
+
+    if (playing && !_isBuffering) {
+      _startAutoQualityUpgradeWatch();
+    } else {
+      _autoQualityUpgradeTimer?.cancel();
+    }
   }
 
   void _onBufferingChanged(bool buffering) {
@@ -588,12 +767,15 @@ final class PlayerSessionOrchestrator {
     }
 
     if (buffering) {
+      _lastBufferingAt = DateTime.now();
+      _scheduleAutoQualityDownshiftIfNeeded();
       _emit(_state.copyWith(status: PlayerSessionStatus.buffering));
       _startBufferingTimeoutWatch();
       return;
     }
 
     _bufferingTimer?.cancel();
+    _autoQualityDownshiftTimer?.cancel();
     if (_seekWatchTargetPosition == null) {
       _seekStallTimer?.cancel();
     }
@@ -623,6 +805,10 @@ final class PlayerSessionOrchestrator {
     _log(
       'bufferingChanged after-emit buffering=$buffering newError=${_state.errorMessage}',
     );
+
+    if (_isPlaying) {
+      _startAutoQualityUpgradeWatch();
+    }
   }
 
   void _onPositionChanged(Duration rawPosition) {
@@ -716,12 +902,44 @@ final class PlayerSessionOrchestrator {
     _recomputeTimelineDomain('onDurationChanged');
   }
 
+  void _onBufferChanged(Duration buffer) {
+    if (buffer < Duration.zero) {
+      return;
+    }
+    _lastBufferedDuration = buffer;
+  }
+
+  void _onBufferingPercentageChanged(double percentage) {
+    if (percentage.isNaN || percentage.isInfinite) {
+      return;
+    }
+    _lastBufferingPercentage = percentage.clamp(0, 100).toDouble();
+  }
+
   void _recomputeTimelineDomain(String reason) {
     Duration effective;
     if (_lastRawDurationFromEngine > Duration.zero) {
       effective = _effectiveDuration(_lastRawDurationFromEngine);
       if (!_isManagedTimelineWindow) {
-        _fullTimelineDurationHint = effective;
+        final selected = _state.selectedStream;
+        final preserveAnimeNexusVodDuration =
+            selected != null &&
+            selected.isHls &&
+            _isAnimeNexusLoopbackHls(selected.url);
+        if (preserveAnimeNexusVodDuration &&
+            _fullTimelineDurationHint > Duration.zero &&
+            effective < _fullTimelineDurationHint) {
+          // Seek opens on trimmed manifests may report only the remaining
+          // window duration. Keep the largest known full-episode duration
+          // so the timeline max does not collapse after a seek.
+          _log(
+            'timelineDomain preserve-duration hint=$_fullTimelineDurationHint '
+            'rawEffective=$effective reason=$reason',
+          );
+          effective = _fullTimelineDurationHint;
+        } else {
+          _fullTimelineDurationHint = effective;
+        }
       } else if (effective > _fullTimelineDurationHint) {
         _fullTimelineDurationHint = effective;
       }
@@ -765,6 +983,13 @@ final class PlayerSessionOrchestrator {
     _log(
       'playbackError error=$error buffering=$_isBuffering position=$_lastKnownPosition pendingTarget=$_pendingTargetPosition',
     );
+    if (_isAnimeNexusSeekSessionActive) {
+      _log(
+        'playbackError anime-nexus-seek-session error=$error action=escalate-seek-session',
+      );
+      _escalateSeekSession();
+      return;
+    }
     if (_shouldDeferRuntimeError(error)) {
       unawaited(
         _recoverCurrentCandidate(
@@ -798,8 +1023,15 @@ final class PlayerSessionOrchestrator {
     Duration? recoveryPosition,
     bool force = false,
   }) async {
+    if (_isDisposed) {
+      return;
+    }
+
     _log(
-      'recoverCurrentCandidate force=$force recoveryPosition=$recoveryPosition currentIndex=$_currentCandidateIndex recoveries=$_recoveriesForCurrentCandidate pendingTarget=$_pendingTargetPosition',
+      'recoverCurrentCandidate force=$force recoveryPosition=$recoveryPosition '
+      'currentIndex=$_currentCandidateIndex recoveries=$_recoveriesForCurrentCandidate '
+      'pendingTarget=$_pendingTargetPosition lastRequestedSeek=$_lastRequestedSeekPosition '
+      'lastKnown=$_lastKnownPosition',
     );
     if (_isRecoveringCurrentCandidate ||
         (!force && _recoveriesForCurrentCandidate >= 1) ||
@@ -826,6 +1058,7 @@ final class PlayerSessionOrchestrator {
     _pendingTargetPosition = targetPosition > Duration.zero
         ? targetPosition
         : _pendingTargetPosition;
+    _resetTimelineDomainForNewOpen();
     _emit(
       _state.copyWith(
         status: PlayerSessionStatus.buffering,
@@ -871,12 +1104,11 @@ final class PlayerSessionOrchestrator {
       // Only apply for HLS with non-zero targetPosition (seek scenarios)
       if (candidate.isHls && targetPosition > Duration.zero) {
         final isWindows = defaultTargetPlatform == TargetPlatform.windows;
+        final gateTimeout = _seekVisualGateTimeoutFrom(openStartTime);
         _log(
-          'reopen visual-gate waiting-first-frame windows=$isWindows target=$targetPosition',
+          'reopen visual-gate waiting-first-frame windows=$isWindows target=$targetPosition timeout=$gateTimeout',
         );
-        final frameReady = await _waitForUsableFrame(
-          timeout: const Duration(seconds: 5),
-        );
+        final frameReady = await _waitForUsableFrame(timeout: gateTimeout);
         final gateElapsed = DateTime.now().difference(openStartTime);
         if (frameReady) {
           _log(
@@ -923,6 +1155,7 @@ final class PlayerSessionOrchestrator {
         _startSeekPositionValidation();
       }
       // Task 3.4: Do NOT clear pendingTarget here - only clear in _confirmSeekSuccess()
+      _lastStableCandidateIndex = _currentCandidateIndex;
       _emit(
         _state.copyWith(
           status: nextStatus,
@@ -961,6 +1194,18 @@ final class PlayerSessionOrchestrator {
       _log(
         'recoverCurrentCandidate error target=$recoveryPosition error=$error',
       );
+      if (_isStaleGenerationError(error)) {
+        _log(
+          'recoverCurrentCandidate stale-generation silent no-op error=$error',
+        );
+        return;
+      }
+      if (_isEngineDisposedError(error) || _isDisposed) {
+        _log(
+          'recoverCurrentCandidate engine-disposed — cancelling recovery without failure',
+        );
+        return;
+      }
       if (_isProxyRuntimeUnavailableError(error)) {
         _log(
           'recoverCurrentCandidate proxy-runtime-unavailable — quarantining anime-nexus family',
@@ -1008,6 +1253,15 @@ final class PlayerSessionOrchestrator {
     return _state.selectedStream!.isHls;
   }
 
+  bool get _isAnimeNexusSeekSessionActive {
+    final session = _activeSeekSession;
+    final candidate = _state.selectedStream;
+    if (session == null || candidate == null) {
+      return false;
+    }
+    return _isAnimeNexusLoopbackHls(candidate.url);
+  }
+
   void _startBufferingTimeoutWatch() {
     _bufferingTimer?.cancel();
     _bufferingTimer = Timer(_bufferingTimeout, () {
@@ -1015,6 +1269,13 @@ final class PlayerSessionOrchestrator {
         'bufferingTimeout fired status=${_state.status} recoveries=$_recoveriesForCurrentCandidate pendingTarget=$_pendingTargetPosition position=$_lastKnownPosition',
       );
       if (_state.status != PlayerSessionStatus.buffering) {
+        return;
+      }
+      if (_isAnimeNexusSeekSessionActive) {
+        _log(
+          'bufferingTimeout anime-nexus-seek-session action=escalate-seek-session',
+        );
+        _escalateSeekSession();
         return;
       }
       if (_recoveriesForCurrentCandidate < 1) {
@@ -1056,6 +1317,9 @@ final class PlayerSessionOrchestrator {
   }
 
   void _emit(PlayerSessionState next) {
+    if (_isDisposed) {
+      return;
+    }
     _state = next;
     _log(
       'emit status=${next.status} index=${next.currentCandidateIndex}/${next.totalCandidates} hasStream=${next.selectedStream != null} info=${next.infoMessage} error=${next.errorMessage}',
@@ -1071,6 +1335,189 @@ final class PlayerSessionOrchestrator {
     }
 
     return url.scheme == 'http' || url.scheme == 'https';
+  }
+
+  Future<int> _pickInitialCandidateIndex() async {
+    if (_rankedCandidates.isEmpty) {
+      return 0;
+    }
+
+    final remembered = _lastStableCandidateIndex;
+    if (remembered != null &&
+        remembered >= 0 &&
+        remembered < _rankedCandidates.length) {
+      _log('autoQuality startup remembered-index=$remembered');
+      return remembered;
+    }
+
+    final first = _rankedCandidates.first;
+    final isAnimeNexusHls =
+        first.isHls && _isAnimeNexusLoopbackHls(first.url);
+    if (!isAnimeNexusHls) {
+      return 0;
+    }
+
+    await _refreshAbrMetricsFromProxy();
+
+    var preferredIndex = _indexByThroughputEstimate();
+    if (preferredIndex < 0) {
+      // Fallback heuristic: safer startup around 720p.
+      preferredIndex = _rankedCandidates.length - 1;
+      var bestDelta = 1 << 30;
+      for (var i = 0; i < _rankedCandidates.length; i++) {
+        final score = _qualityScore(_rankedCandidates[i]);
+        if (score == null) {
+          continue;
+        }
+        final delta = (score - 720).abs();
+        if (score <= 720 && delta < bestDelta) {
+          preferredIndex = i;
+          bestDelta = delta;
+        }
+      }
+    }
+
+    _log(
+      'autoQuality startup selected-index=$preferredIndex '
+      'variant=${_variantFromUrl(_rankedCandidates[preferredIndex].url)}',
+    );
+    return preferredIndex;
+  }
+
+  int _indexByThroughputEstimate() {
+    if (_variantThroughputBps.isEmpty || _variantRequiredBps.isEmpty) {
+      return -1;
+    }
+
+    var estimatedCapacityBps = 0.0;
+    for (final bps in _variantThroughputBps.values) {
+      if (bps > estimatedCapacityBps) {
+        estimatedCapacityBps = bps;
+      }
+    }
+    if (estimatedCapacityBps <= 0) {
+      return -1;
+    }
+
+    final startupBudgetBps = estimatedCapacityBps * 0.70;
+    var fallback = _rankedCandidates.length - 1;
+    for (var i = _rankedCandidates.length - 1; i >= 0; i--) {
+      final variant = _variantFromUrl(_rankedCandidates[i].url);
+      final requiredBps = _variantRequiredBps[variant];
+      if (requiredBps == null) {
+        continue;
+      }
+      fallback = i;
+      if (requiredBps <= startupBudgetBps) {
+        _log(
+          'autoQuality startup throughput-selected index=$i variant=$variant '
+          'requiredBps=${requiredBps.toStringAsFixed(0)} '
+          'budgetBps=${startupBudgetBps.toStringAsFixed(0)}',
+        );
+        return i;
+      }
+    }
+
+    _log(
+      'autoQuality startup throughput-fallback index=$fallback '
+      'budgetBps=${startupBudgetBps.toStringAsFixed(0)}',
+    );
+    return fallback;
+  }
+
+  Future<void> _refreshAbrMetricsFromProxy() async {
+    final uri = _buildAbrMetricsUri();
+    if (uri == null) {
+      return;
+    }
+
+    final client = HttpClient()..connectionTimeout = const Duration(seconds: 1);
+    try {
+      final request = await client.getUrl(uri).timeout(
+        const Duration(milliseconds: 900),
+      );
+      final response = await request.close().timeout(
+        const Duration(milliseconds: 900),
+      );
+      if (response.statusCode != HttpStatus.ok) {
+        return;
+      }
+      final body = await utf8.decoder.bind(response).join();
+      final decoded = jsonDecode(body);
+      if (decoded is! Map<String, dynamic>) {
+        return;
+      }
+      final nextThroughput = <String, double>{};
+      final nextRequired = <String, double>{};
+      for (final entry in decoded.entries) {
+        final payload = entry.value;
+        if (payload is! Map<String, dynamic>) {
+          continue;
+        }
+        final rawMeasured = payload['measuredNetworkBitsPerSecond'];
+        final measured = rawMeasured is num
+            ? rawMeasured.toDouble()
+            : double.tryParse('$rawMeasured');
+        if (measured != null && measured > 0) {
+          nextThroughput[entry.key] = measured;
+        }
+
+        final rawRequired = payload['declaredBitsPerSecond'];
+        final required = rawRequired is num
+            ? rawRequired.toDouble()
+            : double.tryParse('$rawRequired');
+        if (required != null && required > 0) {
+          nextRequired[entry.key] = required;
+        }
+      }
+      if (nextThroughput.isNotEmpty) {
+        _variantThroughputBps
+          ..clear()
+          ..addAll(nextThroughput);
+      }
+      if (nextRequired.isNotEmpty) {
+        _variantRequiredBps
+          ..clear()
+          ..addAll(nextRequired);
+      }
+      if (nextThroughput.isNotEmpty || nextRequired.isNotEmpty) {
+        _log(
+          'autoQuality abrMetrics throughput=${nextThroughput.length} '
+          'required=${nextRequired.length} uri=$uri',
+        );
+      }
+    } catch (_) {
+      // Best-effort only.
+    } finally {
+      client.close(force: true);
+    }
+  }
+
+  Uri? _buildAbrMetricsUri() {
+    if (_rankedCandidates.isEmpty) {
+      return null;
+    }
+    final anchor = _rankedCandidates.first;
+    if (!_isAnimeNexusLoopbackHls(anchor.url)) {
+      return null;
+    }
+    final segments = anchor.url.pathSegments;
+    final idx = segments.indexOf('anime-nexus');
+    if (idx < 0 || idx + 1 >= segments.length) {
+      return null;
+    }
+    return anchor.url.replace(
+      pathSegments: <String>['anime-nexus', segments[idx + 1], 'abr-metrics'],
+      queryParameters: const <String, String>{},
+    );
+  }
+
+  int? _qualityScore(ResolvedStream stream) {
+    final quality = (stream.qualityLabel ?? '').toLowerCase();
+    if (!quality.endsWith('p')) {
+      return null;
+    }
+    return int.tryParse(quality.substring(0, quality.length - 1));
   }
 
   bool _isEngineDisposedError(Object error) {
@@ -1138,8 +1585,10 @@ final class PlayerSessionOrchestrator {
         ),
       );
       return _openCurrentCandidate(
-        startPosition:
-            _activeSeekSession?.targetPosition ?? _pendingTargetPosition,
+        startPosition: _activeSeekSession?.targetPosition ??
+            _pendingTargetPosition ??
+            _lastRequestedSeekPosition ??
+            (_lastKnownPosition > Duration.zero ? _lastKnownPosition : null),
       );
     }
 
@@ -1181,6 +1630,7 @@ final class PlayerSessionOrchestrator {
   Duration get _recoveryPosition => _normalizePosition(
     _activeSeekSession?.targetPosition ??
         _pendingTargetPosition ??
+        _lastRequestedSeekPosition ??
         _lastKnownPosition,
   );
 
@@ -1188,10 +1638,12 @@ final class PlayerSessionOrchestrator {
     if (position <= Duration.zero) {
       return false;
     }
-    // Anime Nexus streams with full (non-windowed) manifest support native
-    // mpv seek — no need to stop + reopen the entire stream.  This cuts
-    // seek latency from ~5-15 s down to near-instant for cached segments.
-    if (_isAnimeNexusLoopbackHls(candidate.url) && !_isManagedTimelineWindow) {
+    // Anime Nexus: always native-seek, never reopen.  The full manifest is
+    // kept loaded in mpv the same way hls.js works in the browser.  Native
+    // seeking is handled by ffmpeg's HLS demuxer which finds the right
+    // segment in the already-parsed manifest.  This eliminates the ~3-8 s
+    // stream teardown/rebuild overhead of the old windowed-manifest path.
+    if (_isAnimeNexusLoopbackHls(candidate.url)) {
       return false;
     }
     // R1: If the target falls within the currently open managed window,
@@ -1275,34 +1727,112 @@ final class PlayerSessionOrchestrator {
     );
   }
 
+  /// Escapes a managed timeline window by reopening with the full manifest,
+  /// then performing a native seek to [targetPosition].
+  ///
+  /// This is the safety-net path for the rare case where a prior code path
+  /// left the player in a managed (windowed) HLS manifest and the user now
+  /// seeks to a position outside that window.  Under normal operation (after
+  /// the native-seek-always change) managed windows are never created.
+  Future<void> _reopenFullManifestThenSeek(
+    ResolvedStream candidate,
+    Duration targetPosition, {
+    required DateTime seekStartTime,
+  }) async {
+    _log(
+      'reopenFullManifestThenSeek begin '
+      'target=$targetPosition generation=$_seekGeneration',
+    );
+
+    // Pre-warm segments around the target position.
+    unawaited(_playbackEngine.signalPredictivePrewarm(targetPosition));
+
+    _resetTimelineDomainForNewOpen();
+    _emit(
+      _state.copyWith(
+        status: PlayerSessionStatus.buffering,
+        infoMessage: 'player.seek_in_progress',
+        clearError: true,
+      ),
+    );
+
+    try {
+      // Open with full manifest (no seekNonce, no startPosition) so mpv
+      // loads every segment entry.  The engine will hit _openHlsAtPosition
+      // which passes start: targetPosition to mpv's Media constructor.
+      await _playbackEngine
+          .open(candidate, startPosition: targetPosition)
+          .timeout(const Duration(seconds: 12));
+
+      _applyTimelineWindow(
+        candidate: candidate,
+        openCandidate: candidate,
+        requestedStartPosition: targetPosition,
+      );
+
+      _startSeekStallWatch(
+        candidate: candidate,
+        targetPosition: targetPosition,
+      );
+      if (_activeSeekSession != null) {
+        _startSeekPositionValidation();
+      }
+
+      final nextStatus = _isBuffering
+          ? PlayerSessionStatus.buffering
+          : (_isPlaying
+                ? PlayerSessionStatus.playing
+                : PlayerSessionStatus.paused);
+      if (_isBuffering) {
+        _startBufferingTimeoutWatch();
+      }
+      _emit(
+        _state.copyWith(
+          status: nextStatus,
+          selectedStream: candidate,
+          currentCandidateIndex: _currentCandidateIndex,
+          totalCandidates: _rankedCandidates.length,
+          clearInfo: true,
+          clearError: true,
+        ),
+      );
+
+      final totalElapsed = DateTime.now().difference(seekStartTime);
+      _log(
+        'reopenFullManifestThenSeek completed '
+        'total=${totalElapsed.inMilliseconds}ms',
+      );
+    } on TimeoutException {
+      _log('reopenFullManifestThenSeek timeout target=$targetPosition');
+      await _handleCandidateFailure(
+        code: 'player.open_timeout',
+        message: 'Timed out reopening full manifest for seek.',
+      );
+    } catch (error) {
+      _log('reopenFullManifestThenSeek error=$error');
+      if (_isEngineDisposedError(error) || _isDisposed) return;
+      await _handleCandidateFailure(
+        code: 'player.seek_recovery_failed',
+        message: 'Failed to reopen full manifest for seek: $error',
+      );
+    }
+  }
+
+  /// Prepares a candidate for opening.
+  ///
+  /// For Anime Nexus loopback HLS, the candidate is returned unchanged —
+  /// **no seekNonce is injected**.  Instead of tearing down the stream and
+  /// re-opening with a windowed playlist (the old approach), we rely on the
+  /// full manifest + native mpv seeking the same way hls.js works in the
+  /// browser.  The engine's `open()` uses `start:` to hint the position,
+  /// and the proxy's `/warmup-seek-window` pre-caches the target segments.
   ResolvedStream _prepareCandidateForOpen(
     ResolvedStream candidate, {
     Duration? startPosition,
   }) {
-    final normalizedStart = _normalizePosition(startPosition);
-    if (!_isAnimeNexusLoopbackHls(candidate.url) ||
-        normalizedStart <= Duration.zero) {
-      return candidate;
-    }
-
-    final nonce = DateTime.now().microsecondsSinceEpoch.toString();
-    final url = candidate.url.replace(
-      queryParameters: <String, String>{
-        ...candidate.url.queryParameters,
-        'run': nonce,
-        'seekNonce': normalizedStart.inMilliseconds.toString(),
-      },
-    );
-    _log(
-      'prepareCandidateForOpen anime-nexus-loopback start=$normalizedStart url=$url',
-    );
-    return ResolvedStream(
-      url: url,
-      qualityLabel: candidate.qualityLabel,
-      mimeType: candidate.mimeType,
-      isHls: candidate.isHls,
-      headers: candidate.headers,
-    );
+    // Anime Nexus: keep the original URL (full manifest).  The engine will
+    // use _openHlsAtPosition() which passes `start: position` to mpv.
+    return candidate;
   }
 
   bool _isAnimeNexusLoopbackHls(Uri url) {
@@ -1323,6 +1853,177 @@ final class PlayerSessionOrchestrator {
     return segments[idx + 1];
   }
 
+  void _applySeekTimelineAnchor(Duration targetPosition) {
+    _isManagedTimelineWindow = true;
+    _timelineBasePosition = targetPosition;
+    _lastKnownPosition = targetPosition;
+    _emitPosition(targetPosition);
+    _log(
+      'seekTimelineAnchor applied base=$_timelineBasePosition '
+      'durationHint=$_fullTimelineDurationHint',
+    );
+  }
+
+  bool _isAutoQualityEligible() {
+    if (!_autoQualityEnabled) {
+      return false;
+    }
+    final candidate = _state.selectedStream;
+    if (candidate == null) {
+      return false;
+    }
+    if (!candidate.isHls || !_isAnimeNexusLoopbackHls(candidate.url)) {
+      return false;
+    }
+    if (_rankedCandidates.length <= 1) {
+      return false;
+    }
+    if (_activeSeekSession != null || _pendingTargetPosition != null) {
+      return false;
+    }
+    if (_isRecoveringCurrentCandidate || !_isPlaying || _isBuffering) {
+      return false;
+    }
+    return true;
+  }
+
+  void _startAutoQualityUpgradeWatch() {
+    _autoQualityUpgradeTimer?.cancel();
+    if (!_isAutoQualityEligible()) {
+      return;
+    }
+    _autoQualityUpgradeTimer = Timer(const Duration(seconds: 10), () {
+      unawaited(_maybeAutoQualityUpshift());
+    });
+  }
+
+  void _scheduleAutoQualityDownshiftIfNeeded() {
+    _autoQualityDownshiftTimer?.cancel();
+    final candidate = _state.selectedStream;
+    if (candidate == null ||
+        !candidate.isHls ||
+        !_isAnimeNexusLoopbackHls(candidate.url) ||
+        _activeSeekSession != null ||
+        _pendingTargetPosition != null ||
+        _isRecoveringCurrentCandidate ||
+        _currentCandidateIndex >= _rankedCandidates.length - 1) {
+      return;
+    }
+
+    _autoQualityDownshiftTimer = Timer(_autoQualityDownshiftBuffering, () {
+      if (_state.status != PlayerSessionStatus.buffering ||
+          _activeSeekSession != null ||
+          _pendingTargetPosition != null ||
+          _isRecoveringCurrentCandidate ||
+          _currentCandidateIndex >= _rankedCandidates.length - 1) {
+        return;
+      }
+      final lowOccupancy =
+          _lastBufferedDuration <= const Duration(seconds: 2) ||
+          _lastBufferingPercentage <= 20;
+      if (!lowOccupancy) {
+        _log(
+          'autoQuality downshift skip reason=occupancy-not-low '
+          'buffer=$_lastBufferedDuration percent=$_lastBufferingPercentage',
+        );
+        return;
+      }
+      _lastQualitySwitchAt = DateTime.now();
+      _log(
+        'autoQuality downshift trigger index=$_currentCandidateIndex '
+        'variant=${_variantFromUrl(_rankedCandidates[_currentCandidateIndex].url)}',
+      );
+      unawaited(
+        _handleCandidateFailure(
+          code: 'player.auto_quality_downshift',
+          message:
+              'Auto quality lowered due to sustained buffering on current variant.',
+        ),
+      );
+    });
+  }
+
+  Future<void> _maybeAutoQualityUpshift() async {
+    if (_isDisposed || !_isAutoQualityEligible()) {
+      return;
+    }
+    if (_currentCandidateIndex <= 0) {
+      return;
+    }
+
+    final now = DateTime.now();
+    final sinceBuffering = _lastBufferingAt == null
+        ? _autoQualityStableFor
+        : now.difference(_lastBufferingAt!);
+    if (sinceBuffering < _autoQualityStableFor) {
+      _log(
+        'autoQuality upshift skip reason=not-stable '
+        'sinceBuffering=${sinceBuffering.inSeconds}s',
+      );
+      return;
+    }
+
+    final sinceSwitch = _lastQualitySwitchAt == null
+        ? _autoQualityCooldown
+        : now.difference(_lastQualitySwitchAt!);
+    if (sinceSwitch < _autoQualityCooldown) {
+      _log(
+        'autoQuality upshift skip reason=cooldown '
+        'sinceSwitch=${sinceSwitch.inSeconds}s',
+      );
+      return;
+    }
+
+    if (_lastKnownPosition < const Duration(seconds: 20)) {
+      _log(
+        'autoQuality upshift skip reason=insufficient-playtime '
+        'position=$_lastKnownPosition',
+      );
+      return;
+    }
+
+    final highOccupancy =
+        _lastBufferedDuration >= const Duration(seconds: 12) &&
+        _lastBufferingPercentage >= 85;
+    if (!highOccupancy) {
+      _log(
+        'autoQuality upshift skip reason=occupancy-not-high '
+        'buffer=$_lastBufferedDuration percent=$_lastBufferingPercentage',
+      );
+      return;
+    }
+
+    final targetIndex = _currentCandidateIndex - 1;
+    final target = _rankedCandidates[targetIndex];
+    if (!_isAnimeNexusLoopbackHls(target.url)) {
+      return;
+    }
+
+    final resumeFrom = _lastKnownPosition;
+    _currentCandidateIndex = targetIndex;
+    _runtimeErrorRetriesForCurrentCandidate = 0;
+    _recoveriesForCurrentCandidate = 0;
+    _lastQualitySwitchAt = now;
+
+    _log(
+      'autoQuality upshift trigger fromIndex=${targetIndex + 1} '
+      'toIndex=$targetIndex resumeFrom=$resumeFrom '
+      'toVariant=${_variantFromUrl(target.url)}',
+    );
+
+    _emit(
+      _state.copyWith(
+        status: PlayerSessionStatus.fallbacking,
+        infoMessage: 'player.auto_quality_upshift',
+        currentCandidateIndex: _currentCandidateIndex,
+        totalCandidates: _rankedCandidates.length,
+        clearError: true,
+      ),
+    );
+
+    await _openCurrentCandidate(startPosition: resumeFrom);
+  }
+
   void _startSeekStallWatch({
     required ResolvedStream candidate,
     required Duration? targetPosition,
@@ -1340,7 +2041,15 @@ final class PlayerSessionOrchestrator {
     _log(
       'seekStallWatch start target=$normalizedTarget baseline=$_seekWatchBaselinePosition recoveries=$_seekStallRecoveriesForCurrentTarget',
     );
-    _seekStallTimer = Timer(const Duration(seconds: 12), () {
+    // Anime Nexus streams use a shorter timeout because the proxy pre-warms
+    // segments and the robust engine seekTo retries 3 times internally.
+    // 6s is enough to detect a genuine stall without the 12s latency.
+    final stallTimeout =
+        (_state.selectedStream != null &&
+            _isAnimeNexusLoopbackHls(_state.selectedStream!.url))
+        ? const Duration(seconds: 6)
+        : const Duration(seconds: 12);
+    _seekStallTimer = Timer(stallTimeout, () {
       final watchTarget = _seekWatchTargetPosition;
       if (watchTarget == null ||
           _state.selectedStream == null ||
@@ -1451,6 +2160,7 @@ final class PlayerSessionOrchestrator {
     final session = _activeSeekSession;
     if (session == null) return;
     _seekPositionValidationTimer?.cancel();
+    _seekStallTimer?.cancel();
     final totalElapsed = DateTime.now().difference(session.startedAt);
     _log(
       'seekOpen accepted target=${session.targetPosition} '
@@ -1470,6 +2180,7 @@ final class PlayerSessionOrchestrator {
     );
     _log('pendingTarget cleared reason=seek-confirmed');
     _pendingTargetPosition = null;
+    _log('seek-phase completed total=${totalElapsed.inMilliseconds}ms');
     _activeSeekSession = null;
   }
 
@@ -1585,10 +2296,16 @@ final class PlayerSessionOrchestrator {
   }
 
   /// Cancels the active seek session without confirming success.
+  ///
+  /// Also cancels buffering and stall timers to prevent stale callbacks
+  /// from firing after the session is cleared (which would fall through
+  /// to [_handleCandidateFailure] and cause a quality downgrade).
   void _cancelSeekSession(String reason) {
     final session = _activeSeekSession;
     if (session == null) return;
     _seekPositionValidationTimer?.cancel();
+    _bufferingTimer?.cancel();
+    _seekStallTimer?.cancel();
     _log(
       'seekSession cancelled reason=$reason '
       'target=${session.targetPosition} generation=${session.generation}',
@@ -1659,6 +2376,11 @@ final class PlayerSessionOrchestrator {
 
   /// Escalates the active seek session to the next recovery level.
   ///
+  /// **Anime Nexus** streams retry native seeking (re-prefetch + re-seek)
+  /// up to 3 times before giving up.  This avoids the costly stream
+  /// teardown/rebuild that the old windowed-manifest path required.
+  ///
+  /// **Other HLS** sources still follow the legacy path:
   /// Level 1 (local seek) → Level 2 (reopen same candidate).
   /// Level 2 (reopen) → retry up to 2 times, then accept current position.
   ///
@@ -1673,6 +2395,49 @@ final class PlayerSessionOrchestrator {
     final candidate = _state.selectedStream;
     if (candidate == null) return;
 
+    // ── Anime Nexus: retry native seek (never reopen with windowed manifest)
+    if (_isAnimeNexusLoopbackHls(candidate.url)) {
+      session.reopenAttempts++;
+      if (session.reopenAttempts < 3) {
+        _log(
+          'seekNativeRetry attempt=${session.reopenAttempts} '
+          'target=${session.targetPosition} '
+          'actual=$_lastKnownPosition',
+        );
+        // Re-signal prefetch and retry native seek.
+        unawaited(
+          _playbackEngine.signalPredictivePrewarm(session.targetPosition).then((
+            _,
+          ) async {
+            final engineTarget = _isManagedTimelineWindow
+                ? session.targetPosition - _timelineBasePosition
+                : session.targetPosition;
+            await _playbackEngine.seekTo(engineTarget);
+            _startSeekStallWatch(
+              candidate: candidate,
+              targetPosition: session.targetPosition,
+            );
+          }),
+        );
+      } else {
+        _log(
+          'seekQuality preserved — native seek retries exhausted '
+          'candidateIndex=$_currentCandidateIndex '
+          'target=${session.targetPosition} '
+          'actual=$_lastKnownPosition',
+        );
+        // Cancel all watchers so they cannot fire after the seek session
+        // is cleared.  Without this, a stale _bufferingTimer or
+        // _seekStallTimer would fall through to _handleCandidateFailure
+        // and trigger an unnecessary quality downgrade.
+        _bufferingTimer?.cancel();
+        _seekStallTimer?.cancel();
+        _cancelSeekSession('native-seek-retries-exhausted');
+      }
+      return;
+    }
+
+    // ── Non-Anime-Nexus: legacy escalation path.
     if (session.currentLevel <= 1) {
       // Level 1 → Level 2: reopen same candidate with windowed HLS.
       session.currentLevel = 2;
@@ -1707,8 +2472,6 @@ final class PlayerSessionOrchestrator {
         );
       } else {
         // Level 2 exhausted → Accept current position, do NOT drop quality.
-        // Seek position mismatch is NOT a candidate failure — the stream
-        // itself is healthy, just the position landing was imprecise.
         _log(
           'seekQuality preserved — seek position exhausted but quality locked '
           'candidateIndex=$_currentCandidateIndex '
@@ -1719,6 +2482,25 @@ final class PlayerSessionOrchestrator {
         _pendingTargetPosition = null;
       }
     }
+  }
+
+  /// Resets timeline domain to a clean unmanaged state.
+  ///
+  /// Must be called **before** `engine.open()` in every code path that opens
+  /// a new candidate ([_openCurrentCandidate], [_recoverCurrentCandidate]).
+  /// This guarantees that any position/duration events that fire between
+  /// `engine.open()` and the subsequent [_applyTimelineWindow] are processed
+  /// with a sane default (managed=false, base=0) instead of stale values
+  /// from a previous session.
+  void _resetTimelineDomainForNewOpen() {
+    final wasManaged = _isManagedTimelineWindow;
+    _isManagedTimelineWindow = false;
+    _timelineBasePosition = Duration.zero;
+    _lastRawDurationFromEngine = Duration.zero;
+    _log(
+      'timelineDomain reset-for-new-open '
+      'wasManaged=$wasManaged',
+    );
   }
 
   void _applyTimelineWindow({
@@ -1812,9 +2594,18 @@ final class PlayerSessionOrchestrator {
     if (candidate.isHls &&
         startPosition != null &&
         startPosition > Duration.zero) {
-      return const Duration(seconds: 40);
+      return _seekReadyBudget;
     }
     return _openTimeout;
+  }
+
+  Duration _seekVisualGateTimeoutFrom(DateTime openStartTime) {
+    final elapsed = DateTime.now().difference(openStartTime);
+    final remaining = _seekReadyBudget - elapsed;
+    if (remaining <= Duration.zero) {
+      return const Duration(milliseconds: 100);
+    }
+    return remaining < _seekVisualGateMax ? remaining : _seekVisualGateMax;
   }
 
   bool _isPositionNearTarget(Duration position, Duration target) {

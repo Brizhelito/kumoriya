@@ -1,0 +1,16 @@
+{
+  "enabled": true,
+  "name": "Dart Format & Analyze on Save",
+  "description": "Runs dart format and dart analyze on the saved file's package whenever a .dart file is edited",
+  "version": "1",
+  "when": {
+    "type": "fileEdited",
+    "patterns": [
+      "**/*.dart"
+    ]
+  },
+  "then": {
+    "type": "runCommand",
+    "command": "dart format . && dart analyze"
+  }
+}

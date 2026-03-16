@@ -131,6 +131,36 @@ void main() {
 
     expect(find.textContaining('Disponible en'), findsOneWidget);
   });
+
+  testWidgets('calendar groups airing anime by weekday', (tester) async {
+    final fakeRepository = _FakeAnimeCatalogRepository.success();
+    final db = openInMemoryDatabase();
+    addTearDown(db.close);
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          animeCatalogRepositoryProvider.overrideWithValue(fakeRepository),
+          sourcePluginsProvider.overrideWithValue(const <SourcePlugin>[
+            _PrimarySourcePlugin(),
+          ]),
+          appDatabaseProvider.overrideWithValue(db),
+        ],
+        child: const KumoriyaApp(),
+      ),
+    );
+
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Calendar'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Monday'), findsOneWidget);
+    expect(find.text('Tuesday'), findsOneWidget);
+    expect(find.text('Unknown schedule'), findsOneWidget);
+    expect(find.text('Frieren'), findsOneWidget);
+    expect(find.text('Dandadan'), findsOneWidget);
+    expect(find.text('One Punch Man 3'), findsOneWidget);
+  });
 }
 
 final class _FakeAnimeCatalogRepository implements AnimeCatalogRepository {
@@ -183,7 +213,17 @@ final class _FakeAnimeCatalogRepository implements AnimeCatalogRepository {
     int page = 1,
     int perPage = 20,
   }) async {
-    return Success(<Anime>[_anime]);
+    return Success(_homeCatalog);
+  }
+
+  @override
+  Future<Result<List<Anime>, KumoriyaError>> fetchAiringCalendar({
+    DateTime? from,
+    DateTime? to,
+    int page = 1,
+    int perPage = 50,
+  }) async {
+    return Success(_homeCatalog);
   }
 
   @override
@@ -193,12 +233,38 @@ final class _FakeAnimeCatalogRepository implements AnimeCatalogRepository {
     return Success(<Anime>[_anime]);
   }
 
-  static const Anime _anime = Anime(
+  static final List<Anime> _homeCatalog = <Anime>[
+    _anime,
+    _secondAnime,
+    _unknownScheduleAnime,
+  ];
+
+  static final Anime _anime = Anime(
     anilistId: 1,
     title: AnimeTitle(romaji: 'Frieren'),
     format: AnimeFormat.tv,
     totalEpisodes: 28,
+    nextAiringEpisodeNumber: 27,
+    nextAiringAt: DateTime.utc(2026, 3, 16, 18),
     status: AnimeStatus.releasing,
+  );
+
+  static final Anime _secondAnime = Anime(
+    anilistId: 2,
+    title: AnimeTitle(romaji: 'Dandadan'),
+    format: AnimeFormat.tv,
+    totalEpisodes: 12,
+    nextAiringEpisodeNumber: 8,
+    nextAiringAt: DateTime.utc(2026, 3, 17, 21),
+    status: AnimeStatus.releasing,
+  );
+
+  static final Anime _unknownScheduleAnime = Anime(
+    anilistId: 3,
+    title: AnimeTitle(romaji: 'One Punch Man 3'),
+    format: AnimeFormat.tv,
+    totalEpisodes: 12,
+    status: AnimeStatus.notYetReleased,
   );
 }
 

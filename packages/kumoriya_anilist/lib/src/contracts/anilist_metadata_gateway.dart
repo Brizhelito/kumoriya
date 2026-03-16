@@ -6,6 +6,14 @@ abstract interface class AnilistMetadataGateway {
     int perPage = 20,
   });
 
+  Future<Result<List<Map<String, dynamic>>, KumoriyaError>>
+  fetchAiringCalendar({
+    DateTime? from,
+    DateTime? to,
+    int page = 1,
+    int perPage = 50,
+  });
+
   Future<Result<List<Map<String, dynamic>>, KumoriyaError>> searchAnime({
     required String query,
     int page = 1,

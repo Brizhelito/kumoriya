@@ -4,7 +4,7 @@ abstract interface class KumoriyaError {
   KumoriyaErrorKind get kind;
 }
 
-enum KumoriyaErrorKind { transport, mapping, notFound, unexpected }
+enum KumoriyaErrorKind { transport, mapping, notFound, unexpected, cancelled }
 
 final class SimpleError implements KumoriyaError {
   const SimpleError({

@@ -6,8 +6,31 @@ final class GetHomeCatalogUseCase {
 
   final AnimeCatalogRepository _repository;
 
-  Future<Result<List<Anime>, KumoriyaError>> call() {
-    return _repository.fetchHomeCatalog();
+  Future<Result<List<Anime>, KumoriyaError>> call({
+    int page = 1,
+    int perPage = 20,
+  }) {
+    return _repository.fetchHomeCatalog(page: page, perPage: perPage);
+  }
+}
+
+final class GetCalendarCatalogUseCase {
+  const GetCalendarCatalogUseCase(this._repository);
+
+  final AnimeCatalogRepository _repository;
+
+  Future<Result<List<Anime>, KumoriyaError>> call({
+    DateTime? from,
+    DateTime? to,
+    int page = 1,
+    int perPage = 50,
+  }) {
+    return _repository.fetchAiringCalendar(
+      from: from,
+      to: to,
+      page: page,
+      perPage: perPage,
+    );
   }
 }
 

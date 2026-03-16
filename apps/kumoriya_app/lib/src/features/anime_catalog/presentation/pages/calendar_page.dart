@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
 import 'package:kumoriya_domain/kumoriya_domain.dart';
 
 import '../../../../app/l10n.dart';
@@ -14,7 +15,7 @@ class CalendarPage extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final catalogState = ref.watch(homeCatalogProvider);
+    final catalogState = ref.watch(calendarCatalogProvider);
 
     return Scaffold(
       backgroundColor: KumoriyaColors.background,
@@ -36,7 +37,7 @@ class CalendarPage extends ConsumerWidget {
             const Padding(
               padding: EdgeInsets.fromLTRB(16, 0, 16, 14),
               child: Text(
-                'Currently airing',
+                'Airing by day',
                 style: TextStyle(fontSize: 13, color: KumoriyaColors.textMuted),
               ),
             ),
@@ -45,12 +46,12 @@ class CalendarPage extends ConsumerWidget {
                 loading: () => const LoadingStateView(),
                 error: (_, _) => ErrorStateView(
                   message: context.l10n.genericLoadFailure,
-                  onRetry: () => ref.invalidate(homeCatalogProvider),
+                  onRetry: () => ref.invalidate(calendarCatalogProvider),
                 ),
                 data: (result) => result.fold(
                   onFailure: (error) => ErrorStateView(
                     message: mapErrorMessage(context, error),
-                    onRetry: () => ref.invalidate(homeCatalogProvider),
+                    onRetry: () => ref.invalidate(calendarCatalogProvider),
                   ),
                   onSuccess: (animeList) {
                     final airing = animeList
@@ -67,22 +68,85 @@ class CalendarPage extends ConsumerWidget {
                       );
                     }
 
-                    return ListView.separated(
+                    final grouped = <int, List<Anime>>{};
+                    final unknownSchedule = <Anime>[];
+
+                    for (final anime in airing) {
+                      final nextAiringAt = anime.nextAiringAt?.toLocal();
+                      if (nextAiringAt == null) {
+                        unknownSchedule.add(anime);
+                        continue;
+                      }
+
+                      grouped
+                          .putIfAbsent(nextAiringAt.weekday, () => <Anime>[])
+                          .add(anime);
+                    }
+
+                    for (final items in grouped.values) {
+                      items.sort((left, right) {
+                        final leftDate = left.nextAiringAt;
+                        final rightDate = right.nextAiringAt;
+                        if (leftDate == null && rightDate == null) {
+                          return left.title.romaji.compareTo(
+                            right.title.romaji,
+                          );
+                        }
+                        if (leftDate == null) {
+                          return 1;
+                        }
+                        if (rightDate == null) {
+                          return -1;
+                        }
+                        final byDate = leftDate.compareTo(rightDate);
+                        if (byDate != 0) {
+                          return byDate;
+                        }
+                        return left.title.romaji.compareTo(right.title.romaji);
+                      });
+                    }
+
+                    unknownSchedule.sort(
+                      (left, right) =>
+                          left.title.romaji.compareTo(right.title.romaji),
+                    );
+
+                    final sections = <Widget>[];
+                    for (final weekday in <int>[
+                      DateTime.monday,
+                      DateTime.tuesday,
+                      DateTime.wednesday,
+                      DateTime.thursday,
+                      DateTime.friday,
+                      DateTime.saturday,
+                      DateTime.sunday,
+                    ]) {
+                      final items = grouped[weekday];
+                      if (items == null || items.isEmpty) {
+                        continue;
+                      }
+
+                      sections.add(
+                        _CalendarSection(
+                          title: _weekdayLabel(context, weekday),
+                          items: items,
+                        ),
+                      );
+                    }
+
+                    if (unknownSchedule.isNotEmpty) {
+                      sections.add(
+                        _CalendarSection(
+                          title: _unknownScheduleLabel(context),
+                          items: unknownSchedule,
+                          showTime: false,
+                        ),
+                      );
+                    }
+
+                    return ListView(
                       padding: const EdgeInsets.fromLTRB(16, 0, 16, 32),
-                      itemCount: airing.length,
-                      separatorBuilder: (_, _) => const SizedBox(height: 8),
-                      itemBuilder: (context, index) {
-                        final anime = airing[index];
-                        return _AiringRow(
-                          anime: anime,
-                          onTap: () => Navigator.of(context).push(
-                            MaterialPageRoute<void>(
-                              builder: (_) =>
-                                  AnimeDetailPage(anilistId: anime.anilistId),
-                            ),
-                          ),
-                        );
-                      },
+                      children: sections,
                     );
                   },
                 ),
@@ -95,11 +159,102 @@ class CalendarPage extends ConsumerWidget {
   }
 }
 
+String _weekdayLabel(BuildContext context, int weekday) {
+  final isSpanish = Localizations.localeOf(
+    context,
+  ).languageCode.toLowerCase().startsWith('es');
+
+  if (isSpanish) {
+    return switch (weekday) {
+      DateTime.monday => 'Lunes',
+      DateTime.tuesday => 'Martes',
+      DateTime.wednesday => 'Miercoles',
+      DateTime.thursday => 'Jueves',
+      DateTime.friday => 'Viernes',
+      DateTime.saturday => 'Sabado',
+      DateTime.sunday => 'Domingo',
+      _ => 'Sin dia',
+    };
+  }
+
+  return switch (weekday) {
+    DateTime.monday => 'Monday',
+    DateTime.tuesday => 'Tuesday',
+    DateTime.wednesday => 'Wednesday',
+    DateTime.thursday => 'Thursday',
+    DateTime.friday => 'Friday',
+    DateTime.saturday => 'Saturday',
+    DateTime.sunday => 'Sunday',
+    _ => 'Unknown day',
+  };
+}
+
+String _unknownScheduleLabel(BuildContext context) {
+  final isSpanish = Localizations.localeOf(
+    context,
+  ).languageCode.toLowerCase().startsWith('es');
+  return isSpanish ? 'Sin horario confirmado' : 'Unknown schedule';
+}
+
+class _CalendarSection extends StatelessWidget {
+  const _CalendarSection({
+    required this.title,
+    required this.items,
+    this.showTime = true,
+  });
+
+  final String title;
+  final List<Anime> items;
+  final bool showTime;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Padding(
+            padding: const EdgeInsets.fromLTRB(2, 0, 2, 8),
+            child: Text(
+              title,
+              style: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w800,
+                color: KumoriyaColors.textPrimary,
+              ),
+            ),
+          ),
+          ...items.map(
+            (anime) => Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: _AiringRow(
+                anime: anime,
+                showTime: showTime,
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => AnimeDetailPage(anilistId: anime.anilistId),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _AiringRow extends StatefulWidget {
-  const _AiringRow({required this.anime, required this.onTap});
+  const _AiringRow({
+    required this.anime,
+    required this.onTap,
+    required this.showTime,
+  });
 
   final Anime anime;
   final VoidCallback onTap;
+  final bool showTime;
 
   @override
   State<_AiringRow> createState() => _AiringRowState();
@@ -111,6 +266,13 @@ class _AiringRowState extends State<_AiringRow> {
   @override
   Widget build(BuildContext context) {
     final anime = widget.anime;
+    final localNextAiring = anime.nextAiringAt?.toLocal();
+    final timeLabel = localNextAiring == null
+        ? '--:--'
+        : DateFormat.Hm(
+            Localizations.localeOf(context).toString(),
+          ).format(localNextAiring);
+
     return MouseRegion(
       onEnter: (_) => setState(() => _hovered = true),
       onExit: (_) => setState(() => _hovered = false),
@@ -167,11 +329,36 @@ class _AiringRowState extends State<_AiringRow> {
                         ),
                       ),
                     ],
+                    if (anime.nextAiringEpisodeNumber != null) ...<Widget>[
+                      const SizedBox(height: 4),
+                      Text(
+                        'Episode ${anime.nextAiringEpisodeNumber}',
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: KumoriyaColors.textDisabled,
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               ),
               const SizedBox(width: 8),
-              _StatusPill(status: anime.status),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: <Widget>[
+                  if (widget.showTime)
+                    Text(
+                      timeLabel,
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: KumoriyaColors.textPrimary,
+                      ),
+                    ),
+                  if (widget.showTime) const SizedBox(height: 6),
+                  _StatusPill(status: anime.status),
+                ],
+              ),
             ],
           ),
         ),

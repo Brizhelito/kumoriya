@@ -53,19 +53,15 @@ final class NexusStreamDataFetcher {
     final resolvedSession = session ?? NexusBrowserSession.generate();
     var cookieHeader = resolvedSession.cookieHeader;
 
-    // Auth session and episode view bootstraps are independent cookie
-    // sources — run them in parallel to save one round-trip.
-    final bootstrapResults = await Future.wait(<Future<List<String>?>>[
-      _bootstrapAuthSession(cookieHeader: cookieHeader),
-      _bootstrapEpisodeView(
-        episodeId: episodeId,
-        cookieHeader: cookieHeader,
-        fingerprint: resolvedSession.fingerprint,
-      ),
-    ]);
-    final authCookies = bootstrapResults[0];
-    final viewCookies = bootstrapResults[1];
+    // Auth must complete first so episode view gets authenticated cookies.
+    final authCookies = await _bootstrapAuthSession(cookieHeader: cookieHeader);
     cookieHeader = _mergeCookieHeaders(cookieHeader, authCookies);
+
+    final viewCookies = await _bootstrapEpisodeView(
+      episodeId: episodeId,
+      cookieHeader: cookieHeader,
+      fingerprint: resolvedSession.fingerprint,
+    );
     cookieHeader = _mergeCookieHeaders(cookieHeader, viewCookies);
 
     var response = await _request(
@@ -94,13 +90,21 @@ final class NexusStreamDataFetcher {
       );
     }
 
-    final payload = response.data;
-    if (payload == null) {
+    final rawPayload = response.data;
+    if (rawPayload == null) {
       throw const NexusStreamDataException(
         'Anime Nexus stream metadata response was empty.',
       );
     }
+    if (rawPayload is! Map<String, dynamic>) {
+      throw NexusStreamDataException(
+        'Anime Nexus stream metadata returned unexpected content '
+        '(status ${response.statusCode}). '
+        'The server may be blocking this request or is unavailable.',
+      );
+    }
 
+    final payload = rawPayload;
     final data = payload['data'];
     if (data is! Map<String, dynamic>) {
       throw const NexusStreamDataException(
@@ -194,12 +198,12 @@ final class NexusStreamDataFetcher {
     return result;
   }
 
-  Future<Response<Map<String, dynamic>>> _request({
+  Future<Response<dynamic>> _request({
     required String episodeId,
     String? cookieHeader,
     String? fingerprint,
   }) {
-    return _dio.get<Map<String, dynamic>>(
+    return _dio.get<dynamic>(
       '${NexusConstants.apiBase}/api/anime/details/episode/stream',
       queryParameters: <String, Object>{
         'id': episodeId,
