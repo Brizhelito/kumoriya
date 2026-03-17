@@ -4,26 +4,29 @@ import 'dart:io';
 
 import 'package:http/http.dart' as http;
 
-/// Downloads an HLS stream by parsing the m3u8 playlist, downloading each
-/// .ts segment sequentially, and concatenating them into a single file.
+/// Downloads an HLS stream by parsing the m3u8 playlist, downloading
+/// .ts segments with parallelism, and concatenating them into a single file.
 class HlsSegmentDownloader {
-  HlsSegmentDownloader({http.Client? httpClient})
+  HlsSegmentDownloader({http.Client? httpClient, this.parallelSegments = 4})
     : _httpClient = httpClient ?? http.Client();
 
   final http.Client _httpClient;
+
+  /// Number of segments to download in parallel.
+  final int parallelSegments;
 
   /// Downloads the HLS stream at [masterUrl] to [outputPath].
   ///
   /// [headers] are applied to every HTTP request (referer, origin, etc.).
   /// [onProgress] is called after each segment with (downloaded, total) counts.
   /// Returns when complete. Throws on failure.
-  /// If [cancelSignal] completes, download stops early.
+  /// If [cancelCompleter] is completed, download stops early.
   Future<void> download({
     required Uri masterUrl,
     required String outputPath,
     Map<String, String> headers = const <String, String>{},
     void Function(int downloadedSegments, int totalSegments)? onProgress,
-    Future<void>? cancelSignal,
+    Completer<void>? cancelCompleter,
   }) async {
     _log('Starting HLS download: $masterUrl');
 
@@ -41,7 +44,6 @@ class HlsSegmentDownloader {
       mediaContent = await _fetchPlaylist(variantUrl, headers);
       mediaBaseUrl = variantUrl;
     } else {
-      // It's already a media playlist.
       mediaContent = masterContent;
       mediaBaseUrl = masterUrl;
     }
@@ -53,28 +55,31 @@ class HlsSegmentDownloader {
     }
     _log('Found ${segmentUrls.length} segments');
 
-    // 4. Download segments and concatenate.
+    // 4. Download segments in parallel batches, write in order.
     final outputFile = File(outputPath);
     final sink = outputFile.openWrite();
     var downloaded = 0;
 
     try {
-      for (final segmentUrl in segmentUrls) {
-        if (cancelSignal != null) {
-          // Check if cancelled.
-          final cancelled = Completer<bool>();
-          cancelSignal.then((_) {
-            if (!cancelled.isCompleted) cancelled.complete(true);
-          });
-          // Give a tiny window to check.
-          await Future<void>.delayed(Duration.zero);
-          if (cancelled.isCompleted) break;
-        }
+      // Process in batches of [parallelSegments].
+      for (var i = 0; i < segmentUrls.length; i += parallelSegments) {
+        if (cancelCompleter?.isCompleted == true) break;
 
-        final segmentData = await _fetchSegment(segmentUrl, headers);
-        sink.add(segmentData);
-        downloaded++;
-        onProgress?.call(downloaded, segmentUrls.length);
+        final batchEnd = (i + parallelSegments).clamp(0, segmentUrls.length);
+        final batch = segmentUrls.sublist(i, batchEnd);
+
+        // Download batch in parallel.
+        final futures = batch.map((url) => _fetchSegment(url, headers));
+        final results = await Future.wait(futures);
+
+        if (cancelCompleter?.isCompleted == true) break;
+
+        // Write in order.
+        for (final data in results) {
+          sink.add(data);
+          downloaded++;
+          onProgress?.call(downloaded, segmentUrls.length);
+        }
       }
     } finally {
       await sink.close();

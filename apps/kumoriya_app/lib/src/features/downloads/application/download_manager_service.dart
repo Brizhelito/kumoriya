@@ -37,7 +37,7 @@ class DownloadManagerService {
   int get maxConcurrent => _maxConcurrent;
   set maxConcurrent(int value) {
     _maxConcurrent = value.clamp(1, 8);
-    _processQueue();
+    unawaited(_processQueue());
   }
 
   /// Enqueue a new download task. If already in the queue (same id), no-op.
@@ -47,7 +47,7 @@ class DownloadManagerService {
       return;
     }
     await _store.insertTask(task);
-    _processQueue();
+    unawaited(_processQueue());
   }
 
   /// Pause an active download.
@@ -55,13 +55,13 @@ class DownloadManagerService {
     final active = _activeDownloads.remove(taskId);
     active?.cancel();
     await _updateStatus(taskId, DownloadStatus.paused);
-    _processQueue();
   }
 
   /// Resume a paused or failed download.
   Future<void> resume(String taskId) async {
     await _updateStatus(taskId, DownloadStatus.pending);
-    _processQueue();
+    // Await _processQueue so the task is picked up immediately.
+    await _processQueue();
   }
 
   /// Cancel and delete a download (removes file too).
@@ -77,7 +77,7 @@ class DownloadManagerService {
     }
 
     await _store.deleteTask(taskId);
-    _processQueue();
+    unawaited(_processQueue());
   }
 
   /// Retry a failed download.
@@ -95,8 +95,22 @@ class DownloadManagerService {
   }
 
   /// Re-enqueue all pending/paused downloads from DB (call on app start).
+  /// Also recovers tasks stuck in "downloading" state from a previous crash.
   Future<void> restoreQueue() async {
-    _processQueue();
+    // Recover orphaned "downloading" tasks → set them back to pending.
+    final downloadingResult = await _store.getTasksByStatus(
+      DownloadStatus.downloading,
+    );
+    final orphaned = downloadingResult.fold(
+      onSuccess: (tasks) => tasks,
+      onFailure: (_) => <DownloadTask>[],
+    );
+    for (final task in orphaned) {
+      if (!_activeDownloads.containsKey(task.id)) {
+        await _updateStatus(task.id, DownloadStatus.pending);
+      }
+    }
+    await _processQueue();
   }
 
   /// Process the queue: start downloads up to [_maxConcurrent].
@@ -112,7 +126,8 @@ class DownloadManagerService {
     for (final task in pending) {
       if (_activeDownloads.length >= _maxConcurrent) break;
       if (_activeDownloads.containsKey(task.id)) continue;
-      _startDownload(task);
+      // Fire-and-forget — _startDownload manages its own lifecycle.
+      unawaited(_startDownload(task));
     }
   }
 
@@ -138,9 +153,9 @@ class DownloadManagerService {
       final filePath = p.join(dir.path, sanitizedName);
 
       if (task.isHls) {
-        await _downloadHls(task, filePath, cancelCompleter.future);
+        await _downloadHls(task, filePath, cancelCompleter);
       } else {
-        await _downloadDirect(task, filePath, cancelCompleter.future);
+        await _downloadDirect(task, filePath, cancelCompleter);
       }
 
       if (cancelCompleter.isCompleted) {
@@ -153,23 +168,13 @@ class DownloadManagerService {
       final fileSize = await file.exists() ? await file.length() : 0;
 
       await _store.updateTask(
-        DownloadTask(
-          id: task.id,
-          anilistId: task.anilistId,
-          episodeNumber: task.episodeNumber,
-          sourceUrl: task.sourceUrl,
+        _copyTask(
+          task,
           status: DownloadStatus.completed,
-          createdAt: task.createdAt,
           fileName: sanitizedName,
           filePath: filePath,
           totalBytes: fileSize,
           downloadedBytes: fileSize,
-          sourcePluginId: task.sourcePluginId,
-          serverName: task.serverName,
-          detectedHost: task.detectedHost,
-          headers: task.headers,
-          isHls: task.isHls,
-          updatedAt: DateTime.now(),
         ),
       );
 
@@ -188,7 +193,7 @@ class DownloadManagerService {
       await _updateStatus(task.id, DownloadStatus.failed, errorMessage: '$e');
     } finally {
       _activeDownloads.remove(task.id);
-      _processQueue();
+      unawaited(_processQueue());
     }
   }
 
@@ -196,7 +201,7 @@ class DownloadManagerService {
   Future<void> _downloadDirect(
     DownloadTask task,
     String filePath,
-    Future<void> cancelFuture,
+    Completer<void> cancelCompleter,
   ) async {
     final file = File(filePath);
     final request = http.Request('GET', task.sourceUrl);
@@ -211,16 +216,12 @@ class DownloadManagerService {
 
     final totalBytes = response.contentLength ?? 0;
     var downloadedBytes = 0;
+    var lastDbWrite = DateTime.now();
 
     final sink = file.openWrite();
     try {
       await for (final chunk in response.stream) {
-        if (Completer<void>().future == cancelFuture) break;
-        // Check cancel using a non-blocking approach.
-        var cancelled = false;
-        cancelFuture.then((_) => cancelled = true);
-        await Future<void>.delayed(Duration.zero);
-        if (cancelled) break;
+        if (cancelCompleter.isCompleted) break;
 
         sink.add(chunk);
         downloadedBytes += chunk.length;
@@ -233,13 +234,21 @@ class DownloadManagerService {
           ),
         );
 
-        if (downloadedBytes % (256 * 1024) < chunk.length) {
-          await _updateProgress(
-            task.id,
-            task: task,
-            filePath: filePath,
-            downloadedBytes: downloadedBytes,
-            totalBytes: totalBytes,
+        // Persist progress every ~2 seconds (not every 256KB) to avoid
+        // DB write overhead that throttles bandwidth.
+        final now = DateTime.now();
+        if (now.difference(lastDbWrite).inSeconds >= 2) {
+          lastDbWrite = now;
+          unawaited(
+            _store.updateTask(
+              _copyTask(
+                task,
+                status: DownloadStatus.downloading,
+                filePath: filePath,
+                totalBytes: totalBytes > 0 ? totalBytes : null,
+                downloadedBytes: downloadedBytes,
+              ),
+            ),
           );
         }
       }
@@ -252,14 +261,14 @@ class DownloadManagerService {
   Future<void> _downloadHls(
     DownloadTask task,
     String filePath,
-    Future<void> cancelFuture,
+    Completer<void> cancelCompleter,
   ) async {
     final hlsDownloader = HlsSegmentDownloader(httpClient: _httpClient);
     await hlsDownloader.download(
       masterUrl: task.sourceUrl,
       outputPath: filePath,
       headers: task.headers,
-      cancelSignal: cancelFuture,
+      cancelCompleter: cancelCompleter,
       onProgress: (downloaded, total) {
         _progressController.add(
           DownloadProgressEvent(
@@ -282,54 +291,42 @@ class DownloadManagerService {
     if (task == null) return;
 
     await _store.updateTask(
-      DownloadTask(
-        id: task.id,
-        anilistId: task.anilistId,
-        episodeNumber: task.episodeNumber,
-        sourceUrl: task.sourceUrl,
+      _copyTask(
+        task,
         status: status,
-        createdAt: task.createdAt,
-        fileName: task.fileName,
-        filePath: task.filePath,
-        totalBytes: task.totalBytes,
-        downloadedBytes: task.downloadedBytes,
-        sourcePluginId: task.sourcePluginId,
-        serverName: task.serverName,
-        detectedHost: task.detectedHost,
-        headers: task.headers,
-        isHls: task.isHls,
         errorMessage: errorMessage ?? task.errorMessage,
-        updatedAt: DateTime.now(),
       ),
     );
   }
 
-  Future<void> _updateProgress(
-    String taskId, {
-    required DownloadTask task,
-    required String filePath,
-    required int downloadedBytes,
-    required int totalBytes,
-  }) async {
-    await _store.updateTask(
-      DownloadTask(
-        id: task.id,
-        anilistId: task.anilistId,
-        episodeNumber: task.episodeNumber,
-        sourceUrl: task.sourceUrl,
-        status: DownloadStatus.downloading,
-        createdAt: task.createdAt,
-        fileName: task.fileName,
-        filePath: filePath,
-        totalBytes: totalBytes > 0 ? totalBytes : null,
-        downloadedBytes: downloadedBytes,
-        sourcePluginId: task.sourcePluginId,
-        serverName: task.serverName,
-        detectedHost: task.detectedHost,
-        headers: task.headers,
-        isHls: task.isHls,
-        updatedAt: DateTime.now(),
-      ),
+  /// Creates a copy of [task] with optional field overrides.
+  DownloadTask _copyTask(
+    DownloadTask task, {
+    DownloadStatus? status,
+    String? fileName,
+    String? filePath,
+    int? totalBytes,
+    int? downloadedBytes,
+    String? errorMessage,
+  }) {
+    return DownloadTask(
+      id: task.id,
+      anilistId: task.anilistId,
+      episodeNumber: task.episodeNumber,
+      sourceUrl: task.sourceUrl,
+      status: status ?? task.status,
+      createdAt: task.createdAt,
+      fileName: fileName ?? task.fileName,
+      filePath: filePath ?? task.filePath,
+      totalBytes: totalBytes ?? task.totalBytes,
+      downloadedBytes: downloadedBytes ?? task.downloadedBytes,
+      sourcePluginId: task.sourcePluginId,
+      serverName: task.serverName,
+      detectedHost: task.detectedHost,
+      headers: task.headers,
+      isHls: task.isHls,
+      errorMessage: errorMessage,
+      updatedAt: DateTime.now(),
     );
   }
 
