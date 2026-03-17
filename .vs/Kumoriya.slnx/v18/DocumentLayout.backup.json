@@ -3,7 +3,7 @@
   "WorkspaceRootPath": "C:\\Users\\Reny\\Documents\\Kumoriya\\",
   "Documents": [
     {
-      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\Reny\\AppData\\Local\\Temp\\VisualStudio\\copilot-vs\\plan-b3cdef61-7a19-41ea-93c2-fde703d3e6ed.md||{EFC0BB08-EA7D-40C6-A696-C870411A895B}|MarkdownSecurePreview"
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\Reny\\Documents\\anime_nexus_logs\\anime_nexus_runtime_20260316_164525.log||{8B382828-6202-11D1-8870-0000F87579D2}"
     },
     {
       "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\Reny\\Documents\\Kumoriya\\apps\\kumoriya_app\\lib\\src\\features\\anime_catalog\\application\\services\\resolver_registry.dart||{8B382828-6202-11D1-8870-0000F87579D2}",
@@ -17,11 +17,24 @@
       "DocumentGroups": [
         {
           "DockedWidth": 200,
-          "SelectedChildIndex": 2,
+          "SelectedChildIndex": 1,
           "Children": [
             {
               "$type": "Bookmark",
               "Name": "ST:0:0:{aa2115a1-9712-457b-9047-dbb71ca2cdd2}"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 0,
+              "Title": "anime_nexus_runtime_20260316_164525.log",
+              "DocumentMoniker": "C:\\Users\\Reny\\Documents\\anime_nexus_logs\\anime_nexus_runtime_20260316_164525.log",
+              "RelativeDocumentMoniker": "..\\anime_nexus_logs\\anime_nexus_runtime_20260316_164525.log",
+              "ToolTip": "C:\\Users\\Reny\\Documents\\anime_nexus_logs\\anime_nexus_runtime_20260316_164525.log",
+              "RelativeToolTip": "..\\anime_nexus_logs\\anime_nexus_runtime_20260316_164525.log",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001001|",
+              "WhenOpened": "2026-03-16T20:49:21.648Z",
+              "EditorCaption": ""
             },
             {
               "$type": "Document",
@@ -31,22 +44,10 @@
               "RelativeDocumentMoniker": "apps\\kumoriya_app\\lib\\src\\features\\anime_catalog\\application\\services\\resolver_registry.dart",
               "ToolTip": "C:\\Users\\Reny\\Documents\\Kumoriya\\apps\\kumoriya_app\\lib\\src\\features\\anime_catalog\\application\\services\\resolver_registry.dart",
               "RelativeToolTip": "apps\\kumoriya_app\\lib\\src\\features\\anime_catalog\\application\\services\\resolver_registry.dart",
-              "ViewState": "AgIAAAAAAAAAAAAAAAAxwDUAAAAAAAAAAAAAAA==",
+              "ViewState": "AgIAAAEAAAAAAAAAAAAAADUAAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001001|",
               "WhenOpened": "2026-03-16T19:29:28.378Z",
               "EditorCaption": ""
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 0,
-              "Title": "plan-b3cdef61-7a19-41ea-93c2-fde703d3e6ed.md [Versi\u00F3n preliminar]",
-              "DocumentMoniker": "C:\\Users\\Reny\\AppData\\Local\\Temp\\VisualStudio\\copilot-vs\\plan-b3cdef61-7a19-41ea-93c2-fde703d3e6ed.md",
-              "RelativeDocumentMoniker": "..\\..\\AppData\\Local\\Temp\\VisualStudio\\copilot-vs\\plan-b3cdef61-7a19-41ea-93c2-fde703d3e6ed.md",
-              "ToolTip": "C:\\Users\\Reny\\AppData\\Local\\Temp\\VisualStudio\\copilot-vs\\plan-b3cdef61-7a19-41ea-93c2-fde703d3e6ed.md [Versi\u00F3n preliminar]",
-              "RelativeToolTip": "..\\..\\AppData\\Local\\Temp\\VisualStudio\\copilot-vs\\plan-b3cdef61-7a19-41ea-93c2-fde703d3e6ed.md [Versi\u00F3n preliminar]",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001818|",
-              "WhenOpened": "2026-03-16T19:29:02.972Z",
-              "EditorCaption": " [Versi\u00F3n preliminar]"
             }
           ]
         }

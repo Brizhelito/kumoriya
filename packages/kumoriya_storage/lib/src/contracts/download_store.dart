@@ -19,6 +19,8 @@ final class DownloadTask {
     this.detectedHost,
     this.errorMessage,
     this.updatedAt,
+    this.headers = const <String, String>{},
+    this.isHls = false,
   });
 
   final String id;
@@ -36,6 +38,12 @@ final class DownloadTask {
   final String? detectedHost;
   final String? errorMessage;
   final DateTime? updatedAt;
+
+  /// HTTP headers required for downloading (referer, origin, etc.)
+  final Map<String, String> headers;
+
+  /// Whether this download is an HLS stream requiring segment download.
+  final bool isHls;
 }
 
 abstract interface class DownloadStore {

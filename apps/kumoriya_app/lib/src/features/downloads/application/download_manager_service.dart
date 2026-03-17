@@ -7,6 +7,8 @@ import 'package:kumoriya_storage/kumoriya_storage.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
+import 'hls_segment_downloader.dart';
+
 /// Manages a queue of episode downloads with configurable concurrency.
 ///
 /// Downloads are HTTP-streamed to the local filesystem with progress tracked
@@ -127,51 +129,18 @@ class DownloadManagerService {
 
     try {
       final dir = await _downloadsDir();
+      final ext = task.isHls
+          ? '.ts'
+          : (task.fileName?.split('.').last ?? 'mp4');
       final sanitizedName =
-          task.fileName ?? '${task.anilistId}_ep${task.episodeNumber}.mp4';
+          task.fileName ??
+          '${task.anilistId}_ep${task.episodeNumber}.${ext.replaceAll('.', '')}';
       final filePath = p.join(dir.path, sanitizedName);
-      final file = File(filePath);
 
-      final request = http.Request('GET', task.sourceUrl);
-      // Attach custom headers if stored in the task (e.g., referer).
-      final response = await _httpClient.send(request);
-
-      if (response.statusCode != 200 && response.statusCode != 206) {
-        throw HttpException('HTTP ${response.statusCode}');
-      }
-
-      final totalBytes = response.contentLength ?? 0;
-      var downloadedBytes = 0;
-
-      final sink = file.openWrite();
-      try {
-        await for (final chunk in response.stream) {
-          if (cancelCompleter.isCompleted) {
-            break;
-          }
-          sink.add(chunk);
-          downloadedBytes += chunk.length;
-
-          _progressController.add(
-            DownloadProgressEvent(
-              taskId: task.id,
-              downloadedBytes: downloadedBytes,
-              totalBytes: totalBytes,
-            ),
-          );
-
-          // Persist progress periodically (every ~256KB)
-          if (downloadedBytes % (256 * 1024) < chunk.length) {
-            await _updateProgress(
-              task.id,
-              filePath: filePath,
-              downloadedBytes: downloadedBytes,
-              totalBytes: totalBytes,
-            );
-          }
-        }
-      } finally {
-        await sink.close();
+      if (task.isHls) {
+        await _downloadHls(task, filePath, cancelCompleter.future);
+      } else {
+        await _downloadDirect(task, filePath, cancelCompleter.future);
       }
 
       if (cancelCompleter.isCompleted) {
@@ -179,7 +148,10 @@ class DownloadManagerService {
         return;
       }
 
-      // Final update
+      // Mark completed — get the final file size.
+      final file = File(filePath);
+      final fileSize = await file.exists() ? await file.length() : 0;
+
       await _store.updateTask(
         DownloadTask(
           id: task.id,
@@ -190,11 +162,13 @@ class DownloadManagerService {
           createdAt: task.createdAt,
           fileName: sanitizedName,
           filePath: filePath,
-          totalBytes: totalBytes > 0 ? totalBytes : downloadedBytes,
-          downloadedBytes: downloadedBytes,
+          totalBytes: fileSize,
+          downloadedBytes: fileSize,
           sourcePluginId: task.sourcePluginId,
           serverName: task.serverName,
           detectedHost: task.detectedHost,
+          headers: task.headers,
+          isHls: task.isHls,
           updatedAt: DateTime.now(),
         ),
       );
@@ -202,13 +176,13 @@ class DownloadManagerService {
       _progressController.add(
         DownloadProgressEvent(
           taskId: task.id,
-          downloadedBytes: downloadedBytes,
-          totalBytes: totalBytes > 0 ? totalBytes : downloadedBytes,
+          downloadedBytes: fileSize,
+          totalBytes: fileSize,
           isComplete: true,
         ),
       );
 
-      _log('Download complete: ${task.id} ($downloadedBytes bytes)');
+      _log('Download complete: ${task.id} ($fileSize bytes)');
     } catch (e) {
       _log('Download failed: ${task.id} error=$e');
       await _updateStatus(task.id, DownloadStatus.failed, errorMessage: '$e');
@@ -216,6 +190,86 @@ class DownloadManagerService {
       _activeDownloads.remove(task.id);
       _processQueue();
     }
+  }
+
+  /// Direct HTTP download for non-HLS streams.
+  Future<void> _downloadDirect(
+    DownloadTask task,
+    String filePath,
+    Future<void> cancelFuture,
+  ) async {
+    final file = File(filePath);
+    final request = http.Request('GET', task.sourceUrl);
+    if (task.headers.isNotEmpty) {
+      request.headers.addAll(task.headers);
+    }
+    final response = await _httpClient.send(request);
+
+    if (response.statusCode != 200 && response.statusCode != 206) {
+      throw HttpException('HTTP ${response.statusCode}');
+    }
+
+    final totalBytes = response.contentLength ?? 0;
+    var downloadedBytes = 0;
+
+    final sink = file.openWrite();
+    try {
+      await for (final chunk in response.stream) {
+        if (Completer<void>().future == cancelFuture) break;
+        // Check cancel using a non-blocking approach.
+        var cancelled = false;
+        cancelFuture.then((_) => cancelled = true);
+        await Future<void>.delayed(Duration.zero);
+        if (cancelled) break;
+
+        sink.add(chunk);
+        downloadedBytes += chunk.length;
+
+        _progressController.add(
+          DownloadProgressEvent(
+            taskId: task.id,
+            downloadedBytes: downloadedBytes,
+            totalBytes: totalBytes,
+          ),
+        );
+
+        if (downloadedBytes % (256 * 1024) < chunk.length) {
+          await _updateProgress(
+            task.id,
+            task: task,
+            filePath: filePath,
+            downloadedBytes: downloadedBytes,
+            totalBytes: totalBytes,
+          );
+        }
+      }
+    } finally {
+      await sink.close();
+    }
+  }
+
+  /// HLS download: parse m3u8 playlist, download .ts segments, concatenate.
+  Future<void> _downloadHls(
+    DownloadTask task,
+    String filePath,
+    Future<void> cancelFuture,
+  ) async {
+    final hlsDownloader = HlsSegmentDownloader(httpClient: _httpClient);
+    await hlsDownloader.download(
+      masterUrl: task.sourceUrl,
+      outputPath: filePath,
+      headers: task.headers,
+      cancelSignal: cancelFuture,
+      onProgress: (downloaded, total) {
+        _progressController.add(
+          DownloadProgressEvent(
+            taskId: task.id,
+            downloadedBytes: downloaded,
+            totalBytes: total,
+          ),
+        );
+      },
+    );
   }
 
   Future<void> _updateStatus(
@@ -242,6 +296,8 @@ class DownloadManagerService {
         sourcePluginId: task.sourcePluginId,
         serverName: task.serverName,
         detectedHost: task.detectedHost,
+        headers: task.headers,
+        isHls: task.isHls,
         errorMessage: errorMessage ?? task.errorMessage,
         updatedAt: DateTime.now(),
       ),
@@ -250,14 +306,11 @@ class DownloadManagerService {
 
   Future<void> _updateProgress(
     String taskId, {
+    required DownloadTask task,
     required String filePath,
     required int downloadedBytes,
     required int totalBytes,
   }) async {
-    final result = await _store.getTask(taskId);
-    final task = result.fold(onSuccess: (t) => t, onFailure: (_) => null);
-    if (task == null) return;
-
     await _store.updateTask(
       DownloadTask(
         id: task.id,
@@ -273,6 +326,8 @@ class DownloadManagerService {
         sourcePluginId: task.sourcePluginId,
         serverName: task.serverName,
         detectedHost: task.detectedHost,
+        headers: task.headers,
+        isHls: task.isHls,
         updatedAt: DateTime.now(),
       ),
     );

@@ -355,15 +355,17 @@ class _EpisodeListHeader extends ConsumerWidget {
 
     var queued = 0;
     for (final row in downloadable) {
-      final entry = row.sourceEpisodes.entries.first;
-      final sourcePluginId = entry.key;
-      final sourceEpisode = entry.value;
+      // Pick the first non-excluded source.
+      final entry = row.sourceEpisodes.entries
+          .where((e) => e.key != _excludedDownloadSource)
+          .firstOrNull;
+      if (entry == null) continue;
 
       final result = await _enqueueEpisodeDownload(
         ref: ref,
         anilistId: anilistId,
-        sourcePluginId: sourcePluginId,
-        sourceEpisode: sourceEpisode,
+        sourcePluginId: entry.key,
+        sourceEpisode: entry.value,
       );
       if (result) queued++;
     }
@@ -552,6 +554,14 @@ class _EpisodeCardState extends ConsumerState<_EpisodeCard> {
       return const SizedBox.shrink();
     }
 
+    // Hide download button if only excluded sources are available.
+    final hasDownloadableSource = widget.row.sourceEpisodes.keys.any(
+      (id) => id != _excludedDownloadSource,
+    );
+    if (!hasDownloadableSource) {
+      return const SizedBox.shrink();
+    }
+
     return IconButton(
       icon: const Icon(Icons.download_rounded),
       tooltip: context.l10n.downloadEpisode,
@@ -563,13 +573,19 @@ class _EpisodeCardState extends ConsumerState<_EpisodeCard> {
     if (_isEnqueuing) return;
     setState(() => _isEnqueuing = true);
 
-    final entry = widget.row.sourceEpisodes.entries.first;
-    final success = await _enqueueEpisodeDownload(
-      ref: ref,
-      anilistId: widget.anilistId,
-      sourcePluginId: entry.key,
-      sourceEpisode: entry.value,
-    );
+    // Pick the first non-excluded source for download.
+    final entry = widget.row.sourceEpisodes.entries
+        .where((e) => e.key != _excludedDownloadSource)
+        .firstOrNull;
+
+    final success = entry != null
+        ? await _enqueueEpisodeDownload(
+            ref: ref,
+            anilistId: widget.anilistId,
+            sourcePluginId: entry.key,
+            sourceEpisode: entry.value,
+          )
+        : false;
 
     if (!mounted) return;
     setState(() => _isEnqueuing = false);
@@ -803,10 +819,13 @@ final class _EpisodeRowData {
   final Map<String, SourceEpisode> sourceEpisodes;
 }
 
+/// Source plugin ID for Anime Nexus — excluded from downloads per user request.
+const _excludedDownloadSource = 'kumoriya.source.anime_nexus';
+
 // ─── Download helper ─────────────────────────────────────────────────────────
 
 /// Resolves server links for [sourceEpisode] via [sourcePluginId], picks the
-/// best non-HLS stream, and enqueues a download task. Returns true on success.
+/// best stream, and enqueues a download task. Returns true on success.
 Future<bool> _enqueueEpisodeDownload({
   required WidgetRef ref,
   required int anilistId,
@@ -833,6 +852,7 @@ Future<bool> _enqueueEpisodeDownload({
       anilistId: anilistId,
       episodeNumber: sourceEpisode.number,
       serverLink: links.first,
+      sourcePluginId: sourcePluginId,
     );
 
     return result.fold(onSuccess: (_) => true, onFailure: (_) => false);

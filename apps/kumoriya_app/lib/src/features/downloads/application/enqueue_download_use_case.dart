@@ -26,6 +26,7 @@ class EnqueueDownloadUseCase {
     required double episodeNumber,
     required SourceServerLink serverLink,
     String? preferredQuality,
+    String? sourcePluginId,
   }) async {
     _log(
       'enqueue(anime=$anilistId, ep=$episodeNumber, '
@@ -50,19 +51,10 @@ class EnqueueDownloadUseCase {
         }
 
         final stream = _pickStream(resolved.streams, preferredQuality);
-        if (stream.isHls) {
-          return const Failure(
-            SimpleError(
-              code: 'download.hls_not_supported',
-              message: 'HLS streams cannot be downloaded directly.',
-              kind: KumoriyaErrorKind.unexpected,
-            ),
-          );
-        }
 
         final taskId =
             '${anilistId}_${episodeNumber}_${DateTime.now().millisecondsSinceEpoch}';
-        final ext = _guessExtension(stream);
+        final ext = stream.isHls ? '.ts' : _guessExtension(stream);
         final fileName = '${anilistId}_ep${episodeNumber.toInt()}$ext';
 
         final task = DownloadTask(
@@ -73,13 +65,18 @@ class EnqueueDownloadUseCase {
           status: DownloadStatus.pending,
           createdAt: DateTime.now(),
           fileName: fileName,
-          sourcePluginId: null,
+          sourcePluginId: sourcePluginId,
           serverName: serverLink.serverName,
           detectedHost: stream.url.host,
+          headers: stream.headers,
+          isHls: stream.isHls,
         );
 
         _downloadManager.enqueue(task);
-        _log('enqueued taskId=$taskId quality=${stream.qualityLabel}');
+        _log(
+          'enqueued taskId=$taskId quality=${stream.qualityLabel} '
+          'isHls=${stream.isHls} headers=${stream.headers.keys.join(",")}',
+        );
         return const Success(null);
       },
     );
@@ -92,7 +89,7 @@ class EnqueueDownloadUseCase {
       );
       if (match.isNotEmpty) return match.first;
     }
-    // Pick highest quality non-HLS stream, or first available.
+    // Prefer non-HLS streams for direct download, fall back to HLS.
     final nonHls = streams.where((s) => !s.isHls).toList();
     if (nonHls.isNotEmpty) return nonHls.first;
     return streams.first;

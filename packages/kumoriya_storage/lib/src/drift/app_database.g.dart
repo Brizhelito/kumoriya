@@ -2073,6 +2073,30 @@ class $DownloadTaskTableTable extends DownloadTaskTable
     type: DriftSqlType.int,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _headersMeta = const VerificationMeta(
+    'headers',
+  );
+  @override
+  late final GeneratedColumn<String> headers = GeneratedColumn<String>(
+    'headers',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _isHlsMeta = const VerificationMeta('isHls');
+  @override
+  late final GeneratedColumn<bool> isHls = GeneratedColumn<bool>(
+    'is_hls',
+    aliasedName,
+    true,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("is_hls" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -2090,6 +2114,8 @@ class $DownloadTaskTableTable extends DownloadTaskTable
     errorMessage,
     createdAt,
     updatedAt,
+    headers,
+    isHls,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -2215,6 +2241,18 @@ class $DownloadTaskTableTable extends DownloadTaskTable
         updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
       );
     }
+    if (data.containsKey('headers')) {
+      context.handle(
+        _headersMeta,
+        headers.isAcceptableOrUnknown(data['headers']!, _headersMeta),
+      );
+    }
+    if (data.containsKey('is_hls')) {
+      context.handle(
+        _isHlsMeta,
+        isHls.isAcceptableOrUnknown(data['is_hls']!, _isHlsMeta),
+      );
+    }
     return context;
   }
 
@@ -2284,6 +2322,14 @@ class $DownloadTaskTableTable extends DownloadTaskTable
         DriftSqlType.int,
         data['${effectivePrefix}updated_at'],
       ),
+      headers: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}headers'],
+      ),
+      isHls: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}is_hls'],
+      ),
     );
   }
 
@@ -2310,6 +2356,12 @@ class DownloadTaskTableData extends DataClass
   final String? errorMessage;
   final int createdAt;
   final int? updatedAt;
+
+  /// JSON-encoded Map<String, String> of HTTP headers (referer, origin, etc.)
+  final String? headers;
+
+  /// Whether this download is an HLS stream requiring segment download.
+  final bool? isHls;
   const DownloadTaskTableData({
     required this.id,
     required this.anilistId,
@@ -2326,6 +2378,8 @@ class DownloadTaskTableData extends DataClass
     this.errorMessage,
     required this.createdAt,
     this.updatedAt,
+    this.headers,
+    this.isHls,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -2362,6 +2416,12 @@ class DownloadTaskTableData extends DataClass
     map['created_at'] = Variable<int>(createdAt);
     if (!nullToAbsent || updatedAt != null) {
       map['updated_at'] = Variable<int>(updatedAt);
+    }
+    if (!nullToAbsent || headers != null) {
+      map['headers'] = Variable<String>(headers);
+    }
+    if (!nullToAbsent || isHls != null) {
+      map['is_hls'] = Variable<bool>(isHls);
     }
     return map;
   }
@@ -2401,6 +2461,12 @@ class DownloadTaskTableData extends DataClass
       updatedAt: updatedAt == null && nullToAbsent
           ? const Value.absent()
           : Value(updatedAt),
+      headers: headers == null && nullToAbsent
+          ? const Value.absent()
+          : Value(headers),
+      isHls: isHls == null && nullToAbsent
+          ? const Value.absent()
+          : Value(isHls),
     );
   }
 
@@ -2425,6 +2491,8 @@ class DownloadTaskTableData extends DataClass
       errorMessage: serializer.fromJson<String?>(json['errorMessage']),
       createdAt: serializer.fromJson<int>(json['createdAt']),
       updatedAt: serializer.fromJson<int?>(json['updatedAt']),
+      headers: serializer.fromJson<String?>(json['headers']),
+      isHls: serializer.fromJson<bool?>(json['isHls']),
     );
   }
   @override
@@ -2446,6 +2514,8 @@ class DownloadTaskTableData extends DataClass
       'errorMessage': serializer.toJson<String?>(errorMessage),
       'createdAt': serializer.toJson<int>(createdAt),
       'updatedAt': serializer.toJson<int?>(updatedAt),
+      'headers': serializer.toJson<String?>(headers),
+      'isHls': serializer.toJson<bool?>(isHls),
     };
   }
 
@@ -2465,6 +2535,8 @@ class DownloadTaskTableData extends DataClass
     Value<String?> errorMessage = const Value.absent(),
     int? createdAt,
     Value<int?> updatedAt = const Value.absent(),
+    Value<String?> headers = const Value.absent(),
+    Value<bool?> isHls = const Value.absent(),
   }) => DownloadTaskTableData(
     id: id ?? this.id,
     anilistId: anilistId ?? this.anilistId,
@@ -2485,6 +2557,8 @@ class DownloadTaskTableData extends DataClass
     errorMessage: errorMessage.present ? errorMessage.value : this.errorMessage,
     createdAt: createdAt ?? this.createdAt,
     updatedAt: updatedAt.present ? updatedAt.value : this.updatedAt,
+    headers: headers.present ? headers.value : this.headers,
+    isHls: isHls.present ? isHls.value : this.isHls,
   );
   DownloadTaskTableData copyWithCompanion(DownloadTaskTableCompanion data) {
     return DownloadTaskTableData(
@@ -2517,6 +2591,8 @@ class DownloadTaskTableData extends DataClass
           : this.errorMessage,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+      headers: data.headers.present ? data.headers.value : this.headers,
+      isHls: data.isHls.present ? data.isHls.value : this.isHls,
     );
   }
 
@@ -2537,7 +2613,9 @@ class DownloadTaskTableData extends DataClass
           ..write('detectedHost: $detectedHost, ')
           ..write('errorMessage: $errorMessage, ')
           ..write('createdAt: $createdAt, ')
-          ..write('updatedAt: $updatedAt')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('headers: $headers, ')
+          ..write('isHls: $isHls')
           ..write(')'))
         .toString();
   }
@@ -2559,6 +2637,8 @@ class DownloadTaskTableData extends DataClass
     errorMessage,
     createdAt,
     updatedAt,
+    headers,
+    isHls,
   );
   @override
   bool operator ==(Object other) =>
@@ -2578,7 +2658,9 @@ class DownloadTaskTableData extends DataClass
           other.detectedHost == this.detectedHost &&
           other.errorMessage == this.errorMessage &&
           other.createdAt == this.createdAt &&
-          other.updatedAt == this.updatedAt);
+          other.updatedAt == this.updatedAt &&
+          other.headers == this.headers &&
+          other.isHls == this.isHls);
 }
 
 class DownloadTaskTableCompanion
@@ -2598,6 +2680,8 @@ class DownloadTaskTableCompanion
   final Value<String?> errorMessage;
   final Value<int> createdAt;
   final Value<int?> updatedAt;
+  final Value<String?> headers;
+  final Value<bool?> isHls;
   final Value<int> rowid;
   const DownloadTaskTableCompanion({
     this.id = const Value.absent(),
@@ -2615,6 +2699,8 @@ class DownloadTaskTableCompanion
     this.errorMessage = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
+    this.headers = const Value.absent(),
+    this.isHls = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   DownloadTaskTableCompanion.insert({
@@ -2633,6 +2719,8 @@ class DownloadTaskTableCompanion
     this.errorMessage = const Value.absent(),
     required int createdAt,
     this.updatedAt = const Value.absent(),
+    this.headers = const Value.absent(),
+    this.isHls = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
        anilistId = Value(anilistId),
@@ -2655,6 +2743,8 @@ class DownloadTaskTableCompanion
     Expression<String>? errorMessage,
     Expression<int>? createdAt,
     Expression<int>? updatedAt,
+    Expression<String>? headers,
+    Expression<bool>? isHls,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -2673,6 +2763,8 @@ class DownloadTaskTableCompanion
       if (errorMessage != null) 'error_message': errorMessage,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
+      if (headers != null) 'headers': headers,
+      if (isHls != null) 'is_hls': isHls,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -2693,6 +2785,8 @@ class DownloadTaskTableCompanion
     Value<String?>? errorMessage,
     Value<int>? createdAt,
     Value<int?>? updatedAt,
+    Value<String?>? headers,
+    Value<bool?>? isHls,
     Value<int>? rowid,
   }) {
     return DownloadTaskTableCompanion(
@@ -2711,6 +2805,8 @@ class DownloadTaskTableCompanion
       errorMessage: errorMessage ?? this.errorMessage,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
+      headers: headers ?? this.headers,
+      isHls: isHls ?? this.isHls,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -2763,6 +2859,12 @@ class DownloadTaskTableCompanion
     if (updatedAt.present) {
       map['updated_at'] = Variable<int>(updatedAt.value);
     }
+    if (headers.present) {
+      map['headers'] = Variable<String>(headers.value);
+    }
+    if (isHls.present) {
+      map['is_hls'] = Variable<bool>(isHls.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -2787,6 +2889,8 @@ class DownloadTaskTableCompanion
           ..write('errorMessage: $errorMessage, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
+          ..write('headers: $headers, ')
+          ..write('isHls: $isHls, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -5081,6 +5185,8 @@ typedef $$DownloadTaskTableTableCreateCompanionBuilder =
       Value<String?> errorMessage,
       required int createdAt,
       Value<int?> updatedAt,
+      Value<String?> headers,
+      Value<bool?> isHls,
       Value<int> rowid,
     });
 typedef $$DownloadTaskTableTableUpdateCompanionBuilder =
@@ -5100,6 +5206,8 @@ typedef $$DownloadTaskTableTableUpdateCompanionBuilder =
       Value<String?> errorMessage,
       Value<int> createdAt,
       Value<int?> updatedAt,
+      Value<String?> headers,
+      Value<bool?> isHls,
       Value<int> rowid,
     });
 
@@ -5184,6 +5292,16 @@ class $$DownloadTaskTableTableFilterComposer
 
   ColumnFilters<int> get updatedAt => $composableBuilder(
     column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get headers => $composableBuilder(
+    column: $table.headers,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get isHls => $composableBuilder(
+    column: $table.isHls,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -5271,6 +5389,16 @@ class $$DownloadTaskTableTableOrderingComposer
     column: $table.updatedAt,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<String> get headers => $composableBuilder(
+    column: $table.headers,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get isHls => $composableBuilder(
+    column: $table.isHls,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$DownloadTaskTableTableAnnotationComposer
@@ -5340,6 +5468,12 @@ class $$DownloadTaskTableTableAnnotationComposer
 
   GeneratedColumn<int> get updatedAt =>
       $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  GeneratedColumn<String> get headers =>
+      $composableBuilder(column: $table.headers, builder: (column) => column);
+
+  GeneratedColumn<bool> get isHls =>
+      $composableBuilder(column: $table.isHls, builder: (column) => column);
 }
 
 class $$DownloadTaskTableTableTableManager
@@ -5397,6 +5531,8 @@ class $$DownloadTaskTableTableTableManager
                 Value<String?> errorMessage = const Value.absent(),
                 Value<int> createdAt = const Value.absent(),
                 Value<int?> updatedAt = const Value.absent(),
+                Value<String?> headers = const Value.absent(),
+                Value<bool?> isHls = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => DownloadTaskTableCompanion(
                 id: id,
@@ -5414,6 +5550,8 @@ class $$DownloadTaskTableTableTableManager
                 errorMessage: errorMessage,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
+                headers: headers,
+                isHls: isHls,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -5433,6 +5571,8 @@ class $$DownloadTaskTableTableTableManager
                 Value<String?> errorMessage = const Value.absent(),
                 required int createdAt,
                 Value<int?> updatedAt = const Value.absent(),
+                Value<String?> headers = const Value.absent(),
+                Value<bool?> isHls = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => DownloadTaskTableCompanion.insert(
                 id: id,
@@ -5450,6 +5590,8 @@ class $$DownloadTaskTableTableTableManager
                 errorMessage: errorMessage,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
+                headers: headers,
+                isHls: isHls,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0

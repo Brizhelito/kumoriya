@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:drift/drift.dart';
 import 'package:kumoriya_core/kumoriya_core.dart';
 
@@ -145,10 +147,24 @@ final class DriftDownloadStore implements DownloadStore {
       updatedAt: task.updatedAt != null
           ? Value(task.updatedAt!.millisecondsSinceEpoch)
           : const Value.absent(),
+      headers: Value(
+        task.headers.isNotEmpty ? jsonEncode(task.headers) : null,
+      ),
+      isHls: Value(task.isHls),
     );
   }
 
   DownloadTask _rowToTask(DownloadTaskTableData row) {
+    Map<String, String> headers = const <String, String>{};
+    if (row.headers != null) {
+      try {
+        final decoded = jsonDecode(row.headers!) as Map<String, dynamic>;
+        headers = decoded.map((k, v) => MapEntry(k, v.toString()));
+      } catch (_) {
+        // Ignore malformed header JSON.
+      }
+    }
+
     return DownloadTask(
       id: row.id,
       anilistId: row.anilistId,
@@ -170,6 +186,8 @@ final class DriftDownloadStore implements DownloadStore {
       updatedAt: row.updatedAt != null
           ? DateTime.fromMillisecondsSinceEpoch(row.updatedAt!)
           : null,
+      headers: headers,
+      isHls: row.isHls ?? false,
     );
   }
 }
