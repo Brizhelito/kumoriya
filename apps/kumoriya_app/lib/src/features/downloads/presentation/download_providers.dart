@@ -51,7 +51,13 @@ final activeDownloadCountProvider = FutureProvider.autoDispose<int>((
   return result.fold(onSuccess: (tasks) => tasks.length, onFailure: (_) => 0);
 });
 
-// ─── Auto-download IDs ───────────────────────────────────────────────────────
+// ─── Download progress stream ────────────────────────────────────────────────
+
+final downloadProgressStreamProvider =
+    StreamProvider.autoDispose<DownloadProgressEvent>((ref) {
+      final manager = ref.watch(downloadManagerProvider);
+      return manager.progressStream;
+    });
 
 final autoDownloadAnimeIdsProvider =
     FutureProvider.autoDispose<Result<Set<int>, KumoriyaError>>((ref) async {

@@ -625,6 +625,16 @@ class _EpisodeDetailSectionState extends ConsumerState<_EpisodeDetailSection> {
                   ),
                 ),
               ),
+              if (rows.any(
+                (r) => r.sourceEpisodes.keys.any(
+                  (id) => id != _excludedDetailDownloadSource,
+                ),
+              ))
+                _DetailDownloadAllButton(
+                  rows: rows,
+                  anilistId: widget.detail.anime.anilistId,
+                ),
+              const SizedBox(width: 8),
               Text(
                 rows.isEmpty
                     ? context.l10n.episodeListEmpty
@@ -1424,12 +1434,19 @@ Future<bool> _enqueueDetailEpisodeDownload({
   }
 }
 
-class _DetailDownloadStatusIcon extends StatelessWidget {
+class _DetailDownloadStatusIcon extends ConsumerWidget {
   const _DetailDownloadStatusIcon({required this.task});
   final DownloadTask task;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    // Listen to live progress events.
+    final progressAsync = ref.watch(downloadProgressStreamProvider);
+    final liveEvent = progressAsync.maybeWhen(
+      data: (event) => event.taskId == task.id ? event : null,
+      orElse: () => null,
+    );
+
     final (icon, color) = switch (task.status) {
       DownloadStatus.pending => (
         Icons.hourglass_top_rounded,
@@ -1447,9 +1464,126 @@ class _DetailDownloadStatusIcon extends StatelessWidget {
       DownloadStatus.failed => (Icons.error_outline_rounded, Colors.red),
     };
 
+    // Show circular progress around the icon when downloading.
+    if (task.status == DownloadStatus.downloading) {
+      final fraction = liveEvent?.fraction ?? _storedFraction(task);
+
+      return Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 4),
+        child: SizedBox(
+          width: 26,
+          height: 26,
+          child: Stack(
+            alignment: Alignment.center,
+            children: <Widget>[
+              CircularProgressIndicator(
+                value: fraction,
+                strokeWidth: 2.5,
+                backgroundColor: KumoriyaColors.borderSubtle,
+                valueColor: AlwaysStoppedAnimation<Color>(color),
+              ),
+              Icon(icon, size: 14, color: color),
+            ],
+          ),
+        ),
+      );
+    }
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 4),
       child: Icon(icon, size: 22, color: color),
     );
+  }
+
+  double? _storedFraction(DownloadTask task) {
+    if (task.totalBytes == null ||
+        task.totalBytes == 0 ||
+        task.downloadedBytes == null) {
+      return null;
+    }
+    return (task.downloadedBytes! / task.totalBytes!).clamp(0.0, 1.0);
+  }
+}
+
+class _DetailDownloadAllButton extends ConsumerStatefulWidget {
+  const _DetailDownloadAllButton({required this.rows, required this.anilistId});
+
+  final List<_DetailEpisodeRowData> rows;
+  final int anilistId;
+
+  @override
+  ConsumerState<_DetailDownloadAllButton> createState() =>
+      _DetailDownloadAllButtonState();
+}
+
+class _DetailDownloadAllButtonState
+    extends ConsumerState<_DetailDownloadAllButton> {
+  bool _isEnqueuing = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return _isEnqueuing
+        ? const SizedBox(
+            width: 20,
+            height: 20,
+            child: CircularProgressIndicator(strokeWidth: 2),
+          )
+        : GestureDetector(
+            onTap: () => _downloadAll(context),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                Icon(
+                  Icons.download_rounded,
+                  size: 16,
+                  color: KumoriyaColors.primary,
+                ),
+                const SizedBox(width: 4),
+                Text(
+                  context.l10n.downloadAll,
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: KumoriyaColors.primary,
+                  ),
+                ),
+              ],
+            ),
+          );
+  }
+
+  Future<void> _downloadAll(BuildContext context) async {
+    if (_isEnqueuing) return;
+    setState(() => _isEnqueuing = true);
+
+    final downloadable = widget.rows
+        .where((r) => r.sourceEpisodes.isNotEmpty)
+        .toList();
+    var queued = 0;
+
+    for (final row in downloadable) {
+      final entry = row.sourceEpisodes.entries
+          .where((e) => e.key != _excludedDetailDownloadSource)
+          .firstOrNull;
+      if (entry == null) continue;
+
+      final result = await _enqueueDetailEpisodeDownload(
+        ref: ref,
+        anilistId: widget.anilistId,
+        sourcePluginId: entry.key,
+        sourceEpisode: entry.value,
+      );
+      if (result) queued++;
+    }
+
+    if (!mounted) return;
+    setState(() => _isEnqueuing = false);
+
+    if (queued > 0) {
+      ref.invalidate(downloadTasksByAnimeProvider(widget.anilistId));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(context.l10n.downloadAllQueued)));
+    }
   }
 }
