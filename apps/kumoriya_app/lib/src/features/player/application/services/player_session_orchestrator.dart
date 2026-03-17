@@ -1378,6 +1378,9 @@ final class PlayerSessionOrchestrator {
   }
 
   bool _isSupportedUrl(Uri url) {
+    // Allow local file:// URIs for offline/downloaded playback.
+    if (url.scheme == 'file') return true;
+
     if (!url.hasScheme || url.host.isEmpty) {
       return false;
     }
