@@ -1,13 +1,18 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:kumoriya_plugins/kumoriya_plugins.dart';
 import 'package:kumoriya_storage/kumoriya_storage.dart';
 
 import '../../../../app/l10n.dart';
 import '../../../../shared/theme/kumoriya_theme.dart';
 import '../../../../shared/widgets/kumoriya_cached_image.dart';
 import '../../../../shared/widgets/state_views.dart';
+import '../../application/models/resolved_server_link_result.dart';
 import '../../../downloads/presentation/download_providers.dart';
 import '../../../downloads/application/download_manager_service.dart';
+import '../../../player/presentation/pages/player_page.dart';
 import '../providers/anime_catalog_providers.dart';
 import '../providers/storage_providers.dart';
 import 'anime_detail_page.dart';
@@ -483,13 +488,27 @@ class _DownloadRowState extends ConsumerState<_DownloadRow> {
           },
         );
       case DownloadStatus.completed:
-        return IconButton(
-          icon: const Icon(Icons.delete_outline_rounded, size: 18),
-          tooltip: context.l10n.downloadDelete,
-          onPressed: () async {
-            await manager.deleteCompleted(task.id);
-            ref.invalidate(allDownloadTasksProvider);
-          },
+        return Row(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            IconButton(
+              icon: const Icon(
+                Icons.play_circle_filled_rounded,
+                size: 22,
+                color: KumoriyaColors.primary,
+              ),
+              tooltip: context.l10n.playEpisode,
+              onPressed: () => _playDownloaded(context, task),
+            ),
+            IconButton(
+              icon: const Icon(Icons.delete_outline_rounded, size: 18),
+              tooltip: context.l10n.downloadDelete,
+              onPressed: () async {
+                await manager.deleteCompleted(task.id);
+                ref.invalidate(allDownloadTasksProvider);
+              },
+            ),
+          ],
         );
       case DownloadStatus.pending:
         return IconButton(
@@ -501,6 +520,27 @@ class _DownloadRowState extends ConsumerState<_DownloadRow> {
           },
         );
     }
+  }
+
+  void _playDownloaded(BuildContext context, DownloadTask task) {
+    if (task.filePath == null) return;
+    final file = File(task.filePath!);
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => PlayerPage(
+          anilistId: task.anilistId,
+          animeTitle: 'Episode ${task.episodeNumber.toInt()}',
+          episodeNumber: task.episodeNumber.toInt().toString(),
+          sourcePluginId: task.sourcePluginId ?? 'offline',
+          serverName: task.serverName ?? 'Downloaded',
+          resolved: ResolvedServerLinkResult(
+            resolverId: 'offline',
+            resolverName: 'Downloaded',
+            streams: <ResolvedStream>[ResolvedStream(url: file.uri)],
+          ),
+        ),
+      ),
+    );
   }
 
   String _statusText(BuildContext context, DownloadTask task) {

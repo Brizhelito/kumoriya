@@ -18,7 +18,9 @@ import '../../application/models/source_availability.dart';
 import '../../application/use_cases/get_source_episode_server_links_use_case.dart';
 import '../providers/anime_catalog_providers.dart';
 import '../providers/storage_providers.dart';
+import '../../application/models/resolved_server_link_result.dart';
 import '../../../downloads/presentation/download_providers.dart';
+import '../../../player/presentation/pages/player_page.dart';
 import '../support/playback_launch_flow.dart';
 import '../widgets/source_badge.dart';
 
@@ -726,6 +728,51 @@ class _EpisodeDetailSectionState extends ConsumerState<_EpisodeDetailSection> {
     _DetailEpisodeRowData row,
     SourceAvailabilitySummary summary,
   ) async {
+    // Check for completed offline download first.
+    final dlTasksState = ref.read(
+      downloadTasksByAnimeProvider(widget.detail.anime.anilistId),
+    );
+    final offlineTask = dlTasksState.maybeWhen(
+      data: (result) => result.fold(
+        onFailure: (_) => null,
+        onSuccess: (tasks) {
+          for (final t in tasks) {
+            if ((t.episodeNumber - row.number).abs() < 0.001 &&
+                t.status == DownloadStatus.completed &&
+                t.filePath != null) {
+              return t;
+            }
+          }
+          return null;
+        },
+      ),
+      orElse: () => null,
+    );
+
+    if (offlineTask != null) {
+      final file = File(offlineTask.filePath!);
+      if (await file.exists()) {
+        if (!mounted) return;
+        await Navigator.of(context).push(
+          MaterialPageRoute<void>(
+            builder: (_) => PlayerPage(
+              anilistId: widget.detail.anime.anilistId,
+              animeTitle: widget.detail.anime.title.romaji,
+              episodeNumber: row.number.toInt().toString(),
+              sourcePluginId: offlineTask.sourcePluginId ?? 'offline',
+              serverName: offlineTask.serverName ?? 'Downloaded',
+              resolved: ResolvedServerLinkResult(
+                resolverId: 'offline',
+                resolverName: 'Downloaded',
+                streams: <ResolvedStream>[ResolvedStream(url: file.uri)],
+              ),
+            ),
+          ),
+        );
+        return;
+      }
+    }
+
     setState(() => _isLaunching = true);
     showBlockingLoader(context, context.l10n.playbackPreparing);
     final decision = await ref

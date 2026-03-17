@@ -724,4 +724,7 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get downloadSelectServer => 'Seleccionar servidor';
+
+  @override
+  String get playEpisode => 'Reproducir episodio';
 }

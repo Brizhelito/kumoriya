@@ -715,4 +715,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get downloadSelectServer => 'Select server';
+
+  @override
+  String get playEpisode => 'Play episode';
 }

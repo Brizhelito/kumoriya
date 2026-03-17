@@ -1245,6 +1245,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Select server'**
   String get downloadSelectServer;
+
+  /// No description provided for @playEpisode.
+  ///
+  /// In en, this message translates to:
+  /// **'Play episode'**
+  String get playEpisode;
 }
 
 class _AppLocalizationsDelegate

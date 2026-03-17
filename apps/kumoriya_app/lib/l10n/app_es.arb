@@ -431,5 +431,6 @@
   "autoDownloadDisabled": "Auto-descarga desactivada",
   "downloadHlsNotSupported": "Los streams HLS no se pueden descargar",
   "downloadSelectQuality": "Seleccionar calidad",
-  "downloadSelectServer": "Seleccionar servidor"
+  "downloadSelectServer": "Seleccionar servidor",
+  "playEpisode": "Reproducir episodio"
 }
