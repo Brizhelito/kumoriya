@@ -7,6 +7,7 @@ import '../../../../shared/theme/kumoriya_theme.dart';
 import '../../../../shared/widgets/kumoriya_cached_image.dart';
 import '../../../../shared/widgets/state_views.dart';
 import '../../../downloads/presentation/download_providers.dart';
+import '../../../downloads/application/download_manager_service.dart';
 import '../providers/anime_catalog_providers.dart';
 import '../providers/storage_providers.dart';
 import 'anime_detail_page.dart';
@@ -282,6 +283,14 @@ class _DownloadRowState extends ConsumerState<_DownloadRow> {
     final task = widget.task;
     final detailState = ref.watch(animeDetailProvider(task.anilistId));
 
+    // Listen to live progress stream for this task.
+    final liveProgress = ref
+        .watch(downloadProgressStreamProvider)
+        .maybeWhen(
+          data: (event) => event.taskId == task.id ? event : null,
+          orElse: () => null,
+        );
+
     final title = detailState.maybeWhen(
       data: (result) => result.fold(
         onFailure: (_) => 'AniList #${task.anilistId}',
@@ -302,7 +311,8 @@ class _DownloadRowState extends ConsumerState<_DownloadRow> {
 
     final statusText = _statusText(context, task);
     final statusColor = _statusColor(task.status);
-    final progress = _downloadProgress(task);
+    final progress = liveProgress?.fraction ?? _downloadProgress(task);
+    final progressLabel = _progressLabel(task, liveProgress);
 
     return MouseRegion(
       onEnter: (_) => setState(() => _hovered = true),
@@ -368,23 +378,66 @@ class _DownloadRowState extends ConsumerState<_DownloadRow> {
                     ),
                   ),
                   const SizedBox(width: 8),
-                  Text(
-                    statusText,
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                      color: statusColor,
-                    ),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: <Widget>[
+                      Text(
+                        statusText,
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: statusColor,
+                        ),
+                      ),
+                      if (progressLabel != null)
+                        Text(
+                          progressLabel,
+                          style: const TextStyle(
+                            fontSize: 10,
+                            color: KumoriyaColors.textDisabled,
+                          ),
+                        ),
+                    ],
                   ),
                   const SizedBox(width: 4),
                   _buildActionButton(context, ref, task),
                 ],
               ),
-              if (progress != null) ...<Widget>[
+              if (progress != null &&
+                  (task.status == DownloadStatus.downloading ||
+                      task.status == DownloadStatus.paused)) ...<Widget>[
                 const SizedBox(height: 8),
-                LinearProgressIndicator(
-                  value: progress,
+                ClipRRect(
                   borderRadius: BorderRadius.circular(999),
+                  child: LinearProgressIndicator(
+                    value: progress > 0 ? progress : null,
+                    minHeight: 4,
+                    backgroundColor: KumoriyaColors.borderSubtle,
+                    valueColor: AlwaysStoppedAnimation<Color>(statusColor),
+                  ),
+                ),
+              ] else if (task.status == DownloadStatus.downloading) ...<Widget>[
+                const SizedBox(height: 8),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(999),
+                  child: LinearProgressIndicator(
+                    minHeight: 4,
+                    backgroundColor: KumoriyaColors.borderSubtle,
+                    valueColor: AlwaysStoppedAnimation<Color>(statusColor),
+                  ),
+                ),
+              ] else if (task.status == DownloadStatus.completed) ...<Widget>[
+                const SizedBox(height: 8),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(999),
+                  child: LinearProgressIndicator(
+                    value: 1.0,
+                    minHeight: 4,
+                    backgroundColor: KumoriyaColors.borderSubtle,
+                    valueColor: const AlwaysStoppedAnimation<Color>(
+                      Colors.green,
+                    ),
+                  ),
                 ),
               ],
             ],
@@ -485,6 +538,37 @@ class _DownloadRowState extends ConsumerState<_DownloadRow> {
     if (task.totalBytes == null || task.totalBytes == 0) return null;
     if (task.downloadedBytes == null) return null;
     return (task.downloadedBytes! / task.totalBytes!).clamp(0.0, 1.0);
+  }
+
+  String? _progressLabel(DownloadTask task, DownloadProgressEvent? live) {
+    if (task.status == DownloadStatus.completed) {
+      return _formatBytes(task.totalBytes ?? task.downloadedBytes ?? 0);
+    }
+    if (task.status != DownloadStatus.downloading &&
+        task.status != DownloadStatus.paused) {
+      return null;
+    }
+
+    final downloaded = live?.downloadedBytes ?? task.downloadedBytes ?? 0;
+    final total = live?.totalBytes ?? task.totalBytes ?? 0;
+
+    if (total > 0) {
+      final pct = ((downloaded / total) * 100).toStringAsFixed(0);
+      return '$pct% · ${_formatBytes(downloaded)} / ${_formatBytes(total)}';
+    }
+    if (downloaded > 0) {
+      return _formatBytes(downloaded);
+    }
+    return null;
+  }
+
+  String _formatBytes(int bytes) {
+    if (bytes < 1024) return '$bytes B';
+    if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(0)} KB';
+    if (bytes < 1024 * 1024 * 1024) {
+      return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
+    }
+    return '${(bytes / (1024 * 1024 * 1024)).toStringAsFixed(2)} GB';
   }
 }
 

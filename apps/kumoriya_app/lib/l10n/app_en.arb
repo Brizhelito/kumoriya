@@ -430,5 +430,6 @@
   "autoDownloadEnabled": "Auto-download enabled",
   "autoDownloadDisabled": "Auto-download disabled",
   "downloadHlsNotSupported": "HLS streams cannot be downloaded",
-  "downloadSelectQuality": "Select quality"
+  "downloadSelectQuality": "Select quality",
+  "downloadSelectServer": "Select server"
 }

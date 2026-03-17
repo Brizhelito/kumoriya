@@ -1239,6 +1239,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Select quality'**
   String get downloadSelectQuality;
+
+  /// No description provided for @downloadSelectServer.
+  ///
+  /// In en, this message translates to:
+  /// **'Select server'**
+  String get downloadSelectServer;
 }
 
 class _AppLocalizationsDelegate

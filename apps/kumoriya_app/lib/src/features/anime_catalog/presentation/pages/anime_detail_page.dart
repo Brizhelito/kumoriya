@@ -976,34 +976,88 @@ class _DetailEpisodeCardState extends ConsumerState<_DetailEpisodeCard> {
 
   Future<void> _handleDownload(BuildContext context) async {
     if (_isEnqueuing) return;
+
+    // Get downloadable sources (excluding Anime Nexus).
+    final entries = widget.row.sourceEpisodes.entries
+        .where((e) => e.key != _excludedDetailDownloadSource)
+        .toList();
+    if (entries.isEmpty) return;
+
+    // Use the first available source plugin.
+    final entry = entries.first;
+
     setState(() => _isEnqueuing = true);
 
-    final entry = widget.row.sourceEpisodes.entries
-        .where((e) => e.key != _excludedDetailDownloadSource)
-        .firstOrNull;
+    try {
+      final sourcePlugin = ref.read(sourcePluginByIdProvider(entry.key));
+      final registry = ref.read(resolverRegistryProvider);
 
-    final success = entry != null
-        ? await _enqueueDetailEpisodeDownload(
-            ref: ref,
-            anilistId: widget.anilistId,
-            sourcePluginId: entry.key,
-            sourceEpisode: entry.value,
-          )
-        : false;
+      final linksResult = await GetSourceEpisodeServerLinksUseCase(
+        sourcePlugin: sourcePlugin,
+        registry: registry,
+      ).call(entry.value);
 
-    if (!mounted) return;
-    setState(() => _isEnqueuing = false);
-
-    final messenger = ScaffoldMessenger.of(context);
-    if (success) {
-      ref.invalidate(downloadTasksByAnimeProvider(widget.anilistId));
-      messenger.showSnackBar(
-        SnackBar(content: Text(context.l10n.downloadQueued)),
+      final links = linksResult.fold(
+        onSuccess: (l) => l,
+        onFailure: (_) => <SourceServerLink>[],
       );
-    } else {
-      messenger.showSnackBar(
-        SnackBar(content: Text(context.l10n.downloadFailed)),
+
+      if (!mounted) return;
+
+      if (links.isEmpty) {
+        setState(() => _isEnqueuing = false);
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(context.l10n.downloadFailed)));
+        return;
+      }
+
+      // If multiple servers, let user choose.
+      SourceServerLink chosenLink;
+      if (links.length > 1) {
+        setState(() => _isEnqueuing = false);
+        final picked = await _showServerPicker(context, links);
+        if (picked == null || !mounted) return;
+        chosenLink = picked;
+        setState(() => _isEnqueuing = true);
+      } else {
+        chosenLink = links.first;
+      }
+
+      final enqueueUseCase = ref.read(enqueueDownloadUseCaseProvider);
+      final result = await enqueueUseCase.call(
+        anilistId: widget.anilistId,
+        episodeNumber: entry.value.number,
+        serverLink: chosenLink,
+        sourcePluginId: entry.key,
       );
+
+      if (!mounted) return;
+      setState(() => _isEnqueuing = false);
+
+      final success = result.fold(
+        onSuccess: (_) => true,
+        onFailure: (_) => false,
+      );
+
+      final messenger = ScaffoldMessenger.of(context);
+      if (success) {
+        ref.invalidate(downloadTasksByAnimeProvider(widget.anilistId));
+        messenger.showSnackBar(
+          SnackBar(content: Text(context.l10n.downloadQueued)),
+        );
+      } else {
+        messenger.showSnackBar(
+          SnackBar(content: Text(context.l10n.downloadFailed)),
+        );
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() => _isEnqueuing = false);
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(context.l10n.downloadFailed)));
+      }
     }
   }
 }
@@ -1586,4 +1640,68 @@ class _DetailDownloadAllButtonState
       ).showSnackBar(SnackBar(content: Text(context.l10n.downloadAllQueued)));
     }
   }
+}
+
+// ─── Server picker dialog ────────────────────────────────────────────────────
+
+Future<SourceServerLink?> _showServerPicker(
+  BuildContext context,
+  List<SourceServerLink> links,
+) {
+  return showModalBottomSheet<SourceServerLink>(
+    context: context,
+    backgroundColor: KumoriyaColors.surface,
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+    ),
+    builder: (ctx) => SafeArea(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+            child: Row(
+              children: <Widget>[
+                const Icon(
+                  Icons.dns_rounded,
+                  size: 20,
+                  color: KumoriyaColors.primary,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  context.l10n.downloadSelectServer,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                    color: KumoriyaColors.textPrimary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const Divider(),
+          ...links.map(
+            (link) => ListTile(
+              leading: const Icon(Icons.cloud_download_rounded, size: 20),
+              title: Text(
+                link.serverName,
+                style: const TextStyle(fontWeight: FontWeight.w600),
+              ),
+              subtitle: link.detectedHost != null
+                  ? Text(
+                      link.detectedHost!,
+                      style: const TextStyle(
+                        fontSize: 11,
+                        color: KumoriyaColors.textDisabled,
+                      ),
+                    )
+                  : null,
+              onTap: () => Navigator.of(ctx).pop(link),
+            ),
+          ),
+          const SizedBox(height: 8),
+        ],
+      ),
+    ),
+  );
 }
