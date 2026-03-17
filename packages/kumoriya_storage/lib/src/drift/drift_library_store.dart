@@ -123,4 +123,39 @@ final class DriftLibraryStore implements LibraryStore {
       );
     }
   }
+
+  @override
+  Future<Result<void, KumoriyaError>> setAutoDownload(
+    int anilistId, {
+    required bool autoDownload,
+  }) async {
+    try {
+      await _dao.updateAutoDownload(anilistId, autoDownload: autoDownload);
+      return const Success(null);
+    } catch (e) {
+      return Failure(
+        SimpleError(
+          code: 'storage.library_set_auto_download_failed',
+          message: 'Failed to update auto download: $e',
+          kind: KumoriyaErrorKind.unexpected,
+        ),
+      );
+    }
+  }
+
+  @override
+  Future<Result<Set<int>, KumoriyaError>> getAutoDownloadAnimeIds() async {
+    try {
+      final rows = await _dao.getAutoDownloadEntries();
+      return Success(rows.map((r) => r.anilistId).toSet());
+    } catch (e) {
+      return Failure(
+        SimpleError(
+          code: 'storage.library_read_auto_download_failed',
+          message: 'Failed to read auto download entries: $e',
+          kind: KumoriyaErrorKind.unexpected,
+        ),
+      );
+    }
+  }
 }

@@ -17,6 +17,7 @@ import '../../../../shared/widgets/state_views.dart';
 import '../../application/models/source_availability.dart';
 import '../providers/anime_catalog_providers.dart';
 import '../providers/storage_providers.dart';
+import '../../../downloads/presentation/download_providers.dart';
 import '../support/playback_launch_flow.dart';
 import '../widgets/source_badge.dart';
 
@@ -969,9 +970,14 @@ class _LibraryActions extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final isFavAsync = ref.watch(isFavoriteProvider(anilistId));
     final isSubAsync = ref.watch(isSubscribedProvider(anilistId));
+    final isAutoDownloadAsync = ref.watch(isAutoDownloadProvider(anilistId));
 
     final isFav = isFavAsync.maybeWhen(data: (v) => v, orElse: () => false);
     final isSub = isSubAsync.maybeWhen(data: (v) => v, orElse: () => false);
+    final isAutoDl = isAutoDownloadAsync.maybeWhen(
+      data: (v) => v,
+      orElse: () => false,
+    );
 
     return Row(
       children: <Widget>[
@@ -1005,6 +1011,31 @@ class _LibraryActions extends ConsumerWidget {
                       .read(libraryStoreProvider)
                       .setSubscription(anilistId, notify: !isSub);
                   ref.invalidate(subscribedAnimeIdsProvider);
+                }
+              : null,
+        ),
+        const SizedBox(width: 10),
+        _ActionButton(
+          icon: isAutoDl ? Icons.download_done_rounded : Icons.download_rounded,
+          label: context.l10n.autoDownload,
+          active: isAutoDl,
+          onTap: isSub
+              ? () async {
+                  await ref
+                      .read(libraryStoreProvider)
+                      .setAutoDownload(anilistId, autoDownload: !isAutoDl);
+                  ref.invalidate(autoDownloadAnimeIdsProvider);
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          isAutoDl
+                              ? context.l10n.autoDownloadDisabled
+                              : context.l10n.autoDownloadEnabled,
+                        ),
+                      ),
+                    );
+                  }
                 }
               : null,
         ),

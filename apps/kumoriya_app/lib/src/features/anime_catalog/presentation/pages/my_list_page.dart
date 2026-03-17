@@ -6,6 +6,7 @@ import '../../../../app/l10n.dart';
 import '../../../../shared/theme/kumoriya_theme.dart';
 import '../../../../shared/widgets/kumoriya_cached_image.dart';
 import '../../../../shared/widgets/state_views.dart';
+import '../../../downloads/presentation/download_providers.dart';
 import '../providers/anime_catalog_providers.dart';
 import '../providers/storage_providers.dart';
 import 'anime_detail_page.dart';
@@ -222,16 +223,268 @@ class _SubscribedTab extends ConsumerWidget {
   }
 }
 
-// ─── Downloads Tab (placeholder) ────────────────────────────────────────────
+// ─── Downloads Tab ───────────────────────────────────────────────────────────
 
-class _DownloadsTab extends StatelessWidget {
+class _DownloadsTab extends ConsumerWidget {
   const _DownloadsTab();
 
   @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: EmptyStateView(message: context.l10n.myListDownloadsEmpty),
+  Widget build(BuildContext context, WidgetRef ref) {
+    final tasksState = ref.watch(allDownloadTasksProvider);
+
+    return tasksState.when(
+      loading: () => const LoadingStateView(),
+      error: (_, _) => ErrorStateView(
+        message: context.l10n.genericLoadFailure,
+        onRetry: () => ref.invalidate(allDownloadTasksProvider),
+      ),
+      data: (result) => result.fold(
+        onFailure: (error) => ErrorStateView(
+          message: mapErrorMessage(context, error),
+          onRetry: () => ref.invalidate(allDownloadTasksProvider),
+        ),
+        onSuccess: (tasks) {
+          if (tasks.isEmpty) {
+            return Center(
+              child: EmptyStateView(message: context.l10n.myListDownloadsEmpty),
+            );
+          }
+
+          return ListView.separated(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
+            itemCount: tasks.length,
+            separatorBuilder: (_, _) => const SizedBox(height: 8),
+            itemBuilder: (context, index) {
+              final task = tasks[index];
+              return _DownloadRow(task: task);
+            },
+          );
+        },
+      ),
     );
+  }
+}
+
+class _DownloadRow extends ConsumerStatefulWidget {
+  const _DownloadRow({required this.task});
+
+  final DownloadTask task;
+
+  @override
+  ConsumerState<_DownloadRow> createState() => _DownloadRowState();
+}
+
+class _DownloadRowState extends ConsumerState<_DownloadRow> {
+  bool _hovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final task = widget.task;
+    final detailState = ref.watch(animeDetailProvider(task.anilistId));
+
+    final title = detailState.maybeWhen(
+      data: (result) => result.fold(
+        onFailure: (_) => 'AniList #${task.anilistId}',
+        onSuccess: (detail) =>
+            detail.anime.title.english ?? detail.anime.title.romaji,
+      ),
+      orElse: () => 'AniList #${task.anilistId}',
+    );
+
+    final imageUrl = detailState.maybeWhen(
+      data: (result) => result.fold(
+        onFailure: (_) => null,
+        onSuccess: (detail) =>
+            detail.anime.coverImageUrl ?? detail.bannerImageUrl,
+      ),
+      orElse: () => null,
+    );
+
+    final statusText = _statusText(context, task);
+    final statusColor = _statusColor(task.status);
+    final progress = _downloadProgress(task);
+
+    return MouseRegion(
+      onEnter: (_) => setState(() => _hovered = true),
+      onExit: (_) => setState(() => _hovered = false),
+      child: GestureDetector(
+        onTap: () => Navigator.of(context).push(
+          MaterialPageRoute<void>(
+            builder: (_) => AnimeDetailPage(anilistId: task.anilistId),
+          ),
+        ),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: _hovered
+                ? KumoriyaColors.surface
+                : KumoriyaColors.surface.withValues(alpha: 0.55),
+            borderRadius: BorderRadius.circular(KumoriyaRadius.xxl),
+            border: Border.all(
+              color: _hovered
+                  ? KumoriyaColors.borderMedium
+                  : KumoriyaColors.borderSubtle,
+            ),
+          ),
+          child: Column(
+            children: <Widget>[
+              Row(
+                children: <Widget>[
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(KumoriyaRadius.md),
+                    child: KumoriyaCachedImage(
+                      url: imageUrl,
+                      bucket: KumoriyaImageCacheBucket.artwork,
+                      width: 56,
+                      height: 56,
+                      fit: BoxFit.cover,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: <Widget>[
+                        Text(
+                          title,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w700,
+                            color: KumoriyaColors.textPrimary,
+                          ),
+                        ),
+                        const SizedBox(height: 3),
+                        Text(
+                          'EP ${task.episodeNumber.toInt()}',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: KumoriyaColors.textMuted,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    statusText,
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: statusColor,
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  _buildActionButton(context, ref, task),
+                ],
+              ),
+              if (progress != null) ...<Widget>[
+                const SizedBox(height: 8),
+                LinearProgressIndicator(
+                  value: progress,
+                  borderRadius: BorderRadius.circular(999),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildActionButton(
+    BuildContext context,
+    WidgetRef ref,
+    DownloadTask task,
+  ) {
+    final manager = ref.read(downloadManagerProvider);
+
+    switch (task.status) {
+      case DownloadStatus.downloading:
+        return IconButton(
+          icon: const Icon(Icons.pause_rounded, size: 18),
+          tooltip: context.l10n.downloadPause,
+          onPressed: () async {
+            await manager.pause(task.id);
+            ref.invalidate(allDownloadTasksProvider);
+          },
+        );
+      case DownloadStatus.paused:
+        return IconButton(
+          icon: const Icon(Icons.play_arrow_rounded, size: 18),
+          tooltip: context.l10n.downloadResume,
+          onPressed: () async {
+            await manager.resume(task.id);
+            ref.invalidate(allDownloadTasksProvider);
+          },
+        );
+      case DownloadStatus.failed:
+        return IconButton(
+          icon: const Icon(Icons.refresh_rounded, size: 18),
+          tooltip: context.l10n.downloadRetry,
+          onPressed: () async {
+            await manager.retry(task.id);
+            ref.invalidate(allDownloadTasksProvider);
+          },
+        );
+      case DownloadStatus.completed:
+        return IconButton(
+          icon: const Icon(Icons.delete_outline_rounded, size: 18),
+          tooltip: context.l10n.downloadDelete,
+          onPressed: () async {
+            await manager.deleteCompleted(task.id);
+            ref.invalidate(allDownloadTasksProvider);
+          },
+        );
+      case DownloadStatus.pending:
+        return IconButton(
+          icon: const Icon(Icons.close_rounded, size: 18),
+          tooltip: context.l10n.downloadCancel,
+          onPressed: () async {
+            await manager.cancel(task.id);
+            ref.invalidate(allDownloadTasksProvider);
+          },
+        );
+    }
+  }
+
+  String _statusText(BuildContext context, DownloadTask task) {
+    switch (task.status) {
+      case DownloadStatus.pending:
+        return context.l10n.downloadPending;
+      case DownloadStatus.downloading:
+        return context.l10n.downloadInProgress;
+      case DownloadStatus.paused:
+        return context.l10n.downloadPaused;
+      case DownloadStatus.completed:
+        return context.l10n.downloadComplete;
+      case DownloadStatus.failed:
+        return context.l10n.downloadFailed;
+    }
+  }
+
+  Color _statusColor(DownloadStatus status) {
+    switch (status) {
+      case DownloadStatus.pending:
+        return KumoriyaColors.textMuted;
+      case DownloadStatus.downloading:
+        return KumoriyaColors.primary;
+      case DownloadStatus.paused:
+        return Colors.orange;
+      case DownloadStatus.completed:
+        return Colors.green;
+      case DownloadStatus.failed:
+        return Colors.red;
+    }
+  }
+
+  double? _downloadProgress(DownloadTask task) {
+    if (task.status == DownloadStatus.completed) return 1.0;
+    if (task.totalBytes == null || task.totalBytes == 0) return null;
+    if (task.downloadedBytes == null) return null;
+    return (task.downloadedBytes! / task.totalBytes!).clamp(0.0, 1.0);
   }
 }
 

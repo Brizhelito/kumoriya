@@ -51,4 +51,22 @@ class LibraryEntryDao extends DatabaseAccessor<AppDatabase>
       LibraryEntryTableCompanion(lastNotifiedEpisode: Value(episodeNumber)),
     );
   }
+
+  Future<void> updateAutoDownload(
+    int anilistId, {
+    required bool autoDownload,
+  }) {
+    return (update(libraryEntryTable)
+          ..where((t) => t.anilistId.equals(anilistId)))
+        .write(LibraryEntryTableCompanion(
+          autoDownloadNewEpisodes: Value(autoDownload),
+        ));
+  }
+
+  Future<List<LibraryEntryTableData>> getAutoDownloadEntries() {
+    return (select(libraryEntryTable)
+          ..where((t) => t.autoDownloadNewEpisodes.equals(true))
+          ..orderBy([(t) => OrderingTerm.desc(t.addedAt)]))
+        .get();
+  }
 }

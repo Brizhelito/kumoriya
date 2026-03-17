@@ -23,4 +23,11 @@ abstract interface class LibraryStore {
     int anilistId,
     int episodeNumber,
   );
+
+  Future<Result<void, KumoriyaError>> setAutoDownload(
+    int anilistId, {
+    required bool autoDownload,
+  });
+
+  Future<Result<Set<int>, KumoriyaError>> getAutoDownloadAnimeIds();
 }

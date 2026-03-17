@@ -629,7 +629,8 @@ class AppLocalizationsEn extends AppLocalizations {
       'No subscriptions yet. Subscribe to an anime to get notified of new episodes.';
 
   @override
-  String get myListDownloadsEmpty => 'Downloads coming soon.';
+  String get myListDownloadsEmpty =>
+      'No downloads yet. Download episodes from the episode list.';
 
   @override
   String get addFavorite => 'Add to favorites';
@@ -654,4 +655,61 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get unsubscribedLabel => 'Unsubscribed';
+
+  @override
+  String get downloadEpisode => 'Download';
+
+  @override
+  String get downloadAll => 'Download All';
+
+  @override
+  String get downloadQueued => 'Download queued';
+
+  @override
+  String get downloadAllQueued => 'All episodes queued for download';
+
+  @override
+  String get downloadInProgress => 'Downloading...';
+
+  @override
+  String get downloadComplete => 'Downloaded';
+
+  @override
+  String get downloadFailed => 'Download failed';
+
+  @override
+  String get downloadPaused => 'Paused';
+
+  @override
+  String get downloadPending => 'Pending';
+
+  @override
+  String get downloadCancel => 'Cancel';
+
+  @override
+  String get downloadRetry => 'Retry';
+
+  @override
+  String get downloadDelete => 'Delete';
+
+  @override
+  String get downloadPause => 'Pause';
+
+  @override
+  String get downloadResume => 'Resume';
+
+  @override
+  String get autoDownload => 'Auto-download new episodes';
+
+  @override
+  String get autoDownloadEnabled => 'Auto-download enabled';
+
+  @override
+  String get autoDownloadDisabled => 'Auto-download disabled';
+
+  @override
+  String get downloadHlsNotSupported => 'HLS streams cannot be downloaded';
+
+  @override
+  String get downloadSelectQuality => 'Select quality';
 }

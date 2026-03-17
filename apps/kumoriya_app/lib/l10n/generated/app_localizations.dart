@@ -1075,7 +1075,7 @@ abstract class AppLocalizations {
   /// No description provided for @myListDownloadsEmpty.
   ///
   /// In en, this message translates to:
-  /// **'Downloads coming soon.'**
+  /// **'No downloads yet. Download episodes from the episode list.'**
   String get myListDownloadsEmpty;
 
   /// No description provided for @addFavorite.
@@ -1125,6 +1125,120 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Unsubscribed'**
   String get unsubscribedLabel;
+
+  /// No description provided for @downloadEpisode.
+  ///
+  /// In en, this message translates to:
+  /// **'Download'**
+  String get downloadEpisode;
+
+  /// No description provided for @downloadAll.
+  ///
+  /// In en, this message translates to:
+  /// **'Download All'**
+  String get downloadAll;
+
+  /// No description provided for @downloadQueued.
+  ///
+  /// In en, this message translates to:
+  /// **'Download queued'**
+  String get downloadQueued;
+
+  /// No description provided for @downloadAllQueued.
+  ///
+  /// In en, this message translates to:
+  /// **'All episodes queued for download'**
+  String get downloadAllQueued;
+
+  /// No description provided for @downloadInProgress.
+  ///
+  /// In en, this message translates to:
+  /// **'Downloading...'**
+  String get downloadInProgress;
+
+  /// No description provided for @downloadComplete.
+  ///
+  /// In en, this message translates to:
+  /// **'Downloaded'**
+  String get downloadComplete;
+
+  /// No description provided for @downloadFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Download failed'**
+  String get downloadFailed;
+
+  /// No description provided for @downloadPaused.
+  ///
+  /// In en, this message translates to:
+  /// **'Paused'**
+  String get downloadPaused;
+
+  /// No description provided for @downloadPending.
+  ///
+  /// In en, this message translates to:
+  /// **'Pending'**
+  String get downloadPending;
+
+  /// No description provided for @downloadCancel.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel'**
+  String get downloadCancel;
+
+  /// No description provided for @downloadRetry.
+  ///
+  /// In en, this message translates to:
+  /// **'Retry'**
+  String get downloadRetry;
+
+  /// No description provided for @downloadDelete.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete'**
+  String get downloadDelete;
+
+  /// No description provided for @downloadPause.
+  ///
+  /// In en, this message translates to:
+  /// **'Pause'**
+  String get downloadPause;
+
+  /// No description provided for @downloadResume.
+  ///
+  /// In en, this message translates to:
+  /// **'Resume'**
+  String get downloadResume;
+
+  /// No description provided for @autoDownload.
+  ///
+  /// In en, this message translates to:
+  /// **'Auto-download new episodes'**
+  String get autoDownload;
+
+  /// No description provided for @autoDownloadEnabled.
+  ///
+  /// In en, this message translates to:
+  /// **'Auto-download enabled'**
+  String get autoDownloadEnabled;
+
+  /// No description provided for @autoDownloadDisabled.
+  ///
+  /// In en, this message translates to:
+  /// **'Auto-download disabled'**
+  String get autoDownloadDisabled;
+
+  /// No description provided for @downloadHlsNotSupported.
+  ///
+  /// In en, this message translates to:
+  /// **'HLS streams cannot be downloaded'**
+  String get downloadHlsNotSupported;
+
+  /// No description provided for @downloadSelectQuality.
+  ///
+  /// In en, this message translates to:
+  /// **'Select quality'**
+  String get downloadSelectQuality;
 }
 
 class _AppLocalizationsDelegate

@@ -9,6 +9,7 @@ import 'package:workmanager/workmanager.dart';
 
 import 'src/app/kumoriya_app.dart';
 import 'src/features/anime_catalog/presentation/providers/storage_providers.dart';
+import 'src/features/downloads/presentation/download_providers.dart';
 import 'src/workers/check_new_episodes_worker.dart';
 
 void main() async {
@@ -23,11 +24,15 @@ void main() async {
     await _initWorkmanager();
   }
 
+  final container = ProviderContainer(
+    overrides: [appDatabaseProvider.overrideWithValue(db)],
+  );
+
+  // Restore pending downloads from a previous session.
+  container.read(downloadManagerProvider).restoreQueue();
+
   runApp(
-    ProviderScope(
-      overrides: [appDatabaseProvider.overrideWithValue(db)],
-      child: const KumoriyaApp(),
-    ),
+    UncontrolledProviderScope(container: container, child: const KumoriyaApp()),
   );
 }
 

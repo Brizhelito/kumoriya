@@ -41,7 +41,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase(super.e);
 
   @override
-  int get schemaVersion => 6;
+  int get schemaVersion => 7;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -62,6 +62,13 @@ class AppDatabase extends _$AppDatabase {
           tableName: 'library_entry',
           columnName: 'last_notified_episode',
           sqlDefinition: 'INTEGER',
+        );
+      }
+      if (from < 7) {
+        await _ensureColumn(
+          tableName: 'library_entry',
+          columnName: 'auto_download_new_episodes',
+          sqlDefinition: 'INTEGER NOT NULL DEFAULT 0',
         );
       }
     },

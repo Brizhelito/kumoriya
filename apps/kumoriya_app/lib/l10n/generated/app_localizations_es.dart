@@ -637,7 +637,8 @@ class AppLocalizationsEs extends AppLocalizations {
       'Sin suscripciones aun. Suscribete a un anime para recibir notificaciones de nuevos episodios.';
 
   @override
-  String get myListDownloadsEmpty => 'Descargas proximamente.';
+  String get myListDownloadsEmpty =>
+      'Sin descargas aún. Descarga episodios desde la lista de episodios.';
 
   @override
   String get addFavorite => 'Agregar a favoritos';
@@ -662,4 +663,62 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get unsubscribedLabel => 'No suscrito';
+
+  @override
+  String get downloadEpisode => 'Descargar';
+
+  @override
+  String get downloadAll => 'Descargar Todo';
+
+  @override
+  String get downloadQueued => 'Descarga en cola';
+
+  @override
+  String get downloadAllQueued => 'Todos los episodios en cola de descarga';
+
+  @override
+  String get downloadInProgress => 'Descargando...';
+
+  @override
+  String get downloadComplete => 'Descargado';
+
+  @override
+  String get downloadFailed => 'Descarga fallida';
+
+  @override
+  String get downloadPaused => 'Pausado';
+
+  @override
+  String get downloadPending => 'Pendiente';
+
+  @override
+  String get downloadCancel => 'Cancelar';
+
+  @override
+  String get downloadRetry => 'Reintentar';
+
+  @override
+  String get downloadDelete => 'Eliminar';
+
+  @override
+  String get downloadPause => 'Pausar';
+
+  @override
+  String get downloadResume => 'Reanudar';
+
+  @override
+  String get autoDownload => 'Auto-descargar nuevos episodios';
+
+  @override
+  String get autoDownloadEnabled => 'Auto-descarga activada';
+
+  @override
+  String get autoDownloadDisabled => 'Auto-descarga desactivada';
+
+  @override
+  String get downloadHlsNotSupported =>
+      'Los streams HLS no se pueden descargar';
+
+  @override
+  String get downloadSelectQuality => 'Seleccionar calidad';
 }

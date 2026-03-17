@@ -10,6 +10,8 @@ class LibraryEntryTable extends Table {
       boolean().withDefault(const Constant(false))();
   // Last episode number for which a notification was sent (null = never notified)
   IntColumn get lastNotifiedEpisode => integer().nullable()();
+  BoolColumn get autoDownloadNewEpisodes =>
+      boolean().withDefault(const Constant(false))();
 
   @override
   Set<Column<Object>> get primaryKey => {anilistId};
