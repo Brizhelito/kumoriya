@@ -15,6 +15,7 @@ import '../../../../shared/theme/kumoriya_theme.dart';
 import '../../../../shared/widgets/kumoriya_cached_image.dart';
 import '../../../../shared/widgets/state_views.dart';
 import '../../application/models/source_availability.dart';
+import '../../application/use_cases/get_source_episode_server_links_use_case.dart';
 import '../providers/anime_catalog_providers.dart';
 import '../providers/storage_providers.dart';
 import '../../../downloads/presentation/download_providers.dart';
@@ -670,6 +671,7 @@ class _EpisodeDetailSectionState extends ConsumerState<_EpisodeDetailSection> {
             ...visibleRows.map(
               (row) => _DetailEpisodeCard(
                 row: row,
+                anilistId: widget.detail.anime.anilistId,
                 onTap:
                     row.playableSources.isEmpty ||
                         summary == null ||
@@ -738,19 +740,49 @@ class _EpisodeDetailSectionState extends ConsumerState<_EpisodeDetailSection> {
   }
 }
 
-class _DetailEpisodeCard extends StatelessWidget {
-  const _DetailEpisodeCard({required this.row, this.onTap});
+class _DetailEpisodeCard extends ConsumerStatefulWidget {
+  const _DetailEpisodeCard({
+    required this.row,
+    required this.anilistId,
+    this.onTap,
+  });
 
   final _DetailEpisodeRowData row;
+  final int anilistId;
   final VoidCallback? onTap;
 
   @override
+  ConsumerState<_DetailEpisodeCard> createState() => _DetailEpisodeCardState();
+}
+
+class _DetailEpisodeCardState extends ConsumerState<_DetailEpisodeCard> {
+  bool _isEnqueuing = false;
+
+  @override
   Widget build(BuildContext context) {
+    final row = widget.row;
     final isPlayable = row.playableSources.isNotEmpty;
+
+    // Check for existing download task.
+    final dlTasksState = ref.watch(
+      downloadTasksByAnimeProvider(widget.anilistId),
+    );
+    final dlTask = dlTasksState.maybeWhen(
+      data: (result) => result.fold(
+        onFailure: (_) => null,
+        onSuccess: (tasks) {
+          for (final t in tasks) {
+            if ((t.episodeNumber - row.number).abs() < 0.001) return t;
+          }
+          return null;
+        },
+      ),
+      orElse: () => null,
+    );
 
     return GestureDetector(
       key: Key('anime-detail-episode-${row.number.toInt()}'),
-      onTap: onTap,
+      onTap: widget.onTap,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 180),
         margin: const EdgeInsets.only(bottom: 8),
@@ -880,8 +912,9 @@ class _DetailEpisodeCard extends StatelessWidget {
                 ],
               ),
             ),
+            _buildDownloadWidget(context, dlTask),
             if (isPlayable) ...<Widget>[
-              const SizedBox(width: 10),
+              const SizedBox(width: 4),
               Icon(
                 Icons.play_circle_outline_rounded,
                 size: 26,
@@ -894,6 +927,74 @@ class _DetailEpisodeCard extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  Widget _buildDownloadWidget(BuildContext context, DownloadTask? dlTask) {
+    if (_isEnqueuing) {
+      return const SizedBox(
+        width: 28,
+        height: 28,
+        child: Padding(
+          padding: EdgeInsets.all(4),
+          child: CircularProgressIndicator(strokeWidth: 2),
+        ),
+      );
+    }
+
+    if (dlTask != null) {
+      return _DetailDownloadStatusIcon(task: dlTask);
+    }
+
+    // Only show download if there's a downloadable (non-excluded) source.
+    final hasDownloadableSource = widget.row.sourceEpisodes.keys.any(
+      (id) => id != _excludedDetailDownloadSource,
+    );
+    if (!hasDownloadableSource) return const SizedBox.shrink();
+
+    return GestureDetector(
+      onTap: () => _handleDownload(context),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 4),
+        child: Icon(
+          Icons.download_rounded,
+          size: 22,
+          color: KumoriyaColors.textDisabled,
+        ),
+      ),
+    );
+  }
+
+  Future<void> _handleDownload(BuildContext context) async {
+    if (_isEnqueuing) return;
+    setState(() => _isEnqueuing = true);
+
+    final entry = widget.row.sourceEpisodes.entries
+        .where((e) => e.key != _excludedDetailDownloadSource)
+        .firstOrNull;
+
+    final success = entry != null
+        ? await _enqueueDetailEpisodeDownload(
+            ref: ref,
+            anilistId: widget.anilistId,
+            sourcePluginId: entry.key,
+            sourceEpisode: entry.value,
+          )
+        : false;
+
+    if (!mounted) return;
+    setState(() => _isEnqueuing = false);
+
+    final messenger = ScaffoldMessenger.of(context);
+    if (success) {
+      ref.invalidate(downloadTasksByAnimeProvider(widget.anilistId));
+      messenger.showSnackBar(
+        SnackBar(content: Text(context.l10n.downloadQueued)),
+      );
+    } else {
+      messenger.showSnackBar(
+        SnackBar(content: Text(context.l10n.downloadFailed)),
+      );
+    }
   }
 }
 
@@ -1131,6 +1232,7 @@ List<_DetailEpisodeRowData> _buildDetailEpisodeRows({
     for (final progress in progressList) progress.episodeNumber: progress,
   };
   final sourcesByEpisode = <double, List<SourceAvailability>>{};
+  final sourceEpisodesByNumber = <double, Map<String, SourceEpisode>>{};
 
   for (final source
       in availabilitySummary?.playableSources ?? const <SourceAvailability>[]) {
@@ -1138,6 +1240,10 @@ List<_DetailEpisodeRowData> _buildDetailEpisodeRows({
       sourcesByEpisode
           .putIfAbsent(episode.number, () => <SourceAvailability>[])
           .add(source);
+      sourceEpisodesByNumber.putIfAbsent(
+        episode.number,
+        () => <String, SourceEpisode>{},
+      )[source.manifest.id] = episode;
     }
   }
 
@@ -1176,6 +1282,8 @@ List<_DetailEpisodeRowData> _buildDetailEpisodeRows({
           isCurrentEpisode:
               latestProgress?.episodeNumber == number ||
               focusedEpisodeNumber == number,
+          sourceEpisodes:
+              sourceEpisodesByNumber[number] ?? const <String, SourceEpisode>{},
         );
       })
       .toList(growable: false);
@@ -1207,6 +1315,7 @@ final class _DetailEpisodeRowData {
     required this.playableSources,
     required this.progressFraction,
     required this.isCurrentEpisode,
+    this.sourceEpisodes = const <String, SourceEpisode>{},
   });
 
   final double number;
@@ -1215,6 +1324,9 @@ final class _DetailEpisodeRowData {
   final List<SourceAvailability> playableSources;
   final double? progressFraction;
   final bool isCurrentEpisode;
+
+  /// Map of source plugin ID → SourceEpisode for download support.
+  final Map<String, SourceEpisode> sourceEpisodes;
 }
 
 class _HeroMetaPill extends StatelessWidget {
@@ -1268,4 +1380,76 @@ String _debugPreferenceSummary(PlaybackPreference preference) {
   }
 
   return parts.join('\n');
+}
+
+// ─── Download helpers for detail page ────────────────────────────────────────
+
+/// Source plugin excluded from downloads.
+const _excludedDetailDownloadSource = 'kumoriya.source.anime_nexus';
+
+/// Resolves server links for [sourceEpisode] via [sourcePluginId], picks the
+/// best stream, and enqueues a download task. Returns true on success.
+Future<bool> _enqueueDetailEpisodeDownload({
+  required WidgetRef ref,
+  required int anilistId,
+  required String sourcePluginId,
+  required SourceEpisode sourceEpisode,
+}) async {
+  try {
+    final sourcePlugin = ref.read(sourcePluginByIdProvider(sourcePluginId));
+    final registry = ref.read(resolverRegistryProvider);
+
+    final linksResult = await GetSourceEpisodeServerLinksUseCase(
+      sourcePlugin: sourcePlugin,
+      registry: registry,
+    ).call(sourceEpisode);
+
+    final links = linksResult.fold(
+      onSuccess: (l) => l,
+      onFailure: (_) => <SourceServerLink>[],
+    );
+    if (links.isEmpty) return false;
+
+    final enqueueUseCase = ref.read(enqueueDownloadUseCaseProvider);
+    final result = await enqueueUseCase.call(
+      anilistId: anilistId,
+      episodeNumber: sourceEpisode.number,
+      serverLink: links.first,
+      sourcePluginId: sourcePluginId,
+    );
+
+    return result.fold(onSuccess: (_) => true, onFailure: (_) => false);
+  } catch (_) {
+    return false;
+  }
+}
+
+class _DetailDownloadStatusIcon extends StatelessWidget {
+  const _DetailDownloadStatusIcon({required this.task});
+  final DownloadTask task;
+
+  @override
+  Widget build(BuildContext context) {
+    final (icon, color) = switch (task.status) {
+      DownloadStatus.pending => (
+        Icons.hourglass_top_rounded,
+        KumoriyaColors.textDisabled,
+      ),
+      DownloadStatus.downloading => (
+        Icons.downloading_rounded,
+        KumoriyaColors.primary,
+      ),
+      DownloadStatus.paused => (
+        Icons.pause_circle_outline_rounded,
+        Colors.orange,
+      ),
+      DownloadStatus.completed => (Icons.download_done_rounded, Colors.green),
+      DownloadStatus.failed => (Icons.error_outline_rounded, Colors.red),
+    };
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 4),
+      child: Icon(icon, size: 22, color: color),
+    );
+  }
 }
