@@ -635,6 +635,7 @@ class _EpisodeDetailSectionState extends ConsumerState<_EpisodeDetailSection> {
                 _DetailDownloadAllButton(
                   rows: rows,
                   anilistId: widget.detail.anime.anilistId,
+                  animeTitle: widget.detail.anime.title.romaji,
                 ),
               const SizedBox(width: 8),
               Text(
@@ -684,6 +685,7 @@ class _EpisodeDetailSectionState extends ConsumerState<_EpisodeDetailSection> {
               (row) => _DetailEpisodeCard(
                 row: row,
                 anilistId: widget.detail.anime.anilistId,
+                animeTitle: widget.detail.anime.title.romaji,
                 onTap:
                     row.playableSources.isEmpty ||
                         summary == null ||
@@ -801,11 +803,13 @@ class _DetailEpisodeCard extends ConsumerStatefulWidget {
   const _DetailEpisodeCard({
     required this.row,
     required this.anilistId,
+    required this.animeTitle,
     this.onTap,
   });
 
   final _DetailEpisodeRowData row;
   final int anilistId;
+  final String animeTitle;
   final VoidCallback? onTap;
 
   @override
@@ -1077,6 +1081,7 @@ class _DetailEpisodeCardState extends ConsumerState<_DetailEpisodeCard> {
         episodeNumber: entry.value.number,
         serverLink: chosenLink,
         sourcePluginId: entry.key,
+        animeTitle: widget.animeTitle,
       );
 
       if (!mounted) return;
@@ -1505,6 +1510,7 @@ Future<bool> _enqueueDetailEpisodeDownload({
   required int anilistId,
   required String sourcePluginId,
   required SourceEpisode sourceEpisode,
+  String? animeTitle,
 }) async {
   try {
     final sourcePlugin = ref.read(sourcePluginByIdProvider(sourcePluginId));
@@ -1527,6 +1533,7 @@ Future<bool> _enqueueDetailEpisodeDownload({
       episodeNumber: sourceEpisode.number,
       serverLink: links.first,
       sourcePluginId: sourcePluginId,
+      animeTitle: animeTitle,
     );
 
     return result.fold(onSuccess: (_) => true, onFailure: (_) => false);
@@ -1541,12 +1548,10 @@ class _DetailDownloadStatusIcon extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // Listen to live progress events.
-    final progressAsync = ref.watch(downloadProgressStreamProvider);
-    final liveEvent = progressAsync.maybeWhen(
-      data: (event) => event.taskId == task.id ? event : null,
-      orElse: () => null,
-    );
+    // Listen to live progress events for this task only.
+    final liveEvent = ref
+        .watch(downloadProgressByTaskProvider(task.id))
+        .maybeWhen(data: (event) => event, orElse: () => null);
 
     final (icon, color) = switch (task.status) {
       DownloadStatus.pending => (
@@ -1607,10 +1612,15 @@ class _DetailDownloadStatusIcon extends ConsumerWidget {
 }
 
 class _DetailDownloadAllButton extends ConsumerStatefulWidget {
-  const _DetailDownloadAllButton({required this.rows, required this.anilistId});
+  const _DetailDownloadAllButton({
+    required this.rows,
+    required this.anilistId,
+    required this.animeTitle,
+  });
 
   final List<_DetailEpisodeRowData> rows;
   final int anilistId;
+  final String animeTitle;
 
   @override
   ConsumerState<_DetailDownloadAllButton> createState() =>
@@ -1673,6 +1683,7 @@ class _DetailDownloadAllButtonState
         anilistId: widget.anilistId,
         sourcePluginId: entry.key,
         sourceEpisode: entry.value,
+        animeTitle: widget.animeTitle,
       );
       if (result) queued++;
     }

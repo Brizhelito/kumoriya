@@ -41,7 +41,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase(super.e);
 
   @override
-  int get schemaVersion => 8;
+  int get schemaVersion => 9;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -69,6 +69,18 @@ class AppDatabase extends _$AppDatabase {
           tableName: 'library_entry',
           columnName: 'auto_download_new_episodes',
           sqlDefinition: 'INTEGER NOT NULL DEFAULT 0',
+        );
+      }
+      if (from < 9) {
+        await _ensureColumn(
+          tableName: 'download_task',
+          columnName: 'anime_title',
+          sqlDefinition: 'TEXT',
+        );
+        await _ensureColumn(
+          tableName: 'download_task',
+          columnName: 'quality_label',
+          sqlDefinition: 'TEXT',
         );
       }
       if (from < 8) {
@@ -189,6 +201,10 @@ class AppDatabase extends _$AppDatabase {
     await customStatement(
       'CREATE INDEX IF NOT EXISTS idx_download_task_status '
       'ON download_task (status, created_at DESC)',
+    );
+    await customStatement(
+      'CREATE INDEX IF NOT EXISTS idx_download_task_status_anime '
+      'ON download_task (status, anilist_id)',
     );
     await customStatement(
       'CREATE INDEX IF NOT EXISTS idx_anilist_cache_updated '

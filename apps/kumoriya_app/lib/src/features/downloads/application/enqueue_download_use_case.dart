@@ -27,6 +27,7 @@ class EnqueueDownloadUseCase {
     required SourceServerLink serverLink,
     String? preferredQuality,
     String? sourcePluginId,
+    String? animeTitle,
   }) async {
     _log(
       'enqueue(anime=$anilistId, ep=$episodeNumber, '
@@ -54,8 +55,13 @@ class EnqueueDownloadUseCase {
 
         final taskId =
             '${anilistId}_${episodeNumber}_${DateTime.now().millisecondsSinceEpoch}';
+        final quality = stream.qualityLabel;
+        final server = serverLink.serverName;
         final ext = stream.isHls ? '.ts' : _guessExtension(stream);
-        final fileName = '${anilistId}_ep${episodeNumber.toInt()}$ext';
+        // Pretty file name: "EP 01 - StreamWish [1080p].mp4"
+        final epNum = episodeNumber.toInt().toString().padLeft(2, '0');
+        final qualitySuffix = quality != null ? ' [$quality]' : '';
+        final fileName = 'EP $epNum - $server$qualitySuffix$ext';
 
         final task = DownloadTask(
           id: taskId,
@@ -64,12 +70,14 @@ class EnqueueDownloadUseCase {
           sourceUrl: stream.url,
           status: DownloadStatus.pending,
           createdAt: DateTime.now(),
-          fileName: fileName,
+          fileName: _sanitizeFileName(fileName),
           sourcePluginId: sourcePluginId,
-          serverName: serverLink.serverName,
+          serverName: server,
           detectedHost: stream.url.host,
           headers: stream.headers,
           isHls: stream.isHls,
+          animeTitle: animeTitle,
+          qualityLabel: quality,
         );
 
         _downloadManager.enqueue(task);
@@ -107,5 +115,10 @@ class EnqueueDownloadUseCase {
 
   void _log(String message) {
     developer.log(message, name: 'EnqueueDownloadUseCase');
+  }
+
+  /// Removes characters not allowed in file names on Windows/Android.
+  static String _sanitizeFileName(String name) {
+    return name.replaceAll(RegExp(r'[<>:"/\\|?*]'), '_').trim();
   }
 }

@@ -151,6 +151,8 @@ final class DriftDownloadStore implements DownloadStore {
         task.headers.isNotEmpty ? jsonEncode(task.headers) : null,
       ),
       isHls: Value(task.isHls),
+      animeTitle: Value(task.animeTitle),
+      qualityLabel: Value(task.qualityLabel),
     );
   }
 
@@ -188,6 +190,8 @@ final class DriftDownloadStore implements DownloadStore {
           : null,
       headers: headers,
       isHls: row.isHls ?? false,
+      animeTitle: row.animeTitle,
+      qualityLabel: row.qualityLabel,
     );
   }
 }

@@ -27,6 +27,12 @@ class DownloadTaskTable extends Table {
   BoolColumn get isHls =>
       boolean().withDefault(const Constant(false)).nullable()();
 
+  /// Human-readable anime title (used for folder name and UI).
+  TextColumn get animeTitle => text().nullable()();
+
+  /// Stream quality label (e.g. "1080p", "720p").
+  TextColumn get qualityLabel => text().nullable()();
+
   @override
   Set<Column<Object>> get primaryKey => {id};
 }

@@ -2097,6 +2097,28 @@ class $DownloadTaskTableTable extends DownloadTaskTable
     ),
     defaultValue: const Constant(false),
   );
+  static const VerificationMeta _animeTitleMeta = const VerificationMeta(
+    'animeTitle',
+  );
+  @override
+  late final GeneratedColumn<String> animeTitle = GeneratedColumn<String>(
+    'anime_title',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _qualityLabelMeta = const VerificationMeta(
+    'qualityLabel',
+  );
+  @override
+  late final GeneratedColumn<String> qualityLabel = GeneratedColumn<String>(
+    'quality_label',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -2116,6 +2138,8 @@ class $DownloadTaskTableTable extends DownloadTaskTable
     updatedAt,
     headers,
     isHls,
+    animeTitle,
+    qualityLabel,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -2253,6 +2277,21 @@ class $DownloadTaskTableTable extends DownloadTaskTable
         isHls.isAcceptableOrUnknown(data['is_hls']!, _isHlsMeta),
       );
     }
+    if (data.containsKey('anime_title')) {
+      context.handle(
+        _animeTitleMeta,
+        animeTitle.isAcceptableOrUnknown(data['anime_title']!, _animeTitleMeta),
+      );
+    }
+    if (data.containsKey('quality_label')) {
+      context.handle(
+        _qualityLabelMeta,
+        qualityLabel.isAcceptableOrUnknown(
+          data['quality_label']!,
+          _qualityLabelMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -2330,6 +2369,14 @@ class $DownloadTaskTableTable extends DownloadTaskTable
         DriftSqlType.bool,
         data['${effectivePrefix}is_hls'],
       ),
+      animeTitle: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}anime_title'],
+      ),
+      qualityLabel: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}quality_label'],
+      ),
     );
   }
 
@@ -2362,6 +2409,12 @@ class DownloadTaskTableData extends DataClass
 
   /// Whether this download is an HLS stream requiring segment download.
   final bool? isHls;
+
+  /// Human-readable anime title (used for folder name and UI).
+  final String? animeTitle;
+
+  /// Stream quality label (e.g. "1080p", "720p").
+  final String? qualityLabel;
   const DownloadTaskTableData({
     required this.id,
     required this.anilistId,
@@ -2380,6 +2433,8 @@ class DownloadTaskTableData extends DataClass
     this.updatedAt,
     this.headers,
     this.isHls,
+    this.animeTitle,
+    this.qualityLabel,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -2422,6 +2477,12 @@ class DownloadTaskTableData extends DataClass
     }
     if (!nullToAbsent || isHls != null) {
       map['is_hls'] = Variable<bool>(isHls);
+    }
+    if (!nullToAbsent || animeTitle != null) {
+      map['anime_title'] = Variable<String>(animeTitle);
+    }
+    if (!nullToAbsent || qualityLabel != null) {
+      map['quality_label'] = Variable<String>(qualityLabel);
     }
     return map;
   }
@@ -2467,6 +2528,12 @@ class DownloadTaskTableData extends DataClass
       isHls: isHls == null && nullToAbsent
           ? const Value.absent()
           : Value(isHls),
+      animeTitle: animeTitle == null && nullToAbsent
+          ? const Value.absent()
+          : Value(animeTitle),
+      qualityLabel: qualityLabel == null && nullToAbsent
+          ? const Value.absent()
+          : Value(qualityLabel),
     );
   }
 
@@ -2493,6 +2560,8 @@ class DownloadTaskTableData extends DataClass
       updatedAt: serializer.fromJson<int?>(json['updatedAt']),
       headers: serializer.fromJson<String?>(json['headers']),
       isHls: serializer.fromJson<bool?>(json['isHls']),
+      animeTitle: serializer.fromJson<String?>(json['animeTitle']),
+      qualityLabel: serializer.fromJson<String?>(json['qualityLabel']),
     );
   }
   @override
@@ -2516,6 +2585,8 @@ class DownloadTaskTableData extends DataClass
       'updatedAt': serializer.toJson<int?>(updatedAt),
       'headers': serializer.toJson<String?>(headers),
       'isHls': serializer.toJson<bool?>(isHls),
+      'animeTitle': serializer.toJson<String?>(animeTitle),
+      'qualityLabel': serializer.toJson<String?>(qualityLabel),
     };
   }
 
@@ -2537,6 +2608,8 @@ class DownloadTaskTableData extends DataClass
     Value<int?> updatedAt = const Value.absent(),
     Value<String?> headers = const Value.absent(),
     Value<bool?> isHls = const Value.absent(),
+    Value<String?> animeTitle = const Value.absent(),
+    Value<String?> qualityLabel = const Value.absent(),
   }) => DownloadTaskTableData(
     id: id ?? this.id,
     anilistId: anilistId ?? this.anilistId,
@@ -2559,6 +2632,8 @@ class DownloadTaskTableData extends DataClass
     updatedAt: updatedAt.present ? updatedAt.value : this.updatedAt,
     headers: headers.present ? headers.value : this.headers,
     isHls: isHls.present ? isHls.value : this.isHls,
+    animeTitle: animeTitle.present ? animeTitle.value : this.animeTitle,
+    qualityLabel: qualityLabel.present ? qualityLabel.value : this.qualityLabel,
   );
   DownloadTaskTableData copyWithCompanion(DownloadTaskTableCompanion data) {
     return DownloadTaskTableData(
@@ -2593,6 +2668,12 @@ class DownloadTaskTableData extends DataClass
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
       headers: data.headers.present ? data.headers.value : this.headers,
       isHls: data.isHls.present ? data.isHls.value : this.isHls,
+      animeTitle: data.animeTitle.present
+          ? data.animeTitle.value
+          : this.animeTitle,
+      qualityLabel: data.qualityLabel.present
+          ? data.qualityLabel.value
+          : this.qualityLabel,
     );
   }
 
@@ -2615,7 +2696,9 @@ class DownloadTaskTableData extends DataClass
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
           ..write('headers: $headers, ')
-          ..write('isHls: $isHls')
+          ..write('isHls: $isHls, ')
+          ..write('animeTitle: $animeTitle, ')
+          ..write('qualityLabel: $qualityLabel')
           ..write(')'))
         .toString();
   }
@@ -2639,6 +2722,8 @@ class DownloadTaskTableData extends DataClass
     updatedAt,
     headers,
     isHls,
+    animeTitle,
+    qualityLabel,
   );
   @override
   bool operator ==(Object other) =>
@@ -2660,7 +2745,9 @@ class DownloadTaskTableData extends DataClass
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt &&
           other.headers == this.headers &&
-          other.isHls == this.isHls);
+          other.isHls == this.isHls &&
+          other.animeTitle == this.animeTitle &&
+          other.qualityLabel == this.qualityLabel);
 }
 
 class DownloadTaskTableCompanion
@@ -2682,6 +2769,8 @@ class DownloadTaskTableCompanion
   final Value<int?> updatedAt;
   final Value<String?> headers;
   final Value<bool?> isHls;
+  final Value<String?> animeTitle;
+  final Value<String?> qualityLabel;
   final Value<int> rowid;
   const DownloadTaskTableCompanion({
     this.id = const Value.absent(),
@@ -2701,6 +2790,8 @@ class DownloadTaskTableCompanion
     this.updatedAt = const Value.absent(),
     this.headers = const Value.absent(),
     this.isHls = const Value.absent(),
+    this.animeTitle = const Value.absent(),
+    this.qualityLabel = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   DownloadTaskTableCompanion.insert({
@@ -2721,6 +2812,8 @@ class DownloadTaskTableCompanion
     this.updatedAt = const Value.absent(),
     this.headers = const Value.absent(),
     this.isHls = const Value.absent(),
+    this.animeTitle = const Value.absent(),
+    this.qualityLabel = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
        anilistId = Value(anilistId),
@@ -2745,6 +2838,8 @@ class DownloadTaskTableCompanion
     Expression<int>? updatedAt,
     Expression<String>? headers,
     Expression<bool>? isHls,
+    Expression<String>? animeTitle,
+    Expression<String>? qualityLabel,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -2765,6 +2860,8 @@ class DownloadTaskTableCompanion
       if (updatedAt != null) 'updated_at': updatedAt,
       if (headers != null) 'headers': headers,
       if (isHls != null) 'is_hls': isHls,
+      if (animeTitle != null) 'anime_title': animeTitle,
+      if (qualityLabel != null) 'quality_label': qualityLabel,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -2787,6 +2884,8 @@ class DownloadTaskTableCompanion
     Value<int?>? updatedAt,
     Value<String?>? headers,
     Value<bool?>? isHls,
+    Value<String?>? animeTitle,
+    Value<String?>? qualityLabel,
     Value<int>? rowid,
   }) {
     return DownloadTaskTableCompanion(
@@ -2807,6 +2906,8 @@ class DownloadTaskTableCompanion
       updatedAt: updatedAt ?? this.updatedAt,
       headers: headers ?? this.headers,
       isHls: isHls ?? this.isHls,
+      animeTitle: animeTitle ?? this.animeTitle,
+      qualityLabel: qualityLabel ?? this.qualityLabel,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -2865,6 +2966,12 @@ class DownloadTaskTableCompanion
     if (isHls.present) {
       map['is_hls'] = Variable<bool>(isHls.value);
     }
+    if (animeTitle.present) {
+      map['anime_title'] = Variable<String>(animeTitle.value);
+    }
+    if (qualityLabel.present) {
+      map['quality_label'] = Variable<String>(qualityLabel.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -2891,6 +2998,8 @@ class DownloadTaskTableCompanion
           ..write('updatedAt: $updatedAt, ')
           ..write('headers: $headers, ')
           ..write('isHls: $isHls, ')
+          ..write('animeTitle: $animeTitle, ')
+          ..write('qualityLabel: $qualityLabel, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -5187,6 +5296,8 @@ typedef $$DownloadTaskTableTableCreateCompanionBuilder =
       Value<int?> updatedAt,
       Value<String?> headers,
       Value<bool?> isHls,
+      Value<String?> animeTitle,
+      Value<String?> qualityLabel,
       Value<int> rowid,
     });
 typedef $$DownloadTaskTableTableUpdateCompanionBuilder =
@@ -5208,6 +5319,8 @@ typedef $$DownloadTaskTableTableUpdateCompanionBuilder =
       Value<int?> updatedAt,
       Value<String?> headers,
       Value<bool?> isHls,
+      Value<String?> animeTitle,
+      Value<String?> qualityLabel,
       Value<int> rowid,
     });
 
@@ -5302,6 +5415,16 @@ class $$DownloadTaskTableTableFilterComposer
 
   ColumnFilters<bool> get isHls => $composableBuilder(
     column: $table.isHls,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get animeTitle => $composableBuilder(
+    column: $table.animeTitle,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get qualityLabel => $composableBuilder(
+    column: $table.qualityLabel,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -5399,6 +5522,16 @@ class $$DownloadTaskTableTableOrderingComposer
     column: $table.isHls,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<String> get animeTitle => $composableBuilder(
+    column: $table.animeTitle,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get qualityLabel => $composableBuilder(
+    column: $table.qualityLabel,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$DownloadTaskTableTableAnnotationComposer
@@ -5474,6 +5607,16 @@ class $$DownloadTaskTableTableAnnotationComposer
 
   GeneratedColumn<bool> get isHls =>
       $composableBuilder(column: $table.isHls, builder: (column) => column);
+
+  GeneratedColumn<String> get animeTitle => $composableBuilder(
+    column: $table.animeTitle,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get qualityLabel => $composableBuilder(
+    column: $table.qualityLabel,
+    builder: (column) => column,
+  );
 }
 
 class $$DownloadTaskTableTableTableManager
@@ -5533,6 +5676,8 @@ class $$DownloadTaskTableTableTableManager
                 Value<int?> updatedAt = const Value.absent(),
                 Value<String?> headers = const Value.absent(),
                 Value<bool?> isHls = const Value.absent(),
+                Value<String?> animeTitle = const Value.absent(),
+                Value<String?> qualityLabel = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => DownloadTaskTableCompanion(
                 id: id,
@@ -5552,6 +5697,8 @@ class $$DownloadTaskTableTableTableManager
                 updatedAt: updatedAt,
                 headers: headers,
                 isHls: isHls,
+                animeTitle: animeTitle,
+                qualityLabel: qualityLabel,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -5573,6 +5720,8 @@ class $$DownloadTaskTableTableTableManager
                 Value<int?> updatedAt = const Value.absent(),
                 Value<String?> headers = const Value.absent(),
                 Value<bool?> isHls = const Value.absent(),
+                Value<String?> animeTitle = const Value.absent(),
+                Value<String?> qualityLabel = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => DownloadTaskTableCompanion.insert(
                 id: id,
@@ -5592,6 +5741,8 @@ class $$DownloadTaskTableTableTableManager
                 updatedAt: updatedAt,
                 headers: headers,
                 isHls: isHls,
+                animeTitle: animeTitle,
+                qualityLabel: qualityLabel,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0

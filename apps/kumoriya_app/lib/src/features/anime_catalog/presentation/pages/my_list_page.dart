@@ -256,14 +256,80 @@ class _DownloadsTab extends ConsumerWidget {
             );
           }
 
-          return ListView.separated(
+          // Split into active (non-completed) and completed.
+          final active = tasks
+              .where((t) => t.status != DownloadStatus.completed)
+              .toList();
+          final completed = tasks
+              .where((t) => t.status == DownloadStatus.completed)
+              .toList();
+
+          // Group completed by anilistId.
+          final groupedCompleted = <int, List<DownloadTask>>{};
+          for (final t in completed) {
+            groupedCompleted.putIfAbsent(t.anilistId, () => []).add(t);
+          }
+          // Sort episodes within each group.
+          for (final list in groupedCompleted.values) {
+            list.sort((a, b) => a.episodeNumber.compareTo(b.episodeNumber));
+          }
+
+          return ListView(
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
-            itemCount: tasks.length,
-            separatorBuilder: (_, _) => const SizedBox(height: 8),
-            itemBuilder: (context, index) {
-              final task = tasks[index];
-              return _DownloadRow(task: task);
-            },
+            children: <Widget>[
+              // ── Active downloads ──
+              if (active.isNotEmpty) ...<Widget>[
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: Row(
+                    children: <Widget>[
+                      Expanded(
+                        child: Text(
+                          context.l10n.downloadInProgress,
+                          style: const TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w700,
+                            color: KumoriyaColors.textPrimary,
+                          ),
+                        ),
+                      ),
+                      TextButton.icon(
+                        onPressed: () async {
+                          await ref.read(downloadManagerProvider).cancelAll();
+                          ref.invalidate(allDownloadTasksProvider);
+                        },
+                        icon: const Icon(Icons.close_rounded, size: 16),
+                        label: Text(context.l10n.downloadCancel),
+                        style: TextButton.styleFrom(
+                          foregroundColor: Colors.red,
+                          textStyle: const TextStyle(fontSize: 12),
+                          padding: const EdgeInsets.symmetric(horizontal: 8),
+                          minimumSize: Size.zero,
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                ...active.map(
+                  (t) => Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: _ActiveDownloadRow(task: t),
+                  ),
+                ),
+                if (groupedCompleted.isNotEmpty) const SizedBox(height: 12),
+              ],
+              // ── Completed downloads grouped by anime ──
+              ...groupedCompleted.entries.map(
+                (entry) => Padding(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: _CompletedAnimeCard(
+                    anilistId: entry.key,
+                    episodes: entry.value,
+                  ),
+                ),
+              ),
+            ],
           );
         },
       ),
@@ -271,16 +337,17 @@ class _DownloadsTab extends ConsumerWidget {
   }
 }
 
-class _DownloadRow extends ConsumerStatefulWidget {
-  const _DownloadRow({required this.task});
+// ─── Active download row (flat, with progress) ──────────────────────────────
 
+class _ActiveDownloadRow extends ConsumerStatefulWidget {
+  const _ActiveDownloadRow({required this.task});
   final DownloadTask task;
 
   @override
-  ConsumerState<_DownloadRow> createState() => _DownloadRowState();
+  ConsumerState<_ActiveDownloadRow> createState() => _ActiveDownloadRowState();
 }
 
-class _DownloadRowState extends ConsumerState<_DownloadRow> {
+class _ActiveDownloadRowState extends ConsumerState<_ActiveDownloadRow> {
   bool _hovered = false;
 
   @override
@@ -288,36 +355,29 @@ class _DownloadRowState extends ConsumerState<_DownloadRow> {
     final task = widget.task;
     final detailState = ref.watch(animeDetailProvider(task.anilistId));
 
-    // Listen to live progress stream for this task.
     final liveProgress = ref
-        .watch(downloadProgressStreamProvider)
-        .maybeWhen(
-          data: (event) => event.taskId == task.id ? event : null,
-          orElse: () => null,
-        );
+        .watch(downloadProgressByTaskProvider(task.id))
+        .maybeWhen(data: (e) => e, orElse: () => null);
 
     final title = detailState.maybeWhen(
-      data: (result) => result.fold(
-        onFailure: (_) => 'AniList #${task.anilistId}',
-        onSuccess: (detail) =>
-            detail.anime.title.english ?? detail.anime.title.romaji,
+      data: (r) => r.fold(
+        onFailure: (_) => task.animeTitle ?? 'AniList #${task.anilistId}',
+        onSuccess: (d) => d.anime.title.english ?? d.anime.title.romaji,
       ),
-      orElse: () => 'AniList #${task.anilistId}',
+      orElse: () => task.animeTitle ?? 'AniList #${task.anilistId}',
     );
 
     final imageUrl = detailState.maybeWhen(
-      data: (result) => result.fold(
+      data: (r) => r.fold(
         onFailure: (_) => null,
-        onSuccess: (detail) =>
-            detail.anime.coverImageUrl ?? detail.bannerImageUrl,
+        onSuccess: (d) => d.anime.coverImageUrl ?? d.bannerImageUrl,
       ),
       orElse: () => null,
     );
 
-    final statusText = _statusText(context, task);
-    final statusColor = _statusColor(task.status);
-    final progress = liveProgress?.fraction ?? _downloadProgress(task);
-    final progressLabel = _progressLabel(task, liveProgress);
+    final statusColor = _dlStatusColor(task.status);
+    final progress = liveProgress?.fraction ?? _dlProgress(task);
+    final label = _dlLabel(task, liveProgress);
 
     return MouseRegion(
       onEnter: (_) => setState(() => _hovered = true),
@@ -351,8 +411,8 @@ class _DownloadRowState extends ConsumerState<_DownloadRow> {
                     child: KumoriyaCachedImage(
                       url: imageUrl,
                       bucket: KumoriyaImageCacheBucket.artwork,
-                      width: 56,
-                      height: 56,
+                      width: 48,
+                      height: 48,
                       fit: BoxFit.cover,
                     ),
                   ),
@@ -366,82 +426,54 @@ class _DownloadRowState extends ConsumerState<_DownloadRow> {
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: const TextStyle(
-                            fontSize: 14,
+                            fontSize: 13,
                             fontWeight: FontWeight.w700,
                             color: KumoriyaColors.textPrimary,
                           ),
                         ),
-                        const SizedBox(height: 3),
+                        const SizedBox(height: 2),
                         Text(
                           'EP ${task.episodeNumber.toInt()}',
                           style: const TextStyle(
-                            fontSize: 12,
+                            fontSize: 11,
                             color: KumoriyaColors.textMuted,
                           ),
                         ),
+                        if (label != null) ...<Widget>[
+                          const SizedBox(height: 2),
+                          Text(
+                            label,
+                            style: const TextStyle(
+                              fontSize: 10,
+                              color: KumoriyaColors.textDisabled,
+                            ),
+                          ),
+                        ],
                       ],
                     ),
                   ),
                   const SizedBox(width: 8),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: <Widget>[
-                      Text(
-                        statusText,
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                          color: statusColor,
-                        ),
-                      ),
-                      if (progressLabel != null)
-                        Text(
-                          progressLabel,
-                          style: const TextStyle(
-                            fontSize: 10,
-                            color: KumoriyaColors.textDisabled,
-                          ),
-                        ),
-                    ],
+                  Text(
+                    _dlStatusText(context, task),
+                    style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w600,
+                      color: statusColor,
+                    ),
                   ),
-                  const SizedBox(width: 4),
-                  _buildActionButton(context, ref, task),
+                  _buildActiveAction(context, ref, task),
                 ],
               ),
-              if (progress != null &&
-                  (task.status == DownloadStatus.downloading ||
-                      task.status == DownloadStatus.paused)) ...<Widget>[
+              if (task.status == DownloadStatus.downloading ||
+                  task.status == DownloadStatus.paused) ...<Widget>[
                 const SizedBox(height: 8),
                 ClipRRect(
                   borderRadius: BorderRadius.circular(999),
                   child: LinearProgressIndicator(
-                    value: progress > 0 ? progress : null,
+                    value: (progress != null && progress > 0) ? progress : null,
                     minHeight: 4,
                     backgroundColor: KumoriyaColors.borderSubtle,
                     valueColor: AlwaysStoppedAnimation<Color>(statusColor),
-                  ),
-                ),
-              ] else if (task.status == DownloadStatus.downloading) ...<Widget>[
-                const SizedBox(height: 8),
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(999),
-                  child: LinearProgressIndicator(
-                    minHeight: 4,
-                    backgroundColor: KumoriyaColors.borderSubtle,
-                    valueColor: AlwaysStoppedAnimation<Color>(statusColor),
-                  ),
-                ),
-              ] else if (task.status == DownloadStatus.completed) ...<Widget>[
-                const SizedBox(height: 8),
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(999),
-                  child: LinearProgressIndicator(
-                    value: 1.0,
-                    minHeight: 4,
-                    backgroundColor: KumoriyaColors.borderSubtle,
-                    valueColor: const AlwaysStoppedAnimation<Color>(
-                      Colors.green,
-                    ),
                   ),
                 ),
               ],
@@ -452,22 +484,38 @@ class _DownloadRowState extends ConsumerState<_DownloadRow> {
     );
   }
 
-  Widget _buildActionButton(
+  Widget _buildActiveAction(
     BuildContext context,
     WidgetRef ref,
     DownloadTask task,
   ) {
     final manager = ref.read(downloadManagerProvider);
-
     switch (task.status) {
       case DownloadStatus.downloading:
-        return IconButton(
-          icon: const Icon(Icons.pause_rounded, size: 18),
-          tooltip: context.l10n.downloadPause,
-          onPressed: () async {
-            await manager.pause(task.id);
-            ref.invalidate(allDownloadTasksProvider);
-          },
+        return Row(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            IconButton(
+              icon: const Icon(Icons.pause_rounded, size: 18),
+              tooltip: context.l10n.downloadPause,
+              constraints: const BoxConstraints(),
+              padding: const EdgeInsets.all(6),
+              onPressed: () async {
+                await manager.pause(task.id);
+                ref.invalidate(allDownloadTasksProvider);
+              },
+            ),
+            IconButton(
+              icon: const Icon(Icons.close_rounded, size: 18),
+              tooltip: context.l10n.downloadCancel,
+              constraints: const BoxConstraints(),
+              padding: const EdgeInsets.all(6),
+              onPressed: () async {
+                await manager.cancel(task.id);
+                ref.invalidate(allDownloadTasksProvider);
+              },
+            ),
+          ],
         );
       case DownloadStatus.paused:
         return IconButton(
@@ -487,29 +535,6 @@ class _DownloadRowState extends ConsumerState<_DownloadRow> {
             ref.invalidate(allDownloadTasksProvider);
           },
         );
-      case DownloadStatus.completed:
-        return Row(
-          mainAxisSize: MainAxisSize.min,
-          children: <Widget>[
-            IconButton(
-              icon: const Icon(
-                Icons.play_circle_filled_rounded,
-                size: 22,
-                color: KumoriyaColors.primary,
-              ),
-              tooltip: context.l10n.playEpisode,
-              onPressed: () => _playDownloaded(context, task),
-            ),
-            IconButton(
-              icon: const Icon(Icons.delete_outline_rounded, size: 18),
-              tooltip: context.l10n.downloadDelete,
-              onPressed: () async {
-                await manager.deleteCompleted(task.id);
-                ref.invalidate(allDownloadTasksProvider);
-              },
-            ),
-          ],
-        );
       case DownloadStatus.pending:
         return IconButton(
           icon: const Icon(Icons.close_rounded, size: 18),
@@ -519,7 +544,214 @@ class _DownloadRowState extends ConsumerState<_DownloadRow> {
             ref.invalidate(allDownloadTasksProvider);
           },
         );
+      case DownloadStatus.completed:
+        return const SizedBox.shrink();
     }
+  }
+}
+
+// ─── Completed anime card (grouped episodes) ────────────────────────────────
+
+class _CompletedAnimeCard extends ConsumerStatefulWidget {
+  const _CompletedAnimeCard({required this.anilistId, required this.episodes});
+
+  final int anilistId;
+  final List<DownloadTask> episodes;
+
+  @override
+  ConsumerState<_CompletedAnimeCard> createState() =>
+      _CompletedAnimeCardState();
+}
+
+class _CompletedAnimeCardState extends ConsumerState<_CompletedAnimeCard> {
+  bool _expanded = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final detailState = ref.watch(animeDetailProvider(widget.anilistId));
+
+    final title = detailState.maybeWhen(
+      data: (r) => r.fold(
+        onFailure: (_) =>
+            widget.episodes.first.animeTitle ?? 'AniList #${widget.anilistId}',
+        onSuccess: (d) => d.anime.title.english ?? d.anime.title.romaji,
+      ),
+      orElse: () =>
+          widget.episodes.first.animeTitle ?? 'AniList #${widget.anilistId}',
+    );
+
+    final imageUrl = detailState.maybeWhen(
+      data: (r) => r.fold(
+        onFailure: (_) => null,
+        onSuccess: (d) => d.anime.coverImageUrl ?? d.bannerImageUrl,
+      ),
+      orElse: () => null,
+    );
+
+    final totalSize = widget.episodes.fold<int>(
+      0,
+      (sum, t) => sum + (t.totalBytes ?? t.downloadedBytes ?? 0),
+    );
+
+    return Container(
+      decoration: BoxDecoration(
+        color: KumoriyaColors.surface.withValues(alpha: 0.55),
+        borderRadius: BorderRadius.circular(KumoriyaRadius.xxl),
+        border: Border.all(color: KumoriyaColors.borderSubtle),
+      ),
+      child: Column(
+        children: <Widget>[
+          // ── Card header ──
+          InkWell(
+            borderRadius: BorderRadius.circular(KumoriyaRadius.xxl),
+            onTap: () => setState(() => _expanded = !_expanded),
+            child: Padding(
+              padding: const EdgeInsets.all(12),
+              child: Row(
+                children: <Widget>[
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(KumoriyaRadius.md),
+                    child: KumoriyaCachedImage(
+                      url: imageUrl,
+                      bucket: KumoriyaImageCacheBucket.artwork,
+                      width: 56,
+                      height: 56,
+                      fit: BoxFit.cover,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: <Widget>[
+                        Text(
+                          title,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w700,
+                            color: KumoriyaColors.textPrimary,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Row(
+                          children: <Widget>[
+                            Icon(
+                              Icons.download_done_rounded,
+                              size: 14,
+                              color: Colors.green,
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              '${widget.episodes.length} ${widget.episodes.length == 1 ? 'episodio' : 'episodios'}'
+                              ' · ${_fmtBytes(totalSize)}',
+                              style: const TextStyle(
+                                fontSize: 11,
+                                color: KumoriyaColors.textMuted,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  Icon(
+                    _expanded
+                        ? Icons.expand_less_rounded
+                        : Icons.expand_more_rounded,
+                    size: 22,
+                    color: KumoriyaColors.textMuted,
+                  ),
+                ],
+              ),
+            ),
+          ),
+          // ── Expanded episode list ──
+          if (_expanded) ...<Widget>[
+            const Divider(height: 1, color: KumoriyaColors.borderSubtle),
+            ...widget.episodes.map(
+              (task) => _CompletedEpisodeTile(
+                task: task,
+                onDelete: () {
+                  ref.read(downloadManagerProvider).deleteCompleted(task.id);
+                  ref.invalidate(allDownloadTasksProvider);
+                },
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+// ─── Single completed episode tile ──────────────────────────────────────────
+
+class _CompletedEpisodeTile extends StatelessWidget {
+  const _CompletedEpisodeTile({required this.task, required this.onDelete});
+
+  final DownloadTask task;
+  final VoidCallback onDelete;
+
+  @override
+  Widget build(BuildContext context) {
+    final quality = task.qualityLabel;
+    final server = task.serverName;
+    final size = task.totalBytes ?? task.downloadedBytes ?? 0;
+
+    return InkWell(
+      onTap: () => _playDownloaded(context, task),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        child: Row(
+          children: <Widget>[
+            // Play icon
+            const Icon(
+              Icons.play_circle_filled_rounded,
+              size: 28,
+              color: KumoriyaColors.primary,
+            ),
+            const SizedBox(width: 10),
+            // Episode info
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  Text(
+                    'Episodio ${task.episodeNumber.toInt()}',
+                    style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: KumoriyaColors.textPrimary,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    [
+                      if (server != null) server,
+                      if (quality != null) quality,
+                      _fmtBytes(size),
+                    ].join(' · '),
+                    style: const TextStyle(
+                      fontSize: 10,
+                      color: KumoriyaColors.textDisabled,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            // Delete button
+            IconButton(
+              icon: const Icon(Icons.delete_outline_rounded, size: 18),
+              tooltip: context.l10n.downloadDelete,
+              onPressed: onDelete,
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   void _playDownloaded(BuildContext context, DownloadTask task) {
@@ -529,7 +761,8 @@ class _DownloadRowState extends ConsumerState<_DownloadRow> {
       MaterialPageRoute<void>(
         builder: (_) => PlayerPage(
           anilistId: task.anilistId,
-          animeTitle: 'Episode ${task.episodeNumber.toInt()}',
+          animeTitle:
+              task.animeTitle ?? 'Episode ${task.episodeNumber.toInt()}',
           episodeNumber: task.episodeNumber.toInt().toString(),
           sourcePluginId: task.sourcePluginId ?? 'offline',
           serverName: task.serverName ?? 'Downloaded',
@@ -542,74 +775,81 @@ class _DownloadRowState extends ConsumerState<_DownloadRow> {
       ),
     );
   }
+}
 
-  String _statusText(BuildContext context, DownloadTask task) {
-    switch (task.status) {
-      case DownloadStatus.pending:
-        return context.l10n.downloadPending;
-      case DownloadStatus.downloading:
-        return context.l10n.downloadInProgress;
-      case DownloadStatus.paused:
-        return context.l10n.downloadPaused;
-      case DownloadStatus.completed:
-        return context.l10n.downloadComplete;
-      case DownloadStatus.failed:
-        return context.l10n.downloadFailed;
-    }
+// ─── Download helpers ────────────────────────────────────────────────────────
+
+String _dlStatusText(BuildContext context, DownloadTask task) {
+  switch (task.status) {
+    case DownloadStatus.pending:
+      return context.l10n.downloadPending;
+    case DownloadStatus.downloading:
+      return context.l10n.downloadInProgress;
+    case DownloadStatus.paused:
+      return context.l10n.downloadPaused;
+    case DownloadStatus.completed:
+      return context.l10n.downloadComplete;
+    case DownloadStatus.failed:
+      return context.l10n.downloadFailed;
   }
+}
 
-  Color _statusColor(DownloadStatus status) {
-    switch (status) {
-      case DownloadStatus.pending:
-        return KumoriyaColors.textMuted;
-      case DownloadStatus.downloading:
-        return KumoriyaColors.primary;
-      case DownloadStatus.paused:
-        return Colors.orange;
-      case DownloadStatus.completed:
-        return Colors.green;
-      case DownloadStatus.failed:
-        return Colors.red;
-    }
+Color _dlStatusColor(DownloadStatus status) {
+  switch (status) {
+    case DownloadStatus.pending:
+      return KumoriyaColors.textMuted;
+    case DownloadStatus.downloading:
+      return KumoriyaColors.primary;
+    case DownloadStatus.paused:
+      return Colors.orange;
+    case DownloadStatus.completed:
+      return Colors.green;
+    case DownloadStatus.failed:
+      return Colors.red;
   }
+}
 
-  double? _downloadProgress(DownloadTask task) {
-    if (task.status == DownloadStatus.completed) return 1.0;
-    if (task.totalBytes == null || task.totalBytes == 0) return null;
-    if (task.downloadedBytes == null) return null;
-    return (task.downloadedBytes! / task.totalBytes!).clamp(0.0, 1.0);
+double? _dlProgress(DownloadTask task) {
+  if (task.status == DownloadStatus.completed) return 1.0;
+  if (task.totalBytes == null || task.totalBytes == 0) return null;
+  if (task.downloadedBytes == null) return null;
+  return (task.downloadedBytes! / task.totalBytes!).clamp(0.0, 1.0);
+}
+
+String? _dlLabel(DownloadTask task, DownloadProgressEvent? live) {
+  if (task.status == DownloadStatus.completed) {
+    return _fmtBytes(task.totalBytes ?? task.downloadedBytes ?? 0);
   }
-
-  String? _progressLabel(DownloadTask task, DownloadProgressEvent? live) {
-    if (task.status == DownloadStatus.completed) {
-      return _formatBytes(task.totalBytes ?? task.downloadedBytes ?? 0);
-    }
-    if (task.status != DownloadStatus.downloading &&
-        task.status != DownloadStatus.paused) {
-      return null;
-    }
-
-    final downloaded = live?.downloadedBytes ?? task.downloadedBytes ?? 0;
-    final total = live?.totalBytes ?? task.totalBytes ?? 0;
-
-    if (total > 0) {
-      final pct = ((downloaded / total) * 100).toStringAsFixed(0);
-      return '$pct% · ${_formatBytes(downloaded)} / ${_formatBytes(total)}';
-    }
-    if (downloaded > 0) {
-      return _formatBytes(downloaded);
-    }
+  if (task.status != DownloadStatus.downloading &&
+      task.status != DownloadStatus.paused) {
     return null;
   }
 
-  String _formatBytes(int bytes) {
-    if (bytes < 1024) return '$bytes B';
-    if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(0)} KB';
-    if (bytes < 1024 * 1024 * 1024) {
-      return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
-    }
-    return '${(bytes / (1024 * 1024 * 1024)).toStringAsFixed(2)} GB';
+  final downloaded = live?.downloadedBytes ?? task.downloadedBytes ?? 0;
+  final total = live?.totalBytes ?? task.totalBytes ?? 0;
+  final speed = live?.bytesPerSecond ?? 0;
+
+  final parts = <String>[];
+  if (total > 0) {
+    final pct = ((downloaded / total) * 100).toStringAsFixed(0);
+    parts.add('$pct%');
+    parts.add('${_fmtBytes(downloaded)} / ${_fmtBytes(total)}');
+  } else if (downloaded > 0) {
+    parts.add(_fmtBytes(downloaded));
   }
+  if (speed > 0 && task.status == DownloadStatus.downloading) {
+    parts.add('${_fmtBytes(speed)}/s');
+  }
+  return parts.isNotEmpty ? parts.join(' · ') : null;
+}
+
+String _fmtBytes(int bytes) {
+  if (bytes < 1024) return '$bytes B';
+  if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(0)} KB';
+  if (bytes < 1024 * 1024 * 1024) {
+    return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
+  }
+  return '${(bytes / (1024 * 1024 * 1024)).toStringAsFixed(2)} GB';
 }
 
 // ─── Shared row widgets ──────────────────────────────────────────────────────

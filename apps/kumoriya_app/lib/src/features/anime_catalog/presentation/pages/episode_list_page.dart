@@ -113,6 +113,7 @@ class _EpisodeListPageState extends ConsumerState<EpisodeListPage> {
                   summary: sourceSummary,
                   preference: preference,
                   anilistId: widget.anilistId,
+                  animeTitle: widget.animeTitle,
                   rows: rows,
                 ),
                 const SizedBox(height: 12),
@@ -120,6 +121,7 @@ class _EpisodeListPageState extends ConsumerState<EpisodeListPage> {
                   (row) => _EpisodeCard(
                     row: row,
                     anilistId: widget.anilistId,
+                    animeTitle: widget.animeTitle,
                     onTap:
                         row.playableSources.isEmpty ||
                             sourceSummary == null ||
@@ -271,6 +273,9 @@ class _EpisodeListPageState extends ConsumerState<EpisodeListPage> {
         (r) => r.sourceEpisodes.isNotEmpty && !existingEps.contains(r.number),
       );
 
+      // Resolve-and-enqueue sequentially: stream URLs (m3u8 tokens) expire
+      // quickly, so each must be enqueued right after resolution. The download
+      // manager handles true download concurrency (up to maxConcurrent).
       for (final row in downloadable) {
         final entry = row.sourceEpisodes.entries.first;
         await _enqueueEpisodeDownload(
@@ -278,6 +283,7 @@ class _EpisodeListPageState extends ConsumerState<EpisodeListPage> {
           anilistId: widget.anilistId,
           sourcePluginId: entry.key,
           sourceEpisode: entry.value,
+          animeTitle: widget.animeTitle,
         );
       }
 
@@ -293,12 +299,14 @@ class _EpisodeListHeader extends ConsumerWidget {
     required this.summary,
     required this.preference,
     required this.anilistId,
+    required this.animeTitle,
     required this.rows,
   });
 
   final SourceAvailabilitySummary? summary;
   final PlaybackPreference? preference;
   final int anilistId;
+  final String animeTitle;
   final List<_EpisodeRowData> rows;
 
   @override
@@ -353,9 +361,11 @@ class _EpisodeListHeader extends ConsumerWidget {
         .toList();
     if (downloadable.isEmpty) return;
 
+    // Resolve-and-enqueue sequentially: stream URLs carry short-lived tokens
+    // that expire in ~30-60s. Parallel resolution causes later downloads to
+    // hit 403. The download manager handles true concurrent transfers.
     var queued = 0;
     for (final row in downloadable) {
-      // Pick the first non-excluded source.
       final entry = row.sourceEpisodes.entries
           .where((e) => e.key != _excludedDownloadSource)
           .firstOrNull;
@@ -366,6 +376,7 @@ class _EpisodeListHeader extends ConsumerWidget {
         anilistId: anilistId,
         sourcePluginId: entry.key,
         sourceEpisode: entry.value,
+        animeTitle: animeTitle,
       );
       if (result) queued++;
     }
@@ -380,10 +391,16 @@ class _EpisodeListHeader extends ConsumerWidget {
 }
 
 class _EpisodeCard extends ConsumerStatefulWidget {
-  const _EpisodeCard({required this.row, required this.anilistId, this.onTap});
+  const _EpisodeCard({
+    required this.row,
+    required this.anilistId,
+    required this.animeTitle,
+    this.onTap,
+  });
 
   final _EpisodeRowData row;
   final int anilistId;
+  final String animeTitle;
   final VoidCallback? onTap;
 
   @override
@@ -584,6 +601,7 @@ class _EpisodeCardState extends ConsumerState<_EpisodeCard> {
             anilistId: widget.anilistId,
             sourcePluginId: entry.key,
             sourceEpisode: entry.value,
+            animeTitle: widget.animeTitle,
           )
         : false;
 
@@ -831,6 +849,7 @@ Future<bool> _enqueueEpisodeDownload({
   required int anilistId,
   required String sourcePluginId,
   required SourceEpisode sourceEpisode,
+  String? animeTitle,
 }) async {
   try {
     final sourcePlugin = ref.read(sourcePluginByIdProvider(sourcePluginId));
@@ -853,6 +872,7 @@ Future<bool> _enqueueEpisodeDownload({
       episodeNumber: sourceEpisode.number,
       serverLink: links.first,
       sourcePluginId: sourcePluginId,
+      animeTitle: animeTitle,
     );
 
     return result.fold(onSuccess: (_) => true, onFailure: (_) => false);

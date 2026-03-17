@@ -59,6 +59,14 @@ final downloadProgressStreamProvider =
       return manager.progressStream;
     });
 
+/// Per-task live progress — filters the shared broadcast stream so each
+/// download widget receives only its own events without missing updates.
+final downloadProgressByTaskProvider = StreamProvider.autoDispose
+    .family<DownloadProgressEvent, String>((ref, taskId) {
+  final manager = ref.watch(downloadManagerProvider);
+  return manager.progressStream.where((e) => e.taskId == taskId);
+});
+
 final autoDownloadAnimeIdsProvider =
     FutureProvider.autoDispose<Result<Set<int>, KumoriyaError>>((ref) async {
       return ref.watch(libraryStoreProvider).getAutoDownloadAnimeIds();

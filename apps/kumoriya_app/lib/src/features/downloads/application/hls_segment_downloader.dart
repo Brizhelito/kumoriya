@@ -4,10 +4,15 @@ import 'dart:io';
 
 import 'package:http/http.dart' as http;
 
+/// Browser-like User-Agent to avoid Cloudflare bot-detection 403 blocks.
+const _browserUserAgent =
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 '
+    '(KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36';
+
 /// Downloads an HLS stream by parsing the m3u8 playlist, downloading
 /// .ts segments with parallelism, and concatenating them into a single file.
 class HlsSegmentDownloader {
-  HlsSegmentDownloader({http.Client? httpClient, this.parallelSegments = 4})
+  HlsSegmentDownloader({http.Client? httpClient, this.parallelSegments = 8})
     : _httpClient = httpClient ?? http.Client();
 
   final http.Client _httpClient;
@@ -18,14 +23,23 @@ class HlsSegmentDownloader {
   /// Downloads the HLS stream at [masterUrl] to [outputPath].
   ///
   /// [headers] are applied to every HTTP request (referer, origin, etc.).
-  /// [onProgress] is called after each segment with (downloaded, total) counts.
-  /// Returns when complete. Throws on failure.
+  /// [onProgress] is called after each segment with (downloadedBytes, totalSegments).
+  /// Since HLS total size is unknown upfront, totalSegments is passed so the
+  /// caller can compute a segment-based fraction. downloadedBytes tracks the
+  /// actual byte count written so far for display purposes.
+  /// Returns `true` if the stream uses fMP4 segments (has `#EXT-X-MAP`),
+  /// `false` for classic MPEG-TS segments.
   /// If [cancelCompleter] is completed, download stops early.
-  Future<void> download({
+  Future<bool> download({
     required Uri masterUrl,
     required String outputPath,
     Map<String, String> headers = const <String, String>{},
-    void Function(int downloadedSegments, int totalSegments)? onProgress,
+    void Function(
+      int downloadedBytes,
+      int downloadedSegments,
+      int totalSegments,
+    )?
+    onProgress,
     Completer<void>? cancelCompleter,
   }) async {
     _log('Starting HLS download: $masterUrl');
@@ -48,49 +62,85 @@ class HlsSegmentDownloader {
       mediaBaseUrl = masterUrl;
     }
 
-    // 3. Parse segment URLs.
+    // 3. Parse init segment (fMP4 streams use #EXT-X-MAP for a moov box).
+    final initUri = _parseMapUri(mediaContent, mediaBaseUrl);
+    final isFmp4 = initUri != null;
+    if (isFmp4) _log('fMP4 stream detected, init segment: $initUri');
+
+    // 4. Parse segment URLs.
     final segmentUrls = _parseSegments(mediaContent, mediaBaseUrl);
     if (segmentUrls.isEmpty) {
       throw const HttpException('No segments found in HLS playlist');
     }
     _log('Found ${segmentUrls.length} segments');
 
-    // 4. Download segments in parallel batches, write in order.
+    // 5. Download init segment first (required for fMP4 — contains moov box).
+    //    Without it, the concatenated media segments are unplayable.
     final outputFile = File(outputPath);
     final sink = outputFile.openWrite();
-    var downloaded = 0;
+    var downloadedSegments = 0;
+    var downloadedBytes = 0;
 
     try {
-      // Process in batches of [parallelSegments].
-      for (var i = 0; i < segmentUrls.length; i += parallelSegments) {
+      if (initUri != null) {
+        final initData = await _fetchSegment(initUri, headers);
+        sink.add(initData);
+        downloadedBytes += initData.length;
+        _log('Init segment written (${initData.length} bytes)');
+      }
+
+      // Sliding-window pipeline: keep [parallelSegments] fetches in-flight at
+      // all times, writing completed segments to disk in order. This maximises
+      // throughput without buffering an entire batch in memory.
+      final totalCount = segmentUrls.length;
+      final pending = <int, Future<List<int>>>{};
+      var nextToLaunch = 0;
+      var nextToWrite = 0;
+
+      // Seed the pipeline.
+      while (nextToLaunch < totalCount && pending.length < parallelSegments) {
+        pending[nextToLaunch] = _fetchSegment(
+          segmentUrls[nextToLaunch],
+          headers,
+        );
+        nextToLaunch++;
+      }
+
+      while (nextToWrite < totalCount) {
         if (cancelCompleter?.isCompleted == true) break;
 
-        final batchEnd = (i + parallelSegments).clamp(0, segmentUrls.length);
-        final batch = segmentUrls.sublist(i, batchEnd);
+        final data = await pending.remove(nextToWrite)!;
+        sink.add(data);
+        downloadedSegments++;
+        downloadedBytes += data.length;
+        nextToWrite++;
 
-        // Download batch in parallel.
-        final futures = batch.map((url) => _fetchSegment(url, headers));
-        final results = await Future.wait(futures);
+        onProgress?.call(downloadedBytes, downloadedSegments, totalCount);
 
-        if (cancelCompleter?.isCompleted == true) break;
-
-        // Write in order.
-        for (final data in results) {
-          sink.add(data);
-          downloaded++;
-          onProgress?.call(downloaded, segmentUrls.length);
+        // Launch next segment to keep the pipeline full.
+        if (nextToLaunch < totalCount) {
+          pending[nextToLaunch] = _fetchSegment(
+            segmentUrls[nextToLaunch],
+            headers,
+          );
+          nextToLaunch++;
         }
       }
     } finally {
       await sink.close();
     }
 
-    _log('HLS download complete: $downloaded/${segmentUrls.length} segments');
+    _log(
+      'HLS download complete: $downloadedSegments/${segmentUrls.length} segments ($downloadedBytes bytes)',
+    );
+    return isFmp4;
   }
 
   /// Fetches a playlist text file.
   Future<String> _fetchPlaylist(Uri url, Map<String, String> headers) async {
-    final request = http.Request('GET', url)..headers.addAll(headers);
+    final request = http.Request('GET', url)
+      ..headers.addAll(headers)
+      ..headers.putIfAbsent('User-Agent', () => _browserUserAgent);
     final response = await _httpClient.send(request);
     if (response.statusCode != 200) {
       throw HttpException('Playlist fetch failed: HTTP ${response.statusCode}');
@@ -100,7 +150,9 @@ class HlsSegmentDownloader {
 
   /// Fetches a single segment as bytes.
   Future<List<int>> _fetchSegment(Uri url, Map<String, String> headers) async {
-    final request = http.Request('GET', url)..headers.addAll(headers);
+    final request = http.Request('GET', url)
+      ..headers.addAll(headers)
+      ..headers.putIfAbsent('User-Agent', () => _browserUserAgent);
     final response = await _httpClient.send(request);
     if (response.statusCode != 200) {
       throw HttpException('Segment fetch failed: HTTP ${response.statusCode}');
@@ -140,6 +192,18 @@ class HlsSegmentDownloader {
 
     if (bestUrl == null) return null;
     return _resolveUrl(bestUrl, baseUrl);
+  }
+
+  /// Parses the `#EXT-X-MAP:URI="..."` init segment URL, if present.
+  /// fMP4 HLS streams require this initialization segment (contains moov box).
+  Uri? _parseMapUri(String content, Uri baseUrl) {
+    for (final line in content.split('\n')) {
+      final trimmed = line.trim();
+      if (!trimmed.startsWith('#EXT-X-MAP')) continue;
+      final match = RegExp(r'URI="([^"]+)"').firstMatch(trimmed);
+      if (match != null) return _resolveUrl(match.group(1)!, baseUrl);
+    }
+    return null;
   }
 
   /// Parses segment URLs from a media playlist.

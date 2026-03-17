@@ -21,6 +21,8 @@ final class DownloadTask {
     this.updatedAt,
     this.headers = const <String, String>{},
     this.isHls = false,
+    this.animeTitle,
+    this.qualityLabel,
   });
 
   final String id;
@@ -44,6 +46,12 @@ final class DownloadTask {
 
   /// Whether this download is an HLS stream requiring segment download.
   final bool isHls;
+
+  /// Human-readable anime title (used for folder name and UI display).
+  final String? animeTitle;
+
+  /// Stream quality label (e.g. "1080p", "720p").
+  final String? qualityLabel;
 }
 
 abstract interface class DownloadStore {
