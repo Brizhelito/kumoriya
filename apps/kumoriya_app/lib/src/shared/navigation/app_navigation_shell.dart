@@ -1,9 +1,10 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
+import '../../app/l10n.dart';
 import '../theme/kumoriya_theme.dart';
 
-enum KumoriyaTab { home, search, calendar, myList }
+enum KumoriyaTab { home, search, calendar, library, downloads }
 
 class AppNavigationShell extends StatefulWidget {
   const AppNavigationShell({super.key, required this.tabBuilders});
@@ -21,7 +22,8 @@ class _AppNavigationShellState extends State<AppNavigationShell> {
     KumoriyaTab.home: GlobalKey<NavigatorState>(),
     KumoriyaTab.search: GlobalKey<NavigatorState>(),
     KumoriyaTab.calendar: GlobalKey<NavigatorState>(),
-    KumoriyaTab.myList: GlobalKey<NavigatorState>(),
+    KumoriyaTab.library: GlobalKey<NavigatorState>(),
+    KumoriyaTab.downloads: GlobalKey<NavigatorState>(),
   };
 
   static bool get _isDesktop {
@@ -134,26 +136,31 @@ class _MobileBottomNav extends StatelessWidget {
         selectedFontSize: 10,
         unselectedFontSize: 10,
         iconSize: 22,
-        items: const <BottomNavigationBarItem>[
+        items: <BottomNavigationBarItem>[
           BottomNavigationBarItem(
-            icon: Icon(Icons.home_outlined),
-            activeIcon: Icon(Icons.home_rounded),
-            label: 'Home',
+            icon: const Icon(Icons.home_outlined),
+            activeIcon: const Icon(Icons.home_rounded),
+            label: context.l10n.navHome,
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.search_rounded),
-            activeIcon: Icon(Icons.search_rounded),
-            label: 'Search',
+            icon: const Icon(Icons.search_rounded),
+            activeIcon: const Icon(Icons.search_rounded),
+            label: context.l10n.navSearch,
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.calendar_month_outlined),
-            activeIcon: Icon(Icons.calendar_month_rounded),
-            label: 'Calendar',
+            icon: const Icon(Icons.calendar_today_outlined),
+            activeIcon: const Icon(Icons.calendar_today_rounded),
+            label: context.l10n.navCalendar,
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.bookmark_outline_rounded),
-            activeIcon: Icon(Icons.bookmark_rounded),
-            label: 'My List',
+            icon: const Icon(Icons.video_library_outlined),
+            activeIcon: const Icon(Icons.video_library_rounded),
+            label: context.l10n.navLibrary,
+          ),
+          BottomNavigationBarItem(
+            icon: const Icon(Icons.download_outlined),
+            activeIcon: const Icon(Icons.download_rounded),
+            label: context.l10n.navDownloads,
           ),
         ],
       ),
@@ -193,7 +200,7 @@ class _DesktopRail extends StatelessWidget {
                   _RailItem(
                     icon: Icons.home_outlined,
                     activeIcon: Icons.home_rounded,
-                    label: 'Home',
+                    label: context.l10n.navHome,
                     index: 0,
                     currentIndex: currentIndex,
                     onTap: onTap,
@@ -201,24 +208,32 @@ class _DesktopRail extends StatelessWidget {
                   _RailItem(
                     icon: Icons.search_rounded,
                     activeIcon: Icons.search_rounded,
-                    label: 'Search',
+                    label: context.l10n.navSearch,
                     index: 1,
                     currentIndex: currentIndex,
                     onTap: onTap,
                   ),
                   _RailItem(
-                    icon: Icons.calendar_month_outlined,
-                    activeIcon: Icons.calendar_month_rounded,
-                    label: 'Calendar',
+                    icon: Icons.calendar_today_outlined,
+                    activeIcon: Icons.calendar_today_rounded,
+                    label: context.l10n.navCalendar,
                     index: 2,
                     currentIndex: currentIndex,
                     onTap: onTap,
                   ),
                   _RailItem(
-                    icon: Icons.bookmark_outline_rounded,
-                    activeIcon: Icons.bookmark_rounded,
-                    label: 'My List',
+                    icon: Icons.video_library_outlined,
+                    activeIcon: Icons.video_library_rounded,
+                    label: context.l10n.navLibrary,
                     index: 3,
+                    currentIndex: currentIndex,
+                    onTap: onTap,
+                  ),
+                  _RailItem(
+                    icon: Icons.download_outlined,
+                    activeIcon: Icons.download_rounded,
+                    label: context.l10n.navDownloads,
+                    index: 4,
                     currentIndex: currentIndex,
                     onTap: onTap,
                   ),

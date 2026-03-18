@@ -3,8 +3,9 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:kumoriya_app/l10n/generated/app_localizations.dart';
 
 import '../features/anime_catalog/presentation/pages/calendar_page.dart';
+import '../features/anime_catalog/presentation/pages/downloads_page.dart';
 import '../features/anime_catalog/presentation/pages/home_page.dart';
-import '../features/anime_catalog/presentation/pages/my_list_page.dart';
+import '../features/anime_catalog/presentation/pages/library_page.dart';
 import '../features/anime_catalog/presentation/pages/search_page.dart';
 import '../shared/navigation/app_navigation_shell.dart';
 import '../shared/theme/kumoriya_theme.dart';
@@ -33,7 +34,8 @@ class KumoriyaApp extends StatelessWidget {
           KumoriyaTab.home: (_) => const HomePage(),
           KumoriyaTab.search: (_) => const SearchPage(),
           KumoriyaTab.calendar: (_) => const CalendarPage(),
-          KumoriyaTab.myList: (_) => const MyListPage(),
+          KumoriyaTab.library: (_) => const LibraryPage(),
+          KumoriyaTab.downloads: (_) => const DownloadsPage(),
         },
       ),
     );

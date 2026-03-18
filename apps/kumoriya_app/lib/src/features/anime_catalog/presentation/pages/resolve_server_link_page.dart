@@ -72,7 +72,7 @@ class ResolveServerLinkPage extends ConsumerWidget {
                       padding: const EdgeInsets.symmetric(horizontal: 16),
                       child: FilledButton.icon(
                         onPressed: () {
-                          Navigator.of(context).push(
+                          Navigator.of(context, rootNavigator: true).push(
                             MaterialPageRoute<void>(
                               builder: (_) => PlayerPage(
                                 anilistId: anilistId,

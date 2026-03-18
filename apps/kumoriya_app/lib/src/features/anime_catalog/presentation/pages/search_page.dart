@@ -57,9 +57,9 @@ class _SearchPageState extends ConsumerState<SearchPage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: <Widget>[
-                  const Text(
-                    'Search',
-                    style: TextStyle(
+                  Text(
+                    context.l10n.searchPageTitle,
+                    style: const TextStyle(
                       fontSize: 24,
                       fontWeight: FontWeight.w800,
                       color: KumoriyaColors.textPrimary,

@@ -707,6 +707,40 @@ class AppLocalizationsEs extends AppLocalizations {
   String get downloadResume => 'Reanudar';
 
   @override
+  String get downloadFolderTitle => 'Carpeta de descargas';
+
+  @override
+  String get downloadFolderDescription =>
+      'Los nuevos episodios se guardarán en esta ubicación.';
+
+  @override
+  String get downloadFolderDefault => 'Predeterminada';
+
+  @override
+  String get downloadFolderCustom => 'Personalizada';
+
+  @override
+  String get downloadFolderChange => 'Cambiar carpeta';
+
+  @override
+  String get downloadFolderReset => 'Usar carpeta predeterminada';
+
+  @override
+  String get downloadFolderSaved => 'Carpeta de descargas actualizada.';
+
+  @override
+  String get downloadFolderResetDone =>
+      'La carpeta de descargas volvió a la predeterminada.';
+
+  @override
+  String get downloadFolderSelectionCancelled =>
+      'Selección de carpeta cancelada.';
+
+  @override
+  String get downloadFolderPermissionDenied =>
+      'No se concedió permiso para usar una carpeta externa de descargas.';
+
+  @override
   String get autoDownload => 'Auto-descargar nuevos episodios';
 
   @override
@@ -727,4 +761,87 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get playEpisode => 'Reproducir episodio';
+
+  @override
+  String get navHome => 'Inicio';
+
+  @override
+  String get navSearch => 'Buscar';
+
+  @override
+  String get navCalendar => 'Calendario';
+
+  @override
+  String get navLibrary => 'Biblioteca';
+
+  @override
+  String get navDownloads => 'Descargas';
+
+  @override
+  String get calendarTitle => 'Calendario';
+
+  @override
+  String get calendarSubtitle => 'Emisión por día';
+
+  @override
+  String get calendarNoAiring => 'No se encontraron animes en emisión.';
+
+  @override
+  String get calendarUnknownSchedule => 'Sin horario confirmado';
+
+  @override
+  String get downloadsTitle => 'Descargas';
+
+  @override
+  String get downloadsSubtitle => 'Episodios sin conexión';
+
+  @override
+  String get libraryTitle => 'Biblioteca';
+
+  @override
+  String get playerBack => 'Atrás';
+
+  @override
+  String get playerAudio => 'Audio';
+
+  @override
+  String get playerSubtitles => 'Subtítulos';
+
+  @override
+  String get playerQuality => 'Calidad';
+
+  @override
+  String get playerRetry => 'REINTENTAR';
+
+  @override
+  String get playerSkipBackward => '-10s';
+
+  @override
+  String get playerSkipForward => '+10s';
+
+  @override
+  String get playerUnlockRotation => 'Desbloquear rotación';
+
+  @override
+  String get playerLockRotation => 'Bloquear rotación';
+
+  @override
+  String get playerDisableSubtitles => 'Desactivar';
+
+  @override
+  String get resumeLabel => 'REANUDAR';
+
+  @override
+  String get detailPlay => 'Reproducir';
+
+  @override
+  String detailResumeEpisode(int episode) {
+    return 'Continuar EP $episode';
+  }
+
+  @override
+  String get searchPageTitle => 'Buscar';
+
+  @override
+  String get homeAiringToday => 'Al Aire Hoy';
 }

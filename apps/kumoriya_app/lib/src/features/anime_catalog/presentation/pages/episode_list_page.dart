@@ -17,6 +17,7 @@ import '../providers/anime_catalog_providers.dart';
 import '../providers/storage_providers.dart';
 import '../support/playback_launch_flow.dart';
 import '../widgets/source_badge.dart';
+import '../../../../shared/theme/kumoriya_theme.dart';
 
 class EpisodeListPage extends ConsumerStatefulWidget {
   const EpisodeListPage({
@@ -164,7 +165,7 @@ class _EpisodeListPageState extends ConsumerState<EpisodeListPage> {
       final file = File(offlineTask.filePath!);
       if (await file.exists()) {
         if (!mounted) return;
-        await Navigator.of(context).push(
+        await Navigator.of(context, rootNavigator: true).push(
           MaterialPageRoute<void>(
             builder: (_) => PlayerPage(
               anilistId: widget.anilistId,
@@ -640,17 +641,17 @@ class _DownloadStatusChip extends StatelessWidget {
       ),
       DownloadStatus.paused => (
         Icons.pause_circle_rounded,
-        Colors.orange,
+        KumoriyaColors.statusWarning,
         context.l10n.downloadPaused,
       ),
       DownloadStatus.completed => (
         Icons.check_circle_rounded,
-        Colors.green,
+        KumoriyaColors.statusSuccess,
         context.l10n.downloadComplete,
       ),
       DownloadStatus.failed => (
         Icons.error_rounded,
-        Colors.red,
+        KumoriyaColors.statusDanger,
         context.l10n.downloadFailed,
       ),
     };

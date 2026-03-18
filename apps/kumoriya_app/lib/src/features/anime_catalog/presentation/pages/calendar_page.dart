@@ -23,22 +23,22 @@ class CalendarPage extends ConsumerWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
-            const Padding(
-              padding: EdgeInsets.fromLTRB(16, 16, 16, 4),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
               child: Text(
-                'Calendar',
-                style: TextStyle(
+                context.l10n.calendarTitle,
+                style: const TextStyle(
                   fontSize: 24,
                   fontWeight: FontWeight.w800,
                   color: KumoriyaColors.textPrimary,
                 ),
               ),
             ),
-            const Padding(
-              padding: EdgeInsets.fromLTRB(16, 0, 16, 14),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
               child: Text(
-                'Airing by day',
-                style: TextStyle(fontSize: 13, color: KumoriyaColors.textMuted),
+                context.l10n.calendarSubtitle,
+                style: const TextStyle(fontSize: 13, color: KumoriyaColors.textMuted),
               ),
             ),
             Expanded(
@@ -63,8 +63,8 @@ class CalendarPage extends ConsumerWidget {
                         .toList(growable: false);
 
                     if (airing.isEmpty) {
-                      return const EmptyStateView(
-                        message: 'No airing anime found.',
+                      return EmptyStateView(
+                        message: context.l10n.calendarNoAiring,
                       );
                     }
 
@@ -160,40 +160,14 @@ class CalendarPage extends ConsumerWidget {
 }
 
 String _weekdayLabel(BuildContext context, int weekday) {
-  final isSpanish = Localizations.localeOf(
-    context,
-  ).languageCode.toLowerCase().startsWith('es');
-
-  if (isSpanish) {
-    return switch (weekday) {
-      DateTime.monday => 'Lunes',
-      DateTime.tuesday => 'Martes',
-      DateTime.wednesday => 'Miercoles',
-      DateTime.thursday => 'Jueves',
-      DateTime.friday => 'Viernes',
-      DateTime.saturday => 'Sabado',
-      DateTime.sunday => 'Domingo',
-      _ => 'Sin dia',
-    };
-  }
-
-  return switch (weekday) {
-    DateTime.monday => 'Monday',
-    DateTime.tuesday => 'Tuesday',
-    DateTime.wednesday => 'Wednesday',
-    DateTime.thursday => 'Thursday',
-    DateTime.friday => 'Friday',
-    DateTime.saturday => 'Saturday',
-    DateTime.sunday => 'Sunday',
-    _ => 'Unknown day',
-  };
+  final now = DateTime.now();
+  final daysUntilWeekday = (weekday - now.weekday) % 7;
+  final date = now.add(Duration(days: daysUntilWeekday));
+  return DateFormat.EEEE(Localizations.localeOf(context).toString()).format(date);
 }
 
 String _unknownScheduleLabel(BuildContext context) {
-  final isSpanish = Localizations.localeOf(
-    context,
-  ).languageCode.toLowerCase().startsWith('es');
-  return isSpanish ? 'Sin horario confirmado' : 'Unknown schedule';
+  return context.l10n.calendarUnknownSchedule;
 }
 
 class _CalendarSection extends StatelessWidget {

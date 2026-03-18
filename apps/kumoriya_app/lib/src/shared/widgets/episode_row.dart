@@ -149,16 +149,14 @@ class _EpisodeRowState extends State<EpisodeRow> {
               ),
               if (widget.isPlayable) ...<Widget>[
                 const SizedBox(width: 10),
-                AnimatedOpacity(
-                  opacity: _hovered || isActive ? 1.0 : 0.0,
-                  duration: const Duration(milliseconds: 200),
-                  child: Icon(
-                    Icons.play_circle_outline_rounded,
-                    size: 28,
-                    color: isActive
-                        ? KumoriyaColors.primary
-                        : KumoriyaColors.textMuted,
-                  ),
+                Icon(
+                  Icons.play_circle_outline_rounded,
+                  size: 28,
+                  color: isActive
+                      ? KumoriyaColors.primary
+                      : _hovered
+                          ? KumoriyaColors.textMuted
+                          : KumoriyaColors.textDisabled,
                 ),
               ],
             ],

@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
 import 'package:kumoriya_core/kumoriya_core.dart';
 import 'package:kumoriya_domain/kumoriya_domain.dart';
 import 'package:kumoriya_storage/kumoriya_storage.dart';
@@ -10,6 +11,7 @@ import '../../../../app/l10n.dart';
 import '../../../../shared/theme/kumoriya_theme.dart';
 import '../../../../shared/widgets/continue_watching_card.dart';
 import '../../../../shared/widgets/kumoriya_cached_image.dart';
+import '../../../../shared/widgets/section_header.dart';
 import '../../../../shared/widgets/state_views.dart';
 import '../../application/models/episode_playback.dart';
 import '../../application/models/source_availability.dart';
@@ -27,6 +29,7 @@ class HomePage extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final homeCatalog = ref.watch(homeCatalogProvider);
     final continueWatching = ref.watch(continueWatchingProvider);
+    final airingToday = ref.watch(calendarCatalogProvider);
 
     return Scaffold(
       backgroundColor: KumoriyaColors.background,
@@ -44,6 +47,12 @@ class HomePage extends ConsumerWidget {
           onSuccess: (animeList) => _HomeBody(
             animeList: animeList,
             continueWatching: continueWatching,
+            airingToday: airingToday,
+            onRefresh: () {
+              ref.invalidate(homeCatalogProvider);
+              ref.invalidate(continueWatchingProvider);
+              ref.invalidate(calendarCatalogProvider);
+            },
           ),
         ),
       ),
@@ -52,11 +61,18 @@ class HomePage extends ConsumerWidget {
 }
 
 class _HomeBody extends StatelessWidget {
-  const _HomeBody({required this.animeList, required this.continueWatching});
+  const _HomeBody({
+    required this.animeList,
+    required this.continueWatching,
+    required this.airingToday,
+    this.onRefresh,
+  });
 
   final List<Anime> animeList;
   final AsyncValue<Result<List<AnimeWatchHistory>, KumoriyaError>>
   continueWatching;
+  final AsyncValue<Result<List<Anime>, KumoriyaError>> airingToday;
+  final VoidCallback? onRefresh;
 
   void _openDetail(BuildContext context, int anilistId) {
     Navigator.of(context).push(
@@ -72,51 +88,65 @@ class _HomeBody extends StatelessWidget {
       for (final anime in animeList) anime.anilistId: anime,
     };
 
-    return CustomScrollView(
-      slivers: <Widget>[
-        SliverSafeArea(
-          sliver: SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-              child: _MobileHeader(),
+    return RefreshIndicator(
+      color: KumoriyaColors.primary,
+      backgroundColor: KumoriyaColors.surface,
+      onRefresh: () async {
+        onRefresh?.call();
+        await Future<void>.delayed(const Duration(milliseconds: 500));
+      },
+      child: CustomScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        slivers: <Widget>[
+          SliverSafeArea(
+            sliver: SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+                child: _MobileHeader(),
+              ),
             ),
           ),
-        ),
-        SliverToBoxAdapter(
-          child: _ContinueWatchingSection(
-            continueWatching: continueWatching,
-            catalogById: catalogById,
-          ),
-        ),
-        if (animeList.isNotEmpty) ...<Widget>[
           SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(16, 32, 16, 12),
-              child: _SectionHeader(title: context.l10n.homeTrendingSection),
+            child: _ContinueWatchingSection(
+              continueWatching: continueWatching,
+              catalogById: catalogById,
             ),
           ),
-          SliverPadding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            sliver: SliverList(
-              delegate: SliverChildBuilderDelegate((context, index) {
-                final anime = animeList[index];
-                return _TrendingRow(
-                  anime: anime,
-                  rank: index + 1,
-                  onTap: () => _openDetail(context, anime.anilistId),
-                );
-              }, childCount: animeList.length),
-            ),
-          ),
-        ] else
           SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.all(32),
-              child: EmptyStateView(message: context.l10n.homeEmptyCatalog),
-            ),
+            child: _AiringTodaySection(airingToday: airingToday),
           ),
-        const SliverToBoxAdapter(child: SizedBox(height: 32)),
-      ],
+          if (animeList.isNotEmpty) ...<Widget>[
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 32, 16, 12),
+                child: KumoriyaSectionHeader(
+                  title: context.l10n.homeTrendingSection,
+                ),
+              ),
+            ),
+            SliverPadding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              sliver: SliverList(
+                delegate: SliverChildBuilderDelegate((context, index) {
+                  final anime = animeList[index];
+                  return _TrendingRow(
+                    anime: anime,
+                    rank: index + 1,
+                    onTap: () => _openDetail(context, anime.anilistId),
+                  );
+                }, childCount: animeList.length > 10 ? 10 : animeList.length),
+              ),
+            ),
+          ] else
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.all(32),
+                child: EmptyStateView(message: context.l10n.homeEmptyCatalog),
+              ),
+            ),
+          const SliverToBoxAdapter(child: SizedBox(height: 32)),
+        ],
+      ),
     );
   }
 }
@@ -177,29 +207,6 @@ class _MobileHeader extends StatelessWidget {
             ),
         ],
       ),
-    );
-  }
-}
-
-class _SectionHeader extends StatelessWidget {
-  const _SectionHeader({required this.title});
-
-  final String title;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: <Widget>[
-        Text(
-          title,
-          style: const TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.w800,
-            color: KumoriyaColors.textPrimary,
-          ),
-        ),
-      ],
     );
   }
 }
@@ -449,12 +456,14 @@ class _ContinueWatchingSectionState extends State<_ContinueWatchingSection> {
                           key: const Key('continue-watching-scroll-left'),
                           icon: Icons.arrow_back_rounded,
                           onTap: () => _scrollBy(-_scrollStep),
+                          tooltip: 'Scroll left',
                         ),
                         const SizedBox(width: 8),
                         _NavArrow(
                           key: const Key('continue-watching-scroll-right'),
                           icon: Icons.arrow_forward_rounded,
                           onTap: () => _scrollBy(_scrollStep),
+                          tooltip: 'Scroll right',
                         ),
                       ],
                     ],
@@ -492,18 +501,19 @@ class _ContinueWatchingSectionState extends State<_ContinueWatchingSection> {
 }
 
 class _NavArrow extends StatelessWidget {
-  const _NavArrow({super.key, required this.icon, required this.onTap});
+  const _NavArrow({super.key, required this.icon, required this.onTap, this.tooltip});
 
   final IconData icon;
   final VoidCallback onTap;
+  final String? tooltip;
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
+    Widget child = GestureDetector(
       onTap: onTap,
       child: Container(
-        width: 36,
-        height: 36,
+        width: 44,
+        height: 44,
         decoration: BoxDecoration(
           color: KumoriyaColors.surface,
           borderRadius: BorderRadius.circular(KumoriyaRadius.full),
@@ -512,6 +522,10 @@ class _NavArrow extends StatelessWidget {
         child: Icon(icon, color: KumoriyaColors.textMuted, size: 18),
       ),
     );
+    if (tooltip != null) {
+      child = Tooltip(message: tooltip!, child: child);
+    }
+    return child;
   }
 }
 
@@ -656,6 +670,199 @@ class _ContinueWatchingCardWrapperState
           anilistId: widget.entry.anilistId,
           animeTitle: animeTitle,
           focusedEpisodeNumber: widget.entry.lastEpisodeNumber,
+        ),
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Airing Today section
+// ---------------------------------------------------------------------------
+
+class _AiringTodaySection extends StatelessWidget {
+  const _AiringTodaySection({required this.airingToday});
+
+  final AsyncValue<Result<List<Anime>, KumoriyaError>> airingToday;
+
+  @override
+  Widget build(BuildContext context) {
+    return airingToday.when(
+      loading: () => const SizedBox.shrink(),
+      error: (_, _) => const SizedBox.shrink(),
+      data: (result) => result.fold(
+        onFailure: (_) => const SizedBox.shrink(),
+        onSuccess: (animeList) {
+          final now = DateTime.now();
+          final todayWeekday = now.weekday;
+
+          final todayAiring =
+              animeList
+                  .where((a) {
+                    if (a.status != AnimeStatus.releasing &&
+                        a.status != AnimeStatus.notYetReleased) {
+                      return false;
+                    }
+                    final nextAiringAt = a.nextAiringAt?.toLocal();
+                    if (nextAiringAt == null) return false;
+                    return nextAiringAt.weekday == todayWeekday &&
+                        nextAiringAt.difference(now).inDays.abs() < 7;
+                  })
+                  .toList(growable: false)
+                ..sort((a, b) {
+                  final aTime = a.nextAiringAt!;
+                  final bTime = b.nextAiringAt!;
+                  return aTime.compareTo(bTime);
+                });
+
+          if (todayAiring.isEmpty) return const SizedBox.shrink();
+
+          return Padding(
+            padding: const EdgeInsets.only(top: 24),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                  child: KumoriyaSectionHeader(title: context.l10n.homeAiringToday),
+                ),
+                SizedBox(
+                  height: 120,
+                  child: ListView.separated(
+                    scrollDirection: Axis.horizontal,
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    itemCount: todayAiring.length,
+                    separatorBuilder: (_, _) => const SizedBox(width: 10),
+                    itemBuilder: (context, index) {
+                      final anime = todayAiring[index];
+                      return _AiringTodayCard(
+                        anime: anime,
+                        onTap: () => Navigator.of(context).push(
+                          MaterialPageRoute<void>(
+                            builder: (_) =>
+                                AnimeDetailPage(anilistId: anime.anilistId),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _AiringTodayCard extends StatefulWidget {
+  const _AiringTodayCard({required this.anime, required this.onTap});
+
+  final Anime anime;
+  final VoidCallback onTap;
+
+  @override
+  State<_AiringTodayCard> createState() => _AiringTodayCardState();
+}
+
+class _AiringTodayCardState extends State<_AiringTodayCard> {
+  bool _hovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final anime = widget.anime;
+    final localNext = anime.nextAiringAt?.toLocal();
+    final timeLabel = localNext != null
+        ? DateFormat.Hm(
+            Localizations.localeOf(context).toString(),
+          ).format(localNext)
+        : null;
+
+    return MouseRegion(
+      onEnter: (_) => setState(() => _hovered = true),
+      onExit: (_) => setState(() => _hovered = false),
+      child: GestureDetector(
+        onTap: widget.onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          width: 260,
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: _hovered
+                ? KumoriyaColors.surface
+                : KumoriyaColors.surface.withValues(alpha: 0.50),
+            borderRadius: BorderRadius.circular(KumoriyaRadius.xxl),
+            border: Border.all(
+              color: _hovered
+                  ? KumoriyaColors.borderMedium
+                  : KumoriyaColors.borderSubtle,
+            ),
+          ),
+          child: Row(
+            children: <Widget>[
+              ClipRRect(
+                borderRadius: BorderRadius.circular(KumoriyaRadius.md),
+                child: KumoriyaCachedImage(
+                  url: anime.coverImageUrl,
+                  bucket: KumoriyaImageCacheBucket.artwork,
+                  width: 72,
+                  height: 96,
+                  fit: BoxFit.cover,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: <Widget>[
+                    Text(
+                      anime.title.romaji,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: KumoriyaColors.textPrimary,
+                      ),
+                    ),
+                    if (anime.nextAiringEpisodeNumber != null) ...<Widget>[
+                      const SizedBox(height: 4),
+                      Text(
+                        'EP ${anime.nextAiringEpisodeNumber}',
+                        style: const TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: KumoriyaColors.primary,
+                        ),
+                      ),
+                    ],
+                    if (timeLabel != null) ...<Widget>[
+                      const SizedBox(height: 4),
+                      Row(
+                        children: <Widget>[
+                          const Icon(
+                            Icons.schedule_rounded,
+                            size: 13,
+                            color: KumoriyaColors.textDisabled,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            timeLabel,
+                            style: const TextStyle(
+                              fontSize: 11,
+                              color: KumoriyaColors.textDisabled,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

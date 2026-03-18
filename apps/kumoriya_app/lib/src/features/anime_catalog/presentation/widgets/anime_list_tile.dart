@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:kumoriya_domain/kumoriya_domain.dart';
 
 import '../../../../app/l10n.dart';
+import '../../../../shared/theme/kumoriya_theme.dart';
 import '../../../../shared/widgets/kumoriya_cached_image.dart';
 
 class AnimeListTile extends StatelessWidget {
@@ -12,15 +13,13 @@ class AnimeListTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       elevation: 0,
-      color: colorScheme.surface,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
+      color: KumoriyaColors.surface,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(KumoriyaRadius.xxl)),
       child: InkWell(
-        borderRadius: BorderRadius.circular(22),
+        borderRadius: BorderRadius.circular(KumoriyaRadius.xxl),
         onTap: onTap,
         child: Padding(
           padding: const EdgeInsets.all(10),
@@ -60,7 +59,7 @@ class AnimeListTile extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 12),
-              Icon(Icons.chevron_right_rounded, color: colorScheme.outline),
+              Icon(Icons.chevron_right_rounded, color: KumoriyaColors.textDisabled),
             ],
           ),
         ),
@@ -82,7 +81,7 @@ class _CoverImage extends StatelessWidget {
         height: 92,
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(16),
-          color: Theme.of(context).colorScheme.surfaceContainerHighest,
+          color: KumoriyaColors.borderSubtle,
         ),
         child: const Icon(Icons.movie_outlined),
       );
@@ -100,7 +99,7 @@ class _CoverImage extends StatelessWidget {
         height: 92,
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(16),
-          color: Theme.of(context).colorScheme.surfaceContainerHighest,
+          color: KumoriyaColors.borderSubtle,
         ),
         child: const Icon(Icons.broken_image_outlined),
       ),
@@ -118,8 +117,8 @@ class _MetaChip extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(999),
+        color: KumoriyaColors.borderSubtle,
+        borderRadius: BorderRadius.circular(KumoriyaRadius.full),
       ),
       child: Text(label, style: Theme.of(context).textTheme.labelMedium),
     );

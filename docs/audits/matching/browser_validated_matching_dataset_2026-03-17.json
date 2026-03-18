@@ -1,0 +1,5130 @@
+{
+  "captured_at": "2026-03-17",
+  "method": "Integrated browser network and visible search validation across AnimeFLV, JKanime, AnimeAV1, and Anime Nexus. Manual seed labels preserved and extended with a 44-title browser audit sample.",
+  "sources": [
+    "animeflv",
+    "jkanime",
+    "animeav1",
+    "anime_nexus"
+  ],
+  "minimum_anime_target": 40,
+  "audited_canonical_count": 44,
+  "manual_seed_source_dataset": "docs/audits/matching/manual_search_seed_dataset_2026-03-12.json",
+  "manual_seed_rows": [
+    {
+      "case_id": "jkanime_frieren_s1_rank1",
+      "canonical_title": "Sousou no Frieren",
+      "canonical_aliases": [
+        "Frieren: Beyond Journey's End"
+      ],
+      "canonical_year": 2023,
+      "canonical_format": "TV",
+      "category": "manual_seed",
+      "source": "jkanime",
+      "search_query": "Frieren",
+      "candidate_rank": 1,
+      "candidate_title": "Sousou no Frieren",
+      "candidate_url": "https://jkanime.net/sousou-no-frieren/",
+      "observed_format": "TV",
+      "observed_year": null,
+      "label": "match",
+      "decision_bucket": "auto_match",
+      "reasons": [
+        "exact_or_near_exact_title",
+        "rank_1",
+        "type_aligned"
+      ],
+      "evidence_type": "browser_visible_result"
+    },
+    {
+      "case_id": "jkanime_frieren_s2_rank2",
+      "canonical_title": "Sousou no Frieren 2nd Season",
+      "canonical_aliases": [
+        "Frieren: Beyond Journey's End Season 2"
+      ],
+      "canonical_year": 2026,
+      "canonical_format": "TV",
+      "category": "manual_seed",
+      "source": "jkanime",
+      "search_query": "Frieren",
+      "candidate_rank": 2,
+      "candidate_title": "Sousou no Frieren 2nd Season",
+      "candidate_url": "https://jkanime.net/sousou-no-frieren-2nd-season/",
+      "observed_format": "TV",
+      "observed_year": null,
+      "label": "match",
+      "decision_bucket": "auto_match",
+      "reasons": [
+        "season_marker_exact",
+        "same_franchise_root",
+        "type_aligned"
+      ],
+      "evidence_type": "browser_visible_result"
+    },
+    {
+      "case_id": "jkanime_oshi_s2_rank1",
+      "canonical_title": "Oshi no Ko 2nd Season",
+      "canonical_aliases": [
+        "[Oshi No Ko] Season 2"
+      ],
+      "canonical_year": 2024,
+      "canonical_format": "TV",
+      "category": "manual_seed",
+      "source": "jkanime",
+      "search_query": "Oshi no Ko",
+      "candidate_rank": 1,
+      "candidate_title": "\"Oshi no Ko\" 2nd Season",
+      "candidate_url": "https://jkanime.net/oshi-no-ko-2nd-season/",
+      "observed_format": "TV",
+      "observed_year": null,
+      "label": "match",
+      "decision_bucket": "auto_match",
+      "reasons": [
+        "season_marker_exact",
+        "high_title_similarity"
+      ],
+      "evidence_type": "browser_visible_result"
+    },
+    {
+      "case_id": "jkanime_oshi_s2_rank3_grouped",
+      "canonical_title": "Oshi no Ko 2nd Season",
+      "canonical_aliases": [
+        "[Oshi No Ko] Season 2"
+      ],
+      "canonical_year": 2024,
+      "canonical_format": "TV",
+      "category": "manual_seed",
+      "source": "jkanime",
+      "search_query": "Oshi no Ko",
+      "candidate_rank": 3,
+      "candidate_title": "Oshi no Ko",
+      "candidate_url": "https://jkanime.net/oshi-no-ko/",
+      "observed_format": "TV",
+      "observed_year": null,
+      "label": "review_needed",
+      "decision_bucket": "review_needed",
+      "reasons": [
+        "grouped_catalog_entry",
+        "season_missing_on_candidate",
+        "same_franchise_root"
+      ],
+      "evidence_type": "browser_visible_result"
+    },
+    {
+      "case_id": "jkanime_naruto_rank1_boruto",
+      "canonical_title": "Naruto",
+      "canonical_aliases": [],
+      "canonical_year": 2002,
+      "canonical_format": "TV",
+      "category": "manual_seed",
+      "source": "jkanime",
+      "search_query": "Naruto",
+      "candidate_rank": 1,
+      "candidate_title": "Boruto: Naruto Next Generations",
+      "candidate_url": "https://jkanime.net/boruto-naruto-next-generations/",
+      "observed_format": "TV",
+      "observed_year": null,
+      "label": "reject",
+      "decision_bucket": "reject",
+      "reasons": [
+        "franchise_sequel_false_positive",
+        "title_prefix_only",
+        "year_mismatch_expected"
+      ],
+      "evidence_type": "browser_visible_result"
+    },
+    {
+      "case_id": "jkanime_naruto_rank3_exact",
+      "canonical_title": "Naruto",
+      "canonical_aliases": [],
+      "canonical_year": 2002,
+      "canonical_format": "TV",
+      "category": "manual_seed",
+      "source": "jkanime",
+      "search_query": "Naruto",
+      "candidate_rank": 3,
+      "candidate_title": "Naruto",
+      "candidate_url": "https://jkanime.net/naruto/",
+      "observed_format": "TV",
+      "observed_year": null,
+      "label": "match",
+      "decision_bucket": "auto_match",
+      "reasons": [
+        "exact_title",
+        "type_aligned"
+      ],
+      "evidence_type": "browser_visible_result"
+    },
+    {
+      "case_id": "jkanime_demonslayer_rank1_alias",
+      "canonical_title": "Kimetsu no Yaiba",
+      "canonical_aliases": [
+        "Demon Slayer"
+      ],
+      "canonical_year": 2019,
+      "canonical_format": "TV",
+      "category": "manual_seed",
+      "source": "jkanime",
+      "search_query": "Demon Slayer",
+      "candidate_rank": 1,
+      "candidate_title": "Kimetsu no Yaiba",
+      "candidate_url": "https://jkanime.net/kimetsu-no-yaiba/",
+      "observed_format": "TV",
+      "observed_year": null,
+      "label": "match",
+      "decision_bucket": "auto_match",
+      "reasons": [
+        "alias_match",
+        "rank_1",
+        "type_aligned"
+      ],
+      "evidence_type": "browser_visible_result"
+    },
+    {
+      "case_id": "jkanime_demonslayer_rank2_movie",
+      "canonical_title": "Kimetsu no Yaiba",
+      "canonical_aliases": [
+        "Demon Slayer"
+      ],
+      "canonical_year": 2019,
+      "canonical_format": "TV",
+      "category": "manual_seed",
+      "source": "jkanime",
+      "search_query": "Demon Slayer",
+      "candidate_rank": 2,
+      "candidate_title": "Kimetsu no Yaiba Movie: Mugen Ressha-hen",
+      "candidate_url": "https://jkanime.net/kimetsu-no-yaiba-movie-mugen-ressha-hen/",
+      "observed_format": "Movie",
+      "observed_year": null,
+      "label": "reject",
+      "decision_bucket": "reject",
+      "reasons": [
+        "type_conflict",
+        "franchise_related_but_not_same_entry"
+      ],
+      "evidence_type": "browser_visible_result"
+    },
+    {
+      "case_id": "jkanime_pokemon_2023_shinsaku",
+      "canonical_title": "Pocket Monsters (2023)",
+      "canonical_aliases": [
+        "Pokémon Horizons: The Series",
+        "Pokemon (Shinsaku Anime)"
+      ],
+      "canonical_year": 2023,
+      "canonical_format": "TV",
+      "category": "manual_seed",
+      "source": "jkanime",
+      "search_query": "Pokemon",
+      "candidate_rank": 4,
+      "candidate_title": "Pokemon (Shinsaku Anime)",
+      "candidate_url": "https://jkanime.net/pokemon-shinsaku-anime/",
+      "observed_format": "TV",
+      "observed_year": null,
+      "label": "review_needed",
+      "decision_bucket": "review_needed",
+      "reasons": [
+        "generic_alias_match",
+        "high_franchise_ambiguity",
+        "needs_year_or_alias_support"
+      ],
+      "evidence_type": "browser_visible_result"
+    },
+    {
+      "case_id": "jkanime_suzume_movie",
+      "canonical_title": "Suzume no Tojimari",
+      "canonical_aliases": [
+        "Suzume"
+      ],
+      "canonical_year": 2022,
+      "canonical_format": "Movie",
+      "category": "manual_seed",
+      "source": "jkanime",
+      "search_query": "Suzume",
+      "candidate_rank": 1,
+      "candidate_title": "Suzume no Tojimari",
+      "candidate_url": "https://jkanime.net/suzume-no-tojimari/",
+      "observed_format": "Movie",
+      "observed_year": null,
+      "label": "match",
+      "decision_bucket": "auto_match",
+      "reasons": [
+        "exact_or_near_exact_title",
+        "type_aligned_movie"
+      ],
+      "evidence_type": "browser_visible_result"
+    },
+    {
+      "case_id": "anime_nexus_frieren_s1_rank1",
+      "canonical_title": "Sousou no Frieren",
+      "canonical_aliases": [
+        "Frieren: Beyond Journey's End"
+      ],
+      "canonical_year": 2023,
+      "canonical_format": "TV",
+      "category": "manual_seed",
+      "source": "anime_nexus",
+      "search_query": "Frieren",
+      "candidate_rank": 1,
+      "candidate_title": "Frieren: Beyond Journey's End",
+      "candidate_url": "https://anime.nexus/series/9991699e-05a4-4446-93ae-8f1b60de068f/frieren-beyond-journeys-end-b8674d743984eb844697",
+      "observed_format": "TV",
+      "observed_year": "2023-09-29",
+      "label": "match",
+      "decision_bucket": "auto_match",
+      "reasons": [
+        "alias_match",
+        "year_match",
+        "type_aligned"
+      ],
+      "evidence_type": "browser_network_surface"
+    },
+    {
+      "case_id": "anime_nexus_frieren_s1_rank2_s2",
+      "canonical_title": "Sousou no Frieren",
+      "canonical_aliases": [
+        "Frieren: Beyond Journey's End"
+      ],
+      "canonical_year": 2023,
+      "canonical_format": "TV",
+      "category": "manual_seed",
+      "source": "anime_nexus",
+      "search_query": "Frieren",
+      "candidate_rank": 2,
+      "candidate_title": "Frieren: Beyond Journey's End Season 2",
+      "candidate_url": "https://anime.nexus/series/9d319502-af84-41d5-8073-4aaf8fed18a4/frieren-beyond-journeys-end-season-2-6fde75d6eed23612fbaa",
+      "observed_format": "TV",
+      "observed_year": "2026-01-16",
+      "label": "reject",
+      "decision_bucket": "reject",
+      "reasons": [
+        "season_conflict",
+        "year_mismatch_penalty"
+      ],
+      "evidence_type": "browser_network_surface"
+    },
+    {
+      "case_id": "anime_nexus_oshi_s2_rank2",
+      "canonical_title": "Oshi no Ko 2nd Season",
+      "canonical_aliases": [
+        "[Oshi No Ko] Season 2"
+      ],
+      "canonical_year": 2024,
+      "canonical_format": "TV",
+      "category": "manual_seed",
+      "source": "anime_nexus",
+      "search_query": "Oshi no Ko",
+      "candidate_rank": 2,
+      "candidate_title": "[Oshi No Ko] Season 2",
+      "candidate_url": "https://anime.nexus/series/99916bfc-74b1-4b39-b7a9-093f30932222/oshi-no-ko-season-2-d38c4ae40247b824778b",
+      "observed_format": "TV",
+      "observed_year": "2024-07-01",
+      "label": "match",
+      "decision_bucket": "auto_match",
+      "reasons": [
+        "season_marker_exact",
+        "year_match",
+        "type_aligned"
+      ],
+      "evidence_type": "browser_network_surface"
+    },
+    {
+      "case_id": "anime_nexus_naruto_rank1_boruto",
+      "canonical_title": "Naruto",
+      "canonical_aliases": [],
+      "canonical_year": 2002,
+      "canonical_format": "TV",
+      "category": "manual_seed",
+      "source": "anime_nexus",
+      "search_query": "Naruto",
+      "candidate_rank": 1,
+      "candidate_title": "Boruto: Naruto Next Generations",
+      "candidate_url": "https://anime.nexus/series/998f3b12-3035-4fa9-a903-3006b56d9a44/boruto-naruto-next-generations-0a4216442b773bc6a827",
+      "observed_format": "TV",
+      "observed_year": "2017-04-05",
+      "label": "reject",
+      "decision_bucket": "reject",
+      "reasons": [
+        "franchise_sequel_false_positive",
+        "year_mismatch_penalty"
+      ],
+      "evidence_type": "browser_network_surface"
+    },
+    {
+      "case_id": "anime_nexus_naruto_rank2_exact",
+      "canonical_title": "Naruto",
+      "canonical_aliases": [],
+      "canonical_year": 2002,
+      "canonical_format": "TV",
+      "category": "manual_seed",
+      "source": "anime_nexus",
+      "search_query": "Naruto",
+      "candidate_rank": 2,
+      "candidate_title": "Naruto",
+      "candidate_url": "https://anime.nexus/series/998f3c18-365d-4e07-bbfc-f904eacd7a7a/naruto-abcd0595801da8f858ed",
+      "observed_format": "TV",
+      "observed_year": "2002-10-03",
+      "label": "match",
+      "decision_bucket": "auto_match",
+      "reasons": [
+        "exact_title",
+        "year_match",
+        "type_aligned"
+      ],
+      "evidence_type": "browser_network_surface"
+    },
+    {
+      "case_id": "anime_nexus_fate_base_rank1",
+      "canonical_title": "Fate/stay night",
+      "canonical_aliases": [],
+      "canonical_year": 2006,
+      "canonical_format": "TV",
+      "category": "manual_seed",
+      "source": "anime_nexus",
+      "search_query": "Fate Stay Night",
+      "candidate_rank": 1,
+      "candidate_title": "Fate/stay night",
+      "candidate_url": "https://anime.nexus/series/998f3926-f584-402a-a836-aa6024bf1b64/fatestay-night-1b5238626e8354ce6ef6",
+      "observed_format": "TV",
+      "observed_year": "2006-01-07",
+      "label": "match",
+      "decision_bucket": "auto_match",
+      "reasons": [
+        "exact_title",
+        "year_match",
+        "type_aligned"
+      ],
+      "evidence_type": "browser_network_surface"
+    },
+    {
+      "case_id": "anime_nexus_fate_ubw_rank2",
+      "canonical_title": "Fate/stay night",
+      "canonical_aliases": [],
+      "canonical_year": 2006,
+      "canonical_format": "TV",
+      "category": "manual_seed",
+      "source": "anime_nexus",
+      "search_query": "Fate Stay Night",
+      "candidate_rank": 2,
+      "candidate_title": "Fate/stay night [Unlimited Blade Works]",
+      "candidate_url": "https://anime.nexus/series/998f3c0d-6970-4027-9f78-d8b46e8bd244/fatestay-night-unlimited-blade-works-4a5935b12142327214e5",
+      "observed_format": "TV",
+      "observed_year": "2014-10-12",
+      "label": "review_needed",
+      "decision_bucket": "review_needed",
+      "reasons": [
+        "same_franchise_root",
+        "high_title_similarity",
+        "route_or_timeline_ambiguity"
+      ],
+      "evidence_type": "browser_network_surface"
+    },
+    {
+      "case_id": "anime_nexus_pokemon_empty",
+      "canonical_title": "Pocket Monsters (2023)",
+      "canonical_aliases": [
+        "Pokemon (2023)",
+        "Pokémon Horizons: The Series"
+      ],
+      "canonical_year": 2023,
+      "canonical_format": "TV",
+      "category": "manual_seed",
+      "source": "anime_nexus",
+      "search_query": "Pokemon",
+      "candidate_rank": null,
+      "candidate_title": null,
+      "candidate_url": null,
+      "observed_format": null,
+      "observed_year": null,
+      "label": "reject",
+      "decision_bucket": "reject",
+      "reasons": [
+        "no_candidates_returned",
+        "query_expansion_needed"
+      ],
+      "evidence_type": "browser_network_surface"
+    },
+    {
+      "case_id": "anime_nexus_suzume_empty",
+      "canonical_title": "Suzume no Tojimari",
+      "canonical_aliases": [
+        "Suzume"
+      ],
+      "canonical_year": 2022,
+      "canonical_format": "Movie",
+      "category": "manual_seed",
+      "source": "anime_nexus",
+      "search_query": "Suzume",
+      "candidate_rank": null,
+      "candidate_title": null,
+      "candidate_url": null,
+      "observed_format": null,
+      "observed_year": null,
+      "label": "reject",
+      "decision_bucket": "reject",
+      "reasons": [
+        "no_candidates_returned",
+        "query_expansion_needed"
+      ],
+      "evidence_type": "browser_network_surface"
+    }
+  ],
+  "browser_rows": [
+    {
+      "case_id": "jkanime_frieren_s1",
+      "canonical_title": "Sousou no Frieren",
+      "canonical_aliases": [
+        "Frieren: Beyond Journey's End"
+      ],
+      "canonical_year": 2023,
+      "canonical_format": "TV",
+      "category": "alias_positive",
+      "source": "jkanime",
+      "search_query": "Frieren",
+      "candidate_rank": 1,
+      "candidate_title": "Sousou no Frieren",
+      "candidate_url": "https://jkanime.net/sousou-no-frieren/",
+      "observed_format": "TV",
+      "observed_year": null,
+      "label": "match",
+      "decision_bucket": "browser_match",
+      "reasons": [
+        "exact_title",
+        "rank_1",
+        "season_consistent",
+        "type_aligned"
+      ],
+      "evidence_type": "browser_network_surface"
+    },
+    {
+      "case_id": "jkanime_frieren_s2",
+      "canonical_title": "Sousou no Frieren 2nd Season",
+      "canonical_aliases": [
+        "Frieren: Beyond Journey's End Season 2"
+      ],
+      "canonical_year": 2026,
+      "canonical_format": "TV",
+      "category": "sequel_trap",
+      "source": "jkanime",
+      "search_query": "Frieren",
+      "candidate_rank": 2,
+      "candidate_title": "Sousou no Frieren 2nd Season",
+      "candidate_url": "https://jkanime.net/sousou-no-frieren-2nd-season/",
+      "observed_format": "TV",
+      "observed_year": null,
+      "label": "match",
+      "decision_bucket": "browser_match",
+      "reasons": [
+        "exact_title",
+        "rank_2",
+        "season_consistent",
+        "type_aligned",
+        "higher_ranked_competitors_present"
+      ],
+      "evidence_type": "browser_network_surface"
+    },
+    {
+      "case_id": "jkanime_oshi_base",
+      "canonical_title": "[Oshi no Ko]",
+      "canonical_aliases": [
+        "Oshi No Ko",
+        "【推しの子】"
+      ],
+      "canonical_year": 2023,
+      "canonical_format": "TV",
+      "category": "grouped_ambiguity",
+      "source": "jkanime",
+      "search_query": "Oshi no Ko",
+      "candidate_rank": 3,
+      "candidate_title": "Oshi no Ko",
+      "candidate_url": "https://jkanime.net/oshi-no-ko/",
+      "observed_format": "TV",
+      "observed_year": null,
+      "label": "match",
+      "decision_bucket": "browser_match",
+      "reasons": [
+        "exact_title",
+        "rank_3",
+        "season_consistent",
+        "type_aligned",
+        "higher_ranked_competitors_present"
+      ],
+      "evidence_type": "browser_network_surface"
+    },
+    {
+      "case_id": "jkanime_oshi_s2",
+      "canonical_title": "Oshi no Ko 2nd Season",
+      "canonical_aliases": [
+        "[Oshi No Ko] Season 2"
+      ],
+      "canonical_year": 2024,
+      "canonical_format": "TV",
+      "category": "grouped_ambiguity",
+      "source": "jkanime",
+      "search_query": "Oshi no Ko",
+      "candidate_rank": 1,
+      "candidate_title": "\"Oshi no Ko\" 2nd Season",
+      "candidate_url": "https://jkanime.net/oshi-no-ko-2nd-season/",
+      "observed_format": "TV",
+      "observed_year": null,
+      "label": "match",
+      "decision_bucket": "browser_match",
+      "reasons": [
+        "exact_title",
+        "rank_1",
+        "season_consistent",
+        "type_aligned"
+      ],
+      "evidence_type": "browser_network_surface"
+    },
+    {
+      "case_id": "jkanime_oshi_s3",
+      "canonical_title": "[Oshi no Ko] 3rd Season",
+      "canonical_aliases": [
+        "【OSHI NO KO】Season 3"
+      ],
+      "canonical_year": 2026,
+      "canonical_format": "TV",
+      "category": "sequel_trap",
+      "source": "jkanime",
+      "search_query": "Oshi no Ko",
+      "candidate_rank": 2,
+      "candidate_title": "[Oshi no Ko] 3rd Season",
+      "candidate_url": "https://jkanime.net/oshi-no-ko-3rd-season/",
+      "observed_format": "TV",
+      "observed_year": null,
+      "label": "match",
+      "decision_bucket": "browser_match",
+      "reasons": [
+        "exact_title",
+        "rank_2",
+        "season_consistent",
+        "type_aligned",
+        "higher_ranked_competitors_present"
+      ],
+      "evidence_type": "browser_network_surface"
+    },
+    {
+      "case_id": "jkanime_naruto",
+      "canonical_title": "Naruto",
+      "canonical_aliases": [],
+      "canonical_year": 2002,
+      "canonical_format": "TV",
+      "category": "sequel_trap",
+      "source": "jkanime",
+      "search_query": "Naruto",
+      "candidate_rank": 3,
+      "candidate_title": "Naruto",
+      "candidate_url": "https://jkanime.net/naruto/",
+      "observed_format": "TV",
+      "observed_year": null,
+      "label": "match",
+      "decision_bucket": "browser_match",
+      "reasons": [
+        "exact_title",
+        "rank_3",
+        "season_consistent",
+        "type_aligned",
+        "higher_ranked_competitors_present"
+      ],
+      "evidence_type": "browser_network_surface"
+    },
+    {
+      "case_id": "jkanime_kimetsu_tv",
+      "canonical_title": "Kimetsu no Yaiba",
+      "canonical_aliases": [
+        "Demon Slayer"
+      ],
+      "canonical_year": 2019,
+      "canonical_format": "TV",
+      "category": "alias_positive",
+      "source": "jkanime",
+      "search_query": "Demon Slayer",
+      "candidate_rank": 1,
+      "candidate_title": "Kimetsu no Yaiba",
+      "candidate_url": "https://jkanime.net/kimetsu-no-yaiba/",
+      "observed_format": "TV",
+      "observed_year": null,
+      "label": "match",
+      "decision_bucket": "browser_match",
+      "reasons": [
+        "exact_title",
+        "rank_1",
+        "season_consistent",
+        "type_aligned"
+      ],
+      "evidence_type": "browser_network_surface"
+    },
+    {
+      "case_id": "jkanime_pokemon_2023",
+      "canonical_title": "Pocket Monsters (2023)",
+      "canonical_aliases": [
+        "Pokemon (Shinsaku Anime)",
+        "Pokemon Horizons: The Series"
+      ],
+      "canonical_year": 2023,
+      "canonical_format": "TV",
+      "category": "failed_or_empty",
+      "source": "jkanime",
+      "search_query": "Pokemon",
+      "candidate_rank": 2,
+      "candidate_title": "Pokemon",
+      "candidate_url": "https://jkanime.net/pokemon/",
+      "observed_format": "TV",
+      "observed_year": null,
+      "label": "match",
+      "decision_bucket": "browser_match",
+      "reasons": [
+        "alias_match",
+        "rank_2",
+        "season_consistent",
+        "type_aligned",
+        "higher_ranked_competitors_present"
+      ],
+      "evidence_type": "browser_network_surface"
+    },
+    {
+      "case_id": "jkanime_suzume_movie",
+      "canonical_title": "Suzume no Tojimari",
+      "canonical_aliases": [
+        "Suzume"
+      ],
+      "canonical_year": 2022,
+      "canonical_format": "Movie",
+      "category": "movie_vs_tv",
+      "source": "jkanime",
+      "search_query": "Suzume",
+      "candidate_rank": 1,
+      "candidate_title": "Suzume no Tojimari",
+      "candidate_url": "https://jkanime.net/suzume-no-tojimari/",
+      "observed_format": "Movie",
+      "observed_year": null,
+      "label": "match",
+      "decision_bucket": "browser_match",
+      "reasons": [
+        "exact_title",
+        "rank_1",
+        "season_consistent",
+        "type_aligned"
+      ],
+      "evidence_type": "browser_network_surface"
+    },
+    {
+      "case_id": "jkanime_fate_stay_night",
+      "canonical_title": "Fate/stay night",
+      "canonical_aliases": [],
+      "canonical_year": 2006,
+      "canonical_format": "TV",
+      "category": "grouped_ambiguity",
+      "source": "jkanime",
+      "search_query": "Fate Stay Night",
+      "candidate_rank": 1,
+      "candidate_title": "Fate/stay night",
+      "candidate_url": "https://jkanime.net/fatestay-night/",
+      "observed_format": "TV",
+      "observed_year": null,
+      "label": "match",
+      "decision_bucket": "browser_match",
+      "reasons": [
+        "exact_title",
+        "rank_1",
+        "season_consistent",
+        "type_aligned"
+      ],
+      "evidence_type": "browser_network_surface"
+    },
+    {
+      "case_id": "jkanime_eighty_six_s1",
+      "canonical_title": "86: Eighty Six",
+      "canonical_aliases": [
+        "86 EIGHTY-SIX"
+      ],
+      "canonical_year": 2021,
+      "canonical_format": "TV",
+      "category": "alias_positive",
+      "source": "jkanime",
+      "search_query": "86",
+      "candidate_rank": 2,
+      "candidate_title": "86 EIGHTY SIX",
+      "candidate_url": "https://jkanime.net/86-eighty-six/",
+      "observed_format": "TV",
+      "observed_year": null,
+      "label": "match",
+      "decision_bucket": "browser_match",
+      "reasons": [
+        "exact_title",
+        "rank_2",
+        "season_consistent",
+        "type_aligned",
+        "higher_ranked_competitors_present"
+      ],
+      "evidence_type": "browser_network_surface"
+    },
+    {
+      "case_id": "jkanime_eighty_six_s2",
+      "canonical_title": "86: Eighty Six Part 2",
+      "canonical_aliases": [
+        "86 EIGHTY-SIX Part 2"
+      ],
+      "canonical_year": 2021,
+      "canonical_format": "TV",
+      "category": "sequel_trap",
+      "source": "jkanime",
+      "search_query": "86",
+      "candidate_rank": 1,
+      "candidate_title": "86 2nd Season",
+      "candidate_url": "https://jkanime.net/86-2nd-season/",
+      "observed_format": "TV",
+      "observed_year": null,
+      "label": "match",
+      "decision_bucket": "browser_detail_page_confirmed",
+      "reasons": [
+        "season_entry_confirmed",
+        "rank_1",
+        "season_consistent",
+        "type_aligned",
+        "detail_page_confirmed"
+      ],
+      "evidence_type": "browser_detail_page"
+    },
+    {
+      "case_id": "jkanime_assassination_classroom_s1",
+      "canonical_title": "Ansatsu Kyoushitsu",
+      "canonical_aliases": [
+        "Assassination Classroom"
+      ],
+      "canonical_year": 2015,
+      "canonical_format": "TV",
+      "category": "alias_positive",
+      "source": "jkanime",
+      "search_query": "Assassination Classroom",
+      "candidate_rank": 2,
+      "candidate_title": "Ansatsu Kyoushitsu (TV)",
+      "candidate_url": "https://jkanime.net/ansatsu-kyoushitsu-tv/",
+      "observed_format": "TV",
+      "observed_year": null,
+      "label": "match",
+      "decision_bucket": "browser_match",
+      "reasons": [
+        "exact_title",
+        "rank_2",
+        "season_consistent",
+        "type_aligned",
+        "higher_ranked_competitors_present"
+      ],
+      "evidence_type": "browser_network_surface"
+    },
+    {
+      "case_id": "jkanime_assassination_classroom_s2",
+      "canonical_title": "Ansatsu Kyoushitsu 2nd Season",
+      "canonical_aliases": [
+        "Assassination Classroom Second Season"
+      ],
+      "canonical_year": 2016,
+      "canonical_format": "TV",
+      "category": "sequel_trap",
+      "source": "jkanime",
+      "search_query": "Assassination Classroom",
+      "candidate_rank": 3,
+      "candidate_title": "Ansatsu Kyoushitsu (TV) 2nd Season",
+      "candidate_url": "https://jkanime.net/ansatsu-kyoushitsu-tv-2nd-season/",
+      "observed_format": "TV",
+      "observed_year": null,
+      "label": "match",
+      "decision_bucket": "browser_detail_page_confirmed",
+      "reasons": [
+        "season_entry_confirmed",
+        "rank_3",
+        "season_consistent",
+        "type_aligned",
+        "higher_ranked_competitors_present",
+        "detail_page_confirmed"
+      ],
+      "evidence_type": "browser_detail_page"
+    },
+    {
+      "case_id": "jkanime_blue_box",
+      "canonical_title": "Ao no Hako",
+      "canonical_aliases": [
+        "Blue Box"
+      ],
+      "canonical_year": 2024,
+      "canonical_format": "TV",
+      "category": "alias_positive",
+      "source": "jkanime",
+      "search_query": "Blue Box",
+      "candidate_rank": 1,
+      "candidate_title": "Ao no Hako",
+      "candidate_url": "https://jkanime.net/ao-no-hako/",
+      "observed_format": "TV",
+      "observed_year": null,
+      "label": "match",
+      "decision_bucket": "browser_match",
+      "reasons": [
+        "exact_title",
+        "rank_1",
+        "season_consistent",
+        "type_aligned"
+      ],
+      "evidence_type": "browser_network_surface"
+    },
+    {
+      "case_id": "jkanime_erased",
+      "canonical_title": "Boku dake ga Inai Machi",
+      "canonical_aliases": [
+        "ERASED"
+      ],
+      "canonical_year": 2016,
+      "canonical_format": "TV",
+      "category": "alias_positive",
+      "source": "jkanime",
+      "search_query": "ERASED",
+      "candidate_rank": 1,
+      "candidate_title": "Boku dake ga Inai Machi",
+      "candidate_url": "https://jkanime.net/boku-dake-ga-inai-machi/",
+      "observed_format": "TV",
+      "observed_year": null,
+      "label": "match",
+      "decision_bucket": "browser_match",
+      "reasons": [
+        "exact_title",
+        "rank_1",
+        "season_consistent",
+        "type_aligned"
+      ],
+      "evidence_type": "browser_network_surface"
+    },
+    {
+      "case_id": "jkanime_mha_s1",
+      "canonical_title": "Boku no Hero Academia",
+      "canonical_aliases": [
+        "My Hero Academia"
+      ],
+      "canonical_year": 2016,
+      "canonical_format": "TV",
+      "category": "grouped_ambiguity",
+      "source": "jkanime",
+      "search_query": "My Hero Academia",
+      "candidate_rank": 1,
+      "candidate_title": "Boku no Hero Academia",
+      "candidate_url": "https://jkanime.net/boku-no-hero-academia/",
+      "observed_format": "TV",
+      "observed_year": null,
+      "label": "match",
+      "decision_bucket": "browser_match",
+      "reasons": [
+        "exact_title",
+        "rank_1",
+        "season_consistent",
+        "type_aligned"
+      ],
+      "evidence_type": "browser_network_surface"
+    },
+    {
+      "case_id": "jkanime_mha_s7",
+      "canonical_title": "Boku no Hero Academia 7",
+      "canonical_aliases": [
+        "My Hero Academia Season 7"
+      ],
+      "canonical_year": 2024,
+      "canonical_format": "TV",
+      "category": "sequel_trap",
+      "source": "jkanime",
+      "search_query": "My Hero Academia",
+      "candidate_rank": null,
+      "candidate_title": "Boku no Hero Academia 7th Season",
+      "candidate_url": "https://jkanime.net/boku-no-hero-academia-7th-season/",
+      "observed_format": "TV",
+      "observed_year": null,
+      "label": "match",
+      "decision_bucket": "browser_detail_page_confirmed",
+      "reasons": [
+        "season_entry_confirmed",
+        "season_consistent",
+        "type_aligned",
+        "detail_page_confirmed"
+      ],
+      "evidence_type": "browser_detail_page"
+    },
+    {
+      "case_id": "jkanime_chainsaw_tv",
+      "canonical_title": "Chainsaw Man",
+      "canonical_aliases": [
+        "Chainsaw Man"
+      ],
+      "canonical_year": 2022,
+      "canonical_format": "TV",
+      "category": "movie_vs_tv",
+      "source": "jkanime",
+      "search_query": "Chainsaw Man",
+      "candidate_rank": 1,
+      "candidate_title": "Chainsaw Man",
+      "candidate_url": "https://jkanime.net/chainsaw-man/",
+      "observed_format": "TV",
+      "observed_year": null,
+      "label": "match",
+      "decision_bucket": "browser_match",
+      "reasons": [
+        "exact_title",
+        "rank_1",
+        "season_consistent",
+        "type_aligned"
+      ],
+      "evidence_type": "browser_network_surface"
+    },
+    {
+      "case_id": "jkanime_chainsaw_reze_movie",
+      "canonical_title": "Chainsaw Man: Reze-hen",
+      "canonical_aliases": [
+        "Chainsaw Man - The Movie: Reze Arc"
+      ],
+      "canonical_year": 2025,
+      "canonical_format": "Movie",
+      "category": "movie_vs_tv",
+      "source": "jkanime",
+      "search_query": "Chainsaw Man",
+      "candidate_rank": 1,
+      "candidate_title": "Chainsaw Man",
+      "candidate_url": "https://jkanime.net/chainsaw-man/",
+      "observed_format": "TV",
+      "observed_year": null,
+      "label": "reject",
+      "decision_bucket": "format_conflict",
+      "reasons": [
+        "same_franchise_root",
+        "rank_1",
+        "season_consistent",
+        "format_conflict"
+      ],
+      "evidence_type": "browser_network_surface"
+    },
+    {
+      "case_id": "jkanime_clannad",
+      "canonical_title": "CLANNAD",
+      "canonical_aliases": [
+        "Clannad"
+      ],
+      "canonical_year": 2007,
+      "canonical_format": "TV",
+      "category": "exact_positive",
+      "source": "jkanime",
+      "search_query": "Clannad",
+      "candidate_rank": 1,
+      "candidate_title": "Clannad",
+      "candidate_url": "https://jkanime.net/clannad/",
+      "observed_format": "TV",
+      "observed_year": null,
+      "label": "match",
+      "decision_bucket": "browser_match",
+      "reasons": [
+        "exact_title",
+        "rank_1",
+        "season_consistent",
+        "type_aligned"
+      ],
+      "evidence_type": "browser_network_surface"
+    },
+    {
+      "case_id": "jkanime_clannad_after_story",
+      "canonical_title": "CLANNAD: After Story",
+      "canonical_aliases": [
+        "Clannad: After Story"
+      ],
+      "canonical_year": 2008,
+      "canonical_format": "TV",
+      "category": "grouped_ambiguity",
+      "source": "jkanime",
+      "search_query": "Clannad",
+      "candidate_rank": 2,
+      "candidate_title": "Clannad: After Story",
+      "candidate_url": "https://jkanime.net/clannad-after-story/",
+      "observed_format": "TV",
+      "observed_year": null,
+      "label": "match",
+      "decision_bucket": "browser_match",
+      "reasons": [
+        "exact_title",
+        "rank_2",
+        "season_consistent",
+        "type_aligned",
+        "higher_ranked_competitors_present"
+      ],
+      "evidence_type": "browser_network_surface"
+    },
+    {
+      "case_id": "jkanime_code_geass",
+      "canonical_title": "Code Geass: Hangyaku no Lelouch",
+      "canonical_aliases": [
+        "Code Geass: Lelouch of the Rebellion"
+      ],
+      "canonical_year": 2006,
+      "canonical_format": "TV",
+      "category": "alias_positive",
+      "source": "jkanime",
+      "search_query": "Code Geass",
+      "candidate_rank": 4,
+      "candidate_title": "Code Geass: Hangyaku no Lelouch",
+      "candidate_url": "https://jkanime.net/code-geass-hangyaku-no-lelouch/",
+      "observed_format": "TV",
+      "observed_year": null,
+      "label": "match",
+      "decision_bucket": "browser_match",
+      "reasons": [
+        "exact_title",
+        "rank_4",
+        "season_consistent",
+        "type_aligned",
+        "higher_ranked_competitors_present"
+      ],
+      "evidence_type": "browser_network_surface"
+    },
+    {
+      "case_id": "jkanime_cowboy_bebop",
+      "canonical_title": "Cowboy Bebop",
+      "canonical_aliases": [
+        "Cowboy Bebop"
+      ],
+      "canonical_year": 1998,
+      "canonical_format": "TV",
+      "category": "exact_positive",
+      "source": "jkanime",
+      "search_query": "Cowboy Bebop",
+      "candidate_rank": 1,
+      "candidate_title": "Cowboy Bebop",
+      "candidate_url": "https://jkanime.net/cowboy-bebop/",
+      "observed_format": "TV",
+      "observed_year": null,
+      "label": "match",
+      "decision_bucket": "browser_match",
+      "reasons": [
+        "exact_title",
+        "rank_1",
+        "season_consistent",
+        "type_aligned"
+      ],
+      "evidence_type": "browser_network_surface"
+    },
+    {
+      "case_id": "jkanime_dandadan_s1",
+      "canonical_title": "Dandadan",
+      "canonical_aliases": [
+        "DAN DA DAN"
+      ],
+      "canonical_year": 2024,
+      "canonical_format": "TV",
+      "category": "exact_positive",
+      "source": "jkanime",
+      "search_query": "Dandadan",
+      "candidate_rank": 1,
+      "candidate_title": "Dandadan",
+      "candidate_url": "https://jkanime.net/dandadan/",
+      "observed_format": "TV",
+      "observed_year": null,
+      "label": "match",
+      "decision_bucket": "browser_match",
+      "reasons": [
+        "exact_title",
+        "rank_1",
+        "season_consistent",
+        "type_aligned"
+      ],
+      "evidence_type": "browser_network_surface"
+    },
+    {
+      "case_id": "jkanime_dandadan_s2",
+      "canonical_title": "Dandadan 2nd Season",
+      "canonical_aliases": [
+        "DAN DA DAN Season 2"
+      ],
+      "canonical_year": 2025,
+      "canonical_format": "TV",
+      "category": "sequel_trap",
+      "source": "jkanime",
+      "search_query": "Dandadan",
+      "candidate_rank": 2,
+      "candidate_title": "Dandadan 2nd Season",
+      "candidate_url": "https://jkanime.net/dandadan-2nd-season/",
+      "observed_format": "TV",
+      "observed_year": null,
+      "label": "match",
+      "decision_bucket": "browser_match",
+      "reasons": [
+        "exact_title",
+        "rank_2",
+        "season_consistent",
+        "type_aligned",
+        "higher_ranked_competitors_present"
+      ],
+      "evidence_type": "browser_network_surface"
+    },
+    {
+      "case_id": "jkanime_darling_franxx",
+      "canonical_title": "Darling in the Franxx",
+      "canonical_aliases": [
+        "DARLING in the FRANXX"
+      ],
+      "canonical_year": 2018,
+      "canonical_format": "TV",
+      "category": "exact_positive",
+      "source": "jkanime",
+      "search_query": "Darling in the Franxx",
+      "candidate_rank": 1,
+      "candidate_title": "Darling in the FranXX",
+      "candidate_url": "https://jkanime.net/darling-in-the-franxx/",
+      "observed_format": "TV",
+      "observed_year": null,
+      "label": "match",
+      "decision_bucket": "browser_match",
+      "reasons": [
+        "exact_title",
+        "rank_1",
+        "season_consistent",
+        "type_aligned"
+      ],
+      "evidence_type": "browser_network_surface"
+    },
+    {
+      "case_id": "jkanime_black_clover",
+      "canonical_title": "Black Clover",
+      "canonical_aliases": [
+        "Black Clover"
+      ],
+      "canonical_year": 2017,
+      "canonical_format": "TV",
+      "category": "exact_positive",
+      "source": "jkanime",
+      "search_query": "Black Clover",
+      "candidate_rank": 1,
+      "candidate_title": "Black Clover (TV)",
+      "candidate_url": "https://jkanime.net/black-clover-tv/",
+      "observed_format": "TV",
+      "observed_year": null,
+      "label": "match",
+      "decision_bucket": "browser_match",
+      "reasons": [
+        "exact_title",
+        "rank_1",
+        "season_consistent",
+        "type_aligned"
+      ],
+      "evidence_type": "browser_network_surface"
+    },
+    {
+      "case_id": "jkanime_bleach",
+      "canonical_title": "BLEACH",
+      "canonical_aliases": [
+        "Bleach"
+      ],
+      "canonical_year": 2004,
+      "canonical_format": "TV",
+      "category": "exact_positive",
+      "source": "jkanime",
+      "search_query": "Bleach",
+      "candidate_rank": 1,
+      "candidate_title": "Bleach",
+      "candidate_url": "https://jkanime.net/bleach/",
+      "observed_format": "TV",
+      "observed_year": null,
+      "label": "match",
+      "decision_bucket": "browser_match",
+      "reasons": [
+        "exact_title",
+        "rank_1",
+        "season_consistent",
+        "type_aligned"
+      ],
+      "evidence_type": "browser_network_surface"
+    },
+    {
+      "case_id": "jkanime_cyberpunk_edgerunners",
+      "canonical_title": "Cyberpunk: Edgerunners",
+      "canonical_aliases": [
+        "Cyberpunk: Edgerunners"
+      ],
+      "canonical_year": 2022,
+      "canonical_format": "ONA",
+      "category": "alias_positive",
+      "source": "jkanime",
+      "search_query": "Cyberpunk",
+      "candidate_rank": 1,
+      "candidate_title": "Cyberpunk: Edgerunners",
+      "candidate_url": "https://jkanime.net/cyberpunk-edgerunners/",
+      "observed_format": "ONA",
+      "observed_year": null,
+      "label": "match",
+      "decision_bucket": "browser_match",
+      "reasons": [
+        "exact_title",
+        "rank_1",
+        "season_consistent",
+        "type_aligned"
+      ],
+      "evidence_type": "browser_network_surface"
+    },
+    {
+      "case_id": "jkanime_akame_ga_kill",
+      "canonical_title": "Akame ga Kill!",
+      "canonical_aliases": [
+        "Akame ga Kill!"
+      ],
+      "canonical_year": 2014,
+      "canonical_format": "TV",
+      "category": "exact_positive",
+      "source": "jkanime",
+      "search_query": "Akame ga Kill",
+      "candidate_rank": 1,
+      "candidate_title": "Akame ga Kill!",
+      "candidate_url": "https://jkanime.net/akame-ga-kill/",
+      "observed_format": "TV",
+      "observed_year": null,
+      "label": "match",
+      "decision_bucket": "browser_match",
+      "reasons": [
+        "exact_title",
+        "rank_1",
+        "season_consistent",
+        "type_aligned"
+      ],
+      "evidence_type": "browser_network_surface"
+    },
+    {
+      "case_id": "jkanime_bakemonogatari",
+      "canonical_title": "Bakemonogatari",
+      "canonical_aliases": [
+        "Bakemonogatari"
+      ],
+      "canonical_year": 2009,
+      "canonical_format": "TV",
+      "category": "exact_positive",
+      "source": "jkanime",
+      "search_query": "Bakemonogatari",
+      "candidate_rank": 1,
+      "candidate_title": "Bakemonogatari",
+      "candidate_url": "https://jkanime.net/bakemonogatari/",
+      "observed_format": "TV",
+      "observed_year": null,
+      "label": "match",
+      "decision_bucket": "browser_match",
+      "reasons": [
+        "exact_title",
+        "rank_1",
+        "season_consistent",
+        "type_aligned"
+      ],
+      "evidence_type": "browser_network_surface"
+    },
+    {
+      "case_id": "jkanime_orb_movements",
+      "canonical_title": "Chi. Chikyuu no Undou ni Tsuite",
+      "canonical_aliases": [
+        "Orb: On the Movements of the Earth"
+      ],
+      "canonical_year": 2024,
+      "canonical_format": "TV",
+      "category": "alias_positive",
+      "source": "jkanime",
+      "search_query": "Orb",
+      "candidate_rank": 1,
+      "candidate_title": "Chi.: Chikyuu no Undou ni Tsuite",
+      "candidate_url": "https://jkanime.net/chi-chikyuu-no-undou-ni-tsuite/",
+      "observed_format": "TV",
+      "observed_year": null,
+      "label": "match",
+      "decision_bucket": "browser_match",
+      "reasons": [
+        "exact_title",
+        "rank_1",
+        "season_consistent",
+        "type_aligned"
+      ],
+      "evidence_type": "browser_network_surface"
+    },
+    {
+      "case_id": "jkanime_boruto",
+      "canonical_title": "Boruto: Naruto Next Generations",
+      "canonical_aliases": [
+        "Boruto"
+      ],
+      "canonical_year": 2017,
+      "canonical_format": "TV",
+      "category": "exact_positive",
+      "source": "jkanime",
+      "search_query": "Boruto",
+      "candidate_rank": 1,
+      "candidate_title": "Boruto: Naruto Next Generations",
+      "candidate_url": "https://jkanime.net/boruto-naruto-next-generations/",
+      "observed_format": "TV",
+      "observed_year": null,
+      "label": "match",
+      "decision_bucket": "browser_match",
+      "reasons": [
+        "exact_title",
+        "rank_1",
+        "season_consistent",
+        "type_aligned"
+      ],
+      "evidence_type": "browser_network_surface"
+    },
+    {
+      "case_id": "jkanime_kimetsu_mugen_movie",
+      "canonical_title": "Kimetsu no Yaiba Movie: Mugen Ressha-hen",
+      "canonical_aliases": [
+        "Demon Slayer: Mugen Train"
+      ],
+      "canonical_year": 2020,
+      "canonical_format": "Movie",
+      "category": "movie_vs_tv",
+      "source": "jkanime",
+      "search_query": "Demon Slayer",
+      "candidate_rank": 3,
+      "candidate_title": "Kimetsu no Yaiba Movie: Mugen Ressha-hen",
+      "candidate_url": "https://jkanime.net/kimetsu-no-yaiba-movie-mugen-ressha-hen/",
+      "observed_format": "Movie",
+      "observed_year": null,
+      "label": "match",
+      "decision_bucket": "browser_match",
+      "reasons": [
+        "exact_title",
+        "rank_3",
+        "season_consistent",
+        "type_aligned",
+        "higher_ranked_competitors_present"
+      ],
+      "evidence_type": "browser_network_surface"
+    },
+    {
+      "case_id": "jkanime_jujutsu_s1",
+      "canonical_title": "Jujutsu Kaisen",
+      "canonical_aliases": [
+        "Jujutsu Kaisen"
+      ],
+      "canonical_year": 2020,
+      "canonical_format": "TV",
+      "category": "exact_positive",
+      "source": "jkanime",
+      "search_query": "Jujutsu Kaisen",
+      "candidate_rank": 1,
+      "candidate_title": "Jujutsu Kaisen (TV)",
+      "candidate_url": "https://jkanime.net/jujutsu-kaisen-tv/",
+      "observed_format": "TV",
+      "observed_year": null,
+      "label": "match",
+      "decision_bucket": "browser_match",
+      "reasons": [
+        "exact_title",
+        "rank_1",
+        "season_consistent",
+        "type_aligned"
+      ],
+      "evidence_type": "browser_network_surface"
+    },
+    {
+      "case_id": "jkanime_jujutsu_s2",
+      "canonical_title": "Jujutsu Kaisen 2nd Season",
+      "canonical_aliases": [
+        "Jujutsu Kaisen Season 2"
+      ],
+      "canonical_year": 2023,
+      "canonical_format": "TV",
+      "category": "sequel_trap",
+      "source": "jkanime",
+      "search_query": "Jujutsu Kaisen",
+      "candidate_rank": 3,
+      "candidate_title": "Jujutsu Kaisen 2nd Season",
+      "candidate_url": "https://jkanime.net/jujutsu-kaisen-2nd-season/",
+      "observed_format": "TV",
+      "observed_year": null,
+      "label": "match",
+      "decision_bucket": "browser_match",
+      "reasons": [
+        "exact_title",
+        "rank_3",
+        "season_consistent",
+        "type_aligned",
+        "higher_ranked_competitors_present"
+      ],
+      "evidence_type": "browser_network_surface"
+    },
+    {
+      "case_id": "jkanime_spy_family_s1",
+      "canonical_title": "Spy x Family",
+      "canonical_aliases": [
+        "SPY x FAMILY"
+      ],
+      "canonical_year": 2022,
+      "canonical_format": "TV",
+      "category": "exact_positive",
+      "source": "jkanime",
+      "search_query": "Spy x Family",
+      "candidate_rank": 1,
+      "candidate_title": "Spy x Family",
+      "candidate_url": "https://jkanime.net/spy-x-family/",
+      "observed_format": "TV",
+      "observed_year": null,
+      "label": "match",
+      "decision_bucket": "browser_match",
+      "reasons": [
+        "exact_title",
+        "rank_1",
+        "season_consistent",
+        "type_aligned"
+      ],
+      "evidence_type": "browser_network_surface"
+    },
+    {
+      "case_id": "jkanime_spy_family_s2",
+      "canonical_title": "Spy x Family Season 2",
+      "canonical_aliases": [
+        "SPY x FAMILY Season 2"
+      ],
+      "canonical_year": 2023,
+      "canonical_format": "TV",
+      "category": "sequel_trap",
+      "source": "jkanime",
+      "search_query": "Spy x Family",
+      "candidate_rank": 4,
+      "candidate_title": "Spy x Family Season 2",
+      "candidate_url": "https://jkanime.net/spy-x-family-season-2/",
+      "observed_format": "TV",
+      "observed_year": null,
+      "label": "match",
+      "decision_bucket": "browser_match",
+      "reasons": [
+        "exact_title",
+        "rank_4",
+        "season_consistent",
+        "type_aligned",
+        "higher_ranked_competitors_present"
+      ],
+      "evidence_type": "browser_network_surface"
+    },
+    {
+      "case_id": "jkanime_koe_no_katachi",
+      "canonical_title": "Koe no Katachi",
+      "canonical_aliases": [
+        "A Silent Voice"
+      ],
+      "canonical_year": 2016,
+      "canonical_format": "Movie",
+      "category": "movie_vs_tv",
+      "source": "jkanime",
+      "search_query": "A Silent Voice",
+      "candidate_rank": 1,
+      "candidate_title": "Koe no Katachi",
+      "candidate_url": "https://jkanime.net/koe-no-katachi/",
+      "observed_format": "Movie",
+      "observed_year": null,
+      "label": "match",
+      "decision_bucket": "browser_match",
+      "reasons": [
+        "exact_title",
+        "rank_1",
+        "season_consistent",
+        "type_aligned"
+      ],
+      "evidence_type": "browser_network_surface"
+    },
+    {
+      "case_id": "jkanime_one_piece",
+      "canonical_title": "One Piece",
+      "canonical_aliases": [
+        "One Piece"
+      ],
+      "canonical_year": 1999,
+      "canonical_format": "TV",
+      "category": "exact_positive",
+      "source": "jkanime",
+      "search_query": "One Piece",
+      "candidate_rank": 1,
+      "candidate_title": "One Piece",
+      "candidate_url": "https://jkanime.net/one-piece/",
+      "observed_format": "TV",
+      "observed_year": null,
+      "label": "match",
+      "decision_bucket": "browser_match",
+      "reasons": [
+        "exact_title",
+        "rank_1",
+        "season_consistent",
+        "type_aligned"
+      ],
+      "evidence_type": "browser_network_surface"
+    },
+    {
+      "case_id": "jkanime_baki_dou",
+      "canonical_title": "BAKI-DOU",
+      "canonical_aliases": [
+        "BAKI-DOU: The Invincible Samurai"
+      ],
+      "canonical_year": 2026,
+      "canonical_format": "ONA",
+      "category": "failed_or_empty",
+      "source": "jkanime",
+      "search_query": "Baki Dou",
+      "candidate_rank": 1,
+      "candidate_title": "Baki-dou",
+      "candidate_url": "https://jkanime.net/baki-dou/",
+      "observed_format": "ONA",
+      "observed_year": null,
+      "label": "match",
+      "decision_bucket": "browser_match",
+      "reasons": [
+        "exact_title",
+        "rank_1",
+        "season_consistent",
+        "type_aligned"
+      ],
+      "evidence_type": "browser_network_surface"
+    },
+    {
+      "case_id": "jkanime_dark_moon",
+      "canonical_title": "DARK MOON: Kuro no Tsuki - Tsuki no Saidan",
+      "canonical_aliases": [
+        "DARK MOON: THE BLOOD ALTAR"
+      ],
+      "canonical_year": 2026,
+      "canonical_format": "TV",
+      "category": "failed_or_empty",
+      "source": "jkanime",
+      "search_query": "DARK MOON",
+      "candidate_rank": 1,
+      "candidate_title": "Dark Moon: Tsuki no Saidan",
+      "candidate_url": "https://jkanime.net/dark-moon-tsuki-no-saidan/",
+      "observed_format": "TV",
+      "observed_year": null,
+      "label": "reject",
+      "decision_bucket": "franchise_false_positive",
+      "reasons": [
+        "rank_1",
+        "season_consistent",
+        "type_aligned",
+        "no_exact_or_alias_candidate"
+      ],
+      "evidence_type": "browser_network_surface"
+    },
+    {
+      "case_id": "jkanime_roll_over_and_die",
+      "canonical_title": "\"Omae Gotoki ga Maou ni Kateru to Omou na\" to Yuusha Party wo Tsuihou Sareta node, Outo de Kimama ni Kurashitai",
+      "canonical_aliases": [
+        "ROLL OVER AND DIE: I Will Fight for an Ordinary Life with My Love and Cursed Sword!"
+      ],
+      "canonical_year": 2026,
+      "canonical_format": "TV",
+      "category": "failed_or_empty",
+      "source": "jkanime",
+      "search_query": "Roll Over and Die",
+      "candidate_rank": 1,
+      "candidate_title": "\"Omae Gotoki ga Maou ni Kateru to Omouna\" to Yuusha Party wo Tsuihou sareta node, Outo de Kimama ni Kurashitai",
+      "candidate_url": "https://jkanime.net/omae-gotoki-ga-maou-ni-kateru-to-omouna-to-yuusha-party-wo-tsuihou-sareta-node-outo-de-kimama-ni-kurashitai/",
+      "observed_format": "TV",
+      "observed_year": null,
+      "label": "reject",
+      "decision_bucket": "franchise_false_positive",
+      "reasons": [
+        "rank_1",
+        "season_consistent",
+        "type_aligned",
+        "no_exact_or_alias_candidate"
+      ],
+      "evidence_type": "browser_network_surface"
+    },
+    {
+      "case_id": "animeflv_frieren_s1",
+      "canonical_title": "Sousou no Frieren",
+      "canonical_aliases": [
+        "Frieren: Beyond Journey's End"
+      ],
+      "canonical_year": 2023,
+      "canonical_format": "TV",
+      "category": "alias_positive",
+      "source": "animeflv",
+      "search_query": "Frieren",
+      "candidate_rank": 1,
+      "candidate_title": "Sousou no Frieren",
+      "candidate_url": "https://www4.animeflv.net/anime/sousou-no-frieren",
+      "observed_format": "TV",
+      "observed_year": null,
+      "label": "match",
+      "decision_bucket": "browser_match",
+      "reasons": [
+        "exact_title",
+        "rank_1",
+        "season_consistent",
+        "type_aligned"
+      ],
+      "evidence_type": "browser_network_surface"
+    },
+    {
+      "case_id": "animeflv_frieren_s2",
+      "canonical_title": "Sousou no Frieren 2nd Season",
+      "canonical_aliases": [
+        "Frieren: Beyond Journey's End Season 2"
+      ],
+      "canonical_year": 2026,
+      "canonical_format": "TV",
+      "category": "sequel_trap",
+      "source": "animeflv",
+      "search_query": "Frieren",
+      "candidate_rank": 2,
+      "candidate_title": "Sousou no Frieren 2nd Season",
+      "candidate_url": "https://www4.animeflv.net/anime/sousou-no-frieren-2nd-season",
+      "observed_format": "TV",
+      "observed_year": null,
+      "label": "match",
+      "decision_bucket": "browser_match",
+      "reasons": [
+        "exact_title",
+        "rank_2",
+        "season_consistent",
+        "type_aligned",
+        "higher_ranked_competitors_present"
+      ],
+      "evidence_type": "browser_network_surface"
+    },
+    {
+      "case_id": "animeflv_oshi_base",
+      "canonical_title": "[Oshi no Ko]",
+      "canonical_aliases": [
+        "Oshi No Ko",
+        "【推しの子】"
+      ],
+      "canonical_year": 2023,
+      "canonical_format": "TV",
+      "category": "grouped_ambiguity",
+      "source": "animeflv",
+      "search_query": "Oshi no Ko",
+      "candidate_rank": 1,
+      "candidate_title": "[Oshi No Ko]",
+      "candidate_url": "https://www4.animeflv.net/anime/oshi-no-ko",
+      "observed_format": "TV",
+      "observed_year": null,
+      "label": "match",
+      "decision_bucket": "browser_match",
+      "reasons": [
+        "exact_title",
+        "rank_1",
+        "season_consistent",
+        "type_aligned"
+      ],
+      "evidence_type": "browser_network_surface"
+    },
+    {
+      "case_id": "animeflv_oshi_s2",
+      "canonical_title": "Oshi no Ko 2nd Season",
+      "canonical_aliases": [
+        "[Oshi No Ko] Season 2"
+      ],
+      "canonical_year": 2024,
+      "canonical_format": "TV",
+      "category": "grouped_ambiguity",
+      "source": "animeflv",
+      "search_query": "Oshi no Ko",
+      "candidate_rank": 1,
+      "candidate_title": "[Oshi No Ko]",
+      "candidate_url": "https://www4.animeflv.net/anime/oshi-no-ko",
+      "observed_format": "TV",
+      "observed_year": null,
+      "label": "match",
+      "decision_bucket": "grouped_catalog_entry_confirmed",
+      "reasons": [
+        "grouped_catalog_entry",
+        "rank_1",
+        "type_aligned",
+        "season_content_confirmed"
+      ],
+      "evidence_type": "browser_detail_page"
+    },
+    {
+      "case_id": "animeflv_oshi_s3",
+      "canonical_title": "[Oshi no Ko] 3rd Season",
+      "canonical_aliases": [
+        "【OSHI NO KO】Season 3"
+      ],
+      "canonical_year": 2026,
+      "canonical_format": "TV",
+      "category": "sequel_trap",
+      "source": "animeflv",
+      "search_query": "Oshi no Ko",
+      "candidate_rank": 1,
+      "candidate_title": "[Oshi No Ko]",
+      "candidate_url": "https://www4.animeflv.net/anime/oshi-no-ko",
+      "observed_format": "TV",
+      "observed_year": null,
+      "label": "match",
+      "decision_bucket": "grouped_catalog_entry_confirmed",
+      "reasons": [
+        "grouped_catalog_entry",
+        "rank_1",
+        "type_aligned",
+        "season_content_confirmed"
+      ],
+      "evidence_type": "browser_detail_page"
+    },
+    {
+      "case_id": "animeflv_naruto",
+      "canonical_title": "Naruto",
+      "canonical_aliases": [],
+      "canonical_year": 2002,
+      "canonical_format": "TV",
+      "category": "sequel_trap",
+      "source": "animeflv",
+      "search_query": "Naruto",
+      "candidate_rank": 1,
+      "candidate_title": "Naruto",
+      "candidate_url": "https://www4.animeflv.net/anime/naruto",
+      "observed_format": "TV",
+      "observed_year": null,
+      "label": "match",
+      "decision_bucket": "browser_match",
+      "reasons": [
+        "exact_title",
+        "rank_1",
+        "season_consistent",
+        "type_aligned"
+      ],
+      "evidence_type": "browser_network_surface"
+    },
+    {
+      "case_id": "animeflv_kimetsu_tv",
+      "canonical_title": "Kimetsu no Yaiba",
+      "canonical_aliases": [
+        "Demon Slayer"
+      ],
+      "canonical_year": 2019,
+      "canonical_format": "TV",
+      "category": "alias_positive",
+      "source": "animeflv",
+      "search_query": "Demon Slayer",
+      "candidate_rank": 1,
+      "candidate_title": "Kimetsu no Yaiba",
+      "candidate_url": "https://www4.animeflv.net/anime/kimetsu-no-yaiba",
+      "observed_format": "TV",
+      "observed_year": null,
+      "label": "match",
+      "decision_bucket": "browser_match",
+      "reasons": [
+        "exact_title",
+        "rank_1",
+        "season_consistent",
+        "type_aligned"
+      ],
+      "evidence_type": "browser_network_surface"
+    },
+    {
+      "case_id": "animeflv_pokemon_2023",
+      "canonical_title": "Pocket Monsters (2023)",
+      "canonical_aliases": [
+        "Pokemon (Shinsaku Anime)",
+        "Pokemon Horizons: The Series"
+      ],
+      "canonical_year": 2023,
+      "canonical_format": "TV",
+      "category": "failed_or_empty",
+      "source": "animeflv",
+      "search_query": "Pokemon",
+      "candidate_rank": 3,
+      "candidate_title": "Pokemon",
+      "candidate_url": "https://www4.animeflv.net/anime/pokemon",
+      "observed_format": "TV",
+      "observed_year": null,
+      "label": "match",
+      "decision_bucket": "browser_match",
+      "reasons": [
+        "alias_match",
+        "rank_3",
+        "season_consistent",
+        "type_aligned",
+        "higher_ranked_competitors_present"
+      ],
+      "evidence_type": "browser_network_surface"
+    },
+    {
+      "case_id": "animeflv_suzume_movie",
+      "canonical_title": "Suzume no Tojimari",
+      "canonical_aliases": [
+        "Suzume"
+      ],
+      "canonical_year": 2022,
+      "canonical_format": "Movie",
+      "category": "movie_vs_tv",
+      "source": "animeflv",
+      "search_query": "Suzume",
+      "candidate_rank": null,
+      "candidate_title": null,
+      "candidate_url": null,
+      "observed_format": null,
+      "observed_year": null,
+      "label": "search_failed_query_strategy",
+      "decision_bucket": "alias_query_no_candidates",
+      "reasons": [
+        "no_candidates_returned"
+      ],
+      "evidence_type": "browser_network_surface"
+    },
+    {
+      "case_id": "animeflv_fate_stay_night",
+      "canonical_title": "Fate/stay night",
+      "canonical_aliases": [],
+      "canonical_year": 2006,
+      "canonical_format": "TV",
+      "category": "grouped_ambiguity",
+      "source": "animeflv",
+      "search_query": "Fate Stay Night",
+      "candidate_rank": 2,
+      "candidate_title": "Fate Stay Night",
+      "candidate_url": "https://www4.animeflv.net/anime/fate-stay-night",
+      "observed_format": "TV",
+      "observed_year": null,
+      "label": "match",
+      "decision_bucket": "browser_match",
+      "reasons": [
+        "exact_title",
+        "rank_2",
+        "season_consistent",
+        "type_aligned",
+        "higher_ranked_competitors_present"
+      ],
+      "evidence_type": "browser_network_surface"
+    },
+    {
+      "case_id": "animeflv_eighty_six_s1",
+      "canonical_title": "86: Eighty Six",
+      "canonical_aliases": [
+        "86 EIGHTY-SIX"
+      ],
+      "canonical_year": 2021,
+      "canonical_format": "TV",
+      "category": "alias_positive",
+      "source": "animeflv",
+      "search_query": "86",
+      "candidate_rank": null,
+      "candidate_title": null,
+      "candidate_url": null,
+      "observed_format": null,
+      "observed_year": null,
+      "label": "search_failed_query_strategy",
+      "decision_bucket": "alias_query_no_candidates",
+      "reasons": [
+        "no_candidates_returned"
+      ],
+      "evidence_type": "browser_network_surface"
+    },
+    {
+      "case_id": "animeflv_eighty_six_s2",
+      "canonical_title": "86: Eighty Six Part 2",
+      "canonical_aliases": [
+        "86 EIGHTY-SIX Part 2"
+      ],
+      "canonical_year": 2021,
+      "canonical_format": "TV",
+      "category": "sequel_trap",
+      "source": "animeflv",
+      "search_query": "86",
+      "candidate_rank": null,
+      "candidate_title": null,
+      "candidate_url": null,
+      "observed_format": null,
+      "observed_year": null,
+      "label": "search_failed_query_strategy",
+      "decision_bucket": "alias_query_no_candidates",
+      "reasons": [
+        "no_candidates_returned"
+      ],
+      "evidence_type": "browser_network_surface"
+    },
+    {
+      "case_id": "animeflv_assassination_classroom_s1",
+      "canonical_title": "Ansatsu Kyoushitsu",
+      "canonical_aliases": [
+        "Assassination Classroom"
+      ],
+      "canonical_year": 2015,
+      "canonical_format": "TV",
+      "category": "alias_positive",
+      "source": "animeflv",
+      "search_query": "Assassination Classroom",
+      "candidate_rank": null,
+      "candidate_title": null,
+      "candidate_url": null,
+      "observed_format": null,
+      "observed_year": null,
+      "label": "search_failed_query_strategy",
+      "decision_bucket": "alias_query_no_candidates",
+      "reasons": [
+        "no_candidates_returned"
+      ],
+      "evidence_type": "browser_network_surface"
+    },
+    {
+      "case_id": "animeflv_assassination_classroom_s2",
+      "canonical_title": "Ansatsu Kyoushitsu 2nd Season",
+      "canonical_aliases": [
+        "Assassination Classroom Second Season"
+      ],
+      "canonical_year": 2016,
+      "canonical_format": "TV",
+      "category": "sequel_trap",
+      "source": "animeflv",
+      "search_query": "Assassination Classroom",
+      "candidate_rank": null,
+      "candidate_title": null,
+      "candidate_url": null,
+      "observed_format": null,
+      "observed_year": null,
+      "label": "search_failed_query_strategy",
+      "decision_bucket": "alias_query_no_candidates",
+      "reasons": [
+        "no_candidates_returned"
+      ],
+      "evidence_type": "browser_network_surface"
+    },
+    {
+      "case_id": "animeflv_blue_box",
+      "canonical_title": "Ao no Hako",
+      "canonical_aliases": [
+        "Blue Box"
+      ],
+      "canonical_year": 2024,
+      "canonical_format": "TV",
+      "category": "alias_positive",
+      "source": "animeflv",
+      "search_query": "Blue Box",
+      "candidate_rank": 1,
+      "candidate_title": "Ao no Hako",
+      "candidate_url": "https://www4.animeflv.net/anime/ao-no-hako",
+      "observed_format": "TV",
+      "observed_year": null,
+      "label": "match",
+      "decision_bucket": "browser_match",
+      "reasons": [
+        "exact_title",
+        "rank_1",
+        "season_consistent",
+        "type_aligned"
+      ],
+      "evidence_type": "browser_network_surface"
+    },
+    {
+      "case_id": "animeflv_erased",
+      "canonical_title": "Boku dake ga Inai Machi",
+      "canonical_aliases": [
+        "ERASED"
+      ],
+      "canonical_year": 2016,
+      "canonical_format": "TV",
+      "category": "alias_positive",
+      "source": "animeflv",
+      "search_query": "ERASED",
+      "candidate_rank": null,
+      "candidate_title": null,
+      "candidate_url": null,
+      "observed_format": null,
+      "observed_year": null,
+      "label": "search_failed_query_strategy",
+      "decision_bucket": "alias_query_no_candidates",
+      "reasons": [
+        "no_candidates_returned"
+      ],
+      "evidence_type": "browser_network_surface"
+    },
+    {
+      "case_id": "animeflv_mha_s1",
+      "canonical_title": "Boku no Hero Academia",
+      "canonical_aliases": [
+        "My Hero Academia"
+      ],
+      "canonical_year": 2016,
+      "canonical_format": "TV",
+      "category": "grouped_ambiguity",
+      "source": "animeflv",
+      "search_query": "My Hero Academia",
+      "candidate_rank": 1,
+      "candidate_title": "Boku no Hero Academia 4th Season",
+      "candidate_url": "https://www4.animeflv.net/anime/boku-no-hero-academia-4th-season",
+      "observed_format": "TV",
+      "observed_year": null,
+      "label": "review_needed",
+      "decision_bucket": "grouped_or_franchise_ambiguity",
+      "reasons": [
+        "same_franchise_root",
+        "rank_1",
+        "type_aligned",
+        "needs_detail_confirmation"
+      ],
+      "evidence_type": "browser_network_surface"
+    },
+    {
+      "case_id": "animeflv_mha_s7",
+      "canonical_title": "Boku no Hero Academia 7",
+      "canonical_aliases": [
+        "My Hero Academia Season 7"
+      ],
+      "canonical_year": 2024,
+      "canonical_format": "TV",
+      "category": "sequel_trap",
+      "source": "animeflv",
+      "search_query": "My Hero Academia",
+      "candidate_rank": null,
+      "candidate_title": "Boku no Hero Academia 7th Season",
+      "candidate_url": "https://www4.animeflv.net/anime/boku-no-hero-academia-7th-season",
+      "observed_format": "TV",
+      "observed_year": null,
+      "label": "match",
+      "decision_bucket": "browser_detail_page_confirmed",
+      "reasons": [
+        "season_entry_confirmed",
+        "type_aligned",
+        "detail_page_confirmed"
+      ],
+      "evidence_type": "browser_detail_page"
+    },
+    {
+      "case_id": "animeflv_chainsaw_tv",
+      "canonical_title": "Chainsaw Man",
+      "canonical_aliases": [
+        "Chainsaw Man"
+      ],
+      "canonical_year": 2022,
+      "canonical_format": "TV",
+      "category": "movie_vs_tv",
+      "source": "animeflv",
+      "search_query": "Chainsaw Man",
+      "candidate_rank": 2,
+      "candidate_title": "Chainsaw Man",
+      "candidate_url": "https://www4.animeflv.net/anime/chainsaw-man",
+      "observed_format": "TV",
+      "observed_year": null,
+      "label": "match",
+      "decision_bucket": "browser_match",
+      "reasons": [
+        "exact_title",
+        "rank_2",
+        "season_consistent",
+        "type_aligned",
+        "higher_ranked_competitors_present"
+      ],
+      "evidence_type": "browser_network_surface"
+    },
+    {
+      "case_id": "animeflv_chainsaw_reze_movie",
+      "canonical_title": "Chainsaw Man: Reze-hen",
+      "canonical_aliases": [
+        "Chainsaw Man - The Movie: Reze Arc"
+      ],
+      "canonical_year": 2025,
+      "canonical_format": "Movie",
+      "category": "movie_vs_tv",
+      "source": "animeflv",
+      "search_query": "Chainsaw Man",
+      "candidate_rank": 2,
+      "candidate_title": "Chainsaw Man",
+      "candidate_url": "https://www4.animeflv.net/anime/chainsaw-man",
+      "observed_format": "TV",
+      "observed_year": null,
+      "label": "reject",
+      "decision_bucket": "format_conflict",
+      "reasons": [
+        "same_franchise_root",
+        "rank_2",
+        "season_consistent",
+        "format_conflict",
+        "higher_ranked_competitors_present"
+      ],
+      "evidence_type": "browser_network_surface"
+    },
+    {
+      "case_id": "animeflv_clannad",
+      "canonical_title": "CLANNAD",
+      "canonical_aliases": [
+        "Clannad"
+      ],
+      "canonical_year": 2007,
+      "canonical_format": "TV",
+      "category": "exact_positive",
+      "source": "animeflv",
+      "search_query": "Clannad",
+      "candidate_rank": 1,
+      "candidate_title": "Clannad",
+      "candidate_url": "https://www4.animeflv.net/anime/clannad",
+      "observed_format": "TV",
+      "observed_year": null,
+      "label": "match",
+      "decision_bucket": "browser_match",
+      "reasons": [
+        "exact_title",
+        "rank_1",
+        "season_consistent",
+        "type_aligned"
+      ],
+      "evidence_type": "browser_network_surface"
+    },
+    {
+      "case_id": "animeflv_clannad_after_story",
+      "canonical_title": "CLANNAD: After Story",
+      "canonical_aliases": [
+        "Clannad: After Story"
+      ],
+      "canonical_year": 2008,
+      "canonical_format": "TV",
+      "category": "grouped_ambiguity",
+      "source": "animeflv",
+      "search_query": "Clannad",
+      "candidate_rank": 2,
+      "candidate_title": "Clannad After Story",
+      "candidate_url": "https://www4.animeflv.net/anime/clannad-after-story",
+      "observed_format": "TV",
+      "observed_year": null,
+      "label": "match",
+      "decision_bucket": "browser_match",
+      "reasons": [
+        "exact_title",
+        "rank_2",
+        "season_consistent",
+        "type_aligned",
+        "higher_ranked_competitors_present"
+      ],
+      "evidence_type": "browser_network_surface"
+    },
+    {
+      "case_id": "animeflv_code_geass",
+      "canonical_title": "Code Geass: Hangyaku no Lelouch",
+      "canonical_aliases": [
+        "Code Geass: Lelouch of the Rebellion"
+      ],
+      "canonical_year": 2006,
+      "canonical_format": "TV",
+      "category": "alias_positive",
+      "source": "animeflv",
+      "search_query": "Code Geass",
+      "candidate_rank": 2,
+      "candidate_title": "Code Geass",
+      "candidate_url": "https://www4.animeflv.net/anime/code-geass",
+      "observed_format": "TV",
+      "observed_year": null,
+      "label": "match",
+      "decision_bucket": "browser_detail_page_confirmed",
+      "reasons": [
+        "franchise_title_mapping_confirmed",
+        "rank_2",
+        "season_consistent",
+        "type_aligned",
+        "higher_ranked_competitors_present",
+        "detail_page_confirmed"
+      ],
+      "evidence_type": "browser_detail_page"
+    },
+    {
+      "case_id": "animeflv_cowboy_bebop",
+      "canonical_title": "Cowboy Bebop",
+      "canonical_aliases": [
+        "Cowboy Bebop"
+      ],
+      "canonical_year": 1998,
+      "canonical_format": "TV",
+      "category": "exact_positive",
+      "source": "animeflv",
+      "search_query": "Cowboy Bebop",
+      "candidate_rank": 1,
+      "candidate_title": "Cowboy Bebop",
+      "candidate_url": "https://www4.animeflv.net/anime/cowboy-bebop",
+      "observed_format": "TV",
+      "observed_year": null,
+      "label": "match",
+      "decision_bucket": "browser_match",
+      "reasons": [
+        "exact_title",
+        "rank_1",
+        "season_consistent",
+        "type_aligned"
+      ],
+      "evidence_type": "browser_network_surface"
+    },
+    {
+      "case_id": "animeflv_dandadan_s1",
+      "canonical_title": "Dandadan",
+      "canonical_aliases": [
+        "DAN DA DAN"
+      ],
+      "canonical_year": 2024,
+      "canonical_format": "TV",
+      "category": "exact_positive",
+      "source": "animeflv",
+      "search_query": "Dandadan",
+      "candidate_rank": 1,
+      "candidate_title": "Dandadan",
+      "candidate_url": "https://www4.animeflv.net/anime/dandadan",
+      "observed_format": "TV",
+      "observed_year": null,
+      "label": "match",
+      "decision_bucket": "browser_match",
+      "reasons": [
+        "exact_title",
+        "rank_1",
+        "season_consistent",
+        "type_aligned"
+      ],
+      "evidence_type": "browser_network_surface"
+    },
+    {
+      "case_id": "animeflv_dandadan_s2",
+      "canonical_title": "Dandadan 2nd Season",
+      "canonical_aliases": [
+        "DAN DA DAN Season 2"
+      ],
+      "canonical_year": 2025,
+      "canonical_format": "TV",
+      "category": "sequel_trap",
+      "source": "animeflv",
+      "search_query": "Dandadan",
+      "candidate_rank": 2,
+      "candidate_title": "Dandadan 2nd Season",
+      "candidate_url": "https://www4.animeflv.net/anime/dandadan-2nd-season",
+      "observed_format": "TV",
+      "observed_year": null,
+      "label": "match",
+      "decision_bucket": "browser_match",
+      "reasons": [
+        "exact_title",
+        "rank_2",
+        "season_consistent",
+        "type_aligned",
+        "higher_ranked_competitors_present"
+      ],
+      "evidence_type": "browser_network_surface"
+    },
+    {
+      "case_id": "animeflv_darling_franxx",
+      "canonical_title": "Darling in the Franxx",
+      "canonical_aliases": [
+        "DARLING in the FRANXX"
+      ],
+      "canonical_year": 2018,
+      "canonical_format": "TV",
+      "category": "exact_positive",
+      "source": "animeflv",
+      "search_query": "Darling in the Franxx",
+      "candidate_rank": 1,
+      "candidate_title": "Darling in the FranXX",
+      "candidate_url": "https://www4.animeflv.net/anime/darling-in-the-franxx",
+      "observed_format": "TV",
+      "observed_year": null,
+      "label": "match",
+      "decision_bucket": "browser_match",
+      "reasons": [
+        "exact_title",
+        "rank_1",
+        "season_consistent",
+        "type_aligned"
+      ],
+      "evidence_type": "browser_network_surface"
+    },
+    {
+      "case_id": "animeflv_black_clover",
+      "canonical_title": "Black Clover",
+      "canonical_aliases": [
+        "Black Clover"
+      ],
+      "canonical_year": 2017,
+      "canonical_format": "TV",
+      "category": "exact_positive",
+      "source": "animeflv",
+      "search_query": "Black Clover",
+      "candidate_rank": 2,
+      "candidate_title": "Black Clover (TV)",
+      "candidate_url": "https://www4.animeflv.net/anime/black-clover-tv",
+      "observed_format": "TV",
+      "observed_year": null,
+      "label": "match",
+      "decision_bucket": "browser_match",
+      "reasons": [
+        "exact_title",
+        "rank_2",
+        "season_consistent",
+        "type_aligned",
+        "higher_ranked_competitors_present"
+      ],
+      "evidence_type": "browser_network_surface"
+    },
+    {
+      "case_id": "animeflv_bleach",
+      "canonical_title": "BLEACH",
+      "canonical_aliases": [
+        "Bleach"
+      ],
+      "canonical_year": 2004,
+      "canonical_format": "TV",
+      "category": "exact_positive",
+      "source": "animeflv",
+      "search_query": "Bleach",
+      "candidate_rank": 1,
+      "candidate_title": "Bleach",
+      "candidate_url": "https://www4.animeflv.net/anime/bleach-tv",
+      "observed_format": "TV",
+      "observed_year": null,
+      "label": "match",
+      "decision_bucket": "browser_match",
+      "reasons": [
+        "exact_title",
+        "rank_1",
+        "season_consistent",
+        "type_aligned"
+      ],
+      "evidence_type": "browser_network_surface"
+    },
+    {
+      "case_id": "animeflv_cyberpunk_edgerunners",
+      "canonical_title": "Cyberpunk: Edgerunners",
+      "canonical_aliases": [
+        "Cyberpunk: Edgerunners"
+      ],
+      "canonical_year": 2022,
+      "canonical_format": "ONA",
+      "category": "alias_positive",
+      "source": "animeflv",
+      "search_query": "Cyberpunk",
+      "candidate_rank": 1,
+      "candidate_title": "Cyberpunk: Edgerunners",
+      "candidate_url": "https://www4.animeflv.net/anime/cyberpunk-edgerunners",
+      "observed_format": "OVA",
+      "observed_year": null,
+      "label": "reject",
+      "decision_bucket": "format_conflict",
+      "reasons": [
+        "exact_title",
+        "rank_1",
+        "season_consistent",
+        "format_conflict"
+      ],
+      "evidence_type": "browser_network_surface"
+    },
+    {
+      "case_id": "animeflv_akame_ga_kill",
+      "canonical_title": "Akame ga Kill!",
+      "canonical_aliases": [
+        "Akame ga Kill!"
+      ],
+      "canonical_year": 2014,
+      "canonical_format": "TV",
+      "category": "exact_positive",
+      "source": "animeflv",
+      "search_query": "Akame ga Kill",
+      "candidate_rank": 1,
+      "candidate_title": "Akame ga Kill!",
+      "candidate_url": "https://www4.animeflv.net/anime/akame-ga-kill",
+      "observed_format": "TV",
+      "observed_year": null,
+      "label": "match",
+      "decision_bucket": "browser_match",
+      "reasons": [
+        "exact_title",
+        "rank_1",
+        "season_consistent",
+        "type_aligned"
+      ],
+      "evidence_type": "browser_network_surface"
+    },
+    {
+      "case_id": "animeflv_bakemonogatari",
+      "canonical_title": "Bakemonogatari",
+      "canonical_aliases": [
+        "Bakemonogatari"
+      ],
+      "canonical_year": 2009,
+      "canonical_format": "TV",
+      "category": "exact_positive",
+      "source": "animeflv",
+      "search_query": "Bakemonogatari",
+      "candidate_rank": 1,
+      "candidate_title": "Bakemonogatari",
+      "candidate_url": "https://www4.animeflv.net/anime/bakemonogatari",
+      "observed_format": "TV",
+      "observed_year": null,
+      "label": "match",
+      "decision_bucket": "browser_match",
+      "reasons": [
+        "exact_title",
+        "rank_1",
+        "season_consistent",
+        "type_aligned"
+      ],
+      "evidence_type": "browser_network_surface"
+    },
+    {
+      "case_id": "animeflv_orb_movements",
+      "canonical_title": "Chi. Chikyuu no Undou ni Tsuite",
+      "canonical_aliases": [
+        "Orb: On the Movements of the Earth"
+      ],
+      "canonical_year": 2024,
+      "canonical_format": "TV",
+      "category": "alias_positive",
+      "source": "animeflv",
+      "search_query": "Orb",
+      "candidate_rank": null,
+      "candidate_title": null,
+      "candidate_url": null,
+      "observed_format": null,
+      "observed_year": null,
+      "label": "search_failed_query_strategy",
+      "decision_bucket": "alias_query_no_candidates",
+      "reasons": [
+        "no_candidates_returned"
+      ],
+      "evidence_type": "browser_network_surface"
+    },
+    {
+      "case_id": "animeflv_boruto",
+      "canonical_title": "Boruto: Naruto Next Generations",
+      "canonical_aliases": [
+        "Boruto"
+      ],
+      "canonical_year": 2017,
+      "canonical_format": "TV",
+      "category": "exact_positive",
+      "source": "animeflv",
+      "search_query": "Boruto",
+      "candidate_rank": 2,
+      "candidate_title": "Boruto: Naruto Next Generations",
+      "candidate_url": "https://www4.animeflv.net/anime/boruto-naruto-next-generations-tv",
+      "observed_format": "TV",
+      "observed_year": null,
+      "label": "match",
+      "decision_bucket": "browser_match",
+      "reasons": [
+        "exact_title",
+        "rank_2",
+        "season_consistent",
+        "type_aligned",
+        "higher_ranked_competitors_present"
+      ],
+      "evidence_type": "browser_network_surface"
+    },
+    {
+      "case_id": "animeflv_kimetsu_mugen_movie",
+      "canonical_title": "Kimetsu no Yaiba Movie: Mugen Ressha-hen",
+      "canonical_aliases": [
+        "Demon Slayer: Mugen Train"
+      ],
+      "canonical_year": 2020,
+      "canonical_format": "Movie",
+      "category": "movie_vs_tv",
+      "source": "animeflv",
+      "search_query": "Demon Slayer",
+      "candidate_rank": 1,
+      "candidate_title": "Kimetsu no Yaiba",
+      "candidate_url": "https://www4.animeflv.net/anime/kimetsu-no-yaiba",
+      "observed_format": "TV",
+      "observed_year": null,
+      "label": "reject",
+      "decision_bucket": "format_conflict",
+      "reasons": [
+        "same_franchise_root",
+        "rank_1",
+        "season_consistent",
+        "format_conflict"
+      ],
+      "evidence_type": "browser_network_surface"
+    },
+    {
+      "case_id": "animeflv_jujutsu_s1",
+      "canonical_title": "Jujutsu Kaisen",
+      "canonical_aliases": [
+        "Jujutsu Kaisen"
+      ],
+      "canonical_year": 2020,
+      "canonical_format": "TV",
+      "category": "exact_positive",
+      "source": "animeflv",
+      "search_query": "Jujutsu Kaisen",
+      "candidate_rank": 3,
+      "candidate_title": "Jujutsu Kaisen (TV)",
+      "candidate_url": "https://www4.animeflv.net/anime/jujutsu-kaisen-tv",
+      "observed_format": "TV",
+      "observed_year": null,
+      "label": "match",
+      "decision_bucket": "browser_match",
+      "reasons": [
+        "exact_title",
+        "rank_3",
+        "season_consistent",
+        "type_aligned",
+        "higher_ranked_competitors_present"
+      ],
+      "evidence_type": "browser_network_surface"
+    },
+    {
+      "case_id": "animeflv_jujutsu_s2",
+      "canonical_title": "Jujutsu Kaisen 2nd Season",
+      "canonical_aliases": [
+        "Jujutsu Kaisen Season 2"
+      ],
+      "canonical_year": 2023,
+      "canonical_format": "TV",
+      "category": "sequel_trap",
+      "source": "animeflv",
+      "search_query": "Jujutsu Kaisen",
+      "candidate_rank": 4,
+      "candidate_title": "Jujutsu Kaisen 2nd Season",
+      "candidate_url": "https://www4.animeflv.net/anime/jujutsu-kaisen-2nd-season",
+      "observed_format": "TV",
+      "observed_year": null,
+      "label": "match",
+      "decision_bucket": "browser_match",
+      "reasons": [
+        "exact_title",
+        "rank_4",
+        "season_consistent",
+        "type_aligned",
+        "higher_ranked_competitors_present"
+      ],
+      "evidence_type": "browser_network_surface"
+    },
+    {
+      "case_id": "animeflv_spy_family_s1",
+      "canonical_title": "Spy x Family",
+      "canonical_aliases": [
+        "SPY x FAMILY"
+      ],
+      "canonical_year": 2022,
+      "canonical_format": "TV",
+      "category": "exact_positive",
+      "source": "animeflv",
+      "search_query": "Spy x Family",
+      "candidate_rank": 1,
+      "candidate_title": "Spy x Family",
+      "candidate_url": "https://www4.animeflv.net/anime/spy-x-family",
+      "observed_format": "TV",
+      "observed_year": null,
+      "label": "match",
+      "decision_bucket": "browser_match",
+      "reasons": [
+        "exact_title",
+        "rank_1",
+        "season_consistent",
+        "type_aligned"
+      ],
+      "evidence_type": "browser_network_surface"
+    },
+    {
+      "case_id": "animeflv_spy_family_s2",
+      "canonical_title": "Spy x Family Season 2",
+      "canonical_aliases": [
+        "SPY x FAMILY Season 2"
+      ],
+      "canonical_year": 2023,
+      "canonical_format": "TV",
+      "category": "sequel_trap",
+      "source": "animeflv",
+      "search_query": "Spy x Family",
+      "candidate_rank": 2,
+      "candidate_title": "Spy x Family Season 2",
+      "candidate_url": "https://www4.animeflv.net/anime/spy-x-family-season-2",
+      "observed_format": "TV",
+      "observed_year": null,
+      "label": "match",
+      "decision_bucket": "browser_match",
+      "reasons": [
+        "exact_title",
+        "rank_2",
+        "season_consistent",
+        "type_aligned",
+        "higher_ranked_competitors_present"
+      ],
+      "evidence_type": "browser_network_surface"
+    },
+    {
+      "case_id": "animeflv_koe_no_katachi",
+      "canonical_title": "Koe no Katachi",
+      "canonical_aliases": [
+        "A Silent Voice"
+      ],
+      "canonical_year": 2016,
+      "canonical_format": "Movie",
+      "category": "movie_vs_tv",
+      "source": "animeflv",
+      "search_query": "A Silent Voice",
+      "candidate_rank": null,
+      "candidate_title": null,
+      "candidate_url": null,
+      "observed_format": null,
+      "observed_year": null,
+      "label": "search_failed_query_strategy",
+      "decision_bucket": "alias_query_no_candidates",
+      "reasons": [
+        "no_candidates_returned"
+      ],
+      "evidence_type": "browser_network_surface"
+    },
+    {
+      "case_id": "animeflv_one_piece",
+      "canonical_title": "One Piece",
+      "canonical_aliases": [
+        "One Piece"
+      ],
+      "canonical_year": 1999,
+      "canonical_format": "TV",
+      "category": "exact_positive",
+      "source": "animeflv",
+      "search_query": "One Piece",
+      "candidate_rank": null,
+      "candidate_title": "One Piece",
+      "candidate_url": "https://www4.animeflv.net/anime/one-piece-tv",
+      "observed_format": "TV",
+      "observed_year": null,
+      "label": "match",
+      "decision_bucket": "browser_detail_page_confirmed",
+      "reasons": [
+        "homepage_discovered_entry",
+        "type_aligned",
+        "detail_page_confirmed"
+      ],
+      "evidence_type": "browser_detail_page"
+    },
+    {
+      "case_id": "animeflv_baki_dou",
+      "canonical_title": "BAKI-DOU",
+      "canonical_aliases": [
+        "BAKI-DOU: The Invincible Samurai"
+      ],
+      "canonical_year": 2026,
+      "canonical_format": "ONA",
+      "category": "failed_or_empty",
+      "source": "animeflv",
+      "search_query": "Baki Dou",
+      "candidate_rank": 1,
+      "candidate_title": "Baki-dou",
+      "candidate_url": "https://www4.animeflv.net/anime/bakidou",
+      "observed_format": "OVA",
+      "observed_year": null,
+      "label": "reject",
+      "decision_bucket": "format_conflict",
+      "reasons": [
+        "exact_title",
+        "rank_1",
+        "season_consistent",
+        "format_conflict"
+      ],
+      "evidence_type": "browser_network_surface"
+    },
+    {
+      "case_id": "animeflv_dark_moon",
+      "canonical_title": "DARK MOON: Kuro no Tsuki - Tsuki no Saidan",
+      "canonical_aliases": [
+        "DARK MOON: THE BLOOD ALTAR"
+      ],
+      "canonical_year": 2026,
+      "canonical_format": "TV",
+      "category": "failed_or_empty",
+      "source": "animeflv",
+      "search_query": "DARK MOON",
+      "candidate_rank": 1,
+      "candidate_title": "Dark Moon: Tsuki no Saidan",
+      "candidate_url": "https://www4.animeflv.net/anime/dark-moon-tsuki-no-saidan",
+      "observed_format": "TV",
+      "observed_year": null,
+      "label": "reject",
+      "decision_bucket": "franchise_false_positive",
+      "reasons": [
+        "rank_1",
+        "season_consistent",
+        "type_aligned",
+        "no_exact_or_alias_candidate"
+      ],
+      "evidence_type": "browser_network_surface"
+    },
+    {
+      "case_id": "animeflv_roll_over_and_die",
+      "canonical_title": "\"Omae Gotoki ga Maou ni Kateru to Omou na\" to Yuusha Party wo Tsuihou Sareta node, Outo de Kimama ni Kurashitai",
+      "canonical_aliases": [
+        "ROLL OVER AND DIE: I Will Fight for an Ordinary Life with My Love and Cursed Sword!"
+      ],
+      "canonical_year": 2026,
+      "canonical_format": "TV",
+      "category": "failed_or_empty",
+      "source": "animeflv",
+      "search_query": "Roll Over and Die",
+      "candidate_rank": 1,
+      "candidate_title": "Omagoto",
+      "candidate_url": "https://www4.animeflv.net/anime/omagoto",
+      "observed_format": "TV",
+      "observed_year": null,
+      "label": "reject",
+      "decision_bucket": "franchise_false_positive",
+      "reasons": [
+        "rank_1",
+        "season_consistent",
+        "type_aligned",
+        "no_exact_or_alias_candidate"
+      ],
+      "evidence_type": "browser_network_surface"
+    },
+    {
+      "case_id": "animeav1_frieren_s1",
+      "canonical_title": "Sousou no Frieren",
+      "canonical_aliases": [
+        "Frieren: Beyond Journey's End"
+      ],
+      "canonical_year": 2023,
+      "canonical_format": "TV",
+      "category": "alias_positive",
+      "source": "animeav1",
+      "search_query": "Frieren",
+      "candidate_rank": 2,
+      "candidate_title": "Sousou no Frieren",
+      "candidate_url": "https://animeav1.com/media/sousou-no-frieren",
+      "observed_format": "TV",
+      "observed_year": null,
+      "label": "match",
+      "decision_bucket": "browser_match",
+      "reasons": [
+        "exact_title",
+        "rank_2",
+        "season_consistent",
+        "type_aligned",
+        "higher_ranked_competitors_present"
+      ],
+      "evidence_type": "browser_network_surface"
+    },
+    {
+      "case_id": "animeav1_frieren_s2",
+      "canonical_title": "Sousou no Frieren 2nd Season",
+      "canonical_aliases": [
+        "Frieren: Beyond Journey's End Season 2"
+      ],
+      "canonical_year": 2026,
+      "canonical_format": "TV",
+      "category": "sequel_trap",
+      "source": "animeav1",
+      "search_query": "Frieren",
+      "candidate_rank": 1,
+      "candidate_title": "Sousou no Frieren 2nd Season",
+      "candidate_url": "https://animeav1.com/media/sousou-no-frieren-2nd-season",
+      "observed_format": "TV",
+      "observed_year": null,
+      "label": "match",
+      "decision_bucket": "browser_match",
+      "reasons": [
+        "exact_title",
+        "rank_1",
+        "season_consistent",
+        "type_aligned"
+      ],
+      "evidence_type": "browser_network_surface"
+    },
+    {
+      "case_id": "animeav1_oshi_base",
+      "canonical_title": "[Oshi no Ko]",
+      "canonical_aliases": [
+        "Oshi No Ko",
+        "【推しの子】"
+      ],
+      "canonical_year": 2023,
+      "canonical_format": "TV",
+      "category": "grouped_ambiguity",
+      "source": "animeav1",
+      "search_query": "Oshi no Ko",
+      "candidate_rank": 1,
+      "candidate_title": "[Oshi no Ko]",
+      "candidate_url": "https://animeav1.com/media/oshi-no-ko",
+      "observed_format": "TV",
+      "observed_year": null,
+      "label": "match",
+      "decision_bucket": "browser_match",
+      "reasons": [
+        "exact_title",
+        "rank_1",
+        "season_consistent",
+        "type_aligned"
+      ],
+      "evidence_type": "browser_network_surface"
+    },
+    {
+      "case_id": "animeav1_oshi_s2",
+      "canonical_title": "Oshi no Ko 2nd Season",
+      "canonical_aliases": [
+        "[Oshi No Ko] Season 2"
+      ],
+      "canonical_year": 2024,
+      "canonical_format": "TV",
+      "category": "grouped_ambiguity",
+      "source": "animeav1",
+      "search_query": "Oshi no Ko",
+      "candidate_rank": 3,
+      "candidate_title": "[Oshi no Ko] 2nd Season",
+      "candidate_url": "https://animeav1.com/media/oshi-no-ko-2nd-season",
+      "observed_format": "TV",
+      "observed_year": null,
+      "label": "match",
+      "decision_bucket": "browser_match",
+      "reasons": [
+        "exact_title",
+        "rank_3",
+        "season_consistent",
+        "type_aligned",
+        "higher_ranked_competitors_present"
+      ],
+      "evidence_type": "browser_network_surface"
+    },
+    {
+      "case_id": "animeav1_oshi_s3",
+      "canonical_title": "[Oshi no Ko] 3rd Season",
+      "canonical_aliases": [
+        "【OSHI NO KO】Season 3"
+      ],
+      "canonical_year": 2026,
+      "canonical_format": "TV",
+      "category": "sequel_trap",
+      "source": "animeav1",
+      "search_query": "Oshi no Ko",
+      "candidate_rank": 2,
+      "candidate_title": "[Oshi no Ko] 3rd Season",
+      "candidate_url": "https://animeav1.com/media/oshi-no-ko-3rd-season",
+      "observed_format": "TV",
+      "observed_year": null,
+      "label": "match",
+      "decision_bucket": "browser_match",
+      "reasons": [
+        "exact_title",
+        "rank_2",
+        "season_consistent",
+        "type_aligned",
+        "higher_ranked_competitors_present"
+      ],
+      "evidence_type": "browser_network_surface"
+    },
+    {
+      "case_id": "animeav1_naruto",
+      "canonical_title": "Naruto",
+      "canonical_aliases": [],
+      "canonical_year": 2002,
+      "canonical_format": "TV",
+      "category": "sequel_trap",
+      "source": "animeav1",
+      "search_query": "Naruto",
+      "candidate_rank": 1,
+      "candidate_title": "Naruto",
+      "candidate_url": "https://animeav1.com/media/naruto",
+      "observed_format": "TV",
+      "observed_year": null,
+      "label": "match",
+      "decision_bucket": "browser_match",
+      "reasons": [
+        "exact_title",
+        "rank_1",
+        "season_consistent",
+        "type_aligned"
+      ],
+      "evidence_type": "browser_network_surface"
+    },
+    {
+      "case_id": "animeav1_kimetsu_tv",
+      "canonical_title": "Kimetsu no Yaiba",
+      "canonical_aliases": [
+        "Demon Slayer"
+      ],
+      "canonical_year": 2019,
+      "canonical_format": "TV",
+      "category": "alias_positive",
+      "source": "animeav1",
+      "search_query": "Demon Slayer",
+      "candidate_rank": null,
+      "candidate_title": "Kimetsu no Yaiba",
+      "candidate_url": "https://animeav1.com/media/kimetsu-no-yaiba",
+      "observed_format": "TV",
+      "observed_year": null,
+      "label": "match",
+      "decision_bucket": "browser_detail_page_confirmed",
+      "reasons": [
+        "exact_title",
+        "season_consistent",
+        "type_aligned",
+        "detail_page_confirmed"
+      ],
+      "evidence_type": "browser_detail_page"
+    },
+    {
+      "case_id": "animeav1_pokemon_2023",
+      "canonical_title": "Pocket Monsters (2023)",
+      "canonical_aliases": [
+        "Pokemon (Shinsaku Anime)",
+        "Pokemon Horizons: The Series"
+      ],
+      "canonical_year": 2023,
+      "canonical_format": "TV",
+      "category": "failed_or_empty",
+      "source": "animeav1",
+      "search_query": "Pokemon",
+      "candidate_rank": null,
+      "candidate_title": null,
+      "candidate_url": null,
+      "observed_format": null,
+      "observed_year": null,
+      "label": "search_failed_query_strategy",
+      "decision_bucket": "alias_query_no_candidates",
+      "reasons": [
+        "no_candidates_returned"
+      ],
+      "evidence_type": "browser_network_surface"
+    },
+    {
+      "case_id": "animeav1_suzume_movie",
+      "canonical_title": "Suzume no Tojimari",
+      "canonical_aliases": [
+        "Suzume"
+      ],
+      "canonical_year": 2022,
+      "canonical_format": "Movie",
+      "category": "movie_vs_tv",
+      "source": "animeav1",
+      "search_query": "Suzume",
+      "candidate_rank": 1,
+      "candidate_title": "Suzume no Tojimari",
+      "candidate_url": "https://animeav1.com/media/suzume-no-tojimari",
+      "observed_format": "Movie",
+      "observed_year": null,
+      "label": "match",
+      "decision_bucket": "browser_match",
+      "reasons": [
+        "exact_title",
+        "rank_1",
+        "season_consistent",
+        "type_aligned"
+      ],
+      "evidence_type": "browser_network_surface"
+    },
+    {
+      "case_id": "animeav1_fate_stay_night",
+      "canonical_title": "Fate/stay night",
+      "canonical_aliases": [],
+      "canonical_year": 2006,
+      "canonical_format": "TV",
+      "category": "grouped_ambiguity",
+      "source": "animeav1",
+      "search_query": "Fate Stay Night",
+      "candidate_rank": 1,
+      "candidate_title": "Fate/stay night",
+      "candidate_url": "https://animeav1.com/media/fate-stay-night",
+      "observed_format": "TV",
+      "observed_year": null,
+      "label": "match",
+      "decision_bucket": "browser_match",
+      "reasons": [
+        "exact_title",
+        "rank_1",
+        "season_consistent",
+        "type_aligned"
+      ],
+      "evidence_type": "browser_network_surface"
+    },
+    {
+      "case_id": "animeav1_eighty_six_s1",
+      "canonical_title": "86: Eighty Six",
+      "canonical_aliases": [
+        "86 EIGHTY-SIX"
+      ],
+      "canonical_year": 2021,
+      "canonical_format": "TV",
+      "category": "alias_positive",
+      "source": "animeav1",
+      "search_query": "86",
+      "candidate_rank": 1,
+      "candidate_title": "86",
+      "candidate_url": "https://animeav1.com/media/86-eighty-six",
+      "observed_format": "TV",
+      "observed_year": null,
+      "label": "match",
+      "decision_bucket": "grouped_catalog_entry_confirmed",
+      "reasons": [
+        "grouped_catalog_entry",
+        "rank_1",
+        "season_consistent",
+        "type_aligned",
+        "detail_page_confirmed"
+      ],
+      "evidence_type": "browser_detail_page"
+    },
+    {
+      "case_id": "animeav1_eighty_six_s2",
+      "canonical_title": "86: Eighty Six Part 2",
+      "canonical_aliases": [
+        "86 EIGHTY-SIX Part 2"
+      ],
+      "canonical_year": 2021,
+      "canonical_format": "TV",
+      "category": "sequel_trap",
+      "source": "animeav1",
+      "search_query": "86",
+      "candidate_rank": 1,
+      "candidate_title": "86",
+      "candidate_url": "https://animeav1.com/media/86-eighty-six",
+      "observed_format": "TV",
+      "observed_year": null,
+      "label": "match",
+      "decision_bucket": "grouped_catalog_entry_confirmed",
+      "reasons": [
+        "grouped_catalog_entry",
+        "rank_1",
+        "type_aligned",
+        "season_content_confirmed",
+        "detail_page_confirmed"
+      ],
+      "evidence_type": "browser_detail_page"
+    },
+    {
+      "case_id": "animeav1_assassination_classroom_s1",
+      "canonical_title": "Ansatsu Kyoushitsu",
+      "canonical_aliases": [
+        "Assassination Classroom"
+      ],
+      "canonical_year": 2015,
+      "canonical_format": "TV",
+      "category": "alias_positive",
+      "source": "animeav1",
+      "search_query": "Assassination Classroom",
+      "candidate_rank": 2,
+      "candidate_title": "Ansatsu Kyoushitsu",
+      "candidate_url": "https://animeav1.com/media/ansatsu-kyoushitsu",
+      "observed_format": "TV",
+      "observed_year": null,
+      "label": "match",
+      "decision_bucket": "browser_match",
+      "reasons": [
+        "exact_title",
+        "rank_2",
+        "season_consistent",
+        "type_aligned",
+        "higher_ranked_competitors_present"
+      ],
+      "evidence_type": "browser_network_surface"
+    },
+    {
+      "case_id": "animeav1_assassination_classroom_s2",
+      "canonical_title": "Ansatsu Kyoushitsu 2nd Season",
+      "canonical_aliases": [
+        "Assassination Classroom Second Season"
+      ],
+      "canonical_year": 2016,
+      "canonical_format": "TV",
+      "category": "sequel_trap",
+      "source": "animeav1",
+      "search_query": "Assassination Classroom",
+      "candidate_rank": 1,
+      "candidate_title": "Ansatsu Kyoushitsu 2nd Season",
+      "candidate_url": "https://animeav1.com/media/ansatsu-kyoushitsu-2nd-season",
+      "observed_format": "TV",
+      "observed_year": null,
+      "label": "match",
+      "decision_bucket": "browser_match",
+      "reasons": [
+        "exact_title",
+        "rank_1",
+        "season_consistent",
+        "type_aligned"
+      ],
+      "evidence_type": "browser_network_surface"
+    },
+    {
+      "case_id": "animeav1_blue_box",
+      "canonical_title": "Ao no Hako",
+      "canonical_aliases": [
+        "Blue Box"
+      ],
+      "canonical_year": 2024,
+      "canonical_format": "TV",
+      "category": "alias_positive",
+      "source": "animeav1",
+      "search_query": "Blue Box",
+      "candidate_rank": 1,
+      "candidate_title": "Ao no Hako",
+      "candidate_url": "https://animeav1.com/media/ao-no-hako",
+      "observed_format": "TV",
+      "observed_year": null,
+      "label": "match",
+      "decision_bucket": "browser_match",
+      "reasons": [
+        "exact_title",
+        "rank_1",
+        "season_consistent",
+        "type_aligned"
+      ],
+      "evidence_type": "browser_network_surface"
+    },
+    {
+      "case_id": "animeav1_erased",
+      "canonical_title": "Boku dake ga Inai Machi",
+      "canonical_aliases": [
+        "ERASED"
+      ],
+      "canonical_year": 2016,
+      "canonical_format": "TV",
+      "category": "alias_positive",
+      "source": "animeav1",
+      "search_query": "ERASED",
+      "candidate_rank": 1,
+      "candidate_title": "Boku dake ga Inai Machi",
+      "candidate_url": "https://animeav1.com/media/boku-dake-ga-inai-machi",
+      "observed_format": "TV",
+      "observed_year": null,
+      "label": "match",
+      "decision_bucket": "browser_match",
+      "reasons": [
+        "exact_title",
+        "rank_1",
+        "season_consistent",
+        "type_aligned"
+      ],
+      "evidence_type": "browser_network_surface"
+    },
+    {
+      "case_id": "animeav1_mha_s1",
+      "canonical_title": "Boku no Hero Academia",
+      "canonical_aliases": [
+        "My Hero Academia"
+      ],
+      "canonical_year": 2016,
+      "canonical_format": "TV",
+      "category": "grouped_ambiguity",
+      "source": "animeav1",
+      "search_query": "My Hero Academia",
+      "candidate_rank": 2,
+      "candidate_title": "Boku no Hero Academia: Final Season",
+      "candidate_url": "https://animeav1.com/media/boku-no-hero-academia-final-season",
+      "observed_format": "TV",
+      "observed_year": null,
+      "label": "review_needed",
+      "decision_bucket": "grouped_or_franchise_ambiguity",
+      "reasons": [
+        "same_franchise_root",
+        "rank_2",
+        "season_consistent",
+        "type_aligned",
+        "higher_ranked_competitors_present",
+        "needs_detail_confirmation"
+      ],
+      "evidence_type": "browser_network_surface"
+    },
+    {
+      "case_id": "animeav1_mha_s7",
+      "canonical_title": "Boku no Hero Academia 7",
+      "canonical_aliases": [
+        "My Hero Academia Season 7"
+      ],
+      "canonical_year": 2024,
+      "canonical_format": "TV",
+      "category": "sequel_trap",
+      "source": "animeav1",
+      "search_query": "My Hero Academia",
+      "candidate_rank": 5,
+      "candidate_title": "Boku no Hero Academia 7th Season",
+      "candidate_url": "https://animeav1.com/media/boku-no-hero-academia-7th-season",
+      "observed_format": "TV",
+      "observed_year": null,
+      "label": "review_needed",
+      "decision_bucket": "grouped_or_franchise_ambiguity",
+      "reasons": [
+        "same_franchise_root",
+        "rank_5",
+        "type_aligned",
+        "higher_ranked_competitors_present",
+        "needs_detail_confirmation"
+      ],
+      "evidence_type": "browser_network_surface"
+    },
+    {
+      "case_id": "animeav1_chainsaw_tv",
+      "canonical_title": "Chainsaw Man",
+      "canonical_aliases": [
+        "Chainsaw Man"
+      ],
+      "canonical_year": 2022,
+      "canonical_format": "TV",
+      "category": "movie_vs_tv",
+      "source": "animeav1",
+      "search_query": "Chainsaw Man",
+      "candidate_rank": 1,
+      "candidate_title": "Chainsaw Man",
+      "candidate_url": "https://animeav1.com/media/chainsaw-man",
+      "observed_format": "TV",
+      "observed_year": null,
+      "label": "match",
+      "decision_bucket": "browser_match",
+      "reasons": [
+        "exact_title",
+        "rank_1",
+        "season_consistent",
+        "type_aligned"
+      ],
+      "evidence_type": "browser_network_surface"
+    },
+    {
+      "case_id": "animeav1_chainsaw_reze_movie",
+      "canonical_title": "Chainsaw Man: Reze-hen",
+      "canonical_aliases": [
+        "Chainsaw Man - The Movie: Reze Arc"
+      ],
+      "canonical_year": 2025,
+      "canonical_format": "Movie",
+      "category": "movie_vs_tv",
+      "source": "animeav1",
+      "search_query": "Chainsaw Man",
+      "candidate_rank": 1,
+      "candidate_title": "Chainsaw Man",
+      "candidate_url": "https://animeav1.com/media/chainsaw-man",
+      "observed_format": "TV",
+      "observed_year": null,
+      "label": "reject",
+      "decision_bucket": "format_conflict",
+      "reasons": [
+        "same_franchise_root",
+        "rank_1",
+        "season_consistent",
+        "format_conflict"
+      ],
+      "evidence_type": "browser_network_surface"
+    },
+    {
+      "case_id": "animeav1_clannad",
+      "canonical_title": "CLANNAD",
+      "canonical_aliases": [
+        "Clannad"
+      ],
+      "canonical_year": 2007,
+      "canonical_format": "TV",
+      "category": "exact_positive",
+      "source": "animeav1",
+      "search_query": "Clannad",
+      "candidate_rank": 1,
+      "candidate_title": "Clannad",
+      "candidate_url": "https://animeav1.com/media/clannad",
+      "observed_format": "TV",
+      "observed_year": null,
+      "label": "match",
+      "decision_bucket": "browser_match",
+      "reasons": [
+        "exact_title",
+        "rank_1",
+        "season_consistent",
+        "type_aligned"
+      ],
+      "evidence_type": "browser_network_surface"
+    },
+    {
+      "case_id": "animeav1_clannad_after_story",
+      "canonical_title": "CLANNAD: After Story",
+      "canonical_aliases": [
+        "Clannad: After Story"
+      ],
+      "canonical_year": 2008,
+      "canonical_format": "TV",
+      "category": "grouped_ambiguity",
+      "source": "animeav1",
+      "search_query": "Clannad",
+      "candidate_rank": 2,
+      "candidate_title": "Clannad: After Story",
+      "candidate_url": "https://animeav1.com/media/clannad-after-story",
+      "observed_format": "TV",
+      "observed_year": null,
+      "label": "match",
+      "decision_bucket": "browser_match",
+      "reasons": [
+        "exact_title",
+        "rank_2",
+        "season_consistent",
+        "type_aligned",
+        "higher_ranked_competitors_present"
+      ],
+      "evidence_type": "browser_network_surface"
+    },
+    {
+      "case_id": "animeav1_code_geass",
+      "canonical_title": "Code Geass: Hangyaku no Lelouch",
+      "canonical_aliases": [
+        "Code Geass: Lelouch of the Rebellion"
+      ],
+      "canonical_year": 2006,
+      "canonical_format": "TV",
+      "category": "alias_positive",
+      "source": "animeav1",
+      "search_query": "Code Geass",
+      "candidate_rank": 5,
+      "candidate_title": "Code Geass: Hangyaku no Lelouch",
+      "candidate_url": "https://animeav1.com/media/code-geass-hangyaku-no-lelouch",
+      "observed_format": "TV",
+      "observed_year": null,
+      "label": "match",
+      "decision_bucket": "browser_match",
+      "reasons": [
+        "exact_title",
+        "rank_5",
+        "season_consistent",
+        "type_aligned",
+        "higher_ranked_competitors_present"
+      ],
+      "evidence_type": "browser_network_surface"
+    },
+    {
+      "case_id": "animeav1_cowboy_bebop",
+      "canonical_title": "Cowboy Bebop",
+      "canonical_aliases": [
+        "Cowboy Bebop"
+      ],
+      "canonical_year": 1998,
+      "canonical_format": "TV",
+      "category": "exact_positive",
+      "source": "animeav1",
+      "search_query": "Cowboy Bebop",
+      "candidate_rank": 1,
+      "candidate_title": "Cowboy Bebop",
+      "candidate_url": "https://animeav1.com/media/cowboy-bebop",
+      "observed_format": "TV",
+      "observed_year": null,
+      "label": "match",
+      "decision_bucket": "browser_match",
+      "reasons": [
+        "exact_title",
+        "rank_1",
+        "season_consistent",
+        "type_aligned"
+      ],
+      "evidence_type": "browser_network_surface"
+    },
+    {
+      "case_id": "animeav1_dandadan_s1",
+      "canonical_title": "Dandadan",
+      "canonical_aliases": [
+        "DAN DA DAN"
+      ],
+      "canonical_year": 2024,
+      "canonical_format": "TV",
+      "category": "exact_positive",
+      "source": "animeav1",
+      "search_query": "Dandadan",
+      "candidate_rank": 1,
+      "candidate_title": "Dandadan",
+      "candidate_url": "https://animeav1.com/media/dandadan",
+      "observed_format": "TV",
+      "observed_year": null,
+      "label": "match",
+      "decision_bucket": "browser_match",
+      "reasons": [
+        "exact_title",
+        "rank_1",
+        "season_consistent",
+        "type_aligned"
+      ],
+      "evidence_type": "browser_network_surface"
+    },
+    {
+      "case_id": "animeav1_dandadan_s2",
+      "canonical_title": "Dandadan 2nd Season",
+      "canonical_aliases": [
+        "DAN DA DAN Season 2"
+      ],
+      "canonical_year": 2025,
+      "canonical_format": "TV",
+      "category": "sequel_trap",
+      "source": "animeav1",
+      "search_query": "Dandadan",
+      "candidate_rank": 2,
+      "candidate_title": "Dandadan 2nd Season",
+      "candidate_url": "https://animeav1.com/media/dandadan-2nd-season",
+      "observed_format": "TV",
+      "observed_year": null,
+      "label": "match",
+      "decision_bucket": "browser_match",
+      "reasons": [
+        "exact_title",
+        "rank_2",
+        "season_consistent",
+        "type_aligned",
+        "higher_ranked_competitors_present"
+      ],
+      "evidence_type": "browser_network_surface"
+    },
+    {
+      "case_id": "animeav1_darling_franxx",
+      "canonical_title": "Darling in the Franxx",
+      "canonical_aliases": [
+        "DARLING in the FRANXX"
+      ],
+      "canonical_year": 2018,
+      "canonical_format": "TV",
+      "category": "exact_positive",
+      "source": "animeav1",
+      "search_query": "Darling in the Franxx",
+      "candidate_rank": 1,
+      "candidate_title": "Darling in the FranXX",
+      "candidate_url": "https://animeav1.com/media/darling-in-the-franxx",
+      "observed_format": "TV",
+      "observed_year": null,
+      "label": "match",
+      "decision_bucket": "browser_match",
+      "reasons": [
+        "exact_title",
+        "rank_1",
+        "season_consistent",
+        "type_aligned"
+      ],
+      "evidence_type": "browser_network_surface"
+    },
+    {
+      "case_id": "animeav1_black_clover",
+      "canonical_title": "Black Clover",
+      "canonical_aliases": [
+        "Black Clover"
+      ],
+      "canonical_year": 2017,
+      "canonical_format": "TV",
+      "category": "exact_positive",
+      "source": "animeav1",
+      "search_query": "Black Clover",
+      "candidate_rank": 1,
+      "candidate_title": "Black Clover",
+      "candidate_url": "https://animeav1.com/media/black-clover",
+      "observed_format": "TV",
+      "observed_year": null,
+      "label": "match",
+      "decision_bucket": "browser_match",
+      "reasons": [
+        "exact_title",
+        "rank_1",
+        "season_consistent",
+        "type_aligned"
+      ],
+      "evidence_type": "browser_network_surface"
+    },
+    {
+      "case_id": "animeav1_bleach",
+      "canonical_title": "BLEACH",
+      "canonical_aliases": [
+        "Bleach"
+      ],
+      "canonical_year": 2004,
+      "canonical_format": "TV",
+      "category": "exact_positive",
+      "source": "animeav1",
+      "search_query": "Bleach",
+      "candidate_rank": 1,
+      "candidate_title": "Bleach",
+      "candidate_url": "https://animeav1.com/media/bleach",
+      "observed_format": "TV",
+      "observed_year": null,
+      "label": "match",
+      "decision_bucket": "browser_match",
+      "reasons": [
+        "exact_title",
+        "rank_1",
+        "season_consistent",
+        "type_aligned"
+      ],
+      "evidence_type": "browser_network_surface"
+    },
+    {
+      "case_id": "animeav1_cyberpunk_edgerunners",
+      "canonical_title": "Cyberpunk: Edgerunners",
+      "canonical_aliases": [
+        "Cyberpunk: Edgerunners"
+      ],
+      "canonical_year": 2022,
+      "canonical_format": "ONA",
+      "category": "alias_positive",
+      "source": "animeav1",
+      "search_query": "Cyberpunk",
+      "candidate_rank": 1,
+      "candidate_title": "Cyberpunk: Edgerunners",
+      "candidate_url": "https://animeav1.com/media/cyberpunk-edgerunners",
+      "observed_format": "TV",
+      "observed_year": null,
+      "label": "reject",
+      "decision_bucket": "format_conflict",
+      "reasons": [
+        "exact_title",
+        "rank_1",
+        "season_consistent",
+        "format_conflict"
+      ],
+      "evidence_type": "browser_network_surface"
+    },
+    {
+      "case_id": "animeav1_akame_ga_kill",
+      "canonical_title": "Akame ga Kill!",
+      "canonical_aliases": [
+        "Akame ga Kill!"
+      ],
+      "canonical_year": 2014,
+      "canonical_format": "TV",
+      "category": "exact_positive",
+      "source": "animeav1",
+      "search_query": "Akame ga Kill",
+      "candidate_rank": 1,
+      "candidate_title": "Akame ga Kill!",
+      "candidate_url": "https://animeav1.com/media/akame-ga-kill",
+      "observed_format": "TV",
+      "observed_year": null,
+      "label": "match",
+      "decision_bucket": "browser_match",
+      "reasons": [
+        "exact_title",
+        "rank_1",
+        "season_consistent",
+        "type_aligned"
+      ],
+      "evidence_type": "browser_network_surface"
+    },
+    {
+      "case_id": "animeav1_bakemonogatari",
+      "canonical_title": "Bakemonogatari",
+      "canonical_aliases": [
+        "Bakemonogatari"
+      ],
+      "canonical_year": 2009,
+      "canonical_format": "TV",
+      "category": "exact_positive",
+      "source": "animeav1",
+      "search_query": "Bakemonogatari",
+      "candidate_rank": 1,
+      "candidate_title": "Bakemonogatari",
+      "candidate_url": "https://animeav1.com/media/bakemonogatari",
+      "observed_format": "TV",
+      "observed_year": null,
+      "label": "match",
+      "decision_bucket": "browser_match",
+      "reasons": [
+        "exact_title",
+        "rank_1",
+        "season_consistent",
+        "type_aligned"
+      ],
+      "evidence_type": "browser_network_surface"
+    },
+    {
+      "case_id": "animeav1_orb_movements",
+      "canonical_title": "Chi. Chikyuu no Undou ni Tsuite",
+      "canonical_aliases": [
+        "Orb: On the Movements of the Earth"
+      ],
+      "canonical_year": 2024,
+      "canonical_format": "TV",
+      "category": "alias_positive",
+      "source": "animeav1",
+      "search_query": "Orb",
+      "candidate_rank": 1,
+      "candidate_title": "Chi. Chikyuu no Undou ni Tsuite",
+      "candidate_url": "https://animeav1.com/media/chi-chikyuu-no-undou-ni-tsuite",
+      "observed_format": "TV",
+      "observed_year": null,
+      "label": "match",
+      "decision_bucket": "browser_match",
+      "reasons": [
+        "exact_title",
+        "rank_1",
+        "season_consistent",
+        "type_aligned"
+      ],
+      "evidence_type": "browser_network_surface"
+    },
+    {
+      "case_id": "animeav1_boruto",
+      "canonical_title": "Boruto: Naruto Next Generations",
+      "canonical_aliases": [
+        "Boruto"
+      ],
+      "canonical_year": 2017,
+      "canonical_format": "TV",
+      "category": "exact_positive",
+      "source": "animeav1",
+      "search_query": "Boruto",
+      "candidate_rank": 1,
+      "candidate_title": "Boruto: Naruto Next Generations",
+      "candidate_url": "https://animeav1.com/media/boruto-naruto-next-generations",
+      "observed_format": "TV",
+      "observed_year": null,
+      "label": "match",
+      "decision_bucket": "browser_match",
+      "reasons": [
+        "exact_title",
+        "rank_1",
+        "season_consistent",
+        "type_aligned"
+      ],
+      "evidence_type": "browser_network_surface"
+    },
+    {
+      "case_id": "animeav1_kimetsu_mugen_movie",
+      "canonical_title": "Kimetsu no Yaiba Movie: Mugen Ressha-hen",
+      "canonical_aliases": [
+        "Demon Slayer: Mugen Train"
+      ],
+      "canonical_year": 2020,
+      "canonical_format": "Movie",
+      "category": "movie_vs_tv",
+      "source": "animeav1",
+      "search_query": "Demon Slayer",
+      "candidate_rank": 5,
+      "candidate_title": "Kimetsu no Yaiba Movie: Mugen Ressha-hen",
+      "candidate_url": "https://animeav1.com/media/kimetsu-no-yaiba-movie-mugen-ressha-hen",
+      "observed_format": "Movie",
+      "observed_year": null,
+      "label": "match",
+      "decision_bucket": "browser_match",
+      "reasons": [
+        "exact_title",
+        "rank_5",
+        "season_consistent",
+        "type_aligned",
+        "higher_ranked_competitors_present"
+      ],
+      "evidence_type": "browser_network_surface"
+    },
+    {
+      "case_id": "animeav1_jujutsu_s1",
+      "canonical_title": "Jujutsu Kaisen",
+      "canonical_aliases": [
+        "Jujutsu Kaisen"
+      ],
+      "canonical_year": 2020,
+      "canonical_format": "TV",
+      "category": "exact_positive",
+      "source": "animeav1",
+      "search_query": "Jujutsu Kaisen",
+      "candidate_rank": 1,
+      "candidate_title": "Jujutsu Kaisen",
+      "candidate_url": "https://animeav1.com/media/jujutsu-kaisen",
+      "observed_format": "TV",
+      "observed_year": null,
+      "label": "match",
+      "decision_bucket": "browser_match",
+      "reasons": [
+        "exact_title",
+        "rank_1",
+        "season_consistent",
+        "type_aligned"
+      ],
+      "evidence_type": "browser_network_surface"
+    },
+    {
+      "case_id": "animeav1_jujutsu_s2",
+      "canonical_title": "Jujutsu Kaisen 2nd Season",
+      "canonical_aliases": [
+        "Jujutsu Kaisen Season 2"
+      ],
+      "canonical_year": 2023,
+      "canonical_format": "TV",
+      "category": "sequel_trap",
+      "source": "animeav1",
+      "search_query": "Jujutsu Kaisen",
+      "candidate_rank": 3,
+      "candidate_title": "Jujutsu Kaisen 2nd Season",
+      "candidate_url": "https://animeav1.com/media/jujutsu-kaisen-2nd-season",
+      "observed_format": "TV",
+      "observed_year": null,
+      "label": "match",
+      "decision_bucket": "browser_match",
+      "reasons": [
+        "exact_title",
+        "rank_3",
+        "season_consistent",
+        "type_aligned",
+        "higher_ranked_competitors_present"
+      ],
+      "evidence_type": "browser_network_surface"
+    },
+    {
+      "case_id": "animeav1_spy_family_s1",
+      "canonical_title": "Spy x Family",
+      "canonical_aliases": [
+        "SPY x FAMILY"
+      ],
+      "canonical_year": 2022,
+      "canonical_format": "TV",
+      "category": "exact_positive",
+      "source": "animeav1",
+      "search_query": "Spy x Family",
+      "candidate_rank": 1,
+      "candidate_title": "Spy x Family",
+      "candidate_url": "https://animeav1.com/media/spy-x-family",
+      "observed_format": "TV",
+      "observed_year": null,
+      "label": "match",
+      "decision_bucket": "browser_match",
+      "reasons": [
+        "exact_title",
+        "rank_1",
+        "season_consistent",
+        "type_aligned"
+      ],
+      "evidence_type": "browser_network_surface"
+    },
+    {
+      "case_id": "animeav1_spy_family_s2",
+      "canonical_title": "Spy x Family Season 2",
+      "canonical_aliases": [
+        "SPY x FAMILY Season 2"
+      ],
+      "canonical_year": 2023,
+      "canonical_format": "TV",
+      "category": "sequel_trap",
+      "source": "animeav1",
+      "search_query": "Spy x Family",
+      "candidate_rank": 4,
+      "candidate_title": "Spy x Family Part 2",
+      "candidate_url": "https://animeav1.com/media/spy-x-family-part-2",
+      "observed_format": "TV",
+      "observed_year": null,
+      "label": "review_needed",
+      "decision_bucket": "grouped_or_franchise_ambiguity",
+      "reasons": [
+        "same_franchise_root",
+        "rank_4",
+        "season_consistent",
+        "type_aligned",
+        "higher_ranked_competitors_present",
+        "needs_detail_confirmation"
+      ],
+      "evidence_type": "browser_network_surface"
+    },
+    {
+      "case_id": "animeav1_koe_no_katachi",
+      "canonical_title": "Koe no Katachi",
+      "canonical_aliases": [
+        "A Silent Voice"
+      ],
+      "canonical_year": 2016,
+      "canonical_format": "Movie",
+      "category": "movie_vs_tv",
+      "source": "animeav1",
+      "search_query": "A Silent Voice",
+      "candidate_rank": 1,
+      "candidate_title": "Koe no Katachi (Una Voz Silenciosa)",
+      "candidate_url": "https://animeav1.com/media/koe-no-katachi",
+      "observed_format": "TV",
+      "observed_year": null,
+      "label": "reject",
+      "decision_bucket": "format_conflict",
+      "reasons": [
+        "exact_title",
+        "rank_1",
+        "season_consistent",
+        "format_conflict"
+      ],
+      "evidence_type": "browser_network_surface"
+    },
+    {
+      "case_id": "animeav1_one_piece",
+      "canonical_title": "One Piece",
+      "canonical_aliases": [
+        "One Piece"
+      ],
+      "canonical_year": 1999,
+      "canonical_format": "TV",
+      "category": "exact_positive",
+      "source": "animeav1",
+      "search_query": "One Piece",
+      "candidate_rank": 1,
+      "candidate_title": "One Piece",
+      "candidate_url": "https://animeav1.com/media/one-piece",
+      "observed_format": "TV",
+      "observed_year": null,
+      "label": "match",
+      "decision_bucket": "browser_match",
+      "reasons": [
+        "exact_title",
+        "rank_1",
+        "season_consistent",
+        "type_aligned"
+      ],
+      "evidence_type": "browser_network_surface"
+    },
+    {
+      "case_id": "animeav1_baki_dou",
+      "canonical_title": "BAKI-DOU",
+      "canonical_aliases": [
+        "BAKI-DOU: The Invincible Samurai"
+      ],
+      "canonical_year": 2026,
+      "canonical_format": "ONA",
+      "category": "failed_or_empty",
+      "source": "animeav1",
+      "search_query": "Baki Dou",
+      "candidate_rank": 1,
+      "candidate_title": "Baki-dou",
+      "candidate_url": "https://animeav1.com/media/baki-dou",
+      "observed_format": "OVA",
+      "observed_year": null,
+      "label": "reject",
+      "decision_bucket": "format_conflict",
+      "reasons": [
+        "exact_title",
+        "rank_1",
+        "season_consistent",
+        "format_conflict"
+      ],
+      "evidence_type": "browser_network_surface"
+    },
+    {
+      "case_id": "animeav1_dark_moon",
+      "canonical_title": "DARK MOON: Kuro no Tsuki - Tsuki no Saidan",
+      "canonical_aliases": [
+        "DARK MOON: THE BLOOD ALTAR"
+      ],
+      "canonical_year": 2026,
+      "canonical_format": "TV",
+      "category": "failed_or_empty",
+      "source": "animeav1",
+      "search_query": "DARK MOON",
+      "candidate_rank": 1,
+      "candidate_title": "Dark Moon: Tsuki no Saidan",
+      "candidate_url": "https://animeav1.com/media/dark-moon-tsuki-no-saidan",
+      "observed_format": "TV",
+      "observed_year": null,
+      "label": "reject",
+      "decision_bucket": "franchise_false_positive",
+      "reasons": [
+        "rank_1",
+        "season_consistent",
+        "type_aligned",
+        "no_exact_or_alias_candidate"
+      ],
+      "evidence_type": "browser_network_surface"
+    },
+    {
+      "case_id": "animeav1_roll_over_and_die",
+      "canonical_title": "\"Omae Gotoki ga Maou ni Kateru to Omou na\" to Yuusha Party wo Tsuihou Sareta node, Outo de Kimama ni Kurashitai",
+      "canonical_aliases": [
+        "ROLL OVER AND DIE: I Will Fight for an Ordinary Life with My Love and Cursed Sword!"
+      ],
+      "canonical_year": 2026,
+      "canonical_format": "TV",
+      "category": "failed_or_empty",
+      "source": "animeav1",
+      "search_query": "Roll Over and Die",
+      "candidate_rank": 1,
+      "candidate_title": "\"Omae Gotoki ga Maou ni Kateru to Omouna\" to Yuusha Party wo Tsuihou sareta node, Outo de Kimama ni Kurashitai",
+      "candidate_url": "https://animeav1.com/media/omae-gotoki-ga-maou-ni-kateru-to-omouna-to-yuusha-party-wo-tsuihou-sareta-node-outo-de-kimama-ni-kurashitai",
+      "observed_format": "TV",
+      "observed_year": null,
+      "label": "reject",
+      "decision_bucket": "franchise_false_positive",
+      "reasons": [
+        "rank_1",
+        "season_consistent",
+        "type_aligned",
+        "no_exact_or_alias_candidate"
+      ],
+      "evidence_type": "browser_network_surface"
+    },
+    {
+      "case_id": "anime_nexus_frieren_s1",
+      "canonical_title": "Sousou no Frieren",
+      "canonical_aliases": [
+        "Frieren: Beyond Journey's End"
+      ],
+      "canonical_year": 2023,
+      "canonical_format": "TV",
+      "category": "alias_positive",
+      "source": "anime_nexus",
+      "search_query": "Frieren",
+      "candidate_rank": 1,
+      "candidate_title": "Frieren: Beyond Journey's End",
+      "candidate_url": "https://anime.nexus/series/9991699e-05a4-4446-93ae-8f1b60de068f/frieren-beyond-journeys-end-b8674d743984eb844697",
+      "observed_format": "TV",
+      "observed_year": "2023-09-29",
+      "label": "match",
+      "decision_bucket": "browser_match",
+      "reasons": [
+        "exact_title",
+        "rank_1",
+        "season_consistent",
+        "type_aligned",
+        "year_match"
+      ],
+      "evidence_type": "browser_network_surface"
+    },
+    {
+      "case_id": "anime_nexus_frieren_s2",
+      "canonical_title": "Sousou no Frieren 2nd Season",
+      "canonical_aliases": [
+        "Frieren: Beyond Journey's End Season 2"
+      ],
+      "canonical_year": 2026,
+      "canonical_format": "TV",
+      "category": "sequel_trap",
+      "source": "anime_nexus",
+      "search_query": "Frieren",
+      "candidate_rank": 2,
+      "candidate_title": "Frieren: Beyond Journey's End Season 2",
+      "candidate_url": "https://anime.nexus/series/9d319502-af84-41d5-8073-4aaf8fed18a4/frieren-beyond-journeys-end-season-2-6fde75d6eed23612fbaa",
+      "observed_format": "TV",
+      "observed_year": "2026-01-16",
+      "label": "match",
+      "decision_bucket": "browser_match",
+      "reasons": [
+        "exact_title",
+        "rank_2",
+        "season_consistent",
+        "type_aligned",
+        "year_match",
+        "higher_ranked_competitors_present"
+      ],
+      "evidence_type": "browser_network_surface"
+    },
+    {
+      "case_id": "anime_nexus_oshi_base",
+      "canonical_title": "[Oshi no Ko]",
+      "canonical_aliases": [
+        "Oshi No Ko",
+        "【推しの子】"
+      ],
+      "canonical_year": 2023,
+      "canonical_format": "TV",
+      "category": "grouped_ambiguity",
+      "source": "anime_nexus",
+      "search_query": "Oshi no Ko",
+      "candidate_rank": 1,
+      "candidate_title": "[Oshi No Ko]",
+      "candidate_url": "https://anime.nexus/series/999168d8-02ac-4879-b3f0-747c1190bdcc/oshi-no-ko-642cea8a5945135c1bd2",
+      "observed_format": "TV",
+      "observed_year": "2023-04-12",
+      "label": "match",
+      "decision_bucket": "browser_match",
+      "reasons": [
+        "exact_title",
+        "rank_1",
+        "season_consistent",
+        "type_aligned",
+        "year_match"
+      ],
+      "evidence_type": "browser_network_surface"
+    },
+    {
+      "case_id": "anime_nexus_oshi_s2",
+      "canonical_title": "Oshi no Ko 2nd Season",
+      "canonical_aliases": [
+        "[Oshi No Ko] Season 2"
+      ],
+      "canonical_year": 2024,
+      "canonical_format": "TV",
+      "category": "grouped_ambiguity",
+      "source": "anime_nexus",
+      "search_query": "Oshi no Ko",
+      "candidate_rank": 2,
+      "candidate_title": "[Oshi No Ko] Season 2",
+      "candidate_url": "https://anime.nexus/series/99916bfc-74b1-4b39-b7a9-093f30932222/oshi-no-ko-season-2-d38c4ae40247b824778b",
+      "observed_format": "TV",
+      "observed_year": "2024-07-01",
+      "label": "match",
+      "decision_bucket": "browser_match",
+      "reasons": [
+        "alias_match",
+        "rank_2",
+        "season_consistent",
+        "type_aligned",
+        "year_match",
+        "higher_ranked_competitors_present"
+      ],
+      "evidence_type": "browser_network_surface"
+    },
+    {
+      "case_id": "anime_nexus_oshi_s3",
+      "canonical_title": "[Oshi no Ko] 3rd Season",
+      "canonical_aliases": [
+        "【OSHI NO KO】Season 3"
+      ],
+      "canonical_year": 2026,
+      "canonical_format": "TV",
+      "category": "sequel_trap",
+      "source": "anime_nexus",
+      "search_query": "Oshi no Ko",
+      "candidate_rank": 3,
+      "candidate_title": "[Oshi No Ko] Season 3",
+      "candidate_url": "https://anime.nexus/series/9d31950f-d875-407f-b8ca-dde0b20b1d51/oshi-no-ko-season-3-e6a4d5ac742ff01a1c9c",
+      "observed_format": "TV",
+      "observed_year": "2026-01-14",
+      "label": "match",
+      "decision_bucket": "browser_match",
+      "reasons": [
+        "exact_title",
+        "rank_3",
+        "season_consistent",
+        "type_aligned",
+        "year_match",
+        "higher_ranked_competitors_present"
+      ],
+      "evidence_type": "browser_network_surface"
+    },
+    {
+      "case_id": "anime_nexus_naruto",
+      "canonical_title": "Naruto",
+      "canonical_aliases": [],
+      "canonical_year": 2002,
+      "canonical_format": "TV",
+      "category": "sequel_trap",
+      "source": "anime_nexus",
+      "search_query": "Naruto",
+      "candidate_rank": 2,
+      "candidate_title": "Naruto",
+      "candidate_url": "https://anime.nexus/series/998f3c18-365d-4e07-bbfc-f904eacd7a7a/naruto-abcd0595801da8f858ed",
+      "observed_format": "TV",
+      "observed_year": "2002-10-03",
+      "label": "match",
+      "decision_bucket": "browser_match",
+      "reasons": [
+        "exact_title",
+        "rank_2",
+        "season_consistent",
+        "type_aligned",
+        "year_match",
+        "higher_ranked_competitors_present"
+      ],
+      "evidence_type": "browser_network_surface"
+    },
+    {
+      "case_id": "anime_nexus_kimetsu_tv",
+      "canonical_title": "Kimetsu no Yaiba",
+      "canonical_aliases": [
+        "Demon Slayer"
+      ],
+      "canonical_year": 2019,
+      "canonical_format": "TV",
+      "category": "alias_positive",
+      "source": "anime_nexus",
+      "search_query": "Demon Slayer",
+      "candidate_rank": 1,
+      "candidate_title": "Demon Slayer: Kimetsu no Yaiba",
+      "candidate_url": "https://anime.nexus/series/998f3c08-9e1c-482e-93bb-3c929b0cd9d5/demon-slayer-kimetsu-no-yaiba-437dbd3a395f4180a097",
+      "observed_format": "TV",
+      "observed_year": "2019-04-06",
+      "label": "match",
+      "decision_bucket": "browser_match",
+      "reasons": [
+        "exact_title",
+        "rank_1",
+        "season_consistent",
+        "type_aligned",
+        "year_match"
+      ],
+      "evidence_type": "browser_network_surface"
+    },
+    {
+      "case_id": "anime_nexus_pokemon_2023",
+      "canonical_title": "Pocket Monsters (2023)",
+      "canonical_aliases": [
+        "Pokemon (Shinsaku Anime)",
+        "Pokemon Horizons: The Series"
+      ],
+      "canonical_year": 2023,
+      "canonical_format": "TV",
+      "category": "failed_or_empty",
+      "source": "anime_nexus",
+      "search_query": "Pokemon",
+      "candidate_rank": null,
+      "candidate_title": null,
+      "candidate_url": null,
+      "observed_format": null,
+      "observed_year": null,
+      "label": "search_failed_query_strategy",
+      "decision_bucket": "alias_query_no_candidates",
+      "reasons": [
+        "no_candidates_returned"
+      ],
+      "evidence_type": "browser_network_surface"
+    },
+    {
+      "case_id": "anime_nexus_suzume_movie",
+      "canonical_title": "Suzume no Tojimari",
+      "canonical_aliases": [
+        "Suzume"
+      ],
+      "canonical_year": 2022,
+      "canonical_format": "Movie",
+      "category": "movie_vs_tv",
+      "source": "anime_nexus",
+      "search_query": "Suzume",
+      "candidate_rank": 1,
+      "candidate_title": "Sakugan",
+      "candidate_url": "https://anime.nexus/series/998f39c7-0500-4a03-954a-3ddfd241374d/sakugan-dfd42f85e8afd2d005aa",
+      "observed_format": "TV",
+      "observed_year": "2021-10-07",
+      "label": "reject",
+      "decision_bucket": "franchise_false_positive",
+      "reasons": [
+        "rank_1",
+        "season_consistent",
+        "format_conflict",
+        "no_exact_or_alias_candidate"
+      ],
+      "evidence_type": "browser_network_surface"
+    },
+    {
+      "case_id": "anime_nexus_fate_stay_night",
+      "canonical_title": "Fate/stay night",
+      "canonical_aliases": [],
+      "canonical_year": 2006,
+      "canonical_format": "TV",
+      "category": "grouped_ambiguity",
+      "source": "anime_nexus",
+      "search_query": "Fate Stay Night",
+      "candidate_rank": 1,
+      "candidate_title": "Fate/stay night",
+      "candidate_url": "https://anime.nexus/series/998f3926-f584-402a-a836-aa6024bf1b64/fatestay-night-1b5238626e8354ce6ef6",
+      "observed_format": "TV",
+      "observed_year": "2006-01-07",
+      "label": "match",
+      "decision_bucket": "browser_match",
+      "reasons": [
+        "exact_title",
+        "rank_1",
+        "season_consistent",
+        "type_aligned",
+        "year_match"
+      ],
+      "evidence_type": "browser_network_surface"
+    },
+    {
+      "case_id": "anime_nexus_eighty_six_s1",
+      "canonical_title": "86: Eighty Six",
+      "canonical_aliases": [
+        "86 EIGHTY-SIX"
+      ],
+      "canonical_year": 2021,
+      "canonical_format": "TV",
+      "category": "alias_positive",
+      "source": "anime_nexus",
+      "search_query": "86",
+      "candidate_rank": 1,
+      "candidate_title": "86 Eighty-Six",
+      "candidate_url": "https://anime.nexus/series/998f3d79-be9d-41b4-8037-7ab659d7d71b/86-eighty-six-ce90df8093284e8d4749",
+      "observed_format": "TV",
+      "observed_year": "2021-04-11",
+      "label": "match",
+      "decision_bucket": "browser_match",
+      "reasons": [
+        "exact_title",
+        "rank_1",
+        "season_consistent",
+        "type_aligned",
+        "year_match"
+      ],
+      "evidence_type": "browser_network_surface"
+    },
+    {
+      "case_id": "anime_nexus_eighty_six_s2",
+      "canonical_title": "86: Eighty Six Part 2",
+      "canonical_aliases": [
+        "86 EIGHTY-SIX Part 2"
+      ],
+      "canonical_year": 2021,
+      "canonical_format": "TV",
+      "category": "sequel_trap",
+      "source": "anime_nexus",
+      "search_query": "86",
+      "candidate_rank": 2,
+      "candidate_title": "86 Eighty-Six Part 2",
+      "candidate_url": "https://anime.nexus/series/99916631-0ab6-427b-aaf8-b6a4f000cc56/86-eighty-six-part-2-89dbde9d1afc7c0f1ed9",
+      "observed_format": "TV",
+      "observed_year": "2021-10-03",
+      "label": "match",
+      "decision_bucket": "browser_match",
+      "reasons": [
+        "exact_title",
+        "rank_2",
+        "season_consistent",
+        "type_aligned",
+        "year_match",
+        "higher_ranked_competitors_present"
+      ],
+      "evidence_type": "browser_network_surface"
+    },
+    {
+      "case_id": "anime_nexus_assassination_classroom_s1",
+      "canonical_title": "Ansatsu Kyoushitsu",
+      "canonical_aliases": [
+        "Assassination Classroom"
+      ],
+      "canonical_year": 2015,
+      "canonical_format": "TV",
+      "category": "alias_positive",
+      "source": "anime_nexus",
+      "search_query": "Assassination Classroom",
+      "candidate_rank": 2,
+      "candidate_title": "Assassination Classroom",
+      "candidate_url": "https://anime.nexus/series/998f3909-cbd8-4ad5-a3e5-ddd358e7cebd/assassination-classroom-6696151f448d2a47cd28",
+      "observed_format": "TV",
+      "observed_year": "2015-01-10",
+      "label": "match",
+      "decision_bucket": "browser_match",
+      "reasons": [
+        "exact_title",
+        "rank_2",
+        "season_consistent",
+        "type_aligned",
+        "year_match",
+        "higher_ranked_competitors_present"
+      ],
+      "evidence_type": "browser_network_surface"
+    },
+    {
+      "case_id": "anime_nexus_assassination_classroom_s2",
+      "canonical_title": "Ansatsu Kyoushitsu 2nd Season",
+      "canonical_aliases": [
+        "Assassination Classroom Second Season"
+      ],
+      "canonical_year": 2016,
+      "canonical_format": "TV",
+      "category": "sequel_trap",
+      "source": "anime_nexus",
+      "search_query": "Assassination Classroom",
+      "candidate_rank": 3,
+      "candidate_title": "Assassination Classroom Second Season",
+      "candidate_url": "https://anime.nexus/series/998f3900-bf5b-4ae1-a208-dc859967cd14/assassination-classroom-second-season-14126ef0ddea4b3e5cab",
+      "observed_format": "TV",
+      "observed_year": "2016-01-08",
+      "label": "match",
+      "decision_bucket": "browser_match",
+      "reasons": [
+        "exact_title",
+        "rank_3",
+        "type_aligned",
+        "year_match",
+        "higher_ranked_competitors_present"
+      ],
+      "evidence_type": "browser_network_surface"
+    },
+    {
+      "case_id": "anime_nexus_blue_box",
+      "canonical_title": "Ao no Hako",
+      "canonical_aliases": [
+        "Blue Box"
+      ],
+      "canonical_year": 2024,
+      "canonical_format": "TV",
+      "category": "alias_positive",
+      "source": "anime_nexus",
+      "search_query": "Blue Box",
+      "candidate_rank": 1,
+      "candidate_title": "Blue Box",
+      "candidate_url": "https://anime.nexus/series/9ad4f225-7295-4519-9b01-4c22be52f7a5/blue-box-31624377c1cd59963ccd",
+      "observed_format": "TV",
+      "observed_year": "2024-10-01",
+      "label": "match",
+      "decision_bucket": "browser_match",
+      "reasons": [
+        "exact_title",
+        "rank_1",
+        "season_consistent",
+        "type_aligned",
+        "year_match"
+      ],
+      "evidence_type": "browser_network_surface"
+    },
+    {
+      "case_id": "anime_nexus_erased",
+      "canonical_title": "Boku dake ga Inai Machi",
+      "canonical_aliases": [
+        "ERASED"
+      ],
+      "canonical_year": 2016,
+      "canonical_format": "TV",
+      "category": "alias_positive",
+      "source": "anime_nexus",
+      "search_query": "ERASED",
+      "candidate_rank": 1,
+      "candidate_title": "ERASED",
+      "candidate_url": "https://anime.nexus/series/998f3902-82d8-4767-ba87-e7cd580c342a/erased-f024408d64f0dfa35c1e",
+      "observed_format": "TV",
+      "observed_year": "2016-01-08",
+      "label": "match",
+      "decision_bucket": "browser_match",
+      "reasons": [
+        "exact_title",
+        "rank_1",
+        "season_consistent",
+        "type_aligned",
+        "year_match"
+      ],
+      "evidence_type": "browser_network_surface"
+    },
+    {
+      "case_id": "anime_nexus_mha_s1",
+      "canonical_title": "Boku no Hero Academia",
+      "canonical_aliases": [
+        "My Hero Academia"
+      ],
+      "canonical_year": 2016,
+      "canonical_format": "TV",
+      "category": "grouped_ambiguity",
+      "source": "anime_nexus",
+      "search_query": "My Hero Academia",
+      "candidate_rank": 1,
+      "candidate_title": "My Hero Academia",
+      "candidate_url": "https://anime.nexus/series/998f3c0c-4fb9-4d7b-ba4c-19faad83dd7b/my-hero-academia-3d9668cd1237d41e8fab",
+      "observed_format": "TV",
+      "observed_year": "2016-04-03",
+      "label": "match",
+      "decision_bucket": "browser_match",
+      "reasons": [
+        "exact_title",
+        "rank_1",
+        "season_consistent",
+        "type_aligned",
+        "year_match"
+      ],
+      "evidence_type": "browser_network_surface"
+    },
+    {
+      "case_id": "anime_nexus_mha_s7",
+      "canonical_title": "Boku no Hero Academia 7",
+      "canonical_aliases": [
+        "My Hero Academia Season 7"
+      ],
+      "canonical_year": 2024,
+      "canonical_format": "TV",
+      "category": "sequel_trap",
+      "source": "anime_nexus",
+      "search_query": "My Hero Academia Season 7",
+      "candidate_rank": 1,
+      "candidate_title": "My Hero Academia Season 7",
+      "candidate_url": "https://anime.nexus/series/9bf6bfd2-62a3-4814-bd77-68bee2b8e11f/my-hero-academia-season-7-a203a4c783e8f145e1d9",
+      "observed_format": "TV",
+      "observed_year": "2024-05-04",
+      "label": "match",
+      "decision_bucket": "browser_match",
+      "reasons": [
+        "exact_title",
+        "rank_1",
+        "season_consistent",
+        "type_aligned",
+        "year_match"
+      ],
+      "evidence_type": "browser_network_surface"
+    },
+    {
+      "case_id": "anime_nexus_chainsaw_tv",
+      "canonical_title": "Chainsaw Man",
+      "canonical_aliases": [
+        "Chainsaw Man"
+      ],
+      "canonical_year": 2022,
+      "canonical_format": "TV",
+      "category": "movie_vs_tv",
+      "source": "anime_nexus",
+      "search_query": "Chainsaw Man",
+      "candidate_rank": 1,
+      "candidate_title": "Chainsaw Man",
+      "candidate_url": "https://anime.nexus/series/999162b9-5b5e-4f2b-a6e7-ea5b1e8d772c/chainsaw-man-c8ba6d77806f751ba8a2",
+      "observed_format": "TV",
+      "observed_year": "2022-10-12",
+      "label": "match",
+      "decision_bucket": "browser_match",
+      "reasons": [
+        "exact_title",
+        "rank_1",
+        "season_consistent",
+        "type_aligned",
+        "year_match"
+      ],
+      "evidence_type": "browser_network_surface"
+    },
+    {
+      "case_id": "anime_nexus_chainsaw_reze_movie",
+      "canonical_title": "Chainsaw Man: Reze-hen",
+      "canonical_aliases": [
+        "Chainsaw Man - The Movie: Reze Arc"
+      ],
+      "canonical_year": 2025,
+      "canonical_format": "Movie",
+      "category": "movie_vs_tv",
+      "source": "anime_nexus",
+      "search_query": "Chainsaw Man",
+      "candidate_rank": 2,
+      "candidate_title": "Chainsaw Man the Movie: Reze Arc",
+      "candidate_url": "https://anime.nexus/series/9afbcf72-c83a-49af-9701-96c19ae618c0/chainsaw-man-the-movie-reze-arc-8e2eb92360a939790040",
+      "observed_format": "Movie",
+      "observed_year": "2025-09-19",
+      "label": "match",
+      "decision_bucket": "browser_match",
+      "reasons": [
+        "alias_match",
+        "rank_2",
+        "season_consistent",
+        "type_aligned",
+        "year_match",
+        "higher_ranked_competitors_present"
+      ],
+      "evidence_type": "browser_network_surface"
+    },
+    {
+      "case_id": "anime_nexus_clannad",
+      "canonical_title": "CLANNAD",
+      "canonical_aliases": [
+        "Clannad"
+      ],
+      "canonical_year": 2007,
+      "canonical_format": "TV",
+      "category": "exact_positive",
+      "source": "anime_nexus",
+      "search_query": "Clannad",
+      "candidate_rank": 1,
+      "candidate_title": "Clannad",
+      "candidate_url": "https://anime.nexus/series/998f3c0e-bfa5-4147-a78d-c9cd895b7657/clannad-415447a63f342e5f9891",
+      "observed_format": "TV",
+      "observed_year": "2007-10-05",
+      "label": "match",
+      "decision_bucket": "browser_match",
+      "reasons": [
+        "exact_title",
+        "rank_1",
+        "season_consistent",
+        "type_aligned",
+        "year_match"
+      ],
+      "evidence_type": "browser_network_surface"
+    },
+    {
+      "case_id": "anime_nexus_clannad_after_story",
+      "canonical_title": "CLANNAD: After Story",
+      "canonical_aliases": [
+        "Clannad: After Story"
+      ],
+      "canonical_year": 2008,
+      "canonical_format": "TV",
+      "category": "grouped_ambiguity",
+      "source": "anime_nexus",
+      "search_query": "Clannad",
+      "candidate_rank": 2,
+      "candidate_title": "Clannad: After Story",
+      "candidate_url": "https://anime.nexus/series/998f38fd-de08-44bd-9299-65b1c36f3069/clannad-after-story-23105ba03db20a8cd98a",
+      "observed_format": "TV",
+      "observed_year": "2008-10-03",
+      "label": "match",
+      "decision_bucket": "browser_match",
+      "reasons": [
+        "exact_title",
+        "rank_2",
+        "season_consistent",
+        "type_aligned",
+        "year_match",
+        "higher_ranked_competitors_present"
+      ],
+      "evidence_type": "browser_network_surface"
+    },
+    {
+      "case_id": "anime_nexus_code_geass",
+      "canonical_title": "Code Geass: Hangyaku no Lelouch",
+      "canonical_aliases": [
+        "Code Geass: Lelouch of the Rebellion"
+      ],
+      "canonical_year": 2006,
+      "canonical_format": "TV",
+      "category": "alias_positive",
+      "source": "anime_nexus",
+      "search_query": "Code Geass",
+      "candidate_rank": 1,
+      "candidate_title": "Code Geass: Lelouch of the Rebellion",
+      "candidate_url": "https://anime.nexus/series/998f38ff-563a-436b-b19d-183039b56009/code-geass-lelouch-of-the-rebellion-55e8287c618f38ce59aa",
+      "observed_format": "TV",
+      "observed_year": "2006-10-06",
+      "label": "match",
+      "decision_bucket": "browser_match",
+      "reasons": [
+        "exact_title",
+        "rank_1",
+        "season_consistent",
+        "type_aligned",
+        "year_match"
+      ],
+      "evidence_type": "browser_network_surface"
+    },
+    {
+      "case_id": "anime_nexus_cowboy_bebop",
+      "canonical_title": "Cowboy Bebop",
+      "canonical_aliases": [
+        "Cowboy Bebop"
+      ],
+      "canonical_year": 1998,
+      "canonical_format": "TV",
+      "category": "exact_positive",
+      "source": "anime_nexus",
+      "search_query": "Cowboy Bebop",
+      "candidate_rank": 1,
+      "candidate_title": "Cowboy Bebop",
+      "candidate_url": "https://anime.nexus/series/998f38ff-13c0-4bfe-9bc2-ca723b08c8c3/cowboy-bebop-294d145a4ee31e30c896",
+      "observed_format": "TV",
+      "observed_year": "1998-04-03",
+      "label": "match",
+      "decision_bucket": "browser_match",
+      "reasons": [
+        "exact_title",
+        "rank_1",
+        "season_consistent",
+        "type_aligned",
+        "year_match"
+      ],
+      "evidence_type": "browser_network_surface"
+    },
+    {
+      "case_id": "anime_nexus_dandadan_s1",
+      "canonical_title": "Dandadan",
+      "canonical_aliases": [
+        "DAN DA DAN"
+      ],
+      "canonical_year": 2024,
+      "canonical_format": "TV",
+      "category": "exact_positive",
+      "source": "anime_nexus",
+      "search_query": "Dandadan",
+      "candidate_rank": 1,
+      "candidate_title": "DAN DA DAN",
+      "candidate_url": "https://anime.nexus/series/9ad4f252-ecb0-44d4-acd6-66aa12f3b095/dan-da-dan-8b8f0a9220d7b92e4a7a",
+      "observed_format": "TV",
+      "observed_year": "2024-10-03",
+      "label": "match",
+      "decision_bucket": "browser_match",
+      "reasons": [
+        "exact_title",
+        "rank_1",
+        "season_consistent",
+        "type_aligned",
+        "year_match"
+      ],
+      "evidence_type": "browser_network_surface"
+    },
+    {
+      "case_id": "anime_nexus_dandadan_s2",
+      "canonical_title": "Dandadan 2nd Season",
+      "canonical_aliases": [
+        "DAN DA DAN Season 2"
+      ],
+      "canonical_year": 2025,
+      "canonical_format": "TV",
+      "category": "sequel_trap",
+      "source": "anime_nexus",
+      "search_query": "Dandadan",
+      "candidate_rank": 2,
+      "candidate_title": "Dan Da Dan Season 2",
+      "candidate_url": "https://anime.nexus/series/9dcb166e-b6d6-4bd1-b318-2be5fa59f8cb/dan-da-dan-season-2-34ad7df5589780f6f990",
+      "observed_format": "TV",
+      "observed_year": "2025-07-04",
+      "label": "match",
+      "decision_bucket": "browser_match",
+      "reasons": [
+        "exact_title",
+        "rank_2",
+        "season_consistent",
+        "type_aligned",
+        "year_match",
+        "higher_ranked_competitors_present"
+      ],
+      "evidence_type": "browser_network_surface"
+    },
+    {
+      "case_id": "anime_nexus_darling_franxx",
+      "canonical_title": "Darling in the Franxx",
+      "canonical_aliases": [
+        "DARLING in the FRANXX"
+      ],
+      "canonical_year": 2018,
+      "canonical_format": "TV",
+      "category": "exact_positive",
+      "source": "anime_nexus",
+      "search_query": "Darling in the Franxx",
+      "candidate_rank": 1,
+      "candidate_title": "DARLING in the FRANXX",
+      "candidate_url": "https://anime.nexus/series/998f3920-67fe-480d-973d-7f9738f3d2df/darling-in-the-franxx-e835b77b07fdf42cef74",
+      "observed_format": "TV",
+      "observed_year": "2018-01-13",
+      "label": "match",
+      "decision_bucket": "browser_match",
+      "reasons": [
+        "exact_title",
+        "rank_1",
+        "season_consistent",
+        "type_aligned",
+        "year_match"
+      ],
+      "evidence_type": "browser_network_surface"
+    },
+    {
+      "case_id": "anime_nexus_black_clover",
+      "canonical_title": "Black Clover",
+      "canonical_aliases": [
+        "Black Clover"
+      ],
+      "canonical_year": 2017,
+      "canonical_format": "TV",
+      "category": "exact_positive",
+      "source": "anime_nexus",
+      "search_query": "Black Clover",
+      "candidate_rank": 1,
+      "candidate_title": "Black Clover",
+      "candidate_url": "https://anime.nexus/series/998f395e-b95e-416d-adb1-700a553b1103/black-clover-d5d6e8edf2be06140d2a",
+      "observed_format": "TV",
+      "observed_year": "2017-10-03",
+      "label": "match",
+      "decision_bucket": "browser_match",
+      "reasons": [
+        "exact_title",
+        "rank_1",
+        "season_consistent",
+        "type_aligned",
+        "year_match"
+      ],
+      "evidence_type": "browser_network_surface"
+    },
+    {
+      "case_id": "anime_nexus_bleach",
+      "canonical_title": "BLEACH",
+      "canonical_aliases": [
+        "Bleach"
+      ],
+      "canonical_year": 2004,
+      "canonical_format": "TV",
+      "category": "exact_positive",
+      "source": "anime_nexus",
+      "search_query": "Bleach",
+      "candidate_rank": 1,
+      "candidate_title": "Bleach",
+      "candidate_url": "https://anime.nexus/series/998f3c17-a70c-4a17-ab98-d52253eb571b/bleach-32c52f73cc05c4172371",
+      "observed_format": "TV",
+      "observed_year": "2004-10-05",
+      "label": "match",
+      "decision_bucket": "browser_match",
+      "reasons": [
+        "exact_title",
+        "rank_1",
+        "season_consistent",
+        "type_aligned",
+        "year_match"
+      ],
+      "evidence_type": "browser_network_surface"
+    },
+    {
+      "case_id": "anime_nexus_cyberpunk_edgerunners",
+      "canonical_title": "Cyberpunk: Edgerunners",
+      "canonical_aliases": [
+        "Cyberpunk: Edgerunners"
+      ],
+      "canonical_year": 2022,
+      "canonical_format": "ONA",
+      "category": "alias_positive",
+      "source": "anime_nexus",
+      "search_query": "Cyberpunk",
+      "candidate_rank": 1,
+      "candidate_title": "Cyberpunk: Edgerunners",
+      "candidate_url": "https://anime.nexus/series/9991611d-204d-4f27-8fb2-9066c8155690/cyberpunk-edgerunners-ecf4dcf9240654a193e4",
+      "observed_format": "ONA",
+      "observed_year": "2022-09-13",
+      "label": "match",
+      "decision_bucket": "browser_match",
+      "reasons": [
+        "exact_title",
+        "rank_1",
+        "season_consistent",
+        "type_aligned",
+        "year_match"
+      ],
+      "evidence_type": "browser_network_surface"
+    },
+    {
+      "case_id": "anime_nexus_akame_ga_kill",
+      "canonical_title": "Akame ga Kill!",
+      "canonical_aliases": [
+        "Akame ga Kill!"
+      ],
+      "canonical_year": 2014,
+      "canonical_format": "TV",
+      "category": "exact_positive",
+      "source": "anime_nexus",
+      "search_query": "Akame ga Kill",
+      "candidate_rank": 1,
+      "candidate_title": "Akame ga Kill!",
+      "candidate_url": "https://anime.nexus/series/998f3917-d633-4f24-a9c8-52f4f9c671c2/akame-ga-kill-a5ce939c55884c17a8fc",
+      "observed_format": "TV",
+      "observed_year": "2014-07-07",
+      "label": "match",
+      "decision_bucket": "browser_match",
+      "reasons": [
+        "exact_title",
+        "rank_1",
+        "season_consistent",
+        "type_aligned",
+        "year_match"
+      ],
+      "evidence_type": "browser_network_surface"
+    },
+    {
+      "case_id": "anime_nexus_bakemonogatari",
+      "canonical_title": "Bakemonogatari",
+      "canonical_aliases": [
+        "Bakemonogatari"
+      ],
+      "canonical_year": 2009,
+      "canonical_format": "TV",
+      "category": "exact_positive",
+      "source": "anime_nexus",
+      "search_query": "Bakemonogatari",
+      "candidate_rank": 1,
+      "candidate_title": "Bakemonogatari",
+      "candidate_url": "https://anime.nexus/series/998f3ab9-3c9a-43bf-926b-330d10b0d2d4/bakemonogatari-6a5b876f3242703e8508",
+      "observed_format": "TV",
+      "observed_year": "2009-07-03",
+      "label": "match",
+      "decision_bucket": "browser_match",
+      "reasons": [
+        "exact_title",
+        "rank_1",
+        "season_consistent",
+        "type_aligned",
+        "year_match"
+      ],
+      "evidence_type": "browser_network_surface"
+    },
+    {
+      "case_id": "anime_nexus_orb_movements",
+      "canonical_title": "Chi. Chikyuu no Undou ni Tsuite",
+      "canonical_aliases": [
+        "Orb: On the Movements of the Earth"
+      ],
+      "canonical_year": 2024,
+      "canonical_format": "TV",
+      "category": "alias_positive",
+      "source": "anime_nexus",
+      "search_query": "Orb",
+      "candidate_rank": 1,
+      "candidate_title": "Orb: On the Movements of the Earth",
+      "candidate_url": "https://anime.nexus/series/999168fb-202c-4ec8-b40c-4a3c49728646/orb-on-the-movements-of-the-earth-801618aab67b237ee74d",
+      "observed_format": "TV",
+      "observed_year": "2024-10-05",
+      "label": "match",
+      "decision_bucket": "browser_match",
+      "reasons": [
+        "exact_title",
+        "rank_1",
+        "season_consistent",
+        "type_aligned",
+        "year_match"
+      ],
+      "evidence_type": "browser_network_surface"
+    },
+    {
+      "case_id": "anime_nexus_boruto",
+      "canonical_title": "Boruto: Naruto Next Generations",
+      "canonical_aliases": [
+        "Boruto"
+      ],
+      "canonical_year": 2017,
+      "canonical_format": "TV",
+      "category": "exact_positive",
+      "source": "anime_nexus",
+      "search_query": "Boruto",
+      "candidate_rank": 1,
+      "candidate_title": "Boruto: Naruto Next Generations",
+      "candidate_url": "https://anime.nexus/series/998f3b12-3035-4fa9-a903-3006b56d9a44/boruto-naruto-next-generations-0a4216442b773bc6a827",
+      "observed_format": "TV",
+      "observed_year": "2017-04-05",
+      "label": "match",
+      "decision_bucket": "browser_match",
+      "reasons": [
+        "exact_title",
+        "rank_1",
+        "season_consistent",
+        "type_aligned",
+        "year_match"
+      ],
+      "evidence_type": "browser_network_surface"
+    },
+    {
+      "case_id": "anime_nexus_kimetsu_mugen_movie",
+      "canonical_title": "Kimetsu no Yaiba Movie: Mugen Ressha-hen",
+      "canonical_aliases": [
+        "Demon Slayer: Mugen Train"
+      ],
+      "canonical_year": 2020,
+      "canonical_format": "Movie",
+      "category": "movie_vs_tv",
+      "source": "anime_nexus",
+      "search_query": "Infinity Train",
+      "candidate_rank": 2,
+      "candidate_title": "Demon Slayer: Kimetsu no Yaiba - The Movie: Infinity Train",
+      "candidate_url": "https://anime.nexus/series/99915fb6-8eab-4a69-8273-c8474b1439b3/demon-slayer-kimetsu-no-yaiba-the-movie-infinity-train-e85e0c1e366be7f00b36",
+      "observed_format": "Movie",
+      "observed_year": "2020-10-16",
+      "label": "match",
+      "decision_bucket": "browser_match",
+      "reasons": [
+        "movie_title_mapping_confirmed",
+        "rank_2",
+        "season_consistent",
+        "type_aligned",
+        "year_match",
+        "higher_ranked_competitors_present"
+      ],
+      "evidence_type": "browser_network_surface"
+    },
+    {
+      "case_id": "anime_nexus_jujutsu_s1",
+      "canonical_title": "Jujutsu Kaisen",
+      "canonical_aliases": [
+        "Jujutsu Kaisen"
+      ],
+      "canonical_year": 2020,
+      "canonical_format": "TV",
+      "category": "exact_positive",
+      "source": "anime_nexus",
+      "search_query": "Jujutsu Kaisen",
+      "candidate_rank": 1,
+      "candidate_title": "Jujutsu Kaisen",
+      "candidate_url": "https://anime.nexus/series/998f3d75-afbc-401d-826e-791861530f2f/jujutsu-kaisen-894b261e31142ac55022",
+      "observed_format": "TV",
+      "observed_year": "2020-10-03",
+      "label": "match",
+      "decision_bucket": "browser_match",
+      "reasons": [
+        "exact_title",
+        "rank_1",
+        "season_consistent",
+        "type_aligned",
+        "year_match"
+      ],
+      "evidence_type": "browser_network_surface"
+    },
+    {
+      "case_id": "anime_nexus_jujutsu_s2",
+      "canonical_title": "Jujutsu Kaisen 2nd Season",
+      "canonical_aliases": [
+        "Jujutsu Kaisen Season 2"
+      ],
+      "canonical_year": 2023,
+      "canonical_format": "TV",
+      "category": "sequel_trap",
+      "source": "anime_nexus",
+      "search_query": "Jujutsu Kaisen",
+      "candidate_rank": 3,
+      "candidate_title": "Jujutsu Kaisen: Shibuya Incident",
+      "candidate_url": "https://anime.nexus/series/999167ef-fc91-48fb-a46b-3f17d9d4ec01/jujutsu-kaisen-shibuya-incident-ba3d4c6f6d3033ce7be4",
+      "observed_format": "TV",
+      "observed_year": "2023-07-06",
+      "label": "match",
+      "decision_bucket": "browser_match",
+      "reasons": [
+        "exact_title",
+        "rank_3",
+        "type_aligned",
+        "year_match",
+        "higher_ranked_competitors_present"
+      ],
+      "evidence_type": "browser_network_surface"
+    },
+    {
+      "case_id": "anime_nexus_spy_family_s1",
+      "canonical_title": "Spy x Family",
+      "canonical_aliases": [
+        "SPY x FAMILY"
+      ],
+      "canonical_year": 2022,
+      "canonical_format": "TV",
+      "category": "exact_positive",
+      "source": "anime_nexus",
+      "search_query": "Spy x Family",
+      "candidate_rank": 1,
+      "candidate_title": "Spy x Family",
+      "candidate_url": "https://anime.nexus/series/99916762-7e18-4209-9548-1bc2bef2c7d4/spy-x-family-fa9adb4b01d0a2f5bab8",
+      "observed_format": "TV",
+      "observed_year": "2022-04-09",
+      "label": "match",
+      "decision_bucket": "browser_match",
+      "reasons": [
+        "exact_title",
+        "rank_1",
+        "season_consistent",
+        "type_aligned",
+        "year_match"
+      ],
+      "evidence_type": "browser_network_surface"
+    },
+    {
+      "case_id": "anime_nexus_spy_family_s2",
+      "canonical_title": "Spy x Family Season 2",
+      "canonical_aliases": [
+        "SPY x FAMILY Season 2"
+      ],
+      "canonical_year": 2023,
+      "canonical_format": "TV",
+      "category": "sequel_trap",
+      "source": "anime_nexus",
+      "search_query": "Spy x Family",
+      "candidate_rank": 3,
+      "candidate_title": "Spy x Family Season 2",
+      "candidate_url": "https://anime.nexus/series/99916a5f-5999-4901-b4ed-c357ddb8adb6/spy-x-family-season-2-7048714c9e7859efd6ba",
+      "observed_format": "TV",
+      "observed_year": "2023-10-07",
+      "label": "match",
+      "decision_bucket": "browser_match",
+      "reasons": [
+        "exact_title",
+        "rank_3",
+        "season_consistent",
+        "type_aligned",
+        "year_match",
+        "higher_ranked_competitors_present"
+      ],
+      "evidence_type": "browser_network_surface"
+    },
+    {
+      "case_id": "anime_nexus_koe_no_katachi",
+      "canonical_title": "Koe no Katachi",
+      "canonical_aliases": [
+        "A Silent Voice"
+      ],
+      "canonical_year": 2016,
+      "canonical_format": "Movie",
+      "category": "movie_vs_tv",
+      "source": "anime_nexus",
+      "search_query": "A Silent Voice",
+      "candidate_rank": null,
+      "candidate_title": null,
+      "candidate_url": null,
+      "observed_format": null,
+      "observed_year": null,
+      "label": "search_failed_query_strategy",
+      "decision_bucket": "alias_query_no_candidates",
+      "reasons": [
+        "no_candidates_returned"
+      ],
+      "evidence_type": "browser_network_surface"
+    },
+    {
+      "case_id": "anime_nexus_one_piece",
+      "canonical_title": "One Piece",
+      "canonical_aliases": [
+        "One Piece"
+      ],
+      "canonical_year": 1999,
+      "canonical_format": "TV",
+      "category": "exact_positive",
+      "source": "anime_nexus",
+      "search_query": "One Piece",
+      "candidate_rank": 1,
+      "candidate_title": "One Piece",
+      "candidate_url": "https://anime.nexus/series/998f3903-08f3-4315-9171-abf650e6586e/one-piece-dacf8b9251eaab2907d9",
+      "observed_format": "TV",
+      "observed_year": "1999-10-20",
+      "label": "match",
+      "decision_bucket": "browser_match",
+      "reasons": [
+        "exact_title",
+        "rank_1",
+        "season_consistent",
+        "type_aligned",
+        "year_match"
+      ],
+      "evidence_type": "browser_network_surface"
+    },
+    {
+      "case_id": "anime_nexus_baki_dou",
+      "canonical_title": "BAKI-DOU",
+      "canonical_aliases": [
+        "BAKI-DOU: The Invincible Samurai"
+      ],
+      "canonical_year": 2026,
+      "canonical_format": "ONA",
+      "category": "failed_or_empty",
+      "source": "anime_nexus",
+      "search_query": "Baki Dou",
+      "candidate_rank": 1,
+      "candidate_title": "Baki",
+      "candidate_url": "https://anime.nexus/series/998f3c26-e4f4-4089-8162-0605ae042c85/baki-b9c596dcd952f5ede52b",
+      "observed_format": "ONA",
+      "observed_year": "2018-06-25",
+      "label": "match",
+      "decision_bucket": "source_title_mapping_confirmed",
+      "reasons": [
+        "source_title_mapping_confirmed",
+        "rank_1",
+        "season_consistent",
+        "type_aligned",
+        "format_aligned"
+      ],
+      "evidence_type": "browser_network_surface"
+    },
+    {
+      "case_id": "anime_nexus_dark_moon",
+      "canonical_title": "DARK MOON: Kuro no Tsuki - Tsuki no Saidan",
+      "canonical_aliases": [
+        "DARK MOON: THE BLOOD ALTAR"
+      ],
+      "canonical_year": 2026,
+      "canonical_format": "TV",
+      "category": "failed_or_empty",
+      "source": "anime_nexus",
+      "search_query": "DARK MOON",
+      "candidate_rank": 1,
+      "candidate_title": "Dark Moon: The Blood Altar",
+      "candidate_url": "https://anime.nexus/series/9d0ca056-cc44-46f7-926c-42cc90821584/dark-moon-the-blood-altar-534ca7c2826b49d1c09f",
+      "observed_format": "TV",
+      "observed_year": "2026-01-09",
+      "label": "match",
+      "decision_bucket": "browser_match",
+      "reasons": [
+        "alias_match",
+        "rank_1",
+        "season_consistent",
+        "type_aligned",
+        "year_match"
+      ],
+      "evidence_type": "browser_network_surface"
+    },
+    {
+      "case_id": "anime_nexus_roll_over_and_die",
+      "canonical_title": "\"Omae Gotoki ga Maou ni Kateru to Omou na\" to Yuusha Party wo Tsuihou Sareta node, Outo de Kimama ni Kurashitai",
+      "canonical_aliases": [
+        "ROLL OVER AND DIE: I Will Fight for an Ordinary Life with My Love and Cursed Sword!"
+      ],
+      "canonical_year": 2026,
+      "canonical_format": "TV",
+      "category": "failed_or_empty",
+      "source": "anime_nexus",
+      "search_query": "Roll Over and Die",
+      "candidate_rank": 1,
+      "candidate_title": "Roll Over and Die: I Will Fight for an Ordinary Life with My Love and Cursed Sword!",
+      "candidate_url": "https://anime.nexus/series/9ede6271-4411-46ea-8a86-d82653712285/roll-over-and-die-i-will-fight-for-an-ordinary-life-with-my-love-and-cursed-sword-c4236d2e7bfc7ac44ba5",
+      "observed_format": "TV",
+      "observed_year": "2026-01-08",
+      "label": "match",
+      "decision_bucket": "browser_match",
+      "reasons": [
+        "alias_match",
+        "rank_1",
+        "season_consistent",
+        "type_aligned",
+        "year_match"
+      ],
+      "evidence_type": "browser_network_surface"
+    }
+  ],
+  "source_label_counts": {
+    "jkanime": {
+      "match": 41,
+      "review_needed": 0,
+      "reject": 3
+    },
+    "animeflv": {
+      "match": 29,
+      "review_needed": 1,
+      "search_failed_query_strategy": 8,
+      "reject": 6
+    },
+    "animeav1": {
+      "match": 34,
+      "review_needed": 3,
+      "search_failed_query_strategy": 1,
+      "reject": 6
+    },
+    "anime_nexus": {
+      "match": 41,
+      "search_failed_query_strategy": 2,
+      "reject": 1,
+      "review_needed": 0
+    }
+  }
+}

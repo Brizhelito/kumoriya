@@ -2,12 +2,14 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kumoriya_app/src/features/anime_catalog/application/models/resolved_server_link_result.dart';
 import 'package:kumoriya_storage/kumoriya_storage.dart';
 import 'package:media_kit_video/media_kit_video.dart';
 
 import '../../../../app/l10n.dart';
+import '../../../../shared/theme/kumoriya_theme.dart';
 import '../../../../shared/widgets/state_views.dart';
 import '../../../anime_catalog/presentation/providers/storage_providers.dart';
 import '../../application/models/embedded_tracks.dart';
@@ -93,6 +95,12 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
       'init resolver=${widget.resolved.resolverId} server=${widget.serverName} streams=${widget.resolved.streams.map((stream) => stream.url.toString()).join(" | ")}',
     );
     unawaited(_initializeRuntimeAndStartPlayback());
+    // Enter immersive landscape mode for video playback.
+    SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
+    SystemChrome.setPreferredOrientations(<DeviceOrientation>[
+      DeviceOrientation.landscapeLeft,
+      DeviceOrientation.landscapeRight,
+    ]);
   }
 
   @override
@@ -101,6 +109,9 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
     _periodicSaveTimer?.cancel();
     unawaited(_saveCurrentProgress());
     unawaited(_disposeRuntime());
+    // Restore normal orientation and system UI.
+    SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+    SystemChrome.setPreferredOrientations(<DeviceOrientation>[]);
     super.dispose();
   }
 
@@ -270,6 +281,10 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
     }
   }
 
+  void _handleExit(BuildContext context) {
+    unawaited(_handleExitRequested());
+  }
+
   Widget _wrapWithExitGuard(Widget child) {
     return PopScope(
       canPop: false,
@@ -280,11 +295,6 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
       },
       child: child,
     );
-  }
-
-  Future<void> _startPlayback() async {
-    _resumePosition = await _loadResumePosition();
-    await _startPlaybackFromPosition(_resumePosition);
   }
 
   Future<void> _startPlaybackFromPosition(Duration? initialPosition) async {
@@ -399,262 +409,65 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
 
     return _wrapWithExitGuard(
       Scaffold(
-        appBar: AppBar(
-          title: Text(
-            context.l10n.playerEpisodeTitle(
-              widget.animeTitle,
-              widget.episodeNumber,
-            ),
-          ),
-        ),
-        body: Column(
-          children: <Widget>[
-            Expanded(
-              child: Stack(
-                fit: StackFit.expand,
-                children: <Widget>[
-                  if (engine != null)
-                    Video(
-                      controller: engine.videoController,
-                      controls: NoVideoControls,
-                    )
-                  else
-                    const ColoredBox(
-                      color: Colors.black,
-                      child: Center(child: CircularProgressIndicator()),
-                    ),
-                  if (isLoading)
-                    Container(
-                      color: Colors.black45,
-                      alignment: Alignment.center,
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: <Widget>[
-                          const CircularProgressIndicator(),
-                          const SizedBox(height: 12),
-                          Text(
-                            context.l10n.playerLoading,
-                            style: const TextStyle(color: Colors.white),
-                          ),
-                        ],
-                      ),
-                    ),
-                  if (_state.status == PlayerSessionStatus.error)
-                    Align(
-                      alignment: Alignment.topCenter,
-                      child: Container(
-                        margin: const EdgeInsets.all(12),
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: Colors.red.shade700,
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Text(
-                          context.l10n.playerPlaybackErrorGeneric,
-                          style: const TextStyle(color: Colors.white),
-                        ),
-                      ),
-                    ),
-                ],
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.all(12),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: <Widget>[
-                  Text(
-                    context.l10n.playerSourceSummary(
-                      widget.serverName,
-                      widget.resolved.resolverName,
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    context.l10n.playerCandidatePosition(
-                      (_state.currentCandidateIndex + 1).toString(),
-                      _state.totalCandidates.toString(),
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Row(
-                    children: <Widget>[
-                      ChoiceChip(
-                        label: const Text('Auto'),
-                        selected: _orchestrator?.isAutoQualityEnabled ?? true,
-                        onSelected: _orchestrator == null
-                            ? null
-                            : (_) async {
-                                await _orchestrator!.setAutoQualityEnabled(
-                                  true,
-                                );
-                                if (mounted) setState(() {});
-                              },
-                      ),
-                      const SizedBox(width: 8),
-                      ChoiceChip(
-                        label: const Text('Manual'),
-                        selected:
-                            !(_orchestrator?.isAutoQualityEnabled ?? true),
-                        onSelected: _orchestrator == null
-                            ? null
-                            : (_) async {
-                                await _orchestrator!.setAutoQualityEnabled(
-                                  false,
-                                );
-                                if (mounted) setState(() {});
-                              },
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: OutlinedButton.icon(
-                          onPressed: _orchestrator == null
-                              ? null
-                              : () => unawaited(_showQualityPicker(context)),
-                          icon: const Icon(Icons.high_quality),
-                          label: Text(
-                            'Calidad: ${_state.selectedStream?.qualityLabel ?? _state.selectedStream?.url.toString() ?? '-'}',
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  if (_embeddedTracks.hasMultipleAudio ||
-                      _embeddedTracks.hasSubtitles) ...<Widget>[
-                    const SizedBox(height: 8),
-                    Row(
-                      children: <Widget>[
-                        if (_embeddedTracks.hasMultipleAudio)
-                          OutlinedButton.icon(
-                            onPressed: _orchestrator == null
-                                ? null
-                                : () =>
-                                      unawaited(_showAudioTrackPicker(context)),
-                            icon: const Icon(Icons.audiotrack),
-                            label: const Text('Audio'),
-                          ),
-                        if (_embeddedTracks.hasMultipleAudio &&
-                            _embeddedTracks.hasSubtitles)
-                          const SizedBox(width: 8),
-                        if (_embeddedTracks.hasSubtitles)
-                          OutlinedButton.icon(
-                            onPressed: _orchestrator == null
-                                ? null
-                                : () => unawaited(
-                                    _showSubtitleTrackPicker(context),
-                                  ),
-                            icon: const Icon(Icons.subtitles),
-                            label: const Text('Subtítulos'),
-                          ),
-                      ],
-                    ),
-                  ],
-                  if (_state.infoMessage != null &&
-                      _state.infoMessage!.trim().isNotEmpty) ...<Widget>[
-                    const SizedBox(height: 6),
-                    Text(_mapInfoMessage(context, _state.infoMessage!)),
-                  ],
-                  if (widget.preferredAudioPreference != null) ...<Widget>[
-                    const SizedBox(height: 6),
-                    Text(
-                      context.l10n.playerAudioPreference(
-                        widget.preferredAudioPreference!.name.toUpperCase(),
-                      ),
-                    ),
-                  ],
-                  const SizedBox(height: 12),
-                  Row(
-                    children: <Widget>[
-                      FilledButton.icon(
-                        onPressed: _orchestrator == null
-                            ? null
-                            : () => _orchestrator!.togglePlayPause(),
-                        icon: Icon(
-                          _state.status == PlayerSessionStatus.playing
-                              ? Icons.pause
-                              : Icons.play_arrow,
-                        ),
-                        label: Text(
-                          _state.status == PlayerSessionStatus.playing
-                              ? context.l10n.playerPause
-                              : context.l10n.playerPlay,
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      OutlinedButton.icon(
-                        onPressed: _retryPlayback,
-                        icon: const Icon(Icons.refresh),
-                        label: Text(context.l10n.retry),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  Slider(
-                    value: _sliderValueMs,
-                    max: _sliderMaxMs,
-                    onChanged: _currentDuration > Duration.zero
-                        ? (value) {
-                            setState(() {
-                              _isScrubbing = true;
-                              _scrubPositionMs = value;
-                            });
-                          }
-                        : null,
-                    onChangeEnd: _currentDuration > Duration.zero
-                        ? (value) {
-                            final target = Duration(
-                              milliseconds: value.round(),
-                            );
-                            setState(() {
-                              _currentPosition = target;
-                              _isScrubbing = false;
-                              _scrubPositionMs = null;
-                            });
-                            unawaited(_seekTo(target));
-                          }
-                        : null,
-                  ),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: <Widget>[
-                      Text(_formatDuration(_effectiveSliderPosition)),
-                      Text(_formatDuration(_currentDuration)),
-                    ],
-                  ),
-                  if (_state.status == PlayerSessionStatus.error) ...<Widget>[
-                    const SizedBox(height: 8),
-                    Text(
-                      context.l10n.playerAllCandidatesFailed,
-                      style: const TextStyle(color: Colors.redAccent),
-                    ),
-                  ],
-                ],
-              ),
-            ),
-          ],
+        backgroundColor: Colors.black,
+        body: _ImmersivePlayerView(
+          engine: engine,
+          isLoading: isLoading,
+          isPlaying: _state.status == PlayerSessionStatus.playing,
+          isError: _state.status == PlayerSessionStatus.error,
+          animeTitle: widget.animeTitle,
+          episodeNumber: widget.episodeNumber,
+          currentPosition: _effectiveSliderPosition,
+          totalDuration: _currentDuration,
+          sliderValue: _sliderValueMs,
+          sliderMax: _sliderMaxMs,
+          hasMultipleAudio: _embeddedTracks.hasMultipleAudio,
+          hasSubtitles: _embeddedTracks.hasSubtitles,
+          onTogglePlayPause: () => _orchestrator?.togglePlayPause(),
+          onSeekChanged: _currentDuration > Duration.zero
+              ? (value) {
+                  setState(() {
+                    _isScrubbing = true;
+                    _scrubPositionMs = value;
+                  });
+                }
+              : null,
+          onSeekEnd: _currentDuration > Duration.zero
+              ? (value) {
+                  final target = Duration(milliseconds: value.round());
+                  setState(() {
+                    _currentPosition = target;
+                    _isScrubbing = false;
+                    _scrubPositionMs = null;
+                  });
+                  unawaited(_seekTo(target));
+                }
+              : null,
+          onBack: () => _handleExit(context),
+          onRetry: _retryPlayback,
+          onQuality: () => unawaited(_showQualityPicker(context)),
+          onAudio: _embeddedTracks.hasMultipleAudio
+              ? () => unawaited(_showAudioTrackPicker(context))
+              : null,
+          onSubtitle: _embeddedTracks.hasSubtitles
+              ? () => unawaited(_showSubtitleTrackPicker(context))
+              : null,
+          onSkipBackward: () {
+            final target = _currentPosition - const Duration(seconds: 10);
+            unawaited(_seekTo(target < Duration.zero ? Duration.zero : target));
+          },
+          onSkipForward: () {
+            final maxPos = _currentDuration - const Duration(seconds: 1);
+            final target = _currentPosition + const Duration(seconds: 10);
+            unawaited(_seekTo(target > maxPos && maxPos > Duration.zero ? maxPos : target));
+          },
+          errorMessage: _state.status == PlayerSessionStatus.error
+              ? context.l10n.playerAllCandidatesFailed
+              : null,
+          formatDuration: _formatDuration,
         ),
       ),
     );
-  }
-
-  String _mapInfoMessage(BuildContext context, String code) {
-    switch (code) {
-      case 'player.fallback_in_progress':
-        return context.l10n.playerCandidateFailedTryingFallback;
-      case 'player.tried_all_candidates':
-        return context.l10n.playerAllCandidatesFailed;
-      case 'player.manual_quality_switch':
-        return 'Cambiando calidad manual...';
-      case 'player.manual_quality_failed':
-        return 'La calidad manual falló. Cambia a otra calidad o usa Auto.';
-      case 'player.auto_quality_downshift':
-        return 'Auto: bajando calidad por buffering.';
-      case 'player.auto_quality_upshift':
-        return 'Auto: subiendo calidad por reproducción estable.';
-      default:
-        return code;
-    }
   }
 
   Future<void> _showQualityPicker(BuildContext context) async {
@@ -708,11 +521,11 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: <Widget>[
-              const Padding(
-                padding: EdgeInsets.all(16),
+              Padding(
+                padding: const EdgeInsets.all(16),
                 child: Text(
-                  'Audio',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  context.l10n.playerAudio,
+                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
               ),
               ...tracks.map(
@@ -747,16 +560,16 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: <Widget>[
-              const Padding(
-                padding: EdgeInsets.all(16),
+              Padding(
+                padding: const EdgeInsets.all(16),
                 child: Text(
-                  'Subtítulos',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  context.l10n.playerSubtitles,
+                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
               ),
               ListTile(
                 leading: const Icon(Icons.subtitles_off),
-                title: const Text('Desactivar'),
+                title: Text(context.l10n.playerDisableSubtitles),
                 onTap: () {
                   Navigator.of(context).pop();
                   unawaited(orchestrator.clearEmbeddedSubtitleTrack());
@@ -828,5 +641,476 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
     debugPrint(
       '[player.page#$_instanceId ${DateTime.now().toIso8601String()}] $message',
     );
+  }
+}
+
+class _ImmersivePlayerView extends StatefulWidget {
+  const _ImmersivePlayerView({
+    required this.engine,
+    required this.isLoading,
+    required this.isPlaying,
+    required this.isError,
+    required this.animeTitle,
+    required this.episodeNumber,
+    required this.currentPosition,
+    required this.totalDuration,
+    required this.sliderValue,
+    required this.sliderMax,
+    required this.hasMultipleAudio,
+    required this.hasSubtitles,
+    required this.onTogglePlayPause,
+    required this.onSeekChanged,
+    required this.onSeekEnd,
+    required this.onBack,
+    required this.onRetry,
+    required this.onQuality,
+    required this.onAudio,
+    required this.onSubtitle,
+    required this.formatDuration,
+    required this.onSkipBackward,
+    required this.onSkipForward,
+    this.errorMessage,
+  });
+
+  final MediaKitPlaybackEngine? engine;
+  final bool isLoading;
+  final bool isPlaying;
+  final bool isError;
+  final String animeTitle;
+  final String episodeNumber;
+  final Duration currentPosition;
+  final Duration totalDuration;
+  final double sliderValue;
+  final double sliderMax;
+  final bool hasMultipleAudio;
+  final bool hasSubtitles;
+  final VoidCallback? onTogglePlayPause;
+  final ValueChanged<double>? onSeekChanged;
+  final ValueChanged<double>? onSeekEnd;
+  final VoidCallback onBack;
+  final VoidCallback onRetry;
+  final VoidCallback onQuality;
+  final VoidCallback? onAudio;
+  final VoidCallback? onSubtitle;
+  final VoidCallback? onSkipBackward;
+  final VoidCallback? onSkipForward;
+  final String? errorMessage;
+  final String Function(Duration) formatDuration;
+
+  @override
+  State<_ImmersivePlayerView> createState() => _ImmersivePlayerViewState();
+}
+
+class _ImmersivePlayerViewState extends State<_ImmersivePlayerView> {
+  bool _controlsVisible = true;
+  Timer? _hideTimer;
+  bool _seekIndicatorVisible = false;
+  bool _seekIndicatorForward = true;
+  Timer? _seekIndicatorTimer;
+  bool _orientationLocked = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _startHideTimer();
+  }
+
+  @override
+  void dispose() {
+    _hideTimer?.cancel();
+    _seekIndicatorTimer?.cancel();
+    super.dispose();
+  }
+
+  void _startHideTimer() {
+    _hideTimer?.cancel();
+    _hideTimer = Timer(const Duration(seconds: 4), () {
+      if (mounted && widget.isPlaying) {
+        setState(() => _controlsVisible = false);
+      }
+    });
+  }
+
+  void _toggleControls() {
+    setState(() {
+      _controlsVisible = !_controlsVisible;
+      if (_controlsVisible) _startHideTimer();
+    });
+  }
+
+  void _showSeekIndicator({required bool isForward}) {
+    _seekIndicatorTimer?.cancel();
+    setState(() {
+      _seekIndicatorVisible = true;
+      _seekIndicatorForward = isForward;
+    });
+    _seekIndicatorTimer = Timer(const Duration(milliseconds: 600), () {
+      if (mounted) setState(() => _seekIndicatorVisible = false);
+    });
+  }
+
+  void _toggleOrientationLock() {
+    setState(() => _orientationLocked = !_orientationLocked);
+    if (_orientationLocked) {
+      SystemChrome.setPreferredOrientations(<DeviceOrientation>[
+        DeviceOrientation.landscapeLeft,
+        DeviceOrientation.landscapeRight,
+      ]);
+    } else {
+      SystemChrome.setPreferredOrientations(<DeviceOrientation>[]);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      fit: StackFit.expand,
+      children: <Widget>[
+        // Video layer
+        if (widget.engine != null)
+          Video(
+            controller: widget.engine!.videoController,
+            controls: NoVideoControls,
+          )
+        else
+          const ColoredBox(color: Colors.black),
+
+        // Double-tap seek zones
+        Row(
+          children: <Widget>[
+            Expanded(
+              child: GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: _toggleControls,
+                onDoubleTap: () {
+                  widget.onSkipBackward?.call();
+                  _showSeekIndicator(isForward: false);
+                },
+                child: const SizedBox.expand(),
+              ),
+            ),
+            Expanded(
+              child: GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: _toggleControls,
+                onDoubleTap: () {
+                  widget.onSkipForward?.call();
+                  _showSeekIndicator(isForward: true);
+                },
+                child: const SizedBox.expand(),
+              ),
+            ),
+          ],
+        ),
+
+        // Seek indicator
+        if (_seekIndicatorVisible)
+          Align(
+            alignment: _seekIndicatorForward ? Alignment.centerRight : Alignment.centerLeft,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 48),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                decoration: BoxDecoration(
+                  color: Colors.black.withValues(alpha: 0.60),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: <Widget>[
+                    Icon(
+                      _seekIndicatorForward ? Icons.forward_10_rounded : Icons.replay_10_rounded,
+                      color: Colors.white,
+                      size: 28,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      _seekIndicatorForward ? '+10s' : '-10s',
+                      style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w700),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+
+        // Loading overlay
+        if (widget.isLoading)
+            Container(
+              color: KumoriyaColors.scrimLight,
+              alignment: Alignment.center,
+              child: const CircularProgressIndicator(color: Colors.white),
+            ),
+
+          // Error banner
+          if (widget.isError && widget.errorMessage != null)
+            Align(
+              alignment: Alignment.topCenter,
+              child: SafeArea(
+                child: Container(
+                  margin: const EdgeInsets.all(12),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 10,
+                  ),
+                  decoration: BoxDecoration(
+                    color: KumoriyaColors.statusDanger,
+                    borderRadius: BorderRadius.circular(KumoriyaRadius.md),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: <Widget>[
+                      Text(
+                        widget.errorMessage!,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 13,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      GestureDetector(
+                        onTap: widget.onRetry,
+                        child: Text(
+                          context.l10n.playerRetry,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 0.5,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+
+          // Controls overlay (animated)
+          AnimatedOpacity(
+            opacity: _controlsVisible ? 1.0 : 0.0,
+            duration: const Duration(milliseconds: 250),
+            child: IgnorePointer(
+              ignoring: !_controlsVisible,
+              child: Container(
+                decoration: const BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: <Color>[
+                      Color(0xAA000000),
+                      Colors.transparent,
+                      Colors.transparent,
+                      Color(0xCC000000),
+                    ],
+                    stops: <double>[0.0, 0.25, 0.65, 1.0],
+                  ),
+                ),
+                child: SafeArea(
+                  child: Column(
+                    children: <Widget>[
+                      // Top bar
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(8, 4, 8, 0),
+                        child: Row(
+                          children: <Widget>[
+                            IconButton(
+                              onPressed: widget.onBack,
+                              tooltip: context.l10n.playerBack,
+                              icon: const Icon(
+                                Icons.arrow_back_rounded,
+                                color: Colors.white,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                '${widget.animeTitle} - EP ${widget.episodeNumber}',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                            if (widget.hasMultipleAudio)
+                              IconButton(
+                                onPressed: widget.onAudio,
+                                icon: const Icon(
+                                  Icons.audiotrack_rounded,
+                                  color: Colors.white,
+                                  size: 22,
+                                ),
+                                tooltip: context.l10n.playerAudio,
+                              ),
+                            if (widget.hasSubtitles)
+                              IconButton(
+                                onPressed: widget.onSubtitle,
+                                icon: const Icon(
+                                  Icons.subtitles_rounded,
+                                  color: Colors.white,
+                                  size: 22,
+                                ),
+                                tooltip: context.l10n.playerSubtitles,
+                              ),
+                            IconButton(
+                              onPressed: widget.onQuality,
+                              icon: const Icon(
+                                Icons.hd_rounded,
+                                color: Colors.white,
+                                size: 22,
+                              ),
+                              tooltip: context.l10n.playerQuality,
+                            ),
+                            IconButton(
+                              onPressed: _toggleOrientationLock,
+                              icon: Icon(
+                                _orientationLocked ? Icons.screen_lock_rotation_rounded : Icons.screen_rotation_rounded,
+                                color: Colors.white,
+                                size: 22,
+                              ),
+                              tooltip: _orientationLocked ? context.l10n.playerUnlockRotation : context.l10n.playerLockRotation,
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      // Center play/pause
+                      const Spacer(),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: <Widget>[
+                          _PlayerIconButton(
+                            icon: Icons.replay_10_rounded,
+                            size: 36,
+                            onTap: widget.onSkipBackward,
+                            tooltip: context.l10n.playerSkipBackward,
+                          ),
+                          const SizedBox(width: 32),
+                          _PlayerIconButton(
+                            icon: widget.isPlaying
+                                ? Icons.pause_rounded
+                                : Icons.play_arrow_rounded,
+                            size: 56,
+                            onTap: widget.onTogglePlayPause,
+                            tooltip: widget.isPlaying ? context.l10n.playerPause : context.l10n.playerPlay,
+                          ),
+                          const SizedBox(width: 32),
+                          _PlayerIconButton(
+                            icon: Icons.forward_10_rounded,
+                            size: 36,
+                            onTap: widget.onSkipForward,
+                            tooltip: context.l10n.playerSkipForward,
+                          ),
+                        ],
+                      ),
+                      const Spacer(),
+
+                      // Bottom seek bar
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+                        child: Column(
+                          children: <Widget>[
+                            SliderTheme(
+                              data: SliderThemeData(
+                                trackHeight: 3,
+                                thumbShape: const RoundSliderThumbShape(
+                                  enabledThumbRadius: 6,
+                                ),
+                                activeTrackColor: KumoriyaColors.primary,
+                                inactiveTrackColor: Colors.white.withValues(
+                                  alpha: 0.20,
+                                ),
+                                thumbColor: KumoriyaColors.primary,
+                                overlayColor: KumoriyaColors.primary.withValues(
+                                  alpha: 0.15,
+                                ),
+                              ),
+                              child: Slider(
+                                value: widget.sliderValue,
+                                max: widget.sliderMax,
+                                onChanged: widget.onSeekChanged,
+                                onChangeEnd: widget.onSeekEnd,
+                              ),
+                            ),
+                            Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 4,
+                              ),
+                              child: Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
+                                children: <Widget>[
+                                  Text(
+                                    widget.formatDuration(
+                                      widget.currentPosition,
+                                    ),
+                                    style: const TextStyle(
+                                      fontSize: 12,
+                                      color: Colors.white70,
+                                    ),
+                                  ),
+                                  if (widget.totalDuration > Duration.zero)
+                                    Text(
+                                      '-${widget.formatDuration(widget.totalDuration - widget.currentPosition)}',
+                                      style: const TextStyle(fontSize: 11, color: Colors.white54),
+                                    ),
+                                  Text(
+                                    widget.formatDuration(widget.totalDuration),
+                                    style: const TextStyle(
+                                      fontSize: 12,
+                                      color: Colors.white70,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      );
+  }
+}
+
+class _PlayerIconButton extends StatelessWidget {
+  const _PlayerIconButton({
+    required this.icon,
+    required this.size,
+    required this.onTap,
+    this.tooltip,
+  });
+
+  final IconData icon;
+  final double size;
+  final VoidCallback? onTap;
+  final String? tooltip;
+
+  @override
+  Widget build(BuildContext context) {
+    Widget child = GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: size + 16,
+        height: size + 16,
+        decoration: BoxDecoration(
+          color: Colors.black.withValues(alpha: 0.40),
+          shape: BoxShape.circle,
+        ),
+        child: Icon(icon, color: Colors.white, size: size),
+      ),
+    );
+    if (tooltip != null) {
+      child = Tooltip(message: tooltip!, child: child);
+    }
+    return child;
   }
 }

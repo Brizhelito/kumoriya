@@ -699,6 +699,38 @@ class AppLocalizationsEn extends AppLocalizations {
   String get downloadResume => 'Resume';
 
   @override
+  String get downloadFolderTitle => 'Download folder';
+
+  @override
+  String get downloadFolderDescription =>
+      'New episode downloads will be saved in this location.';
+
+  @override
+  String get downloadFolderDefault => 'Default';
+
+  @override
+  String get downloadFolderCustom => 'Custom';
+
+  @override
+  String get downloadFolderChange => 'Change folder';
+
+  @override
+  String get downloadFolderReset => 'Use default folder';
+
+  @override
+  String get downloadFolderSaved => 'Download folder updated.';
+
+  @override
+  String get downloadFolderResetDone => 'Download folder reset to default.';
+
+  @override
+  String get downloadFolderSelectionCancelled => 'Folder selection cancelled.';
+
+  @override
+  String get downloadFolderPermissionDenied =>
+      'Storage permission was not granted for an external download folder.';
+
+  @override
   String get autoDownload => 'Auto-download new episodes';
 
   @override
@@ -718,4 +750,87 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get playEpisode => 'Play episode';
+
+  @override
+  String get navHome => 'Home';
+
+  @override
+  String get navSearch => 'Search';
+
+  @override
+  String get navCalendar => 'Calendar';
+
+  @override
+  String get navLibrary => 'Library';
+
+  @override
+  String get navDownloads => 'Downloads';
+
+  @override
+  String get calendarTitle => 'Calendar';
+
+  @override
+  String get calendarSubtitle => 'Airing by day';
+
+  @override
+  String get calendarNoAiring => 'No airing anime found.';
+
+  @override
+  String get calendarUnknownSchedule => 'Unknown schedule';
+
+  @override
+  String get downloadsTitle => 'Downloads';
+
+  @override
+  String get downloadsSubtitle => 'Offline episodes';
+
+  @override
+  String get libraryTitle => 'Library';
+
+  @override
+  String get playerBack => 'Back';
+
+  @override
+  String get playerAudio => 'Audio';
+
+  @override
+  String get playerSubtitles => 'Subtitles';
+
+  @override
+  String get playerQuality => 'Quality';
+
+  @override
+  String get playerRetry => 'RETRY';
+
+  @override
+  String get playerSkipBackward => '-10s';
+
+  @override
+  String get playerSkipForward => '+10s';
+
+  @override
+  String get playerUnlockRotation => 'Unlock rotation';
+
+  @override
+  String get playerLockRotation => 'Lock rotation';
+
+  @override
+  String get playerDisableSubtitles => 'Disable';
+
+  @override
+  String get resumeLabel => 'RESUME';
+
+  @override
+  String get detailPlay => 'Play';
+
+  @override
+  String detailResumeEpisode(int episode) {
+    return 'Resume EP $episode';
+  }
+
+  @override
+  String get searchPageTitle => 'Search';
+
+  @override
+  String get homeAiringToday => 'Airing Today';
 }

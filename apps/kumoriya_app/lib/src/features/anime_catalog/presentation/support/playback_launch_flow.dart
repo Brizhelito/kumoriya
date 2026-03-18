@@ -240,7 +240,7 @@ Future<void> _openPlayer(
   required EpisodePlayerLaunch launch,
   bool persistSelection = true,
 }) {
-  return Navigator.of(context).push(
+  return Navigator.of(context, rootNavigator: true).push(
     MaterialPageRoute<void>(
       builder: (_) => PlayerPage(
         anilistId: anilistId,

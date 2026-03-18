@@ -442,5 +442,39 @@
   "downloadHlsNotSupported": "HLS streams cannot be downloaded",
   "downloadSelectQuality": "Select quality",
   "downloadSelectServer": "Select server",
-  "playEpisode": "Play episode"
+  "playEpisode": "Play episode",
+  "navHome": "Home",
+  "navSearch": "Search",
+  "navCalendar": "Calendar",
+  "navLibrary": "Library",
+  "navDownloads": "Downloads",
+  "calendarTitle": "Calendar",
+  "calendarSubtitle": "Airing by day",
+  "calendarNoAiring": "No airing anime found.",
+  "calendarUnknownSchedule": "Unknown schedule",
+  "downloadsTitle": "Downloads",
+  "downloadsSubtitle": "Offline episodes",
+  "libraryTitle": "Library",
+  "playerBack": "Back",
+  "playerAudio": "Audio",
+  "playerSubtitles": "Subtitles",
+  "playerQuality": "Quality",
+  "playerRetry": "RETRY",
+  "playerSkipBackward": "-10s",
+  "playerSkipForward": "+10s",
+  "playerUnlockRotation": "Unlock rotation",
+  "playerLockRotation": "Lock rotation",
+  "playerDisableSubtitles": "Disable",
+  "resumeLabel": "RESUME",
+  "detailPlay": "Play",
+  "detailResumeEpisode": "Resume EP {episode}",
+  "@detailResumeEpisode": {
+    "placeholders": {
+      "episode": {
+        "type": "int"
+      }
+    }
+  },
+  "searchPageTitle": "Search",
+  "homeAiringToday": "Airing Today"
 }

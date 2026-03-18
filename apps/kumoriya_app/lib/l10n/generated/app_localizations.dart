@@ -1210,6 +1210,66 @@ abstract class AppLocalizations {
   /// **'Resume'**
   String get downloadResume;
 
+  /// No description provided for @downloadFolderTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Download folder'**
+  String get downloadFolderTitle;
+
+  /// No description provided for @downloadFolderDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'New episode downloads will be saved in this location.'**
+  String get downloadFolderDescription;
+
+  /// No description provided for @downloadFolderDefault.
+  ///
+  /// In en, this message translates to:
+  /// **'Default'**
+  String get downloadFolderDefault;
+
+  /// No description provided for @downloadFolderCustom.
+  ///
+  /// In en, this message translates to:
+  /// **'Custom'**
+  String get downloadFolderCustom;
+
+  /// No description provided for @downloadFolderChange.
+  ///
+  /// In en, this message translates to:
+  /// **'Change folder'**
+  String get downloadFolderChange;
+
+  /// No description provided for @downloadFolderReset.
+  ///
+  /// In en, this message translates to:
+  /// **'Use default folder'**
+  String get downloadFolderReset;
+
+  /// No description provided for @downloadFolderSaved.
+  ///
+  /// In en, this message translates to:
+  /// **'Download folder updated.'**
+  String get downloadFolderSaved;
+
+  /// No description provided for @downloadFolderResetDone.
+  ///
+  /// In en, this message translates to:
+  /// **'Download folder reset to default.'**
+  String get downloadFolderResetDone;
+
+  /// No description provided for @downloadFolderSelectionCancelled.
+  ///
+  /// In en, this message translates to:
+  /// **'Folder selection cancelled.'**
+  String get downloadFolderSelectionCancelled;
+
+  /// No description provided for @downloadFolderPermissionDenied.
+  ///
+  /// In en, this message translates to:
+  /// **'Storage permission was not granted for an external download folder.'**
+  String get downloadFolderPermissionDenied;
+
   /// No description provided for @autoDownload.
   ///
   /// In en, this message translates to:
@@ -1251,6 +1311,168 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Play episode'**
   String get playEpisode;
+
+  /// No description provided for @navHome.
+  ///
+  /// In en, this message translates to:
+  /// **'Home'**
+  String get navHome;
+
+  /// No description provided for @navSearch.
+  ///
+  /// In en, this message translates to:
+  /// **'Search'**
+  String get navSearch;
+
+  /// No description provided for @navCalendar.
+  ///
+  /// In en, this message translates to:
+  /// **'Calendar'**
+  String get navCalendar;
+
+  /// No description provided for @navLibrary.
+  ///
+  /// In en, this message translates to:
+  /// **'Library'**
+  String get navLibrary;
+
+  /// No description provided for @navDownloads.
+  ///
+  /// In en, this message translates to:
+  /// **'Downloads'**
+  String get navDownloads;
+
+  /// No description provided for @calendarTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Calendar'**
+  String get calendarTitle;
+
+  /// No description provided for @calendarSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Airing by day'**
+  String get calendarSubtitle;
+
+  /// No description provided for @calendarNoAiring.
+  ///
+  /// In en, this message translates to:
+  /// **'No airing anime found.'**
+  String get calendarNoAiring;
+
+  /// No description provided for @calendarUnknownSchedule.
+  ///
+  /// In en, this message translates to:
+  /// **'Unknown schedule'**
+  String get calendarUnknownSchedule;
+
+  /// No description provided for @downloadsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Downloads'**
+  String get downloadsTitle;
+
+  /// No description provided for @downloadsSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Offline episodes'**
+  String get downloadsSubtitle;
+
+  /// No description provided for @libraryTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Library'**
+  String get libraryTitle;
+
+  /// No description provided for @playerBack.
+  ///
+  /// In en, this message translates to:
+  /// **'Back'**
+  String get playerBack;
+
+  /// No description provided for @playerAudio.
+  ///
+  /// In en, this message translates to:
+  /// **'Audio'**
+  String get playerAudio;
+
+  /// No description provided for @playerSubtitles.
+  ///
+  /// In en, this message translates to:
+  /// **'Subtitles'**
+  String get playerSubtitles;
+
+  /// No description provided for @playerQuality.
+  ///
+  /// In en, this message translates to:
+  /// **'Quality'**
+  String get playerQuality;
+
+  /// No description provided for @playerRetry.
+  ///
+  /// In en, this message translates to:
+  /// **'RETRY'**
+  String get playerRetry;
+
+  /// No description provided for @playerSkipBackward.
+  ///
+  /// In en, this message translates to:
+  /// **'-10s'**
+  String get playerSkipBackward;
+
+  /// No description provided for @playerSkipForward.
+  ///
+  /// In en, this message translates to:
+  /// **'+10s'**
+  String get playerSkipForward;
+
+  /// No description provided for @playerUnlockRotation.
+  ///
+  /// In en, this message translates to:
+  /// **'Unlock rotation'**
+  String get playerUnlockRotation;
+
+  /// No description provided for @playerLockRotation.
+  ///
+  /// In en, this message translates to:
+  /// **'Lock rotation'**
+  String get playerLockRotation;
+
+  /// No description provided for @playerDisableSubtitles.
+  ///
+  /// In en, this message translates to:
+  /// **'Disable'**
+  String get playerDisableSubtitles;
+
+  /// No description provided for @resumeLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'RESUME'**
+  String get resumeLabel;
+
+  /// No description provided for @detailPlay.
+  ///
+  /// In en, this message translates to:
+  /// **'Play'**
+  String get detailPlay;
+
+  /// No description provided for @detailResumeEpisode.
+  ///
+  /// In en, this message translates to:
+  /// **'Resume EP {episode}'**
+  String detailResumeEpisode(int episode);
+
+  /// No description provided for @searchPageTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Search'**
+  String get searchPageTitle;
+
+  /// No description provided for @homeAiringToday.
+  ///
+  /// In en, this message translates to:
+  /// **'Airing Today'**
+  String get homeAiringToday;
 }
 
 class _AppLocalizationsDelegate

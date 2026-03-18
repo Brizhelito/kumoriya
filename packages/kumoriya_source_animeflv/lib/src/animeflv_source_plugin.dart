@@ -40,66 +40,38 @@ final class AnimeFlvSourcePlugin implements SourcePlugin {
   Future<Result<List<SourceAnimeMatch>, KumoriyaError>> search(
     SourceSearchQuery query,
   ) async {
-    final uri = _baseUri.resolve(
-      'browse?q=${Uri.encodeComponent(query.query.trim())}',
-    );
-    final htmlResult = await _fetchHtml(uri);
+    for (final candidateQuery in _buildSearchFallbacks(query.query)) {
+      final uri = _baseUri.resolve(
+        'browse?q=${Uri.encodeComponent(candidateQuery)}',
+      );
+      final htmlResult = await _fetchHtml(uri);
 
-    return htmlResult.fold(
-      onFailure: Failure.new,
-      onSuccess: (html) {
-        try {
-          final document = html_parser.parse(html);
-          final articles = document.querySelectorAll(
-            'ul.ListAnimes li article',
-          );
-          final matches = <SourceAnimeMatch>[];
-          final seenIds = <String>{};
+      if (htmlResult.isFailure) {
+        return htmlResult.fold(
+          onFailure: Failure.new,
+          onSuccess: (_) => throw StateError('unreachable'),
+        );
+      }
 
-          for (final article in articles) {
-            final linkEl = article.querySelector('a[href]');
-            final href = linkEl?.attributes['href'] ?? '';
-            final sourceId = _extractSlugFromPath(href);
-            if (sourceId == null || seenIds.contains(sourceId)) {
-              continue;
-            }
-            seenIds.add(sourceId);
-
-            final title = article.querySelector('h3')?.text.trim() ?? '';
-            if (title.isEmpty) {
-              continue;
-            }
-
-            final imageUrl = article
-                .querySelector('figure img')
-                ?.attributes['src']
-                ?.trim();
-            final typeText = article.querySelector('.Type')?.text.trim();
-
-            matches.add(
-              SourceAnimeMatch(
-                sourceId: sourceId,
-                title: title,
-                thumbnailUrl: _asAbsoluteUri(imageUrl),
-                format: _mapFormat(typeText),
-              ),
-            );
-
-            if (matches.length >= query.limit) {
-              break;
-            }
-          }
-
+      try {
+        final html = htmlResult.fold(
+          onFailure: (_) => throw StateError('unreachable'),
+          onSuccess: (value) => value,
+        );
+        final matches = _parseSearchMatches(html, limit: query.limit);
+        if (matches.isNotEmpty) {
           return Success(matches);
-        } catch (error) {
-          return Failure(
-            AnimeFlvParseError(
-              message: 'Failed to parse AnimeFLV search: $error',
-            ),
-          );
         }
-      },
-    );
+      } catch (error) {
+        return Failure(
+          AnimeFlvParseError(
+            message: 'Failed to parse AnimeFLV search: $error',
+          ),
+        );
+      }
+    }
+
+    return const Success(<SourceAnimeMatch>[]);
   }
 
   @override
@@ -250,6 +222,146 @@ final class AnimeFlvSourcePlugin implements SourcePlugin {
         AnimeFlvTransportError(message: 'AnimeFLV request failed: $error'),
       );
     }
+  }
+
+  List<SourceAnimeMatch> _parseSearchMatches(
+    String html, {
+    required int limit,
+  }) {
+    final document = html_parser.parse(html);
+    final articles = document.querySelectorAll('ul.ListAnimes li article');
+    final matches = <SourceAnimeMatch>[];
+    final seenIds = <String>{};
+
+    for (final article in articles) {
+      final linkEl = article.querySelector('a[href]');
+      final href = linkEl?.attributes['href'] ?? '';
+      final sourceId = _extractSlugFromPath(href);
+      if (sourceId == null || seenIds.contains(sourceId)) {
+        continue;
+      }
+      seenIds.add(sourceId);
+
+      final title = article.querySelector('h3')?.text.trim() ?? '';
+      if (title.isEmpty) {
+        continue;
+      }
+
+      final imageUrl = article
+          .querySelector('figure img')
+          ?.attributes['src']
+          ?.trim();
+      final typeText = article.querySelector('.Type')?.text.trim();
+
+      matches.add(
+        SourceAnimeMatch(
+          sourceId: sourceId,
+          title: title,
+          thumbnailUrl: _asAbsoluteUri(imageUrl),
+          format: _mapFormat(typeText),
+        ),
+      );
+
+      if (matches.length >= limit) {
+        break;
+      }
+    }
+
+    return matches;
+  }
+
+  List<String> _buildSearchFallbacks(String rawQuery) {
+    final ordered = <String>[];
+    final seen = <String>{};
+
+    String normalizationKey(String value) {
+      return _stripDiacritics(
+        value.trim().toLowerCase(),
+      ).replaceAll(RegExp(r'\s+'), ' ');
+    }
+
+    void add(String value) {
+      final normalized = value.trim().replaceAll(RegExp(r'\s+'), ' ');
+      if (normalized.isEmpty) {
+        return;
+      }
+      final key = normalizationKey(normalized);
+      if (seen.add(key)) {
+        ordered.add(normalized);
+      }
+    }
+
+    final query = rawQuery.trim();
+    add(query);
+
+    final withoutSeason = _stripSeasonDescriptor(query);
+    add(withoutSeason);
+
+    final withoutParenthetical = _stripTrailingParenthetical(withoutSeason);
+    add(withoutParenthetical);
+
+    final slugQuery = _searchQueryFromSlug(_slugify(query));
+    if (normalizationKey(slugQuery) != normalizationKey(query)) {
+      add(slugQuery);
+    }
+
+    return ordered;
+  }
+
+  String _stripSeasonDescriptor(String value) {
+    var result = value.trim();
+    const patterns = <String>[
+      r'\s*[-:]?\s*\b\d+(?:st|nd|rd|th)?\s+season\b$',
+      r'\s*[-:]?\s*\bseason\s+\d+\b$',
+      r'\s*[-:]?\s*\bpart\s+\d+\b$',
+      r'\s*[-:]?\s*\bcour\s+\d+\b$',
+      r'\s*[-:]?\s*\b(?:ii|iii|iv|v)\b$',
+    ];
+
+    for (final pattern in patterns) {
+      result = result.replaceFirst(RegExp(pattern, caseSensitive: false), '');
+    }
+
+    return result.trim();
+  }
+
+  String _stripTrailingParenthetical(String value) {
+    return value.replaceFirst(RegExp(r'\s*\([^)]*\)\s*$'), '').trim();
+  }
+
+  String _searchQueryFromSlug(String slug) => slug.replaceAll('-', ' ').trim();
+
+  String _slugify(String value) {
+    final lower = _stripDiacritics(value.toLowerCase());
+    return lower
+        .replaceAll(RegExp(r'[^a-z0-9]+'), '-')
+        .replaceAll(RegExp(r'-+'), '-')
+        .replaceAll(RegExp(r'^-|-$'), '');
+  }
+
+  String _stripDiacritics(String value) {
+    return value
+        .replaceAll('\u00E1', 'a')
+        .replaceAll('\u00E0', 'a')
+        .replaceAll('\u00E4', 'a')
+        .replaceAll('\u00E2', 'a')
+        .replaceAll('\u00E9', 'e')
+        .replaceAll('\u00E8', 'e')
+        .replaceAll('\u00EB', 'e')
+        .replaceAll('\u00EA', 'e')
+        .replaceAll('\u00ED', 'i')
+        .replaceAll('\u00EC', 'i')
+        .replaceAll('\u00EF', 'i')
+        .replaceAll('\u00EE', 'i')
+        .replaceAll('\u00F3', 'o')
+        .replaceAll('\u00F2', 'o')
+        .replaceAll('\u00F6', 'o')
+        .replaceAll('\u00F4', 'o')
+        .replaceAll('\u00FA', 'u')
+        .replaceAll('\u00F9', 'u')
+        .replaceAll('\u00FC', 'u')
+        .replaceAll('\u00FB', 'u')
+        .replaceAll('\u00F1', 'n');
   }
 
   List<SourceEpisode> _extractEpisodesFromDetailPage(

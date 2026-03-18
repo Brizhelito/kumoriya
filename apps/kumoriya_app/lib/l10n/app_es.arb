@@ -442,5 +442,39 @@
   "downloadHlsNotSupported": "Los streams HLS no se pueden descargar",
   "downloadSelectQuality": "Seleccionar calidad",
   "downloadSelectServer": "Seleccionar servidor",
-  "playEpisode": "Reproducir episodio"
+  "playEpisode": "Reproducir episodio",
+  "navHome": "Inicio",
+  "navSearch": "Buscar",
+  "navCalendar": "Calendario",
+  "navLibrary": "Biblioteca",
+  "navDownloads": "Descargas",
+  "calendarTitle": "Calendario",
+  "calendarSubtitle": "Emisión por día",
+  "calendarNoAiring": "No se encontraron animes en emisión.",
+  "calendarUnknownSchedule": "Sin horario confirmado",
+  "downloadsTitle": "Descargas",
+  "downloadsSubtitle": "Episodios sin conexión",
+  "libraryTitle": "Biblioteca",
+  "playerBack": "Atrás",
+  "playerAudio": "Audio",
+  "playerSubtitles": "Subtítulos",
+  "playerQuality": "Calidad",
+  "playerRetry": "REINTENTAR",
+  "playerSkipBackward": "-10s",
+  "playerSkipForward": "+10s",
+  "playerUnlockRotation": "Desbloquear rotación",
+  "playerLockRotation": "Bloquear rotación",
+  "playerDisableSubtitles": "Desactivar",
+  "resumeLabel": "REANUDAR",
+  "detailPlay": "Reproducir",
+  "detailResumeEpisode": "Continuar EP {episode}",
+  "@detailResumeEpisode": {
+    "placeholders": {
+      "episode": {
+        "type": "int"
+      }
+    }
+  },
+  "searchPageTitle": "Buscar",
+  "homeAiringToday": "Al Aire Hoy"
 }

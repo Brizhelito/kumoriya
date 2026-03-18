@@ -37,6 +37,47 @@ void main() {
     );
   });
 
+  test('search retries AnimeFLV with conservative fallback query', () async {
+    final requests = <String>[];
+    final plugin = AnimeFlvSourcePlugin(
+      httpClient: MockClient((request) async {
+        final query = request.url.queryParameters['q'] ?? '';
+        requests.add(query);
+
+        if (query == 'Naruto 1st Season') {
+          return http.Response(
+            '<html><body><ul class="ListAnimes"></ul></body></html>',
+            200,
+          );
+        }
+
+        if (query == 'Naruto') {
+          return http.Response(
+            File(
+              '${fixtureDir.path}${Platform.pathSeparator}animeflv_search_naruto.html',
+            ).readAsStringSync(),
+            200,
+          );
+        }
+
+        return http.Response('unexpected query: $query', 500);
+      }),
+    );
+
+    final result = await plugin.search(
+      const SourceSearchQuery(query: 'Naruto 1st Season'),
+    );
+
+    expect(requests, <String>['Naruto 1st Season', 'Naruto']);
+    result.fold(
+      onFailure: (error) => fail('expected success, got ${error.message}'),
+      onSuccess: (matches) {
+        expect(matches, hasLength(2));
+        expect(matches.first.sourceId, 'naruto');
+      },
+    );
+  });
+
   test('episodes parse from AnimeFLV detail script', () async {
     final plugin = AnimeFlvSourcePlugin(
       httpClient: MockClient((request) async {

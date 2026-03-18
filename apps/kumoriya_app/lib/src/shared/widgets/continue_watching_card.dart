@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:kumoriya_storage/kumoriya_storage.dart';
 
+import '../../app/l10n.dart';
 import '../theme/kumoriya_theme.dart';
 import 'kumoriya_cached_image.dart';
 
@@ -129,8 +130,8 @@ class _ContinueWatchingCardState extends State<ContinueWatchingCard> {
                         ),
                       ),
                       const SizedBox(height: 10),
-                      AnimatedOpacity(
-                        opacity: _hovered ? 1.0 : 0.0,
+                      AnimatedScale(
+                        scale: _hovered ? 1.05 : 1.0,
                         duration: const Duration(milliseconds: 220),
                         child: _ResumeButton(
                           onTap: widget.isLaunching ? null : widget.onResume,
@@ -190,7 +191,7 @@ class _ResumeButton extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        height: 36,
+        height: 44,
         decoration: BoxDecoration(
           color: KumoriyaColors.primary,
           borderRadius: BorderRadius.circular(KumoriyaRadius.lg),
@@ -201,14 +202,14 @@ class _ResumeButton extends StatelessWidget {
             ),
           ],
         ),
-        child: const Row(
+        child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: <Widget>[
-            Icon(Icons.play_arrow_rounded, color: Colors.white, size: 18),
-            SizedBox(width: 6),
+            const Icon(Icons.play_arrow_rounded, color: Colors.white, size: 18),
+            const SizedBox(width: 6),
             Text(
-              'RESUME',
-              style: TextStyle(
+              context.l10n.resumeLabel,
+              style: const TextStyle(
                 fontSize: 11,
                 fontWeight: FontWeight.w800,
                 color: Colors.white,

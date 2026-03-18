@@ -12,6 +12,7 @@ class SourceBadge extends StatelessWidget {
     this.audioKinds = const <SourceAudioKind>{},
     this.highlighted = false,
     this.compact = false,
+    this.iconOnly = false,
   });
 
   final String name;
@@ -19,6 +20,7 @@ class SourceBadge extends StatelessWidget {
   final Set<SourceAudioKind> audioKinds;
   final bool highlighted;
   final bool compact;
+  final bool iconOnly;
 
   @override
   Widget build(BuildContext context) {
@@ -31,6 +33,24 @@ class SourceBadge extends StatelessWidget {
     final textColor = highlighted
         ? KumoriyaColors.primaryLight
         : KumoriyaColors.primary;
+
+    if (iconOnly) {
+      return Tooltip(
+        message: name,
+        child: Container(
+          width: compact ? 26 : 30,
+          height: compact ? 26 : 30,
+          decoration: BoxDecoration(
+            color: bg,
+            shape: BoxShape.circle,
+            border: Border.all(color: borderColor),
+          ),
+          child: Center(
+            child: _SourceIcon(name: name, iconUrl: iconUrl, size: compact ? 16 : 18),
+          ),
+        ),
+      );
+    }
 
     return Container(
       height: compact ? 26 : 30,

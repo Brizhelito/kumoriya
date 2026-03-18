@@ -19,6 +19,21 @@ abstract final class KumoriyaColors {
   static Color primarySurface10 = primary.withValues(alpha: 0.10);
   static Color primarySurface20 = primary.withValues(alpha: 0.20);
   static Color primaryBorder30 = primary.withValues(alpha: 0.30);
+
+  // Semantic status colors
+  static const Color statusSuccess = Color(0xFF34D399);
+  static const Color statusWarning = Color(0xFFF59E0B);
+  static const Color statusDanger = Color(0xFFF87171);
+  static const Color statusInfo = Color(0xFF60A5FA);
+
+  // Named surface variants (replace ad-hoc alpha usage)
+  static Color get surfaceDim => surface.withValues(alpha: 0.50);
+  static Color get surfaceBright => surface;
+
+  // Overlay colors
+  static Color get scrimLight => Colors.black.withValues(alpha: 0.40);
+  static Color get scrimHeavy => Colors.black.withValues(alpha: 0.72);
+  static Color get playerControlBg => Colors.black.withValues(alpha: 0.55);
 }
 
 abstract final class KumoriyaRadius {

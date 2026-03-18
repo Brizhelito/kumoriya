@@ -191,7 +191,7 @@ class _AnimeDetailBody extends StatelessWidget {
     return CustomScrollView(
       slivers: <Widget>[
         SliverAppBar(
-          expandedHeight: 420,
+          expandedHeight: 280,
           pinned: true,
           stretch: true,
           backgroundColor: KumoriyaColors.background,
@@ -209,6 +209,13 @@ class _AnimeDetailBody extends StatelessWidget {
           sliver: SliverList(
             delegate: SliverChildListDelegate(<Widget>[
               _TitleBlock(detail: detail),
+              const SizedBox(height: 14),
+              _PlayResumeCta(
+                anilistId: detail.anime.anilistId,
+                animeTitle: detail.anime.title.romaji,
+                availabilityState: availabilityState,
+                latestProgressState: latestProgressState,
+              ),
               const SizedBox(height: 12),
               _LibraryActions(anilistId: detail.anime.anilistId),
               const SizedBox(height: 18),
@@ -216,23 +223,7 @@ class _AnimeDetailBody extends StatelessWidget {
               if (detail.synopsis != null &&
                   detail.synopsis!.trim().isNotEmpty) ...<Widget>[
                 const SizedBox(height: 18),
-                const Text(
-                  'Synopsis',
-                  style: TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w700,
-                    color: KumoriyaColors.textPrimary,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  detail.synopsis!,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    height: 1.55,
-                    color: KumoriyaColors.textSecondary,
-                  ),
-                ),
+                _CollapsibleSynopsis(synopsis: detail.synopsis!),
               ],
               if (detail.genres.isNotEmpty) ...<Widget>[
                 const SizedBox(height: 16),
@@ -289,7 +280,22 @@ class _AnimeDetailBody extends StatelessWidget {
                       (relation) => ListTile(
                         contentPadding: EdgeInsets.zero,
                         title: Text(relation.anime.title.romaji),
-                        subtitle: Text(relation.type.name),
+                        subtitle: Padding(
+                          padding: const EdgeInsets.only(top: 4),
+                          child: Row(
+                            children: <Widget>[
+                              _RelationTypeBadge(type: relation.type),
+                              const SizedBox(width: 6),
+                              Text(
+                                relation.anime.format.name.toUpperCase(),
+                                style: const TextStyle(
+                                  fontSize: 11,
+                                  color: KumoriyaColors.textDisabled,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
                         trailing: const Icon(
                           Icons.chevron_right_rounded,
                           color: KumoriyaColors.textDisabled,
@@ -306,6 +312,188 @@ class _AnimeDetailBody extends StatelessWidget {
               ],
             ]),
           ),
+        ),
+      ],
+    );
+  }
+}
+
+class _PlayResumeCta extends ConsumerStatefulWidget {
+  const _PlayResumeCta({
+    required this.anilistId,
+    required this.animeTitle,
+    required this.availabilityState,
+    required this.latestProgressState,
+  });
+
+  final int anilistId;
+  final String animeTitle;
+  final AsyncValue<Result<SourceAvailabilitySummary, KumoriyaError>>
+  availabilityState;
+  final AsyncValue<Result<EpisodeProgress?, KumoriyaError>> latestProgressState;
+
+  @override
+  ConsumerState<_PlayResumeCta> createState() => _PlayResumeCtaState();
+}
+
+class _PlayResumeCtaState extends ConsumerState<_PlayResumeCta> {
+  bool _isLaunching = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final summary = widget.availabilityState.maybeWhen(
+      data: (result) => result.fold(
+        onFailure: (_) => null,
+        onSuccess: (s) => s,
+      ),
+      orElse: () => null,
+    );
+
+    final latestProgress = widget.latestProgressState.maybeWhen(
+      data: (result) => result.fold(
+        onFailure: (_) => null,
+        onSuccess: (p) => p,
+      ),
+      orElse: () => null,
+    );
+
+    final isAvailable = summary != null && summary.playableSources.isNotEmpty;
+    final hasProgress = latestProgress != null;
+
+    final label = hasProgress
+        ? context.l10n.detailResumeEpisode(latestProgress.episodeNumber.toInt())
+        : context.l10n.detailPlay;
+    const icon = Icons.play_arrow_rounded;
+
+    return SizedBox(
+      width: double.infinity,
+      height: 48,
+      child: FilledButton.icon(
+        onPressed: isAvailable && !_isLaunching
+            // ignore: unnecessary_non_null_assertion
+            ? () => _handleTap(summary!, latestProgress)
+            : null,
+        icon: _isLaunching
+            ? const SizedBox(
+                width: 18,
+                height: 18,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: Colors.white,
+                ),
+              )
+            : const Icon(icon, size: 22),
+        label: Text(
+          label,
+          style: const TextStyle(
+            fontSize: 15,
+            fontWeight: FontWeight.w700,
+            letterSpacing: 0.3,
+          ),
+        ),
+        style: FilledButton.styleFrom(
+          backgroundColor: KumoriyaColors.primary,
+          foregroundColor: Colors.white,
+          disabledBackgroundColor: KumoriyaColors.surface,
+          disabledForegroundColor: KumoriyaColors.textDisabled,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(KumoriyaRadius.lg),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _handleTap(
+    SourceAvailabilitySummary summary,
+    EpisodeProgress? latestProgress,
+  ) async {
+    setState(() => _isLaunching = true);
+    showBlockingLoader(context, context.l10n.playbackPreparing);
+
+    final episodeNumber = latestProgress?.episodeNumber ?? 1;
+
+    final decision = await ref
+        .read(startEpisodePlaybackUseCaseProvider)
+        .call(
+          anilistId: widget.anilistId,
+          episodeNumber: episodeNumber,
+          availabilitySummary: summary,
+        );
+    if (!mounted) return;
+    hideBlockingLoader(context);
+    setState(() => _isLaunching = false);
+    await handlePlaybackDecision(
+      context: context,
+      ref: ref,
+      anilistId: widget.anilistId,
+      animeTitle: widget.animeTitle,
+      decision: decision,
+    );
+  }
+}
+
+class _CollapsibleSynopsis extends StatefulWidget {
+  const _CollapsibleSynopsis({required this.synopsis});
+  final String synopsis;
+  @override
+  State<_CollapsibleSynopsis> createState() => _CollapsibleSynopsisState();
+}
+
+class _CollapsibleSynopsisState extends State<_CollapsibleSynopsis> {
+  bool _expanded = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        GestureDetector(
+          onTap: () => setState(() => _expanded = !_expanded),
+          child: Row(
+            children: <Widget>[
+              const Text(
+                'Synopsis',
+                style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w700,
+                  color: KumoriyaColors.textPrimary,
+                ),
+              ),
+              const SizedBox(width: 4),
+              Icon(
+                _expanded
+                    ? Icons.expand_less_rounded
+                    : Icons.expand_more_rounded,
+                size: 20,
+                color: KumoriyaColors.textMuted,
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 8),
+        AnimatedCrossFade(
+          firstChild: Text(
+            widget.synopsis,
+            maxLines: 3,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              fontSize: 14,
+              height: 1.55,
+              color: KumoriyaColors.textSecondary,
+            ),
+          ),
+          secondChild: Text(
+            widget.synopsis,
+            style: const TextStyle(
+              fontSize: 14,
+              height: 1.55,
+              color: KumoriyaColors.textSecondary,
+            ),
+          ),
+          crossFadeState:
+              _expanded ? CrossFadeState.showSecond : CrossFadeState.showFirst,
+          duration: const Duration(milliseconds: 250),
         ),
       ],
     );
@@ -755,7 +943,7 @@ class _EpisodeDetailSectionState extends ConsumerState<_EpisodeDetailSection> {
       final file = File(offlineTask.filePath!);
       if (await file.exists()) {
         if (!mounted) return;
-        await Navigator.of(context).push(
+        await Navigator.of(context, rootNavigator: true).push(
           MaterialPageRoute<void>(
             builder: (_) => PlayerPage(
               anilistId: widget.detail.anime.anilistId,
@@ -939,6 +1127,7 @@ class _DetailEpisodeCardState extends ConsumerState<_DetailEpisodeCard> {
                                   iconUrl: _sourceIconUrl(source.manifest),
                                   audioKinds: source.availableAudioKinds,
                                   compact: true,
+                                  iconOnly: true,
                                 ),
                               ),
                             ),
@@ -1196,7 +1385,9 @@ class _LibraryActions extends ConsumerWidget {
       orElse: () => false,
     );
 
-    return Row(
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
       children: <Widget>[
         _ActionButton(
           icon: isFav ? Icons.favorite_rounded : Icons.favorite_border_rounded,
@@ -1209,7 +1400,6 @@ class _LibraryActions extends ConsumerWidget {
             ref.invalidate(favoriteAnimeIdsProvider);
           },
         ),
-        const SizedBox(width: 10),
         _ActionButton(
           icon: isSub
               ? Icons.notifications_active_rounded
@@ -1231,7 +1421,6 @@ class _LibraryActions extends ConsumerWidget {
                 }
               : null,
         ),
-        const SizedBox(width: 10),
         _ActionButton(
           icon: isAutoDl ? Icons.download_done_rounded : Icons.download_rounded,
           label: context.l10n.autoDownload,
@@ -1564,10 +1753,10 @@ class _DetailDownloadStatusIcon extends ConsumerWidget {
       ),
       DownloadStatus.paused => (
         Icons.pause_circle_outline_rounded,
-        Colors.orange,
+        KumoriyaColors.statusWarning,
       ),
-      DownloadStatus.completed => (Icons.download_done_rounded, Colors.green),
-      DownloadStatus.failed => (Icons.error_outline_rounded, Colors.red),
+      DownloadStatus.completed => (Icons.download_done_rounded, KumoriyaColors.statusSuccess),
+      DownloadStatus.failed => (Icons.error_outline_rounded, KumoriyaColors.statusDanger),
     };
 
     // Show circular progress around the icon when downloading.
@@ -1762,4 +1951,40 @@ Future<SourceServerLink?> _showServerPicker(
       ),
     ),
   );
+}
+
+class _RelationTypeBadge extends StatelessWidget {
+  const _RelationTypeBadge({required this.type});
+
+  final AnimeRelationType type;
+
+  @override
+  Widget build(BuildContext context) {
+    final (label, color) = switch (type) {
+      AnimeRelationType.prequel => ('PREQUEL', Color(0xFF5B9BD5)),
+      AnimeRelationType.sequel => ('SEQUEL', Color(0xFF70C1B3)),
+      AnimeRelationType.sideStory => ('SIDE STORY', Color(0xFFA78BFA)),
+      AnimeRelationType.adaptation => ('ADAPTATION', Color(0xFFF4A261)),
+      AnimeRelationType.spinOff => ('SPIN-OFF', Color(0xFF6DD5ED)),
+      AnimeRelationType.other => ('OTHER', Color(0xFF9CA3AF)),
+    };
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(KumoriyaRadius.full),
+        border: Border.all(color: color.withValues(alpha: 0.40)),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          fontSize: 10,
+          fontWeight: FontWeight.w700,
+          color: color,
+          letterSpacing: 0.5,
+        ),
+      ),
+    );
+  }
 }
