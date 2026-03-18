@@ -4,14 +4,35 @@ import 'package:kumoriya_storage/kumoriya_storage.dart';
 
 import '../../anime_catalog/presentation/providers/anime_catalog_providers.dart';
 import '../../anime_catalog/presentation/providers/storage_providers.dart';
+import '../application/download_directory_service.dart';
 import '../application/download_manager_service.dart';
 import '../application/enqueue_download_use_case.dart';
 
 // ─── Download Manager (singleton) ────────────────────────────────────────────
 
+final downloadDirectoryStoreProvider = Provider<DownloadDirectoryStore>((ref) {
+  return FileDownloadDirectoryStore();
+});
+
+final downloadDirectoryServiceProvider = Provider<DownloadDirectoryService>((
+  ref,
+) {
+  return DownloadDirectoryService(
+    store: ref.watch(downloadDirectoryStoreProvider),
+  );
+});
+
+final downloadDirectoryInfoProvider =
+    FutureProvider.autoDispose<DownloadDirectoryInfo>((ref) async {
+      return ref.watch(downloadDirectoryServiceProvider).getDirectoryInfo();
+    });
+
 final downloadManagerProvider = Provider<DownloadManagerService>((ref) {
   final store = ref.watch(downloadStoreProvider);
-  final manager = DownloadManagerService(store: store);
+  final manager = DownloadManagerService(
+    store: store,
+    directoryService: ref.watch(downloadDirectoryServiceProvider),
+  );
   ref.onDispose(manager.dispose);
   return manager;
 });
@@ -29,9 +50,9 @@ final enqueueDownloadUseCaseProvider = Provider<EnqueueDownloadUseCase>((ref) {
 
 final downloadStatusChangeStreamProvider =
     StreamProvider.autoDispose<DownloadStatusChange>((ref) {
-  final manager = ref.watch(downloadManagerProvider);
-  return manager.statusChangeStream;
-});
+      final manager = ref.watch(downloadManagerProvider);
+      return manager.statusChangeStream;
+    });
 
 // ─── Download list providers ─────────────────────────────────────────────────
 
@@ -77,9 +98,9 @@ final downloadProgressStreamProvider =
 /// download widget receives only its own events without missing updates.
 final downloadProgressByTaskProvider = StreamProvider.autoDispose
     .family<DownloadProgressEvent, String>((ref, taskId) {
-  final manager = ref.watch(downloadManagerProvider);
-  return manager.progressStream.where((e) => e.taskId == taskId);
-});
+      final manager = ref.watch(downloadManagerProvider);
+      return manager.progressStream.where((e) => e.taskId == taskId);
+    });
 
 final autoDownloadAnimeIdsProvider =
     FutureProvider.autoDispose<Result<Set<int>, KumoriyaError>>((ref) async {

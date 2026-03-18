@@ -5,8 +5,8 @@ import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'package:kumoriya_storage/kumoriya_storage.dart';
 import 'package:path/path.dart' as p;
-import 'package:path_provider/path_provider.dart';
 
+import 'download_directory_service.dart';
 import 'hls_segment_downloader.dart';
 
 /// Manages a queue of episode downloads with configurable concurrency.
@@ -16,13 +16,16 @@ import 'hls_segment_downloader.dart';
 class DownloadManagerService {
   DownloadManagerService({
     required DownloadStore store,
+    required DownloadDirectoryService directoryService,
     int maxConcurrent = 3,
     http.Client? httpClient,
   }) : _store = store,
+       _directoryService = directoryService,
        _maxConcurrent = maxConcurrent,
        _httpClient = httpClient ?? http.Client();
 
   final DownloadStore _store;
+  final DownloadDirectoryService _directoryService;
   final http.Client _httpClient;
   int _maxConcurrent;
 
@@ -117,9 +120,7 @@ class DownloadManagerService {
         await _store.deleteTask(task.id);
       }
     }
-    _statusChangeController.add(
-      const DownloadStatusChange(taskId: ''),
-    );
+    _statusChangeController.add(const DownloadStatusChange(taskId: ''));
   }
 
   /// Retry a failed download.
@@ -463,10 +464,7 @@ class DownloadManagerService {
   }
 
   Future<Directory> _downloadsDir() async {
-    final appDir = await getApplicationDocumentsDirectory();
-    final dir = Directory(p.join(appDir.path, 'kumoriya', 'downloads'));
-    if (!await dir.exists()) await dir.create(recursive: true);
-    return dir;
+    return _directoryService.resolveDownloadsDirectory();
   }
 
   /// Returns the download directory for a specific anime, creating it if
@@ -525,7 +523,6 @@ class DownloadProgressEvent {
   double get fraction =>
       totalBytes > 0 ? (downloadedBytes / totalBytes).clamp(0.0, 1.0) : 0.0;
 }
-
 
 /// Emitted whenever a download task's structural status changes.
 class DownloadStatusChange {

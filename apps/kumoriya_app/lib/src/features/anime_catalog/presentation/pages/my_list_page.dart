@@ -250,9 +250,24 @@ class _DownloadsTab extends ConsumerWidget {
           onRetry: () => ref.invalidate(allDownloadTasksProvider),
         ),
         onSuccess: (tasks) {
+          final children = <Widget>[
+            const _DownloadDirectoryCard(),
+            const SizedBox(height: 16),
+          ];
+
           if (tasks.isEmpty) {
-            return Center(
-              child: EmptyStateView(message: context.l10n.myListDownloadsEmpty),
+            children.add(
+              Padding(
+                padding: const EdgeInsets.only(top: 36),
+                child: EmptyStateView(
+                  message: context.l10n.myListDownloadsEmpty,
+                ),
+              ),
+            );
+
+            return ListView(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
+              children: children,
             );
           }
 
@@ -274,64 +289,264 @@ class _DownloadsTab extends ConsumerWidget {
             list.sort((a, b) => a.episodeNumber.compareTo(b.episodeNumber));
           }
 
-          return ListView(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
-            children: <Widget>[
-              // ── Active downloads ──
-              if (active.isNotEmpty) ...<Widget>[
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 8),
-                  child: Row(
-                    children: <Widget>[
-                      Expanded(
-                        child: Text(
-                          context.l10n.downloadInProgress,
-                          style: const TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w700,
-                            color: KumoriyaColors.textPrimary,
-                          ),
+          children.addAll(<Widget>[
+            // ── Active downloads ──
+            if (active.isNotEmpty) ...<Widget>[
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Row(
+                  children: <Widget>[
+                    Expanded(
+                      child: Text(
+                        context.l10n.downloadInProgress,
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
+                          color: KumoriyaColors.textPrimary,
                         ),
                       ),
-                      TextButton.icon(
-                        onPressed: () async {
-                          await ref.read(downloadManagerProvider).cancelAll();
-                          ref.invalidate(allDownloadTasksProvider);
-                        },
-                        icon: const Icon(Icons.close_rounded, size: 16),
-                        label: Text(context.l10n.downloadCancel),
-                        style: TextButton.styleFrom(
-                          foregroundColor: Colors.red,
-                          textStyle: const TextStyle(fontSize: 12),
-                          padding: const EdgeInsets.symmetric(horizontal: 8),
-                          minimumSize: Size.zero,
-                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                        ),
+                    ),
+                    TextButton.icon(
+                      onPressed: () async {
+                        await ref.read(downloadManagerProvider).cancelAll();
+                        ref.invalidate(allDownloadTasksProvider);
+                      },
+                      icon: const Icon(Icons.close_rounded, size: 16),
+                      label: Text(context.l10n.downloadCancel),
+                      style: TextButton.styleFrom(
+                        foregroundColor: Colors.red,
+                        textStyle: const TextStyle(fontSize: 12),
+                        padding: const EdgeInsets.symmetric(horizontal: 8),
+                        minimumSize: Size.zero,
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                       ),
-                    ],
-                  ),
-                ),
-                ...active.map(
-                  (t) => Padding(
-                    padding: const EdgeInsets.only(bottom: 8),
-                    child: _ActiveDownloadRow(task: t),
-                  ),
-                ),
-                if (groupedCompleted.isNotEmpty) const SizedBox(height: 12),
-              ],
-              // ── Completed downloads grouped by anime ──
-              ...groupedCompleted.entries.map(
-                (entry) => Padding(
-                  padding: const EdgeInsets.only(bottom: 12),
-                  child: _CompletedAnimeCard(
-                    anilistId: entry.key,
-                    episodes: entry.value,
-                  ),
+                    ),
+                  ],
                 ),
               ),
+              ...active.map(
+                (t) => Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: _ActiveDownloadRow(task: t),
+                ),
+              ),
+              if (groupedCompleted.isNotEmpty) const SizedBox(height: 12),
             ],
+            // ── Completed downloads grouped by anime ──
+            ...groupedCompleted.entries.map(
+              (entry) => Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: _CompletedAnimeCard(
+                  anilistId: entry.key,
+                  episodes: entry.value,
+                ),
+              ),
+            ),
+          ]);
+
+          return ListView(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
+            children: children,
           );
         },
+      ),
+    );
+  }
+}
+
+class _DownloadDirectoryCard extends ConsumerWidget {
+  const _DownloadDirectoryCard();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final directoryInfoState = ref.watch(downloadDirectoryInfoProvider);
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: KumoriyaColors.surface.withValues(alpha: 0.7),
+        borderRadius: BorderRadius.circular(KumoriyaRadius.xxl),
+        border: Border.all(color: KumoriyaColors.borderSubtle),
+      ),
+      child: directoryInfoState.when(
+        loading: () => const SizedBox(
+          height: 72,
+          child: Center(child: CircularProgressIndicator()),
+        ),
+        error: (_, _) => Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            Text(
+              context.l10n.downloadFolderTitle,
+              style: const TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.w800,
+                color: KumoriyaColors.textPrimary,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              context.l10n.genericLoadFailure,
+              style: const TextStyle(color: KumoriyaColors.textSecondary),
+            ),
+            const SizedBox(height: 12),
+            OutlinedButton.icon(
+              onPressed: () => ref.invalidate(downloadDirectoryInfoProvider),
+              icon: const Icon(Icons.refresh_rounded),
+              label: Text(context.l10n.retry),
+            ),
+          ],
+        ),
+        data: (info) => Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            Row(
+              children: <Widget>[
+                const Icon(
+                  Icons.folder_copy_outlined,
+                  color: KumoriyaColors.primary,
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    context.l10n.downloadFolderTitle,
+                    style: const TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w800,
+                      color: KumoriyaColors.textPrimary,
+                    ),
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 6,
+                  ),
+                  decoration: BoxDecoration(
+                    color: KumoriyaColors.primary.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                  child: Text(
+                    info.isCustom
+                        ? context.l10n.downloadFolderCustom
+                        : context.l10n.downloadFolderDefault,
+                    style: const TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      color: KumoriyaColors.primary,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            Text(
+              context.l10n.downloadFolderDescription,
+              style: const TextStyle(
+                color: KumoriyaColors.textSecondary,
+                height: 1.4,
+              ),
+            ),
+            const SizedBox(height: 12),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: KumoriyaColors.background.withValues(alpha: 0.9),
+                borderRadius: BorderRadius.circular(KumoriyaRadius.lg),
+                border: Border.all(color: KumoriyaColors.borderSubtle),
+              ),
+              child: SelectableText(
+                info.path,
+                style: const TextStyle(
+                  fontSize: 12,
+                  color: KumoriyaColors.textPrimary,
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: <Widget>[
+                FilledButton.icon(
+                  onPressed: () async {
+                    final result = await ref
+                        .read(downloadDirectoryServiceProvider)
+                        .selectDirectory();
+                    if (!context.mounted) {
+                      return;
+                    }
+
+                    result.fold(
+                      onFailure: (error) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(
+                              error.code ==
+                                      'download.directory_permission_denied'
+                                  ? context.l10n.downloadFolderPermissionDenied
+                                  : mapErrorMessage(context, error),
+                            ),
+                          ),
+                        );
+                      },
+                      onSuccess: (outcome) {
+                        ref.invalidate(downloadDirectoryInfoProvider);
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(
+                              outcome.changed
+                                  ? context.l10n.downloadFolderSaved
+                                  : context
+                                        .l10n
+                                        .downloadFolderSelectionCancelled,
+                            ),
+                          ),
+                        );
+                      },
+                    );
+                  },
+                  icon: const Icon(Icons.folder_open_rounded),
+                  label: Text(context.l10n.downloadFolderChange),
+                ),
+                if (info.isCustom)
+                  OutlinedButton.icon(
+                    onPressed: () async {
+                      final result = await ref
+                          .read(downloadDirectoryServiceProvider)
+                          .resetToDefault();
+                      if (!context.mounted) {
+                        return;
+                      }
+
+                      result.fold(
+                        onFailure: (error) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(mapErrorMessage(context, error)),
+                            ),
+                          );
+                        },
+                        onSuccess: (_) {
+                          ref.invalidate(downloadDirectoryInfoProvider);
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                context.l10n.downloadFolderResetDone,
+                              ),
+                            ),
+                          );
+                        },
+                      );
+                    },
+                    icon: const Icon(Icons.restore_rounded),
+                    label: Text(context.l10n.downloadFolderReset),
+                  ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }
