@@ -1,5 +1,6 @@
 ---
 description: "Use when reviewing or refactoring Flutter UI for design system consistency: color palette, typography hierarchy, spacing scale, iconography, component extraction, theme configuration, centralized styles, ad-hoc styling removal, padding normalization, visual hierarchy."
+model: GPT-5.4 (copilot)
 tools: [read, search, edit, todo]
 user-invocable: false
 ---

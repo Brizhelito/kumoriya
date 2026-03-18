@@ -29,6 +29,13 @@ class DownloadManagerService {
   final _activeDownloads = <String, _ActiveDownload>{};
   final _progressController =
       StreamController<DownloadProgressEvent>.broadcast();
+  final _statusChangeController =
+      StreamController<DownloadStatusChange>.broadcast();
+
+  /// Emits whenever any task's status structurally changes (completed, failed,
+  /// paused, pending, cancelled, deleted, enqueued).
+  Stream<DownloadStatusChange> get statusChangeStream =>
+      _statusChangeController.stream;
   bool _processingQueue = false;
 
   /// Emits progress events for all active downloads.
@@ -48,6 +55,9 @@ class DownloadManagerService {
       return;
     }
     await _store.insertTask(task);
+    _statusChangeController.add(
+      DownloadStatusChange(taskId: task.id, anilistId: task.anilistId),
+    );
     unawaited(_processQueue());
   }
 
@@ -78,6 +88,9 @@ class DownloadManagerService {
     }
 
     await _store.deleteTask(taskId);
+    _statusChangeController.add(
+      DownloadStatusChange(taskId: taskId, anilistId: task?.anilistId),
+    );
     unawaited(_processQueue());
   }
 
@@ -104,6 +117,9 @@ class DownloadManagerService {
         await _store.deleteTask(task.id);
       }
     }
+    _statusChangeController.add(
+      const DownloadStatusChange(taskId: ''),
+    );
   }
 
   /// Retry a failed download.
@@ -118,6 +134,9 @@ class DownloadManagerService {
       if (await file.exists()) await file.delete();
     }
     await _store.deleteTask(taskId);
+    _statusChangeController.add(
+      DownloadStatusChange(taskId: taskId, anilistId: task?.anilistId),
+    );
   }
 
   /// Re-enqueue all pending/paused downloads from DB (call on app start).
@@ -405,6 +424,9 @@ class DownloadManagerService {
         errorMessage: errorMessage ?? task.errorMessage,
       ),
     );
+    _statusChangeController.add(
+      DownloadStatusChange(taskId: taskId, anilistId: task.anilistId),
+    );
   }
 
   /// Creates a copy of [task] with optional field overrides.
@@ -471,6 +493,7 @@ class DownloadManagerService {
     }
     _activeDownloads.clear();
     _progressController.close();
+    _statusChangeController.close();
     _httpClient.close();
   }
 }
@@ -501,4 +524,12 @@ class DownloadProgressEvent {
 
   double get fraction =>
       totalBytes > 0 ? (downloadedBytes / totalBytes).clamp(0.0, 1.0) : 0.0;
+}
+
+
+/// Emitted whenever a download task's structural status changes.
+class DownloadStatusChange {
+  const DownloadStatusChange({required this.taskId, this.anilistId});
+  final String taskId;
+  final int? anilistId;
 }

@@ -1,5 +1,6 @@
 ---
 description: "Use when reviewing or refactoring Flutter mobile UI for accessibility: contrast ratios, readable typography, touch target sizes, navigation clarity, focus states, semantic clarity, and assistive technology compatibility."
+model: GPT-5.4 (copilot)
 tools: [read, search, edit, todo]
 user-invocable: false
 ---

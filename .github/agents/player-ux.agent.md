@@ -1,5 +1,6 @@
 ---
 description: "Use when improving Flutter video player UX for streaming applications: playback controls, seek interactions, gesture handling, overlay controls, streaming feedback, mirror or source switching, subtitle and audio controls, minimal playback overlays."
+model: GPT-5.4 (copilot)
 tools: [read, search, edit, todo]
 user-invocable: false
 ---

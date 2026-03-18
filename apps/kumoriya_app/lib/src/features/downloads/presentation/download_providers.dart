@@ -25,12 +25,22 @@ final enqueueDownloadUseCaseProvider = Provider<EnqueueDownloadUseCase>((ref) {
   );
 });
 
+// ─── Status change stream (drives reactivity for download list providers) ───
+
+final downloadStatusChangeStreamProvider =
+    StreamProvider.autoDispose<DownloadStatusChange>((ref) {
+  final manager = ref.watch(downloadManagerProvider);
+  return manager.statusChangeStream;
+});
+
 // ─── Download list providers ─────────────────────────────────────────────────
 
 final allDownloadTasksProvider =
     FutureProvider.autoDispose<Result<List<DownloadTask>, KumoriyaError>>((
       ref,
     ) async {
+      // Re-read whenever a download status changes anywhere.
+      ref.watch(downloadStatusChangeStreamProvider);
       return ref.watch(downloadStoreProvider).getAllTasks();
     });
 
@@ -39,12 +49,16 @@ final downloadTasksByAnimeProvider = FutureProvider.autoDispose
       ref,
       anilistId,
     ) async {
+      // Re-read whenever a download status changes anywhere.
+      ref.watch(downloadStatusChangeStreamProvider);
       return ref.watch(downloadStoreProvider).getTasksByAnime(anilistId);
     });
 
 final activeDownloadCountProvider = FutureProvider.autoDispose<int>((
   ref,
 ) async {
+  // Re-read whenever a download status changes anywhere.
+  ref.watch(downloadStatusChangeStreamProvider);
   final result = await ref
       .watch(downloadStoreProvider)
       .getTasksByStatus(DownloadStatus.downloading);

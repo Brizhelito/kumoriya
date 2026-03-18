@@ -1,7 +1,8 @@
 ---
 name: "UI Orchestrator"
+model: GPT-5.4 (copilot)
 description: "Use when coordinating multi-phase Flutter UI/UX improvements across layout, interaction, design system, desktop adaptation, player UX, and accessibility, with critic review after each major phase until quality is high enough."
-tools: [read, search, todo, agent]
+tools: [read/getNotebookSummary, read/problems, read/readFile, read/terminalSelection, read/terminalLastCommand, agent/runSubagent, edit/createDirectory, edit/createFile, edit/createJupyterNotebook, edit/editFiles, edit/editNotebook, edit/rename, search/changes, search/codebase, search/fileSearch, search/listDirectory, search/searchResults, search/textSearch, search/searchSubagent, search/usages, todo]
 agents: [design-system, flutter-layout, interaction-ux, player-ux, desktop-ux, accessibility, uiux-review]
 user-invocable: true
 disable-model-invocation: false
@@ -142,3 +143,4 @@ Always respond with:
 
 Your goal is not to apply a quick fix.
 Your goal is to iteratively transform the UI into a high-quality product-level experience.
+Select the most appropriate agent AND ensure the correct model is used for the task type.

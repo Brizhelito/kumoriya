@@ -1,5 +1,6 @@
 ---
 description: "Use when refactoring Flutter UI layouts for structure, readability, and scalability: widget tree organization, reducing nesting, component extraction, separation of concerns, responsiveness, Expanded/Flexible/LayoutBuilder patterns, alignment normalization, padding consistency."
+model: "GPT-5.3-Codex"
 tools: [read, search, edit, todo]
 user-invocable: false
 ---

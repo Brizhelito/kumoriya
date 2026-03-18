@@ -1,5 +1,6 @@
 ---
 description: "Use when improving Flutter mobile interaction UX: navigation clarity, user flows, gesture interactions, feedback states, interaction consistency, button placement, reducing friction in core tasks, predictable navigation patterns."
+model: GPT-5.4 (copilot)
 tools: [read, search, edit, todo]
 user-invocable: false
 ---

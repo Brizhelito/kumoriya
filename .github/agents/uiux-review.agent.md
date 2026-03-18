@@ -1,5 +1,6 @@
 ---
 description: "Use when auditing Flutter UI/UX quality with a critical product-review lens: clarity, friction, visual quality, interaction quality, product fidelity, platform adaptation, polished vs generic feel, and prioritizing what must be fixed next."
+model: Claude Opus 4.6 (copilot)
 tools: [read, search, todo]
 user-invocable: false
 ---

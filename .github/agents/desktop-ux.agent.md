@@ -1,5 +1,6 @@
 ---
 description: "Use when adapting Flutter interfaces from mobile-first layouts to desktop UX: desktop navigation patterns, sidebars, multi-column layouts, grid systems, mouse and keyboard interactions, hover states, tooltips, scanability, information density, and desktop player controls."
+model: GPT-5.4 (copilot)
 tools: [read, search, edit, todo]
 user-invocable: false
 ---
