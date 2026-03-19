@@ -39,7 +39,7 @@ final class OkruResolverPlugin implements ResolverPlugin {
   }
 
   @override
-  Future<Result<List<ResolvedStream>, KumoriyaError>> resolve(Uri url) async {
+  Future<Result<ResolveResult, KumoriyaError>> resolve(Uri url) async {
     if (!supports(url)) {
       return Failure(
         OkruUnsupportedHostError(
@@ -84,7 +84,7 @@ final class OkruResolverPlugin implements ResolverPlugin {
         );
       }
 
-      return Success(streams);
+      return Success(ResolveResult(streams: streams));
     } catch (error) {
       return Failure(
         OkruTransportError(message: 'Okru resolve request failed: $error'),
@@ -190,8 +190,25 @@ String _htmlUnescape(String value) {
 }
 
 String _qualityLabel(Object? raw) {
-  final value = raw?.toString().trim();
-  return value == null || value.isEmpty ? 'unknown' : value;
+  final value = raw?.toString().trim().toLowerCase();
+  if (value == null || value.isEmpty) {
+    return 'unknown';
+  }
+
+  // OK.ru returns descriptive names; map them to standard resolution labels
+  // so the player's quality scoring can rank and differentiate streams.
+  const nameToResolution = <String, String>{
+    'mobile': '144p',
+    'lowest': '240p',
+    'low': '360p',
+    'sd': '480p',
+    'hd': '720p',
+    'full': '1080p',
+    'quad': '1440p',
+    'ultra': '2160p',
+  };
+
+  return nameToResolution[value] ?? value;
 }
 
 bool _hasHints(String payload) {

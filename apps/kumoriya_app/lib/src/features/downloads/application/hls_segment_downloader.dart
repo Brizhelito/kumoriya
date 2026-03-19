@@ -9,16 +9,25 @@ const _browserUserAgent =
     'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 '
     '(KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36';
 
+/// Pre-compiled patterns for playlist parsing — avoids RegExp construction
+/// per call in hot loops.
+final _bandwidthRe = RegExp(r'BANDWIDTH=(\d+)');
+final _mapUriRe = RegExp(r'URI="([^"]+)"');
+
 /// Downloads an HLS stream by parsing the m3u8 playlist, downloading
 /// .ts segments with parallelism, and concatenating them into a single file.
 class HlsSegmentDownloader {
-  HlsSegmentDownloader({http.Client? httpClient, this.parallelSegments = 8})
-    : _httpClient = httpClient ?? http.Client();
+  HlsSegmentDownloader({
+    http.Client? httpClient,
+    this.parallelSegments = 12,
+    this.maxRetries = 3,
+  }) : _httpClient = httpClient ?? http.Client();
 
   final http.Client _httpClient;
 
   /// Number of segments to download in parallel.
   final int parallelSegments;
+  final int maxRetries;
 
   /// Downloads the HLS stream at [masterUrl] to [outputPath].
   ///
@@ -27,10 +36,10 @@ class HlsSegmentDownloader {
   /// Since HLS total size is unknown upfront, totalSegments is passed so the
   /// caller can compute a segment-based fraction. downloadedBytes tracks the
   /// actual byte count written so far for display purposes.
-  /// Returns `true` if the stream uses fMP4 segments (has `#EXT-X-MAP`),
-  /// `false` for classic MPEG-TS segments.
+  /// Returns an object describing whether the stream used fMP4 segments and
+  /// the best known total byte count.
   /// If [cancelCompleter] is completed, download stops early.
-  Future<bool> download({
+  Future<HlsDownloadResult> download({
     required Uri masterUrl,
     required String outputPath,
     Map<String, String> headers = const <String, String>{},
@@ -38,6 +47,7 @@ class HlsSegmentDownloader {
       int downloadedBytes,
       int downloadedSegments,
       int totalSegments,
+      int totalBytes,
     )?
     onProgress,
     Completer<void>? cancelCompleter,
@@ -45,7 +55,7 @@ class HlsSegmentDownloader {
     _log('Starting HLS download: $masterUrl');
 
     // 1. Fetch the master/variant playlist.
-    final masterContent = await _fetchPlaylist(masterUrl, headers);
+    final masterContent = await _fetchPlaylistWithRetry(masterUrl, headers);
 
     // 2. Check if it's a master playlist (contains variant streams) or
     //    already a media playlist (contains segments).
@@ -55,7 +65,7 @@ class HlsSegmentDownloader {
 
     if (variantUrl != null) {
       _log('Found variant playlist: $variantUrl');
-      mediaContent = await _fetchPlaylist(variantUrl, headers);
+      mediaContent = await _fetchPlaylistWithRetry(variantUrl, headers);
       mediaBaseUrl = variantUrl;
     } else {
       mediaContent = masterContent;
@@ -83,49 +93,105 @@ class HlsSegmentDownloader {
 
     try {
       if (initUri != null) {
-        final initData = await _fetchSegment(initUri, headers);
+        final initData = await _fetchSegmentWithRetry(initUri, headers);
         sink.add(initData);
         downloadedBytes += initData.length;
         _log('Init segment written (${initData.length} bytes)');
       }
 
-      // Sliding-window pipeline: keep [parallelSegments] fetches in-flight at
-      // all times, writing completed segments to disk in order. This maximises
-      // throughput without buffering an entire batch in memory.
+      // Event-driven pipeline: keeps [parallelSegments] fetches truly
+      // in-flight at all times. When any fetch finishes, a replacement
+      // launches immediately — independent of write order. Segments are
+      // still written sequentially for correct concatenation.
       final totalCount = segmentUrls.length;
-      final pending = <int, Future<List<int>>>{};
+      final completedData = <int, List<int>>{};
+      Object? pipelineError;
       var nextToLaunch = 0;
       var nextToWrite = 0;
+      var activeFetches = 0;
+      final doneSignals = StreamController<void>();
+
+      Future<void> fetchOne(int index) async {
+        activeFetches++;
+        try {
+          final data = await _fetchSegmentWithRetry(
+            segmentUrls[index],
+            headers,
+          );
+          if (cancelCompleter?.isCompleted != true) {
+            completedData[index] = data;
+          }
+        } catch (e) {
+          pipelineError ??= e;
+        } finally {
+          activeFetches--;
+          if (!doneSignals.isClosed) doneSignals.add(null);
+        }
+      }
+
+      void fillPool() {
+        while (nextToLaunch < totalCount &&
+            activeFetches < parallelSegments &&
+            completedData.length <= parallelSegments * 3) {
+          unawaited(fetchOne(nextToLaunch++));
+        }
+      }
 
       // Seed the pipeline.
-      while (nextToLaunch < totalCount && pending.length < parallelSegments) {
-        pending[nextToLaunch] = _fetchSegment(
-          segmentUrls[nextToLaunch],
-          headers,
-        );
-        nextToLaunch++;
-      }
+      fillPool();
+
+      final events = StreamIterator(doneSignals.stream);
 
       while (nextToWrite < totalCount) {
         if (cancelCompleter?.isCompleted == true) break;
+        if (pipelineError != null) break;
 
-        final data = await pending.remove(nextToWrite)!;
-        sink.add(data);
-        downloadedSegments++;
-        downloadedBytes += data.length;
-        nextToWrite++;
-
-        onProgress?.call(downloadedBytes, downloadedSegments, totalCount);
-
-        // Launch next segment to keep the pipeline full.
-        if (nextToLaunch < totalCount) {
-          pending[nextToLaunch] = _fetchSegment(
-            segmentUrls[nextToLaunch],
-            headers,
-          );
-          nextToLaunch++;
+        // Write all completed segments available in order.
+        // Batch writes and emit progress only once for the burst to reduce
+        // callback overhead when many segments complete simultaneously.
+        var batchWrites = 0;
+        while (true) {
+          final data = completedData.remove(nextToWrite);
+          if (data == null) break;
+          sink.add(data);
+          downloadedSegments++;
+          downloadedBytes += data.length;
+          nextToWrite++;
+          batchWrites++;
         }
+
+        if (batchWrites > 0) {
+          final dynamicEstimate = downloadedSegments > 0
+              ? (downloadedBytes / downloadedSegments * totalCount).round()
+              : 0;
+
+          onProgress?.call(
+            downloadedBytes,
+            downloadedSegments,
+            totalCount,
+            dynamicEstimate,
+          );
+
+          // Periodic flush to bound IOSink memory on mobile.
+          // Flush after burst writes rather than using a separate timer
+          // since segments arrive in bursts naturally.
+          if (downloadedSegments % 20 == 0) {
+            await sink.flush();
+          }
+        }
+
+        if (nextToWrite >= totalCount) break;
+
+        // Refill pool after writes.
+        fillPool();
+
+        // Wait for the next fetch completion signal.
+        if (!await events.moveNext()) break;
       }
+
+      await events.cancel();
+      await doneSignals.close();
+      if (pipelineError != null) throw pipelineError!;
     } finally {
       await sink.close();
     }
@@ -133,31 +199,69 @@ class HlsSegmentDownloader {
     _log(
       'HLS download complete: $downloadedSegments/${segmentUrls.length} segments ($downloadedBytes bytes)',
     );
-    return isFmp4;
+    return HlsDownloadResult(isFmp4: isFmp4, totalBytes: downloadedBytes);
   }
 
-  /// Fetches a playlist text file.
+  /// Fetches a playlist text file with a connection timeout.
   Future<String> _fetchPlaylist(Uri url, Map<String, String> headers) async {
     final request = http.Request('GET', url)
       ..headers.addAll(headers)
       ..headers.putIfAbsent('User-Agent', () => _browserUserAgent);
-    final response = await _httpClient.send(request);
+    final response = await _httpClient
+        .send(request)
+        .timeout(const Duration(seconds: 15));
     if (response.statusCode != 200) {
       throw HttpException('Playlist fetch failed: HTTP ${response.statusCode}');
     }
     return response.stream.bytesToString();
   }
 
-  /// Fetches a single segment as bytes.
+  /// Fetches a single segment as bytes with a timeout.
   Future<List<int>> _fetchSegment(Uri url, Map<String, String> headers) async {
     final request = http.Request('GET', url)
       ..headers.addAll(headers)
-      ..headers.putIfAbsent('User-Agent', () => _browserUserAgent);
-    final response = await _httpClient.send(request);
+      ..headers.putIfAbsent('User-Agent', () => _browserUserAgent)
+      // Request raw bytes — segments are already encoded media data, auto-
+      // decompression by the HTTP layer wastes CPU and can corrupt binary data.
+      ..headers.putIfAbsent('Accept-Encoding', () => 'identity');
+    final response = await _httpClient
+        .send(request)
+        .timeout(const Duration(seconds: 30));
     if (response.statusCode != 200) {
       throw HttpException('Segment fetch failed: HTTP ${response.statusCode}');
     }
     return response.stream.toBytes();
+  }
+
+  Future<String> _fetchPlaylistWithRetry(
+    Uri url,
+    Map<String, String> headers,
+  ) async {
+    for (var attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        return await _fetchPlaylist(url, headers);
+      } catch (_) {
+        if (attempt == maxRetries) rethrow;
+      }
+      await Future<void>.delayed(Duration(milliseconds: 250 * attempt));
+    }
+    // Unreachable when maxRetries >= 1, but satisfies the type system.
+    throw const HttpException('Playlist fetch failed');
+  }
+
+  Future<List<int>> _fetchSegmentWithRetry(
+    Uri url,
+    Map<String, String> headers,
+  ) async {
+    for (var attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        return await _fetchSegment(url, headers);
+      } catch (_) {
+        if (attempt == maxRetries) rethrow;
+      }
+      await Future<void>.delayed(Duration(milliseconds: 150 * attempt));
+    }
+    throw const HttpException('Segment fetch failed');
   }
 
   /// Picks the highest-bandwidth variant from a master playlist.
@@ -174,7 +278,7 @@ class HlsSegmentDownloader {
       if (!line.startsWith('#EXT-X-STREAM-INF')) continue;
 
       // Parse bandwidth.
-      final bwMatch = RegExp(r'BANDWIDTH=(\d+)').firstMatch(line);
+      final bwMatch = _bandwidthRe.firstMatch(line);
       final bw = bwMatch != null ? int.tryParse(bwMatch.group(1)!) : null;
 
       // Next non-empty, non-comment line is the URI.
@@ -200,7 +304,7 @@ class HlsSegmentDownloader {
     for (final line in content.split('\n')) {
       final trimmed = line.trim();
       if (!trimmed.startsWith('#EXT-X-MAP')) continue;
-      final match = RegExp(r'URI="([^"]+)"').firstMatch(trimmed);
+      final match = _mapUriRe.firstMatch(trimmed);
       if (match != null) return _resolveUrl(match.group(1)!, baseUrl);
     }
     return null;
@@ -208,8 +312,8 @@ class HlsSegmentDownloader {
 
   /// Parses segment URLs from a media playlist.
   List<Uri> _parseSegments(String content, Uri baseUrl) {
-    final segments = <Uri>[];
     final lines = content.split('\n');
+    final segments = <Uri>[];
 
     for (final line in lines) {
       final trimmed = line.trim();
@@ -231,4 +335,11 @@ class HlsSegmentDownloader {
   void _log(String message) {
     developer.log(message, name: 'HlsSegmentDownloader');
   }
+}
+
+class HlsDownloadResult {
+  const HlsDownloadResult({required this.isFmp4, required this.totalBytes});
+
+  final bool isFmp4;
+  final int totalBytes;
 }

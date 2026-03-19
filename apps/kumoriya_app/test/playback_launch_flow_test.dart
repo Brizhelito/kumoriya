@@ -227,7 +227,7 @@ class _FailingResolverPlugin implements ResolverPlugin {
   int get priority => 100;
 
   @override
-  Future<Result<List<ResolvedStream>, KumoriyaError>> resolve(Uri url) async {
+  Future<Result<ResolveResult, KumoriyaError>> resolve(Uri url) async {
     return const Failure(
       SimpleError(
         code: 'resolver.failed',

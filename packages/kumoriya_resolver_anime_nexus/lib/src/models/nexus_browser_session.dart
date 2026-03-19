@@ -7,11 +7,10 @@ final class NexusBrowserSession {
   factory NexusBrowserSession.withValues({
     required String fingerprint,
     String? cookieHeader,
-  }) =>
-      NexusBrowserSession._(
-        fingerprint: fingerprint,
-        cookieHeader: cookieHeader,
-      );
+  }) => NexusBrowserSession._(
+    fingerprint: fingerprint,
+    cookieHeader: cookieHeader,
+  );
 
   final String fingerprint;
 

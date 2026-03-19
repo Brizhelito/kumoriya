@@ -23,6 +23,7 @@ import 'dart:async';
 import 'dart:math';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:kumoriya_app/src/features/player/application/models/embedded_tracks.dart';
 import 'package:kumoriya_app/src/features/player/application/models/player_session_state.dart';
 import 'package:kumoriya_app/src/features/player/application/services/playback_engine.dart';
 import 'package:kumoriya_app/src/features/player/application/services/player_session_orchestrator.dart';
@@ -508,6 +509,16 @@ final class _FakeEngine implements PlaybackEngine {
   Stream<Duration> get durationStream => _duration.stream;
 
   @override
+  Stream<Duration> get bufferStream => const Stream<Duration>.empty();
+
+  @override
+  Stream<double> get bufferingPercentageStream => const Stream<double>.empty();
+
+  @override
+  Stream<EmbeddedTracks> get embeddedTracksStream =>
+      const Stream<EmbeddedTracks>.empty();
+
+  @override
   Future<void> open(ResolvedStream stream, {Duration? startPosition}) async {
     final fn = _behaviors[_idx.clamp(0, _behaviors.length - 1)];
     if (_idx < _behaviors.length - 1) _idx++;
@@ -529,6 +540,12 @@ final class _FakeEngine implements PlaybackEngine {
   Future<void> setSubtitleTrack(ExternalSubtitleTrack track) async {}
   @override
   Future<void> clearSubtitleTrack() async {}
+  @override
+  Future<void> setEmbeddedAudioTrack(EmbeddedAudioTrack track) async {}
+  @override
+  Future<void> setEmbeddedSubtitleTrack(EmbeddedSubtitleTrack track) async {}
+  @override
+  Future<void> clearEmbeddedSubtitleTrack() async {}
 
   @override
   Future<void> dispose() async {

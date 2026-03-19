@@ -25,6 +25,21 @@ class DownloadTaskDao extends DatabaseAccessor<AppDatabase>
         .getSingleOrNull();
   }
 
+  Future<DownloadTaskTableData?> getTaskByEpisode(
+    int anilistId,
+    double episodeNumber,
+  ) {
+    return (select(downloadTaskTable)
+          ..where(
+            (t) =>
+                t.anilistId.equals(anilistId) &
+                t.episodeNumber.equals(episodeNumber),
+          )
+          ..orderBy([(t) => OrderingTerm.desc(t.createdAt)])
+          ..limit(1))
+        .getSingleOrNull();
+  }
+
   Future<List<DownloadTaskTableData>> getTasksByAnime(int anilistId) {
     return (select(downloadTaskTable)
           ..where((t) => t.anilistId.equals(anilistId))

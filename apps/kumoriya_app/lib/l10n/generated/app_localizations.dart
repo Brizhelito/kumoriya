@@ -660,6 +660,24 @@ abstract class AppLocalizations {
   /// **'{count} eps'**
   String animeListEpisodesShort(int count);
 
+  /// No description provided for @historyProgressUpTo.
+  ///
+  /// In en, this message translates to:
+  /// **'Up to EP {episode} / {total}'**
+  String historyProgressUpTo(int episode, int total);
+
+  /// No description provided for @historyProgressLastWatched.
+  ///
+  /// In en, this message translates to:
+  /// **'Last watched EP {episode}'**
+  String historyProgressLastWatched(int episode);
+
+  /// No description provided for @episodePlaying.
+  ///
+  /// In en, this message translates to:
+  /// **'PLAYING'**
+  String get episodePlaying;
+
   /// No description provided for @continueWatching.
   ///
   /// In en, this message translates to:
@@ -807,6 +825,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'This anime is not ready to play right now.'**
   String get detailPlaybackNotReady;
+
+  /// No description provided for @detailCheckingSources.
+  ///
+  /// In en, this message translates to:
+  /// **'Checking sources...'**
+  String get detailCheckingSources;
 
   /// No description provided for @detailPlaybackHint.
   ///
@@ -1366,6 +1390,12 @@ abstract class AppLocalizations {
   /// **'Unknown schedule'**
   String get calendarUnknownSchedule;
 
+  /// No description provided for @calendarToday.
+  ///
+  /// In en, this message translates to:
+  /// **'Today'**
+  String get calendarToday;
+
   /// No description provided for @downloadsTitle.
   ///
   /// In en, this message translates to:
@@ -1383,6 +1413,120 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Library'**
   String get libraryTitle;
+
+  /// No description provided for @settingsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Settings'**
+  String get settingsTitle;
+
+  /// No description provided for @settingsNotificationsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Notifications'**
+  String get settingsNotificationsTitle;
+
+  /// No description provided for @settingsNotificationsDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Subscriptions use system notifications for new episode alerts.'**
+  String get settingsNotificationsDescription;
+
+  /// No description provided for @settingsEnableNotifications.
+  ///
+  /// In en, this message translates to:
+  /// **'Enable notifications'**
+  String get settingsEnableNotifications;
+
+  /// No description provided for @settingsOpenSystemSettings.
+  ///
+  /// In en, this message translates to:
+  /// **'Open system settings'**
+  String get settingsOpenSystemSettings;
+
+  /// No description provided for @settingsStatusAllowed.
+  ///
+  /// In en, this message translates to:
+  /// **'Allowed'**
+  String get settingsStatusAllowed;
+
+  /// No description provided for @settingsStatusBlocked.
+  ///
+  /// In en, this message translates to:
+  /// **'Blocked'**
+  String get settingsStatusBlocked;
+
+  /// No description provided for @settingsStatusUnknown.
+  ///
+  /// In en, this message translates to:
+  /// **'Unknown'**
+  String get settingsStatusUnknown;
+
+  /// No description provided for @settingsAppTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'App'**
+  String get settingsAppTitle;
+
+  /// No description provided for @settingsThemeLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Theme'**
+  String get settingsThemeLabel;
+
+  /// No description provided for @settingsThemeDark.
+  ///
+  /// In en, this message translates to:
+  /// **'Dark'**
+  String get settingsThemeDark;
+
+  /// No description provided for @settingsLanguageLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Language'**
+  String get settingsLanguageLabel;
+
+  /// No description provided for @settingsLanguageEnglish.
+  ///
+  /// In en, this message translates to:
+  /// **'English'**
+  String get settingsLanguageEnglish;
+
+  /// No description provided for @settingsLanguageSpanish.
+  ///
+  /// In en, this message translates to:
+  /// **'Spanish'**
+  String get settingsLanguageSpanish;
+
+  /// No description provided for @settingsDesktopOnlyVisibleNote.
+  ///
+  /// In en, this message translates to:
+  /// **'On Windows only desktop-relevant settings are shown.'**
+  String get settingsDesktopOnlyVisibleNote;
+
+  /// No description provided for @settingsPlaybackPreferencesTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Playback preferences'**
+  String get settingsPlaybackPreferencesTitle;
+
+  /// No description provided for @settingsPlaybackPreferencesDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear remembered source, server, and resolver choices so playback starts fresh.'**
+  String get settingsPlaybackPreferencesDescription;
+
+  /// No description provided for @settingsPlaybackPreferencesClear.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear saved preferences'**
+  String get settingsPlaybackPreferencesClear;
+
+  /// No description provided for @settingsPlaybackPreferencesCleared.
+  ///
+  /// In en, this message translates to:
+  /// **'Saved playback preferences cleared'**
+  String get settingsPlaybackPreferencesCleared;
 
   /// No description provided for @playerBack.
   ///
@@ -1407,6 +1551,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Quality'**
   String get playerQuality;
+
+  /// No description provided for @playerNextEpisode.
+  ///
+  /// In en, this message translates to:
+  /// **'Next episode'**
+  String get playerNextEpisode;
 
   /// No description provided for @playerRetry.
   ///
@@ -1473,6 +1623,126 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Airing Today'**
   String get homeAiringToday;
+
+  /// No description provided for @myListHistoryEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No watch history yet.'**
+  String get myListHistoryEmpty;
+
+  /// No description provided for @downloadEpisodesCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} episodes'**
+  String downloadEpisodesCount(int count);
+
+  /// No description provided for @downloadEpisodeLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Episode {episode}'**
+  String downloadEpisodeLabel(int episode);
+
+  /// No description provided for @downloadedSourceLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Downloaded'**
+  String get downloadedSourceLabel;
+
+  /// No description provided for @downloadAllFromSource.
+  ///
+  /// In en, this message translates to:
+  /// **'Download all from a source'**
+  String get downloadAllFromSource;
+
+  /// No description provided for @sectionSeeAll.
+  ///
+  /// In en, this message translates to:
+  /// **'See all'**
+  String get sectionSeeAll;
+
+  /// No description provided for @statusAiring.
+  ///
+  /// In en, this message translates to:
+  /// **'AIRING'**
+  String get statusAiring;
+
+  /// No description provided for @statusUpcoming.
+  ///
+  /// In en, this message translates to:
+  /// **'UPCOMING'**
+  String get statusUpcoming;
+
+  /// No description provided for @statusFinished.
+  ///
+  /// In en, this message translates to:
+  /// **'FINISHED'**
+  String get statusFinished;
+
+  /// No description provided for @statusCancelled.
+  ///
+  /// In en, this message translates to:
+  /// **'CANCELLED'**
+  String get statusCancelled;
+
+  /// No description provided for @statusOnHiatus.
+  ///
+  /// In en, this message translates to:
+  /// **'ON HIATUS'**
+  String get statusOnHiatus;
+
+  /// No description provided for @statusUnknown.
+  ///
+  /// In en, this message translates to:
+  /// **'UNKNOWN'**
+  String get statusUnknown;
+
+  /// No description provided for @settingsSubtitleTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Subtitles'**
+  String get settingsSubtitleTitle;
+
+  /// No description provided for @settingsSubtitleDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Customize subtitle appearance during playback.'**
+  String get settingsSubtitleDescription;
+
+  /// No description provided for @settingsSubtitleFontSize.
+  ///
+  /// In en, this message translates to:
+  /// **'Font size'**
+  String get settingsSubtitleFontSize;
+
+  /// No description provided for @settingsSubtitleSmall.
+  ///
+  /// In en, this message translates to:
+  /// **'S'**
+  String get settingsSubtitleSmall;
+
+  /// No description provided for @settingsSubtitleMedium.
+  ///
+  /// In en, this message translates to:
+  /// **'M'**
+  String get settingsSubtitleMedium;
+
+  /// No description provided for @settingsSubtitleLarge.
+  ///
+  /// In en, this message translates to:
+  /// **'L'**
+  String get settingsSubtitleLarge;
+
+  /// No description provided for @settingsSubtitleExtraLarge.
+  ///
+  /// In en, this message translates to:
+  /// **'XL'**
+  String get settingsSubtitleExtraLarge;
+
+  /// No description provided for @settingsSubtitleBackground.
+  ///
+  /// In en, this message translates to:
+  /// **'Show background behind subtitles'**
+  String get settingsSubtitleBackground;
 }
 
 class _AppLocalizationsDelegate

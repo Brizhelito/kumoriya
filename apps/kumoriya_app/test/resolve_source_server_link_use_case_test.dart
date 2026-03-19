@@ -225,14 +225,14 @@ final class _SuccessResolver implements ResolverPlugin {
   );
 
   @override
-  Future<Result<List<ResolvedStream>, KumoriyaError>> resolve(Uri url) async {
-    return Success(<ResolvedStream>[
+  Future<Result<ResolveResult, KumoriyaError>> resolve(Uri url) async {
+    return Success(ResolveResult(streams: <ResolvedStream>[
       ResolvedStream(
         url: Uri.parse('https://stream.example/master.m3u8'),
         qualityLabel: 'auto',
         isHls: true,
       ),
-    ]);
+    ]));
   }
 
   @override
@@ -261,7 +261,7 @@ final class _FailureResolver implements ResolverPlugin {
   );
 
   @override
-  Future<Result<List<ResolvedStream>, KumoriyaError>> resolve(Uri url) async {
+  Future<Result<ResolveResult, KumoriyaError>> resolve(Uri url) async {
     return const Failure(
       SimpleError(
         code: 'resolver.transport',

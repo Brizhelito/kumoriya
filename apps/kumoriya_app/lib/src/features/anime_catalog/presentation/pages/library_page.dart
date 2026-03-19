@@ -90,8 +90,11 @@ class _HistoryTab extends ConsumerWidget {
         ),
         onSuccess: (history) {
           if (history.isEmpty) {
-            return const Center(
-              child: EmptyStateView(message: 'No watch history yet.'),
+            return Center(
+              child: EmptyStateView(
+                icon: Icons.history_rounded,
+                message: context.l10n.myListHistoryEmpty,
+              ),
             );
           }
 
@@ -140,7 +143,10 @@ class _FavoritesTab extends ConsumerWidget {
         onSuccess: (ids) {
           if (ids.isEmpty) {
             return Center(
-              child: EmptyStateView(message: context.l10n.myListFavoritesEmpty),
+              child: EmptyStateView(
+                icon: Icons.favorite_border_rounded,
+                message: context.l10n.myListFavoritesEmpty,
+              ),
             );
           }
 
@@ -191,6 +197,7 @@ class _SubscribedTab extends ConsumerWidget {
           if (ids.isEmpty) {
             return Center(
               child: EmptyStateView(
+                icon: Icons.notifications_none_rounded,
                 message: context.l10n.myListSubscribedEmpty,
               ),
             );
@@ -246,11 +253,11 @@ class _AnimeLibraryRowState extends ConsumerState<_AnimeLibraryRow> {
 
     final title = detailState.maybeWhen(
       data: (result) => result.fold(
-        onFailure: (_) => 'AniList #${widget.anilistId}',
+        onFailure: (_) => context.l10n.loadingGeneric,
         onSuccess: (detail) =>
             detail.anime.title.english ?? detail.anime.title.romaji,
       ),
-      orElse: () => 'AniList #${widget.anilistId}',
+      orElse: () => context.l10n.loadingGeneric,
     );
 
     final imageUrl = detailState.maybeWhen(
@@ -370,11 +377,11 @@ class _HistoryRowState extends ConsumerState<_HistoryRow> {
 
     final title = detailState.maybeWhen(
       data: (result) => result.fold(
-        onFailure: (_) => 'AniList #${widget.entry.anilistId}',
+        onFailure: (_) => context.l10n.loadingGeneric,
         onSuccess: (detail) =>
             detail.anime.title.english ?? detail.anime.title.romaji,
       ),
-      orElse: () => 'AniList #${widget.entry.anilistId}',
+      orElse: () => context.l10n.loadingGeneric,
     );
 
     final imageUrl = detailState.maybeWhen(
@@ -396,8 +403,8 @@ class _HistoryRowState extends ConsumerState<_HistoryRow> {
     );
 
     final progressText = total != null
-        ? 'Up to EP $progress / $total'
-        : 'Last watched EP $progress';
+        ? context.l10n.historyProgressUpTo(progress, total)
+        : context.l10n.historyProgressLastWatched(progress);
 
     final timeAgo = _formatTimeAgo(widget.entry.lastAccessedAt);
 

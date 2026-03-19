@@ -19,14 +19,12 @@ class _SeekSession {
     required this.targetPosition,
     required this.originCandidateIndex,
     required this.startedAt,
-    this.isUserInitiated = true,
   });
 
   final int generation;
   final Duration targetPosition;
   final int originCandidateIndex;
   final DateTime startedAt;
-  final bool isUserInitiated;
 
   /// Current escalation level: 1=local seek, 2=reopen same candidate, 3=fallback.
   int currentLevel = 1;
@@ -78,6 +76,7 @@ final class PlayerSessionOrchestrator {
   final _stateController = StreamController<PlayerSessionState>.broadcast();
   final _positionController = StreamController<Duration>.broadcast();
   final _durationController = StreamController<Duration>.broadcast();
+  final _naturalCompletionController = StreamController<void>.broadcast();
   PlayerSessionState _state = const PlayerSessionState.idle();
 
   List<ResolvedStream> _rankedCandidates = const <ResolvedStream>[];
@@ -94,6 +93,7 @@ final class PlayerSessionOrchestrator {
   Duration? _pendingTargetPosition;
   Duration? _lastRequestedSeekPosition;
   DateTime? _lastRequestedSeekAt;
+  String? _selectedExternalSubtitleId;
   bool _isRecoveringCurrentCandidate = false;
   bool _isDisposed = false;
   bool _hasStarted = false;
@@ -131,10 +131,16 @@ final class PlayerSessionOrchestrator {
   Stream<PlayerSessionState> get states => _stateController.stream;
   Stream<Duration> get positionStream => _positionController.stream;
   Stream<Duration> get durationStream => _durationController.stream;
+
+  /// Fires when the current media naturally reaches its end (not a false EOF).
+  Stream<void> get naturalCompletionStream =>
+      _naturalCompletionController.stream;
   PlayerSessionState get state => _state;
   bool get isAutoQualityEnabled => _autoQualityEnabled;
   List<ResolvedStream> get qualityCandidates =>
       List<ResolvedStream>.unmodifiable(_rankedCandidates);
+  List<ExternalSubtitleTrack> get externalSubtitleTracks =>
+      List<ExternalSubtitleTrack>.unmodifiable(_externalSubtitles);
 
   /// Embedded audio/subtitle tracks reported by the playback engine.
   Stream<EmbeddedTracks> get embeddedTracksStream =>
@@ -158,6 +164,18 @@ final class PlayerSessionOrchestrator {
   Future<void> clearEmbeddedSubtitleTrack() async {
     _log('clearEmbeddedSubtitleTrack');
     await _playbackEngine.clearEmbeddedSubtitleTrack();
+  }
+
+  Future<void> selectExternalSubtitleTrack(ExternalSubtitleTrack track) async {
+    _log('selectExternalSubtitleTrack id=${track.id} label=${track.label}');
+    _selectedExternalSubtitleId = track.id;
+    await _playbackEngine.setSubtitleTrack(track);
+  }
+
+  Future<void> clearExternalSubtitleTrack() async {
+    _log('clearExternalSubtitleTrack');
+    _selectedExternalSubtitleId = null;
+    await _playbackEngine.clearSubtitleTrack();
   }
 
   Future<void> setAutoQualityEnabled(bool enabled) async {
@@ -433,6 +451,7 @@ final class PlayerSessionOrchestrator {
     await _stateController.close();
     await _positionController.close();
     await _durationController.close();
+    await _naturalCompletionController.close();
   }
 
   Future<Result<ResolvedStream, KumoriyaError>> _openCurrentCandidate({
@@ -996,6 +1015,12 @@ final class PlayerSessionOrchestrator {
       return;
     }
     if (!_shouldRecoverFalseEof(candidate)) {
+      // Not a false EOF — check whether this is a genuine natural completion.
+      if (_lastKnownDuration > const Duration(seconds: 10) &&
+          _isNearEnd(_lastKnownPosition, _lastKnownDuration)) {
+        _log('naturalCompletion detected');
+        _naturalCompletionController.add(null);
+      }
       return;
     }
     unawaited(
@@ -2293,7 +2318,7 @@ final class PlayerSessionOrchestrator {
     }
 
     final completer = Completer<bool>();
-    Timer? timeoutTimer;
+    late final Timer timeoutTimer;
 
     void checkAndComplete() {
       if (completer.isCompleted) return;
@@ -2357,7 +2382,7 @@ final class PlayerSessionOrchestrator {
     try {
       return await completer.future;
     } finally {
-      timeoutTimer?.cancel();
+      timeoutTimer.cancel();
       await durationSub.cancel();
       await positionSub.cancel();
     }
@@ -2781,6 +2806,15 @@ final class PlayerSessionOrchestrator {
   ExternalSubtitleTrack? get _preferredSubtitleTrack {
     if (_externalSubtitles.isEmpty) {
       return null;
+    }
+
+    final selectedId = _selectedExternalSubtitleId;
+    if (selectedId != null) {
+      for (final track in _externalSubtitles) {
+        if (track.id == selectedId) {
+          return track;
+        }
+      }
     }
 
     for (final track in _externalSubtitles) {

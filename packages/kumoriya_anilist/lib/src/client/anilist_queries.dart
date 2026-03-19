@@ -69,8 +69,10 @@ query AiringCalendar(
   $airingAtLesser: Int
 ) {
   Page(page: $page, perPage: $perPage) {
+    pageInfo {
+      hasNextPage
+    }
     airingSchedules(
-      notYetAired: true,
       sort: [TIME],
       airingAt_greater: $airingAtGreater,
       airingAt_lesser: $airingAtLesser
@@ -79,6 +81,7 @@ query AiringCalendar(
       airingAt
       media {
         id
+        isAdult
         title {
           romaji
           english

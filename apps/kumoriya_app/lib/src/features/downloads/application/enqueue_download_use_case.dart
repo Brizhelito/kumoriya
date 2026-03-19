@@ -1,10 +1,12 @@
 import 'dart:developer' as developer;
+import 'dart:io';
 
 import 'package:kumoriya_core/kumoriya_core.dart';
 import 'package:kumoriya_plugins/kumoriya_plugins.dart';
 import 'package:kumoriya_storage/kumoriya_storage.dart';
 
 import '../../anime_catalog/application/use_cases/resolve_source_server_link_use_case.dart';
+import 'download_identity.dart';
 import 'download_manager_service.dart';
 
 /// Resolves the best stream for an episode and enqueues a download.
@@ -34,6 +36,26 @@ class EnqueueDownloadUseCase {
       'server=${serverLink.serverName})',
     );
 
+    final existingTask = await _downloadManager.findTaskByEpisode(
+      anilistId,
+      episodeNumber,
+    );
+    if (existingTask != null) {
+      if (existingTask.status == DownloadStatus.completed &&
+          existingTask.filePath != null &&
+          !File(existingTask.filePath!).existsSync()) {
+        await _downloadManager.syncDownloadedLibrary();
+      } else {
+        return const Failure(
+          SimpleError(
+            code: 'download.duplicate',
+            message: 'This episode is already queued or downloaded.',
+            kind: KumoriyaErrorKind.cancelled,
+          ),
+        );
+      }
+    }
+
     final resolveResult = await _resolveUseCase.call(serverLink);
     return resolveResult.fold(
       onFailure: (error) {
@@ -53,8 +75,10 @@ class EnqueueDownloadUseCase {
 
         final stream = _pickStream(resolved.streams, preferredQuality);
 
-        final taskId =
-            '${anilistId}_${episodeNumber}_${DateTime.now().millisecondsSinceEpoch}';
+        final taskId = buildDownloadTaskId(
+          anilistId: anilistId,
+          episodeNumber: episodeNumber,
+        );
         final quality = stream.qualityLabel;
         final server = serverLink.serverName;
         final ext = stream.isHls ? '.ts' : _guessExtension(stream);

@@ -89,7 +89,8 @@ void main() {
       expect(result.isSuccess, isTrue);
       result.fold(
         onFailure: (_) => fail('expected success'),
-        onSuccess: (streams) {
+        onSuccess: (result) {
+          final streams = result.streams;
           expect(streams, hasLength(2));
           expect(streams.where((stream) => stream.isHls), isNotEmpty);
           expect(
@@ -115,7 +116,8 @@ void main() {
     expect(result.isSuccess, isTrue);
     result.fold(
       onFailure: (_) => fail('expected success'),
-      onSuccess: (streams) {
+      onSuccess: (result) {
+        final streams = result.streams;
         expect(streams, hasLength(2));
         expect(streams.first.isHls, isTrue);
         expect(streams.first.mimeType, 'application/vnd.apple.mpegurl');
@@ -141,7 +143,8 @@ void main() {
     expect(result.isSuccess, isTrue);
     result.fold(
       onFailure: (_) => fail('expected success'),
-      onSuccess: (streams) {
+      onSuccess: (result) {
+        final streams = result.streams;
         expect(streams, hasLength(1));
         expect(streams.single.url.toString(), contains('/api/video/abc12345'));
       },
@@ -158,7 +161,8 @@ void main() {
     expect(result.isSuccess, isTrue);
     result.fold(
       onFailure: (_) => fail('expected success'),
-      onSuccess: (streams) {
+      onSuccess: (result) {
+        final streams = result.streams;
         expect(streams, hasLength(1));
         expect(
           streams.single.url.toString(),
@@ -181,7 +185,8 @@ void main() {
     expect(result.isSuccess, isTrue);
     result.fold(
       onFailure: (_) => fail('expected success'),
-      onSuccess: (streams) {
+      onSuccess: (result) {
+        final streams = result.streams;
         expect(streams, hasLength(1));
         expect(streams.single.isHls, isTrue);
         expect(streams.single.url.toString(), contains('/hls/abc/master.m3u8'));
@@ -199,7 +204,8 @@ void main() {
     expect(result.isSuccess, isTrue);
     result.fold(
       onFailure: (_) => fail('expected success'),
-      onSuccess: (streams) {
+      onSuccess: (result) {
+        final streams = result.streams;
         expect(streams, isNotEmpty);
         expect(
           streams.any(

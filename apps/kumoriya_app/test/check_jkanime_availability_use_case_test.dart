@@ -114,6 +114,247 @@ void main() {
     },
   );
 
+  test(
+    'adds TV season query variants for bare trailing number titles',
+    () async {
+      final plugin = _FakeSourcePluginBareTrailingSeasonQueryOnly();
+      final useCase = CheckSourceAvailabilityUseCase(
+        sourcePlugin: plugin,
+        matcher: matcher,
+      );
+
+      final availability = await useCase.call(
+        AnimeDetail(
+          anime: const Anime(
+            anilistId: 1,
+            title: AnimeTitle(romaji: 'Boku no Hero Academia 7'),
+            format: AnimeFormat.tv,
+            releaseYear: 2025,
+          ),
+        ),
+      );
+
+      expect(availability.status, SourceAvailabilityStatus.available);
+      expect(plugin.queries, contains('Boku no Hero Academia 7th Season'));
+    },
+  );
+
+  test(
+    'direct slug probe enriches sparse matches already returned by search',
+    () async {
+      final plugin = _FakeSourcePluginSparseSeasonMatchNeedsDetailProbe();
+      final useCase = CheckSourceAvailabilityUseCase(
+        sourcePlugin: plugin,
+        matcher: matcher,
+      );
+
+      final availability = await useCase.call(
+        AnimeDetail(
+          anime: const Anime(
+            anilistId: 1,
+            title: AnimeTitle(romaji: 'Boku no Hero Academia 7'),
+            format: AnimeFormat.tv,
+            releaseYear: 2025,
+          ),
+        ),
+      );
+
+      expect(availability.status, SourceAvailabilityStatus.available);
+      expect(plugin.queries, contains('Boku no Hero Academia 7'));
+      expect(plugin.queries, contains('Boku no Hero Academia 7th Season'));
+      expect(
+        plugin.detailRequests,
+        contains('boku-no-hero-academia-7th-season'),
+      );
+      expect(
+        availability.matchedAnime?.sourceId,
+        'boku-no-hero-academia-7th-season',
+      );
+    },
+  );
+
+  test(
+    'direct slug probe expands bare trailing number TV titles to season slugs',
+    () async {
+      final useCase = CheckSourceAvailabilityUseCase(
+        sourcePlugin: _FakeSourcePluginBareTrailingSeasonSlugOnly(),
+        matcher: matcher,
+      );
+
+      final availability = await useCase.call(
+        AnimeDetail(
+          anime: const Anime(
+            anilistId: 1,
+            title: AnimeTitle(romaji: 'Boku no Hero Academia 7'),
+            format: AnimeFormat.tv,
+            releaseYear: 2025,
+          ),
+        ),
+      );
+
+      expect(availability.status, SourceAvailabilityStatus.available);
+      expect(
+        availability.matchedAnime?.sourceId,
+        'boku-no-hero-academia-7th-season',
+      );
+    },
+  );
+
+  test(
+    'accepts directly confirmed ONA titles when the source reports TV format drift',
+    () async {
+      final useCase = CheckSourceAvailabilityUseCase(
+        sourcePlugin: _FakeSourcePluginDirectOnaTvFormatBridge(),
+        matcher: matcher,
+      );
+
+      final availability = await useCase.call(
+        AnimeDetail(
+          anime: const Anime(
+            anilistId: 191205,
+            title: AnimeTitle(
+              romaji: 'Okiraku Ryoushu no Tanoshii Ryouchi Bouei',
+              english: 'Easygoing Territory Defense by the Optimistic Lord',
+            ),
+            format: AnimeFormat.ona,
+            releaseYear: 2026,
+          ),
+        ),
+      );
+
+      expect(availability.status, SourceAvailabilityStatus.available);
+      expect(
+        availability.matchedAnime?.sourceId,
+        'okiraku-ryoushu-no-tanoshii-ryouchi-bouei',
+      );
+    },
+  );
+
+  test(
+    'accepts ONA/TV bridge via search-discovered candidate when short slug does not exist',
+    () async {
+      final useCase = CheckSourceAvailabilityUseCase(
+        sourcePlugin: _FakeSourcePluginSearchDiscoveredOnaTvBridge(),
+        matcher: matcher,
+      );
+
+      final availability = await useCase.call(
+        AnimeDetail(
+          anime: const Anime(
+            anilistId: 191205,
+            title: AnimeTitle(
+              romaji: 'Okiraku Ryoushu no Tanoshii Ryouchi Bouei',
+              english: 'Easygoing Territory Defense by the Optimistic Lord',
+            ),
+            format: AnimeFormat.ona,
+            releaseYear: 2026,
+          ),
+        ),
+      );
+
+      expect(availability.status, SourceAvailabilityStatus.available);
+      expect(
+        availability.matchedAnime?.sourceId,
+        'okiraku-ryoushu-no-tanoshii-ryouchi-bouei-seisankei-majutsu-de-na-mo-naki-mura-wo-saikyou-no-jousai-toshi-ni',
+      );
+      expect(
+        availability.decision.acceptanceSignals,
+        contains('direct-confirmed-ona-tv-bridge'),
+      );
+    },
+  );
+
+  test(
+    'accepts directly confirmed strong title matches when the source format is unknown',
+    () async {
+      final useCase = CheckSourceAvailabilityUseCase(
+        sourcePlugin: _FakeSourcePluginSearchDiscoveredUnknownFormatBridge(),
+        matcher: matcher,
+      );
+
+      final availability = await useCase.call(
+        AnimeDetail(
+          anime: const Anime(
+            anilistId: 191205,
+            title: AnimeTitle(
+              romaji: 'Okiraku Ryoushu no Tanoshii Ryouchi Bouei',
+              english: 'Easygoing Territory Defense by the Optimistic Lord',
+            ),
+            format: AnimeFormat.ona,
+            releaseYear: 2026,
+          ),
+        ),
+      );
+
+      expect(availability.status, SourceAvailabilityStatus.available);
+      expect(
+        availability.decision.acceptanceSignals,
+        contains('direct-confirmed-unknown-format-bridge'),
+      );
+    },
+  );
+
+  test(
+    'adds supplemental alias for ganzo bandori direct confirmation',
+    () async {
+      final plugin = _FakeSourcePluginGanzoBandoriDirectOnly();
+      final useCase = CheckSourceAvailabilityUseCase(
+        sourcePlugin: plugin,
+        matcher: matcher,
+      );
+
+      final availability = await useCase.call(
+        AnimeDetail(
+          anime: const Anime(
+            anilistId: 187166,
+            title: AnimeTitle(
+              romaji: 'Ganso! Bandori-chan',
+              english: 'GANSO! BanG Dream Chan',
+              native: '元祖！バンドリちゃん',
+            ),
+            format: AnimeFormat.ona,
+            releaseYear: 2025,
+          ),
+        ),
+      );
+
+      expect(plugin.detailRequests, contains('ganzo-bandori-chan'));
+      expect(availability.status, SourceAvailabilityStatus.available);
+      expect(availability.matchedAnime?.sourceId, 'ganzo-bandori-chan');
+    },
+  );
+
+  test(
+    'adds supplemental detective conan query when AniList detail lacks synonym payload',
+    () async {
+      final plugin = _FakeSourcePluginDetectiveConanAliasOnly();
+      final useCase = CheckSourceAvailabilityUseCase(
+        sourcePlugin: plugin,
+        matcher: matcher,
+      );
+
+      final availability = await useCase.call(
+        AnimeDetail(
+          anime: const Anime(
+            anilistId: 235,
+            title: AnimeTitle(
+              romaji: 'Meitantei Conan',
+              english: 'Case Closed',
+              native: '名探偵コナン',
+            ),
+            format: AnimeFormat.tv,
+            releaseYear: 1996,
+          ),
+        ),
+      );
+
+      expect(plugin.queries, contains('Detective Conan'));
+      expect(plugin.detailRequests, contains('detective-conan'));
+      expect(availability.status, SourceAvailabilityStatus.available);
+      expect(availability.matchedAnime?.sourceId, 'detective-conan');
+    },
+  );
+
   test('adds franchise root query for subtitle-heavy titles', () async {
     final plugin = _FakeSourcePluginFranchiseRootOnly();
     final useCase = CheckSourceAvailabilityUseCase(
@@ -497,6 +738,32 @@ final class _FakeSourcePluginSeasonRootOnly extends _BaseFakeSourcePlugin {
   }
 
   @override
+  Future<Result<SourceAnimeDetail, KumoriyaError>> getAnimeDetail(
+    String sourceId,
+  ) async {
+    if (sourceId == 'oshi-no-ko') {
+      return const Success(
+        SourceAnimeDetail(
+          sourceId: 'oshi-no-ko',
+          title: 'Oshi no Ko',
+          format: AnimeFormat.tv,
+          releaseYear: 2023,
+          aliases: <String>['Oshi no Ko 2nd Season'],
+          seasonNumber: 2,
+        ),
+      );
+    }
+
+    return const Failure(
+      SimpleError(
+        code: 'source.not-found',
+        message: 'not found',
+        kind: KumoriyaErrorKind.notFound,
+      ),
+    );
+  }
+
+  @override
   Future<Result<List<SourceEpisode>, KumoriyaError>> getEpisodes(
     String sourceId,
   ) async {
@@ -506,6 +773,170 @@ final class _FakeSourcePluginSeasonRootOnly extends _BaseFakeSourcePlugin {
         number: 1,
         title: 'Episode 1',
         episodeUrl: Uri.parse('https://example.com/oshi/1'),
+      ),
+    ]);
+  }
+}
+
+final class _FakeSourcePluginBareTrailingSeasonQueryOnly
+    extends _BaseFakeSourcePlugin {
+  final List<String> queries = <String>[];
+
+  @override
+  Future<Result<List<SourceAnimeMatch>, KumoriyaError>> search(
+    SourceSearchQuery query,
+  ) async {
+    queries.add(query.query);
+    if (query.query == 'Boku no Hero Academia 7th Season') {
+      return const Success(<SourceAnimeMatch>[
+        SourceAnimeMatch(
+          sourceId: 'boku-no-hero-academia-7th-season',
+          title: 'Boku no Hero Academia 7',
+          format: AnimeFormat.tv,
+          releaseYear: 2025,
+        ),
+      ]);
+    }
+
+    return const Success(<SourceAnimeMatch>[]);
+  }
+
+  @override
+  Future<Result<List<SourceEpisode>, KumoriyaError>> getEpisodes(
+    String sourceId,
+  ) async {
+    return Success(<SourceEpisode>[
+      SourceEpisode(
+        sourceEpisodeId: 'ep1',
+        number: 1,
+        title: 'Episode 1',
+        episodeUrl: Uri.parse('https://example.com/mha/7/1'),
+      ),
+    ]);
+  }
+}
+
+final class _FakeSourcePluginSparseSeasonMatchNeedsDetailProbe
+    extends _BaseFakeSourcePlugin {
+  final List<String> queries = <String>[];
+  final List<String> detailRequests = <String>[];
+
+  @override
+  Future<Result<List<SourceAnimeMatch>, KumoriyaError>> search(
+    SourceSearchQuery query,
+  ) async {
+    queries.add(query.query);
+    if (query.query == 'Boku no Hero Academia 7') {
+      return Success(
+        List<SourceAnimeMatch>.generate(
+          10,
+          (index) => SourceAnimeMatch(
+            sourceId: 'mha-noise-$index',
+            title: 'Boku no Hero Academia Noise $index',
+            format: AnimeFormat.tv,
+            releaseYear: 2025,
+          ),
+        ),
+      );
+    }
+
+    if (query.query == 'Boku no Hero Academia 7th Season') {
+      return const Success(<SourceAnimeMatch>[
+        SourceAnimeMatch(
+          sourceId: 'boku-no-hero-academia-7th-season',
+          title: 'Boku no Hero Academia 7th Season',
+        ),
+      ]);
+    }
+
+    return const Success(<SourceAnimeMatch>[]);
+  }
+
+  @override
+  Future<Result<SourceAnimeDetail, KumoriyaError>> getAnimeDetail(
+    String sourceId,
+  ) async {
+    detailRequests.add(sourceId);
+    if (sourceId == 'boku-no-hero-academia-7th-season') {
+      return const Success(
+        SourceAnimeDetail(
+          sourceId: 'boku-no-hero-academia-7th-season',
+          title: 'Boku no Hero Academia 7th Season',
+          format: AnimeFormat.tv,
+          releaseYear: 2025,
+          seasonNumber: 7,
+          aliases: <String>['My Hero Academia Season 7'],
+        ),
+      );
+    }
+
+    return const Failure(
+      SimpleError(
+        code: 'source.not-found',
+        message: 'not found',
+        kind: KumoriyaErrorKind.notFound,
+      ),
+    );
+  }
+
+  @override
+  Future<Result<List<SourceEpisode>, KumoriyaError>> getEpisodes(
+    String sourceId,
+  ) async {
+    return Success(<SourceEpisode>[
+      SourceEpisode(
+        sourceEpisodeId: 'ep1',
+        number: 1,
+        title: 'Episode 1',
+        episodeUrl: Uri.parse('https://example.com/mha/7/1'),
+      ),
+    ]);
+  }
+}
+
+final class _FakeSourcePluginBareTrailingSeasonSlugOnly
+    extends _BaseFakeSourcePlugin {
+  @override
+  Future<Result<List<SourceAnimeMatch>, KumoriyaError>> search(
+    SourceSearchQuery query,
+  ) async {
+    return const Success(<SourceAnimeMatch>[]);
+  }
+
+  @override
+  Future<Result<SourceAnimeDetail, KumoriyaError>> getAnimeDetail(
+    String sourceId,
+  ) async {
+    if (sourceId == 'boku-no-hero-academia-7th-season') {
+      return const Success(
+        SourceAnimeDetail(
+          sourceId: 'boku-no-hero-academia-7th-season',
+          title: 'Boku no Hero Academia 7',
+          format: AnimeFormat.tv,
+          releaseYear: 2025,
+        ),
+      );
+    }
+
+    return const Failure(
+      SimpleError(
+        code: 'source.not-found',
+        message: 'not found',
+        kind: KumoriyaErrorKind.notFound,
+      ),
+    );
+  }
+
+  @override
+  Future<Result<List<SourceEpisode>, KumoriyaError>> getEpisodes(
+    String sourceId,
+  ) async {
+    return Success(<SourceEpisode>[
+      SourceEpisode(
+        sourceEpisodeId: 'ep1',
+        number: 1,
+        title: 'Episode 1',
+        episodeUrl: Uri.parse('https://example.com/mha/7/1'),
       ),
     ]);
   }
@@ -538,6 +969,33 @@ final class _FakeSourcePluginFranchiseRootOnly extends _BaseFakeSourcePlugin {
   }
 
   @override
+  Future<Result<SourceAnimeDetail, KumoriyaError>> getAnimeDetail(
+    String sourceId,
+  ) async {
+    if (sourceId == 'mushoku-tensei' || sourceId == 'mushoku-tensei-main') {
+      return const Success(
+        SourceAnimeDetail(
+          sourceId: 'mushoku-tensei-main',
+          title: 'Mushoku Tensei: Isekai Ittara Honki Dasu',
+          format: AnimeFormat.tv,
+          aliases: <String>[
+            'Mushoku Tensei',
+            'Mushoku Tensei: Isekai Ittara Honki Dasu - Megami ni Erabareshi',
+          ],
+        ),
+      );
+    }
+
+    return const Failure(
+      SimpleError(
+        code: 'source.not-found',
+        message: 'not found',
+        kind: KumoriyaErrorKind.notFound,
+      ),
+    );
+  }
+
+  @override
   Future<Result<List<SourceEpisode>, KumoriyaError>> getEpisodes(
     String sourceId,
   ) async {
@@ -547,6 +1005,67 @@ final class _FakeSourcePluginFranchiseRootOnly extends _BaseFakeSourcePlugin {
         number: 1,
         title: 'Episode 1',
         episodeUrl: Uri.parse('https://example.com/mushoku/1'),
+      ),
+    ]);
+  }
+}
+
+final class _FakeSourcePluginDirectOnaTvFormatBridge
+    extends _BaseFakeSourcePlugin {
+  @override
+  Future<Result<List<SourceAnimeMatch>, KumoriyaError>> search(
+    SourceSearchQuery query,
+  ) async {
+    return const Success(<SourceAnimeMatch>[]);
+  }
+
+  @override
+  Future<Result<SourceAnimeDetail, KumoriyaError>> getAnimeDetail(
+    String sourceId,
+  ) async {
+    if (sourceId == 'okiraku-ryoushu-no-tanoshii-ryouchi-bouei') {
+      return const Success(
+        SourceAnimeDetail(
+          sourceId: 'okiraku-ryoushu-no-tanoshii-ryouchi-bouei',
+          title:
+              'Okiraku Ryoushu no Tanoshii Ryouchi Bouei: Seisankei Majutsu de Na mo Naki Mura wo Saikyou no Jousai Toshi ni',
+          format: AnimeFormat.tv,
+          releaseYear: 2026,
+        ),
+      );
+    }
+
+    if (sourceId == 'easygoing-territory-defense-by-the-optimistic-lord') {
+      return const Success(
+        SourceAnimeDetail(
+          sourceId: 'okiraku-ryoushu-no-tanoshii-ryouchi-bouei',
+          title:
+              'Easygoing Territory Defense by the Optimistic Lord: Production Magic Turns a Nameless Village into the Strongest Fortified City',
+          format: AnimeFormat.tv,
+          releaseYear: 2026,
+        ),
+      );
+    }
+
+    return const Failure(
+      SimpleError(
+        code: 'source.not-found',
+        message: 'not found',
+        kind: KumoriyaErrorKind.notFound,
+      ),
+    );
+  }
+
+  @override
+  Future<Result<List<SourceEpisode>, KumoriyaError>> getEpisodes(
+    String sourceId,
+  ) async {
+    return Success(<SourceEpisode>[
+      SourceEpisode(
+        sourceEpisodeId: 'ep1',
+        number: 1,
+        title: 'Episode 1',
+        episodeUrl: Uri.parse('https://example.com/okiraku/1'),
       ),
     ]);
   }
@@ -570,6 +1089,30 @@ final class _FakeSourcePluginGroupedSeasonEpisodes
     }
 
     return const Success(<SourceAnimeMatch>[]);
+  }
+
+  @override
+  Future<Result<SourceAnimeDetail, KumoriyaError>> getAnimeDetail(
+    String sourceId,
+  ) async {
+    if (sourceId == 'oshi-no-ko') {
+      return const Success(
+        SourceAnimeDetail(
+          sourceId: 'oshi-no-ko',
+          title: 'Oshi no Ko',
+          format: AnimeFormat.tv,
+          releaseYear: 2023,
+        ),
+      );
+    }
+
+    return const Failure(
+      SimpleError(
+        code: 'source.not-found',
+        message: 'not found',
+        kind: KumoriyaErrorKind.notFound,
+      ),
+    );
   }
 
   @override
@@ -600,8 +1143,38 @@ final class _FakeSourcePluginNodeVariant extends _BaseFakeSourcePlugin {
         sourceId: 'yuusha-party-ni-kawaii-ko-ga-ita-node-kokuhaku-shitemita',
         title: 'Yuusha Party ni Kawaii Ko ga Ita node, Kokuhaku shitemita.',
         format: AnimeFormat.tv,
+        aliases: <String>[
+          'Yuusha Party ni Kawaii Ko ga Ita no de, Kokuhaku Shitemita.',
+        ],
       ),
     ]);
+  }
+
+  @override
+  Future<Result<SourceAnimeDetail, KumoriyaError>> getAnimeDetail(
+    String sourceId,
+  ) async {
+    if (sourceId ==
+        'yuusha-party-ni-kawaii-ko-ga-ita-node-kokuhaku-shitemita') {
+      return const Success(
+        SourceAnimeDetail(
+          sourceId: 'yuusha-party-ni-kawaii-ko-ga-ita-node-kokuhaku-shitemita',
+          title: 'Yuusha Party ni Kawaii Ko ga Ita node, Kokuhaku shitemita.',
+          format: AnimeFormat.tv,
+          aliases: <String>[
+            'Yuusha Party ni Kawaii Ko ga Ita no de, Kokuhaku Shitemita.',
+          ],
+        ),
+      );
+    }
+
+    return const Failure(
+      SimpleError(
+        code: 'source.not-found',
+        message: 'not found',
+        kind: KumoriyaErrorKind.notFound,
+      ),
+    );
   }
 
   @override
@@ -638,6 +1211,34 @@ final class _FakeSourcePluginPokemonAliasSearch extends _BaseFakeSourcePlugin {
     }
 
     return const Success(<SourceAnimeMatch>[]);
+  }
+
+  @override
+  Future<Result<SourceAnimeDetail, KumoriyaError>> getAnimeDetail(
+    String sourceId,
+  ) async {
+    if (sourceId == 'pokemon-shinsaku-anime' || sourceId == 'pokemon') {
+      return const Success(
+        SourceAnimeDetail(
+          sourceId: 'pokemon-shinsaku-anime',
+          title: 'Pokemon (Shinsaku Anime)',
+          format: AnimeFormat.tv,
+          aliases: <String>[
+            'Pokémon Horizons: The Series',
+            'Pocket Monsters (2023)',
+            'Pokémon (2023)',
+          ],
+        ),
+      );
+    }
+
+    return const Failure(
+      SimpleError(
+        code: 'source.not-found',
+        message: 'not found',
+        kind: KumoriyaErrorKind.notFound,
+      ),
+    );
   }
 
   @override
@@ -680,6 +1281,35 @@ final class _FakeSourcePluginHellModeRootOnly extends _BaseFakeSourcePlugin {
   }
 
   @override
+  Future<Result<SourceAnimeDetail, KumoriyaError>> getAnimeDetail(
+    String sourceId,
+  ) async {
+    if (sourceId == 'hell-mode') {
+      return const Success(
+        SourceAnimeDetail(
+          sourceId:
+              'hell-mode-yarikomizuki-no-gamer-wa-hai-settei-no-isekai-de-musou-suru',
+          title:
+              'Hell Mode: Yarikomizuki no Gamer wa Hai Settei no Isekai de Musou suru',
+          format: AnimeFormat.tv,
+          releaseYear: 2026,
+          aliases: <String>[
+            'Hell Mode: Yarikomi Suki no Gamer wa Haisettei no Isekai de Musou Suru',
+          ],
+        ),
+      );
+    }
+
+    return const Failure(
+      SimpleError(
+        code: 'source.not-found',
+        message: 'not found',
+        kind: KumoriyaErrorKind.notFound,
+      ),
+    );
+  }
+
+  @override
   Future<Result<List<SourceEpisode>, KumoriyaError>> getEpisodes(
     String sourceId,
   ) async {
@@ -715,6 +1345,31 @@ final class _FakeSourcePluginDarkMoonRootSuffixOnly
     }
 
     return const Success(<SourceAnimeMatch>[]);
+  }
+
+  @override
+  Future<Result<SourceAnimeDetail, KumoriyaError>> getAnimeDetail(
+    String sourceId,
+  ) async {
+    if (sourceId == 'dark-moon-tsuki-no-saidan') {
+      return const Success(
+        SourceAnimeDetail(
+          sourceId: 'dark-moon-tsuki-no-saidan',
+          title: 'Dark Moon: Tsuki no Saidan',
+          format: AnimeFormat.tv,
+          releaseYear: 2026,
+          aliases: <String>['DARK MOON: Kuro no Tsuki - Tsuki no Saidan'],
+        ),
+      );
+    }
+
+    return const Failure(
+      SimpleError(
+        code: 'source.not-found',
+        message: 'not found',
+        kind: KumoriyaErrorKind.notFound,
+      ),
+    );
   }
 
   @override
@@ -775,6 +1430,258 @@ final class _FakeSourcePluginDouseOrdinalSlugOnly
         number: 1,
         title: 'Episode 1',
         episodeUrl: Uri.parse('https://example.com/1'),
+      ),
+    ]);
+  }
+}
+
+/// Search returns the long-titled candidate but the short AniList slug does
+/// not resolve. The use case should probe the search result's own sourceId,
+/// confirm the entry, and accept it through the ONA/TV bridge.
+final class _FakeSourcePluginSearchDiscoveredOnaTvBridge
+    extends _BaseFakeSourcePlugin {
+  static const _longSlug =
+      'okiraku-ryoushu-no-tanoshii-ryouchi-bouei-seisankei-majutsu-de-na-mo-naki-mura-wo-saikyou-no-jousai-toshi-ni';
+
+  @override
+  Future<Result<List<SourceAnimeMatch>, KumoriyaError>> search(
+    SourceSearchQuery query,
+  ) async {
+    final lower = query.query.toLowerCase();
+    if (lower.contains('okiraku') || lower.contains('easygoing')) {
+      return const Success(<SourceAnimeMatch>[
+        SourceAnimeMatch(
+          sourceId: _longSlug,
+          title:
+              'Okiraku Ryoushu no Tanoshii Ryouchi Bouei: Seisankei Majutsu de Na mo Naki Mura wo Saikyou no Jousai Toshi ni',
+          format: AnimeFormat.tv,
+          releaseYear: 2026,
+        ),
+      ]);
+    }
+    return const Success(<SourceAnimeMatch>[]);
+  }
+
+  @override
+  Future<Result<SourceAnimeDetail, KumoriyaError>> getAnimeDetail(
+    String sourceId,
+  ) async {
+    if (sourceId == _longSlug) {
+      return const Success(
+        SourceAnimeDetail(
+          sourceId: _longSlug,
+          title:
+              'Okiraku Ryoushu no Tanoshii Ryouchi Bouei: Seisankei Majutsu de Na mo Naki Mura wo Saikyou no Jousai Toshi ni',
+          format: AnimeFormat.tv,
+          releaseYear: 2026,
+        ),
+      );
+    }
+
+    return const Failure(
+      SimpleError(
+        code: 'source.not-found',
+        message: 'not found',
+        kind: KumoriyaErrorKind.notFound,
+      ),
+    );
+  }
+
+  @override
+  Future<Result<List<SourceEpisode>, KumoriyaError>> getEpisodes(
+    String sourceId,
+  ) async {
+    if (sourceId == _longSlug) {
+      return Success(<SourceEpisode>[
+        SourceEpisode(
+          sourceEpisodeId: 'ep1',
+          number: 1,
+          title: 'Episode 1',
+          episodeUrl: Uri.parse('https://example.com/okiraku/1'),
+        ),
+      ]);
+    }
+    return const Success(<SourceEpisode>[]);
+  }
+}
+
+final class _FakeSourcePluginSearchDiscoveredUnknownFormatBridge
+    extends _BaseFakeSourcePlugin {
+  static const _encodedSourceId =
+      '9ede6265-c9b9-47bf-bfb5-7e340223708e::easygoing-territory-defense-by-the-optimistic-lord-production-magic-turns-a-nameless-village-into-the-strongest-fortified-city-0504b068c520f15a4965';
+
+  @override
+  Future<Result<List<SourceAnimeMatch>, KumoriyaError>> search(
+    SourceSearchQuery query,
+  ) async {
+    final lower = query.query.toLowerCase();
+    if (lower.contains('easygoing') || lower.contains('okiraku')) {
+      return const Success(<SourceAnimeMatch>[
+        SourceAnimeMatch(
+          sourceId: _encodedSourceId,
+          title:
+              'Easygoing Territory Defense by the Optimistic Lord: Production Magic Turns a Nameless Village into the Strongest Fortified City',
+          format: AnimeFormat.unknown,
+          releaseYear: 2026,
+        ),
+      ]);
+    }
+    return const Success(<SourceAnimeMatch>[]);
+  }
+
+  @override
+  Future<Result<SourceAnimeDetail, KumoriyaError>> getAnimeDetail(
+    String sourceId,
+  ) async {
+    if (sourceId == _encodedSourceId) {
+      return const Success(
+        SourceAnimeDetail(
+          sourceId: _encodedSourceId,
+          title:
+              'Easygoing Territory Defense by the Optimistic Lord: Production Magic Turns a Nameless Village into the Strongest Fortified City',
+          format: AnimeFormat.unknown,
+          releaseYear: 2026,
+        ),
+      );
+    }
+
+    return const Failure(
+      SimpleError(
+        code: 'source.not-found',
+        message: 'not found',
+        kind: KumoriyaErrorKind.notFound,
+      ),
+    );
+  }
+
+  @override
+  Future<Result<List<SourceEpisode>, KumoriyaError>> getEpisodes(
+    String sourceId,
+  ) async {
+    if (sourceId == _encodedSourceId) {
+      return Success(<SourceEpisode>[
+        SourceEpisode(
+          sourceEpisodeId: 'ep1',
+          number: 1,
+          title: 'Episode 1',
+          episodeUrl: Uri.parse('https://example.com/anime-nexus/okiraku/1'),
+        ),
+      ]);
+    }
+    return const Success(<SourceEpisode>[]);
+  }
+}
+
+final class _FakeSourcePluginGanzoBandoriDirectOnly
+    extends _BaseFakeSourcePlugin {
+  final List<String> detailRequests = <String>[];
+
+  @override
+  Future<Result<List<SourceAnimeMatch>, KumoriyaError>> search(
+    SourceSearchQuery query,
+  ) async {
+    return const Success(<SourceAnimeMatch>[]);
+  }
+
+  @override
+  Future<Result<SourceAnimeDetail, KumoriyaError>> getAnimeDetail(
+    String sourceId,
+  ) async {
+    detailRequests.add(sourceId);
+    if (sourceId == 'ganzo-bandori-chan') {
+      return const Success(
+        SourceAnimeDetail(
+          sourceId: 'ganzo-bandori-chan',
+          title: 'Ganzo! Bandori-chan',
+          format: AnimeFormat.ona,
+          releaseYear: 2025,
+        ),
+      );
+    }
+
+    return const Failure(
+      SimpleError(
+        code: 'source.not-found',
+        message: 'not found',
+        kind: KumoriyaErrorKind.notFound,
+      ),
+    );
+  }
+
+  @override
+  Future<Result<List<SourceEpisode>, KumoriyaError>> getEpisodes(
+    String sourceId,
+  ) async {
+    return Success(<SourceEpisode>[
+      SourceEpisode(
+        sourceEpisodeId: 'ep1',
+        number: 1,
+        title: 'Episode 1',
+        episodeUrl: Uri.parse('https://example.com/bandori/1'),
+      ),
+    ]);
+  }
+}
+
+final class _FakeSourcePluginDetectiveConanAliasOnly
+    extends _BaseFakeSourcePlugin {
+  final List<String> queries = <String>[];
+  final List<String> detailRequests = <String>[];
+
+  @override
+  Future<Result<List<SourceAnimeMatch>, KumoriyaError>> search(
+    SourceSearchQuery query,
+  ) async {
+    queries.add(query.query);
+    if (query.query == 'Detective Conan') {
+      return const Success(<SourceAnimeMatch>[
+        SourceAnimeMatch(
+          sourceId: 'detective-conan-special',
+          title: 'Detective Conan Special',
+          format: AnimeFormat.tv,
+          releaseYear: 2012,
+        ),
+      ]);
+    }
+
+    return const Success(<SourceAnimeMatch>[]);
+  }
+
+  @override
+  Future<Result<SourceAnimeDetail, KumoriyaError>> getAnimeDetail(
+    String sourceId,
+  ) async {
+    detailRequests.add(sourceId);
+    if (sourceId == 'detective-conan') {
+      return const Success(
+        SourceAnimeDetail(
+          sourceId: 'detective-conan',
+          title: 'Detective Conan',
+          format: AnimeFormat.tv,
+          releaseYear: 1996,
+        ),
+      );
+    }
+
+    return const Failure(
+      SimpleError(
+        code: 'source.not-found',
+        message: 'not found',
+        kind: KumoriyaErrorKind.notFound,
+      ),
+    );
+  }
+
+  @override
+  Future<Result<List<SourceEpisode>, KumoriyaError>> getEpisodes(
+    String sourceId,
+  ) async {
+    return Success(<SourceEpisode>[
+      SourceEpisode(
+        sourceEpisodeId: 'ep1',
+        number: 1,
+        title: 'Episode 1',
+        episodeUrl: Uri.parse('https://example.com/conan/1'),
       ),
     ]);
   }

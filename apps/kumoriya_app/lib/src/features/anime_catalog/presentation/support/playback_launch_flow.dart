@@ -233,15 +233,15 @@ void _log(String message) {
   debugPrint('[playback.launch ${DateTime.now().toIso8601String()}] $message');
 }
 
-Future<void> _openPlayer(
+Future<bool> _openPlayer(
   BuildContext context, {
   required int anilistId,
   required String animeTitle,
   required EpisodePlayerLaunch launch,
   bool persistSelection = true,
-}) {
-  return Navigator.of(context, rootNavigator: true).push(
-    MaterialPageRoute<void>(
+}) async {
+  final result = await Navigator.of(context, rootNavigator: true).push<bool>(
+    MaterialPageRoute<bool>(
       builder: (_) => PlayerPage(
         anilistId: anilistId,
         animeTitle: animeTitle,
@@ -258,6 +258,7 @@ Future<void> _openPlayer(
       ),
     ),
   );
+  return result == true;
 }
 
 class _ServerPickerSheet extends StatefulWidget {

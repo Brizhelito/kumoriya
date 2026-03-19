@@ -2,11 +2,7 @@ import 'package:flutter/material.dart';
 import '../theme/kumoriya_theme.dart';
 
 class MetaChip extends StatelessWidget {
-  const MetaChip({
-    super.key,
-    required this.label,
-    this.isActive = false,
-  });
+  const MetaChip({super.key, required this.label, this.isActive = false});
 
   final String label;
   final bool isActive;

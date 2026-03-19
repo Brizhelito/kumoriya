@@ -20,18 +20,21 @@ void main() {
     // Cookie obtained from browser
     const sessionCookie = 'sid=07c70171b49cd54012ed37b600d0db42';
 
-    final dio = Dio(BaseOptions(
-      connectTimeout: const Duration(seconds: 15),
-      headers: <String, String>{'User-Agent': NexusConstants.userAgent},
-    ));
+    final dio = Dio(
+      BaseOptions(
+        connectTimeout: const Duration(seconds: 15),
+        headers: <String, String>{'User-Agent': NexusConstants.userAgent},
+      ),
+    );
 
     print('[1] Bootstrap auth session...');
-    final session = NexusBrowserSession.withValues(fingerprint: browserFingerprint);
-    // This will create a new session with new cookies
-    final streamData = await NexusStreamDataFetcher(dio).fetch(
-      episodeId: episodeId,
-      session: session,
+    final session = NexusBrowserSession.withValues(
+      fingerprint: browserFingerprint,
     );
+    // This will create a new session with new cookies
+    final streamData = await NexusStreamDataFetcher(
+      dio,
+    ).fetch(episodeId: episodeId, session: session);
     print('[1] ✓ got hlsUrl and new cookies');
 
     print('[2] Connect WS WITH session cookie...');
@@ -52,7 +55,7 @@ void main() {
       wsUri.toString(),
       headers: <String, String>{
         'Origin': 'https://anime.nexus',
-        'Cookie': sessionCookie,  // Include the session cookie
+        'Cookie': sessionCookie, // Include the session cookie
       },
     );
     print('[2] ✓ connected to WS');
@@ -84,7 +87,7 @@ void main() {
     // Step 4: send AUTH WITHOUT ref (relying on cookie)
     print('[4] Send AUTH without ref (relying on cookie)...');
     final authMsg = jsonEncode({
-      'ref': '',  // Empty ref, relying on cookie
+      'ref': '', // Empty ref, relying on cookie
       'fingerprint': browserFingerprint,
     });
     socket.add('42/video,["auth",$authMsg]');

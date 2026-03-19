@@ -1,5 +1,6 @@
 import 'package:drift/drift.dart';
 
+import 'daos/aniskip_cache_dao.dart';
 import 'daos/anilist_cache_dao.dart';
 import 'daos/download_task_dao.dart';
 import 'daos/library_entry_dao.dart';
@@ -7,6 +8,7 @@ import 'daos/playback_preference_dao.dart';
 import 'daos/progress_dao.dart';
 import 'daos/source_availability_cache_dao.dart';
 import 'daos/watch_history_dao.dart';
+import 'tables/aniskip_cache_table.dart';
 import 'tables/anilist_cache_table.dart';
 import 'tables/download_task_table.dart';
 import 'tables/episode_progress_table.dart';
@@ -23,6 +25,7 @@ part 'app_database.g.dart';
     WatchHistoryTable,
     PlaybackPreferenceTable,
     SourceAvailabilityCacheTable,
+    AniSkipCacheTable,
     DownloadTaskTable,
     LibraryEntryTable,
     AnilistCacheTable,
@@ -32,6 +35,7 @@ part 'app_database.g.dart';
     WatchHistoryDao,
     PlaybackPreferenceDao,
     SourceAvailabilityCacheDao,
+    AniSkipCacheDao,
     DownloadTaskDao,
     LibraryEntryDao,
     AnilistCacheDao,
@@ -41,7 +45,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase(super.e);
 
   @override
-  int get schemaVersion => 9;
+  int get schemaVersion => 10;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -82,6 +86,13 @@ class AppDatabase extends _$AppDatabase {
           columnName: 'quality_label',
           sqlDefinition: 'TEXT',
         );
+      }
+      if (from < 10) {
+        await _createTableIfMissing(
+          tableName: 'aniskip_cache',
+          createTable: () => m.createTable(aniSkipCacheTable),
+        );
+        await _createIndices();
       }
       if (from < 8) {
         await _ensureColumn(
@@ -134,6 +145,10 @@ class AppDatabase extends _$AppDatabase {
     await _createTableIfMissing(
       tableName: 'anilist_cache',
       createTable: () => m.createTable(anilistCacheTable),
+    );
+    await _createTableIfMissing(
+      tableName: 'aniskip_cache',
+      createTable: () => m.createTable(aniSkipCacheTable),
     );
     await _createIndices();
   }
@@ -209,6 +224,14 @@ class AppDatabase extends _$AppDatabase {
     await customStatement(
       'CREATE INDEX IF NOT EXISTS idx_anilist_cache_updated '
       'ON anilist_cache (updated_at)',
+    );
+    await customStatement(
+      'CREATE INDEX IF NOT EXISTS idx_aniskip_cache_updated '
+      'ON aniskip_cache (updated_at)',
+    );
+    await customStatement(
+      'CREATE INDEX IF NOT EXISTS idx_aniskip_cache_anime '
+      'ON aniskip_cache (anilist_id, episode_number)',
     );
   }
 }

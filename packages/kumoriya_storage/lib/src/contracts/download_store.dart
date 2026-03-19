@@ -61,6 +61,11 @@ abstract interface class DownloadStore {
 
   Future<Result<DownloadTask?, KumoriyaError>> getTask(String id);
 
+  Future<Result<DownloadTask?, KumoriyaError>> getTaskByEpisode(
+    int anilistId,
+    double episodeNumber,
+  );
+
   Future<Result<List<DownloadTask>, KumoriyaError>> getTasksByAnime(
     int anilistId,
   );

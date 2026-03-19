@@ -203,6 +203,26 @@
       }
     }
   },
+  "historyProgressUpTo": "Up to EP {episode} / {total}",
+  "@historyProgressUpTo": {
+    "placeholders": {
+      "episode": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "historyProgressLastWatched": "Last watched EP {episode}",
+  "@historyProgressLastWatched": {
+    "placeholders": {
+      "episode": {
+        "type": "int"
+      }
+    }
+  },
+  "episodePlaying": "PLAYING",
   "continueWatching": "Continue Watching",
   "continueWatchingHint": "Jump back in where you left off.",
   "continueWatchingResumeAction": "Resume now",
@@ -292,6 +312,7 @@
   "detailSynopsisTitle": "Synopsis",
   "detailDiscoverPrompt": "See what's ready before you pick an episode.",
   "detailPlaybackNotReady": "This anime is not ready to play right now.",
+  "detailCheckingSources": "Checking sources...",
   "detailPlaybackHint": "We'll reuse your last working source and server when possible.",
   "detailContinueEpisode": "Continue from episode {episode}",
   "@detailContinueEpisode": {
@@ -452,13 +473,34 @@
   "calendarSubtitle": "Airing by day",
   "calendarNoAiring": "No airing anime found.",
   "calendarUnknownSchedule": "Unknown schedule",
+  "calendarToday": "Today",
   "downloadsTitle": "Downloads",
   "downloadsSubtitle": "Offline episodes",
   "libraryTitle": "Library",
+  "settingsTitle": "Settings",
+  "settingsNotificationsTitle": "Notifications",
+  "settingsNotificationsDescription": "Subscriptions use system notifications for new episode alerts.",
+  "settingsEnableNotifications": "Enable notifications",
+  "settingsOpenSystemSettings": "Open system settings",
+  "settingsStatusAllowed": "Allowed",
+  "settingsStatusBlocked": "Blocked",
+  "settingsStatusUnknown": "Unknown",
+  "settingsAppTitle": "App",
+  "settingsThemeLabel": "Theme",
+  "settingsThemeDark": "Dark",
+  "settingsLanguageLabel": "Language",
+  "settingsLanguageEnglish": "English",
+  "settingsLanguageSpanish": "Spanish",
+  "settingsDesktopOnlyVisibleNote": "On Windows only desktop-relevant settings are shown.",
+  "settingsPlaybackPreferencesTitle": "Playback preferences",
+  "settingsPlaybackPreferencesDescription": "Clear remembered source, server, and resolver choices so playback starts fresh.",
+  "settingsPlaybackPreferencesClear": "Clear saved preferences",
+  "settingsPlaybackPreferencesCleared": "Saved playback preferences cleared",
   "playerBack": "Back",
   "playerAudio": "Audio",
   "playerSubtitles": "Subtitles",
   "playerQuality": "Quality",
+  "playerNextEpisode": "Next episode",
   "playerRetry": "RETRY",
   "playerSkipBackward": "-10s",
   "playerSkipForward": "+10s",
@@ -467,6 +509,7 @@
   "playerDisableSubtitles": "Disable",
   "resumeLabel": "RESUME",
   "detailPlay": "Play",
+  "detailCheckingSources": "Checking sources...",
   "detailResumeEpisode": "Resume EP {episode}",
   "@detailResumeEpisode": {
     "placeholders": {
@@ -476,5 +519,39 @@
     }
   },
   "searchPageTitle": "Search",
-  "homeAiringToday": "Airing Today"
+  "homeAiringToday": "Airing Today",
+  "myListHistoryEmpty": "No watch history yet.",
+  "downloadEpisodesCount": "{count} episodes",
+  "@downloadEpisodesCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "downloadEpisodeLabel": "Episode {episode}",
+  "@downloadEpisodeLabel": {
+    "placeholders": {
+      "episode": {
+        "type": "int"
+      }
+    }
+  },
+  "downloadedSourceLabel": "Downloaded",
+  "downloadAllFromSource": "Download all from a source",
+  "sectionSeeAll": "See all",
+  "statusAiring": "AIRING",
+  "statusUpcoming": "UPCOMING",
+  "statusFinished": "FINISHED",
+  "statusCancelled": "CANCELLED",
+  "statusOnHiatus": "ON HIATUS",
+  "statusUnknown": "UNKNOWN",
+  "settingsSubtitleTitle": "Subtitles",
+  "settingsSubtitleDescription": "Customize subtitle appearance during playback.",
+  "settingsSubtitleFontSize": "Font size",
+  "settingsSubtitleSmall": "S",
+  "settingsSubtitleMedium": "M",
+  "settingsSubtitleLarge": "L",
+  "settingsSubtitleExtraLarge": "XL",
+  "settingsSubtitleBackground": "Show background behind subtitles"
 }

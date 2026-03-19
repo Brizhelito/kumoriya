@@ -1905,6 +1905,415 @@ class SourceAvailabilityCacheTableCompanion
   }
 }
 
+class $AniSkipCacheTableTable extends AniSkipCacheTable
+    with TableInfo<$AniSkipCacheTableTable, AniSkipCacheTableData> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $AniSkipCacheTableTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _anilistIdMeta = const VerificationMeta(
+    'anilistId',
+  );
+  @override
+  late final GeneratedColumn<int> anilistId = GeneratedColumn<int>(
+    'anilist_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _episodeNumberMeta = const VerificationMeta(
+    'episodeNumber',
+  );
+  @override
+  late final GeneratedColumn<int> episodeNumber = GeneratedColumn<int>(
+    'episode_number',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _payloadJsonMeta = const VerificationMeta(
+    'payloadJson',
+  );
+  @override
+  late final GeneratedColumn<String> payloadJson = GeneratedColumn<String>(
+    'payload_json',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<int> updatedAt = GeneratedColumn<int>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _requestedEpisodeLengthSecondsMeta =
+      const VerificationMeta('requestedEpisodeLengthSeconds');
+  @override
+  late final GeneratedColumn<int> requestedEpisodeLengthSeconds =
+      GeneratedColumn<int>(
+        'requested_episode_length_seconds',
+        aliasedName,
+        true,
+        type: DriftSqlType.int,
+        requiredDuringInsert: false,
+      );
+  @override
+  List<GeneratedColumn> get $columns => [
+    anilistId,
+    episodeNumber,
+    payloadJson,
+    updatedAt,
+    requestedEpisodeLengthSeconds,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'aniskip_cache';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<AniSkipCacheTableData> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('anilist_id')) {
+      context.handle(
+        _anilistIdMeta,
+        anilistId.isAcceptableOrUnknown(data['anilist_id']!, _anilistIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_anilistIdMeta);
+    }
+    if (data.containsKey('episode_number')) {
+      context.handle(
+        _episodeNumberMeta,
+        episodeNumber.isAcceptableOrUnknown(
+          data['episode_number']!,
+          _episodeNumberMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_episodeNumberMeta);
+    }
+    if (data.containsKey('payload_json')) {
+      context.handle(
+        _payloadJsonMeta,
+        payloadJson.isAcceptableOrUnknown(
+          data['payload_json']!,
+          _payloadJsonMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_payloadJsonMeta);
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_updatedAtMeta);
+    }
+    if (data.containsKey('requested_episode_length_seconds')) {
+      context.handle(
+        _requestedEpisodeLengthSecondsMeta,
+        requestedEpisodeLengthSeconds.isAcceptableOrUnknown(
+          data['requested_episode_length_seconds']!,
+          _requestedEpisodeLengthSecondsMeta,
+        ),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {anilistId, episodeNumber};
+  @override
+  AniSkipCacheTableData map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return AniSkipCacheTableData(
+      anilistId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}anilist_id'],
+      )!,
+      episodeNumber: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}episode_number'],
+      )!,
+      payloadJson: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}payload_json'],
+      )!,
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}updated_at'],
+      )!,
+      requestedEpisodeLengthSeconds: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}requested_episode_length_seconds'],
+      ),
+    );
+  }
+
+  @override
+  $AniSkipCacheTableTable createAlias(String alias) {
+    return $AniSkipCacheTableTable(attachedDatabase, alias);
+  }
+}
+
+class AniSkipCacheTableData extends DataClass
+    implements Insertable<AniSkipCacheTableData> {
+  final int anilistId;
+  final int episodeNumber;
+  final String payloadJson;
+  final int updatedAt;
+  final int? requestedEpisodeLengthSeconds;
+  const AniSkipCacheTableData({
+    required this.anilistId,
+    required this.episodeNumber,
+    required this.payloadJson,
+    required this.updatedAt,
+    this.requestedEpisodeLengthSeconds,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['anilist_id'] = Variable<int>(anilistId);
+    map['episode_number'] = Variable<int>(episodeNumber);
+    map['payload_json'] = Variable<String>(payloadJson);
+    map['updated_at'] = Variable<int>(updatedAt);
+    if (!nullToAbsent || requestedEpisodeLengthSeconds != null) {
+      map['requested_episode_length_seconds'] = Variable<int>(
+        requestedEpisodeLengthSeconds,
+      );
+    }
+    return map;
+  }
+
+  AniSkipCacheTableCompanion toCompanion(bool nullToAbsent) {
+    return AniSkipCacheTableCompanion(
+      anilistId: Value(anilistId),
+      episodeNumber: Value(episodeNumber),
+      payloadJson: Value(payloadJson),
+      updatedAt: Value(updatedAt),
+      requestedEpisodeLengthSeconds:
+          requestedEpisodeLengthSeconds == null && nullToAbsent
+          ? const Value.absent()
+          : Value(requestedEpisodeLengthSeconds),
+    );
+  }
+
+  factory AniSkipCacheTableData.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return AniSkipCacheTableData(
+      anilistId: serializer.fromJson<int>(json['anilistId']),
+      episodeNumber: serializer.fromJson<int>(json['episodeNumber']),
+      payloadJson: serializer.fromJson<String>(json['payloadJson']),
+      updatedAt: serializer.fromJson<int>(json['updatedAt']),
+      requestedEpisodeLengthSeconds: serializer.fromJson<int?>(
+        json['requestedEpisodeLengthSeconds'],
+      ),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'anilistId': serializer.toJson<int>(anilistId),
+      'episodeNumber': serializer.toJson<int>(episodeNumber),
+      'payloadJson': serializer.toJson<String>(payloadJson),
+      'updatedAt': serializer.toJson<int>(updatedAt),
+      'requestedEpisodeLengthSeconds': serializer.toJson<int?>(
+        requestedEpisodeLengthSeconds,
+      ),
+    };
+  }
+
+  AniSkipCacheTableData copyWith({
+    int? anilistId,
+    int? episodeNumber,
+    String? payloadJson,
+    int? updatedAt,
+    Value<int?> requestedEpisodeLengthSeconds = const Value.absent(),
+  }) => AniSkipCacheTableData(
+    anilistId: anilistId ?? this.anilistId,
+    episodeNumber: episodeNumber ?? this.episodeNumber,
+    payloadJson: payloadJson ?? this.payloadJson,
+    updatedAt: updatedAt ?? this.updatedAt,
+    requestedEpisodeLengthSeconds: requestedEpisodeLengthSeconds.present
+        ? requestedEpisodeLengthSeconds.value
+        : this.requestedEpisodeLengthSeconds,
+  );
+  AniSkipCacheTableData copyWithCompanion(AniSkipCacheTableCompanion data) {
+    return AniSkipCacheTableData(
+      anilistId: data.anilistId.present ? data.anilistId.value : this.anilistId,
+      episodeNumber: data.episodeNumber.present
+          ? data.episodeNumber.value
+          : this.episodeNumber,
+      payloadJson: data.payloadJson.present
+          ? data.payloadJson.value
+          : this.payloadJson,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+      requestedEpisodeLengthSeconds: data.requestedEpisodeLengthSeconds.present
+          ? data.requestedEpisodeLengthSeconds.value
+          : this.requestedEpisodeLengthSeconds,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('AniSkipCacheTableData(')
+          ..write('anilistId: $anilistId, ')
+          ..write('episodeNumber: $episodeNumber, ')
+          ..write('payloadJson: $payloadJson, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write(
+            'requestedEpisodeLengthSeconds: $requestedEpisodeLengthSeconds',
+          )
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    anilistId,
+    episodeNumber,
+    payloadJson,
+    updatedAt,
+    requestedEpisodeLengthSeconds,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is AniSkipCacheTableData &&
+          other.anilistId == this.anilistId &&
+          other.episodeNumber == this.episodeNumber &&
+          other.payloadJson == this.payloadJson &&
+          other.updatedAt == this.updatedAt &&
+          other.requestedEpisodeLengthSeconds ==
+              this.requestedEpisodeLengthSeconds);
+}
+
+class AniSkipCacheTableCompanion
+    extends UpdateCompanion<AniSkipCacheTableData> {
+  final Value<int> anilistId;
+  final Value<int> episodeNumber;
+  final Value<String> payloadJson;
+  final Value<int> updatedAt;
+  final Value<int?> requestedEpisodeLengthSeconds;
+  final Value<int> rowid;
+  const AniSkipCacheTableCompanion({
+    this.anilistId = const Value.absent(),
+    this.episodeNumber = const Value.absent(),
+    this.payloadJson = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.requestedEpisodeLengthSeconds = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  AniSkipCacheTableCompanion.insert({
+    required int anilistId,
+    required int episodeNumber,
+    required String payloadJson,
+    required int updatedAt,
+    this.requestedEpisodeLengthSeconds = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : anilistId = Value(anilistId),
+       episodeNumber = Value(episodeNumber),
+       payloadJson = Value(payloadJson),
+       updatedAt = Value(updatedAt);
+  static Insertable<AniSkipCacheTableData> custom({
+    Expression<int>? anilistId,
+    Expression<int>? episodeNumber,
+    Expression<String>? payloadJson,
+    Expression<int>? updatedAt,
+    Expression<int>? requestedEpisodeLengthSeconds,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (anilistId != null) 'anilist_id': anilistId,
+      if (episodeNumber != null) 'episode_number': episodeNumber,
+      if (payloadJson != null) 'payload_json': payloadJson,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (requestedEpisodeLengthSeconds != null)
+        'requested_episode_length_seconds': requestedEpisodeLengthSeconds,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  AniSkipCacheTableCompanion copyWith({
+    Value<int>? anilistId,
+    Value<int>? episodeNumber,
+    Value<String>? payloadJson,
+    Value<int>? updatedAt,
+    Value<int?>? requestedEpisodeLengthSeconds,
+    Value<int>? rowid,
+  }) {
+    return AniSkipCacheTableCompanion(
+      anilistId: anilistId ?? this.anilistId,
+      episodeNumber: episodeNumber ?? this.episodeNumber,
+      payloadJson: payloadJson ?? this.payloadJson,
+      updatedAt: updatedAt ?? this.updatedAt,
+      requestedEpisodeLengthSeconds:
+          requestedEpisodeLengthSeconds ?? this.requestedEpisodeLengthSeconds,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (anilistId.present) {
+      map['anilist_id'] = Variable<int>(anilistId.value);
+    }
+    if (episodeNumber.present) {
+      map['episode_number'] = Variable<int>(episodeNumber.value);
+    }
+    if (payloadJson.present) {
+      map['payload_json'] = Variable<String>(payloadJson.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<int>(updatedAt.value);
+    }
+    if (requestedEpisodeLengthSeconds.present) {
+      map['requested_episode_length_seconds'] = Variable<int>(
+        requestedEpisodeLengthSeconds.value,
+      );
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('AniSkipCacheTableCompanion(')
+          ..write('anilistId: $anilistId, ')
+          ..write('episodeNumber: $episodeNumber, ')
+          ..write('payloadJson: $payloadJson, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write(
+            'requestedEpisodeLengthSeconds: $requestedEpisodeLengthSeconds, ',
+          )
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 class $DownloadTaskTableTable extends DownloadTaskTable
     with TableInfo<$DownloadTaskTableTable, DownloadTaskTableData> {
   @override
@@ -4253,6 +4662,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
       $PlaybackPreferenceTableTable(this);
   late final $SourceAvailabilityCacheTableTable sourceAvailabilityCacheTable =
       $SourceAvailabilityCacheTableTable(this);
+  late final $AniSkipCacheTableTable aniSkipCacheTable =
+      $AniSkipCacheTableTable(this);
   late final $DownloadTaskTableTable downloadTaskTable =
       $DownloadTaskTableTable(this);
   late final $LibraryEntryTableTable libraryEntryTable =
@@ -4267,6 +4678,9 @@ abstract class _$AppDatabase extends GeneratedDatabase {
       PlaybackPreferenceDao(this as AppDatabase);
   late final SourceAvailabilityCacheDao sourceAvailabilityCacheDao =
       SourceAvailabilityCacheDao(this as AppDatabase);
+  late final AniSkipCacheDao aniSkipCacheDao = AniSkipCacheDao(
+    this as AppDatabase,
+  );
   late final DownloadTaskDao downloadTaskDao = DownloadTaskDao(
     this as AppDatabase,
   );
@@ -4285,6 +4699,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     watchHistoryTable,
     playbackPreferenceTable,
     sourceAvailabilityCacheTable,
+    aniSkipCacheTable,
     downloadTaskTable,
     libraryEntryTable,
     anilistCacheTable,
@@ -5275,6 +5690,227 @@ typedef $$SourceAvailabilityCacheTableTableProcessedTableManager =
         >,
       ),
       SourceAvailabilityCacheTableData,
+      PrefetchHooks Function()
+    >;
+typedef $$AniSkipCacheTableTableCreateCompanionBuilder =
+    AniSkipCacheTableCompanion Function({
+      required int anilistId,
+      required int episodeNumber,
+      required String payloadJson,
+      required int updatedAt,
+      Value<int?> requestedEpisodeLengthSeconds,
+      Value<int> rowid,
+    });
+typedef $$AniSkipCacheTableTableUpdateCompanionBuilder =
+    AniSkipCacheTableCompanion Function({
+      Value<int> anilistId,
+      Value<int> episodeNumber,
+      Value<String> payloadJson,
+      Value<int> updatedAt,
+      Value<int?> requestedEpisodeLengthSeconds,
+      Value<int> rowid,
+    });
+
+class $$AniSkipCacheTableTableFilterComposer
+    extends Composer<_$AppDatabase, $AniSkipCacheTableTable> {
+  $$AniSkipCacheTableTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get anilistId => $composableBuilder(
+    column: $table.anilistId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get episodeNumber => $composableBuilder(
+    column: $table.episodeNumber,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get payloadJson => $composableBuilder(
+    column: $table.payloadJson,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get requestedEpisodeLengthSeconds => $composableBuilder(
+    column: $table.requestedEpisodeLengthSeconds,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$AniSkipCacheTableTableOrderingComposer
+    extends Composer<_$AppDatabase, $AniSkipCacheTableTable> {
+  $$AniSkipCacheTableTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get anilistId => $composableBuilder(
+    column: $table.anilistId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get episodeNumber => $composableBuilder(
+    column: $table.episodeNumber,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get payloadJson => $composableBuilder(
+    column: $table.payloadJson,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get requestedEpisodeLengthSeconds => $composableBuilder(
+    column: $table.requestedEpisodeLengthSeconds,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$AniSkipCacheTableTableAnnotationComposer
+    extends Composer<_$AppDatabase, $AniSkipCacheTableTable> {
+  $$AniSkipCacheTableTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get anilistId =>
+      $composableBuilder(column: $table.anilistId, builder: (column) => column);
+
+  GeneratedColumn<int> get episodeNumber => $composableBuilder(
+    column: $table.episodeNumber,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get payloadJson => $composableBuilder(
+    column: $table.payloadJson,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  GeneratedColumn<int> get requestedEpisodeLengthSeconds => $composableBuilder(
+    column: $table.requestedEpisodeLengthSeconds,
+    builder: (column) => column,
+  );
+}
+
+class $$AniSkipCacheTableTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $AniSkipCacheTableTable,
+          AniSkipCacheTableData,
+          $$AniSkipCacheTableTableFilterComposer,
+          $$AniSkipCacheTableTableOrderingComposer,
+          $$AniSkipCacheTableTableAnnotationComposer,
+          $$AniSkipCacheTableTableCreateCompanionBuilder,
+          $$AniSkipCacheTableTableUpdateCompanionBuilder,
+          (
+            AniSkipCacheTableData,
+            BaseReferences<
+              _$AppDatabase,
+              $AniSkipCacheTableTable,
+              AniSkipCacheTableData
+            >,
+          ),
+          AniSkipCacheTableData,
+          PrefetchHooks Function()
+        > {
+  $$AniSkipCacheTableTableTableManager(
+    _$AppDatabase db,
+    $AniSkipCacheTableTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$AniSkipCacheTableTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$AniSkipCacheTableTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$AniSkipCacheTableTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<int> anilistId = const Value.absent(),
+                Value<int> episodeNumber = const Value.absent(),
+                Value<String> payloadJson = const Value.absent(),
+                Value<int> updatedAt = const Value.absent(),
+                Value<int?> requestedEpisodeLengthSeconds =
+                    const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => AniSkipCacheTableCompanion(
+                anilistId: anilistId,
+                episodeNumber: episodeNumber,
+                payloadJson: payloadJson,
+                updatedAt: updatedAt,
+                requestedEpisodeLengthSeconds: requestedEpisodeLengthSeconds,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required int anilistId,
+                required int episodeNumber,
+                required String payloadJson,
+                required int updatedAt,
+                Value<int?> requestedEpisodeLengthSeconds =
+                    const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => AniSkipCacheTableCompanion.insert(
+                anilistId: anilistId,
+                episodeNumber: episodeNumber,
+                payloadJson: payloadJson,
+                updatedAt: updatedAt,
+                requestedEpisodeLengthSeconds: requestedEpisodeLengthSeconds,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$AniSkipCacheTableTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $AniSkipCacheTableTable,
+      AniSkipCacheTableData,
+      $$AniSkipCacheTableTableFilterComposer,
+      $$AniSkipCacheTableTableOrderingComposer,
+      $$AniSkipCacheTableTableAnnotationComposer,
+      $$AniSkipCacheTableTableCreateCompanionBuilder,
+      $$AniSkipCacheTableTableUpdateCompanionBuilder,
+      (
+        AniSkipCacheTableData,
+        BaseReferences<
+          _$AppDatabase,
+          $AniSkipCacheTableTable,
+          AniSkipCacheTableData
+        >,
+      ),
+      AniSkipCacheTableData,
       PrefetchHooks Function()
     >;
 typedef $$DownloadTaskTableTableCreateCompanionBuilder =
@@ -6400,6 +7036,8 @@ class $AppDatabaseManager {
         _db,
         _db.sourceAvailabilityCacheTable,
       );
+  $$AniSkipCacheTableTableTableManager get aniSkipCacheTable =>
+      $$AniSkipCacheTableTableTableManager(_db, _db.aniSkipCacheTable);
   $$DownloadTaskTableTableTableManager get downloadTaskTable =>
       $$DownloadTaskTableTableTableManager(_db, _db.downloadTaskTable);
   $$LibraryEntryTableTableTableManager get libraryEntryTable =>

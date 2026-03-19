@@ -238,6 +238,22 @@ final class DriftAnimeProgressStore implements AnimeProgressStore {
     }
   }
 
+  @override
+  Future<Result<void, KumoriyaError>> clearAllPlaybackPreferences() async {
+    try {
+      await _preferenceDao.deleteAllPlaybackPreferences();
+      return const Success(null);
+    } catch (e) {
+      return Failure(
+        SimpleError(
+          code: 'storage.preference_clear_all_failed',
+          message: 'Failed to clear playback preferences: $e',
+          kind: KumoriyaErrorKind.unexpected,
+        ),
+      );
+    }
+  }
+
   EpisodeProgress _rowToProgress(EpisodeProgressTableData row) {
     return EpisodeProgress(
       anilistId: row.anilistId,

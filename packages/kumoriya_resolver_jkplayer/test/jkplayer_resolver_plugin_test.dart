@@ -66,7 +66,8 @@ void main() {
     expect(result.isSuccess, isTrue);
     result.fold(
       onFailure: (_) => fail('expected success'),
-      onSuccess: (streams) {
+      onSuccess: (result) {
+        final streams = result.streams;
         expect(streams, hasLength(1));
         expect(streams.single.isHls, isTrue);
         expect(streams.single.mimeType, 'application/vnd.apple.mpegurl');
@@ -90,7 +91,8 @@ void main() {
     expect(result.isSuccess, isTrue);
     result.fold(
       onFailure: (_) => fail('expected success'),
-      onSuccess: (streams) {
+      onSuccess: (result) {
+        final streams = result.streams;
         expect(streams.single.isHls, isFalse);
         expect(streams.single.mimeType, 'video/mp4');
         expect(streams.single.qualityLabel, '1080p');
@@ -113,7 +115,8 @@ void main() {
     expect(result.isSuccess, isTrue);
     result.fold(
       onFailure: (_) => fail('expected success'),
-      onSuccess: (streams) {
+      onSuccess: (result) {
+        final streams = result.streams;
         expect(streams, hasLength(1));
         expect(streams.single.url.host, 'jkplayers.com');
         expect(streams.single.mimeType, isNull);

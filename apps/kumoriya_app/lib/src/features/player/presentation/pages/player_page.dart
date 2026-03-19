@@ -1,18 +1,26 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kumoriya_app/src/features/anime_catalog/application/models/resolved_server_link_result.dart';
+import 'package:kumoriya_plugins/kumoriya_plugins.dart';
+import 'package:window_manager/window_manager.dart';
 import 'package:kumoriya_storage/kumoriya_storage.dart';
 import 'package:media_kit_video/media_kit_video.dart';
 
 import '../../../../app/l10n.dart';
 import '../../../../shared/theme/kumoriya_theme.dart';
 import '../../../../shared/widgets/state_views.dart';
+import '../../../anime_catalog/presentation/pages/episode_list_page.dart';
+import '../../../anime_catalog/presentation/providers/anime_catalog_providers.dart';
 import '../../../anime_catalog/presentation/providers/storage_providers.dart';
+import '../../../downloads/presentation/download_providers.dart';
+import '../../application/models/subtitle_settings.dart';
 import '../../application/models/embedded_tracks.dart';
+import '../../../anime_catalog/application/services/mal_metadata_bridge_service.dart';
 import '../../application/models/player_session_state.dart';
 import '../../application/services/player_session_orchestrator.dart';
 import '../../application/use_cases/clear_playback_preference_use_case.dart';
@@ -57,12 +65,17 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
   StreamSubscription<bool>? _playingSub;
   StreamSubscription<Duration>? _positionSub;
   StreamSubscription<Duration>? _durationSub;
+  StreamSubscription<void>? _completionSub;
   Timer? _periodicSaveTimer;
   Future<void>? _pendingProgressFlush;
   bool _isExiting = false;
   bool _historyWrittenForSession = false;
-  bool _forceSoftwareVideoOutput =
-      defaultTargetPlatform == TargetPlatform.windows;
+  bool _forceSoftwareVideoOutput = false;
+  bool _isWindowsFullscreen = false;
+  bool? _windowsFullscreenBeforePlayback;
+  bool _autoNextTriggeredByEndingResidual = false;
+  List<AniSkipSegment> _aniSkipSegments = const <AniSkipSegment>[];
+  Future<void>? _pendingAniSkipLoad;
 
   PlayerSessionState _state = const PlayerSessionState.idle();
   String? _startError;
@@ -95,6 +108,7 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
       'init resolver=${widget.resolved.resolverId} server=${widget.serverName} streams=${widget.resolved.streams.map((stream) => stream.url.toString()).join(" | ")}',
     );
     unawaited(_initializeRuntimeAndStartPlayback());
+    unawaited(_enterWindowsFullscreenIfSupported());
     // Enter immersive landscape mode for video playback.
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
     SystemChrome.setPreferredOrientations(<DeviceOrientation>[
@@ -109,6 +123,7 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
     _periodicSaveTimer?.cancel();
     unawaited(_saveCurrentProgress());
     unawaited(_disposeRuntime());
+    unawaited(_restoreWindowsFullscreenIfNeeded());
     // Restore normal orientation and system UI.
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
     SystemChrome.setPreferredOrientations(<DeviceOrientation>[]);
@@ -144,9 +159,11 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
       }
       if (!mounted) {
         _currentPosition = pos;
+        _maybeAutoNextFromEndingResidual(pos);
         return;
       }
       setState(() => _currentPosition = pos);
+      _maybeAutoNextFromEndingResidual(pos);
     });
     _durationSub = orchestrator.durationStream.listen((dur) {
       if (dur <= Duration.zero) {
@@ -155,9 +172,11 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
       _log('duration stream dur=$dur');
       if (!mounted) {
         _currentDuration = dur;
+        _maybeLoadAniSkipSegments();
         return;
       }
       setState(() => _currentDuration = dur);
+      _maybeLoadAniSkipSegments();
     });
 
     _playingSub = engine.playingStream.listen(_onPlayingChanged);
@@ -167,6 +186,9 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
         return;
       }
       setState(() => _embeddedTracks = tracks);
+    });
+    _completionSub = orchestrator.naturalCompletionStream.listen((_) {
+      _onNaturalCompletion();
     });
     _engine = engine;
     _orchestrator = orchestrator;
@@ -187,11 +209,13 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
     await _positionSub?.cancel();
     await _durationSub?.cancel();
     await _tracksSub?.cancel();
+    await _completionSub?.cancel();
     _sessionSub = null;
     _playingSub = null;
     _positionSub = null;
     _durationSub = null;
     _tracksSub = null;
+    _completionSub = null;
     _embeddedTracks = EmbeddedTracks.empty;
     final orchestrator = _orchestrator;
     _orchestrator = null;
@@ -220,6 +244,12 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
       _periodicSaveTimer?.cancel();
       _periodicSaveTimer = null;
     }
+  }
+
+  void _onNaturalCompletion() {
+    if (!mounted || _isExiting) return;
+    _log('naturalCompletion → auto-exit');
+    unawaited(_handleExitRequested(naturalCompletion: true));
   }
 
   Future<void> _saveCurrentProgress() async {
@@ -262,7 +292,7 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
     return future;
   }
 
-  Future<void> _handleExitRequested() async {
+  Future<void> _handleExitRequested({bool naturalCompletion = false}) async {
     if (_isExiting) {
       return;
     }
@@ -275,7 +305,7 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
       ref.invalidate(animeEpisodeProgressListProvider(widget.anilistId));
     } finally {
       if (mounted) {
-        Navigator.of(context).pop();
+        Navigator.of(context).pop(naturalCompletion);
       }
       _isExiting = false;
     }
@@ -305,6 +335,7 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
     _log(
       'startPlayback resumePosition=$initialPosition streams=${widget.resolved.streams.length} softwareOutput=$_forceSoftwareVideoOutput',
     );
+    _autoNextTriggeredByEndingResidual = false;
     final result = await orchestrator.start(
       streamCandidates: widget.resolved.streams,
       externalSubtitles: widget.resolved.externalSubtitles,
@@ -391,6 +422,260 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
     await _startPlaybackFromPosition(resumePosition);
   }
 
+  Future<void> _maybeLoadAniSkipSegments() {
+    final pending = _pendingAniSkipLoad;
+    if (pending != null) {
+      return pending;
+    }
+    if (_aniSkipSegments.isNotEmpty || _currentDuration <= Duration.zero) {
+      return Future<void>.value();
+    }
+
+    final episodeNumber = int.tryParse(widget.episodeNumber);
+    if (episodeNumber == null || episodeNumber <= 0) {
+      return Future<void>.value();
+    }
+    final episodeLengthSeconds = _currentDuration.inSeconds;
+    if (episodeLengthSeconds <= 0) {
+      return Future<void>.value();
+    }
+
+    _log(
+      'aniskip load start anilistId=${widget.anilistId} ep=$episodeNumber duration=${_currentDuration.inSeconds}s',
+    );
+    final future = ref
+        .read(
+          aniskipSegmentsProvider((
+            anilistId: widget.anilistId,
+            episodeNumber: episodeNumber,
+            episodeLengthSeconds: episodeLengthSeconds,
+          )).future,
+        )
+        .then((segments) {
+          _log('aniskip loaded ${segments.length} segments');
+          if (!mounted) {
+            _aniSkipSegments = segments;
+            return;
+          }
+          setState(() => _aniSkipSegments = segments);
+        })
+        .catchError((Object error) {
+          _log('aniskip load failed: $error');
+        })
+        .whenComplete(() {
+          _pendingAniSkipLoad = null;
+        });
+
+    _pendingAniSkipLoad = future;
+    return future;
+  }
+
+  AniSkipSegment? get _activeAniSkipSegment {
+    if (_aniSkipSegments.isEmpty || _currentDuration <= Duration.zero) {
+      return null;
+    }
+    for (final segment in _aniSkipSegments) {
+      final guardStart = segment.start - const Duration(seconds: 1);
+      final effectiveStart = guardStart > Duration.zero
+          ? guardStart
+          : Duration.zero;
+      if (_currentPosition >= effectiveStart &&
+          _currentPosition < segment.end) {
+        return segment;
+      }
+    }
+    return null;
+  }
+
+  String? get _activeAniSkipLabel {
+    final segment = _activeAniSkipSegment;
+    if (segment == null) {
+      return null;
+    }
+    if (segment.kind == AniSkipSegmentKind.ending &&
+        _shouldAutoAdvanceAfterEnding(segment)) {
+      return 'Next episode';
+    }
+    return switch (segment.kind) {
+      AniSkipSegmentKind.opening => 'Skip intro',
+      AniSkipSegmentKind.ending => 'Skip credits',
+    };
+  }
+
+  Future<void> _skipActiveSegment() async {
+    final segment = _activeAniSkipSegment;
+    if (segment == null) {
+      return;
+    }
+    if (segment.kind == AniSkipSegmentKind.ending &&
+        _shouldAutoAdvanceAfterEnding(segment)) {
+      _autoNextTriggeredByEndingResidual = true;
+      _log('ending skip pressed → next episode');
+      await _openEpisodeSelectorFromPlayer();
+      return;
+    }
+    final target = segment.end + const Duration(milliseconds: 300);
+    final maxSeekTarget = _currentDuration > const Duration(seconds: 1)
+        ? _currentDuration - const Duration(seconds: 1)
+        : _currentDuration;
+    final clamped = target > maxSeekTarget ? maxSeekTarget : target;
+    _log('segment skip pressed kind=${segment.kind} target=$clamped');
+    await _seekTo(clamped);
+  }
+
+  bool _shouldAutoAdvanceAfterEnding(AniSkipSegment ending) {
+    final remainingAfterEnding = _currentDuration - ending.end;
+    return remainingAfterEnding < const Duration(seconds: 10);
+  }
+
+  void _maybeAutoNextFromEndingResidual(Duration position) {
+    if (_autoNextTriggeredByEndingResidual ||
+        _currentDuration <= Duration.zero) {
+      return;
+    }
+
+    AniSkipSegment? ending;
+    for (final segment in _aniSkipSegments.reversed) {
+      if (segment.kind == AniSkipSegmentKind.ending) {
+        ending = segment;
+        break;
+      }
+    }
+    if (ending == null) {
+      return;
+    }
+
+    if (!_shouldAutoAdvanceAfterEnding(ending)) {
+      return;
+    }
+
+    if (position < ending.end) {
+      return;
+    }
+
+    _autoNextTriggeredByEndingResidual = true;
+    _log(
+      'auto-next residual trigger ending=[${ending.start}..${ending.end}] remainingAfterEnding=${_currentDuration - ending.end} position=$position',
+    );
+    unawaited(_openEpisodeSelectorFromPlayer());
+  }
+
+  Future<void> _enterWindowsFullscreenIfSupported() async {
+    if (kIsWeb || !Platform.isWindows) {
+      return;
+    }
+    try {
+      _windowsFullscreenBeforePlayback = await windowManager.isFullScreen();
+      if (_windowsFullscreenBeforePlayback != true) {
+        await windowManager.setFullScreen(true);
+      }
+      final fullScreen = await windowManager.isFullScreen();
+      if (!mounted) {
+        _isWindowsFullscreen = fullScreen;
+        return;
+      }
+      setState(() => _isWindowsFullscreen = fullScreen);
+    } catch (_) {}
+  }
+
+  Future<void> _restoreWindowsFullscreenIfNeeded() async {
+    if (kIsWeb || !Platform.isWindows) {
+      return;
+    }
+    final before = _windowsFullscreenBeforePlayback;
+    if (before == null) {
+      return;
+    }
+    try {
+      await windowManager.setFullScreen(before);
+    } catch (_) {}
+  }
+
+  Future<void> _toggleWindowsFullscreen() async {
+    if (kIsWeb || !Platform.isWindows) {
+      return;
+    }
+    try {
+      final current = await windowManager.isFullScreen();
+      final target = !current;
+      await windowManager.setFullScreen(target);
+      if (!mounted) {
+        _isWindowsFullscreen = target;
+        return;
+      }
+      setState(() => _isWindowsFullscreen = target);
+    } catch (_) {}
+  }
+
+  Future<void> _openEpisodeSelectorFromPlayer() async {
+    if (_state.status == PlayerSessionStatus.playing) {
+      await _orchestrator?.togglePlayPause();
+    }
+    final openedNextDownload = await _openNextDownloadedEpisodeIfAvailable();
+    if (openedNextDownload || !mounted) {
+      return;
+    }
+    final nextEpisode = _episodeNumberDouble > 0
+        ? _episodeNumberDouble + 1
+        : 1.0;
+    await Navigator.of(context).pushReplacement(
+      MaterialPageRoute<void>(
+        builder: (_) => EpisodeListPage(
+          anilistId: widget.anilistId,
+          animeTitle: widget.animeTitle,
+          focusedEpisodeNumber: nextEpisode,
+        ),
+      ),
+    );
+  }
+
+  Future<bool> _openNextDownloadedEpisodeIfAvailable() async {
+    final currentEpisode = int.tryParse(widget.episodeNumber);
+    if (currentEpisode == null || currentEpisode <= 0) {
+      return false;
+    }
+    final nextEpisodeNumber = currentEpisode + 1;
+    final downloadTask = await ref
+        .read(downloadManagerProvider)
+        .findTaskByEpisode(widget.anilistId, nextEpisodeNumber.toDouble());
+    if (downloadTask == null ||
+        downloadTask.status != DownloadStatus.completed ||
+        downloadTask.filePath == null ||
+        downloadTask.filePath!.trim().isEmpty) {
+      return false;
+    }
+
+    final file = File(downloadTask.filePath!);
+    if (!await file.exists()) {
+      return false;
+    }
+
+    if (!mounted) {
+      return true;
+    }
+
+    _log(
+      'open next downloaded episode ep=$nextEpisodeNumber file=${file.path}',
+    );
+    await Navigator.of(context).pushReplacement(
+      MaterialPageRoute<void>(
+        builder: (_) => PlayerPage(
+          anilistId: widget.anilistId,
+          animeTitle: widget.animeTitle,
+          episodeNumber: nextEpisodeNumber.toString(),
+          sourcePluginId: downloadTask.sourcePluginId ?? 'offline',
+          serverName: downloadTask.serverName ?? 'Downloaded',
+          resolved: ResolvedServerLinkResult(
+            resolverId: 'offline',
+            resolverName: 'Downloaded',
+            streams: <ResolvedStream>[ResolvedStream(url: file.uri)],
+          ),
+        ),
+      ),
+    );
+    return true;
+  }
+
   @override
   Widget build(BuildContext context) {
     final engine = _engine;
@@ -407,6 +692,8 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
         _state.status == PlayerSessionStatus.opening ||
         _state.status == PlayerSessionStatus.buffering;
 
+    final subtitleConfig = ref.watch(subtitleSettingsProvider).value;
+
     return _wrapWithExitGuard(
       Scaffold(
         backgroundColor: Colors.black,
@@ -422,7 +709,9 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
           sliderValue: _sliderValueMs,
           sliderMax: _sliderMaxMs,
           hasMultipleAudio: _embeddedTracks.hasMultipleAudio,
-          hasSubtitles: _embeddedTracks.hasSubtitles,
+          hasSubtitles:
+              _embeddedTracks.hasSubtitles ||
+              widget.resolved.externalSubtitles.isNotEmpty,
           onTogglePlayPause: () => _orchestrator?.togglePlayPause(),
           onSeekChanged: _currentDuration > Duration.zero
               ? (value) {
@@ -445,11 +734,14 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
               : null,
           onBack: () => _handleExit(context),
           onRetry: _retryPlayback,
+          onOpenEpisodes: () => unawaited(_openEpisodeSelectorFromPlayer()),
           onQuality: () => unawaited(_showQualityPicker(context)),
           onAudio: _embeddedTracks.hasMultipleAudio
               ? () => unawaited(_showAudioTrackPicker(context))
               : null,
-          onSubtitle: _embeddedTracks.hasSubtitles
+          onSubtitle:
+              _embeddedTracks.hasSubtitles ||
+                  widget.resolved.externalSubtitles.isNotEmpty
               ? () => unawaited(_showSubtitleTrackPicker(context))
               : null,
           onSkipBackward: () {
@@ -459,12 +751,22 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
           onSkipForward: () {
             final maxPos = _currentDuration - const Duration(seconds: 1);
             final target = _currentPosition + const Duration(seconds: 10);
-            unawaited(_seekTo(target > maxPos && maxPos > Duration.zero ? maxPos : target));
+            unawaited(
+              _seekTo(
+                target > maxPos && maxPos > Duration.zero ? maxPos : target,
+              ),
+            );
           },
+          activeSkipLabel: _activeAniSkipLabel,
+          onSkipSegment: () => unawaited(_skipActiveSegment()),
+          isWindowsFullscreen: _isWindowsFullscreen,
+          onToggleWindowsFullscreen: () =>
+              unawaited(_toggleWindowsFullscreen()),
           errorMessage: _state.status == PlayerSessionStatus.error
               ? context.l10n.playerAllCandidatesFailed
               : null,
           formatDuration: _formatDuration,
+          subtitleViewConfiguration: subtitleConfig?.toViewConfiguration(),
         ),
       ),
     );
@@ -491,10 +793,11 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
               final selected =
                   _state.selectedStream?.url.toString() ==
                   stream.url.toString();
-              final label = stream.qualityLabel ?? stream.url.toString();
+              final label =
+                  stream.qualityLabel ??
+                  '${context.l10n.playerQuality} ${index + 1}';
               return ListTile(
                 title: Text(label),
-                subtitle: Text(stream.url.toString(), maxLines: 1),
                 trailing: selected ? const Icon(Icons.check) : null,
                 onTap: () {
                   Navigator.of(context).pop();
@@ -525,7 +828,10 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
                 padding: const EdgeInsets.all(16),
                 child: Text(
                   context.l10n.playerAudio,
-                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ),
               ...tracks.map(
@@ -551,7 +857,8 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
   Future<void> _showSubtitleTrackPicker(BuildContext context) async {
     final orchestrator = _orchestrator;
     if (orchestrator == null) return;
-    final tracks = _embeddedTracks.subtitle;
+    final embeddedTracks = _embeddedTracks.subtitle;
+    final externalTracks = orchestrator.externalSubtitleTracks;
 
     await showModalBottomSheet<void>(
       context: context,
@@ -564,7 +871,10 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
                 padding: const EdgeInsets.all(16),
                 child: Text(
                   context.l10n.playerSubtitles,
-                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ),
               ListTile(
@@ -572,10 +882,24 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
                 title: Text(context.l10n.playerDisableSubtitles),
                 onTap: () {
                   Navigator.of(context).pop();
+                  unawaited(orchestrator.clearExternalSubtitleTrack());
                   unawaited(orchestrator.clearEmbeddedSubtitleTrack());
                 },
               ),
-              ...tracks.map(
+              ...externalTracks.map(
+                (track) => ListTile(
+                  leading: const Icon(Icons.closed_caption_rounded),
+                  title: Text(track.label),
+                  subtitle: track.language != null
+                      ? Text(track.language!)
+                      : null,
+                  onTap: () {
+                    Navigator.of(context).pop();
+                    unawaited(orchestrator.selectExternalSubtitleTrack(track));
+                  },
+                ),
+              ),
+              ...embeddedTracks.map(
                 (track) => ListTile(
                   leading: const Icon(Icons.subtitles),
                   title: Text(track.displayLabel),
@@ -663,13 +987,19 @@ class _ImmersivePlayerView extends StatefulWidget {
     required this.onSeekEnd,
     required this.onBack,
     required this.onRetry,
+    required this.onOpenEpisodes,
     required this.onQuality,
     required this.onAudio,
     required this.onSubtitle,
     required this.formatDuration,
     required this.onSkipBackward,
     required this.onSkipForward,
+    required this.activeSkipLabel,
+    required this.onSkipSegment,
+    required this.isWindowsFullscreen,
+    required this.onToggleWindowsFullscreen,
     this.errorMessage,
+    this.subtitleViewConfiguration,
   });
 
   final MediaKitPlaybackEngine? engine;
@@ -689,13 +1019,19 @@ class _ImmersivePlayerView extends StatefulWidget {
   final ValueChanged<double>? onSeekEnd;
   final VoidCallback onBack;
   final VoidCallback onRetry;
+  final VoidCallback onOpenEpisodes;
   final VoidCallback onQuality;
   final VoidCallback? onAudio;
   final VoidCallback? onSubtitle;
   final VoidCallback? onSkipBackward;
   final VoidCallback? onSkipForward;
+  final String? activeSkipLabel;
+  final VoidCallback? onSkipSegment;
+  final bool isWindowsFullscreen;
+  final VoidCallback? onToggleWindowsFullscreen;
   final String? errorMessage;
   final String Function(Duration) formatDuration;
+  final SubtitleViewConfiguration? subtitleViewConfiguration;
 
   @override
   State<_ImmersivePlayerView> createState() => _ImmersivePlayerViewState();
@@ -708,6 +1044,7 @@ class _ImmersivePlayerViewState extends State<_ImmersivePlayerView> {
   bool _seekIndicatorForward = true;
   Timer? _seekIndicatorTimer;
   bool _orientationLocked = true;
+  double _gestureSeekDeltaSeconds = 0;
 
   @override
   void initState() {
@@ -761,81 +1098,125 @@ class _ImmersivePlayerViewState extends State<_ImmersivePlayerView> {
     }
   }
 
+  void _onHorizontalDragUpdate(DragUpdateDetails details) {
+    _gestureSeekDeltaSeconds += details.delta.dx / 18;
+  }
+
+  void _onHorizontalDragEnd(DragEndDetails details) {
+    final deltaSeconds = _gestureSeekDeltaSeconds.round();
+    _gestureSeekDeltaSeconds = 0;
+    if (deltaSeconds.abs() < 3) {
+      return;
+    }
+    if (deltaSeconds > 0) {
+      widget.onSkipForward?.call();
+      _showSeekIndicator(isForward: true);
+    } else {
+      widget.onSkipBackward?.call();
+      _showSeekIndicator(isForward: false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Stack(
-      fit: StackFit.expand,
-      children: <Widget>[
-        // Video layer
-        if (widget.engine != null)
-          Video(
-            controller: widget.engine!.videoController,
-            controls: NoVideoControls,
-          )
-        else
-          const ColoredBox(color: Colors.black),
+    const scale = 1.5;
 
-        // Double-tap seek zones
-        Row(
-          children: <Widget>[
-            Expanded(
-              child: GestureDetector(
-                behavior: HitTestBehavior.opaque,
-                onTap: _toggleControls,
-                onDoubleTap: () {
-                  widget.onSkipBackward?.call();
-                  _showSeekIndicator(isForward: false);
-                },
-                child: const SizedBox.expand(),
+    return GestureDetector(
+      behavior: HitTestBehavior.translucent,
+      onHorizontalDragUpdate: _onHorizontalDragUpdate,
+      onHorizontalDragEnd: _onHorizontalDragEnd,
+      child: Stack(
+        fit: StackFit.expand,
+        children: <Widget>[
+          // Video layer
+          if (widget.engine != null)
+            IgnorePointer(
+              // media_kit can render through a native surface on some platforms.
+              // Keep pointer handling in the Flutter overlay so playback controls
+              // remain tappable/clickable for every stream type.
+              child: Video(
+                controller: widget.engine!.videoController,
+                controls: NoVideoControls,
+                subtitleViewConfiguration:
+                    widget.subtitleViewConfiguration ??
+                    const SubtitleViewConfiguration(),
               ),
-            ),
-            Expanded(
-              child: GestureDetector(
-                behavior: HitTestBehavior.opaque,
-                onTap: _toggleControls,
-                onDoubleTap: () {
-                  widget.onSkipForward?.call();
-                  _showSeekIndicator(isForward: true);
-                },
-                child: const SizedBox.expand(),
-              ),
-            ),
-          ],
-        ),
+            )
+          else
+            const ColoredBox(color: Colors.black),
 
-        // Seek indicator
-        if (_seekIndicatorVisible)
-          Align(
-            alignment: _seekIndicatorForward ? Alignment.centerRight : Alignment.centerLeft,
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 48),
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                decoration: BoxDecoration(
-                  color: Colors.black.withValues(alpha: 0.60),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: <Widget>[
-                    Icon(
-                      _seekIndicatorForward ? Icons.forward_10_rounded : Icons.replay_10_rounded,
-                      color: Colors.white,
-                      size: 28,
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      _seekIndicatorForward ? '+10s' : '-10s',
-                      style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w700),
-                    ),
-                  ],
+          // Double-tap seek zones
+          Row(
+            children: <Widget>[
+              Expanded(
+                child: GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: _toggleControls,
+                  onDoubleTap: () {
+                    widget.onSkipBackward?.call();
+                    _showSeekIndicator(isForward: false);
+                  },
+                  child: const SizedBox.expand(),
                 ),
               ),
-            ),
+              Expanded(
+                child: GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: _toggleControls,
+                  onDoubleTap: () {
+                    widget.onSkipForward?.call();
+                    _showSeekIndicator(isForward: true);
+                  },
+                  child: const SizedBox.expand(),
+                ),
+              ),
+            ],
           ),
 
-        // Loading overlay
-        if (widget.isLoading)
+          // Seek indicator
+          if (_seekIndicatorVisible)
+            Align(
+              alignment: _seekIndicatorForward
+                  ? Alignment.centerRight
+                  : Alignment.centerLeft,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 48),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 24,
+                    vertical: 14,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withValues(alpha: 0.60),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: <Widget>[
+                      Icon(
+                        _seekIndicatorForward
+                            ? Icons.forward_10_rounded
+                            : Icons.replay_10_rounded,
+                        color: Colors.white,
+                        size: 28 * scale,
+                      ),
+                      const SizedBox(width: 12),
+                      Text(
+                        _seekIndicatorForward ? '+10s' : '-10s',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 21,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+
+          // Loading overlay
+          if (widget.isLoading)
             Container(
               color: KumoriyaColors.scrimLight,
               alignment: Alignment.center,
@@ -911,16 +1292,19 @@ class _ImmersivePlayerViewState extends State<_ImmersivePlayerView> {
                     children: <Widget>[
                       // Top bar
                       Padding(
-                        padding: const EdgeInsets.fromLTRB(8, 4, 8, 0),
+                        padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
                         child: Row(
                           children: <Widget>[
                             IconButton(
                               onPressed: widget.onBack,
                               tooltip: context.l10n.playerBack,
-                              icon: const Icon(
+                              icon: Icon(
                                 Icons.arrow_back_rounded,
                                 color: Colors.white,
+                                size: 20 * scale,
                               ),
+                              iconSize: 20 * scale,
+                              padding: const EdgeInsets.all(12),
                             ),
                             const SizedBox(width: 8),
                             Expanded(
@@ -930,49 +1314,89 @@ class _ImmersivePlayerViewState extends State<_ImmersivePlayerView> {
                                 overflow: TextOverflow.ellipsis,
                                 style: const TextStyle(
                                   color: Colors.white,
-                                  fontSize: 14,
+                                  fontSize: 21,
                                   fontWeight: FontWeight.w600,
                                 ),
                               ),
                             ),
+                            IconButton(
+                              onPressed: widget.onOpenEpisodes,
+                              icon: Icon(
+                                Icons.skip_next_rounded,
+                                color: Colors.white,
+                                size: 20 * scale,
+                              ),
+                              iconSize: 20 * scale,
+                              padding: const EdgeInsets.all(12),
+                              tooltip: context.l10n.playerNextEpisode,
+                            ),
                             if (widget.hasMultipleAudio)
                               IconButton(
                                 onPressed: widget.onAudio,
-                                icon: const Icon(
+                                icon: Icon(
                                   Icons.audiotrack_rounded,
                                   color: Colors.white,
-                                  size: 22,
+                                  size: 20 * scale,
                                 ),
+                                iconSize: 20 * scale,
+                                padding: const EdgeInsets.all(12),
                                 tooltip: context.l10n.playerAudio,
                               ),
                             if (widget.hasSubtitles)
                               IconButton(
                                 onPressed: widget.onSubtitle,
-                                icon: const Icon(
+                                icon: Icon(
                                   Icons.subtitles_rounded,
                                   color: Colors.white,
-                                  size: 22,
+                                  size: 20 * scale,
                                 ),
+                                iconSize: 20 * scale,
+                                padding: const EdgeInsets.all(12),
                                 tooltip: context.l10n.playerSubtitles,
                               ),
                             IconButton(
                               onPressed: widget.onQuality,
-                              icon: const Icon(
+                              icon: Icon(
                                 Icons.hd_rounded,
                                 color: Colors.white,
-                                size: 22,
+                                size: 20 * scale,
                               ),
+                              iconSize: 20 * scale,
+                              padding: const EdgeInsets.all(12),
                               tooltip: context.l10n.playerQuality,
                             ),
-                            IconButton(
-                              onPressed: _toggleOrientationLock,
-                              icon: Icon(
-                                _orientationLocked ? Icons.screen_lock_rotation_rounded : Icons.screen_rotation_rounded,
-                                color: Colors.white,
-                                size: 22,
+                            if (Platform.isWindows)
+                              IconButton(
+                                onPressed: widget.onToggleWindowsFullscreen,
+                                icon: Icon(
+                                  widget.isWindowsFullscreen
+                                      ? Icons.fullscreen_exit_rounded
+                                      : Icons.fullscreen_rounded,
+                                  color: Colors.white,
+                                  size: 20 * scale,
+                                ),
+                                iconSize: 20 * scale,
+                                padding: const EdgeInsets.all(12),
+                                tooltip: widget.isWindowsFullscreen
+                                    ? 'Exit fullscreen'
+                                    : 'Fullscreen',
+                              )
+                            else
+                              IconButton(
+                                onPressed: _toggleOrientationLock,
+                                icon: Icon(
+                                  _orientationLocked
+                                      ? Icons.screen_lock_rotation_rounded
+                                      : Icons.screen_rotation_rounded,
+                                  color: Colors.white,
+                                  size: 20 * scale,
+                                ),
+                                iconSize: 20 * scale,
+                                padding: const EdgeInsets.all(12),
+                                tooltip: _orientationLocked
+                                    ? context.l10n.playerUnlockRotation
+                                    : context.l10n.playerLockRotation,
                               ),
-                              tooltip: _orientationLocked ? context.l10n.playerUnlockRotation : context.l10n.playerLockRotation,
-                            ),
                           ],
                         ),
                       ),
@@ -984,23 +1408,25 @@ class _ImmersivePlayerViewState extends State<_ImmersivePlayerView> {
                         children: <Widget>[
                           _PlayerIconButton(
                             icon: Icons.replay_10_rounded,
-                            size: 36,
+                            size: 36 * scale,
                             onTap: widget.onSkipBackward,
                             tooltip: context.l10n.playerSkipBackward,
                           ),
-                          const SizedBox(width: 32),
+                          const SizedBox(width: 40),
                           _PlayerIconButton(
                             icon: widget.isPlaying
                                 ? Icons.pause_rounded
                                 : Icons.play_arrow_rounded,
-                            size: 56,
+                            size: 56 * scale,
                             onTap: widget.onTogglePlayPause,
-                            tooltip: widget.isPlaying ? context.l10n.playerPause : context.l10n.playerPlay,
+                            tooltip: widget.isPlaying
+                                ? context.l10n.playerPause
+                                : context.l10n.playerPlay,
                           ),
-                          const SizedBox(width: 32),
+                          const SizedBox(width: 40),
                           _PlayerIconButton(
                             icon: Icons.forward_10_rounded,
-                            size: 36,
+                            size: 36 * scale,
                             onTap: widget.onSkipForward,
                             tooltip: context.l10n.playerSkipForward,
                           ),
@@ -1010,14 +1436,14 @@ class _ImmersivePlayerViewState extends State<_ImmersivePlayerView> {
 
                       // Bottom seek bar
                       Padding(
-                        padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+                        padding: const EdgeInsets.fromLTRB(24, 0, 24, 16),
                         child: Column(
                           children: <Widget>[
                             SliderTheme(
                               data: SliderThemeData(
-                                trackHeight: 3,
+                                trackHeight: 5,
                                 thumbShape: const RoundSliderThumbShape(
-                                  enabledThumbRadius: 6,
+                                  enabledThumbRadius: 9,
                                 ),
                                 activeTrackColor: KumoriyaColors.primary,
                                 inactiveTrackColor: Colors.white.withValues(
@@ -1048,19 +1474,14 @@ class _ImmersivePlayerViewState extends State<_ImmersivePlayerView> {
                                       widget.currentPosition,
                                     ),
                                     style: const TextStyle(
-                                      fontSize: 12,
+                                      fontSize: 18,
                                       color: Colors.white70,
                                     ),
                                   ),
-                                  if (widget.totalDuration > Duration.zero)
-                                    Text(
-                                      '-${widget.formatDuration(widget.totalDuration - widget.currentPosition)}',
-                                      style: const TextStyle(fontSize: 11, color: Colors.white54),
-                                    ),
                                   Text(
                                     widget.formatDuration(widget.totalDuration),
                                     style: const TextStyle(
-                                      fontSize: 12,
+                                      fontSize: 18,
                                       color: Colors.white70,
                                     ),
                                   ),
@@ -1076,8 +1497,29 @@ class _ImmersivePlayerViewState extends State<_ImmersivePlayerView> {
               ),
             ),
           ),
+
+          if (widget.activeSkipLabel != null && widget.onSkipSegment != null)
+            Align(
+              alignment: Alignment.bottomRight,
+              child: SafeArea(
+                child: Padding(
+                  padding: const EdgeInsets.only(right: 24, bottom: 92),
+                  child: FilledButton.icon(
+                    onPressed: widget.onSkipSegment,
+                    icon: const Icon(Icons.skip_next_rounded),
+                    label: Text(widget.activeSkipLabel!),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: Colors.white,
+                      foregroundColor: Colors.black,
+                      textStyle: const TextStyle(fontWeight: FontWeight.w700),
+                    ),
+                  ),
+                ),
+              ),
+            ),
         ],
-      );
+      ),
+    );
   }
 }
 
@@ -1097,6 +1539,7 @@ class _PlayerIconButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     Widget child = GestureDetector(
+      behavior: HitTestBehavior.opaque,
       onTap: onTap,
       child: Container(
         width: size + 16,

@@ -193,9 +193,9 @@ AnimeDetail _detail() {
   return const AnimeDetail(
     anime: Anime(
       anilistId: 7001,
-      title: AnimeTitle(romaji: 'Oshi no Ko 2nd Season'),
+      title: AnimeTitle(romaji: 'Oshi no Ko'),
       format: AnimeFormat.tv,
-      releaseYear: 2024,
+      releaseYear: 2023,
     ),
   );
 }
@@ -254,7 +254,7 @@ final class _CountingSourcePlugin implements SourcePlugin {
     SourceSearchQuery query,
   ) async {
     searchCalls++;
-    if (query.query == 'Oshi no Ko') {
+    if (query.query.toLowerCase().contains('oshi no ko')) {
       return const Success(<SourceAnimeMatch>[
         SourceAnimeMatch(
           sourceId: 'oshi-no-ko',

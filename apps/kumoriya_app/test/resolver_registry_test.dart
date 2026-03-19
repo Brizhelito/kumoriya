@@ -77,10 +77,10 @@ final class _FakeResolver implements ResolverPlugin {
   );
 
   @override
-  Future<Result<List<ResolvedStream>, KumoriyaError>> resolve(Uri url) async {
-    return Success(<ResolvedStream>[
+  Future<Result<ResolveResult, KumoriyaError>> resolve(Uri url) async {
+    return Success(ResolveResult(streams: <ResolvedStream>[
       ResolvedStream(url: url, qualityLabel: 'auto', isHls: true),
-    ]);
+    ]));
   }
 
   @override

@@ -47,8 +47,7 @@ class _AnimeNexusPlaygroundPageState extends State<AnimeNexusPlaygroundPage> {
   bool _isPlaying = false;
   bool _isBuffering = false;
   DateTime _lastTimelineLogTime = DateTime(0);
-  bool _forceSoftwareVideoOutput =
-      defaultTargetPlatform == TargetPlatform.windows;
+  bool _forceSoftwareVideoOutput = false;
   bool _isResolving = false;
   bool _isScrubbing = false;
   double? _scrubPositionMs;
@@ -226,7 +225,8 @@ class _AnimeNexusPlaygroundPageState extends State<AnimeNexusPlaygroundPage> {
           _isResolving = false;
         });
       },
-      onSuccess: (streams) async {
+      onSuccess: (resolveResult) async {
+        final streams = resolveResult.streams;
         _appendPlaygroundLog(
           'resolve success streams=${streams.length} '
           'urls=${streams.map((stream) => stream.url).join(' | ')}',

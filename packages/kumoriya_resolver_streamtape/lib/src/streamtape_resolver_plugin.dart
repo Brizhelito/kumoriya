@@ -69,7 +69,7 @@ final class StreamtapeResolverPlugin implements ResolverPlugin {
   }
 
   @override
-  Future<Result<List<ResolvedStream>, KumoriyaError>> resolve(Uri url) async {
+  Future<Result<ResolveResult, KumoriyaError>> resolve(Uri url) async {
     if (!supports(url)) {
       return Failure(
         StreamtapeUnsupportedHostError(
@@ -121,7 +121,7 @@ final class StreamtapeResolverPlugin implements ResolverPlugin {
         );
       }
 
-      return Success(streams);
+      return Success(ResolveResult(streams: streams));
     } catch (error) {
       return Failure(
         StreamtapeTransportError(

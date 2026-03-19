@@ -10,6 +10,8 @@ import 'package:workmanager/workmanager.dart';
 
 /// Workmanager task name for periodic new-episode checks.
 const kCheckNewEpisodesTask = 'kumoriya.check_new_episodes';
+const kCheckNewEpisodesDebugProbeTask =
+    'kumoriya.check_new_episodes.debug_probe';
 
 /// Notification channel configuration.
 const _channelId = 'kumoriya_new_episodes';
@@ -37,12 +39,19 @@ query BatchAiringStatus($ids: [Int]) {
 @pragma('vm:entry-point')
 void checkNewEpisodesCallbackDispatcher() {
   Workmanager().executeTask((task, inputData) async {
-    if (task != kCheckNewEpisodesTask) return true;
+    if (task != kCheckNewEpisodesTask &&
+        task != kCheckNewEpisodesDebugProbeTask) {
+      return true;
+    }
 
     WidgetsFlutterBinding.ensureInitialized();
 
     try {
-      await _runCheckNewEpisodes();
+      if (task == kCheckNewEpisodesDebugProbeTask) {
+        await _runDebugProbe();
+      } else {
+        await _runCheckNewEpisodes();
+      }
     } catch (e, st) {
       developer.log(
         'CheckNewEpisodesWorker unhandled error: $e',
@@ -54,6 +63,15 @@ void checkNewEpisodesCallbackDispatcher() {
 
     return true;
   });
+}
+
+Future<void> scheduleDebugBackgroundNotificationProbe() async {
+  await Workmanager().registerOneOffTask(
+    kCheckNewEpisodesDebugProbeTask,
+    kCheckNewEpisodesDebugProbeTask,
+    initialDelay: const Duration(seconds: 5),
+    existingWorkPolicy: ExistingWorkPolicy.replace,
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -92,13 +110,10 @@ Future<void> _runCheckNewEpisodes() async {
   final notifications = FlutterLocalNotificationsPlugin();
   await _initNotifications(notifications);
 
-  final now = DateTime.now();
-
   for (final entry in airingData.entries) {
     final anilistId = entry.key;
     final title = entry.value['title'] as String;
     final nextEpisode = entry.value['nextEpisode'] as int?;
-    final airingAt = entry.value['airingAt'] as DateTime?;
 
     if (nextEpisode == null) continue;
 
@@ -114,14 +129,10 @@ Future<void> _runCheckNewEpisodes() async {
       continue;
     }
 
-    // Check if there's a newly aired episode that we haven't notified yet,
-    // and it has actually aired (airingAt is in the past for the next one
-    // means all episodes up to nextEpisode-1 are available).
+    // Notify for any newly discovered aired episode. nextAiringEpisode points
+    // to the future episode, so gating by its timestamp suppresses valid
+    // notifications for the latest already-aired episode.
     if (latestAired > lastNotified) {
-      // Only notify if the aired time is known to be in the past.
-      final hasAired = airingAt == null || airingAt.isAfter(now) == false;
-      if (!hasAired) continue;
-
       final newEp = latestAired;
       await _sendNotification(
         notifications,
@@ -222,6 +233,32 @@ Future<Map<int, Map<String, dynamic>>?> _fetchAiringStatus(
 Future<void> _initNotifications(FlutterLocalNotificationsPlugin plugin) async {
   const android = AndroidInitializationSettings('@mipmap/ic_launcher');
   await plugin.initialize(const InitializationSettings(android: android));
+
+  final androidPlugin = plugin
+      .resolvePlatformSpecificImplementation<
+        AndroidFlutterLocalNotificationsPlugin
+      >();
+  await androidPlugin?.createNotificationChannel(
+    const AndroidNotificationChannel(
+      _channelId,
+      _channelName,
+      description: _channelDescription,
+      importance: Importance.defaultImportance,
+    ),
+  );
+}
+
+Future<void> _runDebugProbe() async {
+  final notifications = FlutterLocalNotificationsPlugin();
+  await _initNotifications(notifications);
+  await _sendNotification(
+    notifications,
+    id: DateTime.now().millisecondsSinceEpoch ~/ 1000,
+    title: 'Kumoriya Debug',
+    episodeNumber: 0,
+    bodyOverride:
+        'Background worker activo: la notificacion de prueba se envio correctamente.',
+  );
 }
 
 Future<void> _sendNotification(
@@ -229,6 +266,7 @@ Future<void> _sendNotification(
   required int id,
   required String title,
   required int episodeNumber,
+  String? bodyOverride,
 }) async {
   const androidDetails = AndroidNotificationDetails(
     _channelId,
@@ -242,7 +280,7 @@ Future<void> _sendNotification(
   await plugin.show(
     id,
     title,
-    'Episode $episodeNumber is now available!',
+    bodyOverride ?? 'Episode $episodeNumber is now available!',
     const NotificationDetails(android: androidDetails),
   );
 }

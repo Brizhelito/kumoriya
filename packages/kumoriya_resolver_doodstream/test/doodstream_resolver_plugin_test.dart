@@ -96,7 +96,8 @@ dsplayer.video = '/pass_md5/abc123def456/tokenpath';
       expect(result.isSuccess, isTrue);
       result.fold(
         onFailure: (_) => fail('expected success'),
-        onSuccess: (streams) {
+        onSuccess: (result) {
+          final streams = result.streams;
           expect(streams, hasLength(1));
           expect(streams.single.url.toString(), contains(partialUrl));
           expect(streams.single.mimeType, 'video/mp4');

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:dio/dio.dart';
 import 'package:kumoriya_core/kumoriya_core.dart';
@@ -8,9 +9,14 @@ import 'package:kumoriya_plugins/kumoriya_plugins.dart';
 import 'errors/anime_nexus_source_error.dart';
 
 final class AnimeNexusSourcePlugin implements SourcePlugin {
-  AnimeNexusSourcePlugin({Dio? dio}) : _dio = dio ?? _buildDio();
+  AnimeNexusSourcePlugin({
+    Dio? dio,
+    Future<String?> Function(Uri uri)? seriesPageFetcher,
+  }) : _dio = dio ?? _buildDio(),
+       _seriesPageFetcher = seriesPageFetcher;
 
   final Dio _dio;
+  final Future<String?> Function(Uri uri)? _seriesPageFetcher;
 
   static const String _base = 'https://anime.nexus';
   static const String _apiBase = 'https://api.anime.nexus';
@@ -95,17 +101,25 @@ final class AnimeNexusSourcePlugin implements SourcePlugin {
   Future<Result<SourceAnimeDetail, KumoriyaError>> getAnimeDetail(
     String sourceId,
   ) async {
-    try {
-      final seriesRef = _decodeSourceId(sourceId);
-      if (seriesRef.slug == null || seriesRef.slug!.isEmpty) {
-        return const Failure(
-          AnimeNexusSourceParseError(
-            message:
-                'Anime Nexus detail requires a slug-bearing source id from search results.',
-          ),
-        );
-      }
+    final seriesRef = _decodeSourceId(sourceId);
+    if (seriesRef.slug == null || seriesRef.slug!.isEmpty) {
+      return const Failure(
+        AnimeNexusSourceParseError(
+          message:
+              'Anime Nexus detail requires a slug-bearing source id from search results.',
+        ),
+      );
+    }
 
+    final htmlDetail = await _fetchSeriesDetailFromHtml(
+      sourceId: sourceId,
+      seriesRef: seriesRef,
+    );
+    if (htmlDetail is Success<SourceAnimeDetail, KumoriyaError>) {
+      return htmlDetail;
+    }
+
+    try {
       final response = await _dio.get<Map<String, dynamic>>(
         '$_apiBase/api/anime/shows',
         queryParameters: <String, Object>{
@@ -129,10 +143,9 @@ final class AnimeNexusSourcePlugin implements SourcePlugin {
             orElse: () => null,
           );
       if (payload == null) {
-        return const Failure(
-          AnimeNexusSourceParseError(
-            message: 'Anime Nexus detail payload could not be located.',
-          ),
+        return _fetchSeriesDetailFromHtml(
+          sourceId: sourceId,
+          seriesRef: seriesRef,
         );
       }
 
@@ -155,6 +168,71 @@ final class AnimeNexusSourcePlugin implements SourcePlugin {
               _parseYear(payload['year']) ??
               _parseYear(payload['release_date']),
           format: _parseFormat(payload['type']),
+        ),
+      );
+    } on DioException catch (error) {
+      return Failure(
+        AnimeNexusSourceTransportError(
+          message: 'Anime Nexus detail fetch failed: ${error.message}',
+        ),
+      );
+    } catch (error) {
+      return Failure(
+        AnimeNexusSourceParseError(
+          message: 'Anime Nexus detail parse error: $error',
+        ),
+      );
+    }
+  }
+
+  Future<Result<SourceAnimeDetail, KumoriyaError>> _fetchSeriesDetailFromHtml({
+    required String sourceId,
+    required ({String id, String? slug}) seriesRef,
+  }) async {
+    final slug = seriesRef.slug;
+    if (slug == null || slug.isEmpty) {
+      return const Failure(
+        AnimeNexusSourceParseError(
+          message: 'Anime Nexus detail payload could not be located.',
+        ),
+      );
+    }
+
+    try {
+      final seriesPageUri = Uri.parse('$_base/series/${seriesRef.id}/$slug');
+      final html =
+          (await (_seriesPageFetcher ?? _fetchSeriesPageHtml)(
+            seriesPageUri,
+          ))?.trim() ??
+          '';
+      if (html.isEmpty) {
+        return const Failure(
+          AnimeNexusSourceParseError(
+            message: 'Anime Nexus detail payload could not be located.',
+          ),
+        );
+      }
+
+      final normalizedHtml = html.replaceAll(r'\"', '"').replaceAll("\\'", "'");
+
+      final rawTitle =
+          _extractMetaContent(normalizedHtml, 'og:title') ??
+          _extractHtmlTitle(normalizedHtml);
+      final title = _normalizeSeriesPageTitle(rawTitle);
+      if (title.isEmpty) {
+        return const Failure(
+          AnimeNexusSourceParseError(
+            message: 'Anime Nexus detail title was not found.',
+          ),
+        );
+      }
+
+      return Success(
+        SourceAnimeDetail(
+          sourceId: sourceId,
+          title: title,
+          synopsis: _extractMetaContent(normalizedHtml, 'og:description'),
+          format: _parseFormatFromSeriesHtml(rawTitle),
         ),
       );
     } on DioException catch (error) {
@@ -282,10 +360,9 @@ final class AnimeNexusSourcePlugin implements SourcePlugin {
 
       final languages = _extractLanguages(body);
 
-      // Fetch subtitles from the structured API instead of HTML scraping.
-      final subtitles = await _fetchApiSubtitles(
-        episodeId: episode.sourceEpisodeId,
-      );
+      // Subtitles are fetched by the resolver during authentication and
+      // merged into the ResolvedServerLinkResult.  The source plugin cannot
+      // reliably call the stream API without the full auth handshake.
 
       final links = languages
           .map(
@@ -296,7 +373,6 @@ final class AnimeNexusSourcePlugin implements SourcePlugin {
               language: language,
               linkType: SourceServerLinkType.stream,
               detectedHost: 'anime.nexus',
-              externalSubtitles: subtitles,
             ),
           )
           .toList(growable: false);
@@ -317,82 +393,6 @@ final class AnimeNexusSourcePlugin implements SourcePlugin {
     }
   }
 
-  /// Fetches subtitles from the episode/stream API endpoint.
-  ///
-  /// The API returns `data.subtitles[]` with `src`, `label`, and `srcLang`
-  /// fields, which is more reliable than parsing them out of the HTML page.
-  /// Returns an empty list if the call fails or no subtitles are present.
-  Future<List<ExternalSubtitleTrack>> _fetchApiSubtitles({
-    required String episodeId,
-  }) async {
-    try {
-      final response = await _dio.get<Map<String, dynamic>>(
-        '$_apiBase/api/anime/details/episode/stream',
-        queryParameters: <String, Object>{
-          'id': episodeId,
-          'fillers': true,
-          'recaps': true,
-        },
-        options: Options(
-          validateStatus: (status) => status != null && status < 500,
-          headers: <String, String>{
-            'Accept': 'application/json, text/plain, */*',
-            'Referer': '$_base/watch/$episodeId',
-            'Origin': _base,
-            'sec-fetch-dest': 'empty',
-            'sec-fetch-mode': 'cors',
-            'sec-fetch-site': 'same-site',
-          },
-        ),
-      );
-
-      if (response.statusCode != 200 || response.data == null) {
-        return const <ExternalSubtitleTrack>[];
-      }
-
-      final data = response.data?['data'];
-      if (data is! Map<String, dynamic>) {
-        return const <ExternalSubtitleTrack>[];
-      }
-
-      final rawSubtitles = data['subtitles'];
-      if (rawSubtitles is! List<dynamic>) {
-        return const <ExternalSubtitleTrack>[];
-      }
-
-      final byUrl = <String, ExternalSubtitleTrack>{};
-      for (final item in rawSubtitles) {
-        if (item is! Map<String, dynamic>) continue;
-
-        final src = item['src']?.toString().trim() ?? '';
-        if (src.isEmpty) continue;
-
-        final uri = Uri.tryParse(src);
-        if (uri == null) continue;
-
-        final label = item['label']?.toString().trim() ?? 'Subtitles';
-        final srcLang = item['srcLang']?.toString().trim();
-        final language = srcLang?.isEmpty == true ? null : srcLang;
-
-        byUrl.putIfAbsent(
-          uri.toString(),
-          () => ExternalSubtitleTrack(
-            id: 'subtitle-${byUrl.length}',
-            label: label.isEmpty ? 'Subtitles' : label,
-            language: language,
-            uri: uri,
-            isDefault: byUrl.isEmpty,
-          ),
-        );
-      }
-
-      return byUrl.values.toList(growable: false);
-    } catch (_) {
-      // Non-fatal: subtitles are best-effort.
-      return const <ExternalSubtitleTrack>[];
-    }
-  }
-
   static Dio _buildDio() {
     return Dio(
       BaseOptions(
@@ -408,6 +408,44 @@ final class AnimeNexusSourcePlugin implements SourcePlugin {
         },
       ),
     );
+  }
+
+  static Future<String?> _fetchSeriesPageHtml(Uri uri) async {
+    final client = HttpClient();
+    client.userAgent =
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) '
+        'AppleWebKit/537.36 (KHTML, like Gecko) '
+        'Chrome/146.0.0.0 Safari/537.36';
+
+    try {
+      final request = await client.getUrl(uri);
+      request.headers.set(
+        'Accept',
+        'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+      );
+      request.headers.set('Accept-Language', 'es-419,es;q=0.9,en;q=0.8');
+
+      final response = await request.close();
+      if (response.statusCode != 200) {
+        throw AnimeNexusSourceTransportError(
+          message:
+              'Anime Nexus detail page fetch failed with status ${response.statusCode}.',
+        );
+      }
+
+      final html = await response.transform(SystemEncoding().decoder).join();
+      return html;
+    } on HttpException catch (error) {
+      throw AnimeNexusSourceTransportError(
+        message: 'Anime Nexus detail page fetch failed: $error',
+      );
+    } on SocketException catch (error) {
+      throw AnimeNexusSourceTransportError(
+        message: 'Anime Nexus detail page fetch failed: $error',
+      );
+    } finally {
+      client.close(force: true);
+    }
   }
 
   ({String id, String? slug}) _decodeSourceId(String sourceId) {
@@ -427,6 +465,79 @@ final class AnimeNexusSourcePlugin implements SourcePlugin {
   }
 
   String _encodeSourceId(String id, String slug) => '$id::$slug';
+
+  String? _extractMetaContent(String html, String property) {
+    final propertyPattern = RegExp.escape(property);
+    final patterns = <RegExp>[
+      RegExp(
+        '<meta[^>]+property=["\']$propertyPattern["\'][^>]+content=["\']([^"\']+)["\']',
+        caseSensitive: false,
+      ),
+      RegExp(
+        '<meta[^>]+content=["\']([^"\']+)["\'][^>]+property=["\']$propertyPattern["\']',
+        caseSensitive: false,
+      ),
+      RegExp(
+        '<meta[^>]+name=["\']$propertyPattern["\'][^>]+content=["\']([^"\']+)["\']',
+        caseSensitive: false,
+      ),
+    ];
+
+    for (final pattern in patterns) {
+      final content = pattern.firstMatch(html)?.group(1)?.trim();
+      if (content != null && content.isNotEmpty) {
+        return content;
+      }
+    }
+
+    return null;
+  }
+
+  String? _extractHtmlTitle(String html) {
+    return RegExp(
+      r'<title>(.*?)</title>',
+      caseSensitive: false,
+      dotAll: true,
+    ).firstMatch(html)?.group(1)?.trim();
+  }
+
+  String _normalizeSeriesPageTitle(String? rawTitle) {
+    var title = rawTitle?.trim() ?? '';
+    if (title.isEmpty) {
+      return title;
+    }
+
+    title = title.replaceFirst(RegExp(r'^Watch\s+', caseSensitive: false), '');
+    title = title.replaceFirst(
+      RegExp(
+        r'\s+(?:TV|Movie|OVA|ONA|Special)\s+Online Free.*$',
+        caseSensitive: false,
+      ),
+      '',
+    );
+    title = title.replaceFirst(
+      RegExp(
+        r'\s*\|\s*(?:TV|Movie|OVA|ONA|Special)\s+Anime.*$',
+        caseSensitive: false,
+      ),
+      '',
+    );
+
+    return title.trim();
+  }
+
+  AnimeFormat _parseFormatFromSeriesHtml(String? rawTitle) {
+    final title = rawTitle?.trim() ?? '';
+    if (title.isEmpty) {
+      return AnimeFormat.unknown;
+    }
+
+    final formatMatch = RegExp(
+      r'\b(TV|Movie|OVA|ONA|Special)\b',
+      caseSensitive: false,
+    ).firstMatch(title);
+    return _parseFormat(formatMatch?.group(1));
+  }
 
   String _searchQueryFromSlug(String slug) {
     final withoutGuid = slug.replaceFirst(RegExp(r'-[a-f0-9]{20}$'), '');

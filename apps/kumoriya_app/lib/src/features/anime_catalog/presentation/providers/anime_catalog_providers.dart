@@ -28,6 +28,7 @@ import '../../application/models/resolved_server_link_result.dart';
 import '../../application/models/episode_playback.dart';
 import '../../application/models/source_availability.dart';
 import '../../application/services/resolver_registry.dart';
+import '../../application/services/mal_metadata_bridge_service.dart';
 import '../../application/services/source_availability_cache_codec.dart';
 import '../../application/services/playback_preference_policy.dart';
 import '../../application/services/source_selection_policy.dart';
@@ -107,6 +108,47 @@ final resolverPluginsProvider = Provider<List<ResolverPlugin>>((ref) {
 final resolverRegistryProvider = Provider<ResolverRegistry>((ref) {
   return ResolverRegistry(resolvers: ref.watch(resolverPluginsProvider));
 });
+
+final malMetadataBridgeProvider = Provider<MalMetadataBridgeService>((ref) {
+  final service = MalMetadataBridgeService(
+    aniSkipCacheStore: ref.watch(aniSkipCacheStoreProvider),
+  );
+  ref.onDispose(service.dispose);
+  return service;
+});
+
+final malIdByAnilistProvider = FutureProvider.autoDispose.family<int?, int>((
+  ref,
+  anilistId,
+) async {
+  return ref.watch(malMetadataBridgeProvider).getMalIdForAnilist(anilistId);
+});
+
+final malEpisodeMetadataProvider = FutureProvider.autoDispose
+    .family<Map<int, MalEpisodeMetadata>, int>((ref, anilistId) async {
+      final service = ref.watch(malMetadataBridgeProvider);
+      final malId = await service.getMalIdForAnilist(anilistId);
+      if (malId == null) {
+        return const <int, MalEpisodeMetadata>{};
+      }
+      return service.getEpisodeMetadataByMalId(malId);
+    });
+
+final aniskipSegmentsProvider = FutureProvider.autoDispose
+    .family<
+      List<AniSkipSegment>,
+      ({int anilistId, int episodeNumber, int episodeLengthSeconds})
+    >((ref, args) async {
+      final service = ref.watch(malMetadataBridgeProvider);
+      if (args.episodeNumber <= 0 || args.episodeLengthSeconds <= 0) {
+        return const <AniSkipSegment>[];
+      }
+      return service.getAniSkipSegments(
+        anilistId: args.anilistId,
+        episodeNumber: args.episodeNumber,
+        episodeLengthSeconds: args.episodeLengthSeconds,
+      );
+    });
 
 final anilistSourceMatcherProvider = Provider<AnilistSourceMatcher>((ref) {
   return const AnilistSourceMatcher();
@@ -208,10 +250,21 @@ final homeCatalogProvider =
 final calendarCatalogProvider =
     FutureProvider.autoDispose<Result<List<Anime>, KumoriyaError>>((ref) async {
       final now = DateTime.now();
+      final from = startOfLocalCalendarWeek(now);
       return ref
           .watch(getCalendarCatalogUseCaseProvider)
-          .call(from: now, to: now.add(const Duration(days: 7)), perPage: 100);
+          .call(
+            from: from,
+            to: from.add(const Duration(days: 7)),
+            perPage: 100,
+          );
     });
+
+DateTime startOfLocalCalendarWeek(DateTime value) {
+  final startOfDay = DateTime(value.year, value.month, value.day);
+  final daysFromMonday = (startOfDay.weekday - DateTime.monday + 7) % 7;
+  return startOfDay.subtract(Duration(days: daysFromMonday));
+}
 
 final searchCatalogProvider = FutureProvider.autoDispose
     .family<Result<List<Anime>, KumoriyaError>, String>((ref, query) async {

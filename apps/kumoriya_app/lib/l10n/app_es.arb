@@ -203,6 +203,26 @@
       }
     }
   },
+  "historyProgressUpTo": "Visto hasta EP {episode} / {total}",
+  "@historyProgressUpTo": {
+    "placeholders": {
+      "episode": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "historyProgressLastWatched": "Último EP visto {episode}",
+  "@historyProgressLastWatched": {
+    "placeholders": {
+      "episode": {
+        "type": "int"
+      }
+    }
+  },
+  "episodePlaying": "REPRODUCIENDO",
   "continueWatching": "Seguir Viendo",
   "continueWatchingHint": "Vuelve rapido a donde lo dejaste.",
   "continueWatchingResumeAction": "Reanudar ahora",
@@ -292,6 +312,7 @@
   "detailSynopsisTitle": "Sinopsis",
   "detailDiscoverPrompt": "Mira rapido que esta listo antes de elegir episodio.",
   "detailPlaybackNotReady": "Este anime no esta listo para reproducirse ahora mismo.",
+  "detailCheckingSources": "Comprobando fuentes...",
   "detailPlaybackHint": "Cuando se pueda, reutilizaremos tu ultima fuente y servidor utiles.",
   "detailContinueEpisode": "Continuar desde el episodio {episode}",
   "@detailContinueEpisode": {
@@ -452,13 +473,34 @@
   "calendarSubtitle": "Emisión por día",
   "calendarNoAiring": "No se encontraron animes en emisión.",
   "calendarUnknownSchedule": "Sin horario confirmado",
+  "calendarToday": "Hoy",
   "downloadsTitle": "Descargas",
   "downloadsSubtitle": "Episodios sin conexión",
   "libraryTitle": "Biblioteca",
+  "settingsTitle": "Configuración",
+  "settingsNotificationsTitle": "Notificaciones",
+  "settingsNotificationsDescription": "Las suscripciones usan notificaciones del sistema para avisar de episodios nuevos.",
+  "settingsEnableNotifications": "Activar notificaciones",
+  "settingsOpenSystemSettings": "Abrir ajustes del sistema",
+  "settingsStatusAllowed": "Permitido",
+  "settingsStatusBlocked": "Bloqueado",
+  "settingsStatusUnknown": "Desconocido",
+  "settingsAppTitle": "Aplicación",
+  "settingsThemeLabel": "Tema",
+  "settingsThemeDark": "Oscuro",
+  "settingsLanguageLabel": "Idioma",
+  "settingsLanguageEnglish": "Inglés",
+  "settingsLanguageSpanish": "Español",
+  "settingsDesktopOnlyVisibleNote": "En Windows solo se muestran ajustes aplicables a escritorio.",
+  "settingsPlaybackPreferencesTitle": "Preferencias de reproducción",
+  "settingsPlaybackPreferencesDescription": "Limpia la fuente, servidor y resolver recordados para volver a elegir desde cero.",
+  "settingsPlaybackPreferencesClear": "Quitar preferencias guardadas",
+  "settingsPlaybackPreferencesCleared": "Se eliminaron las preferencias guardadas",
   "playerBack": "Atrás",
   "playerAudio": "Audio",
   "playerSubtitles": "Subtítulos",
   "playerQuality": "Calidad",
+  "playerNextEpisode": "Siguiente episodio",
   "playerRetry": "REINTENTAR",
   "playerSkipBackward": "-10s",
   "playerSkipForward": "+10s",
@@ -467,6 +509,7 @@
   "playerDisableSubtitles": "Desactivar",
   "resumeLabel": "REANUDAR",
   "detailPlay": "Reproducir",
+  "detailCheckingSources": "Buscando fuentes...",
   "detailResumeEpisode": "Continuar EP {episode}",
   "@detailResumeEpisode": {
     "placeholders": {
@@ -476,5 +519,39 @@
     }
   },
   "searchPageTitle": "Buscar",
-  "homeAiringToday": "Al Aire Hoy"
+  "homeAiringToday": "Al Aire Hoy",
+  "myListHistoryEmpty": "Aún no hay historial de reproducción.",
+  "downloadEpisodesCount": "{count} episodios",
+  "@downloadEpisodesCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "downloadEpisodeLabel": "Episodio {episode}",
+  "@downloadEpisodeLabel": {
+    "placeholders": {
+      "episode": {
+        "type": "int"
+      }
+    }
+  },
+  "downloadedSourceLabel": "Descargado",
+  "downloadAllFromSource": "Descargar todos desde una fuente",
+  "sectionSeeAll": "Ver todo",
+  "statusAiring": "EN EMISIÓN",
+  "statusUpcoming": "PRÓXIMO",
+  "statusFinished": "FINALIZADO",
+  "statusCancelled": "CANCELADO",
+  "statusOnHiatus": "EN PAUSA",
+  "statusUnknown": "DESCONOCIDO",
+  "settingsSubtitleTitle": "Subtítulos",
+  "settingsSubtitleDescription": "Personaliza la apariencia de los subtítulos durante la reproducción.",
+  "settingsSubtitleFontSize": "Tamaño de fuente",
+  "settingsSubtitleSmall": "P",
+  "settingsSubtitleMedium": "M",
+  "settingsSubtitleLarge": "G",
+  "settingsSubtitleExtraLarge": "XG",
+  "settingsSubtitleBackground": "Mostrar fondo detrás de los subtítulos"
 }

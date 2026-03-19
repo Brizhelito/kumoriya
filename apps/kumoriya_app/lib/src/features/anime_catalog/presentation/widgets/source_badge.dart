@@ -46,7 +46,11 @@ class SourceBadge extends StatelessWidget {
             border: Border.all(color: borderColor),
           ),
           child: Center(
-            child: _SourceIcon(name: name, iconUrl: iconUrl, size: compact ? 16 : 18),
+            child: _SourceIcon(
+              name: name,
+              iconUrl: iconUrl,
+              size: compact ? 16 : 18,
+            ),
           ),
         ),
       );

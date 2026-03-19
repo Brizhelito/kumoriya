@@ -968,12 +968,7 @@ final class MediaKitPlaybackEngine implements PlaybackEngine {
     }
 
     final isAnimeNexus = _isAnimeNexusLoopback(stream.url);
-    final hwdec =
-        isAnimeNexus &&
-            (defaultTargetPlatform == TargetPlatform.android ||
-                defaultTargetPlatform == TargetPlatform.windows)
-        ? 'no'
-        : 'auto-safe';
+    final hwdec = isAnimeNexus ? 'no' : 'auto-safe';
 
     try {
       final properties = <Future<void>>[

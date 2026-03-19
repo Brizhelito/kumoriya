@@ -1,11 +1,13 @@
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kumoriya_storage/kumoriya_storage_flutter.dart';
 import 'package:media_kit/media_kit.dart';
 import 'package:workmanager/workmanager.dart';
+import 'package:window_manager/window_manager.dart';
 
 import 'src/app/kumoriya_app.dart';
 import 'src/features/anime_catalog/presentation/providers/storage_providers.dart';
@@ -14,6 +16,9 @@ import 'src/workers/check_new_episodes_worker.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  if (!kIsWeb && Platform.isWindows) {
+    await windowManager.ensureInitialized();
+  }
   MediaKit.ensureInitialized();
 
   final db = await openAppDatabase();
@@ -59,7 +64,7 @@ Future<void> _initNotifications() async {
 Future<void> _initWorkmanager() async {
   await Workmanager().initialize(
     checkNewEpisodesCallbackDispatcher,
-    isInDebugMode: false,
+    isInDebugMode: kDebugMode,
   );
 
   await Workmanager().registerPeriodicTask(
@@ -67,6 +72,6 @@ Future<void> _initWorkmanager() async {
     kCheckNewEpisodesTask,
     frequency: const Duration(hours: 1),
     constraints: Constraints(networkType: NetworkType.connected),
-    existingWorkPolicy: ExistingWorkPolicy.keep,
+    existingWorkPolicy: ExistingWorkPolicy.replace,
   );
 }

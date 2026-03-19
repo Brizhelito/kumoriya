@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -11,10 +12,12 @@ import '../../../../shared/widgets/state_views.dart';
 import '../../application/models/resolved_server_link_result.dart';
 import '../../application/models/source_availability.dart';
 import '../../application/use_cases/get_source_episode_server_links_use_case.dart';
+import '../../application/services/mal_metadata_bridge_service.dart';
 import '../../../downloads/presentation/download_providers.dart';
 import '../../../player/presentation/pages/player_page.dart';
 import '../providers/anime_catalog_providers.dart';
 import '../providers/storage_providers.dart';
+import '../support/episode_display_title.dart';
 import '../support/playback_launch_flow.dart';
 import '../widgets/source_badge.dart';
 import '../../../../shared/theme/kumoriya_theme.dart';
@@ -40,6 +43,7 @@ class _EpisodeListPageState extends ConsumerState<EpisodeListPage> {
   final ScrollController _scrollController = ScrollController();
   bool _didScrollToFocus = false;
   bool _didAutoDownloadCheck = false;
+  bool _didAniSkipPrefetch = false;
 
   @override
   void dispose() {
@@ -72,6 +76,12 @@ class _EpisodeListPageState extends ConsumerState<EpisodeListPage> {
     final preference = _extractSuccessValue<PlaybackPreference?>(
       preferenceState,
     );
+    final malEpisodeMetadata = ref
+        .watch(malEpisodeMetadataProvider(widget.anilistId))
+        .maybeWhen(
+          data: (value) => value,
+          orElse: () => const <int, MalEpisodeMetadata>{},
+        );
 
     final hasAnyData =
         animeEpisodes.isNotEmpty ||
@@ -91,7 +101,9 @@ class _EpisodeListPageState extends ConsumerState<EpisodeListPage> {
       animeEpisodes: animeEpisodes,
       availabilitySummary: sourceSummary,
       progressList: progressList,
+      malEpisodeMetadata: malEpisodeMetadata,
       focusedEpisodeNumber: widget.focusedEpisodeNumber,
+      animeTitle: widget.animeTitle,
       fallbackTitleBuilder: (episodeNumber) => context.l10n
           .continueWatchingEpisode(episodeNumber.toInt().toString()),
       upcomingLabel: context.l10n.episodeStatusUpcoming,
@@ -99,6 +111,24 @@ class _EpisodeListPageState extends ConsumerState<EpisodeListPage> {
     );
     _scheduleScrollToFocus(rows);
     _scheduleAutoDownloadCheck(rows);
+    _scheduleAniSkipPrefetch(animeEpisodes);
+
+    // Lift download-tasks watch here so individual _EpisodeCard widgets don't
+    // each independently watch the same provider (N cards → N rebuilds).
+    final dlTasksState = ref.watch(
+      downloadTasksByAnimeProvider(widget.anilistId),
+    );
+    final dlTaskMap = <double, DownloadTask>{};
+    dlTasksState.whenData((result) {
+      result.fold(
+        onSuccess: (tasks) {
+          for (final t in tasks) {
+            dlTaskMap[t.episodeNumber] = t;
+          }
+        },
+        onFailure: (_) {},
+      );
+    });
 
     return Scaffold(
       appBar: AppBar(
@@ -118,28 +148,66 @@ class _EpisodeListPageState extends ConsumerState<EpisodeListPage> {
                   rows: rows,
                 ),
                 const SizedBox(height: 12),
-                ...rows.map(
-                  (row) => _EpisodeCard(
+                ...rows.map((row) {
+                  // Find matching download task by episode number.
+                  DownloadTask? dlTask;
+                  for (final entry in dlTaskMap.entries) {
+                    if ((entry.key - row.number).abs() < 0.001) {
+                      dlTask = entry.value;
+                      break;
+                    }
+                  }
+                  return _EpisodeCard(
+                    key: ValueKey('ep-${row.number}'),
                     row: row,
                     anilistId: widget.anilistId,
                     animeTitle: widget.animeTitle,
+                    downloadTask: dlTask,
                     onTap:
                         row.playableSources.isEmpty ||
                             sourceSummary == null ||
                             _isLaunching
                         ? null
                         : () => _handleEpisodeTap(row, sourceSummary),
-                  ),
-                ),
+                  );
+                }),
               ],
             ),
     );
+  }
+
+  void _scheduleAniSkipPrefetch(List<AnimeEpisode> animeEpisodes) {
+    if (_didAniSkipPrefetch || animeEpisodes.isEmpty) {
+      return;
+    }
+    final episodeNumbers = animeEpisodes
+        .where((episode) => episode.isAired)
+        .map((episode) => episode.number.toInt())
+        .where((episodeNumber) => episodeNumber > 0)
+        .toSet()
+        .toList(growable: false);
+    if (episodeNumbers.isEmpty) {
+      return;
+    }
+    _didAniSkipPrefetch = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      unawaited(
+        ref
+            .read(malMetadataBridgeProvider)
+            .prefetchAniSkipForAnime(
+              anilistId: widget.anilistId,
+              episodeNumbers: episodeNumbers,
+            ),
+      );
+    });
   }
 
   Future<void> _handleEpisodeTap(
     _EpisodeRowData row,
     SourceAvailabilitySummary summary,
   ) async {
+    final playbackPreparingLabel = context.l10n.playbackPreparing;
+
     // Check for completed offline download first.
     final dlTasksState = ref.read(
       downloadTasksByAnimeProvider(widget.anilistId),
@@ -185,8 +253,14 @@ class _EpisodeListPageState extends ConsumerState<EpisodeListPage> {
       }
     }
 
+    if (!mounted) {
+      return;
+    }
     setState(() => _isLaunching = true);
-    showBlockingLoader(context, context.l10n.playbackPreparing);
+    showBlockingLoader(
+      Navigator.of(context, rootNavigator: true).context,
+      playbackPreparingLabel,
+    );
     final decision = await ref
         .read(startEpisodePlaybackUseCaseProvider)
         .call(
@@ -197,10 +271,11 @@ class _EpisodeListPageState extends ConsumerState<EpisodeListPage> {
     if (!mounted) {
       return;
     }
-    hideBlockingLoader(context);
+    final rootNavigator = Navigator.of(context, rootNavigator: true);
+    hideBlockingLoader(rootNavigator.context);
     setState(() => _isLaunching = false);
     await handlePlaybackDecision(
-      context: context,
+      context: rootNavigator.context,
       ref: ref,
       anilistId: widget.anilistId,
       animeTitle: widget.animeTitle,
@@ -252,6 +327,18 @@ class _EpisodeListPageState extends ConsumerState<EpisodeListPage> {
   /// episodes that don't yet have a download task.
   void _scheduleAutoDownloadCheck(List<_EpisodeRowData> rows) {
     if (_didAutoDownloadCheck) return;
+
+    // Wait until source episodes are actually available. Initial builds may
+    // contain metadata-only rows and would permanently skip auto-download.
+    final hasDownloadableRows = rows.any(
+      (row) => row.sourceEpisodes.keys.any(
+        (sourceId) => sourceId != _excludedDownloadSource,
+      ),
+    );
+    if (!hasDownloadableRows) {
+      return;
+    }
+
     _didAutoDownloadCheck = true;
 
     WidgetsBinding.instance.addPostFrameCallback((_) async {
@@ -271,7 +358,11 @@ class _EpisodeListPageState extends ConsumerState<EpisodeListPage> {
       );
 
       final downloadable = rows.where(
-        (r) => r.sourceEpisodes.isNotEmpty && !existingEps.contains(r.number),
+        (r) =>
+            r.sourceEpisodes.keys.any(
+              (sourceId) => sourceId != _excludedDownloadSource,
+            ) &&
+            !existingEps.contains(r.number),
       );
 
       // Resolve-and-enqueue sequentially: stream URLs (m3u8 tokens) expire
@@ -362,13 +453,18 @@ class _EpisodeListHeader extends ConsumerWidget {
         .toList();
     if (downloadable.isEmpty) return;
 
+    final sourceId = await _pickSourceForBulkDownload(context);
+    if (sourceId == null) {
+      return;
+    }
+
     // Resolve-and-enqueue sequentially: stream URLs carry short-lived tokens
     // that expire in ~30-60s. Parallel resolution causes later downloads to
     // hit 403. The download manager handles true concurrent transfers.
     var queued = 0;
     for (final row in downloadable) {
       final entry = row.sourceEpisodes.entries
-          .where((e) => e.key != _excludedDownloadSource)
+          .where((e) => e.key == sourceId)
           .firstOrNull;
       if (entry == null) continue;
 
@@ -389,19 +485,71 @@ class _EpisodeListHeader extends ConsumerWidget {
       ref.invalidate(downloadTasksByAnimeProvider(anilistId));
     }
   }
+
+  Future<String?> _pickSourceForBulkDownload(BuildContext context) async {
+    final playableSources =
+        summary?.playableSources
+            .where((source) => source.manifest.id != _excludedDownloadSource)
+            .toList(growable: false) ??
+        const <SourceAvailability>[];
+    if (playableSources.isEmpty) {
+      return null;
+    }
+    if (playableSources.length == 1) {
+      return playableSources.first.manifest.id;
+    }
+
+    return showModalBottomSheet<String>(
+      context: context,
+      showDragHandle: true,
+      builder: (context) {
+        return SafeArea(
+          child: ListView(
+            shrinkWrap: true,
+            children: <Widget>[
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+                child: Text(
+                  context.l10n.downloadAllFromSource,
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+              ...playableSources.map(
+                (source) => ListTile(
+                  leading: SourceBadge(
+                    name: source.manifest.displayName,
+                    iconUrl: _sourceIcon(source.manifest),
+                    compact: true,
+                    iconOnly: true,
+                  ),
+                  title: Text(source.manifest.displayName),
+                  onTap: () => Navigator.of(context).pop(source.manifest.id),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
 }
 
 class _EpisodeCard extends ConsumerStatefulWidget {
   const _EpisodeCard({
+    super.key,
     required this.row,
     required this.anilistId,
     required this.animeTitle,
+    this.downloadTask,
     this.onTap,
   });
 
   final _EpisodeRowData row;
   final int anilistId;
   final String animeTitle;
+  final DownloadTask? downloadTask;
   final VoidCallback? onTap;
 
   @override
@@ -417,21 +565,7 @@ class _EpisodeCardState extends ConsumerState<_EpisodeCard> {
     final row = widget.row;
     final progress = row.progressFraction;
 
-    final dlTasksState = ref.watch(
-      downloadTasksByAnimeProvider(widget.anilistId),
-    );
-    final dlTask = dlTasksState.maybeWhen(
-      data: (result) => result.fold(
-        onFailure: (_) => null,
-        onSuccess: (tasks) {
-          for (final t in tasks) {
-            if ((t.episodeNumber - row.number).abs() < 0.001) return t;
-          }
-          return null;
-        },
-      ),
-      orElse: () => null,
-    );
+    final dlTask = widget.downloadTask;
 
     return Card(
       elevation: 0,
@@ -499,22 +633,7 @@ class _EpisodeCardState extends ConsumerState<_EpisodeCard> {
                 ],
               ),
               const SizedBox(height: 12),
-              if (row.playableSources.isNotEmpty)
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: row.playableSources
-                      .map(
-                        (source) => SourceBadge(
-                          name: source.manifest.displayName,
-                          iconUrl: _sourceIcon(source.manifest),
-                          audioKinds: source.availableAudioKinds,
-                          compact: true,
-                        ),
-                      )
-                      .toList(growable: false),
-                )
-              else
+              if (row.playableSources.isEmpty)
                 Text(
                   context.l10n.episodePlaybackUnavailable,
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
@@ -539,8 +658,8 @@ class _EpisodeCardState extends ConsumerState<_EpisodeCard> {
                     icon: const Icon(Icons.play_arrow_rounded),
                     label: Text(
                       row.playableSources.isEmpty
-                          ? context.l10n.episodeLockedLabel
-                          : context.l10n.episodePlayNowLabel,
+                          ? context.l10n.playEpisode
+                          : context.l10n.detailPlay,
                     ),
                   ),
                 ],
@@ -572,7 +691,6 @@ class _EpisodeCardState extends ConsumerState<_EpisodeCard> {
       return const SizedBox.shrink();
     }
 
-    // Hide download button if only excluded sources are available.
     final hasDownloadableSource = widget.row.sourceEpisodes.keys.any(
       (id) => id != _excludedDownloadSource,
     );
@@ -606,7 +724,7 @@ class _EpisodeCardState extends ConsumerState<_EpisodeCard> {
           )
         : false;
 
-    if (!mounted) return;
+    if (!context.mounted) return;
     setState(() => _isEnqueuing = false);
     final messenger = ScaffoldMessenger.of(context);
     if (success) {
@@ -723,7 +841,9 @@ List<_EpisodeRowData> _buildEpisodeRows({
   required List<AnimeEpisode> animeEpisodes,
   required SourceAvailabilitySummary? availabilitySummary,
   required List<EpisodeProgress> progressList,
+  required Map<int, MalEpisodeMetadata> malEpisodeMetadata,
   required double? focusedEpisodeNumber,
+  required String animeTitle,
   required String Function(double episodeNumber) fallbackTitleBuilder,
   required String upcomingLabel,
   required String readyLabel,
@@ -766,19 +886,32 @@ List<_EpisodeRowData> _buildEpisodeRows({
   return allNumbers
       .map((number) {
         final metadata = metadataByNumber[number];
+        final jikanMetadata = malEpisodeMetadata[number.toInt()];
         final sources =
             sourcesByEpisode[number] ?? const <SourceAvailability>[];
         final progress = progressByNumber[number];
 
         return _EpisodeRowData(
           number: number,
-          displayTitle: metadata?.title.trim().isNotEmpty == true
-              ? metadata!.title
-              : fallbackTitleBuilder(number),
-          secondaryText: metadata?.isAired == false
-              ? upcomingLabel
-              : metadata?.airDate != null
+          displayTitle:
+              (jikanMetadata?.title != null &&
+                  jikanMetadata!.title!.trim().isNotEmpty)
+              ? jikanMetadata.title!.trim()
+              : resolveEpisodeDisplayTitle(
+                  episodeNumber: number,
+                  animeTitle: animeTitle,
+                  metadata: metadata,
+                  sourceEpisodes:
+                      sourceEpisodesByNumber[number] ??
+                      const <String, SourceEpisode>{},
+                  fallbackTitle: fallbackTitleBuilder(number),
+                ),
+          secondaryText: metadata?.airDate != null
               ? _formatDate(metadata!.airDate!)
+              : metadata?.isAired == false
+              ? upcomingLabel
+              : jikanMetadata?.airedAt != null
+              ? _formatDate(jikanMetadata!.airedAt!)
               : readyLabel,
           playableSources: sources,
           progressFraction: _progressFraction(progress),

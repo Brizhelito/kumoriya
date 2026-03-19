@@ -3,47 +3,81 @@ import 'dart:developer' as developer;
 import 'dart:io';
 
 import 'package:http/http.dart' as http;
+import 'package:http/io_client.dart' as ioc;
 import 'package:kumoriya_storage/kumoriya_storage.dart';
 import 'package:path/path.dart' as p;
 
 import 'download_directory_service.dart';
+import 'download_library_index_service.dart';
 import 'hls_segment_downloader.dart';
 
-/// Manages a queue of episode downloads with configurable concurrency.
-///
-/// Downloads are HTTP-streamed to the local filesystem with progress tracked
-/// in the [DownloadStore]. Supports pause, resume, cancel, and retry.
+const _defaultUserAgent =
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 '
+    '(KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36';
+
+// Pre-compiled RegExp for safe file-name sanitization — avoids re-creating
+// RegExp objects on every directory resolution call.
+final _unsafePathChars = RegExp(r'[<>:"/\\|?*]');
+final _trailingDots = RegExp(r'\.+$');
+
+/// Creates an [http.Client] tuned for download throughput:
+/// - Connection pool sized for parallel HLS segments.
+/// - Disabled auto-decompression (segments are already compressed/binary).
+/// - 15 s connection timeout to fail fast instead of hanging.
+/// - 60 s idle timeout for connection reuse between segments.
+http.Client _createDownloadHttpClient({int maxConnectionsPerHost = 16}) {
+  final inner = HttpClient()
+    ..autoUncompress = false
+    ..connectionTimeout = const Duration(seconds: 15)
+    ..idleTimeout = const Duration(seconds: 60)
+    ..maxConnectionsPerHost = maxConnectionsPerHost;
+  return ioc.IOClient(inner);
+}
+
 class DownloadManagerService {
   DownloadManagerService({
     required DownloadStore store,
     required DownloadDirectoryService directoryService,
+    required DownloadLibraryIndexService libraryIndexService,
     int maxConcurrent = 3,
     http.Client? httpClient,
+    int maxRetryAttempts = 3,
   }) : _store = store,
        _directoryService = directoryService,
+       _libraryIndexService = libraryIndexService,
        _maxConcurrent = maxConcurrent,
-       _httpClient = httpClient ?? http.Client();
+       _httpClient = httpClient ?? _createDownloadHttpClient(),
+       _maxRetryAttempts = maxRetryAttempts.clamp(1, 5);
 
   final DownloadStore _store;
   final DownloadDirectoryService _directoryService;
+  final DownloadLibraryIndexService _libraryIndexService;
   final http.Client _httpClient;
+  final int _maxRetryAttempts;
   int _maxConcurrent;
 
   final _activeDownloads = <String, _ActiveDownload>{};
+  final _latestProgressByTask = <String, DownloadProgressEvent>{};
   final _progressController =
       StreamController<DownloadProgressEvent>.broadcast();
+  final _aggregateProgressController =
+      StreamController<DownloadAggregateProgress>.broadcast();
   final _statusChangeController =
       StreamController<DownloadStatusChange>.broadcast();
 
-  /// Emits whenever any task's status structurally changes (completed, failed,
-  /// paused, pending, cancelled, deleted, enqueued).
+  /// Aggregate progress is expensive (iterates all tasks). Throttle to ~4 Hz.
+  final _aggregateThrottleSw = Stopwatch()..start();
+  static const _aggregateThrottleMs = 250;
+
   Stream<DownloadStatusChange> get statusChangeStream =>
       _statusChangeController.stream;
-  bool _processingQueue = false;
-
-  /// Emits progress events for all active downloads.
   Stream<DownloadProgressEvent> get progressStream =>
       _progressController.stream;
+  Stream<DownloadAggregateProgress> get aggregateProgressStream =>
+      _aggregateProgressController.stream;
+
+  bool _processingQueue = false;
+  bool _pendingQueuePass = false;
 
   int get maxConcurrent => _maxConcurrent;
   set maxConcurrent(int value) {
@@ -51,10 +85,43 @@ class DownloadManagerService {
     unawaited(_processQueue());
   }
 
-  /// Enqueue a new download task. If already in the queue (same id), no-op.
+  Future<DownloadTask?> findTaskByEpisode(
+    int anilistId,
+    double episodeNumber,
+  ) async {
+    final result = await _store.getTaskByEpisode(anilistId, episodeNumber);
+    final task = result.fold(
+      onSuccess: (value) => value,
+      onFailure: (_) => null,
+    );
+    if (task == null) {
+      return null;
+    }
+
+    if (task.status == DownloadStatus.completed &&
+        task.filePath != null &&
+        !File(task.filePath!).existsSync()) {
+      await _store.deleteTask(task.id);
+      _statusChangeController.add(
+        DownloadStatusChange(taskId: task.id, anilistId: task.anilistId),
+      );
+      return null;
+    }
+    return task;
+  }
+
+  Future<DownloadLibrarySyncReport> syncDownloadedLibrary() async {
+    final report = await _libraryIndexService.syncCurrentLibrary();
+    if (report.changed) {
+      _statusChangeController.add(const DownloadStatusChange(taskId: ''));
+    }
+    return report;
+  }
+
   Future<void> enqueue(DownloadTask task) async {
     final existing = await _store.getTask(task.id);
-    if (existing.fold(onSuccess: (t) => t, onFailure: (_) => null) != null) {
+    if (existing.fold(onSuccess: (value) => value, onFailure: (_) => null) !=
+        null) {
       return;
     }
     await _store.insertTask(task);
@@ -64,30 +131,31 @@ class DownloadManagerService {
     unawaited(_processQueue());
   }
 
-  /// Pause an active download.
   Future<void> pause(String taskId) async {
     final active = _activeDownloads.remove(taskId);
     active?.cancel();
+    _removeProgress(taskId);
     await _updateStatus(taskId, DownloadStatus.paused);
   }
 
-  /// Resume a paused or failed download.
   Future<void> resume(String taskId) async {
-    await _updateStatus(taskId, DownloadStatus.pending);
-    // Await _processQueue so the task is picked up immediately.
+    await clearTaskError(taskId);
+    await _updateStatus(taskId, DownloadStatus.pending, errorMessage: null);
     await _processQueue();
   }
 
-  /// Cancel and delete a download (removes file too).
   Future<void> cancel(String taskId) async {
     final active = _activeDownloads.remove(taskId);
     active?.cancel();
+    _removeProgress(taskId);
 
     final taskResult = await _store.getTask(taskId);
-    final task = taskResult.fold(onSuccess: (t) => t, onFailure: (_) => null);
-    if (task?.filePath != null) {
-      final file = File(task!.filePath!);
-      if (await file.exists()) await file.delete();
+    final task = taskResult.fold(
+      onSuccess: (value) => value,
+      onFailure: (_) => null,
+    );
+    if (task != null) {
+      await _deleteTaskArtifacts(task);
     }
 
     await _store.deleteTask(taskId);
@@ -97,42 +165,40 @@ class DownloadManagerService {
     unawaited(_processQueue());
   }
 
-  /// Cancel all active and pending downloads.
   Future<void> cancelAll() async {
-    // Stop all active downloads first.
     for (final active in _activeDownloads.values.toList()) {
       active.cancel();
     }
     _activeDownloads.clear();
+    _latestProgressByTask.clear();
+    _emitAggregateProgress();
 
-    // Delete pending + downloading tasks from DB.
     for (final status in [DownloadStatus.pending, DownloadStatus.downloading]) {
       final result = await _store.getTasksByStatus(status);
       final tasks = result.fold(
-        onSuccess: (t) => t,
+        onSuccess: (value) => value,
         onFailure: (_) => <DownloadTask>[],
       );
       for (final task in tasks) {
-        if (task.filePath != null) {
-          final file = File(task.filePath!);
-          if (await file.exists()) await file.delete();
-        }
+        await _deleteTaskArtifacts(task);
         await _store.deleteTask(task.id);
       }
     }
     _statusChangeController.add(const DownloadStatusChange(taskId: ''));
   }
 
-  /// Retry a failed download.
   Future<void> retry(String taskId) async => resume(taskId);
 
-  /// Delete a completed download (removes file + DB row).
+  Future<void> retryFailed(String taskId) async => resume(taskId);
+
   Future<void> deleteCompleted(String taskId) async {
     final taskResult = await _store.getTask(taskId);
-    final task = taskResult.fold(onSuccess: (t) => t, onFailure: (_) => null);
-    if (task?.filePath != null) {
-      final file = File(task!.filePath!);
-      if (await file.exists()) await file.delete();
+    final task = taskResult.fold(
+      onSuccess: (value) => value,
+      onFailure: (_) => null,
+    );
+    if (task != null) {
+      await _deleteTaskArtifacts(task);
     }
     await _store.deleteTask(taskId);
     _statusChangeController.add(
@@ -140,26 +206,9 @@ class DownloadManagerService {
     );
   }
 
-  /// Re-enqueue all pending/paused downloads from DB (call on app start).
-  /// Also recovers tasks stuck in "downloading" state from a previous crash,
-  /// and removes completed tasks whose files have been deleted externally.
   Future<void> restoreQueue() async {
-    // 1. Verify completed downloads — remove entries for missing files.
-    final completedResult = await _store.getTasksByStatus(
-      DownloadStatus.completed,
-    );
-    final completed = completedResult.fold(
-      onSuccess: (tasks) => tasks,
-      onFailure: (_) => <DownloadTask>[],
-    );
-    for (final task in completed) {
-      if (task.filePath == null || !File(task.filePath!).existsSync()) {
-        _log('Removing orphaned completed task: ${task.id}');
-        await _store.deleteTask(task.id);
-      }
-    }
+    await syncDownloadedLibrary();
 
-    // 2. Recover orphaned "downloading" tasks → set them back to pending.
     final downloadingResult = await _store.getTasksByStatus(
       DownloadStatus.downloading,
     );
@@ -175,12 +224,7 @@ class DownloadManagerService {
     await _processQueue();
   }
 
-  /// Process the queue: start downloads up to [_maxConcurrent].
-  bool _pendingQueuePass = false;
-
   Future<void> _processQueue() async {
-    // Re-entrant guard: if already processing, mark a re-pass needed so tasks
-    // added while we are running do not get silently missed.
     if (_processingQueue) {
       _pendingQueuePass = true;
       return;
@@ -193,14 +237,17 @@ class DownloadManagerService {
           DownloadStatus.pending,
         );
         final pending = pendingResult.fold(
-          onSuccess: (t) => t,
+          onSuccess: (tasks) => tasks,
           onFailure: (_) => <DownloadTask>[],
         );
 
         for (final task in pending) {
-          if (_activeDownloads.length >= _maxConcurrent) break;
-          if (_activeDownloads.containsKey(task.id)) continue;
-          // _startDownload registers slot synchronously before first await.
+          if (_activeDownloads.length >= _maxConcurrent) {
+            break;
+          }
+          if (_activeDownloads.containsKey(task.id)) {
+            continue;
+          }
           unawaited(_startDownload(task));
         }
       } while (_pendingQueuePass);
@@ -210,112 +257,123 @@ class DownloadManagerService {
   }
 
   Future<void> _startDownload(DownloadTask task) async {
-    // Register the slot synchronously before the first await so that
-    // concurrent _processQueue calls see the correct active count immediately.
     final cancelCompleter = Completer<void>();
     _activeDownloads[task.id] = _ActiveDownload(
       taskId: task.id,
       cancel: () {
-        if (!cancelCompleter.isCompleted) cancelCompleter.complete();
+        if (!cancelCompleter.isCompleted) {
+          cancelCompleter.complete();
+        }
       },
     );
 
-    await _updateStatus(task.id, DownloadStatus.downloading);
-
     try {
-      final dir = await _animeDirFor(task);
-      final ext = task.isHls
-          ? '.ts'
-          : (task.fileName?.split('.').last ?? 'mp4');
-      var sanitizedName =
-          task.fileName ??
-          '${task.anilistId}_ep${task.episodeNumber}.${ext.replaceAll('.', '')}';
-      var filePath = p.join(dir.path, sanitizedName);
+      final target = await _resolveTargetPaths(task);
+      final runningTask = _copyTask(
+        task,
+        status: DownloadStatus.downloading,
+        fileName: target.finalFileName,
+        filePath: target.tempPath,
+        errorMessage: null,
+      );
+      await _store.updateTask(runningTask);
+      _statusChangeController.add(
+        DownloadStatusChange(taskId: task.id, anilistId: task.anilistId),
+      );
+
+      var finalPath = target.finalPath;
+      var finalFileName = target.finalFileName;
 
       if (task.isHls) {
-        final isFmp4 = await _downloadHls(task, filePath, cancelCompleter);
-        // fMP4 streams produce a valid fragmented MP4 — rename to .mp4
-        // so players and file managers recognise the container correctly.
-        if (isFmp4 && filePath.endsWith('.ts')) {
-          final mp4Path = '${filePath.substring(0, filePath.length - 3)}.mp4';
-          await File(filePath).rename(mp4Path);
-          filePath = mp4Path;
-          sanitizedName = p.basename(mp4Path);
+        final hlsResult = await _downloadHls(
+          runningTask,
+          target.tempPath,
+          cancelCompleter,
+        );
+        if (hlsResult.isFmp4 && finalPath.endsWith('.ts')) {
+          finalPath = '${finalPath.substring(0, finalPath.length - 3)}.mp4';
+          finalFileName = p.basename(finalPath);
         }
       } else {
-        await _downloadDirect(task, filePath, cancelCompleter);
+        await _downloadDirect(runningTask, target.tempPath, cancelCompleter);
       }
 
       if (cancelCompleter.isCompleted) {
-        _activeDownloads.remove(task.id);
         return;
       }
 
-      // Mark completed — get the final file size.
-      final file = File(filePath);
-      final fileSize = await file.exists() ? await file.length() : 0;
-
-      await _store.updateTask(
-        _copyTask(
-          task,
-          status: DownloadStatus.completed,
-          fileName: sanitizedName,
-          filePath: filePath,
-          totalBytes: fileSize,
-          downloadedBytes: fileSize,
-        ),
+      final completedTask = await _finalizeSuccessfulDownload(
+        runningTask,
+        tempPath: target.tempPath,
+        finalPath: finalPath,
+        finalFileName: finalFileName,
       );
-
-      _progressController.add(
+      _emitProgress(
         DownloadProgressEvent(
-          taskId: task.id,
-          downloadedBytes: fileSize,
-          totalBytes: fileSize,
+          taskId: completedTask.id,
+          downloadedBytes: completedTask.totalBytes ?? 0,
+          totalBytes: completedTask.totalBytes ?? 0,
           isComplete: true,
         ),
       );
-
-      _log('Download complete: ${task.id} ($fileSize bytes)');
-    } catch (e) {
-      _log('Download failed: ${task.id} error=$e');
-      await _updateStatus(task.id, DownloadStatus.failed, errorMessage: '$e');
+      _removeProgress(task.id);
+      _statusChangeController.add(
+        DownloadStatusChange(taskId: task.id, anilistId: task.anilistId),
+      );
+      _log('Download complete: ${task.id} (${completedTask.totalBytes} bytes)');
+    } catch (error) {
+      _log('Download failed: ${task.id} error=$error');
+      _removeProgress(task.id);
+      await _updateStatus(
+        task.id,
+        DownloadStatus.failed,
+        errorMessage: '$error',
+      );
     } finally {
       _activeDownloads.remove(task.id);
       unawaited(_processQueue());
     }
   }
 
-  /// Direct HTTP download for non-HLS streams.
   Future<void> _downloadDirect(
     DownloadTask task,
-    String filePath,
+    String tempPath,
     Completer<void> cancelCompleter,
   ) async {
-    final file = File(filePath);
-    final request = http.Request('GET', task.sourceUrl);
-    if (task.headers.isNotEmpty) {
-      request.headers.addAll(task.headers);
+    final tempFile = File(tempPath);
+    await tempFile.parent.create(recursive: true);
+
+    var existingBytes = 0;
+    if (await tempFile.exists()) {
+      existingBytes = await tempFile.length();
     }
-    request.headers.putIfAbsent(
-      'User-Agent',
-      () =>
-          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 '
-          '(KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+
+    final response = await _sendDirectRequestWithRetries(
+      task,
+      offset: existingBytes,
     );
-    final response = await _httpClient.send(request);
 
-    if (response.statusCode != 200 && response.statusCode != 206) {
-      throw HttpException('HTTP ${response.statusCode}');
+    final append = response.statusCode == 206 && existingBytes > 0;
+    if (existingBytes > 0 && !append) {
+      await tempFile.writeAsBytes(const <int>[], flush: true);
+      existingBytes = 0;
     }
 
-    final totalBytes = response.contentLength ?? 0;
-    var downloadedBytes = 0;
-    var lastDbWrite = DateTime.now();
-    var lastSpeedSample = DateTime.now();
-    var bytesAtLastSample = 0;
+    final totalBytes = _resolveExpectedTotalBytes(response, existingBytes);
+    var downloadedBytes = existingBytes;
+    var bytesAtLastSample = existingBytes;
     var currentSpeed = 0;
+    // Use Stopwatch instead of DateTime.now() — monotonic, cheaper syscall
+    // on mobile (avoids repeated gettimeofday kernel calls per chunk).
+    final sw = Stopwatch()..start();
+    var lastSpeedMs = 0;
+    var lastProgressMs = 0;
+    var lastDbWriteMs = 0;
+    var lastFlushMs = 0;
 
-    final sink = file.openWrite();
+    final sink = tempFile.openWrite(
+      mode: append ? FileMode.append : FileMode.write,
+    );
     try {
       await for (final chunk in response.stream) {
         if (cancelCompleter.isCompleted) break;
@@ -323,39 +381,51 @@ class DownloadManagerService {
         sink.add(chunk);
         downloadedBytes += chunk.length;
 
-        // Compute speed every second.
-        final now = DateTime.now();
-        final elapsed = now.difference(lastSpeedSample).inMilliseconds;
-        if (elapsed >= 1000) {
-          final delta = downloadedBytes - bytesAtLastSample;
-          currentSpeed = (delta * 1000 / elapsed).round();
+        final elapsedMs = sw.elapsedMilliseconds;
+
+        // Speed calculation (~1 Hz).
+        final speedDelta = elapsedMs - lastSpeedMs;
+        if (speedDelta >= 1000) {
+          final bytesDelta = downloadedBytes - bytesAtLastSample;
+          currentSpeed = (bytesDelta * 1000 / speedDelta).round();
           bytesAtLastSample = downloadedBytes;
-          lastSpeedSample = now;
+          lastSpeedMs = elapsedMs;
         }
 
-        _progressController.add(
-          DownloadProgressEvent(
-            taskId: task.id,
-            downloadedBytes: downloadedBytes,
-            totalBytes: totalBytes,
-            bytesPerSecond: currentSpeed,
-          ),
-        );
+        // Progress emission (~5 Hz).
+        if (elapsedMs - lastProgressMs >= 200) {
+          lastProgressMs = elapsedMs;
+          _emitProgress(
+            DownloadProgressEvent(
+              taskId: task.id,
+              downloadedBytes: downloadedBytes,
+              totalBytes: totalBytes,
+              bytesPerSecond: currentSpeed,
+            ),
+          );
+        }
 
-        // Persist progress every ~2 seconds to avoid DB write overhead.
-        if (now.difference(lastDbWrite).inSeconds >= 2) {
-          lastDbWrite = now;
+        // DB persistence (~0.5 Hz).
+        if (elapsedMs - lastDbWriteMs >= 2000) {
+          lastDbWriteMs = elapsedMs;
           unawaited(
             _store.updateTask(
               _copyTask(
                 task,
                 status: DownloadStatus.downloading,
-                filePath: filePath,
+                filePath: tempPath,
                 totalBytes: totalBytes > 0 ? totalBytes : null,
                 downloadedBytes: downloadedBytes,
               ),
             ),
           );
+        }
+
+        // Periodic flush prevents unbounded IOSink buffering on slow
+        // mobile storage, reducing GC pressure from accumulated writes.
+        if (elapsedMs - lastFlushMs >= 2000) {
+          lastFlushMs = elapsedMs;
+          await sink.flush();
         }
       }
     } finally {
@@ -363,50 +433,199 @@ class DownloadManagerService {
     }
   }
 
-  /// HLS download: parse m3u8 playlist, download segments, concatenate.
-  /// Returns `true` if fMP4 segments were detected (init segment present).
-  Future<bool> _downloadHls(
+  Future<HlsDownloadResult> _downloadHls(
     DownloadTask task,
-    String filePath,
+    String tempPath,
     Completer<void> cancelCompleter,
   ) async {
-    final hlsDownloader = HlsSegmentDownloader(httpClient: _httpClient);
-    var lastSpeedSample = DateTime.now();
+    final tempFile = File(tempPath);
+    if (await tempFile.exists()) {
+      await tempFile.delete();
+    }
+
+    final hlsDownloader = HlsSegmentDownloader(
+      httpClient: _httpClient,
+      maxRetries: _maxRetryAttempts,
+    );
     var bytesAtLastSample = 0;
     var currentSpeed = 0;
+    final sw = Stopwatch()..start();
+    var lastSpeedMs = 0;
+    var lastDbWriteMs = 0;
+    var lastProgressMs = 0;
 
     return hlsDownloader.download(
       masterUrl: task.sourceUrl,
-      outputPath: filePath,
+      outputPath: tempPath,
       headers: task.headers,
       cancelCompleter: cancelCompleter,
-      onProgress: (downloadedBytes, downloadedSegments, totalSegments) {
-        // Compute speed every second.
-        final now = DateTime.now();
-        final elapsed = now.difference(lastSpeedSample).inMilliseconds;
-        if (elapsed >= 1000) {
-          final delta = downloadedBytes - bytesAtLastSample;
-          currentSpeed = (delta * 1000 / elapsed).round();
-          bytesAtLastSample = downloadedBytes;
-          lastSpeedSample = now;
+      onProgress:
+          (downloadedBytes, downloadedSegments, totalSegments, totalBytes) {
+            final elapsedMs = sw.elapsedMilliseconds;
+
+            final speedDelta = elapsedMs - lastSpeedMs;
+            if (speedDelta >= 1000) {
+              final bytesDelta = downloadedBytes - bytesAtLastSample;
+              currentSpeed = (bytesDelta * 1000 / speedDelta).round();
+              bytesAtLastSample = downloadedBytes;
+              lastSpeedMs = elapsedMs;
+            }
+
+            final resolvedTotalBytes = totalBytes > 0 ? totalBytes : 0;
+
+            // DB persistence (~0.5 Hz).
+            if (resolvedTotalBytes > 0 && elapsedMs - lastDbWriteMs >= 2000) {
+              lastDbWriteMs = elapsedMs;
+              unawaited(
+                _store.updateTask(
+                  _copyTask(
+                    task,
+                    status: DownloadStatus.downloading,
+                    filePath: tempPath,
+                    totalBytes: resolvedTotalBytes,
+                    downloadedBytes: downloadedBytes,
+                  ),
+                ),
+              );
+            }
+
+            // Progress emission (~5 Hz).
+            if (elapsedMs - lastProgressMs >= 200) {
+              lastProgressMs = elapsedMs;
+              _emitProgress(
+                DownloadProgressEvent(
+                  taskId: task.id,
+                  downloadedBytes: downloadedBytes,
+                  totalBytes: resolvedTotalBytes,
+                  bytesPerSecond: currentSpeed,
+                ),
+              );
+            }
+          },
+    );
+  }
+
+  Future<DownloadTask> _finalizeSuccessfulDownload(
+    DownloadTask task, {
+    required String tempPath,
+    required String finalPath,
+    required String finalFileName,
+  }) async {
+    final tempFile = File(tempPath);
+    if (!await tempFile.exists()) {
+      throw const FileSystemException('Temporary download file is missing');
+    }
+
+    final finalFile = File(finalPath);
+    await finalFile.parent.create(recursive: true);
+    if (await finalFile.exists()) {
+      await finalFile.delete();
+    }
+
+    final movedFile = await tempFile.rename(finalPath);
+    final fileSize = await movedFile.length();
+    final completedTask = _copyTask(
+      task,
+      status: DownloadStatus.completed,
+      fileName: finalFileName,
+      filePath: movedFile.path,
+      totalBytes: fileSize,
+      downloadedBytes: fileSize,
+      errorMessage: null,
+    );
+    await _store.updateTask(completedTask);
+    await _libraryIndexService.writeManifest(
+      task: completedTask,
+      mediaPath: movedFile.path,
+      totalBytes: fileSize,
+    );
+    return completedTask;
+  }
+
+  Future<http.StreamedResponse> _sendDirectRequestWithRetries(
+    DownloadTask task, {
+    required int offset,
+  }) async {
+    Object? lastError;
+    int? lastStatusCode;
+    for (var attempt = 1; attempt <= _maxRetryAttempts; attempt++) {
+      try {
+        final request = http.Request('GET', task.sourceUrl);
+        if (task.headers.isNotEmpty) {
+          request.headers.addAll(task.headers);
+        }
+        request.headers.putIfAbsent('User-Agent', () => _defaultUserAgent);
+        // Skip gzip/deflate — we want raw bytes, not decompressed content
+        // that inflates memory and misrepresents Content-Length for resume.
+        request.headers.putIfAbsent('Accept-Encoding', () => 'identity');
+        if (offset > 0) {
+          request.headers['Range'] = 'bytes=$offset-';
         }
 
-        // For HLS we don't know total bytes upfront. Estimate from the
-        // average segment size so far.
-        final estimatedTotal = totalSegments > 0 && downloadedSegments > 0
-            ? (downloadedBytes * totalSegments / downloadedSegments).round()
-            : 0;
+        final response = await _httpClient
+            .send(request)
+            .timeout(const Duration(seconds: 20));
+        if (response.statusCode == 200 || response.statusCode == 206) {
+          return response;
+        }
 
-        _progressController.add(
-          DownloadProgressEvent(
-            taskId: task.id,
-            downloadedBytes: downloadedBytes,
-            totalBytes: estimatedTotal,
-            bytesPerSecond: currentSpeed,
-          ),
-        );
-      },
-    );
+        lastStatusCode = response.statusCode;
+        lastError = HttpException('HTTP ${response.statusCode}');
+        if (!_isRetryableStatus(response.statusCode) ||
+            attempt == _maxRetryAttempts) {
+          // Provide a clear message when 403 persists — URL likely expired.
+          if (response.statusCode == 403) {
+            throw HttpException(
+              'HTTP 403 Forbidden – the download link has likely expired. '
+              'Delete this download and re-enqueue it.',
+            );
+          }
+          throw lastError;
+        }
+        await response.stream.drain<void>();
+      } on TimeoutException {
+        lastError = const HttpException('Connection timed out');
+        if (attempt == _maxRetryAttempts) {
+          throw lastError;
+        }
+      } catch (error) {
+        lastError = error;
+        if (attempt == _maxRetryAttempts) {
+          rethrow;
+        }
+      }
+      // Longer backoff for 403 (transient CDN challenges take a moment).
+      final backoffMs = lastStatusCode == 403 ? 800 * attempt : 350 * attempt;
+      await Future<void>.delayed(Duration(milliseconds: backoffMs));
+    }
+    throw lastError ?? const HttpException('Download request failed');
+  }
+
+  int _resolveExpectedTotalBytes(
+    http.StreamedResponse response,
+    int existingBytes,
+  ) {
+    final contentRange = response.headers['content-range'];
+    if (contentRange != null) {
+      final totalMatch = RegExp(r'/([0-9]+)$').firstMatch(contentRange);
+      if (totalMatch != null) {
+        return int.tryParse(totalMatch.group(1)!) ?? 0;
+      }
+    }
+    if (response.statusCode == 206) {
+      return existingBytes + (response.contentLength ?? 0);
+    }
+    return response.contentLength ?? 0;
+  }
+
+  bool _isRetryableStatus(int statusCode) {
+    return statusCode == 403 ||
+        statusCode == 408 ||
+        statusCode == 429 ||
+        statusCode == 500 ||
+        statusCode == 502 ||
+        statusCode == 503 ||
+        statusCode == 504;
   }
 
   Future<void> _updateStatus(
@@ -415,22 +634,71 @@ class DownloadManagerService {
     String? errorMessage,
   }) async {
     final result = await _store.getTask(taskId);
-    final task = result.fold(onSuccess: (t) => t, onFailure: (_) => null);
-    if (task == null) return;
+    final task = result.fold(
+      onSuccess: (value) => value,
+      onFailure: (_) => null,
+    );
+    if (task == null) {
+      return;
+    }
+
+    if (status != DownloadStatus.downloading) {
+      _removeProgress(taskId);
+    }
 
     await _store.updateTask(
-      _copyTask(
-        task,
-        status: status,
-        errorMessage: errorMessage ?? task.errorMessage,
-      ),
+      _copyTask(task, status: status, errorMessage: errorMessage),
     );
     _statusChangeController.add(
       DownloadStatusChange(taskId: taskId, anilistId: task.anilistId),
     );
   }
 
-  /// Creates a copy of [task] with optional field overrides.
+  Future<void> clearTaskError(String taskId) async {
+    final result = await _store.getTask(taskId);
+    final task = result.fold(
+      onSuccess: (value) => value,
+      onFailure: (_) => null,
+    );
+    if (task == null || task.errorMessage == null) {
+      return;
+    }
+
+    await _store.updateTask(
+      _copyTask(task, errorMessage: null, updatedAt: DateTime.now()),
+    );
+    _statusChangeController.add(
+      DownloadStatusChange(taskId: taskId, anilistId: task.anilistId),
+    );
+  }
+
+  Future<void> _deleteTaskArtifacts(DownloadTask task) async {
+    final paths = <String>{};
+    if (task.filePath != null && task.filePath!.trim().isNotEmpty) {
+      paths.add(task.filePath!);
+      if (task.filePath!.endsWith('.part')) {
+        paths.add(task.filePath!.substring(0, task.filePath!.length - 5));
+      } else {
+        paths.add('${task.filePath!}.part');
+      }
+    }
+
+    for (final path in paths) {
+      final file = File(path);
+      if (await file.exists()) {
+        await file.delete();
+      }
+    }
+
+    if (task.filePath != null) {
+      await _libraryIndexService.deleteManifestForMedia(
+        task.filePath!.endsWith('.part')
+            ? task.filePath!.substring(0, task.filePath!.length - 5)
+            : task.filePath!,
+      );
+    }
+  }
+
   DownloadTask _copyTask(
     DownloadTask task, {
     DownloadStatus? status,
@@ -439,6 +707,7 @@ class DownloadManagerService {
     int? totalBytes,
     int? downloadedBytes,
     String? errorMessage,
+    DateTime? updatedAt,
   }) {
     return DownloadTask(
       id: task.id,
@@ -459,7 +728,49 @@ class DownloadManagerService {
       animeTitle: task.animeTitle,
       qualityLabel: task.qualityLabel,
       errorMessage: errorMessage,
-      updatedAt: DateTime.now(),
+      updatedAt: updatedAt ?? DateTime.now(),
+    );
+  }
+
+  Future<_ResolvedDownloadPaths> _resolveTargetPaths(DownloadTask task) async {
+    final dir = await _animeDirFor(task);
+    final finalFileName =
+        task.fileName ??
+        '${task.anilistId}_ep${task.episodeNumber.toInt().toString().padLeft(2, '0')}.mp4';
+    final defaultFinalPath = p.join(dir.path, finalFileName);
+
+    if (task.filePath == null || task.filePath!.trim().isEmpty) {
+      return _ResolvedDownloadPaths(
+        finalPath: defaultFinalPath,
+        tempPath: '$defaultFinalPath.part',
+        finalFileName: p.basename(defaultFinalPath),
+      );
+    }
+
+    final storedPath = task.filePath!;
+    if (storedPath.endsWith('.part')) {
+      return _ResolvedDownloadPaths(
+        finalPath: storedPath.substring(0, storedPath.length - 5),
+        tempPath: storedPath,
+        finalFileName: p.basename(
+          storedPath.substring(0, storedPath.length - 5),
+        ),
+      );
+    }
+
+    final tempPath = '$storedPath.part';
+    final storedFile = File(storedPath);
+    final tempFile = File(tempPath);
+    if (await storedFile.exists() &&
+        !await tempFile.exists() &&
+        task.status != DownloadStatus.completed) {
+      await storedFile.rename(tempPath);
+    }
+
+    return _ResolvedDownloadPaths(
+      finalPath: storedPath,
+      tempPath: tempPath,
+      finalFileName: p.basename(storedPath),
     );
   }
 
@@ -467,18 +778,64 @@ class DownloadManagerService {
     return _directoryService.resolveDownloadsDirectory();
   }
 
-  /// Returns the download directory for a specific anime, creating it if
-  /// necessary. Falls back to the root downloads dir when title is null.
   Future<Directory> _animeDirFor(DownloadTask task) async {
     final base = await _downloadsDir();
-    if (task.animeTitle == null || task.animeTitle!.trim().isEmpty) return base;
+    if (task.animeTitle == null || task.animeTitle!.trim().isEmpty) {
+      return base;
+    }
     final safe = task.animeTitle!
-        .replaceAll(RegExp(r'[<>:"/\\|?*]'), '_')
-        .replaceAll(RegExp(r'\.+$'), '')
+        .replaceAll(_unsafePathChars, '_')
+        .replaceAll(_trailingDots, '')
         .trim();
     final dir = Directory(p.join(base.path, safe));
-    if (!await dir.exists()) await dir.create(recursive: true);
+    if (!await dir.exists()) {
+      await dir.create(recursive: true);
+    }
     return dir;
+  }
+
+  void _emitProgress(DownloadProgressEvent event) {
+    _latestProgressByTask[event.taskId] = event;
+    _progressController.add(event);
+    // Throttle aggregate recomputation — it iterates all active tasks.
+    if (_aggregateThrottleSw.elapsedMilliseconds >= _aggregateThrottleMs) {
+      _aggregateThrottleSw.reset();
+      _emitAggregateProgress();
+    }
+  }
+
+  void _removeProgress(String taskId) {
+    _latestProgressByTask.remove(taskId);
+    _emitAggregateProgress(); // Always emit on task removal for correct count.
+  }
+
+  void _emitAggregateProgress() {
+    if (_latestProgressByTask.isEmpty) {
+      _aggregateProgressController.add(const DownloadAggregateProgress.empty());
+      return;
+    }
+
+    var downloadedBytes = 0;
+    var totalBytes = 0;
+    var bytesPerSecond = 0;
+    var tasksWithKnownTotal = 0;
+    for (final event in _latestProgressByTask.values) {
+      downloadedBytes += event.downloadedBytes;
+      bytesPerSecond += event.bytesPerSecond;
+      if (event.totalBytes > 0) {
+        totalBytes += event.totalBytes;
+        tasksWithKnownTotal++;
+      }
+    }
+
+    _aggregateProgressController.add(
+      DownloadAggregateProgress(
+        activeTasks: _latestProgressByTask.length,
+        downloadedBytes: downloadedBytes,
+        totalBytes: tasksWithKnownTotal > 0 ? totalBytes : 0,
+        bytesPerSecond: bytesPerSecond,
+      ),
+    );
   }
 
   void _log(String message) {
@@ -490,7 +847,9 @@ class DownloadManagerService {
       active.cancel();
     }
     _activeDownloads.clear();
+    _latestProgressByTask.clear();
     _progressController.close();
+    _aggregateProgressController.close();
     _statusChangeController.close();
     _httpClient.close();
   }
@@ -502,7 +861,18 @@ class _ActiveDownload {
   final void Function() cancel;
 }
 
-/// Emitted for each chunk of download progress.
+class _ResolvedDownloadPaths {
+  const _ResolvedDownloadPaths({
+    required this.finalPath,
+    required this.tempPath,
+    required this.finalFileName,
+  });
+
+  final String finalPath;
+  final String tempPath;
+  final String finalFileName;
+}
+
 class DownloadProgressEvent {
   const DownloadProgressEvent({
     required this.taskId,
@@ -515,8 +885,6 @@ class DownloadProgressEvent {
   final String taskId;
   final int downloadedBytes;
   final int totalBytes;
-
-  /// Current download speed in bytes/second.
   final int bytesPerSecond;
   final bool isComplete;
 
@@ -524,7 +892,26 @@ class DownloadProgressEvent {
       totalBytes > 0 ? (downloadedBytes / totalBytes).clamp(0.0, 1.0) : 0.0;
 }
 
-/// Emitted whenever a download task's structural status changes.
+class DownloadAggregateProgress {
+  const DownloadAggregateProgress({
+    required this.activeTasks,
+    required this.downloadedBytes,
+    required this.totalBytes,
+    required this.bytesPerSecond,
+  });
+
+  const DownloadAggregateProgress.empty()
+    : activeTasks = 0,
+      downloadedBytes = 0,
+      totalBytes = 0,
+      bytesPerSecond = 0;
+
+  final int activeTasks;
+  final int downloadedBytes;
+  final int totalBytes;
+  final int bytesPerSecond;
+}
+
 class DownloadStatusChange {
   const DownloadStatusChange({required this.taskId, this.anilistId});
   final String taskId;

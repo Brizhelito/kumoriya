@@ -6,15 +6,30 @@ import 'package:kumoriya_domain/kumoriya_domain.dart';
 import '../../../../app/l10n.dart';
 import '../../../../shared/theme/kumoriya_theme.dart';
 import '../../../../shared/widgets/kumoriya_cached_image.dart';
+import '../../../../shared/widgets/status_pill.dart';
 import '../../../../shared/widgets/state_views.dart';
 import '../providers/anime_catalog_providers.dart';
 import 'anime_detail_page.dart';
 
-class CalendarPage extends ConsumerWidget {
+class CalendarPage extends ConsumerStatefulWidget {
   const CalendarPage({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<CalendarPage> createState() => _CalendarPageState();
+}
+
+class _CalendarPageState extends ConsumerState<CalendarPage>
+    with TickerProviderStateMixin {
+  TabController? _tabController;
+
+  @override
+  void dispose() {
+    _tabController?.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final catalogState = ref.watch(calendarCatalogProvider);
 
     return Scaffold(
@@ -35,10 +50,13 @@ class CalendarPage extends ConsumerWidget {
               ),
             ),
             Padding(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
               child: Text(
                 context.l10n.calendarSubtitle,
-                style: const TextStyle(fontSize: 13, color: KumoriyaColors.textMuted),
+                style: const TextStyle(
+                  fontSize: 13,
+                  color: KumoriyaColors.textMuted,
+                ),
               ),
             ),
             Expanded(
@@ -53,102 +71,8 @@ class CalendarPage extends ConsumerWidget {
                     message: mapErrorMessage(context, error),
                     onRetry: () => ref.invalidate(calendarCatalogProvider),
                   ),
-                  onSuccess: (animeList) {
-                    final airing = animeList
-                        .where(
-                          (a) =>
-                              a.status == AnimeStatus.releasing ||
-                              a.status == AnimeStatus.notYetReleased,
-                        )
-                        .toList(growable: false);
-
-                    if (airing.isEmpty) {
-                      return EmptyStateView(
-                        message: context.l10n.calendarNoAiring,
-                      );
-                    }
-
-                    final grouped = <int, List<Anime>>{};
-                    final unknownSchedule = <Anime>[];
-
-                    for (final anime in airing) {
-                      final nextAiringAt = anime.nextAiringAt?.toLocal();
-                      if (nextAiringAt == null) {
-                        unknownSchedule.add(anime);
-                        continue;
-                      }
-
-                      grouped
-                          .putIfAbsent(nextAiringAt.weekday, () => <Anime>[])
-                          .add(anime);
-                    }
-
-                    for (final items in grouped.values) {
-                      items.sort((left, right) {
-                        final leftDate = left.nextAiringAt;
-                        final rightDate = right.nextAiringAt;
-                        if (leftDate == null && rightDate == null) {
-                          return left.title.romaji.compareTo(
-                            right.title.romaji,
-                          );
-                        }
-                        if (leftDate == null) {
-                          return 1;
-                        }
-                        if (rightDate == null) {
-                          return -1;
-                        }
-                        final byDate = leftDate.compareTo(rightDate);
-                        if (byDate != 0) {
-                          return byDate;
-                        }
-                        return left.title.romaji.compareTo(right.title.romaji);
-                      });
-                    }
-
-                    unknownSchedule.sort(
-                      (left, right) =>
-                          left.title.romaji.compareTo(right.title.romaji),
-                    );
-
-                    final sections = <Widget>[];
-                    for (final weekday in <int>[
-                      DateTime.monday,
-                      DateTime.tuesday,
-                      DateTime.wednesday,
-                      DateTime.thursday,
-                      DateTime.friday,
-                      DateTime.saturday,
-                      DateTime.sunday,
-                    ]) {
-                      final items = grouped[weekday];
-                      if (items == null || items.isEmpty) {
-                        continue;
-                      }
-
-                      sections.add(
-                        _CalendarSection(
-                          title: _weekdayLabel(context, weekday),
-                          items: items,
-                        ),
-                      );
-                    }
-
-                    if (unknownSchedule.isNotEmpty) {
-                      sections.add(
-                        _CalendarSection(
-                          title: _unknownScheduleLabel(context),
-                          items: unknownSchedule,
-                          showTime: false,
-                        ),
-                      );
-                    }
-
-                    return ListView(
-                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 32),
-                      children: sections,
-                    );
-                  },
+                  onSuccess: (animeList) =>
+                      _buildTabCalendar(context, animeList),
                 ),
               ),
             ),
@@ -157,66 +81,175 @@ class CalendarPage extends ConsumerWidget {
       ),
     );
   }
+
+  Widget _buildTabCalendar(BuildContext context, List<Anime> animeList) {
+    final airing = animeList
+        .where(
+          (a) =>
+              a.status == AnimeStatus.releasing ||
+              a.status == AnimeStatus.notYetReleased,
+        )
+        .toList(growable: false);
+
+    if (airing.isEmpty) {
+      return EmptyStateView(
+        message: context.l10n.calendarNoAiring,
+        icon: Icons.calendar_today_rounded,
+      );
+    }
+
+    final grouped = <int, List<Anime>>{};
+    final todayWeekday = DateTime.now().weekday;
+
+    for (final anime in airing) {
+      final nextAiringAt = anime.nextAiringAt?.toLocal();
+      if (nextAiringAt == null) {
+        grouped.putIfAbsent(todayWeekday, () => <Anime>[]).add(anime);
+        continue;
+      }
+      grouped.putIfAbsent(nextAiringAt.weekday, () => <Anime>[]).add(anime);
+    }
+
+    for (final items in grouped.values) {
+      items.sort((left, right) {
+        final leftDate = left.nextAiringAt;
+        final rightDate = right.nextAiringAt;
+        if (leftDate == null && rightDate == null) {
+          return left.title.romaji.compareTo(right.title.romaji);
+        }
+        if (leftDate == null) return 1;
+        if (rightDate == null) return -1;
+        final byDate = leftDate.compareTo(rightDate);
+        if (byDate != 0) return byDate;
+        return left.title.romaji.compareTo(right.title.romaji);
+      });
+    }
+
+    // Build ordered list of (weekday, label, items) tuples for tabs.
+    final tabs =
+        <({int weekday, String label, List<Anime> items, bool showTime})>[];
+
+    for (final weekday in <int>[
+      DateTime.monday,
+      DateTime.tuesday,
+      DateTime.wednesday,
+      DateTime.thursday,
+      DateTime.friday,
+      DateTime.saturday,
+      DateTime.sunday,
+    ]) {
+      final items = grouped[weekday] ?? const <Anime>[];
+      tabs.add((
+        weekday: weekday,
+        label: _weekdayShortLabel(context, weekday),
+        items: List<Anime>.from(items, growable: false),
+        showTime: true,
+      ));
+    }
+
+    // Find the initial tab index — default to today's weekday.
+    final todayIndex = tabs.indexWhere((t) => t.weekday == todayWeekday);
+    final initialIndex = todayIndex >= 0 ? todayIndex : 0;
+
+    // Recreate the tab controller only when the tab count changes.
+    if (_tabController == null || _tabController!.length != tabs.length) {
+      _tabController?.dispose();
+      _tabController = TabController(
+        length: tabs.length,
+        vsync: this,
+        initialIndex: initialIndex,
+      );
+    }
+
+    return Column(
+      children: <Widget>[
+        TabBar(
+          controller: _tabController,
+          isScrollable: true,
+          tabAlignment: TabAlignment.start,
+          labelColor: KumoriyaColors.primary,
+          unselectedLabelColor: KumoriyaColors.textMuted,
+          indicatorColor: KumoriyaColors.primary,
+          indicatorSize: TabBarIndicatorSize.label,
+          labelStyle: const TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w800,
+          ),
+          unselectedLabelStyle: const TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+          ),
+          dividerColor: Colors.transparent,
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          tabs: tabs.map((tab) {
+            final isToday = tab.weekday == todayWeekday;
+            return Tab(
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: <Widget>[
+                  Text(tab.label),
+                  if (isToday) ...<Widget>[
+                    const SizedBox(width: 6),
+                    Container(
+                      width: 7,
+                      height: 7,
+                      decoration: const BoxDecoration(
+                        color: KumoriyaColors.primary,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            );
+          }).toList(),
+        ),
+        Expanded(
+          child: TabBarView(
+            controller: _tabController,
+            children: tabs.map((tab) {
+              if (tab.items.isEmpty) {
+                return EmptyStateView(
+                  message: context.l10n.calendarNoAiring,
+                  icon: Icons.event_busy_rounded,
+                );
+              }
+
+              return ListView.builder(
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
+                itemCount: tab.items.length,
+                itemBuilder: (context, index) {
+                  final anime = tab.items[index];
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: _AiringRow(
+                      anime: anime,
+                      showTime: tab.showTime,
+                      onTap: () => Navigator.of(context).push(
+                        MaterialPageRoute<void>(
+                          builder: (_) =>
+                              AnimeDetailPage(anilistId: anime.anilistId),
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              );
+            }).toList(),
+          ),
+        ),
+      ],
+    );
+  }
 }
 
-String _weekdayLabel(BuildContext context, int weekday) {
+String _weekdayShortLabel(BuildContext context, int weekday) {
   final now = DateTime.now();
   final daysUntilWeekday = (weekday - now.weekday) % 7;
   final date = now.add(Duration(days: daysUntilWeekday));
-  return DateFormat.EEEE(Localizations.localeOf(context).toString()).format(date);
-}
-
-String _unknownScheduleLabel(BuildContext context) {
-  return context.l10n.calendarUnknownSchedule;
-}
-
-class _CalendarSection extends StatelessWidget {
-  const _CalendarSection({
-    required this.title,
-    required this.items,
-    this.showTime = true,
-  });
-
-  final String title;
-  final List<Anime> items;
-  final bool showTime;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          Padding(
-            padding: const EdgeInsets.fromLTRB(2, 0, 2, 8),
-            child: Text(
-              title,
-              style: const TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w800,
-                color: KumoriyaColors.textPrimary,
-              ),
-            ),
-          ),
-          ...items.map(
-            (anime) => Padding(
-              padding: const EdgeInsets.only(bottom: 8),
-              child: _AiringRow(
-                anime: anime,
-                showTime: showTime,
-                onTap: () => Navigator.of(context).push(
-                  MaterialPageRoute<void>(
-                    builder: (_) => AnimeDetailPage(anilistId: anime.anilistId),
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+  return DateFormat.E(
+    Localizations.localeOf(context).toString(),
+  ).format(date).toUpperCase();
 }
 
 class _AiringRow extends StatefulWidget {
@@ -243,7 +276,7 @@ class _AiringRowState extends State<_AiringRow> {
     final localNextAiring = anime.nextAiringAt?.toLocal();
     final timeLabel = localNextAiring == null
         ? '--:--'
-        : DateFormat.Hm(
+        : DateFormat.jm(
             Localizations.localeOf(context).toString(),
           ).format(localNextAiring);
 
@@ -306,7 +339,9 @@ class _AiringRowState extends State<_AiringRow> {
                     if (anime.nextAiringEpisodeNumber != null) ...<Widget>[
                       const SizedBox(height: 4),
                       Text(
-                        'Episode ${anime.nextAiringEpisodeNumber}',
+                        context.l10n.downloadEpisodeLabel(
+                          anime.nextAiringEpisodeNumber!.toInt(),
+                        ),
                         style: const TextStyle(
                           fontSize: 12,
                           color: KumoriyaColors.textDisabled,
@@ -330,42 +365,11 @@ class _AiringRowState extends State<_AiringRow> {
                       ),
                     ),
                   if (widget.showTime) const SizedBox(height: 6),
-                  _StatusPill(status: anime.status),
+                  KumoriyaStatusPill(status: anime.status),
                 ],
               ),
             ],
           ),
-        ),
-      ),
-    );
-  }
-}
-
-class _StatusPill extends StatelessWidget {
-  const _StatusPill({required this.status});
-
-  final AnimeStatus status;
-
-  @override
-  Widget build(BuildContext context) {
-    final isReleasing = status == AnimeStatus.releasing;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
-      decoration: BoxDecoration(
-        color: isReleasing
-            ? KumoriyaColors.primary.withValues(alpha: 0.14)
-            : KumoriyaColors.borderSubtle,
-        borderRadius: BorderRadius.circular(KumoriyaRadius.full),
-      ),
-      child: Text(
-        isReleasing ? 'AIRING' : 'UPCOMING',
-        style: TextStyle(
-          fontSize: 9,
-          fontWeight: FontWeight.w800,
-          color: isReleasing
-              ? KumoriyaColors.primary
-              : KumoriyaColors.textDisabled,
-          letterSpacing: 0.5,
         ),
       ),
     );

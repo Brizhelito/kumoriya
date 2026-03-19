@@ -87,6 +87,87 @@ void main() {
   });
 
   test(
+    'search retries AnimeAV1 after trailing parenthetical fallback',
+    () async {
+      final requests = <String>[];
+      final plugin = AnimeAv1SourcePlugin(
+        httpClient: MockClient((request) async {
+          final query = request.url.queryParameters['search'] ?? '';
+          requests.add(query);
+
+          if (query == 'Naruto (TV)') {
+            return http.Response.bytes(
+              utf8.encode('<html><body></body></html>'),
+              200,
+              headers: const <String, String>{
+                'content-type': 'text/html; charset=utf-8',
+              },
+            );
+          }
+
+          if (query == 'Naruto') {
+            return htmlResponse('animeav1_search_naruto.html');
+          }
+
+          return http.Response('unexpected query: $query', 500);
+        }),
+      );
+
+      final result = await plugin.search(
+        const SourceSearchQuery(query: 'Naruto (TV)'),
+      );
+
+      expect(requests, <String>['Naruto (TV)', 'Naruto']);
+      result.fold(
+        onFailure: (error) => fail('expected success, got ${error.message}'),
+        onSuccess: (matches) {
+          expect(matches, hasLength(2));
+          expect(matches.first.sourceId, 'naruto');
+        },
+      );
+    },
+  );
+
+  test('search retries AnimeAV1 after slug spacing fallback', () async {
+    final requests = <String>[];
+    final plugin = AnimeAv1SourcePlugin(
+      httpClient: MockClient((request) async {
+        final query = request.url.queryParameters['search'] ?? '';
+        requests.add(query);
+
+        if (query == 'Naruto!!!') {
+          return http.Response.bytes(
+            utf8.encode('<html><body></body></html>'),
+            200,
+            headers: const <String, String>{
+              'content-type': 'text/html; charset=utf-8',
+            },
+          );
+        }
+
+        if (query == 'naruto') {
+          return htmlResponse('animeav1_search_naruto.html');
+        }
+
+        return http.Response('unexpected query: $query', 500);
+      }),
+    );
+
+    final result = await plugin.search(
+      const SourceSearchQuery(query: 'Naruto!!!'),
+    );
+
+    expect(requests, <String>['Naruto!!!', 'naruto']);
+    result.fold(
+      onFailure: (error) => fail('expected success, got ${error.message}'),
+      onSuccess: (matches) {
+        expect(matches, hasLength(2));
+        expect(matches.first.sourceId, 'naruto');
+      },
+    );
+  });
+
+  test(
     'detail and episodes parse from AnimeAV1 fallback DOM fixture',
     () async {
       final plugin = AnimeAv1SourcePlugin(

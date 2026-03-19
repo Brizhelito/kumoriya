@@ -93,7 +93,7 @@ final class DoodstreamResolverPlugin implements ResolverPlugin {
   }
 
   @override
-  Future<Result<List<ResolvedStream>, KumoriyaError>> resolve(Uri url) async {
+  Future<Result<ResolveResult, KumoriyaError>> resolve(Uri url) async {
     if (!supports(url)) {
       return Failure(
         DoodstreamUnsupportedHostError(
@@ -186,15 +186,19 @@ final class DoodstreamResolverPlugin implements ResolverPlugin {
         );
       }
 
-      return Success(<ResolvedStream>[
-        ResolvedStream(
-          url: streamUrl,
-          qualityLabel: 'unknown',
-          mimeType: 'video/mp4',
-          isHls: false,
-          headers: _playbackHeaders(url),
+      return Success(
+        ResolveResult(
+          streams: <ResolvedStream>[
+            ResolvedStream(
+              url: streamUrl,
+              qualityLabel: 'unknown',
+              mimeType: 'video/mp4',
+              isHls: false,
+              headers: _playbackHeaders(url),
+            ),
+          ],
         ),
-      ]);
+      );
     } catch (error) {
       return Failure(
         DoodstreamTransportError(

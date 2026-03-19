@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 abstract final class KumoriyaColors {
@@ -57,6 +58,15 @@ abstract final class KumoriyaSpacing {
 
 abstract final class KumoriyaTheme {
   static ThemeData get dark {
+    final bool desktop = switch (defaultTargetPlatform) {
+      TargetPlatform.linux ||
+      TargetPlatform.macOS ||
+      TargetPlatform.windows => true,
+      TargetPlatform.android ||
+      TargetPlatform.iOS ||
+      TargetPlatform.fuchsia => false,
+    };
+
     const ColorScheme colorScheme = ColorScheme(
       brightness: Brightness.dark,
       primary: KumoriyaColors.primary,
@@ -204,9 +214,9 @@ abstract final class KumoriyaTheme {
               borderRadius: BorderRadius.circular(KumoriyaRadius.xl),
             ),
           ),
-          minimumSize: const WidgetStatePropertyAll(Size(0, 52)),
-          padding: const WidgetStatePropertyAll(
-            EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+          minimumSize: WidgetStatePropertyAll(Size(0, desktop ? 50 : 56)),
+          padding: WidgetStatePropertyAll(
+            EdgeInsets.symmetric(horizontal: 24, vertical: desktop ? 14 : 16),
           ),
           textStyle: const WidgetStatePropertyAll(
             TextStyle(
@@ -222,8 +232,38 @@ abstract final class KumoriyaTheme {
           foregroundColor: const WidgetStatePropertyAll(
             KumoriyaColors.textSecondary,
           ),
+          minimumSize: WidgetStatePropertyAll(Size(0, desktop ? 46 : 52)),
+          padding: WidgetStatePropertyAll(
+            EdgeInsets.symmetric(horizontal: 18, vertical: desktop ? 12 : 14),
+          ),
           side: const WidgetStatePropertyAll(
             BorderSide(color: KumoriyaColors.borderSubtle),
+          ),
+          shape: WidgetStatePropertyAll(
+            RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(KumoriyaRadius.lg),
+            ),
+          ),
+          overlayColor: WidgetStatePropertyAll(
+            KumoriyaColors.primary.withValues(alpha: 0.08),
+          ),
+        ),
+      ),
+      textButtonTheme: TextButtonThemeData(
+        style: ButtonStyle(
+          foregroundColor: const WidgetStatePropertyAll(
+            KumoriyaColors.textMuted,
+          ),
+          minimumSize: WidgetStatePropertyAll(Size(0, desktop ? 40 : 46)),
+          padding: WidgetStatePropertyAll(
+            EdgeInsets.symmetric(horizontal: 12, vertical: desktop ? 10 : 12),
+          ),
+          textStyle: const WidgetStatePropertyAll(
+            TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              letterSpacing: 0.2,
+            ),
           ),
           shape: WidgetStatePropertyAll(
             RoundedRectangleBorder(
@@ -240,6 +280,8 @@ abstract final class KumoriyaTheme {
           foregroundColor: const WidgetStatePropertyAll(
             KumoriyaColors.textMuted,
           ),
+          minimumSize: WidgetStatePropertyAll(Size.square(desktop ? 40 : 48)),
+          padding: WidgetStatePropertyAll(EdgeInsets.all(desktop ? 8 : 12)),
           overlayColor: WidgetStatePropertyAll(
             KumoriyaColors.primary.withValues(alpha: 0.1),
           ),

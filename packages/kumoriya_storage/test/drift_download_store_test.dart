@@ -84,6 +84,31 @@ void main() {
   });
 
   group('DriftDownloadStore queries', () {
+    test('getTaskByEpisode returns the latest row for an episode', () async {
+      await store.insertTask(
+        makeTask(id: 'old', anilistId: 100, episodeNumber: 3),
+      );
+      await store.insertTask(
+        DownloadTask(
+          id: 'new',
+          anilistId: 100,
+          episodeNumber: 3,
+          sourceUrl: Uri.parse('https://example.com/new.mp4'),
+          status: DownloadStatus.completed,
+          createdAt: DateTime(2025, 1, 2),
+          sourcePluginId: 'animeflv',
+          serverName: 'Filemoon',
+          detectedHost: 'filemoon.sx',
+        ),
+      );
+
+      final result = await store.getTaskByEpisode(100, 3);
+      final task = (result as Success<DownloadTask?, KumoriyaError>).value;
+      expect(task, isNotNull);
+      expect(task!.id, 'new');
+      expect(task.status, DownloadStatus.completed);
+    });
+
     test('getTasksByAnime filters by anilistId', () async {
       await store.insertTask(makeTask(id: 'dl-1', anilistId: 100));
       await store.insertTask(

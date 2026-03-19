@@ -156,10 +156,20 @@ final class NexusHlsManifestParser {
 
     final bandwidthMatch = RegExp(r'BANDWIDTH=(\d+)').firstMatch(line);
     if (bandwidthMatch != null) {
-      final kbps = (int.tryParse(bandwidthMatch.group(1)!) ?? 0) ~/ 1000;
-      return '${kbps}k';
+      final bps = int.tryParse(bandwidthMatch.group(1)!) ?? 0;
+      return _estimateResolutionFromBandwidth(bps);
     }
 
     return 'auto';
+  }
+
+  String _estimateResolutionFromBandwidth(int bps) {
+    final kbps = bps ~/ 1000;
+    if (kbps >= 8000) return '2160p';
+    if (kbps >= 4000) return '1080p';
+    if (kbps >= 1500) return '720p';
+    if (kbps >= 800) return '480p';
+    if (kbps >= 400) return '360p';
+    return '240p';
   }
 }

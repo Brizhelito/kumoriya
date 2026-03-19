@@ -61,6 +61,25 @@ final class DriftDownloadStore implements DownloadStore {
   }
 
   @override
+  Future<Result<DownloadTask?, KumoriyaError>> getTaskByEpisode(
+    int anilistId,
+    double episodeNumber,
+  ) async {
+    try {
+      final row = await _dao.getTaskByEpisode(anilistId, episodeNumber);
+      return Success(row != null ? _rowToTask(row) : null);
+    } catch (e) {
+      return Failure(
+        SimpleError(
+          code: 'storage.download_read_failed',
+          message: 'Failed to read download task by episode: $e',
+          kind: KumoriyaErrorKind.unexpected,
+        ),
+      );
+    }
+  }
+
+  @override
   Future<Result<List<DownloadTask>, KumoriyaError>> getTasksByAnime(
     int anilistId,
   ) async {
@@ -147,9 +166,7 @@ final class DriftDownloadStore implements DownloadStore {
       updatedAt: task.updatedAt != null
           ? Value(task.updatedAt!.millisecondsSinceEpoch)
           : const Value.absent(),
-      headers: Value(
-        task.headers.isNotEmpty ? jsonEncode(task.headers) : null,
-      ),
+      headers: Value(task.headers.isNotEmpty ? jsonEncode(task.headers) : null),
       isHls: Value(task.isHls),
       animeTitle: Value(task.animeTitle),
       qualityLabel: Value(task.qualityLabel),

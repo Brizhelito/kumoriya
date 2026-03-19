@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 import 'package:http_mock_adapter/http_mock_adapter.dart';
 import 'package:kumoriya_core/kumoriya_core.dart';
+import 'package:kumoriya_domain/kumoriya_domain.dart';
 import 'package:kumoriya_plugins/kumoriya_plugins.dart';
 import 'package:kumoriya_source_anime_nexus/kumoriya_source_anime_nexus.dart';
 import 'package:test/test.dart';
@@ -32,7 +33,15 @@ void main() {
     setUp(() {
       dio = Dio(BaseOptions());
       adapter = DioAdapter(dio: dio);
-      plugin = AnimeNexusSourcePlugin(dio: dio);
+      plugin = AnimeNexusSourcePlugin(
+        dio: dio,
+        seriesPageFetcher: (_) async {
+          return '<html><head>'
+              '<meta property="og:title" content="Watch Easygoing Territory Defense by the Optimistic Lord: Production Magic Turns a Nameless Village into the Strongest Fortified City (Okiraku Ryoushu no Tanoshii Ryouchi Bouei: Seisankei Majutsu de Na mo Naki Mura wo Saikyou no Jousai Toshi ni) TV Online Free - Fantasy">'
+              '<meta property="og:description" content="Stream and watch Easygoing Territory Defense by the Optimistic Lord.">'
+              '</head><body></body></html>';
+        },
+      );
     });
 
     test('builds ExternalSubtitleTrack list from API subtitles data', () async {
@@ -251,7 +260,15 @@ void main() {
     setUp(() {
       dio = Dio(BaseOptions());
       adapter = DioAdapter(dio: dio);
-      plugin = AnimeNexusSourcePlugin(dio: dio);
+      plugin = AnimeNexusSourcePlugin(
+        dio: dio,
+        seriesPageFetcher: (_) async {
+          return '<html><head>'
+              '<meta property="og:title" content="Watch Easygoing Territory Defense by the Optimistic Lord: Production Magic Turns a Nameless Village into the Strongest Fortified City (Okiraku Ryoushu no Tanoshii Ryouchi Bouei: Seisankei Majutsu de Na mo Naki Mura wo Saikyou no Jousai Toshi ni) TV Online Free - Fantasy">'
+              '<meta property="og:description" content="Stream and watch Easygoing Territory Defense by the Optimistic Lord.">'
+              '</head><body></body></html>';
+        },
+      );
     });
 
     test('preserves API slug when building watch urls', () async {
@@ -298,6 +315,61 @@ void main() {
         'https://anime.nexus/watch/019cd8e2-05d1-73d3-b322-e5f4efb70043/episode-10-15183f0a8751f2cffefa',
       );
     });
+  });
+
+  group('AnimeNexusSourcePlugin - getAnimeDetail', () {
+    late Dio dio;
+    late DioAdapter adapter;
+    late AnimeNexusSourcePlugin plugin;
+
+    setUp(() {
+      dio = Dio(BaseOptions());
+      adapter = DioAdapter(dio: dio);
+      plugin = AnimeNexusSourcePlugin(
+        dio: dio,
+        seriesPageFetcher: (_) async {
+          return '<html><head>'
+              '<meta property="og:title" content="Watch Easygoing Territory Defense by the Optimistic Lord: Production Magic Turns a Nameless Village into the Strongest Fortified City (Okiraku Ryoushu no Tanoshii Ryouchi Bouei: Seisankei Majutsu de Na mo Naki Mura wo Saikyou no Jousai Toshi ni) TV Online Free - Fantasy">'
+              '<meta property="og:description" content="Stream and watch Easygoing Territory Defense by the Optimistic Lord.">'
+              '</head><body></body></html>';
+        },
+      );
+    });
+
+    test(
+      'falls back to direct series page when search replay misses the payload',
+      () async {
+        const sourceId =
+            '9ede6265-c9b9-47bf-bfb5-7e340223708e::easygoing-territory-defense-by-the-optimistic-lord-production-magic-turns-a-nameless-village-into-the-strongest-fortified-city-0504b068c520f15a4965';
+
+        adapter.onGet(
+          'https://api.anime.nexus/api/anime/shows',
+          (server) => server.reply(200, {'data': const <Object>[]}),
+          queryParameters: <String, dynamic>{
+            'search':
+                'easygoing territory defense by the optimistic lord production magic turns a nameless village into the strongest fortified city',
+            'page': 1,
+            'sortBy': 'name asc',
+            'hasVideos': true,
+            'includes[]': <String>['poster', 'genres', 'background'],
+          },
+        );
+        final result = await plugin.getAnimeDetail(sourceId);
+
+        expect(result, isA<Success<SourceAnimeDetail, KumoriyaError>>());
+        final detail =
+            (result as Success<SourceAnimeDetail, KumoriyaError>).value;
+        expect(
+          detail.title,
+          'Easygoing Territory Defense by the Optimistic Lord: Production Magic Turns a Nameless Village into the Strongest Fortified City (Okiraku Ryoushu no Tanoshii Ryouchi Bouei: Seisankei Majutsu de Na mo Naki Mura wo Saikyou no Jousai Toshi ni)',
+        );
+        expect(detail.format, AnimeFormat.tv);
+        expect(
+          detail.synopsis,
+          contains('Easygoing Territory Defense by the Optimistic Lord'),
+        );
+      },
+    );
   });
 
   group('AnimeNexusSourcePlugin - search', () {

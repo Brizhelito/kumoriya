@@ -56,38 +56,79 @@ final class GraphqlAnilistMetadataGateway implements AnilistMetadataGateway {
     final fromDate = (from ?? DateTime.now()).toUtc();
     final toDate = (to ?? fromDate.add(const Duration(days: 7))).toUtc();
 
-    final result = await _client.execute(
-      query: airingCalendarQuery,
-      variables: <String, dynamic>{
-        'page': page,
-        'perPage': perPage,
-        'airingAtGreater': fromDate.millisecondsSinceEpoch ~/ 1000,
-        'airingAtLesser': toDate.millisecondsSinceEpoch ~/ 1000,
-      },
-    );
+    final dedupedById = <int, Map<String, dynamic>>{};
+    var currentPage = page;
+    var hasNextPage = true;
 
-    return result.fold(
-      onSuccess: (data) {
-        final media = _extractAiringScheduleMediaList(data);
-        if (media == null) {
-          return const Failure(
-            AnilistMappingError(
-              message:
-                  'Airing calendar payload does not contain Page.airingSchedules list.',
-            ),
+    while (hasNextPage) {
+      final result = await _client.execute(
+        query: airingCalendarQuery,
+        variables: <String, dynamic>{
+          'page': currentPage,
+          'perPage': perPage,
+          'airingAtGreater': fromDate.millisecondsSinceEpoch ~/ 1000,
+          'airingAtLesser': toDate.millisecondsSinceEpoch ~/ 1000,
+        },
+      );
+
+      final folded = result.fold<
+        Result<({List<Map<String, dynamic>> media, bool hasNext}), KumoriyaError>
+      >(
+        onSuccess: (data) {
+          final media = _extractAiringScheduleMediaList(data);
+          if (media == null) {
+            return const Failure(
+              AnilistMappingError(
+                message:
+                    'Airing calendar payload does not contain Page.airingSchedules list.',
+              ),
+            );
+          }
+
+          final next = _extractHasNextPage(data) ?? false;
+          return Success((media: media, hasNext: next));
+        },
+        onFailure: (err) {
+          developer.log(
+            'fetchAiringCalendar error [${err.code}/${err.kind.name}]: ${err.message}',
+            name: 'GraphqlAnilistMetadataGateway',
           );
+          return Failure(err);
+        },
+      );
+
+      if (folded.isFailure) {
+        return folded.fold(onSuccess: (_) => throw StateError('unreachable'), onFailure: Failure.new);
+      }
+
+      final pageData = folded.fold(
+        onSuccess: (value) => value,
+        onFailure: (_) => throw StateError('unreachable'),
+      );
+
+      for (final media in pageData.media) {
+        final animeId = media['id'];
+        if (animeId is! int) {
+          continue;
         }
 
-        return Success(media);
-      },
-      onFailure: (err) {
-        developer.log(
-          'fetchAiringCalendar error [${err.code}/${err.kind.name}]: ${err.message}',
-          name: 'GraphqlAnilistMetadataGateway',
-        );
-        return Failure(err);
-      },
-    );
+        final existing = dedupedById[animeId];
+        if (existing == null ||
+            _nextAiringTimestamp(media) < _nextAiringTimestamp(existing)) {
+          dedupedById[animeId] = media;
+        }
+      }
+
+      hasNextPage = pageData.hasNext;
+      currentPage += 1;
+    }
+
+    final merged = dedupedById.values.toList(growable: false)
+      ..sort(
+        (left, right) =>
+            _nextAiringTimestamp(left).compareTo(_nextAiringTimestamp(right)),
+      );
+    return Success(merged);
   }
 
   @override
@@ -212,6 +253,10 @@ final class GraphqlAnilistMetadataGateway implements AnilistMetadataGateway {
         continue;
       }
 
+      if (media['isAdult'] == true) {
+        continue;
+      }
+
       final enrichedMedia = Map<String, dynamic>.from(media);
       enrichedMedia['nextAiringEpisode'] = <String, dynamic>{
         'episode': item['episode'],
@@ -232,6 +277,21 @@ final class GraphqlAnilistMetadataGateway implements AnilistMetadataGateway {
             _nextAiringTimestamp(left).compareTo(_nextAiringTimestamp(right)),
       );
     return result;
+  }
+
+  bool? _extractHasNextPage(Map<String, dynamic> data) {
+    final page = data['Page'];
+    if (page is! Map<String, dynamic>) {
+      return null;
+    }
+
+    final pageInfo = page['pageInfo'];
+    if (pageInfo is! Map<String, dynamic>) {
+      return null;
+    }
+
+    final hasNextPage = pageInfo['hasNextPage'];
+    return hasNextPage is bool ? hasNextPage : null;
   }
 
   int _nextAiringTimestamp(Map<String, dynamic> media) {

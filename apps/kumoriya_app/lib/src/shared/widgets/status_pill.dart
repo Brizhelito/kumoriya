@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:kumoriya_domain/kumoriya_domain.dart';
+
+import '../../app/l10n.dart';
 import '../theme/kumoriya_theme.dart';
 
 class KumoriyaStatusPill extends StatelessWidget {
@@ -13,32 +15,32 @@ class KumoriyaStatusPill extends StatelessWidget {
       AnimeStatus.releasing => (
         KumoriyaColors.primary.withValues(alpha: 0.14),
         KumoriyaColors.primaryLight,
-        'AIRING',
+        context.l10n.statusAiring,
       ),
       AnimeStatus.notYetReleased => (
         KumoriyaColors.borderSubtle,
         KumoriyaColors.textMuted,
-        'UPCOMING',
+        context.l10n.statusUpcoming,
       ),
       AnimeStatus.finished => (
         KumoriyaColors.statusSuccess.withValues(alpha: 0.12),
         KumoriyaColors.statusSuccess,
-        'FINISHED',
+        context.l10n.statusFinished,
       ),
       AnimeStatus.cancelled => (
         KumoriyaColors.statusDanger.withValues(alpha: 0.12),
         KumoriyaColors.statusDanger,
-        'CANCELLED',
+        context.l10n.statusCancelled,
       ),
       AnimeStatus.hiatus => (
         KumoriyaColors.statusWarning.withValues(alpha: 0.12),
         KumoriyaColors.statusWarning,
-        'ON HIATUS',
+        context.l10n.statusOnHiatus,
       ),
       AnimeStatus.unknown || _ => (
         KumoriyaColors.borderSubtle,
         KumoriyaColors.textDisabled,
-        'UNKNOWN',
+        context.l10n.statusUnknown,
       ),
     };
 

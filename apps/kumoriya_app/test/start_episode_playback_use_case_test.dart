@@ -646,13 +646,13 @@ class _FakeResolverPlugin implements ResolverPlugin {
   int get priority => 100;
 
   @override
-  Future<Result<List<ResolvedStream>, KumoriyaError>> resolve(Uri url) async {
-    return Success(<ResolvedStream>[
+  Future<Result<ResolveResult, KumoriyaError>> resolve(Uri url) async {
+    return Success(ResolveResult(streams: <ResolvedStream>[
       ResolvedStream(
         url: Uri.parse('https://cdn.example/${url.pathSegments.last}.m3u8'),
         isHls: true,
       ),
-    ]);
+    ]));
   }
 
   @override
@@ -672,7 +672,7 @@ class _FlakyResolverPlugin implements ResolverPlugin {
   int get priority => 100;
 
   @override
-  Future<Result<List<ResolvedStream>, KumoriyaError>> resolve(Uri url) async {
+  Future<Result<ResolveResult, KumoriyaError>> resolve(Uri url) async {
     if (url.path.contains('/fail/')) {
       return const Failure(
         SimpleError(
@@ -682,12 +682,12 @@ class _FlakyResolverPlugin implements ResolverPlugin {
         ),
       );
     }
-    return Success(<ResolvedStream>[
+    return Success(ResolveResult(streams: <ResolvedStream>[
       ResolvedStream(
         url: Uri.parse('https://cdn.example${url.path}.m3u8'),
         isHls: true,
       ),
-    ]);
+    ]));
   }
 
   @override
@@ -701,6 +701,12 @@ final class _FakeAnimeProgressStore implements AnimeProgressStore {
       <int, PlaybackPreference>{};
   final Map<int, AnimeWatchHistory> _historyByAnime =
       <int, AnimeWatchHistory>{};
+
+  @override
+  Future<Result<void, KumoriyaError>> clearAllPlaybackPreferences() async {
+    _preferencesByAnime.clear();
+    return const Success(null);
+  }
 
   @override
   Future<Result<void, KumoriyaError>> clearPlaybackPreference(

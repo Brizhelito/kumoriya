@@ -64,7 +64,7 @@ final class VidhideResolverPlugin implements ResolverPlugin {
   }
 
   @override
-  Future<Result<List<ResolvedStream>, KumoriyaError>> resolve(Uri url) async {
+  Future<Result<ResolveResult, KumoriyaError>> resolve(Uri url) async {
     if (!supports(url)) {
       return Failure(
         VidhideUnsupportedHostError(
@@ -122,7 +122,7 @@ final class VidhideResolverPlugin implements ResolverPlugin {
         );
       }
 
-      return Success(streams);
+      return Success(ResolveResult(streams: streams));
     } catch (error) {
       return Failure(
         VidhideTransportError(

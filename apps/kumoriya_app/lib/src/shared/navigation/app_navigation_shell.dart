@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
+import '../../features/settings/presentation/pages/settings_page.dart';
 import '../../app/l10n.dart';
 import '../theme/kumoriya_theme.dart';
 
@@ -57,6 +58,13 @@ class _AppNavigationShellState extends State<AppNavigationShell> {
     return true;
   }
 
+  void _openSettings(BuildContext context) {
+    Navigator.of(
+      context,
+      rootNavigator: true,
+    ).push(MaterialPageRoute<void>(builder: (_) => const SettingsPage()));
+  }
+
   Widget _buildTabNavigator(KumoriyaTab tab) {
     return Navigator(
       key: _navigatorKeys[tab],
@@ -88,7 +96,11 @@ class _AppNavigationShellState extends State<AppNavigationShell> {
           backgroundColor: KumoriyaColors.background,
           body: Row(
             children: <Widget>[
-              _DesktopRail(currentIndex: currentIndex, onTap: _onTabSelected),
+              _DesktopRail(
+                currentIndex: currentIndex,
+                onTap: _onTabSelected,
+                onOpenSettings: () => _openSettings(context),
+              ),
               Expanded(child: body),
             ],
           ),
@@ -107,6 +119,7 @@ class _AppNavigationShellState extends State<AppNavigationShell> {
         bottomNavigationBar: _MobileBottomNav(
           currentIndex: currentIndex,
           onTap: _onTabSelected,
+          onSettingsTap: () => _openSettings(context),
         ),
       ),
     );
@@ -114,10 +127,15 @@ class _AppNavigationShellState extends State<AppNavigationShell> {
 }
 
 class _MobileBottomNav extends StatelessWidget {
-  const _MobileBottomNav({required this.currentIndex, required this.onTap});
+  const _MobileBottomNav({
+    required this.currentIndex,
+    required this.onTap,
+    required this.onSettingsTap,
+  });
 
   final int currentIndex;
   final ValueChanged<int> onTap;
+  final VoidCallback onSettingsTap;
 
   @override
   Widget build(BuildContext context) {
@@ -127,7 +145,13 @@ class _MobileBottomNav extends StatelessWidget {
       ),
       child: BottomNavigationBar(
         currentIndex: currentIndex,
-        onTap: onTap,
+        onTap: (index) {
+          if (index == KumoriyaTab.values.length) {
+            onSettingsTap();
+            return;
+          }
+          onTap(index);
+        },
         backgroundColor: KumoriyaColors.navBackground,
         selectedItemColor: KumoriyaColors.primary,
         unselectedItemColor: KumoriyaColors.textDisabled,
@@ -162,6 +186,11 @@ class _MobileBottomNav extends StatelessWidget {
             activeIcon: const Icon(Icons.download_rounded),
             label: context.l10n.navDownloads,
           ),
+          BottomNavigationBarItem(
+            icon: const Icon(Icons.settings_outlined),
+            activeIcon: const Icon(Icons.settings_rounded),
+            label: context.l10n.settingsTitle,
+          ),
         ],
       ),
     );
@@ -169,10 +198,15 @@ class _MobileBottomNav extends StatelessWidget {
 }
 
 class _DesktopRail extends StatelessWidget {
-  const _DesktopRail({required this.currentIndex, required this.onTap});
+  const _DesktopRail({
+    required this.currentIndex,
+    required this.onTap,
+    required this.onOpenSettings,
+  });
 
   final int currentIndex;
   final ValueChanged<int> onTap;
+  final VoidCallback onOpenSettings;
 
   @override
   Widget build(BuildContext context) {
@@ -241,8 +275,66 @@ class _DesktopRail extends StatelessWidget {
               ),
             ),
           ),
+          _RailUtilityButton(
+            icon: Icons.settings_outlined,
+            tooltip: context.l10n.settingsTitle,
+            onTap: onOpenSettings,
+          ),
           const SizedBox(height: 16),
         ],
+      ),
+    );
+  }
+}
+
+class _RailUtilityButton extends StatefulWidget {
+  const _RailUtilityButton({
+    required this.icon,
+    required this.tooltip,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String tooltip;
+  final VoidCallback onTap;
+
+  @override
+  State<_RailUtilityButton> createState() => _RailUtilityButtonState();
+}
+
+class _RailUtilityButtonState extends State<_RailUtilityButton> {
+  bool _hovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: widget.tooltip,
+      preferBelow: false,
+      child: MouseRegion(
+        cursor: SystemMouseCursors.click,
+        onEnter: (_) => setState(() => _hovered = true),
+        onExit: (_) => setState(() => _hovered = false),
+        child: GestureDetector(
+          onTap: widget.onTap,
+          child: Container(
+            width: 56,
+            height: 56,
+            margin: const EdgeInsets.only(bottom: 8),
+            decoration: BoxDecoration(
+              color: _hovered
+                  ? KumoriyaColors.primary.withValues(alpha: 0.10)
+                  : Colors.transparent,
+              borderRadius: BorderRadius.circular(KumoriyaRadius.lg),
+            ),
+            child: const Center(
+              child: Icon(
+                Icons.settings_outlined,
+                color: KumoriyaColors.textMuted,
+                size: 22,
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -305,33 +397,36 @@ class _RailItem extends StatelessWidget {
     return Tooltip(
       message: label,
       preferBelow: false,
-      child: GestureDetector(
-        onTap: () => onTap(index),
-        child: Container(
-          width: 88,
-          height: 56,
-          margin: const EdgeInsets.symmetric(vertical: 2),
-          decoration: BoxDecoration(
-            color: isActive
-                ? KumoriyaColors.primary.withValues(alpha: 0.10)
-                : Colors.transparent,
-            borderRadius: BorderRadius.circular(KumoriyaRadius.lg),
-          ),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: <Widget>[
-              Icon(isActive ? activeIcon : icon, color: color, size: 22),
-              const SizedBox(height: 4),
-              Text(
-                label,
-                style: TextStyle(
-                  color: color,
-                  fontSize: 9,
-                  fontWeight: isActive ? FontWeight.w700 : FontWeight.w500,
-                  letterSpacing: 0.3,
+      child: MouseRegion(
+        cursor: SystemMouseCursors.click,
+        child: GestureDetector(
+          onTap: () => onTap(index),
+          child: Container(
+            width: 88,
+            height: 56,
+            margin: const EdgeInsets.symmetric(vertical: 2),
+            decoration: BoxDecoration(
+              color: isActive
+                  ? KumoriyaColors.primary.withValues(alpha: 0.10)
+                  : Colors.transparent,
+              borderRadius: BorderRadius.circular(KumoriyaRadius.lg),
+            ),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: <Widget>[
+                Icon(isActive ? activeIcon : icon, color: color, size: 22),
+                const SizedBox(height: 4),
+                Text(
+                  label,
+                  style: TextStyle(
+                    color: color,
+                    fontSize: 9,
+                    fontWeight: isActive ? FontWeight.w700 : FontWeight.w500,
+                    letterSpacing: 0.3,
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),

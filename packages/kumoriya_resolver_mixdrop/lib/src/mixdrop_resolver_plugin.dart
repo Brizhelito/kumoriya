@@ -61,7 +61,7 @@ final class MixdropResolverPlugin implements ResolverPlugin {
   }
 
   @override
-  Future<Result<List<ResolvedStream>, KumoriyaError>> resolve(Uri url) async {
+  Future<Result<ResolveResult, KumoriyaError>> resolve(Uri url) async {
     if (!supports(url)) {
       return Failure(
         MixdropUnsupportedHostError(
@@ -118,7 +118,7 @@ final class MixdropResolverPlugin implements ResolverPlugin {
         );
       }
 
-      return Success(streams);
+      return Success(ResolveResult(streams: streams));
     } catch (error) {
       return Failure(
         MixdropTransportError(

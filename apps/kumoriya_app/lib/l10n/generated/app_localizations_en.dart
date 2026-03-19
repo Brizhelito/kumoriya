@@ -359,6 +359,19 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String historyProgressUpTo(int episode, int total) {
+    return 'Up to EP $episode / $total';
+  }
+
+  @override
+  String historyProgressLastWatched(int episode) {
+    return 'Last watched EP $episode';
+  }
+
+  @override
+  String get episodePlaying => 'PLAYING';
+
+  @override
   String get continueWatching => 'Continue Watching';
 
   @override
@@ -459,6 +472,9 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get detailPlaybackNotReady =>
       'This anime is not ready to play right now.';
+
+  @override
+  String get detailCheckingSources => 'Checking sources...';
 
   @override
   String get detailPlaybackHint =>
@@ -779,6 +795,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get calendarUnknownSchedule => 'Unknown schedule';
 
   @override
+  String get calendarToday => 'Today';
+
+  @override
   String get downloadsTitle => 'Downloads';
 
   @override
@@ -786,6 +805,67 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get libraryTitle => 'Library';
+
+  @override
+  String get settingsTitle => 'Settings';
+
+  @override
+  String get settingsNotificationsTitle => 'Notifications';
+
+  @override
+  String get settingsNotificationsDescription =>
+      'Subscriptions use system notifications for new episode alerts.';
+
+  @override
+  String get settingsEnableNotifications => 'Enable notifications';
+
+  @override
+  String get settingsOpenSystemSettings => 'Open system settings';
+
+  @override
+  String get settingsStatusAllowed => 'Allowed';
+
+  @override
+  String get settingsStatusBlocked => 'Blocked';
+
+  @override
+  String get settingsStatusUnknown => 'Unknown';
+
+  @override
+  String get settingsAppTitle => 'App';
+
+  @override
+  String get settingsThemeLabel => 'Theme';
+
+  @override
+  String get settingsThemeDark => 'Dark';
+
+  @override
+  String get settingsLanguageLabel => 'Language';
+
+  @override
+  String get settingsLanguageEnglish => 'English';
+
+  @override
+  String get settingsLanguageSpanish => 'Spanish';
+
+  @override
+  String get settingsDesktopOnlyVisibleNote =>
+      'On Windows only desktop-relevant settings are shown.';
+
+  @override
+  String get settingsPlaybackPreferencesTitle => 'Playback preferences';
+
+  @override
+  String get settingsPlaybackPreferencesDescription =>
+      'Clear remembered source, server, and resolver choices so playback starts fresh.';
+
+  @override
+  String get settingsPlaybackPreferencesClear => 'Clear saved preferences';
+
+  @override
+  String get settingsPlaybackPreferencesCleared =>
+      'Saved playback preferences cleared';
 
   @override
   String get playerBack => 'Back';
@@ -798,6 +878,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get playerQuality => 'Quality';
+
+  @override
+  String get playerNextEpisode => 'Next episode';
 
   @override
   String get playerRetry => 'RETRY';
@@ -833,4 +916,69 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get homeAiringToday => 'Airing Today';
+
+  @override
+  String get myListHistoryEmpty => 'No watch history yet.';
+
+  @override
+  String downloadEpisodesCount(int count) {
+    return '$count episodes';
+  }
+
+  @override
+  String downloadEpisodeLabel(int episode) {
+    return 'Episode $episode';
+  }
+
+  @override
+  String get downloadedSourceLabel => 'Downloaded';
+
+  @override
+  String get downloadAllFromSource => 'Download all from a source';
+
+  @override
+  String get sectionSeeAll => 'See all';
+
+  @override
+  String get statusAiring => 'AIRING';
+
+  @override
+  String get statusUpcoming => 'UPCOMING';
+
+  @override
+  String get statusFinished => 'FINISHED';
+
+  @override
+  String get statusCancelled => 'CANCELLED';
+
+  @override
+  String get statusOnHiatus => 'ON HIATUS';
+
+  @override
+  String get statusUnknown => 'UNKNOWN';
+
+  @override
+  String get settingsSubtitleTitle => 'Subtitles';
+
+  @override
+  String get settingsSubtitleDescription =>
+      'Customize subtitle appearance during playback.';
+
+  @override
+  String get settingsSubtitleFontSize => 'Font size';
+
+  @override
+  String get settingsSubtitleSmall => 'S';
+
+  @override
+  String get settingsSubtitleMedium => 'M';
+
+  @override
+  String get settingsSubtitleLarge => 'L';
+
+  @override
+  String get settingsSubtitleExtraLarge => 'XL';
+
+  @override
+  String get settingsSubtitleBackground => 'Show background behind subtitles';
 }

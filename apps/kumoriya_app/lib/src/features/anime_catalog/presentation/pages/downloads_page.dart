@@ -31,20 +31,42 @@ class DownloadsPage extends ConsumerWidget {
           children: <Widget>[
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
-              child: Text(
-                context.l10n.downloadsTitle,
-                style: const TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.w800,
-                  color: KumoriyaColors.textPrimary,
-                ),
+              child: Row(
+                children: <Widget>[
+                  Expanded(
+                    child: Text(
+                      context.l10n.downloadsTitle,
+                      style: const TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.w800,
+                        color: KumoriyaColors.textPrimary,
+                      ),
+                    ),
+                  ),
+                  IconButton(
+                    tooltip: context.l10n.retry,
+                    onPressed: () async {
+                      await ref
+                          .read(downloadManagerProvider)
+                          .syncDownloadedLibrary();
+                      ref.invalidate(allDownloadTasksProvider);
+                    },
+                    icon: const Icon(
+                      Icons.sync_rounded,
+                      color: KumoriyaColors.textPrimary,
+                    ),
+                  ),
+                ],
               ),
             ),
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
               child: Text(
                 context.l10n.downloadsSubtitle,
-                style: const TextStyle(fontSize: 13, color: KumoriyaColors.textMuted),
+                style: const TextStyle(
+                  fontSize: 13,
+                  color: KumoriyaColors.textMuted,
+                ),
               ),
             ),
             Expanded(
@@ -70,8 +92,6 @@ class DownloadsPage extends ConsumerWidget {
   }
 }
 
-// ─── Downloads body ──────────────────────────────────────────────────────────
-
 class _DownloadsBody extends ConsumerWidget {
   const _DownloadsBody({required this.tasks});
 
@@ -79,18 +99,13 @@ class _DownloadsBody extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final children = <Widget>[
-      const _DownloadDirectoryCard(),
-      const SizedBox(height: 16),
-    ];
+    final children = <Widget>[];
 
     if (tasks.isEmpty) {
       children.add(
         Padding(
           padding: const EdgeInsets.only(top: 36),
-          child: EmptyStateView(
-            message: context.l10n.myListDownloadsEmpty,
-          ),
+          child: EmptyStateView(message: context.l10n.myListDownloadsEmpty),
         ),
       );
 
@@ -100,24 +115,28 @@ class _DownloadsBody extends ConsumerWidget {
       );
     }
 
-    // Split into active (non-completed) and completed.
-    final active =
-        tasks.where((t) => t.status != DownloadStatus.completed).toList();
-    final completed =
-        tasks.where((t) => t.status == DownloadStatus.completed).toList();
+    final active = tasks
+        .where((t) => t.status != DownloadStatus.completed)
+        .toList();
+    final aggregateProgress = ref
+        .watch(downloadAggregateProgressProvider)
+        .maybeWhen(
+          data: (value) => value,
+          orElse: () => const DownloadAggregateProgress.empty(),
+        );
+    final completed = tasks
+        .where((t) => t.status == DownloadStatus.completed)
+        .toList();
 
-    // Group completed by anilistId.
     final groupedCompleted = <int, List<DownloadTask>>{};
-    for (final t in completed) {
-      groupedCompleted.putIfAbsent(t.anilistId, () => []).add(t);
+    for (final task in completed) {
+      groupedCompleted.putIfAbsent(task.anilistId, () => []).add(task);
     }
-    // Sort episodes within each group.
     for (final list in groupedCompleted.values) {
       list.sort((a, b) => a.episodeNumber.compareTo(b.episodeNumber));
     }
 
     children.addAll(<Widget>[
-      // ── Active downloads ──
       if (active.isNotEmpty) ...<Widget>[
         Padding(
           padding: const EdgeInsets.only(bottom: 8),
@@ -133,6 +152,18 @@ class _DownloadsBody extends ConsumerWidget {
                   ),
                 ),
               ),
+              if (aggregateProgress.bytesPerSecond > 0)
+                Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: Text(
+                    '${_fmtBytes(aggregateProgress.bytesPerSecond)}/s',
+                    style: const TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: KumoriyaColors.textMuted,
+                    ),
+                  ),
+                ),
               TextButton.icon(
                 onPressed: () async {
                   await ref.read(downloadManagerProvider).cancelAll();
@@ -152,16 +183,17 @@ class _DownloadsBody extends ConsumerWidget {
           ),
         ),
         ...active.map(
-          (t) => Padding(
+          (task) => Padding(
+            key: ValueKey('active-${task.id}'),
             padding: const EdgeInsets.only(bottom: 8),
-            child: _ActiveDownloadRow(task: t),
+            child: _ActiveDownloadRow(task: task),
           ),
         ),
         if (groupedCompleted.isNotEmpty) const SizedBox(height: 12),
       ],
-      // ── Completed downloads grouped by anime ──
       ...groupedCompleted.entries.map(
         (entry) => Padding(
+          key: ValueKey('completed-${entry.key}'),
           padding: const EdgeInsets.only(bottom: 12),
           child: _CompletedAnimeCard(
             anilistId: entry.key,
@@ -178,208 +210,6 @@ class _DownloadsBody extends ConsumerWidget {
   }
 }
 
-// ─── Download directory card ─────────────────────────────────────────────────
-
-class _DownloadDirectoryCard extends ConsumerWidget {
-  const _DownloadDirectoryCard();
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final directoryInfoState = ref.watch(downloadDirectoryInfoProvider);
-
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: KumoriyaColors.surface.withValues(alpha: 0.7),
-        borderRadius: BorderRadius.circular(KumoriyaRadius.xxl),
-        border: Border.all(color: KumoriyaColors.borderSubtle),
-      ),
-      child: directoryInfoState.when(
-        loading: () => const SizedBox(
-          height: 72,
-          child: Center(child: CircularProgressIndicator()),
-        ),
-        error: (_, _) => Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: <Widget>[
-            Text(
-              context.l10n.downloadFolderTitle,
-              style: const TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.w800,
-                color: KumoriyaColors.textPrimary,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              context.l10n.genericLoadFailure,
-              style: const TextStyle(color: KumoriyaColors.textSecondary),
-            ),
-            const SizedBox(height: 12),
-            OutlinedButton.icon(
-              onPressed: () => ref.invalidate(downloadDirectoryInfoProvider),
-              icon: const Icon(Icons.refresh_rounded),
-              label: Text(context.l10n.retry),
-            ),
-          ],
-        ),
-        data: (info) => Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: <Widget>[
-            Row(
-              children: <Widget>[
-                const Icon(
-                  Icons.folder_copy_outlined,
-                  color: KumoriyaColors.primary,
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Text(
-                    context.l10n.downloadFolderTitle,
-                    style: const TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w800,
-                      color: KumoriyaColors.textPrimary,
-                    ),
-                  ),
-                ),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 6,
-                  ),
-                  decoration: BoxDecoration(
-                    color: KumoriyaColors.primary.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(999),
-                  ),
-                  child: Text(
-                    info.isCustom
-                        ? context.l10n.downloadFolderCustom
-                        : context.l10n.downloadFolderDefault,
-                    style: const TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700,
-                      color: KumoriyaColors.primary,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 10),
-            Text(
-              context.l10n.downloadFolderDescription,
-              style: const TextStyle(
-                color: KumoriyaColors.textSecondary,
-                height: 1.4,
-              ),
-            ),
-            const SizedBox(height: 12),
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: KumoriyaColors.background.withValues(alpha: 0.9),
-                borderRadius: BorderRadius.circular(KumoriyaRadius.lg),
-                border: Border.all(color: KumoriyaColors.borderSubtle),
-              ),
-              child: SelectableText(
-                info.path,
-                style: const TextStyle(
-                  fontSize: 12,
-                  color: KumoriyaColors.textPrimary,
-                ),
-              ),
-            ),
-            const SizedBox(height: 12),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: <Widget>[
-                FilledButton.icon(
-                  onPressed: () async {
-                    final result = await ref
-                        .read(downloadDirectoryServiceProvider)
-                        .selectDirectory();
-                    if (!context.mounted) {
-                      return;
-                    }
-
-                    result.fold(
-                      onFailure: (error) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text(
-                              error.code ==
-                                      'download.directory_permission_denied'
-                                  ? context.l10n.downloadFolderPermissionDenied
-                                  : mapErrorMessage(context, error),
-                            ),
-                          ),
-                        );
-                      },
-                      onSuccess: (outcome) {
-                        ref.invalidate(downloadDirectoryInfoProvider);
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text(
-                              outcome.changed
-                                  ? context.l10n.downloadFolderSaved
-                                  : context
-                                        .l10n
-                                        .downloadFolderSelectionCancelled,
-                            ),
-                          ),
-                        );
-                      },
-                    );
-                  },
-                  icon: const Icon(Icons.folder_open_rounded),
-                  label: Text(context.l10n.downloadFolderChange),
-                ),
-                if (info.isCustom)
-                  OutlinedButton.icon(
-                    onPressed: () async {
-                      final result = await ref
-                          .read(downloadDirectoryServiceProvider)
-                          .resetToDefault();
-                      if (!context.mounted) {
-                        return;
-                      }
-
-                      result.fold(
-                        onFailure: (error) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text(mapErrorMessage(context, error)),
-                            ),
-                          );
-                        },
-                        onSuccess: (_) {
-                          ref.invalidate(downloadDirectoryInfoProvider);
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text(
-                                context.l10n.downloadFolderResetDone,
-                              ),
-                            ),
-                          );
-                        },
-                      );
-                    },
-                    icon: const Icon(Icons.restore_rounded),
-                    label: Text(context.l10n.downloadFolderReset),
-                  ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-// ─── Active download row (flat, with progress) ───────────────────────────────
-
 class _ActiveDownloadRow extends ConsumerStatefulWidget {
   const _ActiveDownloadRow({required this.task});
   final DownloadTask task;
@@ -394,20 +224,15 @@ class _ActiveDownloadRowState extends ConsumerState<_ActiveDownloadRow> {
   @override
   Widget build(BuildContext context) {
     final task = widget.task;
-    final detailState = ref.watch(animeDetailProvider(task.anilistId));
 
     final liveProgress = ref
         .watch(downloadProgressByTaskProvider(task.id))
         .maybeWhen(data: (e) => e, orElse: () => null);
 
-    final title = detailState.maybeWhen(
-      data: (r) => r.fold(
-        onFailure: (_) => task.animeTitle ?? 'AniList #${task.anilistId}',
-        onSuccess: (d) => d.anime.title.english ?? d.anime.title.romaji,
-      ),
-      orElse: () => task.animeTitle ?? 'AniList #${task.anilistId}',
-    );
+    final title = task.animeTitle ?? context.l10n.loadingGeneric;
 
+    // Only fetch AniList detail for the cover image (cached & shared).
+    final detailState = ref.watch(animeDetailProvider(task.anilistId));
     final imageUrl = detailState.maybeWhen(
       data: (r) => r.fold(
         onFailure: (_) => null,
@@ -490,6 +315,21 @@ class _ActiveDownloadRowState extends ConsumerState<_ActiveDownloadRow> {
                             ),
                           ),
                         ],
+                        if (task.status == DownloadStatus.failed &&
+                            task.errorMessage != null &&
+                            task.errorMessage!.trim().isNotEmpty) ...<Widget>[
+                          const SizedBox(height: 4),
+                          Text(
+                            _downloadErrorSummary(task.errorMessage!),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontSize: 10,
+                              color: KumoriyaColors.statusDanger,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
                       ],
                     ),
                   ),
@@ -568,7 +408,7 @@ class _ActiveDownloadRowState extends ConsumerState<_ActiveDownloadRow> {
           icon: const Icon(Icons.refresh_rounded, size: 18),
           tooltip: context.l10n.downloadRetry,
           onPressed: () async {
-            await manager.retry(task.id);
+            await manager.retryFailed(task.id);
             ref.invalidate(allDownloadTasksProvider);
           },
         );
@@ -605,18 +445,11 @@ class _CompletedAnimeCardState extends ConsumerState<_CompletedAnimeCard> {
 
   @override
   Widget build(BuildContext context) {
+    final title =
+        widget.episodes.first.animeTitle ?? context.l10n.loadingGeneric;
+
+    // Only fetch AniList detail for the cover image (cached & shared).
     final detailState = ref.watch(animeDetailProvider(widget.anilistId));
-
-    final title = detailState.maybeWhen(
-      data: (r) => r.fold(
-        onFailure: (_) =>
-            widget.episodes.first.animeTitle ?? 'AniList #${widget.anilistId}',
-        onSuccess: (d) => d.anime.title.english ?? d.anime.title.romaji,
-      ),
-      orElse: () =>
-          widget.episodes.first.animeTitle ?? 'AniList #${widget.anilistId}',
-    );
-
     final imageUrl = detailState.maybeWhen(
       data: (r) => r.fold(
         onFailure: (_) => null,
@@ -681,8 +514,7 @@ class _CompletedAnimeCardState extends ConsumerState<_CompletedAnimeCard> {
                             ),
                             const SizedBox(width: 4),
                             Text(
-                              '${widget.episodes.length} ${widget.episodes.length == 1 ? 'episodio' : 'episodios'}'
-                              ' · ${_fmtBytes(totalSize)}',
+                              '${context.l10n.downloadEpisodesCount(widget.episodes.length)} · ${_fmtBytes(totalSize)}',
                               style: const TextStyle(
                                 fontSize: 11,
                                 color: KumoriyaColors.textMuted,
@@ -755,7 +587,9 @@ class _CompletedEpisodeTile extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: <Widget>[
                   Text(
-                    'Episodio ${task.episodeNumber.toInt()}',
+                    context.l10n.downloadEpisodeLabel(
+                      task.episodeNumber.toInt(),
+                    ),
                     style: const TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.w600,
@@ -764,11 +598,7 @@ class _CompletedEpisodeTile extends StatelessWidget {
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    [
-                      server,
-                      quality,
-                      _fmtBytes(size),
-                    ].nonNulls.join(' · '),
+                    [server, quality, _fmtBytes(size)].nonNulls.join(' · '),
                     style: const TextStyle(
                       fontSize: 10,
                       color: KumoriyaColors.textDisabled,
@@ -796,13 +626,14 @@ class _CompletedEpisodeTile extends StatelessWidget {
         builder: (_) => PlayerPage(
           anilistId: task.anilistId,
           animeTitle:
-              task.animeTitle ?? 'Episode ${task.episodeNumber.toInt()}',
+              task.animeTitle ??
+              context.l10n.downloadEpisodeLabel(task.episodeNumber.toInt()),
           episodeNumber: task.episodeNumber.toInt().toString(),
           sourcePluginId: task.sourcePluginId ?? 'offline',
-          serverName: task.serverName ?? 'Downloaded',
+          serverName: task.serverName ?? context.l10n.downloadedSourceLabel,
           resolved: ResolvedServerLinkResult(
             resolverId: 'offline',
-            resolverName: 'Downloaded',
+            resolverName: context.l10n.downloadedSourceLabel,
             streams: <ResolvedStream>[ResolvedStream(url: file.uri)],
           ),
         ),
@@ -884,4 +715,26 @@ String _fmtBytes(int bytes) {
     return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
   }
   return '${(bytes / (1024 * 1024 * 1024)).toStringAsFixed(2)} GB';
+}
+
+final _whitespaceRe = RegExp(r'\s+');
+
+String _downloadErrorSummary(String rawError) {
+  final normalized = rawError.toLowerCase();
+  if (normalized.contains('http 403')) {
+    return 'Acceso denegado (HTTP 403). El servidor bloqueo la descarga.';
+  }
+  if (normalized.contains('http 404')) {
+    return 'Archivo no encontrado (HTTP 404). El enlace ya no existe.';
+  }
+  if (normalized.contains('timeout')) {
+    return 'Tiempo de espera agotado. Reintenta la descarga.';
+  }
+  if (normalized.contains('socketexception') ||
+      normalized.contains('connection')) {
+    return 'Fallo de red durante la descarga. Verifica tu conexion.';
+  }
+
+  final compact = rawError.replaceAll(_whitespaceRe, ' ').trim();
+  return compact.length <= 140 ? compact : '${compact.substring(0, 140)}...';
 }

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
+import '../../app/l10n.dart';
 import '../theme/kumoriya_theme.dart';
+import 'translated_dynamic_text.dart';
 
 class EpisodeRow extends StatefulWidget {
   const EpisodeRow({
@@ -13,6 +15,10 @@ class EpisodeRow extends StatefulWidget {
     this.isCurrentEpisode = false,
     this.isPlayable = true,
     this.isWatched = false,
+    this.activeLabel,
+    this.trailingAccessory,
+    this.playIconSize = 28,
+    this.showWatchedCheck = true,
     this.onTap,
   });
 
@@ -24,6 +30,10 @@ class EpisodeRow extends StatefulWidget {
   final bool isCurrentEpisode;
   final bool isPlayable;
   final bool isWatched;
+  final String? activeLabel;
+  final Widget? trailingAccessory;
+  final double playIconSize;
+  final bool showWatchedCheck;
   final VoidCallback? onTap;
 
   @override
@@ -76,7 +86,7 @@ class _EpisodeRowState extends State<EpisodeRow> {
                     Row(
                       children: <Widget>[
                         Expanded(
-                          child: Text(
+                          child: TranslatedDynamicText(
                             widget.displayTitle,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
@@ -89,9 +99,11 @@ class _EpisodeRowState extends State<EpisodeRow> {
                             ),
                           ),
                         ),
-                        if (isActive)
+                        if (isActive && widget.activeLabel != null)
+                          _EpisodeStatusBadge(label: widget.activeLabel!)
+                        else if (isActive)
                           const _NowPlayingBadge()
-                        else if (widget.isWatched)
+                        else if (widget.showWatchedCheck && widget.isWatched)
                           const Icon(
                             Icons.check_circle_rounded,
                             size: 16,
@@ -100,30 +112,25 @@ class _EpisodeRowState extends State<EpisodeRow> {
                       ],
                     ),
                     const SizedBox(height: 5),
-                    Row(
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: <Widget>[
-                        if (widget.sourceBadges.isNotEmpty) ...<Widget>[
-                          ...widget.sourceBadges,
-                          const SizedBox(width: 8),
-                          Container(
-                            width: 3,
-                            height: 3,
-                            decoration: const BoxDecoration(
-                              color: KumoriyaColors.borderMedium,
-                              shape: BoxShape.circle,
-                            ),
+                        if (widget.sourceBadges.isNotEmpty)
+                          Wrap(
+                            spacing: 6,
+                            runSpacing: 6,
+                            crossAxisAlignment: WrapCrossAlignment.center,
+                            children: widget.sourceBadges,
                           ),
-                          const SizedBox(width: 8),
-                        ],
-                        Flexible(
-                          child: Text(
-                            widget.secondaryText,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              fontSize: 11,
-                              color: KumoriyaColors.textDisabled,
-                            ),
+                        if (widget.sourceBadges.isNotEmpty)
+                          const SizedBox(height: 6),
+                        Text(
+                          widget.secondaryText,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 11,
+                            color: KumoriyaColors.textDisabled,
                           ),
                         ),
                       ],
@@ -147,16 +154,20 @@ class _EpisodeRowState extends State<EpisodeRow> {
                   ],
                 ),
               ),
+              if (widget.trailingAccessory != null) ...<Widget>[
+                const SizedBox(width: 10),
+                widget.trailingAccessory!,
+              ],
               if (widget.isPlayable) ...<Widget>[
                 const SizedBox(width: 10),
                 Icon(
                   Icons.play_circle_outline_rounded,
-                  size: 28,
+                  size: widget.playIconSize,
                   color: isActive
                       ? KumoriyaColors.primary
                       : _hovered
-                          ? KumoriyaColors.textMuted
-                          : KumoriyaColors.textDisabled,
+                      ? KumoriyaColors.textMuted
+                      : KumoriyaColors.textDisabled,
                 ),
               ],
             ],
@@ -219,6 +230,32 @@ class _EpisodeNumberBox extends StatelessWidget {
   }
 }
 
+class _EpisodeStatusBadge extends StatelessWidget {
+  const _EpisodeStatusBadge({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+      decoration: BoxDecoration(
+        color: KumoriyaColors.primary.withValues(alpha: 0.20),
+        borderRadius: BorderRadius.circular(KumoriyaRadius.full),
+      ),
+      child: Text(
+        label,
+        style: const TextStyle(
+          fontSize: 9,
+          fontWeight: FontWeight.w800,
+          color: KumoriyaColors.primary,
+          letterSpacing: 0.8,
+        ),
+      ),
+    );
+  }
+}
+
 class _NowPlayingBadge extends StatefulWidget {
   const _NowPlayingBadge();
 
@@ -260,8 +297,8 @@ class _NowPlayingBadgeState extends State<_NowPlayingBadge>
           color: KumoriyaColors.primary.withValues(alpha: 0.20),
           borderRadius: BorderRadius.circular(KumoriyaRadius.full),
         ),
-        child: const Text(
-          'PLAYING',
+        child: Text(
+          context.l10n.episodePlaying,
           style: TextStyle(
             fontSize: 9,
             fontWeight: FontWeight.w800,

@@ -56,7 +56,8 @@ void main() {
     expect(result.isSuccess, isTrue);
     result.fold(
       onFailure: (_) => fail('expected success'),
-      onSuccess: (streams) {
+      onSuccess: (result) {
+        final streams = result.streams;
         expect(streams, hasLength(1));
         expect(streams.single.url.host, 'cdn.mixdrop.co');
         expect(streams.single.mimeType, 'video/mp4');
@@ -89,7 +90,8 @@ void main() {
     expect(result.isSuccess, isTrue);
     result.fold(
       onFailure: (_) => fail('expected success'),
-      onSuccess: (streams) {
+      onSuccess: (result) {
+        final streams = result.streams;
         expect(streams, hasLength(1));
         expect(streams.single.url.host, 'a-4.mxcontent.net');
       },
@@ -110,7 +112,8 @@ void main() {
     expect(result.isSuccess, isTrue);
     result.fold(
       onFailure: (_) => fail('expected success'),
-      onSuccess: (streams) {
+      onSuccess: (result) {
+        final streams = result.streams;
         expect(streams, hasLength(1));
         expect(streams.single.url.host, 'cdn.mixdrop');
         expect(streams.single.url.path, '/video/abc.file_720p.mp4');

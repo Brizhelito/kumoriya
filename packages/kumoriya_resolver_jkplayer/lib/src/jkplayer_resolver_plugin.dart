@@ -38,7 +38,7 @@ final class JkPlayerResolverPlugin implements ResolverPlugin {
   }
 
   @override
-  Future<Result<List<ResolvedStream>, KumoriyaError>> resolve(Uri url) async {
+  Future<Result<ResolveResult, KumoriyaError>> resolve(Uri url) async {
     if (!supports(url)) {
       return Failure(
         JkPlayerUnsupportedHostError(
@@ -58,7 +58,7 @@ final class JkPlayerResolverPlugin implements ResolverPlugin {
     return _resolveHtmlPayload(url);
   }
 
-  Future<Result<List<ResolvedStream>, KumoriyaError>> _resolveHtmlPayload(
+  Future<Result<ResolveResult, KumoriyaError>> _resolveHtmlPayload(
     Uri url,
   ) async {
     try {
@@ -107,7 +107,7 @@ final class JkPlayerResolverPlugin implements ResolverPlugin {
           .map((streamUrl) => _toResolvedStream(streamUrl, _baseUri))
           .toList(growable: false);
 
-      return Success(streams);
+      return Success(ResolveResult(streams: streams));
     } catch (error) {
       return Failure(
         JkPlayerTransportError(
@@ -149,7 +149,7 @@ final class JkPlayerJkResolverPlugin implements ResolverPlugin {
   }
 
   @override
-  Future<Result<List<ResolvedStream>, KumoriyaError>> resolve(Uri url) async {
+  Future<Result<ResolveResult, KumoriyaError>> resolve(Uri url) async {
     if (!supports(url)) {
       return Failure(
         JkPlayerUnsupportedHostError(
@@ -196,7 +196,7 @@ final class JkPlayerJkResolverPlugin implements ResolverPlugin {
       final streams = streamUrls
           .map((streamUrl) => _toResolvedStream(streamUrl, _baseUri))
           .toList(growable: false);
-      return Success(streams);
+      return Success(ResolveResult(streams: streams));
     } catch (error) {
       return Failure(
         JkPlayerTransportError(

@@ -35,7 +35,7 @@ final class ZillaResolverPlugin implements ResolverPlugin {
   }
 
   @override
-  Future<Result<List<ResolvedStream>, KumoriyaError>> resolve(Uri url) async {
+  Future<Result<ResolveResult, KumoriyaError>> resolve(Uri url) async {
     if (!supports(url)) {
       return Failure(
         ZillaUnsupportedHostError(
@@ -75,15 +75,19 @@ final class ZillaResolverPlugin implements ResolverPlugin {
         );
       }
 
-      return Success(<ResolvedStream>[
-        ResolvedStream(
-          url: playlistUrl,
-          qualityLabel: 'auto',
-          mimeType: 'application/vnd.apple.mpegurl',
-          isHls: true,
-          headers: _headers(url),
+      return Success(
+        ResolveResult(
+          streams: <ResolvedStream>[
+            ResolvedStream(
+              url: playlistUrl,
+              qualityLabel: 'auto',
+              mimeType: 'application/vnd.apple.mpegurl',
+              isHls: true,
+              headers: _headers(url),
+            ),
+          ],
         ),
-      ]);
+      );
     } catch (error) {
       return Failure(
         ZillaTransportError(message: 'Zilla resolve request failed: $error'),

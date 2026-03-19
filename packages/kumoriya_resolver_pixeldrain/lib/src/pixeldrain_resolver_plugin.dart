@@ -40,7 +40,7 @@ final class PixeldrainResolverPlugin implements ResolverPlugin {
   }
 
   @override
-  Future<Result<List<ResolvedStream>, KumoriyaError>> resolve(Uri url) async {
+  Future<Result<ResolveResult, KumoriyaError>> resolve(Uri url) async {
     if (!supports(url)) {
       return Failure(
         PixeldrainUnsupportedHostError(
@@ -51,7 +51,9 @@ final class PixeldrainResolverPlugin implements ResolverPlugin {
 
     final directApi = _extractApiUrlFromInput(url);
     if (directApi != null) {
-      return Success(<ResolvedStream>[_toResolved(directApi)]);
+      return Success(
+        ResolveResult(streams: <ResolvedStream>[_toResolved(directApi)]),
+      );
     }
 
     try {
@@ -86,7 +88,9 @@ final class PixeldrainResolverPlugin implements ResolverPlugin {
         );
       }
 
-      return Success(<ResolvedStream>[_toResolved(directUrl)]);
+      return Success(
+        ResolveResult(streams: <ResolvedStream>[_toResolved(directUrl)]),
+      );
     } catch (error) {
       return Failure(
         PixeldrainTransportError(

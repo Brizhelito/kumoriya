@@ -68,8 +68,8 @@ final class ResolveSourceServerLinkUseCase {
         );
         return Failure(error);
       },
-      onSuccess: (streams) {
-        if (streams.isEmpty) {
+      onSuccess: (resolveResult) {
+        if (resolveResult.streams.isEmpty) {
           _log(
             'resolve empty server=${sourceServerLink.serverName} resolver=${resolver.manifest.id}',
           );
@@ -81,15 +81,21 @@ final class ResolveSourceServerLinkUseCase {
             ),
           );
         }
+        // Merge subtitles: resolver-provided tracks take priority,
+        // source-provided tracks are appended as fallback.
+        final mergedSubtitles = <ExternalSubtitleTrack>[
+          ...resolveResult.externalSubtitles,
+          ...sourceServerLink.externalSubtitles,
+        ];
         _log(
-          'resolve success server=${sourceServerLink.serverName} resolver=${resolver.manifest.id} streams=${streams.length}',
+          'resolve success server=${sourceServerLink.serverName} resolver=${resolver.manifest.id} streams=${resolveResult.streams.length} subtitles=${mergedSubtitles.length}',
         );
         return Success(
           ResolvedServerLinkResult(
             resolverId: resolver.manifest.id,
             resolverName: resolver.manifest.displayName,
-            streams: streams,
-            externalSubtitles: sourceServerLink.externalSubtitles,
+            streams: resolveResult.streams,
+            externalSubtitles: mergedSubtitles,
           ),
         );
       },

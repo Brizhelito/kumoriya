@@ -56,7 +56,8 @@ void main() {
     expect(result.isSuccess, isTrue);
     result.fold(
       onFailure: (_) => fail('expected success'),
-      onSuccess: (streams) {
+      onSuccess: (result) {
+        final streams = result.streams;
         expect(streams, hasLength(1));
         expect(streams.single.isHls, isTrue);
         expect(

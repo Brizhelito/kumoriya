@@ -49,7 +49,8 @@ void main() {
     expect(result.isSuccess, isTrue);
     result.fold(
       onFailure: (_) => fail('expected success'),
-      onSuccess: (streams) {
+      onSuccess: (result) {
+        final streams = result.streams;
         expect(streams, hasLength(2));
         expect(streams.first.isHls, isTrue);
         expect(streams.first.url.host, endsWith('assetanalytics.cfd'));

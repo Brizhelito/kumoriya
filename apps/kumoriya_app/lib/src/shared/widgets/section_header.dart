@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+
+import '../../app/l10n.dart';
 import '../theme/kumoriya_theme.dart';
 
 /// Screen-level section header (L1).
@@ -8,22 +10,19 @@ class KumoriyaSectionHeader extends StatelessWidget {
     super.key,
     required this.title,
     this.onSeeAll,
-    this.seeAllLabel = 'See all',
+    this.seeAllLabel,
   });
 
   final String title;
   final VoidCallback? onSeeAll;
-  final String seeAllLabel;
+  final String? seeAllLabel;
 
   @override
   Widget build(BuildContext context) {
     return Row(
       children: [
         Expanded(
-          child: Text(
-            title,
-            style: Theme.of(context).textTheme.titleLarge,
-          ),
+          child: Text(title, style: Theme.of(context).textTheme.titleLarge),
         ),
         if (onSeeAll != null)
           TextButton(
@@ -35,7 +34,7 @@ class KumoriyaSectionHeader extends StatelessWidget {
               minimumSize: Size.zero,
               tapTargetSize: MaterialTapTargetSize.shrinkWrap,
             ),
-            child: Text(seeAllLabel),
+            child: Text(seeAllLabel ?? context.l10n.sectionSeeAll),
           ),
       ],
     );

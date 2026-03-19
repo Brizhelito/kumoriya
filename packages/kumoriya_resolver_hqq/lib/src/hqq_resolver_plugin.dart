@@ -39,7 +39,7 @@ final class HqqResolverPlugin implements ResolverPlugin {
   }
 
   @override
-  Future<Result<List<ResolvedStream>, KumoriyaError>> resolve(Uri url) async {
+  Future<Result<ResolveResult, KumoriyaError>> resolve(Uri url) async {
     if (!supports(url)) {
       return Failure(
         HqqUnsupportedHostError(
@@ -78,7 +78,10 @@ final class HqqResolverPlugin implements ResolverPlugin {
       );
 
       if (md5Result != null) {
-        return md5Result;
+        return md5Result.fold(
+          onSuccess: (s) => Success(ResolveResult(streams: s)),
+          onFailure: Failure.new,
+        );
       }
 
       final streams = _extractTrustedStreams(
@@ -108,7 +111,7 @@ final class HqqResolverPlugin implements ResolverPlugin {
         );
       }
 
-      return Success(streams);
+      return Success(ResolveResult(streams: streams));
     } catch (error) {
       return Failure(
         HqqTransportError(message: 'HQQ resolve request failed: $error'),

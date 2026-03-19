@@ -39,6 +39,7 @@ class KumoriyaCachedImage extends StatelessWidget {
     this.width,
     this.height,
     this.fit = BoxFit.cover,
+    this.alignment = Alignment.center,
     this.borderRadius,
     this.placeholder,
     this.errorFallback,
@@ -49,6 +50,7 @@ class KumoriyaCachedImage extends StatelessWidget {
   final double? width;
   final double? height;
   final BoxFit fit;
+  final Alignment alignment;
   final BorderRadius? borderRadius;
   final Widget? placeholder;
   final Widget? errorFallback;
@@ -64,6 +66,7 @@ class KumoriyaCachedImage extends StatelessWidget {
             width: width,
             height: height,
             fit: fit,
+            alignment: alignment,
             placeholder: (_, _) => placeholder ?? _placeholderBox(context),
             errorWidget: (_, _, _) => errorFallback ?? _fallbackBox(),
           );

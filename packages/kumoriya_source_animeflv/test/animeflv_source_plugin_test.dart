@@ -78,6 +78,88 @@ void main() {
     );
   });
 
+  test('search retries AnimeFLV after trailing parenthetical fallback', () async {
+    final requests = <String>[];
+    final plugin = AnimeFlvSourcePlugin(
+      httpClient: MockClient((request) async {
+        final query = request.url.queryParameters['q'] ?? '';
+        requests.add(query);
+
+        if (query == 'Naruto (TV)') {
+          return http.Response(
+            '<html><body><ul class="ListAnimes"></ul></body></html>',
+            200,
+          );
+        }
+
+        if (query == 'Naruto') {
+          return http.Response(
+            File(
+              '${fixtureDir.path}${Platform.pathSeparator}animeflv_search_naruto.html',
+            ).readAsStringSync(),
+            200,
+          );
+        }
+
+        return http.Response('unexpected query: $query', 500);
+      }),
+    );
+
+    final result = await plugin.search(
+      const SourceSearchQuery(query: 'Naruto (TV)'),
+    );
+
+    expect(requests, <String>['Naruto (TV)', 'Naruto']);
+    result.fold(
+      onFailure: (error) => fail('expected success, got ${error.message}'),
+      onSuccess: (matches) {
+        expect(matches, hasLength(2));
+        expect(matches.first.sourceId, 'naruto');
+      },
+    );
+  });
+
+  test('search retries AnimeFLV after slug spacing fallback', () async {
+    final requests = <String>[];
+    final plugin = AnimeFlvSourcePlugin(
+      httpClient: MockClient((request) async {
+        final query = request.url.queryParameters['q'] ?? '';
+        requests.add(query);
+
+        if (query == 'Naruto!!!') {
+          return http.Response(
+            '<html><body><ul class="ListAnimes"></ul></body></html>',
+            200,
+          );
+        }
+
+        if (query == 'naruto') {
+          return http.Response(
+            File(
+              '${fixtureDir.path}${Platform.pathSeparator}animeflv_search_naruto.html',
+            ).readAsStringSync(),
+            200,
+          );
+        }
+
+        return http.Response('unexpected query: $query', 500);
+      }),
+    );
+
+    final result = await plugin.search(
+      const SourceSearchQuery(query: 'Naruto!!!'),
+    );
+
+    expect(requests, <String>['Naruto!!!', 'naruto']);
+    result.fold(
+      onFailure: (error) => fail('expected success, got ${error.message}'),
+      onSuccess: (matches) {
+        expect(matches, hasLength(2));
+        expect(matches.first.sourceId, 'naruto');
+      },
+    );
+  });
+
   test('episodes parse from AnimeFLV detail script', () async {
     final plugin = AnimeFlvSourcePlugin(
       httpClient: MockClient((request) async {

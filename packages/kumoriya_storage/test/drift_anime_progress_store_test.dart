@@ -347,5 +347,36 @@ void main() {
           (stored as Success<PlaybackPreference?, KumoriyaError>).value;
       expect(value, isNull);
     });
+
+    test('clears all persisted playback preferences', () async {
+      await store.upsertPlaybackPreference(
+        PlaybackPreference(
+          anilistId: 904,
+          preferredSourcePluginId: 'kumoriya.source.animeflv',
+          updatedAt: DateTime(2025, 7, 4),
+        ),
+      );
+      await store.upsertPlaybackPreference(
+        PlaybackPreference(
+          anilistId: 905,
+          preferredSourcePluginId: 'kumoriya.source.animeav1',
+          updatedAt: DateTime(2025, 7, 4),
+        ),
+      );
+
+      final clearResult = await store.clearAllPlaybackPreferences();
+      expect(clearResult, isA<Success>());
+
+      final first = await store.getPlaybackPreference(904);
+      final second = await store.getPlaybackPreference(905);
+      expect(
+        (first as Success<PlaybackPreference?, KumoriyaError>).value,
+        isNull,
+      );
+      expect(
+        (second as Success<PlaybackPreference?, KumoriyaError>).value,
+        isNull,
+      );
+    });
   });
 }

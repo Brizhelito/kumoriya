@@ -46,7 +46,8 @@ void main() {
     expect(result.isSuccess, isTrue);
     result.fold(
       onFailure: (_) => fail('expected success'),
-      onSuccess: (streams) {
+      onSuccess: (result) {
+        final streams = result.streams;
         expect(streams, hasLength(2));
         expect(streams.where((stream) => stream.isHls), isNotEmpty);
         expect(
@@ -91,7 +92,8 @@ void main() {
     expect(result.isSuccess, isTrue);
     result.fold(
       onFailure: (_) => fail('expected success'),
-      onSuccess: (streams) {
+      onSuccess: (result) {
+        final streams = result.streams;
         expect(streams, hasLength(1));
         expect(streams.single.url.host, 'cdn.filemoon.sx');
         expect(streams.single.isHls, isTrue);

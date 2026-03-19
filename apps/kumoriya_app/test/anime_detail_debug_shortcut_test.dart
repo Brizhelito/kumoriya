@@ -87,6 +87,12 @@ final class _FakeAnimeProgressStore implements AnimeProgressStore {
   PlaybackPreference? currentPreference;
 
   @override
+  Future<Result<void, KumoriyaError>> clearAllPlaybackPreferences() async {
+    currentPreference = null;
+    return const Success(null);
+  }
+
+  @override
   Future<Result<void, KumoriyaError>> clearPlaybackPreference(
     int anilistId,
   ) async {

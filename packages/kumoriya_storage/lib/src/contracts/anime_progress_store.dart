@@ -107,4 +107,6 @@ abstract interface class AnimeProgressStore {
   );
 
   Future<Result<void, KumoriyaError>> clearPlaybackPreference(int anilistId);
+
+  Future<Result<void, KumoriyaError>> clearAllPlaybackPreferences();
 }

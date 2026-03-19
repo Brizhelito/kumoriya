@@ -41,9 +41,9 @@ final class NexusStreamToken {
   final String hash;
 
   /// Conservative expiration: timestamp + 300 seconds (5 minutes).
-  DateTime get expiresAt =>
-      DateTime.fromMillisecondsSinceEpoch(timestamp * 1000)
-          .add(const Duration(seconds: 300));
+  DateTime get expiresAt => DateTime.fromMillisecondsSinceEpoch(
+    timestamp * 1000,
+  ).add(const Duration(seconds: 300));
 
   Map<String, Object?> toMap() => <String, Object?>{
     'token': token,
@@ -59,8 +59,7 @@ final class NexusStreamToken {
     if (map['timestamp'] is int) {
       timestamp = map['timestamp'] as int;
     } else {
-      timestamp =
-          int.tryParse(map['timestamp']?.toString() ?? '') ?? 0;
+      timestamp = int.tryParse(map['timestamp']?.toString() ?? '') ?? 0;
     }
 
     hash = map['hash']?.toString() ?? '';

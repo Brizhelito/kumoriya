@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
@@ -5,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:kumoriya_core/kumoriya_core.dart';
 import 'package:kumoriya_domain/kumoriya_domain.dart';
+import 'package:kumoriya_plugins/kumoriya_plugins.dart';
 import 'package:kumoriya_storage/kumoriya_storage.dart';
 
 import '../../../../app/l10n.dart';
@@ -14,7 +17,10 @@ import '../../../../shared/widgets/kumoriya_cached_image.dart';
 import '../../../../shared/widgets/section_header.dart';
 import '../../../../shared/widgets/state_views.dart';
 import '../../application/models/episode_playback.dart';
+import '../../application/models/resolved_server_link_result.dart';
 import '../../application/models/source_availability.dart';
+import '../../../downloads/presentation/download_providers.dart';
+import '../../../player/presentation/pages/player_page.dart';
 import '../../../player/presentation/pages/anime_nexus_playground_page.dart';
 import '../providers/anime_catalog_providers.dart';
 import '../providers/storage_providers.dart';
@@ -322,6 +328,26 @@ class _TrendingRowState extends State<_TrendingRow> {
                             letterSpacing: 0.3,
                           ),
                         ),
+                        if (widget.anime.averageScore != null) ...<Widget>[
+                          const SizedBox(width: 6),
+                          Container(
+                            width: 3,
+                            height: 3,
+                            decoration: const BoxDecoration(
+                              color: KumoriyaColors.borderMedium,
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            '★ ${widget.anime.averageScore}',
+                            style: const TextStyle(
+                              fontSize: 11,
+                              color: KumoriyaColors.textDisabled,
+                              letterSpacing: 0.2,
+                            ),
+                          ),
+                        ],
                       ],
                     ),
                   ],
@@ -471,7 +497,7 @@ class _ContinueWatchingSectionState extends State<_ContinueWatchingSection> {
                 ),
                 const SizedBox(height: 14),
                 SizedBox(
-                  height: 163,
+                  height: 170,
                   child: Listener(
                     onPointerSignal: _handlePointerSignal,
                     child: ListView.separated(
@@ -501,7 +527,12 @@ class _ContinueWatchingSectionState extends State<_ContinueWatchingSection> {
 }
 
 class _NavArrow extends StatelessWidget {
-  const _NavArrow({super.key, required this.icon, required this.onTap, this.tooltip});
+  const _NavArrow({
+    super.key,
+    required this.icon,
+    required this.onTap,
+    this.tooltip,
+  });
 
   final IconData icon;
   final VoidCallback onTap;
@@ -559,12 +590,12 @@ class _ContinueWatchingCardWrapperState
         widget.fallbackAnime?.title.romaji ??
         detailState?.maybeWhen(
           data: (result) => result.fold(
-            onFailure: (_) => 'AniList #${widget.entry.anilistId}',
+            onFailure: (_) => context.l10n.loadingGeneric,
             onSuccess: (detail) => detail.anime.title.romaji,
           ),
-          orElse: () => 'AniList #${widget.entry.anilistId}',
+          orElse: () => context.l10n.loadingGeneric,
         ) ??
-        'AniList #${widget.entry.anilistId}';
+        context.l10n.loadingGeneric;
 
     final imageUrl =
         widget.fallbackAnime?.coverImageUrl ??
@@ -594,6 +625,16 @@ class _ContinueWatchingCardWrapperState
     var loaderShown = true;
 
     try {
+      final openedOffline = await _openDownloadedEpisodeIfAvailable(animeTitle);
+      if (!mounted) return;
+      if (openedOffline) {
+        if (loaderShown) {
+          hideBlockingLoader(context);
+          loaderShown = false;
+        }
+        return;
+      }
+
       final summary = await _loadResumeSummary();
       if (!mounted) return;
       if (summary == null) {
@@ -628,6 +669,49 @@ class _ContinueWatchingCardWrapperState
         setState(() => _isLaunching = false);
       }
     }
+  }
+
+  Future<bool> _openDownloadedEpisodeIfAvailable(String animeTitle) async {
+    final downloadTask = await ref
+        .read(downloadManagerProvider)
+        .findTaskByEpisode(
+          widget.entry.anilistId,
+          widget.entry.lastEpisodeNumber,
+        );
+    if (downloadTask == null ||
+        downloadTask.status != DownloadStatus.completed ||
+        downloadTask.filePath == null ||
+        downloadTask.filePath!.trim().isEmpty) {
+      return false;
+    }
+
+    final file = File(downloadTask.filePath!);
+    if (!await file.exists()) {
+      return false;
+    }
+
+    if (!mounted) {
+      return true;
+    }
+
+    await Navigator.of(context, rootNavigator: true).push(
+      MaterialPageRoute<void>(
+        builder: (_) => PlayerPage(
+          anilistId: widget.entry.anilistId,
+          animeTitle: animeTitle,
+          episodeNumber: widget.entry.lastEpisodeNumber.toInt().toString(),
+          sourcePluginId: downloadTask.sourcePluginId ?? 'offline',
+          serverName:
+              downloadTask.serverName ?? context.l10n.downloadedSourceLabel,
+          resolved: ResolvedServerLinkResult(
+            resolverId: 'offline',
+            resolverName: context.l10n.downloadedSourceLabel,
+            streams: <ResolvedStream>[ResolvedStream(url: file.uri)],
+          ),
+        ),
+      ),
+    );
+    return true;
   }
 
   Future<SourceAvailabilitySummary?> _loadResumeSummary() async {
@@ -693,27 +777,7 @@ class _AiringTodaySection extends StatelessWidget {
       data: (result) => result.fold(
         onFailure: (_) => const SizedBox.shrink(),
         onSuccess: (animeList) {
-          final now = DateTime.now();
-          final todayWeekday = now.weekday;
-
-          final todayAiring =
-              animeList
-                  .where((a) {
-                    if (a.status != AnimeStatus.releasing &&
-                        a.status != AnimeStatus.notYetReleased) {
-                      return false;
-                    }
-                    final nextAiringAt = a.nextAiringAt?.toLocal();
-                    if (nextAiringAt == null) return false;
-                    return nextAiringAt.weekday == todayWeekday &&
-                        nextAiringAt.difference(now).inDays.abs() < 7;
-                  })
-                  .toList(growable: false)
-                ..sort((a, b) {
-                  final aTime = a.nextAiringAt!;
-                  final bTime = b.nextAiringAt!;
-                  return aTime.compareTo(bTime);
-                });
+          final todayAiring = filterAiringTodayAnime(animeList, DateTime.now());
 
           if (todayAiring.isEmpty) return const SizedBox.shrink();
 
@@ -724,7 +788,9 @@ class _AiringTodaySection extends StatelessWidget {
               children: <Widget>[
                 Padding(
                   padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-                  child: KumoriyaSectionHeader(title: context.l10n.homeAiringToday),
+                  child: KumoriyaSectionHeader(
+                    title: context.l10n.homeAiringToday,
+                  ),
                 ),
                 SizedBox(
                   height: 120,
@@ -754,6 +820,55 @@ class _AiringTodaySection extends StatelessWidget {
       ),
     );
   }
+}
+
+@visibleForTesting
+DateTime startOfLocalDay(DateTime value) {
+  final local = value.toLocal();
+  return DateTime(local.year, local.month, local.day);
+}
+
+@visibleForTesting
+List<Anime> filterAiringTodayAnime(Iterable<Anime> animeList, DateTime now) {
+  final today = startOfLocalDay(now);
+
+  final filtered =
+      animeList
+          .where((anime) {
+            if (anime.status != AnimeStatus.releasing &&
+                anime.status != AnimeStatus.notYetReleased) {
+              return false;
+            }
+
+            final nextAiringAt = anime.nextAiringAt?.toLocal();
+            if (nextAiringAt == null) {
+              return false;
+            }
+
+            final airingDay = DateTime(
+              nextAiringAt.year,
+              nextAiringAt.month,
+              nextAiringAt.day,
+            );
+            return airingDay == today;
+          })
+          .toList(growable: false)
+        ..sort((left, right) {
+          final leftTime = left.nextAiringAt?.toLocal();
+          final rightTime = right.nextAiringAt?.toLocal();
+          if (leftTime == null && rightTime == null) {
+            return 0;
+          }
+          if (leftTime == null) {
+            return 1;
+          }
+          if (rightTime == null) {
+            return -1;
+          }
+          return leftTime.compareTo(rightTime);
+        });
+
+  return filtered;
 }
 
 class _AiringTodayCard extends StatefulWidget {

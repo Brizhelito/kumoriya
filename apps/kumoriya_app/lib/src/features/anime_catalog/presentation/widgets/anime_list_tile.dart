@@ -4,6 +4,7 @@ import 'package:kumoriya_domain/kumoriya_domain.dart';
 import '../../../../app/l10n.dart';
 import '../../../../shared/theme/kumoriya_theme.dart';
 import '../../../../shared/widgets/kumoriya_cached_image.dart';
+import '../../../../shared/widgets/meta_chip.dart';
 
 class AnimeListTile extends StatelessWidget {
   const AnimeListTile({super.key, required this.anime, required this.onTap});
@@ -14,10 +15,12 @@ class AnimeListTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      margin: const EdgeInsets.symmetric(vertical: 6),
       elevation: 0,
       color: KumoriyaColors.surface,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(KumoriyaRadius.xxl)),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(KumoriyaRadius.xxl),
+      ),
       child: InkWell(
         borderRadius: BorderRadius.circular(KumoriyaRadius.xxl),
         onTap: onTap,
@@ -44,11 +47,11 @@ class AnimeListTile extends StatelessWidget {
                       spacing: 6,
                       runSpacing: 6,
                       children: <Widget>[
-                        _MetaChip(label: anime.format.name.toUpperCase()),
+                        MetaChip(label: anime.format.name.toUpperCase()),
                         if (anime.releaseYear != null)
-                          _MetaChip(label: anime.releaseYear.toString()),
+                          MetaChip(label: anime.releaseYear.toString()),
                         if (anime.totalEpisodes != null)
-                          _MetaChip(
+                          MetaChip(
                             label: context.l10n.animeListEpisodesShort(
                               anime.totalEpisodes!,
                             ),
@@ -59,7 +62,10 @@ class AnimeListTile extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 12),
-              Icon(Icons.chevron_right_rounded, color: KumoriyaColors.textDisabled),
+              Icon(
+                Icons.chevron_right_rounded,
+                color: KumoriyaColors.textDisabled,
+              ),
             ],
           ),
         ),
@@ -80,7 +86,7 @@ class _CoverImage extends StatelessWidget {
         width: 68,
         height: 92,
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(KumoriyaRadius.lg),
           color: KumoriyaColors.borderSubtle,
         ),
         child: const Icon(Icons.movie_outlined),
@@ -93,34 +99,16 @@ class _CoverImage extends StatelessWidget {
       width: 68,
       height: 92,
       fit: BoxFit.cover,
-      borderRadius: BorderRadius.circular(16),
+      borderRadius: BorderRadius.circular(KumoriyaRadius.lg),
       errorFallback: Container(
         width: 68,
         height: 92,
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(KumoriyaRadius.lg),
           color: KumoriyaColors.borderSubtle,
         ),
         child: const Icon(Icons.broken_image_outlined),
       ),
-    );
-  }
-}
-
-class _MetaChip extends StatelessWidget {
-  const _MetaChip({required this.label});
-
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: KumoriyaColors.borderSubtle,
-        borderRadius: BorderRadius.circular(KumoriyaRadius.full),
-      ),
-      child: Text(label, style: Theme.of(context).textTheme.labelMedium),
     );
   }
 }

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kumoriya_domain/kumoriya_domain.dart';
@@ -19,25 +21,45 @@ class SearchPage extends ConsumerStatefulWidget {
 class _SearchPageState extends ConsumerState<SearchPage> {
   final TextEditingController _controller = TextEditingController();
   final FocusNode _focusNode = FocusNode();
+  Timer? _debounce;
   String _activeQuery = '';
   bool _searchFocused = false;
+
+  void _handleSearchFocusChange() {
+    setState(() => _searchFocused = _focusNode.hasFocus);
+  }
+
+  void _handleSearchTextChange() {
+    _debounce?.cancel();
+    final nextQuery = _controller.text.trim();
+    _debounce = Timer(const Duration(milliseconds: 280), () {
+      if (!mounted) {
+        return;
+      }
+      setState(() => _activeQuery = nextQuery);
+    });
+    setState(() {});
+  }
 
   @override
   void initState() {
     super.initState();
-    _focusNode.addListener(() {
-      setState(() => _searchFocused = _focusNode.hasFocus);
-    });
+    _focusNode.addListener(_handleSearchFocusChange);
+    _controller.addListener(_handleSearchTextChange);
   }
 
   @override
   void dispose() {
+    _debounce?.cancel();
+    _controller.removeListener(_handleSearchTextChange);
+    _focusNode.removeListener(_handleSearchFocusChange);
     _controller.dispose();
     _focusNode.dispose();
     super.dispose();
   }
 
   void _submit() {
+    _debounce?.cancel();
     final q = _controller.text.trim();
     setState(() => _activeQuery = q);
     _focusNode.unfocus();
@@ -92,6 +114,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
               child: _activeQuery.isEmpty
                   ? Center(
                       child: EmptyStateView(
+                        icon: Icons.search_rounded,
                         message: context.l10n.searchPromptShort,
                       ),
                     )
@@ -183,10 +206,10 @@ class _DarkSearchBar extends StatelessWidget {
                 fontSize: 15,
                 color: KumoriyaColors.textPrimary,
               ),
-              decoration: const InputDecoration(
+              decoration: InputDecoration(
                 border: InputBorder.none,
-                hintText: 'Search anime...',
-                hintStyle: TextStyle(
+                hintText: context.l10n.searchHintTitle,
+                hintStyle: const TextStyle(
                   color: KumoriyaColors.textDisabled,
                   fontSize: 15,
                 ),

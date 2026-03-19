@@ -28,4 +28,8 @@ class PlaybackPreferenceDao extends DatabaseAccessor<AppDatabase>
       playbackPreferenceTable,
     )..where((t) => t.anilistId.equals(anilistId))).go();
   }
+
+  Future<void> deleteAllPlaybackPreferences() {
+    return delete(playbackPreferenceTable).go();
+  }
 }

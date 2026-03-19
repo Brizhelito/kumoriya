@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:drift/native.dart';
 import 'package:kumoriya_app/l10n/generated/app_localizations.dart';
 import 'package:kumoriya_app/src/features/anime_catalog/application/models/source_availability.dart';
 import 'package:kumoriya_app/src/features/anime_catalog/presentation/pages/home_page.dart';
@@ -14,12 +15,23 @@ import 'package:kumoriya_plugins/kumoriya_plugins.dart';
 import 'package:kumoriya_storage/kumoriya_storage.dart';
 
 void main() {
+  late AppDatabase db;
+
+  setUp(() {
+    db = AppDatabase(NativeDatabase.memory());
+  });
+
+  tearDown(() async {
+    await db.close();
+  });
+
   testWidgets('home shows continue watching when one entry exists', (
     tester,
   ) async {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
+          appDatabaseProvider.overrideWithValue(db),
           homeCatalogProvider.overrideWith((ref) async => Success(_catalog)),
           continueWatchingProvider.overrideWith(
             (ref) async => Success(<AnimeWatchHistory>[_history]),
@@ -90,6 +102,7 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
+            appDatabaseProvider.overrideWithValue(db),
             animeProgressStoreProvider.overrideWithValue(store),
             homeCatalogProvider.overrideWith((ref) async => Success(_catalog)),
             continueWatchingProvider.overrideWith(
@@ -141,6 +154,7 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
+            appDatabaseProvider.overrideWithValue(db),
             animeProgressStoreProvider.overrideWithValue(store),
             homeCatalogProvider.overrideWith((ref) async => Success(_catalog)),
             continueWatchingProvider.overrideWith(
@@ -319,10 +333,10 @@ final class _ResumeFakeResolverPlugin implements ResolverPlugin {
   int get priority => 100;
 
   @override
-  Future<Result<List<ResolvedStream>, KumoriyaError>> resolve(Uri url) async {
-    return Success(<ResolvedStream>[
+  Future<Result<ResolveResult, KumoriyaError>> resolve(Uri url) async {
+    return Success(ResolveResult(streams: <ResolvedStream>[
       ResolvedStream(url: Uri.parse('https://cdn.example${url.path}.m3u8')),
-    ]);
+    ]));
   }
 
   @override
@@ -333,6 +347,12 @@ final class _FakeAnimeProgressStore implements AnimeProgressStore {
   _FakeAnimeProgressStore();
 
   PlaybackPreference? preference;
+
+  @override
+  Future<Result<void, KumoriyaError>> clearAllPlaybackPreferences() async {
+    preference = null;
+    return const Success(null);
+  }
 
   @override
   Future<Result<void, KumoriyaError>> clearPlaybackPreference(

@@ -5,6 +5,8 @@ import 'package:kumoriya_plugins/kumoriya_plugins.dart';
 import '../matching/anilist_source_matcher.dart';
 import '../models/source_availability.dart';
 
+enum _DirectBridgeKind { onaTvDrift, unknownFormat }
+
 final class CheckSourceAvailabilityUseCase {
   const CheckSourceAvailabilityUseCase({
     required SourcePlugin sourcePlugin,
@@ -40,6 +42,10 @@ final class CheckSourceAvailabilityUseCase {
       onSuccess: (value) => value,
     );
     var allCandidates = candidates;
+    var directlyConfirmedCandidateIds = <String>{};
+    SourceMatchDecision? directConfirmedExactTitleDecision;
+    SourceMatchDecision? groupedSeasonFallbackDecision;
+    SourceMatchDecision? directFormatBridgeDecision;
     var decision = _matcher.decideMatch(
       anilistDetail: anilistDetail,
       candidates: allCandidates,
@@ -49,12 +55,31 @@ final class CheckSourceAvailabilityUseCase {
       final directCandidates = await _probeDirectSlugCandidates(
         anilistDetail,
         existingCandidates: allCandidates,
+        searchCandidateSourceIds: allCandidates
+            .map((candidate) => candidate.sourceId)
+            .toList(),
       );
       if (directCandidates.isNotEmpty) {
-        allCandidates = <SourceAnimeMatch>[
-          ...allCandidates,
-          ...directCandidates,
-        ];
+        directlyConfirmedCandidateIds = directCandidates
+            .map((candidate) => candidate.sourceId.trim().toLowerCase())
+            .toSet();
+        directConfirmedExactTitleDecision =
+            _buildDirectConfirmedExactTitleDecision(
+              anilistDetail: anilistDetail,
+              directCandidates: directCandidates,
+            );
+        groupedSeasonFallbackDecision = _buildGroupedSeasonFallbackDecision(
+          anilistDetail: anilistDetail,
+          directCandidates: directCandidates,
+        );
+        directFormatBridgeDecision = _buildDirectFormatBridgeDecision(
+          anilistDetail: anilistDetail,
+          directCandidates: directCandidates,
+        );
+        allCandidates = _mergeCandidates(
+          existingCandidates: allCandidates,
+          resolvedCandidates: directCandidates,
+        );
         decision = _matcher.decideMatch(
           anilistDetail: anilistDetail,
           candidates: allCandidates,
@@ -62,21 +87,40 @@ final class CheckSourceAvailabilityUseCase {
       }
     }
 
-    if (!decision.verdict || decision.candidate == null) {
+    final acceptsDirectlyConfirmedReviewCandidate =
+        _acceptsDirectlyConfirmedReviewCandidate(
+          decision: decision,
+          directlyConfirmedCandidateIds: directlyConfirmedCandidateIds,
+        );
+    final fallbackDecision =
+        (!decision.verdict && directConfirmedExactTitleDecision != null)
+        ? directConfirmedExactTitleDecision
+        : (!decision.verdict && groupedSeasonFallbackDecision != null)
+        ? groupedSeasonFallbackDecision
+        : (!decision.verdict && directFormatBridgeDecision != null)
+        ? directFormatBridgeDecision
+        : null;
+    final resolvedDecision = fallbackDecision ?? decision;
+
+    if ((!resolvedDecision.verdict &&
+            !acceptsDirectlyConfirmedReviewCandidate) ||
+        resolvedDecision.candidate == null) {
       return SourceAvailability(
         manifest: _sourcePlugin.manifest,
         status: SourceAvailabilityStatus.unavailable,
-        decision: decision,
+        decision: resolvedDecision,
         unavailableReason:
-            decision.rejectionSignals.contains('ambiguous_runner_up') ||
-                decision.rejectionSignals.contains('ambiguous-top-candidates')
+            resolvedDecision.rejectionSignals.contains('ambiguous_runner_up') ||
+                resolvedDecision.rejectionSignals.contains(
+                  'ambiguous-top-candidates',
+                )
             ? SourceUnavailableReason.ambiguousMatch
             : SourceUnavailableReason.noMatch,
       );
     }
 
     final episodesResult = await _sourcePlugin.getEpisodes(
-      decision.candidate!.sourceId,
+      resolvedDecision.candidate!.sourceId,
     );
 
     return episodesResult.fold(
@@ -85,7 +129,7 @@ final class CheckSourceAvailabilityUseCase {
         status: error.kind == KumoriyaErrorKind.notFound
             ? SourceAvailabilityStatus.unavailable
             : SourceAvailabilityStatus.error,
-        decision: decision,
+        decision: resolvedDecision,
         unavailableReason: error.kind == KumoriyaErrorKind.notFound
             ? SourceUnavailableReason.noEpisodes
             : null,
@@ -98,20 +142,20 @@ final class CheckSourceAvailabilityUseCase {
           return SourceAvailability(
             manifest: _sourcePlugin.manifest,
             status: SourceAvailabilityStatus.unavailable,
-            decision: decision,
+            decision: resolvedDecision,
             unavailableReason: SourceUnavailableReason.noEpisodes,
           );
         }
         final alignedEpisodes = _alignEpisodesToRequestedSeason(
           anilistDetail: anilistDetail,
-          decision: decision,
+          decision: resolvedDecision,
           episodes: episodes,
         );
         return SourceAvailability(
           manifest: _sourcePlugin.manifest,
           status: SourceAvailabilityStatus.available,
-          decision: decision,
-          matchedAnime: decision.candidate,
+          decision: resolvedDecision,
+          matchedAnime: resolvedDecision.candidate,
           episodes: alignedEpisodes,
         );
       },
@@ -170,14 +214,21 @@ final class CheckSourceAvailabilityUseCase {
   Future<List<SourceAnimeMatch>> _probeDirectSlugCandidates(
     AnimeDetail anilistDetail, {
     required List<SourceAnimeMatch> existingCandidates,
+    List<String> searchCandidateSourceIds = const <String>[],
   }) async {
     final existingIds = existingCandidates
         .map((candidate) => candidate.sourceId.trim().toLowerCase())
         .toSet();
+    final probedSlugs = <String>{};
     final resolved = <SourceAnimeMatch>[];
 
-    for (final slug in _buildDirectSlugCandidates(anilistDetail)) {
-      if (!existingIds.add(slug)) {
+    final allSlugs = <String>[
+      ..._buildDirectSlugCandidates(anilistDetail),
+      ...searchCandidateSourceIds,
+    ];
+
+    for (final slug in allSlugs) {
+      if (!probedSlugs.add(slug)) {
         continue;
       }
 
@@ -186,6 +237,14 @@ final class CheckSourceAvailabilityUseCase {
         result.fold(
           onFailure: (_) {},
           onSuccess: (detail) {
+            final normalizedId = detail.sourceId.trim().toLowerCase();
+            if (!existingIds.add(normalizedId) &&
+                resolved.any(
+                  (candidate) =>
+                      candidate.sourceId.trim().toLowerCase() == normalizedId,
+                )) {
+              return;
+            }
             resolved.add(
               SourceAnimeMatch(
                 sourceId: detail.sourceId,
@@ -209,17 +268,258 @@ final class CheckSourceAvailabilityUseCase {
     return resolved;
   }
 
+  List<SourceAnimeMatch> _mergeCandidates({
+    required List<SourceAnimeMatch> existingCandidates,
+    required List<SourceAnimeMatch> resolvedCandidates,
+  }) {
+    final merged = <String, SourceAnimeMatch>{
+      for (final candidate in existingCandidates)
+        candidate.sourceId.trim().toLowerCase(): candidate,
+    };
+
+    for (final candidate in resolvedCandidates) {
+      merged[candidate.sourceId.trim().toLowerCase()] = candidate;
+    }
+
+    return merged.values.toList(growable: false);
+  }
+
+  bool _acceptsDirectlyConfirmedReviewCandidate({
+    required SourceMatchDecision decision,
+    required Set<String> directlyConfirmedCandidateIds,
+  }) {
+    final candidate = decision.candidate;
+    if (candidate == null || directlyConfirmedCandidateIds.isEmpty) {
+      return false;
+    }
+
+    final normalizedId = candidate.sourceId.trim().toLowerCase();
+    if (!directlyConfirmedCandidateIds.contains(normalizedId)) {
+      return false;
+    }
+
+    return decision.rejectionSignals.every(
+      (signal) =>
+          signal == 'ambiguous_runner_up' ||
+          signal == 'ambiguous-top-candidates',
+    );
+  }
+
+  SourceMatchDecision? _buildGroupedSeasonFallbackDecision({
+    required AnimeDetail anilistDetail,
+    required List<SourceAnimeMatch> directCandidates,
+  }) {
+    final canonicalTitle = anilistDetail.anime.title.romaji.trim();
+    final rootTitle = _stripSeasonDescriptor(canonicalTitle);
+    if (rootTitle.isEmpty || rootTitle == canonicalTitle) {
+      return null;
+    }
+
+    final normalizedRoot = _slugify(rootTitle);
+    for (final candidate in directCandidates) {
+      final normalizedCandidateTitle = _slugify(candidate.title);
+      if (normalizedCandidateTitle != normalizedRoot) {
+        continue;
+      }
+
+      return SourceMatchDecision(
+        verdict: true,
+        confidence: MatchConfidence.medium,
+        reason: 'Direct slug confirmation resolved to a grouped season title.',
+        acceptanceSignals: const <String>[
+          'grouped-season-title',
+          'direct-confirmed-grouped-season',
+        ],
+        rejectionSignals: const <String>[],
+        candidate: candidate,
+      );
+    }
+
+    return null;
+  }
+
+  SourceMatchDecision? _buildDirectConfirmedExactTitleDecision({
+    required AnimeDetail anilistDetail,
+    required List<SourceAnimeMatch> directCandidates,
+  }) {
+    final anime = anilistDetail.anime;
+    final canonicalYear = anime.releaseYear;
+    final queryTitles = _buildCandidateTitleSet(anime);
+
+    for (final candidate in directCandidates) {
+      if (canonicalYear != null &&
+          candidate.releaseYear != null &&
+          candidate.releaseYear != canonicalYear) {
+        continue;
+      }
+
+      if (!_matchesDirectExactTitle(queryTitles, candidate)) {
+        continue;
+      }
+
+      return SourceMatchDecision(
+        verdict: true,
+        confidence: MatchConfidence.medium,
+        reason:
+            'Direct detail confirmation resolved an exact canonical title or alias match.',
+        acceptanceSignals: const <String>[
+          'direct-confirmed-exact-title',
+          'direct-confirmed-alias-match',
+        ],
+        rejectionSignals: const <String>[],
+        candidate: candidate,
+      );
+    }
+
+    return null;
+  }
+
+  SourceMatchDecision? _buildDirectFormatBridgeDecision({
+    required AnimeDetail anilistDetail,
+    required List<SourceAnimeMatch> directCandidates,
+  }) {
+    final anime = anilistDetail.anime;
+    final canonicalYear = anime.releaseYear;
+    final queryTitles = _buildCandidateTitleSet(anime);
+
+    for (final candidate in directCandidates) {
+      final bridgeKind = _bridgeKindForDirectCandidate(
+        anime.format,
+        candidate.format,
+      );
+      if (bridgeKind == null) {
+        continue;
+      }
+      if (canonicalYear != null &&
+          candidate.releaseYear != null &&
+          candidate.releaseYear != canonicalYear) {
+        continue;
+      }
+      if (!_matchesDirectBridgeTitle(queryTitles, candidate.title)) {
+        continue;
+      }
+
+      return SourceMatchDecision(
+        verdict: true,
+        confidence: MatchConfidence.medium,
+        reason: switch (bridgeKind) {
+          _DirectBridgeKind.onaTvDrift =>
+            'Direct detail confirmation resolved a strong title match blocked only by ONA/TV source typing drift.',
+          _DirectBridgeKind.unknownFormat =>
+            'Direct detail confirmation resolved a strong title match where the source omitted reliable format metadata.',
+        },
+        acceptanceSignals: <String>[
+          'direct-confirmed-format-bridge',
+          switch (bridgeKind) {
+            _DirectBridgeKind.onaTvDrift => 'direct-confirmed-ona-tv-bridge',
+            _DirectBridgeKind.unknownFormat =>
+              'direct-confirmed-unknown-format-bridge',
+          },
+        ],
+        rejectionSignals: const <String>[],
+        candidate: candidate,
+      );
+    }
+
+    return null;
+  }
+
+  _DirectBridgeKind? _bridgeKindForDirectCandidate(
+    AnimeFormat queryFormat,
+    AnimeFormat candidateFormat,
+  ) {
+    if ((queryFormat == AnimeFormat.ona && candidateFormat == AnimeFormat.tv) ||
+        (queryFormat == AnimeFormat.tv && candidateFormat == AnimeFormat.ona)) {
+      return _DirectBridgeKind.onaTvDrift;
+    }
+    if (candidateFormat == AnimeFormat.unknown) {
+      return _DirectBridgeKind.unknownFormat;
+    }
+    return null;
+  }
+
+  bool _matchesDirectBridgeTitle(
+    Set<String> queryTitles,
+    String candidateTitle,
+  ) {
+    final normalizedCandidate = _slugify(candidateTitle);
+    if (normalizedCandidate.isEmpty) {
+      return false;
+    }
+
+    for (final queryTitle in queryTitles) {
+      final normalizedQuery = _slugify(queryTitle);
+      if (normalizedQuery.isEmpty) {
+        continue;
+      }
+
+      final tokenCount = queryTitle
+          .trim()
+          .split(RegExp(r'\s+'))
+          .where((part) => part.isNotEmpty)
+          .length;
+      final strongEnoughPrefix =
+          tokenCount >= 3 || normalizedQuery.length >= 16;
+      if (normalizedCandidate == normalizedQuery) {
+        return true;
+      }
+      if (strongEnoughPrefix &&
+          normalizedCandidate.startsWith('$normalizedQuery-')) {
+        return true;
+      }
+      if (strongEnoughPrefix && normalizedCandidate.contains(normalizedQuery)) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  bool _matchesDirectExactTitle(
+    Set<String> queryTitles,
+    SourceAnimeMatch candidate,
+  ) {
+    final normalizedQueries = queryTitles
+        .map(_slugify)
+        .where((title) => title.isNotEmpty)
+        .toSet();
+    final candidateTitles = <String>[candidate.title, ...candidate.aliases];
+
+    for (final title in candidateTitles) {
+      final normalizedTitle = _slugify(title);
+      if (normalizedTitle.isEmpty) {
+        continue;
+      }
+      if (normalizedQueries.contains(normalizedTitle)) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
   Future<Result<List<SourceAnimeMatch>, KumoriyaError>> _searchCandidates(
     AnimeDetail anilistDetail,
   ) async {
-    final queries = _buildSearchQueries(<String>{
-      anilistDetail.anime.title.romaji,
-      if (anilistDetail.anime.title.english != null)
-        anilistDetail.anime.title.english!,
-      if (anilistDetail.anime.title.native != null)
-        anilistDetail.anime.title.native!,
-      ...anilistDetail.anime.title.synonyms,
-    });
+    final allQueries = _buildSearchQueries(
+      _buildCandidateTitleSet(anilistDetail.anime),
+      anilistDetail.anime.format,
+    );
+    final totalEpisodes = anilistDetail.anime.totalEpisodes ?? 0;
+    final isLongAnime = totalEpisodes >= 80;
+    final isShortAnime = totalEpisodes > 0 && totalEpisodes <= 12;
+
+    final maxQueries = isLongAnime
+        ? allQueries.length
+        : isShortAnime
+        ? 3
+        : 5;
+    final queries = allQueries.take(maxQueries).toList(growable: false);
+    final earlyStopCandidateCount = isLongAnime
+        ? 28
+        : isShortAnime
+        ? 10
+        : 16;
 
     final seenIds = <String>{};
     final collected = <SourceAnimeMatch>[];
@@ -241,7 +541,7 @@ final class CheckSourceAvailabilityUseCase {
         },
       );
 
-      if (collected.length >= 10) {
+      if (collected.length >= earlyStopCandidateCount) {
         break;
       }
     }
@@ -257,7 +557,7 @@ final class CheckSourceAvailabilityUseCase {
     return const Success(<SourceAnimeMatch>[]);
   }
 
-  List<String> _buildSearchQueries(Set<String> rawTitles) {
+  List<String> _buildSearchQueries(Set<String> rawTitles, AnimeFormat format) {
     final ordered = <String>[];
     final seen = <String>{};
 
@@ -279,7 +579,7 @@ final class CheckSourceAvailabilityUseCase {
       });
 
     for (final title in prioritizedTitles) {
-      for (final variant in _expandQueryVariants(title)) {
+      for (final variant in _expandQueryVariants(title, format)) {
         addQuery(variant);
       }
     }
@@ -290,14 +590,10 @@ final class CheckSourceAvailabilityUseCase {
   List<String> _buildDirectSlugCandidates(AnimeDetail anilistDetail) {
     final candidates = <String>[];
     final seen = <String>{};
-    final queries = _buildSearchQueries(<String>{
-      anilistDetail.anime.title.romaji,
-      if (anilistDetail.anime.title.english != null)
-        anilistDetail.anime.title.english!,
-      if (anilistDetail.anime.title.native != null)
-        anilistDetail.anime.title.native!,
-      ...anilistDetail.anime.title.synonyms,
-    });
+    final queries = _buildSearchQueries(
+      _buildCandidateTitleSet(anilistDetail.anime),
+      anilistDetail.anime.format,
+    );
 
     void addSlug(String value) {
       final slug = _slugify(value);
@@ -322,7 +618,48 @@ final class CheckSourceAvailabilityUseCase {
     return candidates;
   }
 
-  List<String> _expandQueryVariants(String value) {
+  Set<String> _buildCandidateTitleSet(Anime anime) {
+    return <String>{
+      anime.title.romaji,
+      if (anime.title.english != null) anime.title.english!,
+      if (anime.title.native != null) anime.title.native!,
+      ...anime.title.synonyms,
+      ..._supplementalConfirmedTitleAliases(anime),
+    };
+  }
+
+  Iterable<String> _supplementalConfirmedTitleAliases(Anime anime) sync* {
+    switch (anime.anilistId) {
+      case 235:
+        if (!_hasTitleVariant(anime, 'Detective Conan')) {
+          yield 'Detective Conan';
+        }
+      case 187166:
+        if (!_hasTitleVariant(anime, 'Ganzo! Bandori-chan')) {
+          yield 'Ganzo! Bandori-chan';
+        }
+    }
+  }
+
+  bool _hasTitleVariant(Anime anime, String candidate) {
+    final normalizedCandidate = candidate.trim().toLowerCase();
+    final titles = <String?>[
+      anime.title.romaji,
+      anime.title.english,
+      anime.title.native,
+      ...anime.title.synonyms,
+    ];
+
+    for (final title in titles) {
+      if (title?.trim().toLowerCase() == normalizedCandidate) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  List<String> _expandQueryVariants(String value, AnimeFormat format) {
     final ordered = <String>[];
     final seen = <String>{};
 
@@ -337,7 +674,26 @@ final class CheckSourceAvailabilityUseCase {
       }
     }
 
+    void addBareTrailingSeasonVariants(String candidate) {
+      if (format != AnimeFormat.tv) {
+        return;
+      }
+
+      final bareTrailingSeason = _tryParseBareTrailingSeasonTitle(candidate);
+      if (bareTrailingSeason == null) {
+        return;
+      }
+
+      add(
+        '${bareTrailingSeason.rootTitle} ${_ordinal(bareTrailingSeason.seasonNumber)} Season',
+      );
+      add(
+        '${bareTrailingSeason.rootTitle} Season ${bareTrailingSeason.seasonNumber}',
+      );
+    }
+
     add(value);
+    addBareTrailingSeasonVariants(value);
     final withoutSeason = _stripSeasonDescriptor(value);
     add(withoutSeason);
     add(_swapSeasonNotation(value));
@@ -347,6 +703,7 @@ final class CheckSourceAvailabilityUseCase {
       withoutSeason,
     );
     add(withoutTrailingParenthetical);
+    addBareTrailingSeasonVariants(withoutTrailingParenthetical);
     add(_swapSeasonNotation(withoutTrailingParenthetical));
 
     final rootTitle = _extractRootTitle(withoutTrailingParenthetical);
@@ -357,6 +714,43 @@ final class CheckSourceAvailabilityUseCase {
     add(_extractRootPlusSuffixTitle(withoutTrailingParenthetical));
 
     return ordered;
+  }
+
+  ({String rootTitle, int seasonNumber})? _tryParseBareTrailingSeasonTitle(
+    String value,
+  ) {
+    final trimmed = value.trim();
+    if (trimmed.isEmpty || _hasExplicitSeasonDescriptor(trimmed)) {
+      return null;
+    }
+
+    final match = RegExp(r'^(.*\S)\s+(\d+)$').firstMatch(trimmed);
+    if (match == null) {
+      return null;
+    }
+
+    final rootTitle = match.group(1)!.trim();
+    final seasonNumber = int.tryParse(match.group(2) ?? '');
+    if (seasonNumber == null || seasonNumber < 2 || seasonNumber > 12) {
+      return null;
+    }
+
+    if (rootTitle.split(RegExp(r'\s+')).length < 2 || rootTitle.length < 6) {
+      return null;
+    }
+
+    if (RegExp(r'^\d+$').hasMatch(rootTitle)) {
+      return null;
+    }
+
+    return (rootTitle: rootTitle, seasonNumber: seasonNumber);
+  }
+
+  bool _hasExplicitSeasonDescriptor(String value) {
+    return RegExp(
+      r'\b(?:season|part|cour)\b',
+      caseSensitive: false,
+    ).hasMatch(value);
   }
 
   String _stripSeasonDescriptor(String value) {
@@ -495,6 +889,11 @@ final class CheckSourceAvailabilityUseCase {
     if (slug.contains('-kun')) {
       yield slug.replaceAll('-kun', 'kun');
     }
+    final bareTrailingSeasonSlug = _tryParseBareTrailingSeasonSlug(slug);
+    if (bareTrailingSeasonSlug != null) {
+      yield '${bareTrailingSeasonSlug.rootSlug}-${_ordinal(bareTrailingSeasonSlug.seasonNumber)}-season';
+      yield '${bareTrailingSeasonSlug.rootSlug}-season-${bareTrailingSeasonSlug.seasonNumber}';
+    }
     if (slug.contains('season-2')) {
       yield slug.replaceAll('season-2', '2nd-season');
     }
@@ -504,6 +903,37 @@ final class CheckSourceAvailabilityUseCase {
     if (slug.contains('season-4')) {
       yield slug.replaceAll('season-4', '4th-season');
     }
+  }
+
+  ({String rootSlug, int seasonNumber})? _tryParseBareTrailingSeasonSlug(
+    String slug,
+  ) {
+    final normalized = slug.trim().toLowerCase();
+    if (normalized.isEmpty ||
+        normalized.contains('season-') ||
+        normalized.contains('-season') ||
+        normalized.contains('part-') ||
+        normalized.contains('-part')) {
+      return null;
+    }
+
+    final match = RegExp(r'^(.*)-(\d+)$').firstMatch(normalized);
+    if (match == null) {
+      return null;
+    }
+
+    final rootSlug = match.group(1)!.trim();
+    final seasonNumber = int.tryParse(match.group(2) ?? '');
+    if (seasonNumber == null || seasonNumber < 2 || seasonNumber > 12) {
+      return null;
+    }
+
+    if (rootSlug.split('-').length < 2 ||
+        rootSlug.replaceAll('-', '').length < 6) {
+      return null;
+    }
+
+    return (rootSlug: rootSlug, seasonNumber: seasonNumber);
   }
 
   String _slugify(String value) {

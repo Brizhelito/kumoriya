@@ -64,7 +64,7 @@ final class FilemoonResolverPlugin implements ResolverPlugin {
   }
 
   @override
-  Future<Result<List<ResolvedStream>, KumoriyaError>> resolve(Uri url) async {
+  Future<Result<ResolveResult, KumoriyaError>> resolve(Uri url) async {
     if (!supports(url)) {
       return Failure(
         FilemoonUnsupportedHostError(
@@ -106,7 +106,10 @@ final class FilemoonResolverPlugin implements ResolverPlugin {
             httpClient: _httpClient,
           );
           if (dynamicResult != null) {
-            return dynamicResult;
+            return dynamicResult.fold(
+              onSuccess: (s) => Success(ResolveResult(streams: s)),
+              onFailure: Failure.new,
+            );
           }
         }
 
@@ -135,7 +138,7 @@ final class FilemoonResolverPlugin implements ResolverPlugin {
         );
       }
 
-      return Success(streams);
+      return Success(ResolveResult(streams: streams));
     } catch (error) {
       return Failure(
         FilemoonTransportError(

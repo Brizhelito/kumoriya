@@ -80,10 +80,7 @@ class EmptyStateView extends StatelessWidget {
               ),
               if (onAction != null && actionLabel != null) ...[
                 const SizedBox(height: 20),
-                FilledButton(
-                  onPressed: onAction,
-                  child: Text(actionLabel!),
-                ),
+                FilledButton(onPressed: onAction, child: Text(actionLabel!)),
               ],
             ],
           ),
@@ -94,11 +91,7 @@ class EmptyStateView extends StatelessWidget {
 }
 
 class ErrorStateView extends StatelessWidget {
-  const ErrorStateView({
-    super.key,
-    required this.message,
-    this.onRetry,
-  });
+  const ErrorStateView({super.key, required this.message, this.onRetry});
 
   final String message;
   final VoidCallback? onRetry;

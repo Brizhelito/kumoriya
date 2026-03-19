@@ -61,7 +61,7 @@ final class AnimeNexusResolverPlugin implements ResolverPlugin {
   }
 
   @override
-  Future<Result<List<ResolvedStream>, KumoriyaError>> resolve(Uri url) async {
+  Future<Result<ResolveResult, KumoriyaError>> resolve(Uri url) async {
     if (!supports(url)) {
       return Failure(
         AnimeNexusUnsupportedHostError(
@@ -123,8 +123,19 @@ final class AnimeNexusResolverPlugin implements ResolverPlugin {
             );
           }
 
-          _log('resolve success url=$url streams=${streams.length}');
-          return Success(streams);
+          final subtitleTracks = await _buildSubtitleTracks(
+            subtitles: streamData.subtitles,
+            episodeId: episodeId,
+            cookieHeader: streamData.cookieHeader,
+            fingerprint: browserSession.fingerprint,
+          );
+          _log(
+            'resolve success url=$url streams=${streams.length} '
+            'subtitles=${subtitleTracks.length}',
+          );
+          return Success(
+            ResolveResult(streams: streams, externalSubtitles: subtitleTracks),
+          );
         } on NexusPlaybackSessionWorkerException catch (error) {
           _log(
             'resolve worker-error attempt=$attempt message=${error.message}',
@@ -215,6 +226,77 @@ final class AnimeNexusResolverPlugin implements ResolverPlugin {
     final normalized = message.toLowerCase();
     return normalized.contains('websocket auth failed') ||
         normalized.contains('authentication failed');
+  }
+
+  /// Converts [NexusSubtitle] entries from the stream API into
+  /// [ExternalSubtitleTrack] instances, fetching the VTT content inline
+  /// when possible so media_kit can use the data payload directly.
+  Future<List<ExternalSubtitleTrack>> _buildSubtitleTracks({
+    required List<NexusSubtitle> subtitles,
+    required String episodeId,
+    required String? cookieHeader,
+    required String fingerprint,
+  }) async {
+    if (subtitles.isEmpty) return const <ExternalSubtitleTrack>[];
+
+    final tracks = <ExternalSubtitleTrack>[];
+    for (final sub in subtitles) {
+      final rawUri = Uri.tryParse(sub.src);
+      if (rawUri == null) continue;
+
+      final uri = rawUri.hasScheme
+          ? rawUri
+          : Uri.parse(NexusConstants.apiBase).resolveUri(rawUri);
+
+      final data = await _fetchSubtitleData(
+        uri: uri,
+        episodeId: episodeId,
+        cookieHeader: cookieHeader,
+        fingerprint: fingerprint,
+      );
+
+      tracks.add(
+        ExternalSubtitleTrack(
+          id: 'subtitle-${tracks.length}',
+          label: sub.label,
+          language: sub.srcLang,
+          uri: data == null ? uri : null,
+          data: data,
+          isDefault: tracks.isEmpty,
+        ),
+      );
+    }
+    return tracks;
+  }
+
+  /// Fetches VTT/SRT content from [uri] using the authenticated session.
+  Future<String?> _fetchSubtitleData({
+    required Uri uri,
+    required String episodeId,
+    required String? cookieHeader,
+    required String fingerprint,
+  }) async {
+    try {
+      final response = await _dio.get<String>(
+        uri.toString(),
+        options: Options(
+          responseType: ResponseType.plain,
+          headers: <String, String>{
+            'Accept': 'text/vtt,text/plain,application/x-subrip,*/*',
+            'Referer': '${NexusConstants.mainBase}/watch/$episodeId',
+            'Origin': NexusConstants.mainBase,
+            'x-client-fingerprint': fingerprint,
+            'x-fingerprint': fingerprint,
+            if (cookieHeader != null) 'Cookie': cookieHeader,
+          },
+        ),
+      );
+      final body = response.data?.trim();
+      if (body == null || body.isEmpty) return null;
+      return body;
+    } catch (_) {
+      return null;
+    }
   }
 
   void _log(String message) {

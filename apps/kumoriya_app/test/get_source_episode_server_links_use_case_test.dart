@@ -132,7 +132,7 @@ final class _FakeResolver implements ResolverPlugin {
   int get priority => 100;
 
   @override
-  Future<Result<List<ResolvedStream>, KumoriyaError>> resolve(Uri url) async {
+  Future<Result<ResolveResult, KumoriyaError>> resolve(Uri url) async {
     throw UnimplementedError();
   }
 

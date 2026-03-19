@@ -56,7 +56,8 @@ void main() {
     expect(result.isSuccess, isTrue);
     result.fold(
       onFailure: (_) => fail('expected success'),
-      onSuccess: (streams) {
+      onSuccess: (result) {
+        final streams = result.streams;
         expect(streams, hasLength(2));
         expect(streams.where((stream) => stream.isHls), isNotEmpty);
         expect(
@@ -82,7 +83,8 @@ void main() {
     expect(result.isSuccess, isTrue);
     result.fold(
       onFailure: (_) => fail('expected success'),
-      onSuccess: (streams) {
+      onSuccess: (result) {
+        final streams = result.streams;
         expect(streams, isNotEmpty);
         expect(streams.single.url.toString(), contains('master.m3u8'));
         expect(streams.single.isHls, isTrue);
@@ -118,7 +120,8 @@ void main() {
       );
       result.fold(
         onFailure: (_) => fail('expected success'),
-        onSuccess: (streams) {
+        onSuccess: (result) {
+          final streams = result.streams;
           expect(streams, isNotEmpty);
           expect(streams.single.url.toString(), contains('master.m3u8'));
         },

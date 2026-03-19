@@ -7,6 +7,7 @@ import 'package:kumoriya_plugins/kumoriya_plugins.dart';
 import 'package:kumoriya_storage/kumoriya_storage_flutter.dart';
 
 import 'package:kumoriya_app/src/app/kumoriya_app.dart';
+import 'package:kumoriya_app/src/features/anime_catalog/application/models/source_availability.dart';
 import 'package:kumoriya_app/src/features/anime_catalog/presentation/providers/anime_catalog_providers.dart';
 import 'package:kumoriya_app/src/features/anime_catalog/presentation/providers/storage_providers.dart';
 
@@ -22,11 +23,21 @@ void main() {
         _SecondarySourcePlugin(),
       ];
 
+      final summary = SourceAvailabilitySummary(
+        sources: <SourceAvailability>[
+          _fakeAvailability(const _PrimarySourcePlugin().manifest),
+          _fakeAvailability(const _SecondarySourcePlugin().manifest),
+        ],
+      );
+
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
             animeCatalogRepositoryProvider.overrideWithValue(fakeRepository),
             sourcePluginsProvider.overrideWithValue(fakeSourcePlugins),
+            sourceAvailabilitySummaryProvider.overrideWith(
+              (ref, anilistId) async => Success(summary),
+            ),
             appDatabaseProvider.overrideWithValue(db),
           ],
           child: const KumoriyaApp(),
@@ -40,15 +51,12 @@ void main() {
       await tester.tap(find.text('Frieren').first);
       await tester.pumpAndSettle();
 
-      expect(find.textContaining('Ready in'), findsOneWidget);
-      expect(find.text('JKAnime'), findsOneWidget);
-      expect(find.text('AnimeAV1'), findsOneWidget);
-
-      // Episodes are inline on the detail page (no separate tab).
-      // Scroll down to reach the episode section.
+      // Scroll down to reach the episode section (source badges are there).
       await tester.drag(find.byType(CustomScrollView), const Offset(0, -400));
       await tester.pumpAndSettle();
 
+      expect(find.text('JKAnime'), findsOneWidget);
+      expect(find.text('AnimeAV1'), findsOneWidget);
       expect(find.text('Episode preview'), findsOneWidget);
       expect(find.text('Play now'), findsWidgets);
     },
@@ -63,12 +71,21 @@ void main() {
     const fakeSourcePlugins = <SourcePlugin>[_MultiServerSourcePlugin()];
     const fakeResolverPlugins = <ResolverPlugin>[_FakeResolverPlugin()];
 
+    final summary = SourceAvailabilitySummary(
+      sources: <SourceAvailability>[
+        _fakeAvailability(const _MultiServerSourcePlugin().manifest),
+      ],
+    );
+
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
           animeCatalogRepositoryProvider.overrideWithValue(fakeRepository),
           sourcePluginsProvider.overrideWithValue(fakeSourcePlugins),
           resolverPluginsProvider.overrideWithValue(fakeResolverPlugins),
+          sourceAvailabilitySummaryProvider.overrideWith(
+            (ref, anilistId) async => Success(summary),
+          ),
           appDatabaseProvider.overrideWithValue(db),
         ],
         child: const KumoriyaApp(),
@@ -78,9 +95,6 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('Frieren').first);
     await tester.pumpAndSettle();
-
-    // Source availability should have resolved with playable sources.
-    expect(find.textContaining('Ready in'), findsOneWidget);
 
     // Scroll until a 'Play now' label becomes visible (sliver-lazy build).
     await tester.scrollUntilVisible(
@@ -112,6 +126,12 @@ void main() {
     final db = openInMemoryDatabase();
     addTearDown(db.close);
 
+    final summary = SourceAvailabilitySummary(
+      sources: <SourceAvailability>[
+        _fakeAvailability(const _PrimarySourcePlugin().manifest),
+      ],
+    );
+
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
@@ -119,6 +139,9 @@ void main() {
           sourcePluginsProvider.overrideWithValue(const <SourcePlugin>[
             _PrimarySourcePlugin(),
           ]),
+          sourceAvailabilitySummaryProvider.overrideWith(
+            (ref, anilistId) async => Success(summary),
+          ),
           appDatabaseProvider.overrideWithValue(db),
         ],
         child: const KumoriyaApp(),
@@ -129,7 +152,12 @@ void main() {
     await tester.tap(find.text('Frieren').first);
     await tester.pumpAndSettle();
 
-    expect(find.textContaining('Disponible en'), findsOneWidget);
+    // Scroll down to reach source badges in the episode section.
+    await tester.drag(find.byType(CustomScrollView), const Offset(0, -400));
+    await tester.pumpAndSettle();
+
+    // Source badges should be visible (in Spanish locale).
+    expect(find.text('JKAnime'), findsOneWidget);
   });
 
   testWidgets('calendar groups airing anime by weekday', (tester) async {
@@ -154,11 +182,22 @@ void main() {
     await tester.tap(find.text('Calendar'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Monday'), findsOneWidget);
-    expect(find.text('Tuesday'), findsOneWidget);
-    expect(find.text('Unknown schedule'), findsOneWidget);
+    // Tab labels are visible
+    expect(find.text('MON'), findsOneWidget);
+    expect(find.text('TUE'), findsOneWidget);
+    expect(find.text('?'), findsOneWidget);
+
+    // Tap each tab to verify content
+    await tester.tap(find.text('MON'));
+    await tester.pumpAndSettle();
     expect(find.text('Frieren'), findsOneWidget);
+
+    await tester.tap(find.text('TUE'));
+    await tester.pumpAndSettle();
     expect(find.text('Dandadan'), findsOneWidget);
+
+    await tester.tap(find.text('?'));
+    await tester.pumpAndSettle();
     expect(find.text('One Punch Man 3'), findsOneWidget);
   });
 }
@@ -418,9 +457,31 @@ final class _FakeResolverPlugin implements ResolverPlugin {
   bool supports(Uri url) => _supportedHosts.contains(url.host);
 
   @override
-  Future<Result<List<ResolvedStream>, KumoriyaError>> resolve(Uri url) async {
-    return Success(<ResolvedStream>[
+  Future<Result<ResolveResult, KumoriyaError>> resolve(Uri url) async {
+    return Success(ResolveResult(streams: <ResolvedStream>[
       ResolvedStream(url: Uri.parse('https://cdn.example.com/video.mp4')),
-    ]);
+    ]));
   }
+}
+
+SourceAvailability _fakeAvailability(PluginManifest manifest) {
+  return SourceAvailability(
+    manifest: manifest,
+    status: SourceAvailabilityStatus.available,
+    decision: const SourceMatchDecision(
+      verdict: true,
+      confidence: MatchConfidence.high,
+      reason: 'fake',
+      acceptanceSignals: <String>[],
+      rejectionSignals: <String>[],
+    ),
+    episodes: <SourceEpisode>[
+      SourceEpisode(
+        sourceEpisodeId: '1',
+        number: 1,
+        title: 'Episode 1',
+        episodeUrl: Uri.parse('https://example.com/1'),
+      ),
+    ],
+  );
 }

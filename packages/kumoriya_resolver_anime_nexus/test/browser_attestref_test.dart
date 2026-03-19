@@ -22,23 +22,22 @@ void main() {
     const browserFingerprint = '90843c4d-cfd1-4fab-8d84-f2b99ae1678f';
     const episodeId = '019b9e8f-edf6-71a7-87c5-c45f64297245';
 
-    final dio = Dio(BaseOptions(
-      connectTimeout: const Duration(seconds: 15),
-      receiveTimeout: const Duration(seconds: 30),
-      headers: <String, String>{
-        'User-Agent': NexusConstants.userAgent,
-      },
-    ));
+    final dio = Dio(
+      BaseOptions(
+        connectTimeout: const Duration(seconds: 15),
+        receiveTimeout: const Duration(seconds: 30),
+        headers: <String, String>{'User-Agent': NexusConstants.userAgent},
+      ),
+    );
 
     // We need a fresh m3u8Url — use the browser's fingerprint
     print('[step-1] fetch stream data with browser fingerprint...');
     final session = NexusBrowserSession.withValues(
       fingerprint: browserFingerprint,
     );
-    final streamData = await NexusStreamDataFetcher(dio).fetch(
-      episodeId: episodeId,
-      session: session,
-    );
+    final streamData = await NexusStreamDataFetcher(
+      dio,
+    ).fetch(episodeId: episodeId, session: session);
     print('[step-1] hlsUrl=${streamData.hlsUrl}');
 
     print('\n[step-2] WS connect with browser attestRef...');
@@ -61,8 +60,10 @@ void main() {
       HttpHeaders.userAgentHeader: NexusConstants.userAgent,
     };
 
-    final socket =
-        await WebSocket.connect(wsUri.toString(), headers: wsHeaders);
+    final socket = await WebSocket.connect(
+      wsUri.toString(),
+      headers: wsHeaders,
+    );
     print('[step-2] connected');
 
     final authResult = Completer<String>();

@@ -2,6 +2,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kumoriya_core/kumoriya_core.dart';
 import 'package:kumoriya_storage/kumoriya_storage.dart';
 
+import '../../../downloads/application/download_aniskip_file_store.dart';
+import '../../../downloads/application/download_directory_service.dart';
+
 final appDatabaseProvider = Provider<AppDatabase>((ref) {
   throw UnimplementedError(
     'AppDatabase must be overridden at ProviderScope level via openAppDatabase().',
@@ -11,6 +14,14 @@ final appDatabaseProvider = Provider<AppDatabase>((ref) {
 final animeProgressStoreProvider = Provider<AnimeProgressStore>((ref) {
   final db = ref.watch(appDatabaseProvider);
   return DriftAnimeProgressStore(db);
+});
+
+final aniSkipCacheStoreProvider = Provider<AniSkipCacheStore>((ref) {
+  return DownloadAniSkipFileStore(
+    directoryService: DownloadDirectoryService(
+      store: FileDownloadDirectoryStore(),
+    ),
+  );
 });
 
 final sourceAvailabilityStoreProvider = Provider<SourceAvailabilityStore>((

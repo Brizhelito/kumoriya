@@ -51,12 +51,13 @@ void main() {
       expect(result.isSuccess, isTrue);
       result.fold(
         onFailure: (_) => fail('expected success'),
-        onSuccess: (streams) {
+        onSuccess: (result) {
+          final streams = result.streams;
           expect(streams, hasLength(3));
           expect(streams.first.isHls, isTrue);
           expect(streams.first.url.path, '/video.m3u8');
-          expect(streams[1].qualityLabel, 'mobile');
-          expect(streams[2].qualityLabel, 'sd');
+          expect(streams[1].qualityLabel, '144p');
+          expect(streams[2].qualityLabel, '480p');
         },
       );
     },
