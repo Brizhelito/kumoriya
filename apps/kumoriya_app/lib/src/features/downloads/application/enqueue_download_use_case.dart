@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:developer' as developer;
 import 'dart:io';
 
@@ -6,6 +7,7 @@ import 'package:kumoriya_plugins/kumoriya_plugins.dart';
 import 'package:kumoriya_storage/kumoriya_storage.dart';
 
 import '../../anime_catalog/application/use_cases/resolve_source_server_link_use_case.dart';
+import 'download_cover_service.dart';
 import 'download_identity.dart';
 import 'download_manager_service.dart';
 
@@ -14,11 +16,14 @@ class EnqueueDownloadUseCase {
   const EnqueueDownloadUseCase({
     required DownloadManagerService downloadManager,
     required ResolveSourceServerLinkUseCase resolveUseCase,
+    DownloadCoverService? coverService,
   }) : _downloadManager = downloadManager,
-       _resolveUseCase = resolveUseCase;
+       _resolveUseCase = resolveUseCase,
+       _coverService = coverService;
 
   final DownloadManagerService _downloadManager;
   final ResolveSourceServerLinkUseCase _resolveUseCase;
+  final DownloadCoverService? _coverService;
 
   /// Enqueue a single episode download. Resolves the [serverLink] to get a
   /// direct stream URL, picks the best quality (or the one matching
@@ -30,7 +35,10 @@ class EnqueueDownloadUseCase {
     String? preferredQuality,
     String? sourcePluginId,
     String? animeTitle,
+    String? coverImageUrl,
   }) async {
+    // Persist cover image for offline display (best-effort, non-blocking).
+    unawaited(_coverService?.ensureCover(anilistId, coverImageUrl));
     _log(
       'enqueue(anime=$anilistId, ep=$episodeNumber, '
       'server=${serverLink.serverName})',

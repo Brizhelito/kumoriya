@@ -553,5 +553,12 @@
   "settingsSubtitleMedium": "M",
   "settingsSubtitleLarge": "G",
   "settingsSubtitleExtraLarge": "XG",
-  "settingsSubtitleBackground": "Mostrar fondo detrás de los subtítulos"
+  "settingsSubtitleBackground": "Mostrar fondo detrás de los subtítulos",
+  "playerSkipIntro": "Saltar intro",
+  "playerSkipCredits": "Saltar créditos",
+  "clearSearch": "Borrar búsqueda",
+  "sourceServerLinksEmpty": "No hay enlaces de servidor disponibles para este episodio.",
+  "downloadDeleteConfirmTitle": "¿Eliminar descarga?",
+  "downloadDeleteConfirmMessage": "Este episodio descargado será eliminado permanentemente de tu dispositivo.",
+  "cancelAction": "Cancelar"
 }

@@ -59,10 +59,10 @@ class _ContinueWatchingCardState extends State<ContinueWatchingCard> {
                   fit: StackFit.expand,
                   children: <Widget>[
                     AnimatedOpacity(
-                      opacity: _hovered ? 0.88 : 0.72,
+                      opacity: _hovered ? 0.80 : 0.60,
                       duration: const Duration(milliseconds: 300),
                       child: AnimatedScale(
-                        scale: _hovered ? 1.04 : 1.0,
+                        scale: _hovered ? 1.05 : 1.0,
                         duration: const Duration(milliseconds: 500),
                         curve: Curves.easeOutCubic,
                         child: KumoriyaCachedImage(
@@ -93,12 +93,12 @@ class _ContinueWatchingCardState extends State<ContinueWatchingCard> {
                           _EpisodePill(epNumber: epNumber),
                           const Spacer(),
                           if (widget.isLaunching)
-                            const SizedBox(
+                            SizedBox(
                               width: 20,
                               height: 20,
                               child: CircularProgressIndicator(
                                 strokeWidth: 2,
-                                color: Colors.white,
+                                color: KumoriyaColors.textPrimary,
                               ),
                             ),
                         ],
@@ -134,22 +134,18 @@ class _ContinueWatchingCardState extends State<ContinueWatchingCard> {
                               widget.title,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w800,
-                                color: KumoriyaColors.textPrimary,
-                              ),
+                              style: Theme.of(context).textTheme.labelMedium!
+                                  .copyWith(
+                                    color: KumoriyaColors.textSecondary,
+                                  ),
                             ),
                             const SizedBox(height: 3),
                             Text(
                               '${context.l10n.continueWatchingEpisode(epNumber)} · $progressPercent%',
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                fontSize: 10,
-                                fontWeight: FontWeight.w600,
-                                color: KumoriyaColors.textMuted,
-                              ),
+                              style: Theme.of(context).textTheme.titleSmall!
+                                  .copyWith(color: KumoriyaColors.textPrimary),
                             ),
                           ],
                         ),
@@ -196,7 +192,7 @@ class _EpisodePill extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: KumoriyaColors.primary,
+        color: KumoriyaColors.primaryContainer,
         borderRadius: BorderRadius.circular(KumoriyaRadius.sm),
         boxShadow: <BoxShadow>[
           BoxShadow(
@@ -210,7 +206,7 @@ class _EpisodePill extends StatelessWidget {
         style: const TextStyle(
           fontSize: 9,
           fontWeight: FontWeight.w800,
-          color: Colors.white,
+          color: KumoriyaColors.textPrimary,
           letterSpacing: 0.8,
         ),
       ),
@@ -235,40 +231,37 @@ class _ResumeButton extends StatelessWidget {
       TargetPlatform.fuchsia => false,
     };
 
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        height: compact ? (desktop ? 36 : 40) : (desktop ? 44 : 50),
-        width: compact ? (desktop ? 112 : 118) : double.infinity,
-        decoration: BoxDecoration(
-          color: KumoriyaColors.primary,
-          borderRadius: BorderRadius.circular(KumoriyaRadius.lg),
-          boxShadow: <BoxShadow>[
-            BoxShadow(
-              color: KumoriyaColors.primary.withValues(alpha: 0.30),
-              blurRadius: 10,
-            ),
-          ],
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: <Widget>[
-            Icon(
-              Icons.play_arrow_rounded,
-              color: Colors.white,
-              size: compact ? (desktop ? 16 : 18) : (desktop ? 18 : 20),
-            ),
-            SizedBox(width: compact ? 4 : 6),
-            Text(
-              context.l10n.resumeLabel,
-              style: TextStyle(
-                fontSize: compact ? (desktop ? 10 : 11) : (desktop ? 11 : 12),
-                fontWeight: FontWeight.w800,
-                color: Colors.white,
-                letterSpacing: compact ? 0.8 : 1.2,
+    return Material(
+      color: KumoriyaColors.primary,
+      borderRadius: BorderRadius.circular(KumoriyaRadius.lg),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(KumoriyaRadius.lg),
+        onTap: onTap,
+        splashColor: KumoriyaColors.primaryLight.withValues(alpha: 0.30),
+        child: Container(
+          height: compact ? (desktop ? 36 : 40) : (desktop ? 44 : 50),
+          width: compact ? (desktop ? 112 : 118) : double.infinity,
+          alignment: Alignment.center,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: <Widget>[
+              Icon(
+                Icons.play_arrow_rounded,
+                color: KumoriyaColors.textPrimary,
+                size: compact ? (desktop ? 16 : 18) : (desktop ? 18 : 20),
               ),
-            ),
-          ],
+              SizedBox(width: compact ? 4 : 6),
+              Text(
+                context.l10n.resumeLabel,
+                style: TextStyle(
+                  fontSize: compact ? (desktop ? 10 : 11) : (desktop ? 11 : 12),
+                  fontWeight: FontWeight.w800,
+                  color: KumoriyaColors.textPrimary,
+                  letterSpacing: compact ? 0.8 : 1.2,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

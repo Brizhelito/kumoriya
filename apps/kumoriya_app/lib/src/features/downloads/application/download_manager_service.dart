@@ -34,19 +34,43 @@ http.Client _createDownloadHttpClient({int maxConnectionsPerHost = 16}) {
   return ioc.IOClient(inner);
 }
 
+int _defaultMaxConcurrentDownloads() {
+  if (Platform.isAndroid) {
+    return 2;
+  }
+  if (Platform.isWindows) {
+    return 3;
+  }
+  return 2;
+}
+
+int _defaultMaxConnectionsPerHost() {
+  if (Platform.isAndroid) {
+    return 8;
+  }
+  if (Platform.isWindows) {
+    return 12;
+  }
+  return 8;
+}
+
 class DownloadManagerService {
   DownloadManagerService({
     required DownloadStore store,
     required DownloadDirectoryService directoryService,
     required DownloadLibraryIndexService libraryIndexService,
-    int maxConcurrent = 3,
+    int? maxConcurrent,
     http.Client? httpClient,
     int maxRetryAttempts = 3,
   }) : _store = store,
        _directoryService = directoryService,
        _libraryIndexService = libraryIndexService,
-       _maxConcurrent = maxConcurrent,
-       _httpClient = httpClient ?? _createDownloadHttpClient(),
+       _maxConcurrent = (maxConcurrent ?? _defaultMaxConcurrentDownloads()),
+       _httpClient =
+           httpClient ??
+           _createDownloadHttpClient(
+             maxConnectionsPerHost: _defaultMaxConnectionsPerHost(),
+           ),
        _maxRetryAttempts = maxRetryAttempts.clamp(1, 5);
 
   final DownloadStore _store;
@@ -392,8 +416,8 @@ class DownloadManagerService {
           lastSpeedMs = elapsedMs;
         }
 
-        // Progress emission (~5 Hz).
-        if (elapsedMs - lastProgressMs >= 200) {
+        // Progress emission (~3 Hz).
+        if (elapsedMs - lastProgressMs >= 350) {
           lastProgressMs = elapsedMs;
           _emitProgress(
             DownloadProgressEvent(
@@ -445,6 +469,7 @@ class DownloadManagerService {
 
     final hlsDownloader = HlsSegmentDownloader(
       httpClient: _httpClient,
+      parallelSegments: _resolveParallelSegmentsPerDownload(),
       maxRetries: _maxRetryAttempts,
     );
     var bytesAtLastSample = 0;
@@ -473,7 +498,6 @@ class DownloadManagerService {
 
             final resolvedTotalBytes = totalBytes > 0 ? totalBytes : 0;
 
-            // DB persistence (~0.5 Hz).
             if (resolvedTotalBytes > 0 && elapsedMs - lastDbWriteMs >= 2000) {
               lastDbWriteMs = elapsedMs;
               unawaited(
@@ -489,8 +513,7 @@ class DownloadManagerService {
               );
             }
 
-            // Progress emission (~5 Hz).
-            if (elapsedMs - lastProgressMs >= 200) {
+            if (elapsedMs - lastProgressMs >= 350) {
               lastProgressMs = elapsedMs;
               _emitProgress(
                 DownloadProgressEvent(
@@ -796,9 +819,12 @@ class DownloadManagerService {
 
   void _emitProgress(DownloadProgressEvent event) {
     _latestProgressByTask[event.taskId] = event;
-    _progressController.add(event);
+    if (_progressController.hasListener) {
+      _progressController.add(event);
+    }
     // Throttle aggregate recomputation — it iterates all active tasks.
-    if (_aggregateThrottleSw.elapsedMilliseconds >= _aggregateThrottleMs) {
+    if (_aggregateProgressController.hasListener &&
+        _aggregateThrottleSw.elapsedMilliseconds >= _aggregateThrottleMs) {
       _aggregateThrottleSw.reset();
       _emitAggregateProgress();
     }
@@ -806,10 +832,15 @@ class DownloadManagerService {
 
   void _removeProgress(String taskId) {
     _latestProgressByTask.remove(taskId);
-    _emitAggregateProgress(); // Always emit on task removal for correct count.
+    if (_aggregateProgressController.hasListener) {
+      _emitAggregateProgress();
+    }
   }
 
   void _emitAggregateProgress() {
+    if (!_aggregateProgressController.hasListener) {
+      return;
+    }
     if (_latestProgressByTask.isEmpty) {
       _aggregateProgressController.add(const DownloadAggregateProgress.empty());
       return;
@@ -840,6 +871,16 @@ class DownloadManagerService {
 
   void _log(String message) {
     developer.log(message, name: 'DownloadManagerService');
+  }
+
+  int _resolveParallelSegmentsPerDownload() {
+    if (Platform.isAndroid) {
+      return _activeDownloads.length >= 2 ? 4 : 6;
+    }
+    if (Platform.isWindows) {
+      return _activeDownloads.length >= 2 ? 6 : 8;
+    }
+    return _activeDownloads.length >= 2 ? 4 : 6;
   }
 
   void dispose() {

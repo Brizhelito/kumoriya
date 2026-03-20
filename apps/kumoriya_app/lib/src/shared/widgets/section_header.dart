@@ -28,7 +28,7 @@ class KumoriyaSectionHeader extends StatelessWidget {
           TextButton(
             onPressed: onSeeAll,
             style: TextButton.styleFrom(
-              foregroundColor: KumoriyaColors.textMuted,
+              foregroundColor: KumoriyaColors.textTertiary,
               textStyle: Theme.of(context).textTheme.labelMedium,
               padding: EdgeInsets.zero,
               minimumSize: Size.zero,

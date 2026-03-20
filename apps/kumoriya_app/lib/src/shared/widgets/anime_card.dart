@@ -18,8 +18,9 @@ class AnimeCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
+    return InkWell(
       onTap: onTap,
+      borderRadius: BorderRadius.circular(KumoriyaRadius.xl),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
@@ -34,22 +35,18 @@ class AnimeCard extends StatelessWidget {
             anime.title.romaji,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w700,
-              color: KumoriyaColors.textPrimary,
-            ),
+            style: Theme.of(
+              context,
+            ).textTheme.labelLarge!.copyWith(color: KumoriyaColors.textPrimary),
           ),
           if (anime.releaseYear != null)
             Text(
               anime.releaseYear.toString(),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.w400,
-                color: KumoriyaColors.textMuted,
-              ),
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall!.copyWith(color: KumoriyaColors.textMuted),
             ),
         ],
       ),
@@ -80,6 +77,7 @@ class _PosterImageState extends State<_PosterImage> {
   @override
   Widget build(BuildContext context) {
     return MouseRegion(
+      cursor: SystemMouseCursors.click,
       onEnter: (_) => setState(() => _hovered = true),
       onExit: (_) => setState(() => _hovered = false),
       child: AspectRatio(
@@ -102,12 +100,15 @@ class _PosterImageState extends State<_PosterImage> {
               AnimatedOpacity(
                 opacity: _hovered ? 1.0 : 0.0,
                 duration: const Duration(milliseconds: 220),
-                child: const DecoratedBox(
+                child: DecoratedBox(
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
                       begin: Alignment.topCenter,
                       end: Alignment.bottomCenter,
-                      colors: <Color>[Colors.transparent, Color(0xCC000000)],
+                      colors: <Color>[
+                        Colors.transparent,
+                        Colors.black.withValues(alpha: 0.80),
+                      ],
                     ),
                   ),
                 ),
@@ -147,7 +148,7 @@ class _PosterImageState extends State<_PosterImage> {
                       ),
                       child: const Icon(
                         Icons.play_arrow_rounded,
-                        color: Colors.white,
+                        color: KumoriyaColors.textPrimary,
                         size: 28,
                       ),
                     ),
@@ -185,7 +186,7 @@ class _CornerBadge extends StatelessWidget {
         style: const TextStyle(
           fontSize: 9,
           fontWeight: FontWeight.w800,
-          color: Colors.white,
+          color: KumoriyaColors.textPrimary,
           letterSpacing: 0.8,
         ),
       ),
@@ -203,16 +204,16 @@ class _EpisodeCountBadge extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
       decoration: BoxDecoration(
-        color: Colors.black.withValues(alpha: 0.65),
+        color: KumoriyaColors.playerControlBg,
         borderRadius: BorderRadius.circular(KumoriyaRadius.sm),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
+        border: Border.all(color: KumoriyaColors.borderSubtle),
       ),
       child: Text(
         'Ep $count',
         style: const TextStyle(
           fontSize: 10,
           fontWeight: FontWeight.w700,
-          color: Colors.white,
+          color: KumoriyaColors.textPrimary,
         ),
       ),
     );

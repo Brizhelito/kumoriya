@@ -11,6 +11,7 @@ import 'package:kumoriya_plugins/kumoriya_plugins.dart';
 import 'package:kumoriya_storage/kumoriya_storage.dart';
 
 import '../../../../app/l10n.dart';
+import '../../../../shared/icons/kumoriya_icons.dart';
 import '../../../../shared/theme/kumoriya_theme.dart';
 import '../../../../shared/widgets/continue_watching_card.dart';
 import '../../../../shared/widgets/kumoriya_cached_image.dart';
@@ -39,26 +40,34 @@ class HomePage extends ConsumerWidget {
 
     return Scaffold(
       backgroundColor: KumoriyaColors.background,
-      body: homeCatalog.when(
-        loading: () => LoadingStateView(label: context.l10n.homeLoadingCatalog),
-        error: (_, _) => ErrorStateView(
-          message: context.l10n.genericLoadFailure,
-          onRetry: () => ref.invalidate(homeCatalogProvider),
-        ),
-        data: (result) => result.fold(
-          onFailure: (error) => ErrorStateView(
-            message: mapErrorMessage(context, error),
+      body: StateTransitionSwitcher(
+        stateKey: homeCatalog.isLoading
+            ? 'loading'
+            : homeCatalog.hasError
+            ? 'error'
+            : 'content',
+        child: homeCatalog.when(
+          loading: () =>
+              LoadingStateView(label: context.l10n.homeLoadingCatalog),
+          error: (_, _) => ErrorStateView(
+            message: context.l10n.genericLoadFailure,
             onRetry: () => ref.invalidate(homeCatalogProvider),
           ),
-          onSuccess: (animeList) => _HomeBody(
-            animeList: animeList,
-            continueWatching: continueWatching,
-            airingToday: airingToday,
-            onRefresh: () {
-              ref.invalidate(homeCatalogProvider);
-              ref.invalidate(continueWatchingProvider);
-              ref.invalidate(calendarCatalogProvider);
-            },
+          data: (result) => result.fold(
+            onFailure: (error) => ErrorStateView(
+              message: mapErrorMessage(context, error),
+              onRetry: () => ref.invalidate(homeCatalogProvider),
+            ),
+            onSuccess: (animeList) => _HomeBody(
+              animeList: animeList,
+              continueWatching: continueWatching,
+              airingToday: airingToday,
+              onRefresh: () {
+                ref.invalidate(homeCatalogProvider);
+                ref.invalidate(continueWatchingProvider);
+                ref.invalidate(calendarCatalogProvider);
+              },
+            ),
           ),
         ),
       ),
@@ -116,10 +125,14 @@ class _HomeBody extends StatelessWidget {
             child: _ContinueWatchingSection(
               continueWatching: continueWatching,
               catalogById: catalogById,
+              onRetry: onRefresh,
             ),
           ),
           SliverToBoxAdapter(
-            child: _AiringTodaySection(airingToday: airingToday),
+            child: _AiringTodaySection(
+              airingToday: airingToday,
+              onRetry: onRefresh,
+            ),
           ),
           if (animeList.isNotEmpty) ...<Widget>[
             SliverToBoxAdapter(
@@ -179,24 +192,36 @@ class _MobileHeader extends StatelessWidget {
               ],
             ),
             alignment: Alignment.center,
-            child: const Text(
+            child: Text(
               'K',
               style: TextStyle(
-                color: Colors.white,
+                color: Theme.of(context).colorScheme.onPrimary,
                 fontSize: 16,
                 fontWeight: FontWeight.w900,
               ),
             ),
           ),
           const SizedBox(width: 10),
-          const Text(
-            'Kumoriya',
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.w800,
-              color: KumoriyaColors.textPrimary,
-              letterSpacing: -0.3,
-            ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              Text(
+                'Kumoriya',
+                style: Theme.of(
+                  context,
+                ).textTheme.headlineSmall?.copyWith(letterSpacing: -0.3),
+              ),
+              Text(
+                DateFormat.MMMd(
+                  Localizations.localeOf(context).toString(),
+                ).format(DateTime.now()),
+                style: const TextStyle(
+                  fontSize: 11,
+                  color: KumoriyaColors.textTertiary,
+                ),
+              ),
+            ],
           ),
           const Spacer(),
           if (kDebugMode)
@@ -209,7 +234,7 @@ class _MobileHeader extends StatelessWidget {
                   ),
                 );
               },
-              icon: const Icon(Icons.bug_report_rounded),
+              icon: const Icon(KumoriyaIcons.bugReport),
             ),
         ],
       ),
@@ -240,8 +265,10 @@ class _TrendingRowState extends State<_TrendingRow> {
     return MouseRegion(
       onEnter: (_) => setState(() => _hovered = true),
       onExit: (_) => setState(() => _hovered = false),
-      child: GestureDetector(
+      child: InkWell(
         onTap: widget.onTap,
+        borderRadius: BorderRadius.circular(KumoriyaRadius.xxl),
+        splashColor: KumoriyaColors.primary.withValues(alpha: 0.08),
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 200),
           margin: const EdgeInsets.only(bottom: 8),
@@ -249,7 +276,7 @@ class _TrendingRowState extends State<_TrendingRow> {
           decoration: BoxDecoration(
             color: _hovered
                 ? KumoriyaColors.surface
-                : KumoriyaColors.surface.withValues(alpha: 0.40),
+                : KumoriyaColors.surfaceDim,
             borderRadius: BorderRadius.circular(KumoriyaRadius.xxl),
             border: Border.all(
               color: _hovered
@@ -292,11 +319,7 @@ class _TrendingRowState extends State<_TrendingRow> {
                       widget.anime.title.romaji,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w700,
-                        color: KumoriyaColors.textPrimary,
-                      ),
+                      style: Theme.of(context).textTheme.labelLarge,
                     ),
                     const SizedBox(height: 4),
                     Row(
@@ -341,9 +364,12 @@ class _TrendingRowState extends State<_TrendingRow> {
                           const SizedBox(width: 6),
                           Text(
                             '★ ${widget.anime.averageScore}',
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 11,
-                              color: KumoriyaColors.textDisabled,
+                              color: KumoriyaColors.primary.withValues(
+                                alpha: 0.85,
+                              ),
+                              fontWeight: FontWeight.w700,
                               letterSpacing: 0.2,
                             ),
                           ),
@@ -371,11 +397,13 @@ class _ContinueWatchingSection extends StatefulWidget {
   const _ContinueWatchingSection({
     required this.continueWatching,
     required this.catalogById,
+    this.onRetry,
   });
 
   final AsyncValue<Result<List<AnimeWatchHistory>, KumoriyaError>>
   continueWatching;
   final Map<int, Anime> catalogById;
+  final VoidCallback? onRetry;
 
   @override
   State<_ContinueWatchingSection> createState() =>
@@ -436,10 +464,29 @@ class _ContinueWatchingSectionState extends State<_ContinueWatchingSection> {
   @override
   Widget build(BuildContext context) {
     return widget.continueWatching.when(
-      loading: () => const SizedBox.shrink(),
-      error: (_, _) => const SizedBox.shrink(),
+      loading: () => Padding(
+        padding: const EdgeInsets.only(top: 20),
+        child: LoadingStateView(label: context.l10n.loadingGeneric),
+      ),
+      error: (_, _) => Padding(
+        padding: const EdgeInsets.only(top: 20),
+        child: UnavailableStateView(
+          title: context.l10n.continueWatching,
+          message: context.l10n.genericLoadFailure,
+          actionLabel: context.l10n.retry,
+          onAction: widget.onRetry,
+        ),
+      ),
       data: (result) => result.fold(
-        onFailure: (_) => const SizedBox.shrink(),
+        onFailure: (_) => Padding(
+          padding: const EdgeInsets.only(top: 20),
+          child: UnavailableStateView(
+            title: context.l10n.continueWatching,
+            message: context.l10n.genericLoadFailure,
+            actionLabel: context.l10n.retry,
+            onAction: widget.onRetry,
+          ),
+        ),
         onSuccess: (history) {
           if (history.isEmpty) return const SizedBox.shrink();
 
@@ -460,19 +507,12 @@ class _ContinueWatchingSectionState extends State<_ContinueWatchingSection> {
                           children: <Widget>[
                             Text(
                               context.l10n.continueWatching,
-                              style: const TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.w800,
-                                color: KumoriyaColors.textPrimary,
-                              ),
+                              style: Theme.of(context).textTheme.titleLarge,
                             ),
                             const SizedBox(height: 3),
                             Text(
                               context.l10n.continueWatchingHint,
-                              style: const TextStyle(
-                                fontSize: 12,
-                                color: KumoriyaColors.textMuted,
-                              ),
+                              style: Theme.of(context).textTheme.bodySmall,
                             ),
                           ],
                         ),
@@ -540,8 +580,10 @@ class _NavArrow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    Widget child = GestureDetector(
+    Widget child = InkWell(
       onTap: onTap,
+      borderRadius: BorderRadius.circular(KumoriyaRadius.full),
+      splashColor: KumoriyaColors.primary.withValues(alpha: 0.08),
       child: Container(
         width: 44,
         height: 44,
@@ -765,17 +807,37 @@ class _ContinueWatchingCardWrapperState
 // ---------------------------------------------------------------------------
 
 class _AiringTodaySection extends StatelessWidget {
-  const _AiringTodaySection({required this.airingToday});
+  const _AiringTodaySection({required this.airingToday, this.onRetry});
 
   final AsyncValue<Result<List<Anime>, KumoriyaError>> airingToday;
+  final VoidCallback? onRetry;
 
   @override
   Widget build(BuildContext context) {
     return airingToday.when(
-      loading: () => const SizedBox.shrink(),
-      error: (_, _) => const SizedBox.shrink(),
+      loading: () => const Padding(
+        padding: EdgeInsets.only(top: 18),
+        child: SizedBox(height: 88, child: LoadingStateView()),
+      ),
+      error: (_, _) => Padding(
+        padding: const EdgeInsets.only(top: 18),
+        child: UnavailableStateView(
+          title: context.l10n.homeAiringToday,
+          message: context.l10n.genericLoadFailure,
+          actionLabel: context.l10n.retry,
+          onAction: onRetry,
+        ),
+      ),
       data: (result) => result.fold(
-        onFailure: (_) => const SizedBox.shrink(),
+        onFailure: (_) => Padding(
+          padding: const EdgeInsets.only(top: 18),
+          child: UnavailableStateView(
+            title: context.l10n.homeAiringToday,
+            message: context.l10n.genericLoadFailure,
+            actionLabel: context.l10n.retry,
+            onAction: onRetry,
+          ),
+        ),
         onSuccess: (animeList) {
           final todayAiring = filterAiringTodayAnime(animeList, DateTime.now());
 
@@ -897,8 +959,10 @@ class _AiringTodayCardState extends State<_AiringTodayCard> {
     return MouseRegion(
       onEnter: (_) => setState(() => _hovered = true),
       onExit: (_) => setState(() => _hovered = false),
-      child: GestureDetector(
+      child: InkWell(
         onTap: widget.onTap,
+        borderRadius: BorderRadius.circular(KumoriyaRadius.xxl),
+        splashColor: KumoriyaColors.primary.withValues(alpha: 0.08),
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 180),
           width: 260,
@@ -906,7 +970,7 @@ class _AiringTodayCardState extends State<_AiringTodayCard> {
           decoration: BoxDecoration(
             color: _hovered
                 ? KumoriyaColors.surface
-                : KumoriyaColors.surface.withValues(alpha: 0.50),
+                : KumoriyaColors.surfaceDim,
             borderRadius: BorderRadius.circular(KumoriyaRadius.xxl),
             border: Border.all(
               color: _hovered
@@ -963,11 +1027,14 @@ class _AiringTodayCardState extends State<_AiringTodayCard> {
                             color: KumoriyaColors.textDisabled,
                           ),
                           const SizedBox(width: 4),
-                          Text(
-                            timeLabel,
-                            style: const TextStyle(
-                              fontSize: 11,
-                              color: KumoriyaColors.textDisabled,
+                          Flexible(
+                            child: Text(
+                              timeLabel,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontSize: 11,
+                                color: KumoriyaColors.textDisabled,
+                              ),
                             ),
                           ),
                         ],

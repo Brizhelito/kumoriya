@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import 'package:kumoriya_domain/kumoriya_domain.dart';
 
 import '../../../../app/l10n.dart';
+import '../../../../shared/icons/kumoriya_icons.dart';
 import '../../../../shared/theme/kumoriya_theme.dart';
 import '../../../../shared/widgets/kumoriya_cached_image.dart';
 import '../../../../shared/widgets/status_pill.dart';
@@ -42,11 +43,7 @@ class _CalendarPageState extends ConsumerState<CalendarPage>
               padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
               child: Text(
                 context.l10n.calendarTitle,
-                style: const TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.w800,
-                  color: KumoriyaColors.textPrimary,
-                ),
+                style: Theme.of(context).textTheme.headlineMedium,
               ),
             ),
             Padding(
@@ -55,7 +52,7 @@ class _CalendarPageState extends ConsumerState<CalendarPage>
                 context.l10n.calendarSubtitle,
                 style: const TextStyle(
                   fontSize: 13,
-                  color: KumoriyaColors.textMuted,
+                  color: KumoriyaColors.textTertiary,
                 ),
               ),
             ),
@@ -94,7 +91,7 @@ class _CalendarPageState extends ConsumerState<CalendarPage>
     if (airing.isEmpty) {
       return EmptyStateView(
         message: context.l10n.calendarNoAiring,
-        icon: Icons.calendar_today_rounded,
+        icon: KumoriyaIcons.navCalendarActive,
       );
     }
 
@@ -168,7 +165,7 @@ class _CalendarPageState extends ConsumerState<CalendarPage>
           isScrollable: true,
           tabAlignment: TabAlignment.start,
           labelColor: KumoriyaColors.primary,
-          unselectedLabelColor: KumoriyaColors.textMuted,
+          unselectedLabelColor: KumoriyaColors.navInactive,
           indicatorColor: KumoriyaColors.primary,
           indicatorSize: TabBarIndicatorSize.label,
           labelStyle: const TextStyle(
@@ -283,15 +280,17 @@ class _AiringRowState extends State<_AiringRow> {
     return MouseRegion(
       onEnter: (_) => setState(() => _hovered = true),
       onExit: (_) => setState(() => _hovered = false),
-      child: GestureDetector(
+      child: InkWell(
         onTap: widget.onTap,
+        borderRadius: BorderRadius.circular(KumoriyaRadius.xxl),
+        splashColor: KumoriyaColors.primary.withValues(alpha: 0.08),
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 180),
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
             color: _hovered
                 ? KumoriyaColors.surface
-                : KumoriyaColors.surface.withValues(alpha: 0.55),
+                : KumoriyaColors.surfaceDim,
             borderRadius: BorderRadius.circular(KumoriyaRadius.xxl),
             border: Border.all(
               color: _hovered
@@ -320,18 +319,13 @@ class _AiringRowState extends State<_AiringRow> {
                       anime.title.romaji,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w700,
-                        color: KumoriyaColors.textPrimary,
-                      ),
+                      style: Theme.of(context).textTheme.labelLarge,
                     ),
                     if (anime.releaseYear != null) ...<Widget>[
                       const SizedBox(height: 4),
                       Text(
                         anime.releaseYear.toString(),
-                        style: const TextStyle(
-                          fontSize: 12,
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
                           color: KumoriyaColors.textDisabled,
                         ),
                       ),
@@ -342,8 +336,7 @@ class _AiringRowState extends State<_AiringRow> {
                         context.l10n.downloadEpisodeLabel(
                           anime.nextAiringEpisodeNumber!.toInt(),
                         ),
-                        style: const TextStyle(
-                          fontSize: 12,
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
                           color: KumoriyaColors.textDisabled,
                         ),
                       ),

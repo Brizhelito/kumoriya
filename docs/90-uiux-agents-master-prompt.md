@@ -12,12 +12,12 @@ Solo crea arquitectura de agentes.
 
 ## Objetivo
 
-Crear una organizacion completa de agentes UI/UX con liderazgo realista:
+Crear una organizacion completa de agentes UI/UX con liderazgo directo del orquestador y sin jerarquia de dos niveles:
 
 1. Orquestador maestro de producto UI/UX
-2. Team creativo
-3. Team implementador
-4. Team especializado en reproductor
+2. Especialistas creativos
+3. Especialistas de implementacion
+4. Especialistas de reproductor
 
 Cada agente debe tener:
 
@@ -40,39 +40,34 @@ Cada agente debe tener:
 
 Usa esta politica de modelo por defecto:
 
-- Creatividad visual, conceptos, animaciones, direccion artistica: `Gemini Pro 3.1`
-- Implementacion de UI y refactors concretos: `Claude Sonnet` o `GPT-5.3-Codex`
-- Critica UI/UX, decision framework y quality gate: `Claude Opus`
-- Coordinacion multiparte y tareas ligeras: `GPT-5.4 mini`
+- Creatividad visual, conceptos, animaciones, direccion artistica: `Gemini 3.1 Pro (Preview) (copilot)`
+- Implementacion de UI y refactors concretos: `Claude Sonnet 4.6 (copilot)` o `GPT-5.3-Codex (copilot)`
+- Critica UI/UX, decision framework y quality gate: `Claude Opus 4.6 (copilot)`
+- Coordinacion multiparte y tareas ligeras: `GPT-5.4 mini (copilot)`
 
-Si un modelo no esta disponible en el entorno, conserva el nombre en la descripcion del agente como "preferred model" y usa `GPT-5.4 mini` como fallback operativo.
 
 ## Estructura Organizacional Requerida
 
 Crea exactamente estos archivos:
 
 1. `.github/agents/product-uiux-master-orchestrator.agent.md`
-2. `.github/agents/uiux-creative-director.agent.md`
-3. `.github/agents/visual-identity-concept-artist.agent.md`
-4. `.github/agents/color-material-strategist.agent.md`
-5. `.github/agents/motion-interaction-storyboarder.agent.md`
-6. `.github/agents/uiux-implementation-lead.agent.md`
-7. `.github/agents/flutter-ui-refactor-implementer.agent.md`
-8. `.github/agents/design-system-enforcer.agent.md`
-9. `.github/agents/interaction-states-implementer.agent.md`
-10. `.github/agents/player-uiux-lead.agent.md`
-11. `.github/agents/player-controls-interaction-designer.agent.md`
-12. `.github/agents/player-motion-feedback-designer.agent.md`
-13. `.github/agents/player-ui-integration-implementer.agent.md`
+2. `.github/agents/visual-identity-concept-artist.agent.md`
+3. `.github/agents/color-material-strategist.agent.md`
+4. `.github/agents/motion-interaction-storyboarder.agent.md`
+5. `.github/agents/flutter-ui-refactor-implementer.agent.md`
+6. `.github/agents/design-system-enforcer.agent.md`
+7. `.github/agents/interaction-states-implementer.agent.md`
+8. `.github/agents/player-controls-interaction-designer.agent.md`
+9. `.github/agents/player-motion-feedback-designer.agent.md`
+10. `.github/agents/player-ui-integration-implementer.agent.md`
 
 ## Jerarquia Y Liderazgo
 
 Define esta jerarquia:
 
-- `product-uiux-master-orchestrator`: lider de programa
-- Team creativo (lider: `uiux-creative-director`)
-- Team implementador (lider: `uiux-implementation-lead`)
-- Team player (lider: `player-uiux-lead`)
+- `product-uiux-master-orchestrator`: lider directo de programa
+- Delegacion directa a especialistas (sin leads intermedios)
+- Profundidad maxima de delegacion: 1 nivel
 
 El orquestador debe delegar y consolidar, no hacer micro-trabajo manual.
 
@@ -80,9 +75,7 @@ El orquestador debe delegar y consolidar, no hacer micro-trabajo manual.
 
 - Solo `product-uiux-master-orchestrator` debe ser `user-invocable: true`.
 - Todos los demas deben ser `user-invocable: false`.
-- El orquestador debe declarar `agents:` con todos los leads y especialistas.
-- Cada lead debe declarar `agents:` con sus especialistas directos.
-
+- Ningun especialista debe invocar otros agentes.
 ## Politica De Tools
 
 Usa un set de tools suficientemente completo para auditoria + implementacion:
@@ -105,7 +98,7 @@ Cada archivo `.agent.md` debe contener:
 - `model`
 - `user-invocable`
 - `argument-hint` (solo si aplica)
-- `agents` (solo para orquestador y leads)
+- `agents` (solo para orquestador)
 
 2. Cuerpo con estas secciones:
 - Mission
@@ -129,7 +122,7 @@ Responsable de:
 - variantes exploratorias de alto valor
 
 No implementa codigo productivo final.
-Entrega briefs listos para implementacion.
+Entrega briefs listos para implementacion y directamente al orquestador.
 
 ### Team Implementador
 
@@ -141,7 +134,7 @@ Responsable de:
 - responsive mobile/desktop
 - accesibilidad y navegacion por teclado cuando aplique
 
-No redefine vision visual sin aprobacion del team creativo o del orquestador.
+No redefine vision visual sin aprobacion del orquestador.
 
 ### Team Player
 
@@ -168,6 +161,7 @@ En `product-uiux-master-orchestrator` implementa flujo en fases:
 8. Close with residual risks
 
 Incluye regla: decisiones de UI/UX de alto impacto requieren critique estilo Opus antes de cierre.
+Incluye regla: no se permiten llamadas de subagente en cadena (dos niveles).
 
 ## Reglas De Calidad Global
 
@@ -182,7 +176,7 @@ Incluye regla: decisiones de UI/UX de alto impacto requieren critique estilo Opu
 
 Entrega:
 
-1. Los 13 archivos `.agent.md` creados/actualizados.
+1. Los 10 archivos `.agent.md` creados/actualizados.
 2. Un resumen en tabla:
 - agent
 - team
@@ -195,5 +189,6 @@ Entrega:
 - confirmar que el YAML frontmatter de cada archivo es valido
 - confirmar que no hay nombres de agente rotos en `agents:`
 - confirmar que solo el orquestador es user-invocable
+- confirmar que no existen agentes `*lead*` en `.github/agents/`
 
 No hagas nada fuera de este alcance.

@@ -4,9 +4,20 @@ import 'dart:developer' as developer;
 import 'package:flutter/widgets.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:http/http.dart' as http;
+import 'package:kumoriya_anilist/kumoriya_anilist.dart';
 import 'package:kumoriya_core/kumoriya_core.dart';
 import 'package:kumoriya_storage/kumoriya_storage_flutter.dart';
 import 'package:workmanager/workmanager.dart';
+
+import '../features/anime_catalog/application/matching/anilist_source_matcher.dart';
+import '../features/anime_catalog/application/services/background_source_availability_warmup_service.dart';
+import '../features/anime_catalog/application/services/plugin_runtime_catalog.dart';
+import '../features/anime_catalog/application/services/resolver_registry.dart';
+import '../features/anime_catalog/application/services/source_availability_cache_codec.dart';
+import '../features/anime_catalog/application/services/source_selection_policy.dart';
+import '../features/anime_catalog/application/use_cases/anime_catalog_use_cases.dart';
+import '../features/anime_catalog/application/use_cases/get_source_availability_summary_use_case.dart';
+import '../features/anime_catalog/application/use_cases/load_source_availability_summary_use_case.dart';
 
 /// Workmanager task name for periodic new-episode checks.
 const kCheckNewEpisodesTask = 'kumoriya.check_new_episodes';
@@ -19,14 +30,19 @@ const _channelName = 'New Episodes';
 const _channelDescription =
     'Notifies when a subscribed anime has a new episode';
 
-/// Inline GraphQL query — batch-fetches nextAiringEpisode for a set of IDs.
 const _batchAiringStatusQuery = r'''
 query BatchAiringStatus($ids: [Int]) {
   Page(perPage: 50) {
     media(id_in: $ids, type: ANIME) {
       id
-      title { romaji english }
-      nextAiringEpisode { episode airingAt }
+      title {
+        romaji
+        english
+      }
+      nextAiringEpisode {
+        episode
+        airingAt
+      }
     }
   }
 }
@@ -109,6 +125,33 @@ Future<void> _runCheckNewEpisodes() async {
 
   final notifications = FlutterLocalNotificationsPlugin();
   await _initNotifications(notifications);
+  final warmupIds = <int>{};
+  final pendingNotifications = <({int anilistId, String title, int episode})>[];
+
+  final sourcePlugins = buildDefaultSourcePlugins();
+  final resolverPlugins = buildDefaultResolverPlugins();
+  final selectionPolicy = const SourceSelectionPolicy();
+  final repository = AnilistAnimeCatalogRepository(
+    gateway: GraphqlAnilistMetadataGateway(client: HttpAnilistGraphqlClient()),
+  );
+  final warmupService = BackgroundSourceAvailabilityWarmupService(
+    loadAnimeDetail: (anilistId) =>
+        GetAnimeDetailUseCase(repository).call(anilistId),
+    loadSourceAvailability: LoadSourceAvailabilitySummaryUseCase(
+      store: DriftSourceAvailabilityStore(db),
+      computeUseCase: GetSourceAvailabilitySummaryUseCase(
+        sourcePlugins: sourcePlugins,
+        matcher: const AnilistSourceMatcher(),
+        selectionPolicy: selectionPolicy,
+        registry: ResolverRegistry(resolvers: resolverPlugins),
+      ),
+      sourcePlugins: sourcePlugins,
+      cacheCodec: SourceAvailabilityCacheCodec(
+        sourcePlugins: sourcePlugins,
+        selectionPolicy: selectionPolicy,
+      ),
+    ),
+  );
 
   for (final entry in airingData.entries) {
     final anilistId = entry.key;
@@ -124,6 +167,7 @@ Future<void> _runCheckNewEpisodes() async {
     final lastNotified = subscribed[anilistId];
 
     if (lastNotified == null) {
+      warmupIds.add(anilistId);
       // First run: initialize silently — don't notify past episodes.
       await store.updateLastNotifiedEpisode(anilistId, latestAired);
       continue;
@@ -133,20 +177,35 @@ Future<void> _runCheckNewEpisodes() async {
     // to the future episode, so gating by its timestamp suppresses valid
     // notifications for the latest already-aired episode.
     if (latestAired > lastNotified) {
-      final newEp = latestAired;
-      await _sendNotification(
-        notifications,
-        id: anilistId,
+      warmupIds.add(anilistId);
+      pendingNotifications.add((
+        anilistId: anilistId,
         title: title,
-        episodeNumber: newEp,
-      );
-      await store.updateLastNotifiedEpisode(anilistId, newEp);
-
-      developer.log(
-        'Notified episode $newEp for "$title" (id=$anilistId)',
-        name: 'CheckNewEpisodesWorker',
-      );
+        episode: latestAired,
+      ));
     }
+  }
+
+  if (warmupIds.isNotEmpty) {
+    await warmupService.warmUp(warmupIds);
+  }
+
+  for (final notification in pendingNotifications) {
+    await _sendNotification(
+      notifications,
+      id: notification.anilistId,
+      title: notification.title,
+      episodeNumber: notification.episode,
+    );
+    await store.updateLastNotifiedEpisode(
+      notification.anilistId,
+      notification.episode,
+    );
+
+    developer.log(
+      'Notified episode ${notification.episode} for "${notification.title}" (id=${notification.anilistId})',
+      name: 'CheckNewEpisodesWorker',
+    );
   }
 
   await db.close();

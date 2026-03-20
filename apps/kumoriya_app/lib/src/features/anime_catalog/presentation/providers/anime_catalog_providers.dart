@@ -5,30 +5,17 @@ import 'package:kumoriya_anilist/kumoriya_anilist.dart';
 import 'package:kumoriya_core/kumoriya_core.dart';
 import 'package:kumoriya_domain/kumoriya_domain.dart';
 import 'package:kumoriya_plugins/kumoriya_plugins.dart';
-import 'package:kumoriya_resolver_jkplayer/kumoriya_resolver_jkplayer.dart';
-import 'package:kumoriya_resolver_mp4upload/kumoriya_resolver_mp4upload.dart';
-import 'package:kumoriya_resolver_pixeldrain/kumoriya_resolver_pixeldrain.dart';
-import 'package:kumoriya_resolver_streamtape/kumoriya_resolver_streamtape.dart';
-import 'package:kumoriya_resolver_streamwish/kumoriya_resolver_streamwish.dart';
-import 'package:kumoriya_resolver_doodstream/kumoriya_resolver_doodstream.dart';
-import 'package:kumoriya_resolver_hqq/kumoriya_resolver_hqq.dart';
-import 'package:kumoriya_resolver_okru/kumoriya_resolver_okru.dart';
-import 'package:kumoriya_resolver_yourupload/kumoriya_resolver_yourupload.dart';
-import 'package:kumoriya_resolver_upnshare/kumoriya_resolver_upnshare.dart';
-import 'package:kumoriya_resolver_zilla/kumoriya_resolver_zilla.dart';
-import 'package:kumoriya_resolver_anime_nexus/kumoriya_resolver_anime_nexus.dart';
-import 'package:kumoriya_source_jkanime/kumoriya_source_jkanime.dart';
-import 'package:kumoriya_source_animeflv/kumoriya_source_animeflv.dart';
-import 'package:kumoriya_source_animeav1/kumoriya_source_animeav1.dart';
-import 'package:kumoriya_source_anime_nexus/kumoriya_source_anime_nexus.dart';
 
 import '../../application/use_cases/anime_catalog_use_cases.dart';
 import '../../application/matching/anilist_source_matcher.dart';
 import '../../application/models/resolved_server_link_result.dart';
 import '../../application/models/episode_playback.dart';
 import '../../application/models/source_availability.dart';
+import '../../application/services/anime_nexus_chapter_service.dart';
+import '../../application/services/background_source_availability_warmup_service.dart';
 import '../../application/services/resolver_registry.dart';
 import '../../application/services/mal_metadata_bridge_service.dart';
+import '../../application/services/plugin_runtime_catalog.dart';
 import '../../application/services/source_availability_cache_codec.dart';
 import '../../application/services/playback_preference_policy.dart';
 import '../../application/services/source_selection_policy.dart';
@@ -57,12 +44,7 @@ final animeCatalogRepositoryProvider = Provider<AnimeCatalogRepository>((ref) {
 });
 
 final sourcePluginsProvider = Provider<List<SourcePlugin>>((ref) {
-  return <SourcePlugin>[
-    JkAnimeSourcePlugin(),
-    AnimeFlvSourcePlugin(),
-    AnimeAv1SourcePlugin(),
-    AnimeNexusSourcePlugin(),
-  ];
+  return buildDefaultSourcePlugins();
 });
 
 final sourcePluginMapProvider = Provider<Map<String, SourcePlugin>>((ref) {
@@ -88,30 +70,50 @@ final sourcePluginProvider = Provider<SourcePlugin>((ref) {
 });
 
 final resolverPluginsProvider = Provider<List<ResolverPlugin>>((ref) {
-  return <ResolverPlugin>[
-    AnimeNexusResolverPlugin(),
-    JkPlayerJkResolverPlugin(),
-    JkPlayerResolverPlugin(),
-    StreamwishResolverPlugin(),
-    Mp4uploadResolverPlugin(),
-    PixeldrainResolverPlugin(),
-    StreamtapeResolverPlugin(),
-    DoodstreamResolverPlugin(),
-    YouruploadResolverPlugin(),
-    OkruResolverPlugin(),
-    HqqResolverPlugin(),
-    UpnshareResolverPlugin(),
-    ZillaResolverPlugin(),
-  ];
+  return buildDefaultResolverPlugins();
 });
 
 final resolverRegistryProvider = Provider<ResolverRegistry>((ref) {
   return ResolverRegistry(resolvers: ref.watch(resolverPluginsProvider));
 });
 
+final animeNexusChapterServiceProvider = Provider<AnimeNexusChapterService>((
+  ref,
+) {
+  final service = AnimeNexusChapterService(
+    sourceAvailabilityStore: ref.watch(sourceAvailabilityStoreProvider),
+    sourceAvailabilityCacheCodec: ref.watch(
+      sourceAvailabilityCacheCodecProvider,
+    ),
+    loadAnimeDetail: (anilistId) {
+      return ref.read(getAnimeDetailUseCaseProvider).call(anilistId);
+    },
+    loadSourceAvailability: (detail) async {
+      final loaded = await ref
+          .read(loadSourceAvailabilitySummaryUseCaseProvider)
+          .call(detail);
+      return loaded.fold(
+        onFailure: Failure.new,
+        onSuccess: (value) => Success(value.summary),
+      );
+    },
+  );
+  ref.onDispose(service.dispose);
+  return service;
+});
+
 final malMetadataBridgeProvider = Provider<MalMetadataBridgeService>((ref) {
   final service = MalMetadataBridgeService(
     aniSkipCacheStore: ref.watch(aniSkipCacheStoreProvider),
+    animeNexusSegmentLoader:
+        ({required int anilistId, required int episodeNumber}) {
+          return ref
+              .read(animeNexusChapterServiceProvider)
+              .getEpisodeSegments(
+                anilistId: anilistId,
+                episodeNumber: episodeNumber,
+              );
+        },
   );
   ref.onDispose(service.dispose);
   return service;
@@ -213,6 +215,18 @@ final loadSourceAvailabilitySummaryUseCaseProvider =
         computeUseCase: ref.watch(getSourceAvailabilitySummaryUseCaseProvider),
         sourcePlugins: ref.watch(sourcePluginsProvider),
         cacheCodec: ref.watch(sourceAvailabilityCacheCodecProvider),
+      );
+    });
+
+final backgroundSourceAvailabilityWarmupServiceProvider =
+    Provider<BackgroundSourceAvailabilityWarmupService>((ref) {
+      return BackgroundSourceAvailabilityWarmupService(
+        loadAnimeDetail: (anilistId) {
+          return ref.read(getAnimeDetailUseCaseProvider).call(anilistId);
+        },
+        loadSourceAvailability: ref.watch(
+          loadSourceAvailabilitySummaryUseCaseProvider,
+        ),
       );
     });
 

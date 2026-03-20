@@ -54,13 +54,13 @@ UIUX Full Pass Scope
    - adaptabilidad responsive (mobile y desktop)
 
 4. Coordina especialistas cuando aplique:
-   - direccion visual y consistencia: uiux-creative-director
-   - implementacion Flutter: uiux-implementation-lead y flutter-ui-refactor-implementer
+   - direccion visual y consistencia: visual-identity-concept-artist
+   - implementacion Flutter: flutter-ui-refactor-implementer
    - estados de interaccion: interaction-states-implementer
    - compliance de design system: design-system-enforcer
    - color/material y contraste: color-material-strategist
    - motion narrativa y feedback: motion-interaction-storyboarder
-   - player UX especifico: player-uiux-lead
+   - player UX especifico: player-controls-interaction-designer, player-motion-feedback-designer, player-ui-integration-implementer
 
 5. Convierte hallazgos en backlog priorizado con impacto y esfuerzo:
    - P0: bloqueo UX o confusion critica

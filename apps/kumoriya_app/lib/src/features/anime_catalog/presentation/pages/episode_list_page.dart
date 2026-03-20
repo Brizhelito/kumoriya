@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:kumoriya_core/kumoriya_core.dart';
 import 'package:kumoriya_domain/kumoriya_domain.dart';
 import 'package:kumoriya_plugins/kumoriya_plugins.dart';
 import 'package:kumoriya_storage/kumoriya_storage.dart';
@@ -283,16 +284,12 @@ class _EpisodeListPageState extends ConsumerState<EpisodeListPage> {
     );
   }
 
-  T? _extractSuccessValue<T>(AsyncValue asyncValue) {
+  T? _extractSuccessValue<T>(AsyncValue<Result<T, KumoriyaError>> asyncValue) {
     return asyncValue.maybeWhen(
-      data: (result) {
-        try {
-          final dynamic typedResult = result;
-          return typedResult.value as T?;
-        } catch (_) {
-          return null;
-        }
-      },
+      data: (result) => result.fold(
+        onSuccess: (value) => value,
+        onFailure: (_) => null,
+      ),
       orElse: () => null,
     );
   }
@@ -376,6 +373,7 @@ class _EpisodeListPageState extends ConsumerState<EpisodeListPage> {
           sourcePluginId: entry.key,
           sourceEpisode: entry.value,
           animeTitle: widget.animeTitle,
+          coverImageUrl: _resolveCoverUrl(ref, widget.anilistId),
         );
       }
 
@@ -474,6 +472,7 @@ class _EpisodeListHeader extends ConsumerWidget {
         sourcePluginId: entry.key,
         sourceEpisode: entry.value,
         animeTitle: animeTitle,
+        coverImageUrl: _resolveCoverUrl(ref, anilistId),
       );
       if (result) queued++;
     }
@@ -721,6 +720,7 @@ class _EpisodeCardState extends ConsumerState<_EpisodeCard> {
             sourcePluginId: entry.key,
             sourceEpisode: entry.value,
             animeTitle: widget.animeTitle,
+            coverImageUrl: _resolveCoverUrl(ref, widget.anilistId),
           )
         : false;
 
@@ -749,7 +749,7 @@ class _DownloadStatusChip extends StatelessWidget {
     final (icon, color, label) = switch (task.status) {
       DownloadStatus.pending => (
         Icons.hourglass_top_rounded,
-        Colors.grey,
+        KumoriyaColors.textMuted,
         context.l10n.downloadPending,
       ),
       DownloadStatus.downloading => (
@@ -984,6 +984,7 @@ Future<bool> _enqueueEpisodeDownload({
   required String sourcePluginId,
   required SourceEpisode sourceEpisode,
   String? animeTitle,
+  String? coverImageUrl,
 }) async {
   try {
     final sourcePlugin = ref.read(sourcePluginByIdProvider(sourcePluginId));
@@ -1007,10 +1008,24 @@ Future<bool> _enqueueEpisodeDownload({
       serverLink: links.first,
       sourcePluginId: sourcePluginId,
       animeTitle: animeTitle,
+      coverImageUrl: coverImageUrl,
     );
 
     return result.fold(onSuccess: (_) => true, onFailure: (_) => false);
   } catch (_) {
     return false;
   }
+}
+
+/// Resolves the anime cover image URL from the cached detail provider.
+String? _resolveCoverUrl(WidgetRef ref, int anilistId) {
+  return ref
+      .read(animeDetailProvider(anilistId))
+      .maybeWhen(
+        data: (r) => r.fold(
+          onFailure: (_) => null,
+          onSuccess: (d) => d.anime.coverImageUrl,
+        ),
+        orElse: () => null,
+      );
 }

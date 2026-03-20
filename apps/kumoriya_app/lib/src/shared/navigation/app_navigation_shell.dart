@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 
 import '../../features/settings/presentation/pages/settings_page.dart';
 import '../../app/l10n.dart';
+import '../icons/kumoriya_icons.dart';
 import '../theme/kumoriya_theme.dart';
 
 enum KumoriyaTab { home, search, calendar, library, downloads }
@@ -154,41 +155,41 @@ class _MobileBottomNav extends StatelessWidget {
         },
         backgroundColor: KumoriyaColors.navBackground,
         selectedItemColor: KumoriyaColors.primary,
-        unselectedItemColor: KumoriyaColors.textDisabled,
+        unselectedItemColor: KumoriyaColors.navInactive,
         type: BottomNavigationBarType.fixed,
         elevation: 0,
         selectedFontSize: 10,
         unselectedFontSize: 10,
-        iconSize: 22,
+        iconSize: 24,
         items: <BottomNavigationBarItem>[
           BottomNavigationBarItem(
-            icon: const Icon(Icons.home_outlined),
-            activeIcon: const Icon(Icons.home_rounded),
+            icon: const Icon(KumoriyaIcons.navHome),
+            activeIcon: const Icon(KumoriyaIcons.navHomeActive),
             label: context.l10n.navHome,
           ),
           BottomNavigationBarItem(
-            icon: const Icon(Icons.search_rounded),
-            activeIcon: const Icon(Icons.search_rounded),
+            icon: const Icon(KumoriyaIcons.navSearch),
+            activeIcon: const Icon(KumoriyaIcons.navSearchActive),
             label: context.l10n.navSearch,
           ),
           BottomNavigationBarItem(
-            icon: const Icon(Icons.calendar_today_outlined),
-            activeIcon: const Icon(Icons.calendar_today_rounded),
+            icon: const Icon(KumoriyaIcons.navCalendar),
+            activeIcon: const Icon(KumoriyaIcons.navCalendarActive),
             label: context.l10n.navCalendar,
           ),
           BottomNavigationBarItem(
-            icon: const Icon(Icons.video_library_outlined),
-            activeIcon: const Icon(Icons.video_library_rounded),
+            icon: const Icon(KumoriyaIcons.navLibrary),
+            activeIcon: const Icon(KumoriyaIcons.navLibraryActive),
             label: context.l10n.navLibrary,
           ),
           BottomNavigationBarItem(
-            icon: const Icon(Icons.download_outlined),
-            activeIcon: const Icon(Icons.download_rounded),
+            icon: const Icon(KumoriyaIcons.navDownloads),
+            activeIcon: const Icon(KumoriyaIcons.navDownloadsActive),
             label: context.l10n.navDownloads,
           ),
           BottomNavigationBarItem(
-            icon: const Icon(Icons.settings_outlined),
-            activeIcon: const Icon(Icons.settings_rounded),
+            icon: const Icon(KumoriyaIcons.navSettings),
+            activeIcon: const Icon(KumoriyaIcons.navSettingsActive),
             label: context.l10n.settingsTitle,
           ),
         ],
@@ -232,40 +233,40 @@ class _DesktopRail extends StatelessWidget {
               child: Column(
                 children: <_RailItem>[
                   _RailItem(
-                    icon: Icons.home_outlined,
-                    activeIcon: Icons.home_rounded,
+                    icon: KumoriyaIcons.navHome,
+                    activeIcon: KumoriyaIcons.navHomeActive,
                     label: context.l10n.navHome,
                     index: 0,
                     currentIndex: currentIndex,
                     onTap: onTap,
                   ),
                   _RailItem(
-                    icon: Icons.search_rounded,
-                    activeIcon: Icons.search_rounded,
+                    icon: KumoriyaIcons.navSearch,
+                    activeIcon: KumoriyaIcons.navSearchActive,
                     label: context.l10n.navSearch,
                     index: 1,
                     currentIndex: currentIndex,
                     onTap: onTap,
                   ),
                   _RailItem(
-                    icon: Icons.calendar_today_outlined,
-                    activeIcon: Icons.calendar_today_rounded,
+                    icon: KumoriyaIcons.navCalendar,
+                    activeIcon: KumoriyaIcons.navCalendarActive,
                     label: context.l10n.navCalendar,
                     index: 2,
                     currentIndex: currentIndex,
                     onTap: onTap,
                   ),
                   _RailItem(
-                    icon: Icons.video_library_outlined,
-                    activeIcon: Icons.video_library_rounded,
+                    icon: KumoriyaIcons.navLibrary,
+                    activeIcon: KumoriyaIcons.navLibraryActive,
                     label: context.l10n.navLibrary,
                     index: 3,
                     currentIndex: currentIndex,
                     onTap: onTap,
                   ),
                   _RailItem(
-                    icon: Icons.download_outlined,
-                    activeIcon: Icons.download_rounded,
+                    icon: KumoriyaIcons.navDownloads,
+                    activeIcon: KumoriyaIcons.navDownloadsActive,
                     label: context.l10n.navDownloads,
                     index: 4,
                     currentIndex: currentIndex,
@@ -276,7 +277,7 @@ class _DesktopRail extends StatelessWidget {
             ),
           ),
           _RailUtilityButton(
-            icon: Icons.settings_outlined,
+            icon: KumoriyaIcons.navSettings,
             tooltip: context.l10n.settingsTitle,
             onTap: onOpenSettings,
           ),
@@ -314,23 +315,25 @@ class _RailUtilityButtonState extends State<_RailUtilityButton> {
         cursor: SystemMouseCursors.click,
         onEnter: (_) => setState(() => _hovered = true),
         onExit: (_) => setState(() => _hovered = false),
-        child: GestureDetector(
+        child: InkWell(
+          borderRadius: BorderRadius.circular(KumoriyaRadius.lg),
           onTap: widget.onTap,
+          splashColor: KumoriyaColors.primary.withValues(alpha: 0.10),
           child: Container(
             width: 56,
             height: 56,
             margin: const EdgeInsets.only(bottom: 8),
             decoration: BoxDecoration(
               color: _hovered
-                  ? KumoriyaColors.primary.withValues(alpha: 0.10)
+                  ? KumoriyaColors.navIndicator
                   : Colors.transparent,
               borderRadius: BorderRadius.circular(KumoriyaRadius.lg),
             ),
-            child: const Center(
+            child: Center(
               child: Icon(
-                Icons.settings_outlined,
-                color: KumoriyaColors.textMuted,
-                size: 22,
+                widget.icon,
+                color: KumoriyaColors.navInactive,
+                size: 24,
               ),
             ),
           ),
@@ -361,7 +364,7 @@ class _KumoriyaLogoMark extends StatelessWidget {
       child: const Text(
         'K',
         style: TextStyle(
-          color: Colors.white,
+          color: KumoriyaColors.textPrimary,
           fontSize: 20,
           fontWeight: FontWeight.w800,
         ),
@@ -392,35 +395,37 @@ class _RailItem extends StatelessWidget {
     final isActive = index == currentIndex;
     final color = isActive
         ? KumoriyaColors.primary
-        : KumoriyaColors.textDisabled;
+        : KumoriyaColors.navInactive;
 
     return Tooltip(
       message: label,
       preferBelow: false,
       child: MouseRegion(
         cursor: SystemMouseCursors.click,
-        child: GestureDetector(
+        child: InkWell(
+          borderRadius: BorderRadius.circular(KumoriyaRadius.lg),
           onTap: () => onTap(index),
+          splashColor: KumoriyaColors.primary.withValues(alpha: 0.10),
           child: Container(
             width: 88,
             height: 56,
             margin: const EdgeInsets.symmetric(vertical: 2),
             decoration: BoxDecoration(
               color: isActive
-                  ? KumoriyaColors.primary.withValues(alpha: 0.10)
+                  ? KumoriyaColors.navIndicator
                   : Colors.transparent,
               borderRadius: BorderRadius.circular(KumoriyaRadius.lg),
             ),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: <Widget>[
-                Icon(isActive ? activeIcon : icon, color: color, size: 22),
+                Icon(isActive ? activeIcon : icon, color: color, size: 24),
                 const SizedBox(height: 4),
                 Text(
                   label,
                   style: TextStyle(
                     color: color,
-                    fontSize: 9,
+                    fontSize: 10,
                     fontWeight: isActive ? FontWeight.w700 : FontWeight.w500,
                     letterSpacing: 0.3,
                   ),

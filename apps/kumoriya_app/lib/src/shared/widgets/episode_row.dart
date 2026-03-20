@@ -48,21 +48,23 @@ class _EpisodeRowState extends State<EpisodeRow> {
     final isActive = widget.isCurrentEpisode;
     final epNum = widget.number.toInt();
 
-    return MouseRegion(
+    Widget row = MouseRegion(
       onEnter: (_) => setState(() => _hovered = true),
       onExit: (_) => setState(() => _hovered = false),
-      child: GestureDetector(
+      child: InkWell(
+        borderRadius: BorderRadius.circular(KumoriyaRadius.xxl),
         onTap: widget.isPlayable ? widget.onTap : null,
+        splashColor: KumoriyaColors.primary.withValues(alpha: 0.10),
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 200),
           margin: const EdgeInsets.only(bottom: 8),
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
           decoration: BoxDecoration(
             color: isActive
-                ? KumoriyaColors.primary.withValues(alpha: 0.10)
+                ? KumoriyaColors.primary.withValues(alpha: 0.20)
                 : _hovered
                 ? KumoriyaColors.surface
-                : KumoriyaColors.surface.withValues(alpha: 0.50),
+                : KumoriyaColors.surfaceDim,
             borderRadius: BorderRadius.circular(KumoriyaRadius.xxl),
             border: Border.all(
               color: isActive
@@ -90,13 +92,12 @@ class _EpisodeRowState extends State<EpisodeRow> {
                             widget.displayTitle,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w700,
-                              color: isActive
-                                  ? KumoriyaColors.textPrimary
-                                  : KumoriyaColors.textSecondary,
-                            ),
+                            style: Theme.of(context).textTheme.labelLarge
+                                ?.copyWith(
+                                  color: isActive
+                                      ? KumoriyaColors.textPrimary
+                                      : KumoriyaColors.textSecondary,
+                                ),
                           ),
                         ),
                         if (isActive && widget.activeLabel != null)
@@ -175,6 +176,10 @@ class _EpisodeRowState extends State<EpisodeRow> {
         ),
       ),
     );
+    if (!widget.isPlayable) {
+      row = Opacity(opacity: 0.45, child: row);
+    }
+    return row;
   }
 }
 
@@ -196,7 +201,7 @@ class _EpisodeNumberBox extends StatelessWidget {
       height: 44,
       decoration: BoxDecoration(
         color: isActive
-            ? KumoriyaColors.primary
+            ? KumoriyaColors.primaryContainer
             : isPlayable
             ? KumoriyaColors.surface
             : KumoriyaColors.borderSubtle,
@@ -216,11 +221,9 @@ class _EpisodeNumberBox extends StatelessWidget {
       alignment: Alignment.center,
       child: Text(
         number.toString().padLeft(2, '0'),
-        style: TextStyle(
-          fontSize: 13,
-          fontWeight: FontWeight.w800,
+        style: Theme.of(context).textTheme.labelLarge!.copyWith(
           color: isActive
-              ? Colors.white
+              ? KumoriyaColors.textPrimary
               : isPlayable
               ? KumoriyaColors.textMuted
               : KumoriyaColors.textDisabled,
@@ -321,7 +324,7 @@ class EpisodeAudioBadge extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
       decoration: BoxDecoration(
-        color: KumoriyaColors.surface.withValues(alpha: 0.80),
+        color: KumoriyaColors.surfaceOverlay,
         borderRadius: BorderRadius.circular(KumoriyaRadius.sm),
         border: Border.all(color: KumoriyaColors.borderSubtle),
       ),

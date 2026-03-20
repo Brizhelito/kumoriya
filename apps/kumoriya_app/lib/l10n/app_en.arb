@@ -553,5 +553,12 @@
   "settingsSubtitleMedium": "M",
   "settingsSubtitleLarge": "L",
   "settingsSubtitleExtraLarge": "XL",
-  "settingsSubtitleBackground": "Show background behind subtitles"
+  "settingsSubtitleBackground": "Show background behind subtitles",
+  "playerSkipIntro": "Skip intro",
+  "playerSkipCredits": "Skip credits",
+  "clearSearch": "Clear search",
+  "sourceServerLinksEmpty": "No server links available for this episode.",
+  "downloadDeleteConfirmTitle": "Delete download?",
+  "downloadDeleteConfirmMessage": "This downloaded episode will be permanently removed from your device.",
+  "cancelAction": "Cancel"
 }

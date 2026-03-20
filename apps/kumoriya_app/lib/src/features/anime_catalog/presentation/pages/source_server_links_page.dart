@@ -42,22 +42,18 @@ class SourceServerLinksPage extends ConsumerWidget {
           ),
         ),
       ),
-      body: serverLinksState.when(
-        loading: () => LoadingStateView(
-          label: context.l10n.sourceServerLinksLoading(sourceName),
-        ),
-        error: (error, _) => ErrorStateView(
-          message: context.l10n.unexpectedStateError(error.toString()),
-          onRetry: () => ref.invalidate(
-            sourceEpisodeServerLinksProvider((
-              sourcePluginId: sourcePluginId,
-              episode: episode,
-            )),
+      body: StateTransitionSwitcher(
+        stateKey: serverLinksState.isLoading
+            ? 'loading'
+            : serverLinksState.hasError
+            ? 'error'
+            : 'content',
+        child: serverLinksState.when(
+          loading: () => LoadingStateView(
+            label: context.l10n.sourceServerLinksLoading(sourceName),
           ),
-        ),
-        data: (result) => result.fold(
-          onFailure: (error) => ErrorStateView(
-            message: mapErrorMessage(context, error),
+          error: (_, _) => ErrorStateView(
+            message: context.l10n.genericLoadFailure,
             onRetry: () => ref.invalidate(
               sourceEpisodeServerLinksProvider((
                 sourcePluginId: sourcePluginId,
@@ -65,40 +61,69 @@ class SourceServerLinksPage extends ConsumerWidget {
               )),
             ),
           ),
-          onSuccess: (serverLinks) => ListView.separated(
-            itemCount: serverLinks.length,
-            separatorBuilder: (_, _) => const Divider(height: 1),
-            itemBuilder: (context, index) {
-              final link = serverLinks[index];
-              return ListTile(
-                leading: const Icon(Icons.dns_outlined),
-                title: Text(link.serverName),
-                subtitle: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: <Widget>[
-                    Text(link.initialUrl.toString()),
-                    if (link.detectedHost != null)
-                      Text(context.l10n.sourceDetectedHost(link.detectedHost!)),
-                  ],
-                ),
-                trailing: OutlinedButton(
-                  onPressed: () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute<void>(
-                        builder: (_) => ResolveServerLinkPage(
-                          anilistId: anilistId,
-                          animeTitle: animeTitle,
-                          episodeNumber: episode.number.toInt().toString(),
-                          sourcePluginId: sourcePluginId,
-                          serverLink: link,
+          data: (result) => result.fold(
+            onFailure: (error) => ErrorStateView(
+              message: mapErrorMessage(context, error),
+              onRetry: () => ref.invalidate(
+                sourceEpisodeServerLinksProvider((
+                  sourcePluginId: sourcePluginId,
+                  episode: episode,
+                )),
+              ),
+            ),
+            onSuccess: (serverLinks) => serverLinks.isEmpty
+                ? UnavailableStateView(
+                    title: context.l10n.episodeLockedLabel,
+                    message: context.l10n.sourceServerLinksEmpty,
+                    actionLabel: context.l10n.retry,
+                    onAction: () => ref.invalidate(
+                      sourceEpisodeServerLinksProvider((
+                        sourcePluginId: sourcePluginId,
+                        episode: episode,
+                      )),
+                    ),
+                  )
+                : ListView.separated(
+                    itemCount: serverLinks.length,
+                    separatorBuilder: (_, _) => const Divider(height: 1),
+                    itemBuilder: (context, index) {
+                      final link = serverLinks[index];
+                      return ListTile(
+                        leading: const Icon(Icons.dns_outlined),
+                        title: Text(link.serverName),
+                        subtitle: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: <Widget>[
+                            Text(link.initialUrl.toString()),
+                            if (link.detectedHost != null)
+                              Text(
+                                context.l10n.sourceDetectedHost(
+                                  link.detectedHost!,
+                                ),
+                              ),
+                          ],
                         ),
-                      ),
-                    );
-                  },
-                  child: Text(context.l10n.resolveServerLink),
-                ),
-              );
-            },
+                        trailing: OutlinedButton(
+                          onPressed: () {
+                            Navigator.of(context).push(
+                              MaterialPageRoute<void>(
+                                builder: (_) => ResolveServerLinkPage(
+                                  anilistId: anilistId,
+                                  animeTitle: animeTitle,
+                                  episodeNumber: episode.number
+                                      .toInt()
+                                      .toString(),
+                                  sourcePluginId: sourcePluginId,
+                                  serverLink: link,
+                                ),
+                              ),
+                            );
+                          },
+                          child: Text(context.l10n.resolveServerLink),
+                        ),
+                      );
+                    },
+                  ),
           ),
         ),
       ),

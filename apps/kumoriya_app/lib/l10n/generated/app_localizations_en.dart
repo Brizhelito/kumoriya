@@ -981,4 +981,27 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get settingsSubtitleBackground => 'Show background behind subtitles';
+
+  @override
+  String get playerSkipIntro => 'Skip intro';
+
+  @override
+  String get playerSkipCredits => 'Skip credits';
+
+  @override
+  String get clearSearch => 'Clear search';
+
+  @override
+  String get sourceServerLinksEmpty =>
+      'No server links available for this episode.';
+
+  @override
+  String get downloadDeleteConfirmTitle => 'Delete download?';
+
+  @override
+  String get downloadDeleteConfirmMessage =>
+      'This downloaded episode will be permanently removed from your device.';
+
+  @override
+  String get cancelAction => 'Cancel';
 }

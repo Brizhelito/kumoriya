@@ -119,6 +119,126 @@ void main() {
         expect(cachedSegments.first.kind, AniSkipSegmentKind.opening);
       },
     );
+
+    test('fills missing ending with Anime Nexus fallback segments', () async {
+      final store = _FakeAniSkipCacheStore();
+      final client = MockClient((request) async {
+        if (request.url.host == 'graphql.anilist.co') {
+          return http.Response(
+            jsonEncode(<String, Object?>{
+              'data': <String, Object?>{
+                'Media': <String, Object?>{'idMal': 777},
+              },
+            }),
+            200,
+          );
+        }
+
+        if (request.url.host == 'api.aniskip.com') {
+          return http.Response(
+            jsonEncode(<String, Object?>{
+              'results': <Map<String, Object?>>[
+                <String, Object?>{
+                  'skip_type': 'op',
+                  'interval': <String, Object?>{
+                    'start_time': 3,
+                    'end_time': 93,
+                  },
+                },
+              ],
+            }),
+            200,
+          );
+        }
+
+        throw Exception('unexpected request: ${request.url}');
+      });
+
+      final service = MalMetadataBridgeService(
+        httpClient: client,
+        aniSkipCacheStore: store,
+        animeNexusSegmentLoader:
+            ({required int anilistId, required int episodeNumber}) async {
+              expect(anilistId, 100);
+              expect(episodeNumber, 1);
+              return const <AniSkipSegment>[
+                AniSkipSegment(
+                  kind: AniSkipSegmentKind.opening,
+                  start: Duration(seconds: 4),
+                  end: Duration(seconds: 94),
+                ),
+                AniSkipSegment(
+                  kind: AniSkipSegmentKind.ending,
+                  start: Duration(minutes: 22, seconds: 34),
+                  end: Duration(minutes: 24, seconds: 7),
+                ),
+              ];
+            },
+      );
+
+      final segments = await service.getAniSkipSegments(
+        anilistId: 100,
+        episodeNumber: 1,
+        episodeLengthSeconds: 1440,
+      );
+
+      expect(segments, hasLength(2));
+      expect(
+        segments.where((segment) => segment.kind == AniSkipSegmentKind.opening),
+        hasLength(1),
+      );
+      expect(
+        segments.where((segment) => segment.kind == AniSkipSegmentKind.ending),
+        hasLength(1),
+      );
+      expect(segments.last.start, const Duration(minutes: 22, seconds: 34));
+    });
+
+    test('uses Anime Nexus fallback when AniList has no MAL id', () async {
+      final service = MalMetadataBridgeService(
+        httpClient: MockClient((request) async {
+          if (request.url.host == 'graphql.anilist.co') {
+            return http.Response(
+              jsonEncode(<String, Object?>{
+                'data': <String, Object?>{
+                  'Media': <String, Object?>{'idMal': null},
+                },
+              }),
+              200,
+            );
+          }
+          throw Exception('unexpected request: ${request.url}');
+        }),
+        aniSkipCacheStore: _FakeAniSkipCacheStore(),
+        animeNexusSegmentLoader:
+            ({required int anilistId, required int episodeNumber}) async {
+              expect(anilistId, 100);
+              expect(episodeNumber, 1);
+              return const <AniSkipSegment>[
+                AniSkipSegment(
+                  kind: AniSkipSegmentKind.opening,
+                  start: Duration(minutes: 3, seconds: 32),
+                  end: Duration(minutes: 4, seconds: 54),
+                ),
+                AniSkipSegment(
+                  kind: AniSkipSegmentKind.ending,
+                  start: Duration(minutes: 22, seconds: 34),
+                  end: Duration(minutes: 24, seconds: 7),
+                ),
+              ];
+            },
+      );
+
+      final segments = await service.getAniSkipSegments(
+        anilistId: 100,
+        episodeNumber: 1,
+        episodeLengthSeconds: 1440,
+      );
+
+      expect(segments, hasLength(2));
+      expect(segments.first.kind, AniSkipSegmentKind.opening);
+      expect(segments.last.kind, AniSkipSegmentKind.ending);
+    });
   });
 }
 

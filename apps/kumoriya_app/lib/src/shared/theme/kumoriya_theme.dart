@@ -5,15 +5,23 @@ abstract final class KumoriyaColors {
   static const Color background = Color(0xFF130D1A);
   static const Color surface = Color(0xFF1E1629);
   static const Color navBackground = Color(0xFF171121);
+  static const Color navInactive = Color(0xFF9EACC2);
+  static const Color navIndicator = Color(0x337C3BED);
   static const Color primary = Color(0xFF7C3BED);
   static const Color primaryDark = Color(0xFF6831C9);
   static const Color primaryLight = Color(0xFF9055EB);
   static const Color primaryContainer = Color(0xFF2A1654);
+  static const Color accentSky = Color(0xFF56B8FF);
+  static const Color accentMint = Color(0xFF40D8B3);
+  static const Color accentAmber = Color(0xFFF6BE4C);
+  static const Color accentRose = Color(0xFFF77EA5);
+  static const Color accentPremium = Color(0xFFE8C36A);
   static const Color textPrimary = Color(0xFFFFFFFF);
   static const Color textSecondary = Color(0xFFCBD5E1);
   static const Color textMuted = Color(0xFF94A3B8);
+  static const Color textTertiary = Color(0xFFA8B6CC);
   static const Color textDisabled = Color(0xFF64748B);
-  static const Color statusAiring = Color(0xFF34D399);
+  static const Color statusAiring = accentMint;
   static const Color borderSubtle = Color(0xFF1E293B);
   static const Color borderMedium = Color(0xFF334155);
 
@@ -25,11 +33,15 @@ abstract final class KumoriyaColors {
   static const Color statusSuccess = Color(0xFF34D399);
   static const Color statusWarning = Color(0xFFF59E0B);
   static const Color statusDanger = Color(0xFFF87171);
-  static const Color statusInfo = Color(0xFF60A5FA);
+  static const Color statusInfo = accentSky;
+  static const Color statusPremium = accentPremium;
 
   // Named surface variants (replace ad-hoc alpha usage)
   static Color get surfaceDim => surface.withValues(alpha: 0.50);
   static Color get surfaceBright => surface;
+  static Color get surfaceElevated => surface.withValues(alpha: 0.70);
+  static Color get surfacePremium => const Color(0xFF251B34);
+  static Color get surfaceOverlay => surface.withValues(alpha: 0.80);
 
   // Overlay colors
   static Color get scrimLight => Colors.black.withValues(alpha: 0.40);
@@ -73,7 +85,7 @@ abstract final class KumoriyaTheme {
       onPrimary: KumoriyaColors.textPrimary,
       primaryContainer: KumoriyaColors.primaryContainer,
       onPrimaryContainer: KumoriyaColors.textPrimary,
-      secondary: KumoriyaColors.primaryLight,
+      secondary: KumoriyaColors.accentSky,
       onSecondary: KumoriyaColors.textPrimary,
       secondaryContainer: KumoriyaColors.surface,
       onSecondaryContainer: KumoriyaColors.textSecondary,
@@ -84,7 +96,7 @@ abstract final class KumoriyaTheme {
       surfaceContainer: KumoriyaColors.surface,
       surfaceContainerHigh: Color(0xFF231B30),
       surfaceContainerHighest: Color(0xFF2A2035),
-      onSurfaceVariant: KumoriyaColors.textMuted,
+      onSurfaceVariant: KumoriyaColors.textTertiary,
       outline: KumoriyaColors.borderMedium,
       outlineVariant: KumoriyaColors.borderSubtle,
       error: Color(0xFFCF6679),
@@ -117,7 +129,7 @@ abstract final class KumoriyaTheme {
       bottomNavigationBarTheme: BottomNavigationBarThemeData(
         backgroundColor: KumoriyaColors.navBackground.withValues(alpha: 0.95),
         selectedItemColor: KumoriyaColors.primary,
-        unselectedItemColor: KumoriyaColors.textDisabled,
+        unselectedItemColor: KumoriyaColors.navInactive,
         type: BottomNavigationBarType.fixed,
         elevation: 0,
         selectedLabelStyle: const TextStyle(
@@ -137,7 +149,7 @@ abstract final class KumoriyaTheme {
           size: 24,
         ),
         unselectedIconTheme: const IconThemeData(
-          color: KumoriyaColors.textDisabled,
+          color: KumoriyaColors.navInactive,
           size: 24,
         ),
         selectedLabelTextStyle: const TextStyle(
@@ -147,10 +159,10 @@ abstract final class KumoriyaTheme {
           letterSpacing: 0.5,
         ),
         unselectedLabelTextStyle: const TextStyle(
-          color: KumoriyaColors.textDisabled,
+          color: KumoriyaColors.navInactive,
           fontSize: 10,
         ),
-        indicatorColor: Color(0x1A7C3BED),
+        indicatorColor: KumoriyaColors.navIndicator,
         elevation: 0,
         minWidth: 88,
       ),

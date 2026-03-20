@@ -297,11 +297,12 @@ class _AnimeDetailBody extends StatelessWidget {
                                         relation.anime.title.romaji,
                                         maxLines: 2,
                                         overflow: TextOverflow.ellipsis,
-                                        style: const TextStyle(
-                                          fontSize: 14,
-                                          fontWeight: FontWeight.w700,
-                                          color: KumoriyaColors.textPrimary,
-                                        ),
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .titleSmall!
+                                            .copyWith(
+                                              color: KumoriyaColors.textPrimary,
+                                            ),
                                       ),
                                       const SizedBox(height: 8),
                                       Wrap(
@@ -393,24 +394,26 @@ class _PlayResumeCtaState extends ConsumerState<_PlayResumeCta> {
 
     return SizedBox(
       width: double.infinity,
-      height: 48,
       child: FilledButton.icon(
         onPressed: isAvailable && !_isLaunching && !isCheckingSources
             // ignore: unnecessary_non_null_assertion
             ? () => _handleTap(summary!, latestProgress)
             : null,
         icon: _isLaunching || isCheckingSources
-            ? const SizedBox(
+            ? SizedBox(
                 width: 18,
                 height: 18,
                 child: CircularProgressIndicator(
                   strokeWidth: 2,
-                  color: Colors.white,
+                  color: KumoriyaColors.textPrimary,
                 ),
               )
             : const Icon(icon, size: 22),
         label: Text(
           label,
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+          textAlign: TextAlign.center,
           style: const TextStyle(
             fontSize: 15,
             fontWeight: FontWeight.w700,
@@ -419,9 +422,10 @@ class _PlayResumeCtaState extends ConsumerState<_PlayResumeCta> {
         ),
         style: FilledButton.styleFrom(
           backgroundColor: KumoriyaColors.primary,
-          foregroundColor: Colors.white,
+          foregroundColor: KumoriyaColors.textPrimary,
           disabledBackgroundColor: KumoriyaColors.surface,
           disabledForegroundColor: KumoriyaColors.textDisabled,
+          minimumSize: const Size.fromHeight(48),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(KumoriyaRadius.lg),
           ),
@@ -480,9 +484,7 @@ class _CollapsibleSynopsisState extends State<_CollapsibleSynopsis> {
             children: <Widget>[
               Text(
                 context.l10n.detailSynopsisTitle,
-                style: const TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w700,
+                style: Theme.of(context).textTheme.titleSmall!.copyWith(
                   color: KumoriyaColors.textPrimary,
                 ),
               ),
@@ -492,7 +494,7 @@ class _CollapsibleSynopsisState extends State<_CollapsibleSynopsis> {
                     ? Icons.expand_less_rounded
                     : Icons.expand_more_rounded,
                 size: 20,
-                color: KumoriyaColors.textMuted,
+                color: KumoriyaColors.textTertiary,
               ),
             ],
           ),
@@ -503,16 +505,14 @@ class _CollapsibleSynopsisState extends State<_CollapsibleSynopsis> {
             widget.synopsis,
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              fontSize: 13,
+            style: Theme.of(context).textTheme.bodySmall!.copyWith(
               height: 1.5,
               color: KumoriyaColors.textSecondary,
             ),
           ),
           secondChild: TranslatedDynamicText(
             widget.synopsis,
-            style: const TextStyle(
-              fontSize: 13,
+            style: Theme.of(context).textTheme.bodySmall!.copyWith(
               height: 1.5,
               color: KumoriyaColors.textSecondary,
             ),
@@ -537,16 +537,20 @@ class _DetailHero extends StatelessWidget {
     return Stack(
       fit: StackFit.expand,
       children: <Widget>[
-        GestureDetector(
-          onTap: () => _showArtworkPreview(
-            context,
-            detail.bannerImageUrl ?? detail.anime.coverImageUrl,
-            detail.anime.title.romaji,
-          ),
-          child: KumoriyaCachedImage(
-            url: detail.bannerImageUrl ?? detail.anime.coverImageUrl,
-            bucket: KumoriyaImageCacheBucket.artwork,
-            fit: BoxFit.cover,
+        Semantics(
+          image: true,
+          label: detail.anime.title.romaji,
+          child: GestureDetector(
+            onTap: () => _showArtworkPreview(
+              context,
+              detail.bannerImageUrl ?? detail.anime.coverImageUrl,
+              detail.anime.title.romaji,
+            ),
+            child: KumoriyaCachedImage(
+              url: detail.bannerImageUrl ?? detail.anime.coverImageUrl,
+              bucket: KumoriyaImageCacheBucket.artwork,
+              fit: BoxFit.cover,
+            ),
           ),
         ),
         DecoratedBox(
@@ -555,9 +559,10 @@ class _DetailHero extends StatelessWidget {
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
               colors: <Color>[
-                Colors.black.withValues(alpha: 0.12),
-                Colors.black.withValues(alpha: 0.78),
+                KumoriyaColors.background.withValues(alpha: 0.0),
+                KumoriyaColors.background.withValues(alpha: 0.85),
               ],
+              stops: const <double>[0.3, 1.0],
             ),
           ),
         ),
@@ -567,22 +572,26 @@ class _DetailHero extends StatelessWidget {
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.end,
               children: <Widget>[
-                GestureDetector(
-                  onTap: () => _showArtworkPreview(
-                    context,
-                    detail.anime.coverImageUrl,
-                    detail.anime.title.romaji,
-                  ),
-                  child: KumoriyaCachedImage(
-                    url: detail.anime.coverImageUrl,
-                    bucket: KumoriyaImageCacheBucket.artwork,
-                    width: 120,
-                    height: 170,
-                    fit: defaultTargetPlatform == TargetPlatform.android
-                        ? BoxFit.contain
-                        : BoxFit.cover,
-                    alignment: Alignment.topCenter,
-                    borderRadius: BorderRadius.circular(KumoriyaRadius.xxl),
+                Semantics(
+                  image: true,
+                  label: '${detail.anime.title.romaji} cover',
+                  child: GestureDetector(
+                    onTap: () => _showArtworkPreview(
+                      context,
+                      detail.anime.coverImageUrl,
+                      detail.anime.title.romaji,
+                    ),
+                    child: KumoriyaCachedImage(
+                      url: detail.anime.coverImageUrl,
+                      bucket: KumoriyaImageCacheBucket.artwork,
+                      width: 120,
+                      height: 170,
+                      fit: defaultTargetPlatform == TargetPlatform.android
+                          ? BoxFit.contain
+                          : BoxFit.cover,
+                      alignment: Alignment.topCenter,
+                      borderRadius: BorderRadius.circular(KumoriyaRadius.xxl),
+                    ),
                   ),
                 ),
                 const SizedBox(width: 16),
@@ -597,7 +606,7 @@ class _DetailHero extends StatelessWidget {
                         overflow: TextOverflow.ellipsis,
                         style: Theme.of(context).textTheme.headlineMedium
                             ?.copyWith(
-                              color: Colors.white,
+                              color: KumoriyaColors.textPrimary,
                               fontWeight: FontWeight.w800,
                             ),
                       ),
@@ -671,7 +680,10 @@ Future<void> _showArtworkPreview(
                 alignment: Alignment.topLeft,
                 child: IconButton(
                   onPressed: () => Navigator.of(dialogContext).pop(),
-                  icon: const Icon(Icons.close_rounded, color: Colors.white),
+                  icon: const Icon(
+                    Icons.close_rounded,
+                    color: KumoriyaColors.textPrimary,
+                  ),
                   tooltip: title,
                 ),
               ),
@@ -705,11 +717,9 @@ class _TitleBlock extends StatelessWidget {
       secondaryTitle,
       maxLines: 2,
       overflow: TextOverflow.ellipsis,
-      style: const TextStyle(
-        fontSize: 15,
-        fontWeight: FontWeight.w700,
-        color: KumoriyaColors.textSecondary,
-      ),
+      style: Theme.of(
+        context,
+      ).textTheme.titleSmall!.copyWith(color: KumoriyaColors.textSecondary),
     );
   }
 }
@@ -828,6 +838,7 @@ class _EpisodeDetailSectionState extends ConsumerState<_EpisodeDetailSection> {
                 iconUrl: _sourceIconUrl(source.manifest),
                 audioKinds: source.availableAudioKinds,
                 compact: true,
+                iconOnly: true,
                 highlighted:
                     summary.recommended?.manifest.id == source.manifest.id,
               ),
@@ -842,37 +853,26 @@ class _EpisodeDetailSectionState extends ConsumerState<_EpisodeDetailSection> {
             : null,
         seeAllLabel: isLongSeries ? context.l10n.viewEpisodeList : null,
       ),
-      if (widget.availabilityState.isLoading) ...<Widget>[
-        const SizedBox(height: 8),
-        Row(
-          children: <Widget>[
+      const SizedBox(height: 6),
+      Row(
+        children: <Widget>[
+          if (widget.availabilityState.isLoading) ...<Widget>[
             const SizedBox(
-              width: 14,
-              height: 14,
-              child: CircularProgressIndicator(strokeWidth: 2),
+              width: 12,
+              height: 12,
+              child: CircularProgressIndicator(strokeWidth: 1.5),
             ),
-            const SizedBox(width: 8),
-            Text(
-              summary == null
-                  ? context.l10n.detailCheckingSources
-                  : '${context.l10n.detailCheckingSources} (${summary.playableSources.length})',
-              style: const TextStyle(
-                fontSize: 12,
-                color: KumoriyaColors.textMuted,
-              ),
-            ),
+            const SizedBox(width: 6),
           ],
-        ),
-      ],
-      const SizedBox(height: 4),
-      Text(
-        rowsResult.totalCount == 0
-            ? context.l10n.episodeListEmpty
-            : '${rowsResult.totalCount} ${context.l10n.episodesWord}',
-        style: const TextStyle(
-          fontSize: 12,
-          color: KumoriyaColors.textDisabled,
-        ),
+          Text(
+            rowsResult.totalCount == 0
+                ? context.l10n.episodeListEmpty
+                : '${rowsResult.totalCount} ${context.l10n.episodesWord}',
+            style: Theme.of(
+              context,
+            ).textTheme.bodySmall!.copyWith(color: KumoriyaColors.textTertiary),
+          ),
+        ],
       ),
       if (!isLongSeries &&
           rows.any(
@@ -887,23 +887,24 @@ class _EpisodeDetailSectionState extends ConsumerState<_EpisodeDetailSection> {
             rows: rows,
             anilistId: widget.detail.anime.anilistId,
             animeTitle: widget.detail.anime.title.romaji,
+            coverImageUrl: widget.detail.anime.coverImageUrl,
             availableSources:
                 summary?.playableSources ?? const <SourceAvailability>[],
           ),
         ),
       ],
-      const SizedBox(height: 14),
+      const SizedBox(height: 10),
       if (sourceBadges.isEmpty)
         Text(
           context.l10n.detailPlaybackNotReady,
           style: const TextStyle(
             fontSize: 12,
-            color: KumoriyaColors.textDisabled,
+            color: KumoriyaColors.textTertiary,
           ),
         )
       else
-        Wrap(spacing: 6, runSpacing: 6, children: sourceBadges),
-      const SizedBox(height: 14),
+        Wrap(spacing: 4, runSpacing: 4, children: sourceBadges),
+      const SizedBox(height: 10),
     ];
 
     if (rows.isEmpty) {
@@ -943,6 +944,7 @@ class _EpisodeDetailSectionState extends ConsumerState<_EpisodeDetailSection> {
             row: row,
             anilistId: widget.detail.anime.anilistId,
             animeTitle: widget.detail.anime.title.romaji,
+            coverImageUrl: widget.detail.anime.coverImageUrl,
             downloadTask: dlTask,
             onTap:
                 row.playableSources.isEmpty || summary == null || _isLaunching
@@ -1099,6 +1101,7 @@ class _DetailEpisodeCard extends ConsumerStatefulWidget {
     required this.row,
     required this.anilistId,
     required this.animeTitle,
+    this.coverImageUrl,
     this.downloadTask,
     this.onTap,
   });
@@ -1106,6 +1109,7 @@ class _DetailEpisodeCard extends ConsumerStatefulWidget {
   final _DetailEpisodeRowData row;
   final int anilistId;
   final String animeTitle;
+  final String? coverImageUrl;
   final DownloadTask? downloadTask;
   final VoidCallback? onTap;
 
@@ -1234,6 +1238,7 @@ class _DetailEpisodeCardState extends ConsumerState<_DetailEpisodeCard> {
         serverLink: chosenLink,
         sourcePluginId: entry.key,
         animeTitle: widget.animeTitle,
+        coverImageUrl: widget.coverImageUrl,
       );
 
       if (!mounted) return;
@@ -1376,8 +1381,8 @@ class _ActionButton extends StatelessWidget {
       onTap: onTap,
       child: Container(
         padding: EdgeInsets.symmetric(
-          horizontal: desktop ? 14 : 16,
-          vertical: desktop ? 8 : 10,
+          horizontal: desktop ? 14 : 12,
+          vertical: 8,
         ),
         decoration: BoxDecoration(
           color: active
@@ -1393,12 +1398,12 @@ class _ActionButton extends StatelessWidget {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: <Widget>[
-            Icon(icon, size: desktop ? 16 : 18, color: color),
+            Icon(icon, size: 16, color: color),
             const SizedBox(width: 6),
             Text(
               label,
               style: TextStyle(
-                fontSize: desktop ? 12 : 13,
+                fontSize: 12,
                 fontWeight: FontWeight.w600,
                 color: color,
               ),
@@ -1609,20 +1614,25 @@ class _HeroMetaPill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(KumoriyaRadius.full),
-        color: Colors.black.withValues(alpha: 0.40),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.18)),
-      ),
-      child: Text(
-        label,
-        style: const TextStyle(
-          fontSize: 11,
-          fontWeight: FontWeight.w700,
-          color: Colors.white,
-          letterSpacing: 0.3,
+    return ConstrainedBox(
+      constraints: const BoxConstraints(maxWidth: 180),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(KumoriyaRadius.full),
+          color: Colors.black.withValues(alpha: 0.40),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.18)),
+        ),
+        child: Text(
+          label,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(
+            fontSize: 11,
+            fontWeight: FontWeight.w700,
+            color: Colors.white,
+            letterSpacing: 0.3,
+          ),
         ),
       ),
     );
@@ -1683,6 +1693,7 @@ Future<bool> _enqueueDetailEpisodeDownload({
   required String sourcePluginId,
   required SourceEpisode sourceEpisode,
   String? animeTitle,
+  String? coverImageUrl,
 }) async {
   try {
     final sourcePlugin = ref.read(sourcePluginByIdProvider(sourcePluginId));
@@ -1706,6 +1717,7 @@ Future<bool> _enqueueDetailEpisodeDownload({
       serverLink: links.first,
       sourcePluginId: sourcePluginId,
       animeTitle: animeTitle,
+      coverImageUrl: coverImageUrl,
     );
 
     return result.fold(onSuccess: (_) => true, onFailure: (_) => false);
@@ -1795,12 +1807,14 @@ class _DetailDownloadAllButton extends ConsumerStatefulWidget {
     required this.anilistId,
     required this.animeTitle,
     required this.availableSources,
+    this.coverImageUrl,
   });
 
   final List<_DetailEpisodeRowData> rows;
   final int anilistId;
   final String animeTitle;
   final List<SourceAvailability> availableSources;
+  final String? coverImageUrl;
 
   @override
   ConsumerState<_DetailDownloadAllButton> createState() =>
@@ -1826,16 +1840,16 @@ class _DetailDownloadAllButtonState
               children: <Widget>[
                 Icon(
                   Icons.download_rounded,
-                  size: 16,
+                  size: 17,
                   color: KumoriyaColors.primary,
                 ),
-                const SizedBox(width: 4),
+                const SizedBox(width: 5),
                 Text(
                   context.l10n.downloadAll,
                   style: TextStyle(
-                    fontSize: 12,
+                    fontSize: 13,
                     fontWeight: FontWeight.w600,
-                    color: KumoriyaColors.primary,
+                    color: KumoriyaColors.textSecondary,
                   ),
                 ),
               ],
@@ -1870,6 +1884,7 @@ class _DetailDownloadAllButtonState
         sourcePluginId: entry.key,
         sourceEpisode: entry.value,
         animeTitle: widget.animeTitle,
+        coverImageUrl: widget.coverImageUrl,
       );
       if (result) queued++;
     }

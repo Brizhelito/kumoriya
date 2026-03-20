@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 import '../../../../app/l10n.dart';
+import '../../../../shared/icons/kumoriya_icons.dart';
 import '../../../../shared/theme/kumoriya_theme.dart';
 import '../../../../shared/widgets/state_views.dart';
 import '../../../anime_catalog/presentation/providers/storage_providers.dart';
@@ -225,7 +226,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                 ? context.l10n.settingsDesktopOnlyVisibleNote
                 : context.l10n.settingsNotificationsDescription,
             style: const TextStyle(
-              color: KumoriyaColors.textMuted,
+              color: KumoriyaColors.textTertiary,
               height: 1.4,
             ),
           ),
@@ -240,7 +241,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                     child: Column(
                       children: <Widget>[
                         _SettingsActionRow(
-                          leading: Icons.notifications_active_rounded,
+                          leading: KumoriyaIcons.notificationsActive,
                           title: context.l10n.settingsNotificationsTitle,
                           subtitle: _notificationStatusLabel(context),
                           trailing: _StatusBadge(
@@ -271,7 +272,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                                         ),
                                       )
                                     : const Icon(
-                                        Icons.notifications_active_rounded,
+                                        KumoriyaIcons.notificationsActive,
                                       ),
                                 label: Text(
                                   context.l10n.settingsEnableNotifications,
@@ -302,7 +303,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                                           strokeWidth: 2,
                                         ),
                                       )
-                                    : const Icon(Icons.bug_report_rounded),
+                                    : const Icon(KumoriyaIcons.bugReport),
                                 label: const Text('Test notificacion (debug)'),
                               ),
                           ],
@@ -325,7 +326,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                       child: OutlinedButton.icon(
                         onPressed: () =>
                             ref.invalidate(downloadDirectoryInfoProvider),
-                        icon: const Icon(Icons.refresh_rounded),
+                        icon: const Icon(KumoriyaIcons.refresh),
                         label: Text(context.l10n.retry),
                       ),
                     ),
@@ -528,7 +529,7 @@ class _SettingsSectionCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: KumoriyaColors.surface.withValues(alpha: 0.7),
+        color: KumoriyaColors.surfaceElevated,
         borderRadius: BorderRadius.circular(KumoriyaRadius.xxl),
         border: Border.all(color: KumoriyaColors.borderSubtle),
       ),
@@ -775,14 +776,7 @@ class _SettingsActionRow extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
-              Text(
-                title,
-                style: const TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w700,
-                  color: KumoriyaColors.textPrimary,
-                ),
-              ),
+              Text(title, style: Theme.of(context).textTheme.labelLarge),
               const SizedBox(height: 4),
               Text(
                 subtitle,

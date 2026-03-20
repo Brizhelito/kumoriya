@@ -1743,6 +1743,48 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Show background behind subtitles'**
   String get settingsSubtitleBackground;
+
+  /// No description provided for @playerSkipIntro.
+  ///
+  /// In en, this message translates to:
+  /// **'Skip intro'**
+  String get playerSkipIntro;
+
+  /// No description provided for @playerSkipCredits.
+  ///
+  /// In en, this message translates to:
+  /// **'Skip credits'**
+  String get playerSkipCredits;
+
+  /// No description provided for @clearSearch.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear search'**
+  String get clearSearch;
+
+  /// No description provided for @sourceServerLinksEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No server links available for this episode.'**
+  String get sourceServerLinksEmpty;
+
+  /// No description provided for @downloadDeleteConfirmTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete download?'**
+  String get downloadDeleteConfirmTitle;
+
+  /// No description provided for @downloadDeleteConfirmMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'This downloaded episode will be permanently removed from your device.'**
+  String get downloadDeleteConfirmMessage;
+
+  /// No description provided for @cancelAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel'**
+  String get cancelAction;
 }
 
 class _AppLocalizationsDelegate

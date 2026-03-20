@@ -6,6 +6,7 @@ import 'package:kumoriya_plugins/kumoriya_plugins.dart';
 import 'package:kumoriya_storage/kumoriya_storage.dart';
 
 import '../../../../app/l10n.dart';
+import '../../../../shared/icons/kumoriya_icons.dart';
 import '../../../../shared/theme/kumoriya_theme.dart';
 import '../../../../shared/widgets/kumoriya_cached_image.dart';
 import '../../../../shared/widgets/state_views.dart';
@@ -36,11 +37,7 @@ class DownloadsPage extends ConsumerWidget {
                   Expanded(
                     child: Text(
                       context.l10n.downloadsTitle,
-                      style: const TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.w800,
-                        color: KumoriyaColors.textPrimary,
-                      ),
+                      style: Theme.of(context).textTheme.headlineMedium,
                     ),
                   ),
                   IconButton(
@@ -52,7 +49,7 @@ class DownloadsPage extends ConsumerWidget {
                       ref.invalidate(allDownloadTasksProvider);
                     },
                     icon: const Icon(
-                      Icons.sync_rounded,
+                      KumoriyaIcons.sync,
                       color: KumoriyaColors.textPrimary,
                     ),
                   ),
@@ -65,23 +62,30 @@ class DownloadsPage extends ConsumerWidget {
                 context.l10n.downloadsSubtitle,
                 style: const TextStyle(
                   fontSize: 13,
-                  color: KumoriyaColors.textMuted,
+                  color: KumoriyaColors.textTertiary,
                 ),
               ),
             ),
             Expanded(
-              child: tasksState.when(
-                loading: () => const LoadingStateView(),
-                error: (_, _) => ErrorStateView(
-                  message: context.l10n.genericLoadFailure,
-                  onRetry: () => ref.invalidate(allDownloadTasksProvider),
-                ),
-                data: (result) => result.fold(
-                  onFailure: (error) => ErrorStateView(
-                    message: mapErrorMessage(context, error),
+              child: StateTransitionSwitcher(
+                stateKey: tasksState.isLoading
+                    ? 'loading'
+                    : tasksState.hasError
+                    ? 'error'
+                    : 'content',
+                child: tasksState.when(
+                  loading: () => const LoadingStateView(),
+                  error: (_, _) => ErrorStateView(
+                    message: context.l10n.genericLoadFailure,
                     onRetry: () => ref.invalidate(allDownloadTasksProvider),
                   ),
-                  onSuccess: (tasks) => _DownloadsBody(tasks: tasks),
+                  data: (result) => result.fold(
+                    onFailure: (error) => ErrorStateView(
+                      message: mapErrorMessage(context, error),
+                      onRetry: () => ref.invalidate(allDownloadTasksProvider),
+                    ),
+                    onSuccess: (tasks) => _DownloadsBody(tasks: tasks),
+                  ),
                 ),
               ),
             ),
@@ -105,13 +109,27 @@ class _DownloadsBody extends ConsumerWidget {
       children.add(
         Padding(
           padding: const EdgeInsets.only(top: 36),
-          child: EmptyStateView(message: context.l10n.myListDownloadsEmpty),
+          child: EmptyStateView(
+            icon: Icons.download_rounded,
+            message: context.l10n.myListDownloadsEmpty,
+            actionLabel: context.l10n.retry,
+            onAction: () async {
+              await ref.read(downloadManagerProvider).syncDownloadedLibrary();
+              ref.invalidate(allDownloadTasksProvider);
+            },
+          ),
         ),
       );
 
-      return ListView(
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
-        children: children,
+      return RefreshIndicator(
+        onRefresh: () async {
+          await ref.read(downloadManagerProvider).syncDownloadedLibrary();
+          ref.invalidate(allDownloadTasksProvider);
+        },
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
+          children: children,
+        ),
       );
     }
 
@@ -145,11 +163,7 @@ class _DownloadsBody extends ConsumerWidget {
               Expanded(
                 child: Text(
                   context.l10n.downloadInProgress,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w700,
-                    color: KumoriyaColors.textPrimary,
-                  ),
+                  style: Theme.of(context).textTheme.labelLarge,
                 ),
               ),
               if (aggregateProgress.bytesPerSecond > 0)
@@ -169,14 +183,12 @@ class _DownloadsBody extends ConsumerWidget {
                   await ref.read(downloadManagerProvider).cancelAll();
                   ref.invalidate(allDownloadTasksProvider);
                 },
-                icon: const Icon(Icons.close_rounded, size: 16),
+                icon: const Icon(KumoriyaIcons.close, size: 16),
                 label: Text(context.l10n.downloadCancel),
                 style: TextButton.styleFrom(
                   foregroundColor: KumoriyaColors.statusDanger,
                   textStyle: const TextStyle(fontSize: 12),
                   padding: const EdgeInsets.symmetric(horizontal: 8),
-                  minimumSize: Size.zero,
-                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                 ),
               ),
             ],
@@ -203,9 +215,15 @@ class _DownloadsBody extends ConsumerWidget {
       ),
     ]);
 
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
-      children: children,
+    return RefreshIndicator(
+      onRefresh: () async {
+        await ref.read(downloadManagerProvider).syncDownloadedLibrary();
+        ref.invalidate(allDownloadTasksProvider);
+      },
+      child: ListView(
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
+        children: children,
+      ),
     );
   }
 }
@@ -248,7 +266,9 @@ class _ActiveDownloadRowState extends ConsumerState<_ActiveDownloadRow> {
     return MouseRegion(
       onEnter: (_) => setState(() => _hovered = true),
       onExit: (_) => setState(() => _hovered = false),
-      child: GestureDetector(
+      child: InkWell(
+        borderRadius: BorderRadius.circular(KumoriyaRadius.xxl),
+        splashColor: KumoriyaColors.primary.withValues(alpha: 0.08),
         onTap: () => Navigator.of(context).push(
           MaterialPageRoute<void>(
             builder: (_) => AnimeDetailPage(anilistId: task.anilistId),
@@ -260,7 +280,7 @@ class _ActiveDownloadRowState extends ConsumerState<_ActiveDownloadRow> {
           decoration: BoxDecoration(
             color: _hovered
                 ? KumoriyaColors.surface
-                : KumoriyaColors.surface.withValues(alpha: 0.55),
+                : KumoriyaColors.surfaceDim,
             borderRadius: BorderRadius.circular(KumoriyaRadius.xxl),
             border: Border.all(
               color: _hovered
@@ -465,7 +485,7 @@ class _CompletedAnimeCardState extends ConsumerState<_CompletedAnimeCard> {
 
     return Container(
       decoration: BoxDecoration(
-        color: KumoriyaColors.surface.withValues(alpha: 0.55),
+        color: KumoriyaColors.surfaceDim,
         borderRadius: BorderRadius.circular(KumoriyaRadius.xxl),
         border: Border.all(color: KumoriyaColors.borderSubtle),
       ),
@@ -498,11 +518,7 @@ class _CompletedAnimeCardState extends ConsumerState<_CompletedAnimeCard> {
                           title,
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w700,
-                            color: KumoriyaColors.textPrimary,
-                          ),
+                          style: Theme.of(context).textTheme.labelLarge,
                         ),
                         const SizedBox(height: 4),
                         Row(
@@ -610,7 +626,31 @@ class _CompletedEpisodeTile extends StatelessWidget {
             IconButton(
               icon: const Icon(Icons.delete_outline_rounded, size: 18),
               tooltip: context.l10n.downloadDelete,
-              onPressed: onDelete,
+              onPressed: () async {
+                final confirmed = await showDialog<bool>(
+                  context: context,
+                  builder: (context) => AlertDialog(
+                    title: Text(context.l10n.downloadDeleteConfirmTitle),
+                    content: Text(context.l10n.downloadDeleteConfirmMessage),
+                    actions: <Widget>[
+                      TextButton(
+                        onPressed: () => Navigator.of(context).pop(false),
+                        child: Text(context.l10n.cancelAction),
+                      ),
+                      TextButton(
+                        onPressed: () => Navigator.of(context).pop(true),
+                        style: TextButton.styleFrom(
+                          foregroundColor: KumoriyaColors.statusDanger,
+                        ),
+                        child: Text(context.l10n.downloadDelete),
+                      ),
+                    ],
+                  ),
+                );
+                if (confirmed == true) {
+                  onDelete();
+                }
+              },
             ),
           ],
         ),
@@ -717,8 +757,6 @@ String _fmtBytes(int bytes) {
   return '${(bytes / (1024 * 1024 * 1024)).toStringAsFixed(2)} GB';
 }
 
-final _whitespaceRe = RegExp(r'\s+');
-
 String _downloadErrorSummary(String rawError) {
   final normalized = rawError.toLowerCase();
   if (normalized.contains('http 403')) {
@@ -735,6 +773,9 @@ String _downloadErrorSummary(String rawError) {
     return 'Fallo de red durante la descarga. Verifica tu conexion.';
   }
 
-  final compact = rawError.replaceAll(_whitespaceRe, ' ').trim();
-  return compact.length <= 140 ? compact : '${compact.substring(0, 140)}...';
+  final compact = rawError.trim();
+  if (compact.isEmpty) {
+    return 'No se pudo completar la descarga. Intenta de nuevo.';
+  }
+  return 'No se pudo completar la descarga. Intenta de nuevo.';
 }

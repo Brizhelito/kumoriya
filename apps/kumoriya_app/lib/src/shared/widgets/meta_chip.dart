@@ -14,7 +14,7 @@ class MetaChip extends StatelessWidget {
       decoration: BoxDecoration(
         color: isActive
             ? KumoriyaColors.primaryContainer
-            : KumoriyaColors.borderSubtle,
+            : KumoriyaColors.surfaceElevated,
         borderRadius: BorderRadius.circular(KumoriyaRadius.full),
       ),
       child: Text(
@@ -24,7 +24,7 @@ class MetaChip extends StatelessWidget {
           fontWeight: FontWeight.w600,
           color: isActive
               ? KumoriyaColors.primaryLight
-              : KumoriyaColors.textMuted,
+              : KumoriyaColors.textTertiary,
         ),
       ),
     );

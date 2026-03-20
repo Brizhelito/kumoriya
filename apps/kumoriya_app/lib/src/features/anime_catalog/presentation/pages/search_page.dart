@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kumoriya_domain/kumoriya_domain.dart';
 
 import '../../../../app/l10n.dart';
+import '../../../../shared/icons/kumoriya_icons.dart';
 import '../../../../shared/theme/kumoriya_theme.dart';
 import '../../../../shared/widgets/state_views.dart';
 import '../providers/anime_catalog_providers.dart';
@@ -81,18 +82,14 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                 children: <Widget>[
                   Text(
                     context.l10n.searchPageTitle,
-                    style: const TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.w800,
-                      color: KumoriyaColors.textPrimary,
-                    ),
+                    style: Theme.of(context).textTheme.headlineMedium,
                   ),
                   const SizedBox(height: 4),
                   Text(
                     context.l10n.searchEmptyPrompt,
                     style: const TextStyle(
                       fontSize: 13,
-                      color: KumoriyaColors.textMuted,
+                      color: KumoriyaColors.textTertiary,
                     ),
                   ),
                   const SizedBox(height: 14),
@@ -111,34 +108,48 @@ class _SearchPageState extends ConsumerState<SearchPage> {
             ),
             const SizedBox(height: 16),
             Expanded(
-              child: _activeQuery.isEmpty
-                  ? Center(
-                      child: EmptyStateView(
-                        icon: Icons.search_rounded,
-                        message: context.l10n.searchPromptShort,
-                      ),
-                    )
-                  : searchState.when(
-                      loading: () =>
-                          LoadingStateView(label: context.l10n.searchLoading),
-                      error: (_, _) => ErrorStateView(
-                        message: context.l10n.genericLoadFailure,
-                        onRetry: () =>
-                            ref.invalidate(searchCatalogProvider(_activeQuery)),
-                      ),
-                      data: (result) => result.fold(
-                        onFailure: (error) => ErrorStateView(
-                          message: mapErrorMessage(context, error),
+              child: StateTransitionSwitcher(
+                stateKey: _activeQuery.isEmpty
+                    ? 'idle'
+                    : searchState.isLoading
+                    ? 'loading'
+                    : searchState.hasError
+                    ? 'error'
+                    : 'content',
+                child: _activeQuery.isEmpty
+                    ? Center(
+                        child: EmptyStateView(
+                          icon: KumoriyaIcons.search,
+                          message: context.l10n.searchPromptShort,
+                        ),
+                      )
+                    : searchState.when(
+                        loading: () =>
+                            LoadingStateView(label: context.l10n.searchLoading),
+                        error: (_, _) => ErrorStateView(
+                          message: context.l10n.genericLoadFailure,
                           onRetry: () => ref.invalidate(
                             searchCatalogProvider(_activeQuery),
                           ),
                         ),
-                        onSuccess: (animeList) => _SearchResultsList(
-                          animeList: animeList,
-                          query: _activeQuery,
+                        data: (result) => result.fold(
+                          onFailure: (error) => ErrorStateView(
+                            message: mapErrorMessage(context, error),
+                            onRetry: () => ref.invalidate(
+                              searchCatalogProvider(_activeQuery),
+                            ),
+                          ),
+                          onSuccess: (animeList) => _SearchResultsList(
+                            animeList: animeList,
+                            query: _activeQuery,
+                            onClear: () {
+                              _controller.clear();
+                              setState(() => _activeQuery = '');
+                            },
+                          ),
                         ),
                       ),
-                    ),
+              ),
             ),
           ],
         ),
@@ -172,16 +183,16 @@ class _DarkSearchBar extends StatelessWidget {
         borderRadius: BorderRadius.circular(KumoriyaRadius.full),
         border: Border.all(
           color: focused
-              ? KumoriyaColors.primary.withValues(alpha: 0.60)
+              ? KumoriyaColors.primary.withValues(alpha: 0.85)
               : KumoriyaColors.borderSubtle,
-          width: focused ? 1.5 : 1.0,
+          width: focused ? 2.0 : 1.0,
         ),
         boxShadow: focused
             ? <BoxShadow>[
                 BoxShadow(
-                  color: KumoriyaColors.primary.withValues(alpha: 0.12),
-                  blurRadius: 12,
-                  spreadRadius: 0,
+                  color: KumoriyaColors.primary.withValues(alpha: 0.20),
+                  blurRadius: 16,
+                  spreadRadius: 1,
                 ),
               ]
             : null,
@@ -190,11 +201,11 @@ class _DarkSearchBar extends StatelessWidget {
         children: <Widget>[
           const SizedBox(width: 14),
           Icon(
-            Icons.search_rounded,
+            KumoriyaIcons.search,
             size: 20,
             color: focused
-                ? KumoriyaColors.primary
-                : KumoriyaColors.textDisabled,
+                ? KumoriyaColors.primaryLight
+                : KumoriyaColors.navInactive,
           ),
           const SizedBox(width: 10),
           Expanded(
@@ -220,15 +231,13 @@ class _DarkSearchBar extends StatelessWidget {
             ),
           ),
           if (controller.text.isNotEmpty)
-            GestureDetector(
-              onTap: onClear,
-              child: const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 12),
-                child: Icon(
-                  Icons.close_rounded,
-                  size: 18,
-                  color: KumoriyaColors.textDisabled,
-                ),
+            IconButton(
+              onPressed: onClear,
+              tooltip: context.l10n.clearSearch,
+              icon: const Icon(
+                KumoriyaIcons.close,
+                size: 18,
+                color: KumoriyaColors.navInactive,
               ),
             )
           else
@@ -240,16 +249,26 @@ class _DarkSearchBar extends StatelessWidget {
 }
 
 class _SearchResultsList extends StatelessWidget {
-  const _SearchResultsList({required this.animeList, required this.query});
+  const _SearchResultsList({
+    required this.animeList,
+    required this.query,
+    required this.onClear,
+  });
 
   final List<Anime> animeList;
   final String query;
+  final VoidCallback onClear;
 
   @override
   Widget build(BuildContext context) {
     if (animeList.isEmpty) {
       return Center(
-        child: EmptyStateView(message: context.l10n.searchNoResults(query)),
+        child: EmptyStateView(
+          icon: Icons.travel_explore_rounded,
+          message: context.l10n.searchNoResults(query),
+          actionLabel: context.l10n.clearSearch,
+          onAction: onClear,
+        ),
       );
     }
 

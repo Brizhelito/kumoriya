@@ -4,6 +4,7 @@ import 'package:kumoriya_storage/kumoriya_storage.dart';
 
 import '../../anime_catalog/presentation/providers/anime_catalog_providers.dart';
 import '../../anime_catalog/presentation/providers/storage_providers.dart';
+import '../application/download_cover_service.dart';
 import '../application/download_directory_service.dart';
 import '../application/download_library_index_service.dart';
 import '../application/download_manager_service.dart';
@@ -27,6 +28,12 @@ final downloadDirectoryInfoProvider =
     FutureProvider.autoDispose<DownloadDirectoryInfo>((ref) async {
       return ref.watch(downloadDirectoryServiceProvider).getDirectoryInfo();
     });
+
+final downloadCoverServiceProvider = Provider<DownloadCoverService>((ref) {
+  return DownloadCoverService(
+    directoryService: ref.watch(downloadDirectoryServiceProvider),
+  );
+});
 
 final downloadLibraryIndexServiceProvider =
     Provider<DownloadLibraryIndexService>((ref) {
@@ -53,6 +60,7 @@ final enqueueDownloadUseCaseProvider = Provider<EnqueueDownloadUseCase>((ref) {
   return EnqueueDownloadUseCase(
     downloadManager: ref.watch(downloadManagerProvider),
     resolveUseCase: ref.watch(resolveSourceServerLinkUseCaseProvider),
+    coverService: ref.watch(downloadCoverServiceProvider),
   );
 });
 
@@ -135,6 +143,13 @@ final downloadProgressByTaskProvider = StreamProvider.autoDispose
 final autoDownloadAnimeIdsProvider =
     FutureProvider.autoDispose<Result<Set<int>, KumoriyaError>>((ref) async {
       return ref.watch(libraryStoreProvider).getAutoDownloadAnimeIds();
+    });
+
+/// Resolves the local cover image path for a downloaded anime.
+/// Returns null when no persisted cover exists.
+final downloadCoverPathProvider =
+    FutureProvider.autoDispose.family<String?, int>((ref, anilistId) async {
+      return ref.watch(downloadCoverServiceProvider).getCoverPath(anilistId);
     });
 
 final isAutoDownloadProvider = FutureProvider.autoDispose.family<bool, int>((

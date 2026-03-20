@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kumoriya_storage/kumoriya_storage.dart';
 
 import '../../../../app/l10n.dart';
+import '../../../../shared/icons/kumoriya_icons.dart';
 import '../../../../shared/theme/kumoriya_theme.dart';
 import '../../../../shared/widgets/kumoriya_cached_image.dart';
 import '../../../../shared/widgets/state_views.dart';
@@ -27,11 +28,7 @@ class LibraryPage extends ConsumerWidget {
                 padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
                 child: Text(
                   context.l10n.libraryTitle,
-                  style: const TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.w800,
-                    color: KumoriyaColors.textPrimary,
-                  ),
+                  style: Theme.of(context).textTheme.headlineMedium,
                 ),
               ),
               TabBar(
@@ -39,7 +36,7 @@ class LibraryPage extends ConsumerWidget {
                 tabAlignment: TabAlignment.start,
                 indicatorColor: KumoriyaColors.primary,
                 labelColor: KumoriyaColors.primary,
-                unselectedLabelColor: KumoriyaColors.textDisabled,
+                unselectedLabelColor: KumoriyaColors.navInactive,
                 dividerColor: KumoriyaColors.borderSubtle,
                 labelStyle: const TextStyle(
                   fontSize: 13,
@@ -68,8 +65,6 @@ class LibraryPage extends ConsumerWidget {
   }
 }
 
-// ─── History Tab ─────────────────────────────────────────────────────────────
-
 class _HistoryTab extends ConsumerWidget {
   const _HistoryTab();
 
@@ -92,7 +87,7 @@ class _HistoryTab extends ConsumerWidget {
           if (history.isEmpty) {
             return Center(
               child: EmptyStateView(
-                icon: Icons.history_rounded,
+                icon: KumoriyaIcons.history,
                 message: context.l10n.myListHistoryEmpty,
               ),
             );
@@ -120,8 +115,6 @@ class _HistoryTab extends ConsumerWidget {
   }
 }
 
-// ─── Favorites Tab ───────────────────────────────────────────────────────────
-
 class _FavoritesTab extends ConsumerWidget {
   const _FavoritesTab();
 
@@ -144,7 +137,7 @@ class _FavoritesTab extends ConsumerWidget {
           if (ids.isEmpty) {
             return Center(
               child: EmptyStateView(
-                icon: Icons.favorite_border_rounded,
+                icon: KumoriyaIcons.favoriteOutline,
                 message: context.l10n.myListFavoritesEmpty,
               ),
             );
@@ -173,8 +166,6 @@ class _FavoritesTab extends ConsumerWidget {
   }
 }
 
-// ─── Subscribed Tab ──────────────────────────────────────────────────────────
-
 class _SubscribedTab extends ConsumerWidget {
   const _SubscribedTab();
 
@@ -197,7 +188,7 @@ class _SubscribedTab extends ConsumerWidget {
           if (ids.isEmpty) {
             return Center(
               child: EmptyStateView(
-                icon: Icons.notifications_none_rounded,
+                icon: KumoriyaIcons.notifications,
                 message: context.l10n.myListSubscribedEmpty,
               ),
             );
@@ -227,8 +218,6 @@ class _SubscribedTab extends ConsumerWidget {
   }
 }
 
-// ─── Shared row widgets ──────────────────────────────────────────────────────
-
 class _AnimeLibraryRow extends ConsumerStatefulWidget {
   const _AnimeLibraryRow({
     required this.anilistId,
@@ -254,8 +243,7 @@ class _AnimeLibraryRowState extends ConsumerState<_AnimeLibraryRow> {
     final title = detailState.maybeWhen(
       data: (result) => result.fold(
         onFailure: (_) => context.l10n.loadingGeneric,
-        onSuccess: (detail) =>
-            detail.anime.title.english ?? detail.anime.title.romaji,
+        onSuccess: (detail) => detail.anime.title.romaji,
       ),
       orElse: () => context.l10n.loadingGeneric,
     );
@@ -280,15 +268,17 @@ class _AnimeLibraryRowState extends ConsumerState<_AnimeLibraryRow> {
     return MouseRegion(
       onEnter: (_) => setState(() => _hovered = true),
       onExit: (_) => setState(() => _hovered = false),
-      child: GestureDetector(
+      child: InkWell(
         onTap: widget.onTap,
+        borderRadius: BorderRadius.circular(KumoriyaRadius.xxl),
+        splashColor: KumoriyaColors.primary.withValues(alpha: 0.08),
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 180),
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
             color: _hovered
                 ? KumoriyaColors.surface
-                : KumoriyaColors.surface.withValues(alpha: 0.55),
+                : KumoriyaColors.surfaceDim,
             borderRadius: BorderRadius.circular(KumoriyaRadius.xxl),
             border: Border.all(
               color: _hovered
@@ -317,20 +307,13 @@ class _AnimeLibraryRowState extends ConsumerState<_AnimeLibraryRow> {
                       title,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w700,
-                        color: KumoriyaColors.textPrimary,
-                      ),
+                      style: Theme.of(context).textTheme.labelLarge,
                     ),
                     if (episodes != null) ...<Widget>[
                       const SizedBox(height: 3),
                       Text(
                         '$episodes ${context.l10n.episodesWord}',
-                        style: const TextStyle(
-                          fontSize: 12,
-                          color: KumoriyaColors.textMuted,
-                        ),
+                        style: Theme.of(context).textTheme.bodySmall,
                       ),
                     ],
                   ],
@@ -339,16 +322,16 @@ class _AnimeLibraryRowState extends ConsumerState<_AnimeLibraryRow> {
               if (widget.showNotificationBadge) ...<Widget>[
                 const SizedBox(width: 8),
                 const Icon(
-                  Icons.notifications_active_rounded,
+                  KumoriyaIcons.notificationsActive,
                   size: 16,
                   color: KumoriyaColors.primary,
                 ),
               ],
               const SizedBox(width: 8),
               const Icon(
-                Icons.chevron_right_rounded,
+                KumoriyaIcons.chevronRight,
                 size: 18,
-                color: KumoriyaColors.textDisabled,
+                color: KumoriyaColors.navInactive,
               ),
             ],
           ),
@@ -378,8 +361,7 @@ class _HistoryRowState extends ConsumerState<_HistoryRow> {
     final title = detailState.maybeWhen(
       data: (result) => result.fold(
         onFailure: (_) => context.l10n.loadingGeneric,
-        onSuccess: (detail) =>
-            detail.anime.title.english ?? detail.anime.title.romaji,
+        onSuccess: (detail) => detail.anime.title.romaji,
       ),
       orElse: () => context.l10n.loadingGeneric,
     );
@@ -411,15 +393,17 @@ class _HistoryRowState extends ConsumerState<_HistoryRow> {
     return MouseRegion(
       onEnter: (_) => setState(() => _hovered = true),
       onExit: (_) => setState(() => _hovered = false),
-      child: GestureDetector(
+      child: InkWell(
         onTap: widget.onTap,
+        borderRadius: BorderRadius.circular(KumoriyaRadius.xxl),
+        splashColor: KumoriyaColors.primary.withValues(alpha: 0.08),
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 180),
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
             color: _hovered
                 ? KumoriyaColors.surface
-                : KumoriyaColors.surface.withValues(alpha: 0.55),
+                : KumoriyaColors.surfaceDim,
             borderRadius: BorderRadius.circular(KumoriyaRadius.xxl),
             border: Border.all(
               color: _hovered
@@ -476,19 +460,12 @@ class _HistoryRowState extends ConsumerState<_HistoryRow> {
                       title,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w700,
-                        color: KumoriyaColors.textPrimary,
-                      ),
+                      style: Theme.of(context).textTheme.labelLarge,
                     ),
                     const SizedBox(height: 3),
                     Text(
                       progressText,
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: KumoriyaColors.textMuted,
-                      ),
+                      style: Theme.of(context).textTheme.bodySmall,
                     ),
                   ],
                 ),

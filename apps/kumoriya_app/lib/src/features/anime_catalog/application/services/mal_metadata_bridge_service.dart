@@ -39,6 +39,12 @@ final class AniSkipPrefetchReport {
   final int failedEpisodes;
 }
 
+typedef AnimeNexusSegmentLoader =
+    Future<List<AniSkipSegment>> Function({
+      required int anilistId,
+      required int episodeNumber,
+    });
+
 final class _CachedAniSkipEntry {
   const _CachedAniSkipEntry({
     required this.segments,
@@ -58,19 +64,23 @@ final class MalMetadataBridgeService {
   MalMetadataBridgeService({
     http.Client? httpClient,
     AniSkipCacheStore? aniSkipCacheStore,
+    AnimeNexusSegmentLoader? animeNexusSegmentLoader,
   }) : _httpClient = httpClient ?? http.Client(),
-       _aniSkipCacheStore = aniSkipCacheStore;
+       _aniSkipCacheStore = aniSkipCacheStore,
+       _animeNexusSegmentLoader = animeNexusSegmentLoader;
 
   static final Uri _anilistGraphQlEndpoint = Uri.parse(
     'https://graphql.anilist.co',
   );
   static const Duration _aniSkipCacheMaxAge = Duration(days: 90);
+  static const Duration _aniSkipEmptyCacheMaxAge = Duration(days: 7);
   static const int _defaultAniSkipEpisodeLengthSeconds = 24 * 60;
   static const int _aniSkipPrefetchBatchSize = 6;
   static const int _aniSkipLengthToleranceSeconds = 20;
 
   final http.Client _httpClient;
   final AniSkipCacheStore? _aniSkipCacheStore;
+  final AnimeNexusSegmentLoader? _animeNexusSegmentLoader;
 
   final Map<int, int?> _malIdCache = <int, int?>{};
   final Map<int, Future<int?>> _pendingMalId = <int, Future<int?>>{};
@@ -252,12 +262,9 @@ final class MalMetadataBridgeService {
     required _CachedAniSkipEntry? cached,
   }) async {
     final malId = await getMalIdForAnilist(anilistId);
-    if (malId == null) {
-      return cached?.segments ?? const <AniSkipSegment>[];
-    }
-
     try {
-      final segments = await _fetchAniSkipSegments(
+      final segments = await _fetchSegmentsWithFallback(
+        anilistId: anilistId,
         malId: malId,
         episodeNumber: episodeNumber,
         episodeLengthSeconds: episodeLengthSeconds,
@@ -287,14 +294,10 @@ final class MalMetadataBridgeService {
     )) {
       return _AniSkipPrefetchResult.cached;
     }
-    if (malId == null) {
-      return cached != null
-          ? _AniSkipPrefetchResult.cached
-          : _AniSkipPrefetchResult.failed;
-    }
 
     try {
-      final segments = await _fetchAniSkipSegments(
+      final segments = await _fetchSegmentsWithFallback(
+        anilistId: anilistId,
         malId: malId,
         episodeNumber: episodeNumber,
         episodeLengthSeconds: episodeLengthSeconds,
@@ -311,6 +314,88 @@ final class MalMetadataBridgeService {
           ? _AniSkipPrefetchResult.cached
           : _AniSkipPrefetchResult.failed;
     }
+  }
+
+  Future<List<AniSkipSegment>> _fetchSegmentsWithFallback({
+    required int anilistId,
+    required int? malId,
+    required int episodeNumber,
+    required int episodeLengthSeconds,
+  }) async {
+    List<AniSkipSegment> primary = const <AniSkipSegment>[];
+    if (malId != null) {
+      primary = await _fetchAniSkipSegments(
+        malId: malId,
+        episodeNumber: episodeNumber,
+        episodeLengthSeconds: episodeLengthSeconds,
+      );
+    }
+
+    final fallbackLoader = _animeNexusSegmentLoader;
+    if (fallbackLoader == null ||
+        (_containsSegment(primary, AniSkipSegmentKind.opening) &&
+            _containsSegment(primary, AniSkipSegmentKind.ending))) {
+      return primary;
+    }
+
+    try {
+      final fallback = await fallbackLoader(
+        anilistId: anilistId,
+        episodeNumber: episodeNumber,
+      );
+      return _mergeSegments(primary: primary, fallback: fallback);
+    } on Exception {
+      return primary;
+    }
+  }
+
+  bool _containsSegment(
+    List<AniSkipSegment> segments,
+    AniSkipSegmentKind kind,
+  ) {
+    return segments.any((segment) => segment.kind == kind);
+  }
+
+  List<AniSkipSegment> _mergeSegments({
+    required List<AniSkipSegment> primary,
+    required List<AniSkipSegment> fallback,
+  }) {
+    if (primary.isEmpty) {
+      return fallback;
+    }
+    if (fallback.isEmpty) {
+      return primary;
+    }
+
+    final merged = <AniSkipSegment>[...primary];
+    for (final kind in AniSkipSegmentKind.values) {
+      if (_containsSegment(primary, kind)) {
+        continue;
+      }
+      final candidate = _selectFallbackSegment(fallback, kind);
+      if (candidate != null) {
+        merged.add(candidate);
+      }
+    }
+    merged.sort((left, right) => left.start.compareTo(right.start));
+    return merged;
+  }
+
+  AniSkipSegment? _selectFallbackSegment(
+    List<AniSkipSegment> segments,
+    AniSkipSegmentKind kind,
+  ) {
+    final matches = segments.where((segment) => segment.kind == kind);
+    if (matches.isEmpty) {
+      return null;
+    }
+    return kind == AniSkipSegmentKind.opening
+        ? matches.reduce(
+            (best, current) => current.start < best.start ? current : best,
+          )
+        : matches.reduce(
+            (best, current) => current.start > best.start ? current : best,
+          );
   }
 
   Future<_CachedAniSkipEntry?> _readAniSkipCacheEntry({
@@ -473,19 +558,28 @@ query MalIdByAnilist($id: Int) {
     return output;
   }
 
+  /// Known high-coverage fallback lengths derived from probing 35 anime
+  /// (1050 queries): 1440 covers 80%, 1500 catches 25min episodes and
+  /// long OPs, 1380 catches 23min episodes (Ranking of Kings, etc).
+  static const _aniSkipFallbackLengths = <int>[1440, 1500, 1380];
+
   Future<List<AniSkipSegment>> _fetchAniSkipSegments({
     required int malId,
     required int episodeNumber,
     required int episodeLengthSeconds,
   }) async {
-    final candidateLengths = <int>{
-      if (episodeLengthSeconds > 0) episodeLengthSeconds,
-      if (episodeLengthSeconds > 0) episodeLengthSeconds - 15,
-      if (episodeLengthSeconds > 0) episodeLengthSeconds + 15,
-      if (episodeLengthSeconds > 0) episodeLengthSeconds - 30,
-      if (episodeLengthSeconds > 0) episodeLengthSeconds + 30,
-      _defaultAniSkipEpisodeLengthSeconds,
-    }.where((value) => value > 0).toList(growable: false);
+    // Build candidate list: real duration first, then known fallbacks.
+    // Deduplicate and skip values already tested.
+    final seen = <int>{};
+    final candidateLengths = <int>[];
+    void addCandidate(int length) {
+      if (length > 0 && seen.add(length)) candidateLengths.add(length);
+    }
+
+    if (episodeLengthSeconds > 0) addCandidate(episodeLengthSeconds);
+    for (final fallback in _aniSkipFallbackLengths) {
+      addCandidate(fallback);
+    }
 
     var best = const <AniSkipSegment>[];
     for (final length in candidateLengths) {
@@ -494,18 +588,12 @@ query MalIdByAnilist($id: Int) {
         episodeNumber: episodeNumber,
         episodeLengthSeconds: length,
       );
-      if (segments.isEmpty) {
-        continue;
-      }
-      final hasOpening = segments.any(
-        (segment) => segment.kind == AniSkipSegmentKind.opening,
-      );
-      if (hasOpening) {
+      if (segments.isEmpty) continue;
+
+      if (segments.any((s) => s.kind == AniSkipSegmentKind.opening)) {
         return segments;
       }
-      if (best.isEmpty) {
-        best = segments;
-      }
+      if (best.isEmpty) best = segments;
     }
 
     return best;
@@ -643,12 +731,16 @@ query MalIdByAnilist($id: Int) {
     required _CachedAniSkipEntry? cached,
     required int requestedEpisodeLengthSeconds,
   }) {
-    if (cached == null || !cached.isFresh(_aniSkipCacheMaxAge)) {
+    if (cached == null) {
       return false;
     }
 
-    // Avoid poisoning the cache with transient empty responses.
-    if (cached.segments.isEmpty) {
+    // Empty results use a shorter TTL to allow re-checking when community
+    // submissions arrive, but still avoid hammering the API every playback.
+    final maxAge = cached.segments.isEmpty
+        ? _aniSkipEmptyCacheMaxAge
+        : _aniSkipCacheMaxAge;
+    if (!cached.isFresh(maxAge)) {
       return false;
     }
 
