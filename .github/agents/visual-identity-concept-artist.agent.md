@@ -1,7 +1,7 @@
 ---
 description: "Use when exploring visual identity concepts, screen composition, layout hierarchy, and UI variant proposals for Kumoriya. Produces concept sketches and visual direction alternatives."
 tools: [read, search, todo]
-model: 'Gemini 3.1 Pro (Preview)'
+model: Claude Opus 4.6 (copilot)
 user-invocable: false
 ---
 

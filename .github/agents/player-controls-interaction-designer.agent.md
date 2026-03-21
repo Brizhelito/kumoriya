@@ -1,7 +1,7 @@
 ---
 description: "Use when designing player control layouts, button placement, gesture zones, scrub bar interactions, and selector UX (server, quality, subtitle, audio) for Kumoriya video player."
 tools: [read, search, todo]
-model: 'Gemini 3.1 Pro (Preview)'
+model: Claude Opus 4.6 (copilot)
 user-invocable: false
 ---
 

@@ -1,7 +1,7 @@
 ---
 description: "Use when defining color palettes, material surfaces, elevation strategy, contrast ratios, and theming tokens for Kumoriya UI. Produces color and material specifications ready for design-system integration."
 tools: [read, search, todo]
-model: 'Gemini 3.1 Pro (Preview)'
+model: Claude Opus 4.6 (copilot)
 user-invocable: false
 ---
 

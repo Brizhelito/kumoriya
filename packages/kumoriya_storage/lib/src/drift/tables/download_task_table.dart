@@ -33,6 +33,9 @@ class DownloadTaskTable extends Table {
   /// Stream quality label (e.g. "1080p", "720p").
   TextColumn get qualityLabel => text().nullable()();
 
+  /// Human-readable episode title from the source.
+  TextColumn get episodeTitle => text().nullable()();
+
   @override
   Set<Column<Object>> get primaryKey => {id};
 }

@@ -1,7 +1,7 @@
 ---
 description: "Use when coordinating UI/UX product decisions as the direct leader, delegating only to specialist agents (single-level) for Kumoriya screens. The single entry point for all UI/UX program work."
 tools: [read/getNotebookSummary, read/problems, read/readFile, read/viewImage, read/terminalSelection, read/terminalLastCommand, read/getTaskOutput, agent/runSubagent, search/changes, search/codebase, search/fileSearch, search/listDirectory, search/searchResults, search/textSearch, search/searchSubagent, search/usages, todo]
-model: GPT-5.4 mini
+model: Claude Opus 4.6 (copilot)
 agents: [visual-identity-concept-artist, color-material-strategist, motion-interaction-storyboarder, flutter-ui-refactor-implementer, interaction-states-implementer, player-controls-interaction-designer, player-motion-feedback-designer, player-ui-integration-implementer, design-system-enforcer, Explore]
 user-invocable: true
 argument-hint: "Describe the UI/UX goal, target screens, and desired quality bar"

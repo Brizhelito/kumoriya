@@ -128,7 +128,8 @@ abstract final class KumoriyaTheme {
       ),
       bottomNavigationBarTheme: BottomNavigationBarThemeData(
         backgroundColor: KumoriyaColors.navBackground.withValues(alpha: 0.95),
-        selectedItemColor: KumoriyaColors.primary,
+        selectedItemColor: KumoriyaColors.textPrimary,
+        selectedIconTheme: const IconThemeData(color: KumoriyaColors.primary),
         unselectedItemColor: KumoriyaColors.navInactive,
         type: BottomNavigationBarType.fixed,
         elevation: 0,
@@ -153,7 +154,7 @@ abstract final class KumoriyaTheme {
           size: 24,
         ),
         selectedLabelTextStyle: const TextStyle(
-          color: KumoriyaColors.primary,
+          color: KumoriyaColors.textPrimary,
           fontWeight: FontWeight.w700,
           fontSize: 10,
           letterSpacing: 0.5,

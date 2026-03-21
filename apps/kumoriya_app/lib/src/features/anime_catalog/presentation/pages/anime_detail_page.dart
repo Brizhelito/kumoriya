@@ -438,10 +438,55 @@ class _PlayResumeCtaState extends ConsumerState<_PlayResumeCta> {
     SourceAvailabilitySummary summary,
     EpisodeProgress? latestProgress,
   ) async {
+    final episodeNumber = latestProgress?.episodeNumber ?? 1;
+
+    // Check for completed offline download first.
+    final dlTasksState = ref.read(
+      downloadTasksByAnimeProvider(widget.anilistId),
+    );
+    final offlineTask = dlTasksState.maybeWhen(
+      data: (result) => result.fold(
+        onFailure: (_) => null,
+        onSuccess: (tasks) {
+          for (final t in tasks) {
+            if ((t.episodeNumber - episodeNumber).abs() < 0.001 &&
+                t.status == DownloadStatus.completed &&
+                t.filePath != null) {
+              return t;
+            }
+          }
+          return null;
+        },
+      ),
+      orElse: () => null,
+    );
+
+    if (offlineTask != null) {
+      final file = File(offlineTask.filePath!);
+      if (await file.exists()) {
+        if (!mounted) return;
+        await Navigator.of(context, rootNavigator: true).push(
+          MaterialPageRoute<void>(
+            builder: (_) => PlayerPage(
+              anilistId: widget.anilistId,
+              animeTitle: widget.animeTitle,
+              episodeNumber: episodeNumber.toInt().toString(),
+              sourcePluginId: offlineTask.sourcePluginId ?? 'offline',
+              serverName: offlineTask.serverName ?? 'Downloaded',
+              resolved: ResolvedServerLinkResult(
+                resolverId: 'offline',
+                resolverName: 'Downloaded',
+                streams: <ResolvedStream>[ResolvedStream(url: file.uri)],
+              ),
+            ),
+          ),
+        );
+        return;
+      }
+    }
+
     setState(() => _isLaunching = true);
     showBlockingLoader(context, context.l10n.playbackPreparing);
-
-    final episodeNumber = latestProgress?.episodeNumber ?? 1;
 
     final decision = await ref
         .read(startEpisodePlaybackUseCaseProvider)
@@ -458,6 +503,7 @@ class _PlayResumeCtaState extends ConsumerState<_PlayResumeCta> {
       ref: ref,
       anilistId: widget.anilistId,
       animeTitle: widget.animeTitle,
+      episodeTitle: null,
       decision: decision,
     );
   }
@@ -633,6 +679,7 @@ class _DetailHero extends StatelessWidget {
                           if (detail.anime.averageScore != null)
                             _HeroMetaPill(
                               label: '★ ${detail.anime.averageScore}/100',
+                              textColor: KumoriyaColors.accentAmber,
                             ),
                         ],
                       ),
@@ -1039,6 +1086,7 @@ class _EpisodeDetailSectionState extends ConsumerState<_EpisodeDetailSection> {
               anilistId: widget.detail.anime.anilistId,
               animeTitle: widget.detail.anime.title.romaji,
               episodeNumber: row.number.toInt().toString(),
+              episodeTitle: row.displayTitle,
               sourcePluginId: offlineTask.sourcePluginId ?? 'offline',
               serverName: offlineTask.serverName ?? 'Downloaded',
               resolved: ResolvedServerLinkResult(
@@ -1079,6 +1127,7 @@ class _EpisodeDetailSectionState extends ConsumerState<_EpisodeDetailSection> {
       ref: ref,
       anilistId: widget.detail.anime.anilistId,
       animeTitle: widget.detail.anime.title.romaji,
+      episodeTitle: row.displayTitle,
       decision: decision,
     );
   }
@@ -1168,16 +1217,15 @@ class _DetailEpisodeCardState extends ConsumerState<_DetailEpisodeCard> {
     );
     if (!hasDownloadableSource) return const SizedBox.shrink();
 
-    return GestureDetector(
-      onTap: () => _handleDownload(context),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 4),
-        child: Icon(
-          Icons.download_rounded,
-          size: 22,
-          color: KumoriyaColors.textDisabled,
-        ),
+    return IconButton(
+      constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
+      onPressed: () => _handleDownload(context),
+      icon: const Icon(
+        Icons.download_rounded,
+        size: 22,
+        color: KumoriyaColors.textDisabled,
       ),
+      tooltip: context.l10n.downloadEpisode,
     );
   }
 
@@ -1239,6 +1287,7 @@ class _DetailEpisodeCardState extends ConsumerState<_DetailEpisodeCard> {
         sourcePluginId: entry.key,
         animeTitle: widget.animeTitle,
         coverImageUrl: widget.coverImageUrl,
+        episodeTitle: entry.value.title,
       );
 
       if (!mounted) return;
@@ -1250,7 +1299,6 @@ class _DetailEpisodeCardState extends ConsumerState<_DetailEpisodeCard> {
       );
 
       if (success) {
-        ref.invalidate(downloadTasksByAnimeProvider(widget.anilistId));
         messenger.showSnackBar(SnackBar(content: Text(l10n.downloadQueued)));
       } else {
         messenger.showSnackBar(SnackBar(content: Text(l10n.downloadFailed)));
@@ -1274,6 +1322,9 @@ class _LibraryActions extends ConsumerWidget {
     final isFavAsync = ref.watch(isFavoriteProvider(anilistId));
     final isSubAsync = ref.watch(isSubscribedProvider(anilistId));
     final isAutoDownloadAsync = ref.watch(isAutoDownloadProvider(anilistId));
+    final audioPreferenceAsync = ref.watch(
+      autoDownloadAudioPreferenceProvider(anilistId),
+    );
 
     final isFav = isFavAsync.maybeWhen(data: (v) => v, orElse: () => false);
     final isSub = isSubAsync.maybeWhen(data: (v) => v, orElse: () => false);
@@ -1281,67 +1332,119 @@ class _LibraryActions extends ConsumerWidget {
       data: (v) => v,
       orElse: () => false,
     );
+    final currentAudioPreference = audioPreferenceAsync.maybeWhen(
+      data: (value) => value,
+      orElse: () => 'none',
+    );
 
-    return Wrap(
-      spacing: 8,
-      runSpacing: 8,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
-        _ActionButton(
-          icon: isFav ? Icons.favorite_rounded : Icons.favorite_border_rounded,
-          label: isFav ? context.l10n.removeFavorite : context.l10n.addFavorite,
-          active: isFav,
-          onTap: () async {
-            await ref
-                .read(libraryStoreProvider)
-                .setFavorite(anilistId, isFavorite: !isFav);
-            ref.invalidate(favoriteAnimeIdsProvider);
-          },
-        ),
-        _ActionButton(
-          icon: isSub
-              ? Icons.notifications_active_rounded
-              : Icons.notifications_none_rounded,
-          label: isSub ? context.l10n.unsubscribe : context.l10n.subscribe,
-          active: isSub,
-          onTap: isFav
-              ? () async {
-                  // Request POST_NOTIFICATIONS permission on Android 13+
-                  // before toggling subscription on.
-                  if (!isSub && Platform.isAndroid) {
-                    final status = await Permission.notification.request();
-                    if (!status.isGranted) return;
-                  }
-                  await ref
-                      .read(libraryStoreProvider)
-                      .setSubscription(anilistId, notify: !isSub);
-                  ref.invalidate(subscribedAnimeIdsProvider);
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: <Widget>[
+            _ActionButton(
+              icon: isFav
+                  ? Icons.favorite_rounded
+                  : Icons.favorite_border_rounded,
+              label: isFav
+                  ? context.l10n.removeFavorite
+                  : context.l10n.addFavorite,
+              active: isFav,
+              onTap: () async {
+                await ref
+                    .read(libraryStoreProvider)
+                    .setFavorite(anilistId, isFavorite: !isFav);
+                ref.invalidate(favoriteAnimeIdsProvider);
+              },
+            ),
+            _ActionButton(
+              icon: isSub
+                  ? Icons.notifications_active_rounded
+                  : Icons.notifications_none_rounded,
+              label: isSub ? context.l10n.unsubscribe : context.l10n.subscribe,
+              active: isSub,
+              onTap: () async {
+                // Request POST_NOTIFICATIONS permission on Android 13+
+                // before toggling subscription on.
+                if (!isSub && Platform.isAndroid) {
+                  final status = await Permission.notification.request();
+                  if (!status.isGranted) return;
                 }
-              : null,
+                await ref
+                    .read(libraryStoreProvider)
+                    .setSubscription(anilistId, notify: !isSub);
+                ref.invalidate(subscribedAnimeIdsProvider);
+                ref.invalidate(isSubscribedProvider(anilistId));
+              },
+            ),
+            _ActionButton(
+              icon: isAutoDl
+                  ? Icons.download_done_rounded
+                  : Icons.download_rounded,
+              label: context.l10n.autoDownload,
+              active: isAutoDl,
+              onTap: isSub
+                  ? () async {
+                      await ref
+                          .read(libraryStoreProvider)
+                          .setAutoDownload(anilistId, autoDownload: !isAutoDl);
+                      ref.invalidate(autoDownloadAnimeIdsProvider);
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(
+                              isAutoDl
+                                  ? context.l10n.autoDownloadDisabled
+                                  : context.l10n.autoDownloadEnabled,
+                            ),
+                          ),
+                        );
+                      }
+                    }
+                  : null,
+            ),
+          ],
         ),
-        _ActionButton(
-          icon: isAutoDl ? Icons.download_done_rounded : Icons.download_rounded,
-          label: context.l10n.autoDownload,
-          active: isAutoDl,
-          onTap: isSub
-              ? () async {
-                  await ref
-                      .read(libraryStoreProvider)
-                      .setAutoDownload(anilistId, autoDownload: !isAutoDl);
-                  ref.invalidate(autoDownloadAnimeIdsProvider);
-                  if (context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(
-                          isAutoDl
-                              ? context.l10n.autoDownloadDisabled
-                              : context.l10n.autoDownloadEnabled,
-                        ),
-                      ),
-                    );
-                  }
-                }
-              : null,
-        ),
+        if (isAutoDl) ...<Widget>[
+          const SizedBox(height: 8),
+          Text(
+            context.l10n.autoDownloadAudioPreference,
+            style: Theme.of(context).textTheme.labelMedium?.copyWith(
+              color: KumoriyaColors.textSecondary,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 6),
+          SegmentedButton<String>(
+            segments: <ButtonSegment<String>>[
+              ButtonSegment<String>(
+                value: 'none',
+                label: Text(context.l10n.autoDownloadAudioAny),
+              ),
+              ButtonSegment<String>(
+                value: 'sub',
+                label: Text(context.l10n.autoDownloadAudioSub),
+              ),
+              ButtonSegment<String>(
+                value: 'dub',
+                label: Text(context.l10n.autoDownloadAudioDub),
+              ),
+            ],
+            selected: <String>{currentAudioPreference},
+            onSelectionChanged: (values) async {
+              if (values.isEmpty) {
+                return;
+              }
+              final selected = values.first;
+              await ref
+                  .read(libraryStoreProvider)
+                  .setAutoDownloadAudioPreference(anilistId, selected);
+              ref.invalidate(autoDownloadAudioPreferenceProvider(anilistId));
+            },
+          ),
+        ],
       ],
     );
   }
@@ -1608,9 +1711,10 @@ final class _DetailEpisodeRowData {
 }
 
 class _HeroMetaPill extends StatelessWidget {
-  const _HeroMetaPill({required this.label});
+  const _HeroMetaPill({required this.label, this.textColor = Colors.white});
 
   final String label;
+  final Color textColor;
 
   @override
   Widget build(BuildContext context) {
@@ -1620,17 +1724,17 @@ class _HeroMetaPill extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(KumoriyaRadius.full),
-          color: Colors.black.withValues(alpha: 0.40),
+          color: Colors.black.withValues(alpha: 0.55),
           border: Border.all(color: Colors.white.withValues(alpha: 0.18)),
         ),
         child: Text(
           label,
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 11,
             fontWeight: FontWeight.w700,
-            color: Colors.white,
+            color: textColor,
             letterSpacing: 0.3,
           ),
         ),
@@ -1711,16 +1815,25 @@ Future<bool> _enqueueDetailEpisodeDownload({
     if (links.isEmpty) return false;
 
     final enqueueUseCase = ref.read(enqueueDownloadUseCaseProvider);
-    final result = await enqueueUseCase.call(
-      anilistId: anilistId,
-      episodeNumber: sourceEpisode.number,
-      serverLink: links.first,
-      sourcePluginId: sourcePluginId,
-      animeTitle: animeTitle,
-      coverImageUrl: coverImageUrl,
-    );
-
-    return result.fold(onSuccess: (_) => true, onFailure: (_) => false);
+    for (final link in links) {
+      final result = await enqueueUseCase.call(
+        anilistId: anilistId,
+        episodeNumber: sourceEpisode.number,
+        serverLink: link,
+        sourcePluginId: sourcePluginId,
+        animeTitle: animeTitle,
+        coverImageUrl: coverImageUrl,
+        episodeTitle: sourceEpisode.title,
+      );
+      final enqueued = result.fold(
+        onSuccess: (_) => true,
+        onFailure: (_) => false,
+      );
+      if (enqueued) {
+        return true;
+      }
+    }
+    return false;
   } catch (_) {
     return false;
   }
@@ -1893,7 +2006,6 @@ class _DetailDownloadAllButtonState
     setState(() => _isEnqueuing = false);
 
     if (queued > 0) {
-      ref.invalidate(downloadTasksByAnimeProvider(widget.anilistId));
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text(context.l10n.downloadAllQueued)));

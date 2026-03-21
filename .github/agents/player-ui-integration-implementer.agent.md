@@ -1,7 +1,7 @@
 ---
 description: "Use when implementing player UI widgets, integrating player controls into Flutter, building player overlays, and connecting player state to UI components for Kumoriya video player."
 tools: [read, search, edit, execute, todo]
-model: 'GPT-5.3-Codex'
+model: Claude Opus 4.6 (copilot)
 user-invocable: false
 ---
 

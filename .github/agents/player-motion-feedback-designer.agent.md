@@ -1,7 +1,7 @@
 ---
 description: "Use when designing player-specific motion, visual feedback, buffering indicators, seek preview, and state transition animations for Kumoriya video player."
 tools: [read, search, todo]
-model: 'Gemini 3.1 Pro (Preview)'
+model: Claude Opus 4.6 (copilot)
 user-invocable: false
 ---
 

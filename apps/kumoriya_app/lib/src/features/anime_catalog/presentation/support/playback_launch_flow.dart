@@ -30,6 +30,7 @@ Future<void> handlePlaybackDecision({
   required WidgetRef ref,
   required int anilistId,
   required String animeTitle,
+  String? episodeTitle,
   required EpisodePlaybackDecision decision,
   PlaybackUnavailableFallback? onUnavailable,
 }) async {
@@ -39,6 +40,7 @@ Future<void> handlePlaybackDecision({
         context,
         anilistId: anilistId,
         animeTitle: animeTitle,
+        episodeTitle: episodeTitle,
         launch: decision.launch!,
       );
       return;
@@ -49,6 +51,7 @@ Future<void> handlePlaybackDecision({
           ref,
           anilistId: anilistId,
           animeTitle: animeTitle,
+          episodeTitle: episodeTitle,
           selection: ServerPickerSelection(
             option: decision.options.single,
             rememberSelection: true,
@@ -82,6 +85,7 @@ Future<void> handlePlaybackDecision({
         ref,
         anilistId: anilistId,
         animeTitle: animeTitle,
+        episodeTitle: episodeTitle,
         selection: option,
         remaining: decision.options
             .where((item) => item.optionKey != option.option.optionKey)
@@ -166,6 +170,7 @@ Future<void> _resolveSelectedOption(
   WidgetRef ref, {
   required int anilistId,
   required String animeTitle,
+  String? episodeTitle,
   required ServerPickerSelection selection,
   required List<EpisodePlaybackOption> remaining,
   PlaybackUnavailableFallback? onUnavailable,
@@ -199,6 +204,7 @@ Future<void> _resolveSelectedOption(
           ref,
           anilistId: anilistId,
           animeTitle: animeTitle,
+          episodeTitle: episodeTitle,
           selection: next,
           remaining: remaining
               .where((item) => item.optionKey != next.option.optionKey)
@@ -216,6 +222,7 @@ Future<void> _resolveSelectedOption(
         context,
         anilistId: anilistId,
         animeTitle: animeTitle,
+        episodeTitle: episodeTitle,
         launch: EpisodePlayerLaunch(
           option: selection.option,
           resolved: resolved,
@@ -237,15 +244,21 @@ Future<bool> _openPlayer(
   BuildContext context, {
   required int anilistId,
   required String animeTitle,
+  String? episodeTitle,
   required EpisodePlayerLaunch launch,
   bool persistSelection = true,
 }) async {
+  final resolvedEpisodeTitle =
+      episodeTitle ?? launch.option.sourceEpisode.title.trim();
   final result = await Navigator.of(context, rootNavigator: true).push<bool>(
     MaterialPageRoute<bool>(
       builder: (_) => PlayerPage(
         anilistId: anilistId,
         animeTitle: animeTitle,
         episodeNumber: launch.option.sourceEpisode.number.toInt().toString(),
+        episodeTitle: resolvedEpisodeTitle.isEmpty
+            ? null
+            : resolvedEpisodeTitle,
         sourcePluginId: launch.option.sourcePluginId,
         serverName: launch.option.serverLink.serverName,
         persistSelection: persistSelection,

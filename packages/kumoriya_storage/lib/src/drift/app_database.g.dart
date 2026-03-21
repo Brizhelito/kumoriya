@@ -3483,6 +3483,18 @@ class $LibraryEntryTableTable extends LibraryEntryTable
         ),
         defaultValue: const Constant(false),
       );
+  static const VerificationMeta _autoDownloadAudioPreferenceMeta =
+      const VerificationMeta('autoDownloadAudioPreference');
+  @override
+  late final GeneratedColumn<String> autoDownloadAudioPreference =
+      GeneratedColumn<String>(
+        'auto_download_audio_preference',
+        aliasedName,
+        true,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+        defaultValue: const Constant('none'),
+      );
   @override
   List<GeneratedColumn> get $columns => [
     anilistId,
@@ -3490,6 +3502,7 @@ class $LibraryEntryTableTable extends LibraryEntryTable
     notifyNewEpisodes,
     lastNotifiedEpisode,
     autoDownloadNewEpisodes,
+    autoDownloadAudioPreference,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -3544,6 +3557,15 @@ class $LibraryEntryTableTable extends LibraryEntryTable
         ),
       );
     }
+    if (data.containsKey('auto_download_audio_preference')) {
+      context.handle(
+        _autoDownloadAudioPreferenceMeta,
+        autoDownloadAudioPreference.isAcceptableOrUnknown(
+          data['auto_download_audio_preference']!,
+          _autoDownloadAudioPreferenceMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -3573,6 +3595,10 @@ class $LibraryEntryTableTable extends LibraryEntryTable
         DriftSqlType.bool,
         data['${effectivePrefix}auto_download_new_episodes'],
       )!,
+      autoDownloadAudioPreference: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}auto_download_audio_preference'],
+      ),
     );
   }
 
@@ -3589,12 +3615,16 @@ class LibraryEntryTableData extends DataClass
   final bool notifyNewEpisodes;
   final int? lastNotifiedEpisode;
   final bool autoDownloadNewEpisodes;
+
+  /// Auto-download audio variant preference: 'none', 'sub', 'dub'
+  final String? autoDownloadAudioPreference;
   const LibraryEntryTableData({
     required this.anilistId,
     required this.addedAt,
     required this.notifyNewEpisodes,
     this.lastNotifiedEpisode,
     required this.autoDownloadNewEpisodes,
+    this.autoDownloadAudioPreference,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -3606,6 +3636,11 @@ class LibraryEntryTableData extends DataClass
       map['last_notified_episode'] = Variable<int>(lastNotifiedEpisode);
     }
     map['auto_download_new_episodes'] = Variable<bool>(autoDownloadNewEpisodes);
+    if (!nullToAbsent || autoDownloadAudioPreference != null) {
+      map['auto_download_audio_preference'] = Variable<String>(
+        autoDownloadAudioPreference,
+      );
+    }
     return map;
   }
 
@@ -3618,6 +3653,10 @@ class LibraryEntryTableData extends DataClass
           ? const Value.absent()
           : Value(lastNotifiedEpisode),
       autoDownloadNewEpisodes: Value(autoDownloadNewEpisodes),
+      autoDownloadAudioPreference:
+          autoDownloadAudioPreference == null && nullToAbsent
+          ? const Value.absent()
+          : Value(autoDownloadAudioPreference),
     );
   }
 
@@ -3636,6 +3675,9 @@ class LibraryEntryTableData extends DataClass
       autoDownloadNewEpisodes: serializer.fromJson<bool>(
         json['autoDownloadNewEpisodes'],
       ),
+      autoDownloadAudioPreference: serializer.fromJson<String?>(
+        json['autoDownloadAudioPreference'],
+      ),
     );
   }
   @override
@@ -3649,6 +3691,9 @@ class LibraryEntryTableData extends DataClass
       'autoDownloadNewEpisodes': serializer.toJson<bool>(
         autoDownloadNewEpisodes,
       ),
+      'autoDownloadAudioPreference': serializer.toJson<String?>(
+        autoDownloadAudioPreference,
+      ),
     };
   }
 
@@ -3658,6 +3703,7 @@ class LibraryEntryTableData extends DataClass
     bool? notifyNewEpisodes,
     Value<int?> lastNotifiedEpisode = const Value.absent(),
     bool? autoDownloadNewEpisodes,
+    Value<String?> autoDownloadAudioPreference = const Value.absent(),
   }) => LibraryEntryTableData(
     anilistId: anilistId ?? this.anilistId,
     addedAt: addedAt ?? this.addedAt,
@@ -3667,6 +3713,9 @@ class LibraryEntryTableData extends DataClass
         : this.lastNotifiedEpisode,
     autoDownloadNewEpisodes:
         autoDownloadNewEpisodes ?? this.autoDownloadNewEpisodes,
+    autoDownloadAudioPreference: autoDownloadAudioPreference.present
+        ? autoDownloadAudioPreference.value
+        : this.autoDownloadAudioPreference,
   );
   LibraryEntryTableData copyWithCompanion(LibraryEntryTableCompanion data) {
     return LibraryEntryTableData(
@@ -3681,6 +3730,9 @@ class LibraryEntryTableData extends DataClass
       autoDownloadNewEpisodes: data.autoDownloadNewEpisodes.present
           ? data.autoDownloadNewEpisodes.value
           : this.autoDownloadNewEpisodes,
+      autoDownloadAudioPreference: data.autoDownloadAudioPreference.present
+          ? data.autoDownloadAudioPreference.value
+          : this.autoDownloadAudioPreference,
     );
   }
 
@@ -3691,7 +3743,8 @@ class LibraryEntryTableData extends DataClass
           ..write('addedAt: $addedAt, ')
           ..write('notifyNewEpisodes: $notifyNewEpisodes, ')
           ..write('lastNotifiedEpisode: $lastNotifiedEpisode, ')
-          ..write('autoDownloadNewEpisodes: $autoDownloadNewEpisodes')
+          ..write('autoDownloadNewEpisodes: $autoDownloadNewEpisodes, ')
+          ..write('autoDownloadAudioPreference: $autoDownloadAudioPreference')
           ..write(')'))
         .toString();
   }
@@ -3703,6 +3756,7 @@ class LibraryEntryTableData extends DataClass
     notifyNewEpisodes,
     lastNotifiedEpisode,
     autoDownloadNewEpisodes,
+    autoDownloadAudioPreference,
   );
   @override
   bool operator ==(Object other) =>
@@ -3712,7 +3766,9 @@ class LibraryEntryTableData extends DataClass
           other.addedAt == this.addedAt &&
           other.notifyNewEpisodes == this.notifyNewEpisodes &&
           other.lastNotifiedEpisode == this.lastNotifiedEpisode &&
-          other.autoDownloadNewEpisodes == this.autoDownloadNewEpisodes);
+          other.autoDownloadNewEpisodes == this.autoDownloadNewEpisodes &&
+          other.autoDownloadAudioPreference ==
+              this.autoDownloadAudioPreference);
 }
 
 class LibraryEntryTableCompanion
@@ -3722,12 +3778,14 @@ class LibraryEntryTableCompanion
   final Value<bool> notifyNewEpisodes;
   final Value<int?> lastNotifiedEpisode;
   final Value<bool> autoDownloadNewEpisodes;
+  final Value<String?> autoDownloadAudioPreference;
   const LibraryEntryTableCompanion({
     this.anilistId = const Value.absent(),
     this.addedAt = const Value.absent(),
     this.notifyNewEpisodes = const Value.absent(),
     this.lastNotifiedEpisode = const Value.absent(),
     this.autoDownloadNewEpisodes = const Value.absent(),
+    this.autoDownloadAudioPreference = const Value.absent(),
   });
   LibraryEntryTableCompanion.insert({
     this.anilistId = const Value.absent(),
@@ -3735,6 +3793,7 @@ class LibraryEntryTableCompanion
     this.notifyNewEpisodes = const Value.absent(),
     this.lastNotifiedEpisode = const Value.absent(),
     this.autoDownloadNewEpisodes = const Value.absent(),
+    this.autoDownloadAudioPreference = const Value.absent(),
   }) : addedAt = Value(addedAt);
   static Insertable<LibraryEntryTableData> custom({
     Expression<int>? anilistId,
@@ -3742,6 +3801,7 @@ class LibraryEntryTableCompanion
     Expression<bool>? notifyNewEpisodes,
     Expression<int>? lastNotifiedEpisode,
     Expression<bool>? autoDownloadNewEpisodes,
+    Expression<String>? autoDownloadAudioPreference,
   }) {
     return RawValuesInsertable({
       if (anilistId != null) 'anilist_id': anilistId,
@@ -3751,6 +3811,8 @@ class LibraryEntryTableCompanion
         'last_notified_episode': lastNotifiedEpisode,
       if (autoDownloadNewEpisodes != null)
         'auto_download_new_episodes': autoDownloadNewEpisodes,
+      if (autoDownloadAudioPreference != null)
+        'auto_download_audio_preference': autoDownloadAudioPreference,
     });
   }
 
@@ -3760,6 +3822,7 @@ class LibraryEntryTableCompanion
     Value<bool>? notifyNewEpisodes,
     Value<int?>? lastNotifiedEpisode,
     Value<bool>? autoDownloadNewEpisodes,
+    Value<String?>? autoDownloadAudioPreference,
   }) {
     return LibraryEntryTableCompanion(
       anilistId: anilistId ?? this.anilistId,
@@ -3768,6 +3831,8 @@ class LibraryEntryTableCompanion
       lastNotifiedEpisode: lastNotifiedEpisode ?? this.lastNotifiedEpisode,
       autoDownloadNewEpisodes:
           autoDownloadNewEpisodes ?? this.autoDownloadNewEpisodes,
+      autoDownloadAudioPreference:
+          autoDownloadAudioPreference ?? this.autoDownloadAudioPreference,
     );
   }
 
@@ -3791,6 +3856,11 @@ class LibraryEntryTableCompanion
         autoDownloadNewEpisodes.value,
       );
     }
+    if (autoDownloadAudioPreference.present) {
+      map['auto_download_audio_preference'] = Variable<String>(
+        autoDownloadAudioPreference.value,
+      );
+    }
     return map;
   }
 
@@ -3801,7 +3871,8 @@ class LibraryEntryTableCompanion
           ..write('addedAt: $addedAt, ')
           ..write('notifyNewEpisodes: $notifyNewEpisodes, ')
           ..write('lastNotifiedEpisode: $lastNotifiedEpisode, ')
-          ..write('autoDownloadNewEpisodes: $autoDownloadNewEpisodes')
+          ..write('autoDownloadNewEpisodes: $autoDownloadNewEpisodes, ')
+          ..write('autoDownloadAudioPreference: $autoDownloadAudioPreference')
           ..write(')'))
         .toString();
   }
@@ -6417,6 +6488,7 @@ typedef $$LibraryEntryTableTableCreateCompanionBuilder =
       Value<bool> notifyNewEpisodes,
       Value<int?> lastNotifiedEpisode,
       Value<bool> autoDownloadNewEpisodes,
+      Value<String?> autoDownloadAudioPreference,
     });
 typedef $$LibraryEntryTableTableUpdateCompanionBuilder =
     LibraryEntryTableCompanion Function({
@@ -6425,6 +6497,7 @@ typedef $$LibraryEntryTableTableUpdateCompanionBuilder =
       Value<bool> notifyNewEpisodes,
       Value<int?> lastNotifiedEpisode,
       Value<bool> autoDownloadNewEpisodes,
+      Value<String?> autoDownloadAudioPreference,
     });
 
 class $$LibraryEntryTableTableFilterComposer
@@ -6458,6 +6531,11 @@ class $$LibraryEntryTableTableFilterComposer
 
   ColumnFilters<bool> get autoDownloadNewEpisodes => $composableBuilder(
     column: $table.autoDownloadNewEpisodes,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get autoDownloadAudioPreference => $composableBuilder(
+    column: $table.autoDownloadAudioPreference,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -6495,6 +6573,11 @@ class $$LibraryEntryTableTableOrderingComposer
     column: $table.autoDownloadNewEpisodes,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<String> get autoDownloadAudioPreference => $composableBuilder(
+    column: $table.autoDownloadAudioPreference,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$LibraryEntryTableTableAnnotationComposer
@@ -6524,6 +6607,11 @@ class $$LibraryEntryTableTableAnnotationComposer
 
   GeneratedColumn<bool> get autoDownloadNewEpisodes => $composableBuilder(
     column: $table.autoDownloadNewEpisodes,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get autoDownloadAudioPreference => $composableBuilder(
+    column: $table.autoDownloadAudioPreference,
     builder: (column) => column,
   );
 }
@@ -6573,12 +6661,15 @@ class $$LibraryEntryTableTableTableManager
                 Value<bool> notifyNewEpisodes = const Value.absent(),
                 Value<int?> lastNotifiedEpisode = const Value.absent(),
                 Value<bool> autoDownloadNewEpisodes = const Value.absent(),
+                Value<String?> autoDownloadAudioPreference =
+                    const Value.absent(),
               }) => LibraryEntryTableCompanion(
                 anilistId: anilistId,
                 addedAt: addedAt,
                 notifyNewEpisodes: notifyNewEpisodes,
                 lastNotifiedEpisode: lastNotifiedEpisode,
                 autoDownloadNewEpisodes: autoDownloadNewEpisodes,
+                autoDownloadAudioPreference: autoDownloadAudioPreference,
               ),
           createCompanionCallback:
               ({
@@ -6587,12 +6678,15 @@ class $$LibraryEntryTableTableTableManager
                 Value<bool> notifyNewEpisodes = const Value.absent(),
                 Value<int?> lastNotifiedEpisode = const Value.absent(),
                 Value<bool> autoDownloadNewEpisodes = const Value.absent(),
+                Value<String?> autoDownloadAudioPreference =
+                    const Value.absent(),
               }) => LibraryEntryTableCompanion.insert(
                 anilistId: anilistId,
                 addedAt: addedAt,
                 notifyNewEpisodes: notifyNewEpisodes,
                 lastNotifiedEpisode: lastNotifiedEpisode,
                 autoDownloadNewEpisodes: autoDownloadNewEpisodes,
+                autoDownloadAudioPreference: autoDownloadAudioPreference,
               ),
           withReferenceMapper: (p0) => p0
               .map((e) => (e.readTable(table), BaseReferences(db, table, e)))

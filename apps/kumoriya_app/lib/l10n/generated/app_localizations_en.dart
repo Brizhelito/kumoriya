@@ -100,6 +100,19 @@ class AppLocalizationsEn extends AppLocalizations {
   String get animeDetailLoading => 'Loading anime detail...';
 
   @override
+  String notificationNewEpisode(int episodeNumber) {
+    return 'Episode $episodeNumber is now available';
+  }
+
+  @override
+  String notificationNewEpisodeWithTitle(
+    int episodeNumber,
+    Object episodeTitle,
+  ) {
+    return 'Episode $episodeNumber - $episodeTitle is now available';
+  }
+
+  @override
   String get viewEpisodeList => 'Episodes';
 
   @override
@@ -756,6 +769,18 @@ class AppLocalizationsEn extends AppLocalizations {
   String get autoDownloadDisabled => 'Auto-download disabled';
 
   @override
+  String get autoDownloadAudioPreference => 'Audio preference';
+
+  @override
+  String get autoDownloadAudioAny => 'Any';
+
+  @override
+  String get autoDownloadAudioSub => 'SUB';
+
+  @override
+  String get autoDownloadAudioDub => 'DUB';
+
+  @override
   String get downloadHlsNotSupported => 'HLS streams cannot be downloaded';
 
   @override
@@ -883,6 +908,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get playerNextEpisode => 'Next episode';
 
   @override
+  String get playerPreviousEpisode => 'Previous episode';
+
+  @override
   String get playerRetry => 'RETRY';
 
   @override
@@ -1004,4 +1032,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get cancelAction => 'Cancel';
+
+  @override
+  String get playerLockControls => 'Lock controls';
 }

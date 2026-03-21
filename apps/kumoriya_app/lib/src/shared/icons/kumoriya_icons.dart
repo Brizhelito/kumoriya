@@ -33,6 +33,7 @@ abstract final class KumoriyaIcons {
   // Player
   static const IconData playerBack = Icons.arrow_back_rounded;
   static const IconData playerNextEpisode = Icons.skip_next_rounded;
+  static const IconData playerPreviousEpisode = Icons.skip_previous_rounded;
   static const IconData playerAudio = Icons.audiotrack_rounded;
   static const IconData playerSubtitle = Icons.subtitles_rounded;
   static const IconData playerQuality = Icons.hd_rounded;

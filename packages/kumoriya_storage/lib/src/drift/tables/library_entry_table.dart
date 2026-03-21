@@ -13,6 +13,10 @@ class LibraryEntryTable extends Table {
   BoolColumn get autoDownloadNewEpisodes =>
       boolean().withDefault(const Constant(false))();
 
+  /// Auto-download audio variant preference: 'none', 'sub', 'dub'
+  TextColumn get autoDownloadAudioPreference =>
+      text().withDefault(const Constant('none')).nullable()();
+
   @override
   Set<Column<Object>> get primaryKey => {anilistId};
 }

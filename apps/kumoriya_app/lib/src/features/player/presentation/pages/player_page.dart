@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:io';
+import 'dart:ui';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -7,6 +8,8 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kumoriya_app/src/features/anime_catalog/application/models/resolved_server_link_result.dart';
 import 'package:kumoriya_plugins/kumoriya_plugins.dart';
+import 'package:screen_brightness/screen_brightness.dart';
+import 'package:volume_controller/volume_controller.dart';
 import 'package:window_manager/window_manager.dart';
 import 'package:kumoriya_storage/kumoriya_storage.dart';
 import 'package:media_kit_video/media_kit_video.dart';
@@ -77,8 +80,10 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
   bool _isWindowsFullscreen = false;
   bool? _windowsFullscreenBeforePlayback;
   bool _autoNextTriggeredByEndingResidual = false;
+  bool _autoSkipEnabled = false; // TODO: persist via settings store
   List<AniSkipSegment> _aniSkipSegments = const <AniSkipSegment>[];
   Future<void>? _pendingAniSkipLoad;
+  final Set<String> _autoSkippedSegments = <String>{};
 
   PlayerSessionState _state = const PlayerSessionState.idle();
   String? _startError;
@@ -86,6 +91,7 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
   Duration _currentPosition = Duration.zero;
   Duration _currentDuration = Duration.zero;
   Duration? _resumePosition;
+  DateTime _lastPositionSetState = DateTime(0);
   bool _isScrubbing = false;
   double? _scrubPositionMs;
   EmbeddedTracks _embeddedTracks = EmbeddedTracks.empty;
@@ -98,6 +104,7 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
   // Debounces orientation restoration so that pushReplacement to a new
   // PlayerPage can cancel it in initState, preventing a portrait flash.
   static Timer? _orientationRestoreTimer;
+  static bool _suppressOrientationRestore = false;
 
   double get _episodeNumberDouble =>
       double.tryParse(widget.episodeNumber) ?? 0.0;
@@ -138,14 +145,13 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
     unawaited(_saveCurrentProgress());
     unawaited(_disposeRuntime());
     unawaited(_restoreWindowsFullscreenIfNeeded());
-    // Defer orientation restore so a pushReplacement new PlayerPage can
-    // cancel this in its initState, preventing a brief portrait flash.
     _orientationRestoreTimer?.cancel();
-    _orientationRestoreTimer = Timer(const Duration(milliseconds: 300), () {
+    _orientationRestoreTimer = null;
+    if (!_suppressOrientationRestore) {
       SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
       SystemChrome.setPreferredOrientations(<DeviceOrientation>[]);
-      _orientationRestoreTimer = null;
-    });
+    }
+    _suppressOrientationRestore = false;
     super.dispose();
   }
 
@@ -181,7 +187,16 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
         _maybeAutoNextFromEndingResidual(pos);
         return;
       }
-      setState(() => _currentPosition = pos);
+      final now = DateTime.now();
+      if (now.difference(_lastPositionSetState).inMilliseconds >= 250) {
+        _lastPositionSetState = now;
+        setState(() => _currentPosition = pos);
+      } else {
+        _currentPosition = pos;
+      }
+      if (_autoSkipEnabled) {
+        _maybeAutoSkipSegment();
+      }
       _maybeAutoNextFromEndingResidual(pos);
     });
     _durationSub = orchestrator.durationStream.listen((dur) {
@@ -542,6 +557,39 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
     await _seekTo(clamped);
   }
 
+  void _maybeAutoSkipSegment() {
+    final segment = _activeAniSkipSegment;
+    if (segment == null) return;
+
+    // Only auto-skip once per segment window.
+    final segmentKey = '${segment.kind}_${segment.start.inMilliseconds}';
+    if (_autoSkippedSegments.contains(segmentKey)) return;
+    _autoSkippedSegments.add(segmentKey);
+
+    final target = segment.end + const Duration(milliseconds: 300);
+    final maxTarget = _currentDuration > const Duration(seconds: 1)
+        ? _currentDuration - const Duration(seconds: 1)
+        : _currentDuration;
+    final clamped = target > maxTarget ? maxTarget : target;
+
+    _log('auto-skip segment kind=${segment.kind} target=$clamped');
+    unawaited(_seekTo(clamped));
+
+    if (mounted) {
+      final label = segment.kind == AniSkipSegmentKind.opening
+          ? 'Skipped Intro'
+          : 'Skipped Credits';
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(label),
+          duration: const Duration(seconds: 2),
+          behavior: SnackBarBehavior.floating,
+          width: 200,
+        ),
+      );
+    }
+  }
+
   bool _shouldAutoAdvanceAfterEnding(AniSkipSegment ending) {
     final remainingAfterEnding = _currentDuration - ending.end;
     return remainingAfterEnding < const Duration(seconds: 10);
@@ -586,6 +634,7 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
     try {
       _windowsFullscreenBeforePlayback = await windowManager.isFullScreen();
       if (_windowsFullscreenBeforePlayback != true) {
+        await windowManager.setTitleBarStyle(TitleBarStyle.hidden);
         await windowManager.setFullScreen(true);
       }
       final fullScreen = await windowManager.isFullScreen();
@@ -606,7 +655,10 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
       return;
     }
     try {
-      await windowManager.setFullScreen(before);
+      if (before != true) {
+        await windowManager.setFullScreen(false);
+        await windowManager.setTitleBarStyle(TitleBarStyle.normal);
+      }
     } catch (_) {}
   }
 
@@ -617,7 +669,13 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
     try {
       final current = await windowManager.isFullScreen();
       final target = !current;
+      if (target) {
+        await windowManager.setTitleBarStyle(TitleBarStyle.hidden);
+      }
       await windowManager.setFullScreen(target);
+      if (!target) {
+        await windowManager.setTitleBarStyle(TitleBarStyle.normal);
+      }
       if (!mounted) {
         _isWindowsFullscreen = target;
         return;
@@ -676,12 +734,23 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
     _log(
       'open next downloaded episode ep=$nextEpisodeNumber file=${file.path}',
     );
+    // Keep the player locked while replacing this page with the next player
+    // instance, avoiding an intermediate orientation/UI transition.
+    _orientationRestoreTimer?.cancel();
+    _orientationRestoreTimer = null;
+    _suppressOrientationRestore = true;
+    SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
+    SystemChrome.setPreferredOrientations(<DeviceOrientation>[
+      DeviceOrientation.landscapeLeft,
+      DeviceOrientation.landscapeRight,
+    ]);
     await Navigator.of(context).pushReplacement(
       MaterialPageRoute<void>(
         builder: (_) => PlayerPage(
           anilistId: widget.anilistId,
           animeTitle: widget.animeTitle,
           episodeNumber: nextEpisodeNumber.toString(),
+          episodeTitle: downloadTask.episodeTitle,
           sourcePluginId: downloadTask.sourcePluginId ?? 'offline',
           serverName: downloadTask.serverName ?? 'Downloaded',
           resolved: ResolvedServerLinkResult(
@@ -693,6 +762,66 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
       ),
     );
     return true;
+  }
+
+  Future<void> _openPreviousEpisode() async {
+    final currentEpisode = int.tryParse(widget.episodeNumber);
+    if (currentEpisode == null || currentEpisode <= 1) {
+      return;
+    }
+    if (_state.status == PlayerSessionStatus.playing) {
+      await _orchestrator?.togglePlayPause();
+    }
+    final prevEpisodeNumber = currentEpisode - 1;
+    // Check for downloaded previous episode first
+    final downloadTask = await ref
+        .read(downloadManagerProvider)
+        .findTaskByEpisode(widget.anilistId, prevEpisodeNumber.toDouble());
+    if (downloadTask != null &&
+        downloadTask.status == DownloadStatus.completed &&
+        downloadTask.filePath != null &&
+        downloadTask.filePath!.trim().isNotEmpty) {
+      final file = File(downloadTask.filePath!);
+      if (await file.exists() && mounted) {
+        _orientationRestoreTimer?.cancel();
+        _orientationRestoreTimer = null;
+        _suppressOrientationRestore = true;
+        SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
+        SystemChrome.setPreferredOrientations(<DeviceOrientation>[
+          DeviceOrientation.landscapeLeft,
+          DeviceOrientation.landscapeRight,
+        ]);
+        await Navigator.of(context).pushReplacement(
+          MaterialPageRoute<void>(
+            builder: (_) => PlayerPage(
+              anilistId: widget.anilistId,
+              animeTitle: widget.animeTitle,
+              episodeNumber: prevEpisodeNumber.toString(),
+              episodeTitle: downloadTask.episodeTitle,
+              sourcePluginId: downloadTask.sourcePluginId ?? 'offline',
+              serverName: downloadTask.serverName ?? 'Downloaded',
+              resolved: ResolvedServerLinkResult(
+                resolverId: 'offline',
+                resolverName: 'Downloaded',
+                streams: <ResolvedStream>[ResolvedStream(url: file.uri)],
+              ),
+            ),
+          ),
+        );
+        return;
+      }
+    }
+    // Fall back to episode list focused on previous episode
+    if (!mounted) return;
+    await Navigator.of(context).pushReplacement(
+      MaterialPageRoute<void>(
+        builder: (_) => EpisodeListPage(
+          anilistId: widget.anilistId,
+          animeTitle: widget.animeTitle,
+          focusedEpisodeNumber: prevEpisodeNumber.toDouble(),
+        ),
+      ),
+    );
   }
 
   @override
@@ -732,7 +861,9 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
         _state.status == PlayerSessionStatus.opening ||
         _state.status == PlayerSessionStatus.buffering;
 
-    final subtitleConfig = ref.watch(subtitleSettingsProvider).value;
+    final subtitleConfig = ref.watch(
+      subtitleSettingsProvider.select((s) => s.value),
+    );
 
     return _wrapWithExitGuard(
       Scaffold(
@@ -780,6 +911,9 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
             onBack: () => _handleExit(context),
             onRetry: _retryPlayback,
             onOpenEpisodes: () => unawaited(_openEpisodeSelectorFromPlayer()),
+            onPreviousEpisode: (int.tryParse(widget.episodeNumber) ?? 0) > 1
+                ? () => unawaited(_openPreviousEpisode())
+                : null,
             onQuality: () => unawaited(_showQualityPicker(context)),
             onAudio: _embeddedTracks.hasMultipleAudio
                 ? () => unawaited(_showAudioTrackPicker(context))
@@ -804,8 +938,12 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
                 ),
               );
             },
-            activeSkipLabel: _activeAniSkipLabel,
+            activeSkipLabel: _autoSkipEnabled ? null : _activeAniSkipLabel,
             onSkipSegment: () => unawaited(_skipActiveSegment()),
+            autoSkipEnabled: _autoSkipEnabled,
+            onAutoSkipToggled: () {
+              setState(() => _autoSkipEnabled = !_autoSkipEnabled);
+            },
             isWindowsFullscreen: _isWindowsFullscreen,
             onToggleWindowsFullscreen: () =>
                 unawaited(_toggleWindowsFullscreen()),
@@ -815,7 +953,13 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
             formatDuration: _formatDuration,
             subtitleViewConfiguration: subtitleConfig?.toViewConfiguration(),
             episodeTitle: widget.episodeTitle,
-            onVolumeChanged: (vol) => _engine?.player.setVolume(vol * 100),
+            onVolumeChanged: (vol) {
+              _engine?.player.setVolume(vol * 100);
+              VolumeController().setVolume(vol.clamp(0.0, 1.0));
+            },
+            onBrightnessChanged: (brightness) {
+              unawaited(ScreenBrightness().setScreenBrightness(brightness));
+            },
             onSpeedChanged: (speed) => _engine?.player.setRate(speed),
           ),
         ),
@@ -1027,6 +1171,7 @@ class _ImmersivePlayerView extends StatefulWidget {
     required this.onBack,
     required this.onRetry,
     required this.onOpenEpisodes,
+    this.onPreviousEpisode,
     required this.onQuality,
     required this.onAudio,
     required this.onSubtitle,
@@ -1035,12 +1180,15 @@ class _ImmersivePlayerView extends StatefulWidget {
     required this.onSkipForward,
     required this.activeSkipLabel,
     required this.onSkipSegment,
+    required this.autoSkipEnabled,
+    this.onAutoSkipToggled,
     required this.isWindowsFullscreen,
     required this.onToggleWindowsFullscreen,
     this.errorMessage,
     this.subtitleViewConfiguration,
     this.episodeTitle,
     this.onVolumeChanged,
+    this.onBrightnessChanged,
     this.onSpeedChanged,
   });
 
@@ -1064,6 +1212,7 @@ class _ImmersivePlayerView extends StatefulWidget {
   final VoidCallback onBack;
   final VoidCallback onRetry;
   final VoidCallback onOpenEpisodes;
+  final VoidCallback? onPreviousEpisode;
   final VoidCallback onQuality;
   final VoidCallback? onAudio;
   final VoidCallback? onSubtitle;
@@ -1071,12 +1220,15 @@ class _ImmersivePlayerView extends StatefulWidget {
   final VoidCallback? onSkipForward;
   final String? activeSkipLabel;
   final VoidCallback? onSkipSegment;
+  final bool autoSkipEnabled;
+  final VoidCallback? onAutoSkipToggled;
   final bool isWindowsFullscreen;
   final VoidCallback? onToggleWindowsFullscreen;
   final String? errorMessage;
   final String Function(Duration) formatDuration;
   final SubtitleViewConfiguration? subtitleViewConfiguration;
   final ValueChanged<double>? onVolumeChanged;
+  final ValueChanged<double>? onBrightnessChanged;
   final ValueChanged<double>? onSpeedChanged;
 
   @override
@@ -1090,7 +1242,25 @@ class _ImmersivePlayerViewState extends State<_ImmersivePlayerView> {
   bool _seekIndicatorForward = true;
   Timer? _seekIndicatorTimer;
   bool _orientationLocked = true;
-  double _gestureSeekDeltaSeconds = 0;
+  bool _isDragSeeking = false;
+  double _dragSeekAccumulatedDx = 0;
+  Duration _dragSeekTargetPosition = Duration.zero;
+  Timer? _mouseIdleTimer;
+  bool _skipButtonVisible = true;
+  Timer? _skipButtonHideTimer;
+  double _skipTimerProgress = 1.0;
+  Timer? _skipProgressTimer;
+  String? _lastSkipLabel;
+
+  // Double-tap seek state
+  Timer? _doubleTapTimer;
+  int _lastTapZone = -1;
+
+  // Brightness restore
+  double? _initialBrightness;
+
+  // Controls lock
+  bool _controlsLocked = false;
 
   // Volume/brightness gesture overlay state
   bool _showBrightnessOverlay = false;
@@ -1102,12 +1272,79 @@ class _ImmersivePlayerViewState extends State<_ImmersivePlayerView> {
   bool _isVerticalDragBrightness = false;
 
   // Long-press speed state
+  double _baseSpeed = 1.0;
   double _speedMultiplier = 1.0;
 
   @override
   void initState() {
     super.initState();
+    unawaited(_initBrightness());
+    unawaited(_initVolume());
     _startHideTimer();
+  }
+
+  @override
+  void didUpdateWidget(covariant _ImmersivePlayerView oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Track skip label changes for auto-hide behavior.
+    if (widget.activeSkipLabel != null &&
+        widget.activeSkipLabel != _lastSkipLabel) {
+      _lastSkipLabel = widget.activeSkipLabel;
+      setState(() {
+        _skipButtonVisible = true;
+        _skipTimerProgress = 1.0;
+      });
+      _skipButtonHideTimer?.cancel();
+      _skipProgressTimer?.cancel();
+
+      const skipDuration = Duration(seconds: 5);
+      const tickInterval = Duration(milliseconds: 50);
+      final totalTicks =
+          skipDuration.inMilliseconds / tickInterval.inMilliseconds;
+      var currentTick = 0;
+
+      _skipProgressTimer = Timer.periodic(tickInterval, (timer) {
+        currentTick++;
+        if (!mounted) {
+          timer.cancel();
+          return;
+        }
+        setState(() {
+          _skipTimerProgress = 1.0 - (currentTick / totalTicks);
+        });
+      });
+
+      _skipButtonHideTimer = Timer(skipDuration, () {
+        _skipProgressTimer?.cancel();
+        if (mounted) setState(() => _skipButtonVisible = false);
+      });
+    } else if (widget.activeSkipLabel == null) {
+      _lastSkipLabel = null;
+      _skipButtonHideTimer?.cancel();
+      _skipProgressTimer?.cancel();
+      _skipButtonVisible = true;
+      _skipTimerProgress = 1.0;
+    }
+  }
+
+  Future<void> _initBrightness() async {
+    try {
+      final current = await ScreenBrightness().current;
+      _initialBrightness = current;
+      if (mounted) {
+        setState(() => _brightnessLevel = current);
+      }
+    } catch (_) {}
+  }
+
+  Future<void> _initVolume() async {
+    try {
+      VolumeController().showSystemUI = false;
+      final current = await VolumeController().getVolume();
+      if (mounted) {
+        setState(() => _volumeLevel = current);
+      }
+    } catch (_) {}
   }
 
   @override
@@ -1115,22 +1352,67 @@ class _ImmersivePlayerViewState extends State<_ImmersivePlayerView> {
     _hideTimer?.cancel();
     _seekIndicatorTimer?.cancel();
     _overlayHideTimer?.cancel();
+    _mouseIdleTimer?.cancel();
+    _skipButtonHideTimer?.cancel();
+    _skipProgressTimer?.cancel();
+    _doubleTapTimer?.cancel();
+    if (_initialBrightness != null) {
+      unawaited(ScreenBrightness().setScreenBrightness(_initialBrightness!));
+    }
     super.dispose();
   }
 
   void _startHideTimer() {
     _hideTimer?.cancel();
+    if (_isDragSeeking) return;
     _hideTimer = Timer(const Duration(seconds: 4), () {
-      if (mounted && widget.isPlaying) {
+      if (mounted && widget.isPlaying && !_isDragSeeking) {
         setState(() => _controlsVisible = false);
       }
     });
   }
 
   void _toggleControls() {
+    if (_controlsLocked) return;
     setState(() {
       _controlsVisible = !_controlsVisible;
       if (_controlsVisible) _startHideTimer();
+    });
+  }
+
+  void _handleTapInZone(int zone) {
+    if (_controlsLocked) return;
+    if (_doubleTapTimer?.isActive == true && _lastTapZone == zone) {
+      _doubleTapTimer!.cancel();
+      _doubleTapTimer = null;
+      if (zone == 0) {
+        widget.onSkipBackward?.call();
+        _showSeekIndicator(isForward: false);
+      } else if (zone == 2) {
+        widget.onSkipForward?.call();
+        _showSeekIndicator(isForward: true);
+      } else if (zone == 1 && !kIsWeb && Platform.isWindows) {
+        widget.onToggleWindowsFullscreen?.call();
+      }
+    } else {
+      _doubleTapTimer?.cancel();
+      _lastTapZone = zone;
+      _doubleTapTimer = Timer(const Duration(milliseconds: 200), () {
+        _doubleTapTimer = null;
+        _toggleControls();
+      });
+    }
+  }
+
+  void _onMouseActivity() {
+    if (!_controlsVisible) {
+      setState(() => _controlsVisible = true);
+    }
+    _mouseIdleTimer?.cancel();
+    _mouseIdleTimer = Timer(const Duration(seconds: 3), () {
+      if (mounted && widget.isPlaying && !_isDragSeeking) {
+        setState(() => _controlsVisible = false);
+      }
     });
   }
 
@@ -1147,36 +1429,64 @@ class _ImmersivePlayerViewState extends State<_ImmersivePlayerView> {
 
   void _toggleOrientationLock() {
     setState(() => _orientationLocked = !_orientationLocked);
-    if (_orientationLocked) {
-      SystemChrome.setPreferredOrientations(<DeviceOrientation>[
-        DeviceOrientation.landscapeLeft,
-        DeviceOrientation.landscapeRight,
-      ]);
-    } else {
-      SystemChrome.setPreferredOrientations(<DeviceOrientation>[]);
-    }
+    SystemChrome.setPreferredOrientations(<DeviceOrientation>[
+      DeviceOrientation.landscapeLeft,
+      DeviceOrientation.landscapeRight,
+    ]);
+  }
+
+  void _onHorizontalDragStart(DragStartDetails details) {
+    if (_controlsLocked) return;
+    _isDragSeeking = true;
+    _dragSeekAccumulatedDx = 0;
+    _dragSeekTargetPosition = widget.currentPosition;
   }
 
   void _onHorizontalDragUpdate(DragUpdateDetails details) {
-    _gestureSeekDeltaSeconds += details.delta.dx / 18;
+    if (_controlsLocked) return;
+    if (!_isDragSeeking) return;
+    final screenWidth = MediaQuery.of(context).size.width;
+    if (screenWidth <= 0 || widget.totalDuration <= Duration.zero) return;
+
+    _dragSeekAccumulatedDx += details.delta.dx;
+    final ratio = _dragSeekAccumulatedDx / (screenWidth * 2.5);
+    final seekDeltaMs = (ratio * widget.totalDuration.inMilliseconds).round();
+    final target = Duration(
+      milliseconds: (widget.currentPosition.inMilliseconds + seekDeltaMs).clamp(
+        0,
+        widget.totalDuration.inMilliseconds,
+      ),
+    );
+
+    setState(() {
+      _dragSeekTargetPosition = target;
+    });
   }
 
   void _onHorizontalDragEnd(DragEndDetails details) {
-    final deltaSeconds = _gestureSeekDeltaSeconds.round();
-    _gestureSeekDeltaSeconds = 0;
-    if (deltaSeconds.abs() < 3) {
-      return;
-    }
-    if (deltaSeconds > 0) {
-      widget.onSkipForward?.call();
-      _showSeekIndicator(isForward: true);
-    } else {
-      widget.onSkipBackward?.call();
-      _showSeekIndicator(isForward: false);
+    if (_controlsLocked) return;
+    if (!_isDragSeeking) return;
+
+    final deltaMs =
+        (_dragSeekTargetPosition - widget.currentPosition).inMilliseconds;
+    setState(() {
+      _isDragSeeking = false;
+      _dragSeekAccumulatedDx = 0;
+      _controlsVisible = false;
+    });
+    _hideTimer?.cancel();
+
+    // Only seek if delta is significant (>1 second)
+    if (deltaMs.abs() > 1000) {
+      widget.onSeekChanged?.call(
+        _dragSeekTargetPosition.inMilliseconds.toDouble(),
+      );
+      widget.onSeekEnd?.call(_dragSeekTargetPosition.inMilliseconds.toDouble());
     }
   }
 
   void _onVerticalDragStart(DragStartDetails details) {
+    if (_controlsLocked) return;
     if (Platform.isWindows) return;
     final width = MediaQuery.of(context).size.width;
     _verticalDragStart = details.localPosition;
@@ -1184,14 +1494,16 @@ class _ImmersivePlayerViewState extends State<_ImmersivePlayerView> {
   }
 
   void _onVerticalDragUpdate(DragUpdateDetails details) {
+    if (_controlsLocked) return;
     if (_verticalDragStart == null) return;
     final delta = -details.delta.dy / 200;
     setState(() {
       if (_isVerticalDragBrightness) {
         _brightnessLevel = (_brightnessLevel + delta).clamp(0.0, 1.0);
         _showBrightnessOverlay = true;
+        widget.onBrightnessChanged?.call(_brightnessLevel);
       } else {
-        _volumeLevel = (_volumeLevel + delta).clamp(0.0, 1.0);
+        _volumeLevel = (_volumeLevel + delta).clamp(0.0, 2.0);
         _showVolumeOverlay = true;
       }
     });
@@ -1201,6 +1513,7 @@ class _ImmersivePlayerViewState extends State<_ImmersivePlayerView> {
   }
 
   void _onVerticalDragEnd(DragEndDetails details) {
+    if (_controlsLocked) return;
     _verticalDragStart = null;
     _overlayHideTimer?.cancel();
     _overlayHideTimer = Timer(const Duration(milliseconds: 800), () {
@@ -1232,7 +1545,7 @@ class _ImmersivePlayerViewState extends State<_ImmersivePlayerView> {
         _startHideTimer();
         return KeyEventResult.handled;
       case LogicalKeyboardKey.arrowUp:
-        final newVolUp = (_volumeLevel + 0.1).clamp(0.0, 1.0);
+        final newVolUp = (_volumeLevel + 0.1).clamp(0.0, 2.0);
         setState(() {
           _volumeLevel = newVolUp;
           _showVolumeOverlay = true;
@@ -1244,7 +1557,7 @@ class _ImmersivePlayerViewState extends State<_ImmersivePlayerView> {
         });
         return KeyEventResult.handled;
       case LogicalKeyboardKey.arrowDown:
-        final newVolDown = (_volumeLevel - 0.1).clamp(0.0, 1.0);
+        final newVolDown = (_volumeLevel - 0.1).clamp(0.0, 2.0);
         setState(() {
           _volumeLevel = newVolDown;
           _showVolumeOverlay = true;
@@ -1278,103 +1591,177 @@ class _ImmersivePlayerViewState extends State<_ImmersivePlayerView> {
     }
   }
 
+  String _formatDuration(Duration d) {
+    final hours = d.inHours;
+    final minutes = d.inMinutes.remainder(60);
+    final seconds = d.inSeconds.remainder(60);
+    if (hours > 0) {
+      return '${hours.toString().padLeft(2, '0')}:${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
+    }
+    return '${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
+  }
+
+  String _formatSeekDelta(Duration delta) {
+    final totalSeconds = delta.inSeconds;
+    final sign = totalSeconds >= 0 ? '+' : '-';
+    final abs = totalSeconds.abs();
+    final m = abs ~/ 60;
+    final s = abs % 60;
+    if (m > 0) {
+      return '$sign${m.toString().padLeft(2, '0')}:${s.toString().padLeft(2, '0')}';
+    }
+    return '$sign${s}s';
+  }
+
+  void _showSpeedSelector(BuildContext context) {
+    const speeds = <double>[0.25, 0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0];
+    showModalBottomSheet<double>(
+      context: context,
+      backgroundColor: KumoriyaColors.surface,
+      showDragHandle: true,
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+              child: Text(
+                'Playback Speed',
+                style: Theme.of(
+                  ctx,
+                ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+              ),
+            ),
+            Flexible(
+              child: ListView(
+                shrinkWrap: true,
+                children: speeds
+                    .map(
+                      (speed) => ListTile(
+                        title: Text(
+                          speed == 1.0 ? '1.0x (Normal)' : '${speed}x',
+                          style: TextStyle(
+                            color: speed == _baseSpeed
+                                ? KumoriyaColors.primary
+                                : KumoriyaColors.textPrimary,
+                            fontWeight: speed == _baseSpeed
+                                ? FontWeight.w700
+                                : FontWeight.w400,
+                          ),
+                        ),
+                        trailing: speed == _baseSpeed
+                            ? const Icon(
+                                Icons.check_rounded,
+                                color: KumoriyaColors.primary,
+                              )
+                            : null,
+                        onTap: () => Navigator.of(ctx).pop(speed),
+                      ),
+                    )
+                    .toList(),
+              ),
+            ),
+          ],
+        ),
+      ),
+    ).then((selected) {
+      if (!mounted || selected == null || selected == _baseSpeed) {
+        return;
+      }
+      setState(() {
+        _baseSpeed = selected;
+        _speedMultiplier = selected;
+      });
+      widget.onSpeedChanged?.call(selected);
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
-    const scale = 1.5;
-
     return Focus(
       autofocus: true,
       onKeyEvent: _handleKeyEvent,
-      child: GestureDetector(
-        behavior: HitTestBehavior.translucent,
-        onHorizontalDragUpdate: _onHorizontalDragUpdate,
-        onHorizontalDragEnd: _onHorizontalDragEnd,
-        onVerticalDragStart: _onVerticalDragStart,
-        onVerticalDragUpdate: _onVerticalDragUpdate,
-        onVerticalDragEnd: _onVerticalDragEnd,
-        onLongPressStart: (_) {
-          setState(() => _speedMultiplier = 2.0);
-          widget.onSpeedChanged?.call(2.0);
+      child: MouseRegion(
+        onHover: (_) {
+          if (Platform.isWindows) _onMouseActivity();
         },
-        onLongPressEnd: (_) {
-          setState(() => _speedMultiplier = 1.0);
-          widget.onSpeedChanged?.call(1.0);
-        },
-        child: Stack(
-          fit: StackFit.expand,
-          children: <Widget>[
-            // Video layer
-            if (widget.engine != null)
-              IgnorePointer(
-                // media_kit can render through a native surface on some platforms.
-                // Keep pointer handling in the Flutter overlay so playback controls
-                // remain tappable/clickable for every stream type.
-                child: Video(
-                  controller: widget.engine!.videoController,
-                  controls: NoVideoControls,
-                  subtitleViewConfiguration:
-                      widget.subtitleViewConfiguration ??
-                      const SubtitleViewConfiguration(),
-                ),
-              )
-            else
-              const ColoredBox(color: Colors.black),
+        child: GestureDetector(
+          behavior: HitTestBehavior.translucent,
+          onHorizontalDragStart: _onHorizontalDragStart,
+          onHorizontalDragUpdate: _onHorizontalDragUpdate,
+          onHorizontalDragEnd: _onHorizontalDragEnd,
+          onVerticalDragStart: _onVerticalDragStart,
+          onVerticalDragUpdate: _onVerticalDragUpdate,
+          onVerticalDragEnd: _onVerticalDragEnd,
+          onLongPressStart: (_) {
+            if (_controlsLocked) return;
+            setState(() => _speedMultiplier = 2.0);
+            widget.onSpeedChanged?.call(2.0);
+          },
+          onLongPressEnd: (_) {
+            if (_controlsLocked) return;
+            setState(() => _speedMultiplier = _baseSpeed);
+            widget.onSpeedChanged?.call(_baseSpeed);
+          },
+          child: Stack(
+            fit: StackFit.expand,
+            children: <Widget>[
+              // Video layer
+              if (widget.engine != null)
+                IgnorePointer(
+                  // media_kit can render through a native surface on some platforms.
+                  // Keep pointer handling in the Flutter overlay so playback controls
+                  // remain tappable/clickable for every stream type.
+                  child: Video(
+                    controller: widget.engine!.videoController,
+                    controls: NoVideoControls,
+                    fit: BoxFit.contain,
+                    subtitleViewConfiguration:
+                        widget.subtitleViewConfiguration ??
+                        const SubtitleViewConfiguration(),
+                  ),
+                )
+              else
+                const ColoredBox(color: Colors.black),
 
-            // Double-tap seek zones (3 equal thirds)
-            Row(
-              children: <Widget>[
-                // Left 1/3 — double tap skip backward
-                Expanded(
-                  child: GestureDetector(
-                    behavior: HitTestBehavior.opaque,
-                    onTap: _toggleControls,
-                    onDoubleTap: () {
-                      widget.onSkipBackward?.call();
-                      _showSeekIndicator(isForward: false);
-                    },
-                    child: const SizedBox.expand(),
+              // Double-tap seek zones (3 equal thirds)
+              Row(
+                children: <Widget>[
+                  // Left 1/3 — double tap skip backward
+                  Expanded(
+                    child: GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTap: () => _handleTapInZone(0),
+                      child: const SizedBox.expand(),
+                    ),
                   ),
-                ),
-                // Center 1/3 — single tap only (toggle controls)
-                Expanded(
-                  child: GestureDetector(
-                    behavior: HitTestBehavior.opaque,
-                    onTap: _toggleControls,
-                    child: const SizedBox.expand(),
+                  // Center 1/3
+                  Expanded(
+                    child: GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTap: () => _handleTapInZone(1),
+                      child: const SizedBox.expand(),
+                    ),
                   ),
-                ),
-                // Right 1/3 — double tap skip forward
-                Expanded(
-                  child: GestureDetector(
-                    behavior: HitTestBehavior.opaque,
-                    onTap: _toggleControls,
-                    onDoubleTap: () {
-                      widget.onSkipForward?.call();
-                      _showSeekIndicator(isForward: true);
-                    },
-                    child: const SizedBox.expand(),
+                  // Right 1/3 — double tap skip forward
+                  Expanded(
+                    child: GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTap: () => _handleTapInZone(2),
+                      child: const SizedBox.expand(),
+                    ),
                   ),
-                ),
-              ],
-            ),
+                ],
+              ),
 
-            // Seek indicator
-            if (_seekIndicatorVisible)
-              Align(
-                alignment: _seekIndicatorForward
-                    ? Alignment.centerRight
-                    : Alignment.centerLeft,
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 48),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 24,
-                      vertical: 14,
-                    ),
-                    decoration: BoxDecoration(
-                      color: KumoriyaColors.playerControlBg,
-                      borderRadius: BorderRadius.circular(KumoriyaRadius.md),
-                    ),
+              // Seek indicator (double-tap only)
+              if (_seekIndicatorVisible && !_isDragSeeking)
+                Align(
+                  alignment: _seekIndicatorForward
+                      ? Alignment.centerRight
+                      : Alignment.centerLeft,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 64),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: <Widget>[
@@ -1383,504 +1770,829 @@ class _ImmersivePlayerViewState extends State<_ImmersivePlayerView> {
                               ? Icons.forward_10_rounded
                               : Icons.replay_10_rounded,
                           color: KumoriyaColors.textPrimary,
-                          size: 28 * scale,
+                          size: 28,
+                          shadows: const <Shadow>[
+                            Shadow(color: Color(0xCC000000), blurRadius: 8),
+                            Shadow(color: Color(0x66000000), blurRadius: 24),
+                          ],
                         ),
-                        const SizedBox(width: 12),
+                        const SizedBox(width: 8),
                         Text(
                           _seekIndicatorForward ? '+10s' : '-10s',
                           style: Theme.of(context).textTheme.headlineSmall!
-                              .copyWith(color: KumoriyaColors.textPrimary),
+                              .copyWith(
+                                color: KumoriyaColors.textPrimary,
+                                shadows: const <Shadow>[
+                                  Shadow(
+                                    color: Color(0xCC000000),
+                                    blurRadius: 8,
+                                  ),
+                                  Shadow(
+                                    color: Color(0x66000000),
+                                    blurRadius: 24,
+                                  ),
+                                ],
+                              ),
                         ),
                       ],
                     ),
                   ),
                 ),
-              ),
 
-            // Volume overlay
-            if (_showVolumeOverlay)
-              Align(
-                alignment: Alignment.centerRight,
-                child: Padding(
-                  padding: const EdgeInsets.only(right: 24),
-                  child: _VerticalSliderOverlay(
-                    icon: _volumeLevel > 0.5
-                        ? Icons.volume_up_rounded
-                        : _volumeLevel > 0
-                        ? Icons.volume_down_rounded
-                        : Icons.volume_off_rounded,
-                    value: _volumeLevel,
-                    label: '${(_volumeLevel * 100).round()}%',
-                  ),
-                ),
-              ),
-
-            // Brightness overlay
-            if (_showBrightnessOverlay)
-              Align(
-                alignment: Alignment.centerLeft,
-                child: Padding(
-                  padding: const EdgeInsets.only(left: 24),
-                  child: _VerticalSliderOverlay(
-                    icon: Icons.brightness_6_rounded,
-                    value: _brightnessLevel,
-                    label: '${(_brightnessLevel * 100).round()}%',
-                  ),
-                ),
-              ),
-
-            // 2× Speed badge
-            if (_speedMultiplier > 1.0)
-              Align(
-                alignment: Alignment.topCenter,
-                child: SafeArea(
-                  child: Container(
-                    margin: const EdgeInsets.only(top: 56),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 6,
-                    ),
-                    decoration: BoxDecoration(
-                      color: KumoriyaColors.playerControlBg,
-                      borderRadius: BorderRadius.circular(KumoriyaRadius.full),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: <Widget>[
-                        Icon(
-                          Icons.fast_forward_rounded,
-                          color: KumoriyaColors.textPrimary,
-                          size: 16,
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          '${_speedMultiplier.toStringAsFixed(0)}×',
-                          style: Theme.of(context).textTheme.labelLarge!
-                              .copyWith(color: KumoriyaColors.textPrimary),
-                        ),
-                      ],
+              // Volume overlay
+              if (_showVolumeOverlay)
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: Padding(
+                    padding: const EdgeInsets.only(right: 24),
+                    child: _VerticalSliderOverlay(
+                      icon: _volumeLevel > 1.0
+                          ? Icons.volume_up_rounded
+                          : _volumeLevel > 0.5
+                          ? Icons.volume_up_rounded
+                          : _volumeLevel > 0
+                          ? Icons.volume_down_rounded
+                          : Icons.volume_off_rounded,
+                      value: (_volumeLevel / 2.0).clamp(0.0, 1.0),
+                      label: '${(_volumeLevel * 100).round()}%',
+                      isBoost: _volumeLevel > 1.0,
                     ),
                   ),
                 ),
-              ),
 
-            // Loading overlay
-            if (widget.isLoading)
-              Container(
-                color: KumoriyaColors.scrimLight,
-                alignment: Alignment.center,
-                child: CircularProgressIndicator(
-                  color: KumoriyaColors.textPrimary,
+              // Brightness overlay
+              if (_showBrightnessOverlay)
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: Padding(
+                    padding: const EdgeInsets.only(left: 24),
+                    child: _VerticalSliderOverlay(
+                      icon: Icons.brightness_6_rounded,
+                      value: _brightnessLevel,
+                      label: '${(_brightnessLevel * 100).round()}%',
+                      isBoost: false,
+                    ),
+                  ),
                 ),
-              ),
 
-            // Error banner
-            if (widget.isError && widget.errorMessage != null)
-              Align(
-                alignment: Alignment.topCenter,
-                child: SafeArea(
-                  child: Container(
-                    margin: const EdgeInsets.all(12),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 10,
-                    ),
-                    decoration: BoxDecoration(
-                      color: KumoriyaColors.statusDanger,
-                      borderRadius: BorderRadius.circular(KumoriyaRadius.md),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: <Widget>[
-                        Text(
-                          widget.errorMessage!,
-                          style: Theme.of(context).textTheme.bodySmall!
-                              .copyWith(color: KumoriyaColors.textPrimary),
+              // 2× Speed badge
+              if (_speedMultiplier > 1.0)
+                Align(
+                  alignment: Alignment.topCenter,
+                  child: SafeArea(
+                    child: Padding(
+                      padding: const EdgeInsets.only(top: 56),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(
+                          KumoriyaRadius.full,
                         ),
-                        const SizedBox(width: 12),
-                        TextButton(
-                          onPressed: widget.onRetry,
-                          style: TextButton.styleFrom(
-                            foregroundColor: KumoriyaColors.textPrimary,
+                        child: BackdropFilter(
+                          filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
+                          child: Container(
                             padding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 8,
+                              horizontal: 16,
+                              vertical: 6,
+                            ),
+                            decoration: BoxDecoration(
+                              color: const Color(0x731E1629),
+                              borderRadius: BorderRadius.circular(
+                                KumoriyaRadius.full,
+                              ),
+                              border: Border.all(
+                                color: Colors.white.withValues(alpha: 0.10),
+                              ),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: <Widget>[
+                                Icon(
+                                  Icons.fast_forward_rounded,
+                                  color: KumoriyaColors.textPrimary,
+                                  size: 16,
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  '${_speedMultiplier.toStringAsFixed(0)}×',
+                                  style: Theme.of(context).textTheme.labelLarge!
+                                      .copyWith(
+                                        color: KumoriyaColors.textPrimary,
+                                      ),
+                                ),
+                              ],
                             ),
                           ),
-                          child: Text(context.l10n.playerRetry),
                         ),
-                      ],
+                      ),
                     ),
                   ),
                 ),
-              ),
 
-            // Controls overlay (animated)
-            AnimatedOpacity(
-              opacity: _controlsVisible ? 1.0 : 0.0,
-              duration: const Duration(milliseconds: 300),
-              child: IgnorePointer(
-                ignoring: !_controlsVisible,
-                child: Container(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                      colors: <Color>[
-                        KumoriyaColors.scrimHeavy,
-                        Colors.transparent,
-                        Colors.transparent,
-                        KumoriyaColors.scrimHeavy,
-                      ],
-                      stops: const <double>[0.0, 0.20, 0.70, 1.0],
+              // Loading overlay
+              if (widget.isLoading)
+                Container(
+                  color: KumoriyaColors.scrimLight,
+                  alignment: Alignment.center,
+                  child: CircularProgressIndicator(
+                    color: KumoriyaColors.textPrimary,
+                  ),
+                ),
+
+              // Error banner
+              if (widget.isError && widget.errorMessage != null)
+                Align(
+                  alignment: Alignment.topCenter,
+                  child: SafeArea(
+                    child: Container(
+                      margin: const EdgeInsets.all(12),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 10,
+                      ),
+                      decoration: BoxDecoration(
+                        color: KumoriyaColors.statusDanger,
+                        borderRadius: BorderRadius.circular(KumoriyaRadius.md),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: <Widget>[
+                          Text(
+                            widget.errorMessage!,
+                            style: Theme.of(context).textTheme.bodySmall!
+                                .copyWith(color: KumoriyaColors.textPrimary),
+                          ),
+                          const SizedBox(width: 12),
+                          TextButton(
+                            onPressed: widget.onRetry,
+                            style: TextButton.styleFrom(
+                              foregroundColor: KumoriyaColors.textPrimary,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 8,
+                              ),
+                            ),
+                            child: Text(context.l10n.playerRetry),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
-                  child: SafeArea(
-                    child: Column(
-                      children: <Widget>[
-                        // Top bar
-                        Padding(
-                          padding: const EdgeInsets.fromLTRB(
-                            KumoriyaSpacing.md,
-                            KumoriyaSpacing.sm,
-                            KumoriyaSpacing.md,
-                            0,
-                          ),
-                          child: Row(
-                            children: <Widget>[
-                              IconButton(
-                                onPressed: widget.onBack,
-                                tooltip: context.l10n.playerBack,
-                                icon: Icon(
-                                  KumoriyaIcons.playerBack,
-                                  color: KumoriyaColors.textPrimary,
-                                  size: 20 * scale,
-                                ),
-                                iconSize: 20 * scale,
-                                padding: const EdgeInsets.all(12),
+                ),
+
+              // Controls overlay (animated)
+              AnimatedOpacity(
+                opacity: _controlsVisible ? 1.0 : 0.0,
+                duration: const Duration(milliseconds: 300),
+                child: IgnorePointer(
+                  ignoring: !_controlsVisible,
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: <Widget>[
+                      // Radial vignettes (replaces linear gradient)
+                      CustomPaint(
+                        size: Size.infinite,
+                        painter: const _RadialVignettePainter(),
+                      ),
+
+                      // Top-left: Back + title
+                      Positioned(
+                        left: KumoriyaSpacing.lg,
+                        top:
+                            KumoriyaSpacing.md +
+                            MediaQuery.of(context).padding.top,
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: <Widget>[
+                            IconButton(
+                              onPressed: widget.onBack,
+                              tooltip: context.l10n.playerBack,
+                              icon: Icon(
+                                KumoriyaIcons.playerBack,
+                                color: KumoriyaColors.textPrimary,
+                                size: 24,
+                                shadows: const <Shadow>[
+                                  Shadow(color: Colors.black54, blurRadius: 6),
+                                ],
                               ),
-                              const SizedBox(width: KumoriyaSpacing.sm),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
+                              iconSize: 24,
+                              padding: const EdgeInsets.all(12),
+                            ),
+                            const SizedBox(width: KumoriyaSpacing.sm),
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisSize: MainAxisSize.min,
+                              children: <Widget>[
+                                Text(
+                                  widget.animeTitle,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: Theme.of(context).textTheme.bodySmall!
+                                      .copyWith(
+                                        color: KumoriyaColors.textMuted,
+                                        shadows: const <Shadow>[
+                                          Shadow(
+                                            color: Colors.black54,
+                                            blurRadius: 4,
+                                          ),
+                                        ],
+                                      ),
+                                ),
+                                Text(
+                                  widget.episodeTitle != null
+                                      ? 'EP ${widget.episodeNumber} \u2014 ${widget.episodeTitle}'
+                                      : 'EP ${widget.episodeNumber}',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .headlineSmall!
+                                      .copyWith(
+                                        color: KumoriyaColors.textPrimary,
+                                        shadows: const <Shadow>[
+                                          Shadow(
+                                            color: Colors.black54,
+                                            blurRadius: 6,
+                                          ),
+                                        ],
+                                      ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      // Top-right: Settings + navigation cluster
+                      Positioned(
+                        right: KumoriyaSpacing.lg,
+                        top:
+                            KumoriyaSpacing.md +
+                            MediaQuery.of(context).padding.top,
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: <Widget>[
+                            // Speed pill
+                            GestureDetector(
+                              onTap: () => _showSpeedSelector(context),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 10,
+                                  vertical: 10,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: KumoriyaColors.playerControlBg,
+                                  borderRadius: BorderRadius.circular(
+                                    KumoriyaRadius.full,
+                                  ),
+                                ),
+                                child: Text(
+                                  '${_baseSpeed}x',
+                                  style: Theme.of(context).textTheme.labelSmall!
+                                      .copyWith(
+                                        color: _baseSpeed != 1.0
+                                            ? KumoriyaColors.accentAmber
+                                            : KumoriyaColors.textPrimary,
+                                      ),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: KumoriyaSpacing.sm),
+                            // Auto-skip toggle
+                            GestureDetector(
+                              onTap: widget.onAutoSkipToggled,
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 10,
+                                  vertical: 10,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: KumoriyaColors.playerControlBg,
+                                  borderRadius: BorderRadius.circular(
+                                    KumoriyaRadius.full,
+                                  ),
+                                ),
+                                child: Row(
                                   mainAxisSize: MainAxisSize.min,
                                   children: <Widget>[
-                                    Text(
-                                      widget.animeTitle,
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: Theme.of(context)
-                                          .textTheme
-                                          .bodySmall!
-                                          .copyWith(
-                                            color: KumoriyaColors.textSecondary,
-                                            shadows: const <Shadow>[
-                                              Shadow(
-                                                color: Colors.black54,
-                                                blurRadius: 4,
-                                              ),
-                                            ],
-                                          ),
+                                    Icon(
+                                      Icons.fast_forward_rounded,
+                                      size: 16,
+                                      color: widget.autoSkipEnabled
+                                          ? KumoriyaColors.accentAmber
+                                          : KumoriyaColors.textSecondary,
                                     ),
+                                    const SizedBox(width: 4),
                                     Text(
-                                      widget.episodeTitle != null
-                                          ? 'EP ${widget.episodeNumber} - ${widget.episodeTitle}'
-                                          : 'EP ${widget.episodeNumber}',
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
+                                      'Auto',
                                       style: Theme.of(context)
                                           .textTheme
-                                          .titleMedium!
+                                          .labelSmall!
                                           .copyWith(
-                                            color: KumoriyaColors.textPrimary,
-                                            shadows: const <Shadow>[
-                                              Shadow(
-                                                color: Colors.black54,
-                                                blurRadius: 4,
-                                              ),
-                                            ],
+                                            color: widget.autoSkipEnabled
+                                                ? KumoriyaColors.accentAmber
+                                                : KumoriyaColors.textSecondary,
                                           ),
                                     ),
                                   ],
                                 ),
                               ),
+                            ),
+                            const SizedBox(width: KumoriyaSpacing.md),
+                            // Previous episode
+                            if (widget.onPreviousEpisode != null)
                               IconButton(
-                                onPressed: widget.onOpenEpisodes,
+                                onPressed: widget.onPreviousEpisode,
                                 icon: Icon(
-                                  KumoriyaIcons.playerNextEpisode,
+                                  KumoriyaIcons.playerPreviousEpisode,
                                   color: KumoriyaColors.textPrimary,
-                                  size: 20 * scale,
+                                  size: 24,
+                                  shadows: const <Shadow>[
+                                    Shadow(
+                                      color: Colors.black54,
+                                      blurRadius: 6,
+                                    ),
+                                  ],
                                 ),
-                                iconSize: 20 * scale,
+                                iconSize: 24,
                                 padding: const EdgeInsets.all(12),
-                                tooltip: context.l10n.playerNextEpisode,
+                                tooltip: context.l10n.playerPreviousEpisode,
                               ),
-                              if (Platform.isWindows)
-                                IconButton(
-                                  onPressed: widget.onToggleWindowsFullscreen,
-                                  icon: Icon(
-                                    widget.isWindowsFullscreen
-                                        ? KumoriyaIcons.playerFullscreenExit
-                                        : KumoriyaIcons.playerFullscreen,
-                                    color: KumoriyaColors.textPrimary,
-                                    size: 20 * scale,
-                                  ),
-                                  iconSize: 20 * scale,
-                                  padding: const EdgeInsets.all(12),
-                                  tooltip: widget.isWindowsFullscreen
-                                      ? 'Exit fullscreen'
-                                      : 'Fullscreen',
-                                )
-                              else
-                                IconButton(
-                                  onPressed: _toggleOrientationLock,
-                                  icon: Icon(
-                                    _orientationLocked
-                                        ? Icons.screen_lock_rotation_rounded
-                                        : Icons.screen_rotation_rounded,
-                                    color: KumoriyaColors.textPrimary,
-                                    size: 20 * scale,
-                                  ),
-                                  iconSize: 20 * scale,
-                                  padding: const EdgeInsets.all(12),
-                                  tooltip: _orientationLocked
-                                      ? context.l10n.playerUnlockRotation
-                                      : context.l10n.playerLockRotation,
+                            // Next episode
+                            IconButton(
+                              onPressed: widget.onOpenEpisodes,
+                              icon: Icon(
+                                KumoriyaIcons.playerNextEpisode,
+                                color: KumoriyaColors.textPrimary,
+                                size: 28,
+                                shadows: const <Shadow>[
+                                  Shadow(color: Colors.black54, blurRadius: 6),
+                                ],
+                              ),
+                              iconSize: 28,
+                              padding: const EdgeInsets.all(10),
+                              tooltip: context.l10n.playerNextEpisode,
+                            ),
+                            const SizedBox(width: KumoriyaSpacing.md),
+                            // Fullscreen / Orientation lock
+                            if (Platform.isWindows)
+                              IconButton(
+                                onPressed: widget.onToggleWindowsFullscreen,
+                                icon: Icon(
+                                  widget.isWindowsFullscreen
+                                      ? KumoriyaIcons.playerFullscreenExit
+                                      : KumoriyaIcons.playerFullscreen,
+                                  color: KumoriyaColors.textPrimary,
+                                  size: 24,
+                                  shadows: const <Shadow>[
+                                    Shadow(
+                                      color: Colors.black54,
+                                      blurRadius: 6,
+                                    ),
+                                  ],
                                 ),
+                                iconSize: 24,
+                                padding: const EdgeInsets.all(12),
+                                tooltip: widget.isWindowsFullscreen
+                                    ? 'Exit fullscreen'
+                                    : 'Fullscreen',
+                              )
+                            else
+                              IconButton(
+                                onPressed: _toggleOrientationLock,
+                                icon: Icon(
+                                  _orientationLocked
+                                      ? Icons.screen_lock_rotation_rounded
+                                      : Icons.screen_rotation_rounded,
+                                  color: KumoriyaColors.textPrimary,
+                                  size: 24,
+                                  shadows: const <Shadow>[
+                                    Shadow(
+                                      color: Colors.black54,
+                                      blurRadius: 6,
+                                    ),
+                                  ],
+                                ),
+                                iconSize: 24,
+                                padding: const EdgeInsets.all(12),
+                                tooltip: _orientationLocked
+                                    ? context.l10n.playerUnlockRotation
+                                    : context.l10n.playerLockRotation,
+                              ),
+                            const SizedBox(width: KumoriyaSpacing.sm),
+                            IconButton(
+                              onPressed: () {
+                                setState(() {
+                                  _controlsLocked = true;
+                                  _controlsVisible = false;
+                                });
+                                _hideTimer?.cancel();
+                              },
+                              icon: Icon(
+                                Icons.lock_outline_rounded,
+                                color: KumoriyaColors.textPrimary,
+                                size: 24,
+                                shadows: const <Shadow>[
+                                  Shadow(color: Colors.black54, blurRadius: 6),
+                                ],
+                              ),
+                              iconSize: 24,
+                              padding: const EdgeInsets.all(12),
+                              tooltip: context.l10n.playerLockControls,
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      // Center: Frosted glass play/pause + bare skip buttons
+                      if (!_isDragSeeking)
+                        Center(
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: <Widget>[
+                              // Skip back
+                              SizedBox(
+                                width: 56,
+                                height: 56,
+                                child: IconButton(
+                                  onPressed: widget.onSkipBackward,
+                                  tooltip: context.l10n.playerSkipBackward,
+                                  icon: Icon(
+                                    KumoriyaIcons.playerSeekBack10,
+                                    color: KumoriyaColors.textPrimary,
+                                    size: 28,
+                                    shadows: const <Shadow>[
+                                      Shadow(
+                                        color: Color(0xCC000000),
+                                        blurRadius: 8,
+                                      ),
+                                      Shadow(
+                                        color: Color(0x66000000),
+                                        blurRadius: 24,
+                                      ),
+                                    ],
+                                  ),
+                                  padding: EdgeInsets.zero,
+                                ),
+                              ),
+                              const SizedBox(width: KumoriyaSpacing.xxxl),
+                              // Frosted glass play/pause
+                              ClipOval(
+                                child: BackdropFilter(
+                                  filter: ImageFilter.blur(
+                                    sigmaX: 12,
+                                    sigmaY: 12,
+                                  ),
+                                  child: Material(
+                                    color: Colors.transparent,
+                                    shape: const CircleBorder(),
+                                    child: InkWell(
+                                      customBorder: const CircleBorder(),
+                                      onTap: widget.onTogglePlayPause,
+                                      splashColor: KumoriyaColors.primaryLight
+                                          .withValues(alpha: 0.20),
+                                      child: Container(
+                                        width: 80,
+                                        height: 80,
+                                        decoration: BoxDecoration(
+                                          shape: BoxShape.circle,
+                                          color: const Color(
+                                            0x731E1629,
+                                          ), // surface @ 45%
+                                          border: Border.all(
+                                            color: Colors.white.withValues(
+                                              alpha: 0.10,
+                                            ),
+                                          ),
+                                        ),
+                                        child: Center(
+                                          child: Icon(
+                                            widget.isPlaying
+                                                ? KumoriyaIcons.playerPause
+                                                : KumoriyaIcons.playerPlay,
+                                            color: KumoriyaColors.textPrimary,
+                                            size: 48,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: KumoriyaSpacing.xxxl),
+                              // Skip forward
+                              SizedBox(
+                                width: 56,
+                                height: 56,
+                                child: IconButton(
+                                  onPressed: widget.onSkipForward,
+                                  tooltip: context.l10n.playerSkipForward,
+                                  icon: Icon(
+                                    KumoriyaIcons.playerSeekForward10,
+                                    color: KumoriyaColors.textPrimary,
+                                    size: 28,
+                                    shadows: const <Shadow>[
+                                      Shadow(
+                                        color: Color(0xCC000000),
+                                        blurRadius: 8,
+                                      ),
+                                      Shadow(
+                                        color: Color(0x66000000),
+                                        blurRadius: 24,
+                                      ),
+                                    ],
+                                  ),
+                                  padding: EdgeInsets.zero,
+                                ),
+                              ),
                             ],
                           ),
                         ),
 
-                        // Center play/pause
-                        const Spacer(),
-                        Row(
+                      // Bottom: Bare text action selectors
+                      Positioned(
+                        left: 0,
+                        right: 0,
+                        bottom: 56,
+                        child: Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: <Widget>[
-                            _PlayerIconButton(
-                              icon: KumoriyaIcons.playerSeekBack10,
-                              size: 36 * scale,
-                              onTap: widget.onSkipBackward,
-                              tooltip: context.l10n.playerSkipBackward,
+                            _BottomTextAction(
+                              icon: KumoriyaIcons.playerQuality,
+                              label: context.l10n.playerQuality,
+                              onTap: widget.onQuality,
                             ),
-                            const SizedBox(width: KumoriyaSpacing.xxl),
-                            _PlayerIconButton(
-                              icon: widget.isPlaying
-                                  ? KumoriyaIcons.playerPause
-                                  : KumoriyaIcons.playerPlay,
-                              size: 56 * scale,
-                              onTap: widget.onTogglePlayPause,
-                              tooltip: widget.isPlaying
-                                  ? context.l10n.playerPause
-                                  : context.l10n.playerPlay,
-                              emphasized: true,
-                            ),
-                            const SizedBox(width: KumoriyaSpacing.xxl),
-                            _PlayerIconButton(
-                              icon: KumoriyaIcons.playerSeekForward10,
-                              size: 36 * scale,
-                              onTap: widget.onSkipForward,
-                              tooltip: context.l10n.playerSkipForward,
-                            ),
+                            if (widget.hasSubtitles) ...<Widget>[
+                              const SizedBox(width: KumoriyaSpacing.xl),
+                              _BottomTextAction(
+                                icon: KumoriyaIcons.playerSubtitle,
+                                label: context.l10n.playerSubtitles,
+                                onTap: widget.onSubtitle,
+                              ),
+                            ],
+                            if (widget.hasMultipleAudio) ...<Widget>[
+                              const SizedBox(width: KumoriyaSpacing.xl),
+                              _BottomTextAction(
+                                icon: KumoriyaIcons.playerAudio,
+                                label: context.l10n.playerAudio,
+                                onTap: widget.onAudio,
+                              ),
+                            ],
                           ],
                         ),
-                        const Spacer(),
+                      ),
 
-                        // Bottom seek bar
-                        Padding(
-                          padding: const EdgeInsets.fromLTRB(
-                            KumoriyaSpacing.xl,
-                            0,
-                            KumoriyaSpacing.xl,
-                            KumoriyaSpacing.md,
-                          ),
-                          child: DecoratedBox(
-                            decoration: BoxDecoration(
-                              color: KumoriyaColors.surface.withValues(
-                                alpha: 0.78,
-                              ),
-                              borderRadius: BorderRadius.circular(
-                                KumoriyaRadius.xl,
-                              ),
-                              border: Border.all(
-                                color: KumoriyaColors.borderMedium,
-                              ),
-                            ),
-                            child: Padding(
-                              padding: const EdgeInsets.fromLTRB(
-                                KumoriyaSpacing.lg,
-                                KumoriyaSpacing.sm,
-                                KumoriyaSpacing.lg,
-                                KumoriyaSpacing.md,
-                              ),
-                              child: Column(
-                                children: <Widget>[
-                                  Wrap(
-                                    spacing: KumoriyaSpacing.sm,
-                                    runSpacing: KumoriyaSpacing.sm,
-                                    alignment: WrapAlignment.center,
-                                    children: <Widget>[
-                                      _PlayerQuickActionChip(
-                                        label: context.l10n.playerQuality,
-                                        icon: KumoriyaIcons.playerQuality,
-                                        onTap: widget.onQuality,
-                                      ),
-                                      if (widget.hasSubtitles)
-                                        _PlayerQuickActionChip(
-                                          label: context.l10n.playerSubtitles,
-                                          icon: KumoriyaIcons.playerSubtitle,
-                                          onTap: widget.onSubtitle,
-                                        ),
-                                      if (widget.hasMultipleAudio)
-                                        _PlayerQuickActionChip(
-                                          label: context.l10n.playerAudio,
-                                          icon: KumoriyaIcons.playerAudio,
-                                          onTap: widget.onAudio,
-                                        ),
-                                    ],
-                                  ),
-                                  SliderTheme(
-                                    data: SliderThemeData(
-                                      trackHeight: 4,
-                                      thumbShape: const RoundSliderThumbShape(
-                                        enabledThumbRadius: 7,
-                                      ),
-                                      activeTrackColor: KumoriyaColors.primary,
-                                      inactiveTrackColor: KumoriyaColors
-                                          .textPrimary
-                                          .withValues(alpha: 0.30),
-                                      thumbColor: KumoriyaColors.primaryLight,
-                                      overlayColor: KumoriyaColors.primary
-                                          .withValues(alpha: 0.15),
-                                    ),
-                                    child: Slider(
-                                      value: widget.sliderValue,
-                                      max: widget.sliderMax,
-                                      onChangeStart: (_) {
-                                        _hideTimer?.cancel();
-                                        widget.onSeekStart?.call();
-                                      },
-                                      onChanged: widget.onSeekChanged,
-                                      onChangeEnd: (value) {
-                                        widget.onSeekEnd?.call(value);
-                                        _startHideTimer();
-                                      },
-                                    ),
-                                  ),
-                                  Padding(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: KumoriyaSpacing.xs,
-                                    ),
-                                    child: Row(
-                                      mainAxisAlignment:
-                                          MainAxisAlignment.spaceBetween,
-                                      children: <Widget>[
-                                        Text(
-                                          widget.formatDuration(
-                                            widget.currentPosition,
-                                          ),
-                                          style: Theme.of(context)
-                                              .textTheme
-                                              .labelMedium!
-                                              .copyWith(
-                                                color:
-                                                    KumoriyaColors.textPrimary,
-                                              ),
-                                        ),
-                                        Text(
-                                          widget.formatDuration(
-                                            widget.totalDuration,
-                                          ),
-                                          style: Theme.of(context)
-                                              .textTheme
-                                              .labelMedium!
-                                              .copyWith(
-                                                color:
-                                                    KumoriyaColors.textPrimary,
-                                              ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
+                      // Bottom: Time labels
+                      Positioned(
+                        left: KumoriyaSpacing.lg,
+                        bottom: 36,
+                        child: Text(
+                          widget.formatDuration(widget.currentPosition),
+                          style: Theme.of(context).textTheme.labelSmall!
+                              .copyWith(
+                                color: KumoriyaColors.textSecondary,
+                                shadows: const <Shadow>[
+                                  Shadow(color: Colors.black54, blurRadius: 4),
                                 ],
                               ),
+                        ),
+                      ),
+                      Positioned(
+                        right: KumoriyaSpacing.lg,
+                        bottom: 36,
+                        child: Text(
+                          widget.formatDuration(widget.totalDuration),
+                          style: Theme.of(context).textTheme.labelSmall!
+                              .copyWith(
+                                color: KumoriyaColors.textSecondary,
+                                shadows: const <Shadow>[
+                                  Shadow(color: Colors.black54, blurRadius: 4),
+                                ],
+                              ),
+                        ),
+                      ),
+
+                      // Bottom: Full-bleed progress bar
+                      Positioned(
+                        left: 0,
+                        right: 0,
+                        bottom: 8,
+                        child: SliderTheme(
+                          data: SliderThemeData(
+                            trackHeight: 3,
+                            thumbShape: const RoundSliderThumbShape(
+                              enabledThumbRadius: 5,
+                            ),
+                            activeTrackColor: KumoriyaColors.primary,
+                            inactiveTrackColor: KumoriyaColors.textPrimary
+                                .withValues(alpha: 0.20),
+                            thumbColor: KumoriyaColors.primaryLight,
+                            overlayShape: const RoundSliderOverlayShape(
+                              overlayRadius: 24,
+                            ),
+                            overlayColor: KumoriyaColors.primary.withValues(
+                              alpha: 0.15,
                             ),
                           ),
+                          child: Slider(
+                            value: widget.sliderValue,
+                            max: widget.sliderMax,
+                            onChangeStart: (_) {
+                              _hideTimer?.cancel();
+                              widget.onSeekStart?.call();
+                            },
+                            onChanged: widget.onSeekChanged,
+                            onChangeEnd: (value) {
+                              widget.onSeekEnd?.call(value);
+                              _startHideTimer();
+                            },
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+
+              // Proportional drag seek overlay (above controls)
+              if (_isDragSeeking)
+                Center(
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 28,
+                      vertical: 16,
+                    ),
+                    decoration: BoxDecoration(
+                      color: KumoriyaColors.playerControlBg,
+                      borderRadius: BorderRadius.circular(KumoriyaRadius.lg),
+                    ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: <Widget>[
+                        Text(
+                          _formatDuration(_dragSeekTargetPosition),
+                          style: Theme.of(context).textTheme.headlineMedium!
+                              .copyWith(
+                                color: KumoriyaColors.textPrimary,
+                                fontWeight: FontWeight.w700,
+                              ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          _formatSeekDelta(
+                            _dragSeekTargetPosition - widget.currentPosition,
+                          ),
+                          style: Theme.of(context).textTheme.bodyMedium!
+                              .copyWith(
+                                color:
+                                    (_dragSeekTargetPosition >=
+                                        widget.currentPosition)
+                                    ? KumoriyaColors.accentMint
+                                    : KumoriyaColors.accentRose,
+                              ),
                         ),
                       ],
                     ),
                   ),
                 ),
-              ),
-            ),
 
-            if (widget.activeSkipLabel != null && widget.onSkipSegment != null)
-              Align(
-                alignment: Alignment.bottomRight,
-                child: SafeArea(
-                  child: Padding(
-                    padding: const EdgeInsets.only(right: 24, bottom: 92),
-                    child: FilledButton.icon(
-                      onPressed: widget.onSkipSegment,
-                      icon: const Icon(Icons.skip_next_rounded),
-                      label: Text(widget.activeSkipLabel!),
-                      style: FilledButton.styleFrom(
-                        backgroundColor: KumoriyaColors.primaryDark,
-                        foregroundColor: KumoriyaColors.textPrimary,
-                        textStyle: const TextStyle(fontWeight: FontWeight.w700),
+              // Unlock overlay for locked controls
+              if (_controlsLocked)
+                Positioned(
+                  bottom: KumoriyaSpacing.xl,
+                  left: 0,
+                  right: 0,
+                  child: Center(
+                    child: GestureDetector(
+                      onTap: () => setState(() => _controlsLocked = false),
+                      child: Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: KumoriyaColors.playerControlBg,
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(
+                          Icons.lock_rounded,
+                          color: KumoriyaColors.textPrimary,
+                          size: 20,
+                        ),
                       ),
                     ),
                   ),
                 ),
-              ),
-          ],
-        ),
-      ),
-    );
-  }
-}
 
-class _PlayerIconButton extends StatelessWidget {
-  const _PlayerIconButton({
-    required this.icon,
-    required this.size,
-    required this.onTap,
-    this.emphasized = false,
-    this.tooltip,
-  });
-
-  final IconData icon;
-  final double size;
-  final VoidCallback? onTap;
-  final bool emphasized;
-  final String? tooltip;
-
-  @override
-  Widget build(BuildContext context) {
-    Widget child = Material(
-      color: emphasized
-          ? KumoriyaColors.primary.withValues(alpha: 0.92)
-          : KumoriyaColors.playerControlBg,
-      shape: const CircleBorder(),
-      elevation: emphasized ? 8 : 0,
-      child: InkWell(
-        customBorder: const CircleBorder(),
-        splashColor: emphasized
-            ? KumoriyaColors.primaryLight.withValues(alpha: 0.35)
-            : KumoriyaColors.primary.withValues(alpha: 0.20),
-        onTap: onTap,
-        child: SizedBox(
-          width: size + 16,
-          height: size + 16,
-          child: Center(
-            child: Icon(icon, color: KumoriyaColors.textPrimary, size: size),
+              if (widget.activeSkipLabel != null &&
+                  widget.onSkipSegment != null &&
+                  _skipButtonVisible)
+                Align(
+                  alignment: Alignment.bottomRight,
+                  child: SafeArea(
+                    child: Padding(
+                      padding: const EdgeInsets.only(right: 24, bottom: 92),
+                      child: AnimatedSlide(
+                        offset: _skipButtonVisible
+                            ? Offset.zero
+                            : const Offset(0.3, 0),
+                        duration: const Duration(milliseconds: 200),
+                        curve: Curves.easeOutCubic,
+                        child: AnimatedOpacity(
+                          opacity: _skipButtonVisible ? 1.0 : 0.0,
+                          duration: const Duration(milliseconds: 200),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(
+                              KumoriyaRadius.full,
+                            ),
+                            child: BackdropFilter(
+                              filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
+                              child: Material(
+                                color: Colors.transparent,
+                                child: InkWell(
+                                  onTap: widget.onSkipSegment,
+                                  borderRadius: BorderRadius.circular(
+                                    KumoriyaRadius.full,
+                                  ),
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 20,
+                                      vertical: 12,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xB31E1629),
+                                      borderRadius: BorderRadius.circular(
+                                        KumoriyaRadius.full,
+                                      ),
+                                      border: Border.all(
+                                        color: Colors.white.withValues(
+                                          alpha: 0.10,
+                                        ),
+                                      ),
+                                    ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: <Widget>[
+                                        SizedBox(
+                                          width: 20,
+                                          height: 20,
+                                          child: Stack(
+                                            alignment: Alignment.center,
+                                            children: <Widget>[
+                                              SizedBox(
+                                                width: 20,
+                                                height: 20,
+                                                child:
+                                                    CircularProgressIndicator(
+                                                      value: _skipTimerProgress,
+                                                      strokeWidth: 2,
+                                                      color: KumoriyaColors
+                                                          .textPrimary
+                                                          .withValues(
+                                                            alpha: 0.7,
+                                                          ),
+                                                      backgroundColor:
+                                                          KumoriyaColors
+                                                              .textPrimary
+                                                              .withValues(
+                                                                alpha: 0.15,
+                                                              ),
+                                                    ),
+                                              ),
+                                              const Icon(
+                                                Icons.skip_next_rounded,
+                                                color:
+                                                    KumoriyaColors.textPrimary,
+                                                size: 14,
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Text(
+                                          widget.activeSkipLabel!,
+                                          style: Theme.of(context)
+                                              .textTheme
+                                              .labelLarge!
+                                              .copyWith(
+                                                color:
+                                                    KumoriyaColors.textPrimary,
+                                                fontWeight: FontWeight.w700,
+                                              ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+            ],
           ),
         ),
       ),
     );
-    if (tooltip != null) {
-      child = Tooltip(message: tooltip!, child: child);
-    }
-    return child;
   }
 }
 
@@ -1889,10 +2601,12 @@ class _VerticalSliderOverlay extends StatelessWidget {
     required this.icon,
     required this.value,
     required this.label,
+    required this.isBoost,
   });
   final IconData icon;
   final double value;
   final String label;
+  final bool isBoost;
 
   @override
   Widget build(BuildContext context) {
@@ -1920,7 +2634,9 @@ class _VerticalSliderOverlay extends StatelessWidget {
                     alpha: 0.30,
                   ),
                   valueColor: AlwaysStoppedAnimation<Color>(
-                    KumoriyaColors.primary,
+                    isBoost
+                        ? KumoriyaColors.statusWarning
+                        : KumoriyaColors.primary,
                   ),
                 ),
               ),
@@ -1939,42 +2655,90 @@ class _VerticalSliderOverlay extends StatelessWidget {
   }
 }
 
-class _PlayerQuickActionChip extends StatelessWidget {
-  const _PlayerQuickActionChip({
-    required this.label,
+class _RadialVignettePainter extends CustomPainter {
+  const _RadialVignettePainter();
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    // Top-left vignette (for back + title)
+    final topLeftPaint = Paint()
+      ..shader = RadialGradient(
+        center: const Alignment(-0.85, -0.90),
+        radius: 0.6,
+        colors: <Color>[
+          Colors.black.withValues(alpha: 0.55),
+          Colors.transparent,
+        ],
+      ).createShader(Offset.zero & size);
+    canvas.drawRect(Offset.zero & size, topLeftPaint);
+
+    // Center vignette (for play/pause)
+    final centerPaint = Paint()
+      ..shader = RadialGradient(
+        center: Alignment.center,
+        radius: 0.35,
+        colors: <Color>[
+          Colors.black.withValues(alpha: 0.40),
+          Colors.transparent,
+        ],
+      ).createShader(Offset.zero & size);
+    canvas.drawRect(Offset.zero & size, centerPaint);
+
+    // Bottom vignette (for progress bar + time)
+    final bottomPaint = Paint()
+      ..shader = RadialGradient(
+        center: const Alignment(0.0, 1.2),
+        radius: 0.5,
+        colors: <Color>[
+          Colors.black.withValues(alpha: 0.60),
+          Colors.transparent,
+        ],
+      ).createShader(Offset.zero & size);
+    canvas.drawRect(Offset.zero & size, bottomPaint);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
+class _BottomTextAction extends StatelessWidget {
+  const _BottomTextAction({
     required this.icon,
+    required this.label,
     required this.onTap,
   });
 
-  final String label;
   final IconData icon;
+  final String label;
   final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: KumoriyaColors.primarySurface10,
-      borderRadius: BorderRadius.circular(KumoriyaRadius.full),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(KumoriyaRadius.full),
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(
-            horizontal: KumoriyaSpacing.md,
-            vertical: KumoriyaSpacing.sm,
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: <Widget>[
-              Icon(icon, size: 16, color: KumoriyaColors.textPrimary),
-              const SizedBox(width: KumoriyaSpacing.sm),
-              Text(
-                label,
-                style: Theme.of(context).textTheme.labelLarge!.copyWith(
-                  color: KumoriyaColors.textPrimary,
+    return ConstrainedBox(
+      constraints: const BoxConstraints(minWidth: 64, minHeight: 48),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(KumoriyaRadius.md),
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: KumoriyaSpacing.sm,
+              vertical: KumoriyaSpacing.xs,
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                Icon(icon, size: 18, color: KumoriyaColors.textSecondary),
+                const SizedBox(width: KumoriyaSpacing.xs),
+                Text(
+                  label,
+                  style: Theme.of(context).textTheme.labelMedium!.copyWith(
+                    color: KumoriyaColors.textSecondary,
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),

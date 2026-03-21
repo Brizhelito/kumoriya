@@ -248,6 +248,21 @@ abstract class AppLocalizations {
   /// **'Loading anime detail...'**
   String get animeDetailLoading;
 
+  /// No description provided for @notificationNewEpisode.
+  ///
+  /// In en, this message translates to:
+  /// **'Episode {episodeNumber} is now available'**
+  String notificationNewEpisode(int episodeNumber);
+
+  /// No description provided for @notificationNewEpisodeWithTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Episode {episodeNumber} - {episodeTitle} is now available'**
+  String notificationNewEpisodeWithTitle(
+    int episodeNumber,
+    Object episodeTitle,
+  );
+
   /// No description provided for @viewEpisodeList.
   ///
   /// In en, this message translates to:
@@ -1312,6 +1327,30 @@ abstract class AppLocalizations {
   /// **'Auto-download disabled'**
   String get autoDownloadDisabled;
 
+  /// No description provided for @autoDownloadAudioPreference.
+  ///
+  /// In en, this message translates to:
+  /// **'Audio preference'**
+  String get autoDownloadAudioPreference;
+
+  /// No description provided for @autoDownloadAudioAny.
+  ///
+  /// In en, this message translates to:
+  /// **'Any'**
+  String get autoDownloadAudioAny;
+
+  /// No description provided for @autoDownloadAudioSub.
+  ///
+  /// In en, this message translates to:
+  /// **'SUB'**
+  String get autoDownloadAudioSub;
+
+  /// No description provided for @autoDownloadAudioDub.
+  ///
+  /// In en, this message translates to:
+  /// **'DUB'**
+  String get autoDownloadAudioDub;
+
   /// No description provided for @downloadHlsNotSupported.
   ///
   /// In en, this message translates to:
@@ -1558,6 +1597,12 @@ abstract class AppLocalizations {
   /// **'Next episode'**
   String get playerNextEpisode;
 
+  /// No description provided for @playerPreviousEpisode.
+  ///
+  /// In en, this message translates to:
+  /// **'Previous episode'**
+  String get playerPreviousEpisode;
+
   /// No description provided for @playerRetry.
   ///
   /// In en, this message translates to:
@@ -1785,6 +1830,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Cancel'**
   String get cancelAction;
+
+  /// No description provided for @playerLockControls.
+  ///
+  /// In en, this message translates to:
+  /// **'Lock controls'**
+  String get playerLockControls;
 }
 
 class _AppLocalizationsDelegate

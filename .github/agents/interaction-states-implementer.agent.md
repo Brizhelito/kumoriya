@@ -1,7 +1,7 @@
 ---
 description: "Use when implementing loading, empty, error, retry, and unavailable states for Kumoriya screens. Builds state-aware widgets with transitions, shimmer placeholders, and honest error messaging."
 tools: [read, search, edit, execute, todo]
-model: GPT-5.3-Codex
+model: Claude Opus 4.6 (copilot)
 user-invocable: false
 ---
 

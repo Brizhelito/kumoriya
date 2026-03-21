@@ -111,6 +111,19 @@ final class DownloadDirectoryService {
   final DefaultDownloadDirectoryResolver _defaultDirectoryResolver;
   final AndroidStoragePermissionRequester _androidPermissionRequester;
 
+  Future<bool> hasConfiguredDownloadDirectory() async {
+    final custom = await _store.readCustomDirectoryPath();
+    return custom != null && custom.isNotEmpty;
+  }
+
+  Future<String> getDefaultSuggestionPath() async {
+    if (Platform.isAndroid) {
+      return '/storage/emulated/0/Download/Kumoriya';
+    }
+    final dir = await getDownloadsDirectory();
+    return dir != null ? '${dir.path}/Kumoriya' : '/tmp/Kumoriya';
+  }
+
   Future<DownloadDirectoryInfo> getDirectoryInfo() async {
     final customDirectory = await _validatedCustomDirectory(clearInvalid: true);
     if (customDirectory != null) {
@@ -163,6 +176,44 @@ final class DownloadDirectoryService {
       );
       await _store.writeCustomDirectoryPath(directory.path);
 
+      return Success(
+        DownloadDirectorySelectionOutcome(
+          status: DownloadDirectorySelectionStatus.updated,
+          info: DownloadDirectoryInfo(path: directory.path, isCustom: true),
+        ),
+      );
+    } catch (error) {
+      return Failure(
+        SimpleError(
+          code: 'download.directory_update_failed',
+          message: 'Failed to update the download directory: $error',
+          kind: KumoriyaErrorKind.unexpected,
+        ),
+      );
+    }
+  }
+
+  Future<Result<DownloadDirectorySelectionOutcome, KumoriyaError>>
+  selectAndPersistCustomDirectory() {
+    return selectDirectory();
+  }
+
+  Future<Result<DownloadDirectorySelectionOutcome, KumoriyaError>>
+  selectDirectoryPath(String directoryPath) async {
+    final normalizedPath = directoryPath.trim();
+    if (normalizedPath.isEmpty) {
+      return Failure(
+        SimpleError(
+          code: 'download.directory_update_failed',
+          message: 'Failed to update the download directory: empty path.',
+          kind: KumoriyaErrorKind.unexpected,
+        ),
+      );
+    }
+
+    try {
+      final directory = await _ensureUsableDirectory(Directory(normalizedPath));
+      await _store.writeCustomDirectoryPath(directory.path);
       return Success(
         DownloadDirectorySelectionOutcome(
           status: DownloadDirectorySelectionStatus.updated,

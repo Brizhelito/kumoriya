@@ -17,7 +17,7 @@ class EpisodeRow extends StatefulWidget {
     this.isWatched = false,
     this.activeLabel,
     this.trailingAccessory,
-    this.playIconSize = 28,
+    this.playIconSize = 44,
     this.showWatchedCheck = true,
     this.onTap,
   });

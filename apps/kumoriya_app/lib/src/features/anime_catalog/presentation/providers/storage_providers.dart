@@ -78,6 +78,14 @@ final isSubscribedProvider = FutureProvider.autoDispose.family<bool, int>((
   );
 });
 
+final autoDownloadAudioPreferenceProvider = FutureProvider.autoDispose
+    .family<String, int>((ref, anilistId) async {
+      final preference = await ref
+          .watch(libraryStoreProvider)
+          .getAutoDownloadAudioPreference(anilistId);
+      return preference ?? 'none';
+    });
+
 final continueWatchingProvider =
     FutureProvider.autoDispose<Result<List<AnimeWatchHistory>, KumoriyaError>>((
       ref,

@@ -23,12 +23,10 @@ class TranslatedDynamicText extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final locale = Localizations.maybeLocaleOf(context);
     final languageCode = locale?.languageCode ?? 'en';
-    final translatedState = ref.watch(
-      translatedDynamicTextProvider((text: text, targetLanguage: languageCode)),
-    );
-    final resolvedText = translatedState.maybeWhen(
-      data: (value) => value,
-      orElse: () => text,
+    final resolvedText = ref.watch(
+      translatedDynamicTextProvider(
+        (text: text, targetLanguage: languageCode),
+      ).select((s) => s.maybeWhen(data: (v) => v, orElse: () => text)),
     );
 
     return Text(

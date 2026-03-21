@@ -106,6 +106,25 @@ final class DriftLibraryStore implements LibraryStore {
   }
 
   @override
+  Future<Result<Map<int, int?>, KumoriyaError>>
+  getTrackedAnimeWithLastEpisode() async {
+    try {
+      final rows = await _dao.getTrackedEntries();
+      return Success({
+        for (final r in rows) r.anilistId: r.lastNotifiedEpisode,
+      });
+    } catch (e) {
+      return Failure(
+        SimpleError(
+          code: 'storage.library_read_tracked_failed',
+          message: 'Failed to read tracked anime with episode: $e',
+          kind: KumoriyaErrorKind.unexpected,
+        ),
+      );
+    }
+  }
+
+  @override
   Future<Result<void, KumoriyaError>> updateLastNotifiedEpisode(
     int anilistId,
     int episodeNumber,
@@ -141,6 +160,19 @@ final class DriftLibraryStore implements LibraryStore {
         ),
       );
     }
+  }
+
+  @override
+  Future<String?> getAutoDownloadAudioPreference(int anilistId) {
+    return _dao.getAutoDownloadAudioPreference(anilistId);
+  }
+
+  @override
+  Future<void> setAutoDownloadAudioPreference(
+    int anilistId,
+    String preference,
+  ) {
+    return _dao.setAutoDownloadAudioPreference(anilistId, preference);
   }
 
   @override

@@ -26,17 +26,19 @@ final class HttpAnilistGraphqlClient implements AnilistGraphqlClient {
     Map<String, dynamic> variables = const <String, dynamic>{},
   }) async {
     try {
-      final response = await _httpClient.post(
-        _endpoint,
-        headers: const <String, String>{
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-        },
-        body: jsonEncode(<String, dynamic>{
-          'query': query,
-          'variables': variables,
-        }),
-      );
+final response = await _httpClient
+          .post(
+            _endpoint,
+            headers: const <String, String>{
+              'Content-Type': 'application/json',
+              'Accept': 'application/json',
+            },
+            body: jsonEncode(<String, dynamic>{
+              'query': query,
+              'variables': variables,
+            }),
+          )
+          .timeout(const Duration(seconds: 15));
 
       if (response.statusCode != 200) {
         return Failure(

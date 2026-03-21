@@ -237,12 +237,14 @@ final class JkAnimeSourcePlugin implements SourcePlugin {
   Future<Result<String, KumoriyaError>> _fetchHtml(String path) async {
     final uri = _baseUri.resolve(path);
     try {
-      final response = await _httpClient.get(uri);
+      final response = await _httpClient
+          .get(uri)
+          .timeout(const Duration(seconds: 15));
       if (response.statusCode != 200) {
         return Failure(
           JkAnimeTransportError(
             message:
-                'JKAnime request failed with status ${response.statusCode}.',
+                'JKAnime request failed with status ${response.statusCode}',
           ),
         );
       }
@@ -262,7 +264,9 @@ final class JkAnimeSourcePlugin implements SourcePlugin {
 
     try {
       final request = http.Request('GET', uri);
-      final streamed = await _httpClient.send(request);
+      final streamed = await _httpClient
+          .send(request)
+          .timeout(const Duration(seconds: 15));
       final body = await streamed.stream.bytesToString();
 
       if (streamed.statusCode != 200) {
@@ -322,16 +326,18 @@ final class JkAnimeSourcePlugin implements SourcePlugin {
     );
 
     try {
-      final response = await _httpClient.post(
-        uri,
-        headers: <String, String>{
-          'X-CSRF-TOKEN': context.csrfToken,
-          'X-Requested-With': 'XMLHttpRequest',
-          'Referer': _baseUri.resolve('${context.slug}/').toString(),
-          if (context.cookieHeader != null) 'Cookie': context.cookieHeader!,
-        },
-        body: <String, String>{'_token': context.csrfToken},
-      );
+      final response = await _httpClient
+          .post(
+            uri,
+            headers: <String, String>{
+              'X-CSRF-TOKEN': context.csrfToken,
+              'X-Requested-With': 'XMLHttpRequest',
+              'Referer': _baseUri.resolve('${context.slug}/').toString(),
+              if (context.cookieHeader != null) 'Cookie': context.cookieHeader!,
+            },
+            body: <String, String>{'_token': context.csrfToken},
+          )
+          .timeout(const Duration(seconds: 15));
 
       if (response.statusCode != 200) {
         return Failure(

@@ -170,6 +170,7 @@ final class DriftDownloadStore implements DownloadStore {
       isHls: Value(task.isHls),
       animeTitle: Value(task.animeTitle),
       qualityLabel: Value(task.qualityLabel),
+      episodeTitle: Value(task.episodeTitle),
     );
   }
 
@@ -209,6 +210,7 @@ final class DriftDownloadStore implements DownloadStore {
       isHls: row.isHls ?? false,
       animeTitle: row.animeTitle,
       qualityLabel: row.qualityLabel,
+      episodeTitle: row.episodeTitle,
     );
   }
 }

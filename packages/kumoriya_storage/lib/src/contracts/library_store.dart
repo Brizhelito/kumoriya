@@ -19,6 +19,11 @@ abstract interface class LibraryStore {
   /// for all subscribed entries.
   Future<Result<Map<int, int?>, KumoriyaError>> getSubscribedWithLastEpisode();
 
+  /// Returns a map of anilistId → lastNotifiedEpisode (null if never tracked)
+  /// for entries that have notifications and/or auto-download enabled.
+  Future<Result<Map<int, int?>, KumoriyaError>>
+  getTrackedAnimeWithLastEpisode();
+
   Future<Result<void, KumoriyaError>> updateLastNotifiedEpisode(
     int anilistId,
     int episodeNumber,
@@ -28,6 +33,10 @@ abstract interface class LibraryStore {
     int anilistId, {
     required bool autoDownload,
   });
+
+  Future<String?> getAutoDownloadAudioPreference(int anilistId);
+
+  Future<void> setAutoDownloadAudioPreference(int anilistId, String preference);
 
   Future<Result<Set<int>, KumoriyaError>> getAutoDownloadAnimeIds();
 }

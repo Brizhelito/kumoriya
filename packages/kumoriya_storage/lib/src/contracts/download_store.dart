@@ -23,6 +23,7 @@ final class DownloadTask {
     this.isHls = false,
     this.animeTitle,
     this.qualityLabel,
+    this.episodeTitle,
   });
 
   final String id;
@@ -52,6 +53,9 @@ final class DownloadTask {
 
   /// Stream quality label (e.g. "1080p", "720p").
   final String? qualityLabel;
+
+  /// Human-readable episode title from the source.
+  final String? episodeTitle;
 }
 
 abstract interface class DownloadStore {

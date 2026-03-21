@@ -207,12 +207,14 @@ final class AnimeFlvSourcePlugin implements SourcePlugin {
 
   Future<Result<String, KumoriyaError>> _fetchHtml(Uri uri) async {
     try {
-      final response = await _httpClient.get(uri);
+      final response = await _httpClient
+          .get(uri)
+          .timeout(const Duration(seconds: 15));
       if (response.statusCode != 200) {
         return Failure(
           AnimeFlvTransportError(
             message:
-                'AnimeFLV request failed with status ${response.statusCode}.',
+                'AnimeFLV request failed with status ${response.statusCode}',
           ),
         );
       }

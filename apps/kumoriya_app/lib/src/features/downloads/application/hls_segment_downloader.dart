@@ -4,6 +4,12 @@ import 'dart:io';
 
 import 'package:http/http.dart' as http;
 
+typedef HlsRequestSender =
+    Future<http.StreamedResponse> Function(
+      http.BaseRequest request, {
+      required Duration timeout,
+    });
+
 /// Browser-like User-Agent to avoid Cloudflare bot-detection 403 blocks.
 const _browserUserAgent =
     'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 '
@@ -19,11 +25,18 @@ final _mapUriRe = RegExp(r'URI="([^"]+)"');
 class HlsSegmentDownloader {
   HlsSegmentDownloader({
     http.Client? httpClient,
-    this.parallelSegments = 12,
+    HlsRequestSender? sendRequest,
+    this.parallelSegments = 6,
     this.maxRetries = 3,
-  }) : _httpClient = httpClient ?? http.Client();
+  }) : _httpClient = httpClient ?? http.Client() {
+    _sendRequest =
+        sendRequest ??
+        (http.BaseRequest request, {required Duration timeout}) =>
+            _httpClient.send(request).timeout(timeout);
+  }
 
   final http.Client _httpClient;
+  late final HlsRequestSender _sendRequest;
 
   /// Number of segments to download in parallel.
   final int parallelSegments;
@@ -56,21 +69,58 @@ class HlsSegmentDownloader {
 
     // 1. Fetch the master/variant playlist.
     final masterContent = await _fetchPlaylistWithRetry(masterUrl, headers);
-
-    // 2. Check if it's a master playlist (contains variant streams) or
-    //    already a media playlist (contains segments).
-    final variantUrl = _pickBestVariant(masterContent, masterUrl);
-    final String mediaContent;
-    final Uri mediaBaseUrl;
-
-    if (variantUrl != null) {
-      _log('Found variant playlist: $variantUrl');
-      mediaContent = await _fetchPlaylistWithRetry(variantUrl, headers);
-      mediaBaseUrl = variantUrl;
-    } else {
-      mediaContent = masterContent;
-      mediaBaseUrl = masterUrl;
+    final variants = _parseVariants(masterContent, masterUrl);
+    if (variants.isEmpty) {
+      return _downloadResolvedPlaylist(
+        mediaContent: masterContent,
+        mediaBaseUrl: masterUrl,
+        outputPath: outputPath,
+        headers: headers,
+        onProgress: onProgress,
+        cancelCompleter: cancelCompleter,
+      );
     }
+
+    Object? lastError;
+    for (final variant in variants) {
+      if (cancelCompleter?.isCompleted == true) {
+        throw const HttpException('HLS download cancelled');
+      }
+      try {
+        _log('Trying HLS variant: $variant');
+        final mediaContent = await _fetchPlaylistWithRetry(variant, headers);
+        return await _downloadResolvedPlaylist(
+          mediaContent: mediaContent,
+          mediaBaseUrl: variant,
+          outputPath: outputPath,
+          headers: headers,
+          onProgress: onProgress,
+          cancelCompleter: cancelCompleter,
+        );
+      } catch (error) {
+        lastError = error;
+        _log('HLS variant failed: $variant error=$error');
+      }
+    }
+
+    throw HttpException('All HLS variants failed: $lastError');
+  }
+
+  Future<HlsDownloadResult> _downloadResolvedPlaylist({
+    required String mediaContent,
+    required Uri mediaBaseUrl,
+    required String outputPath,
+    required Map<String, String> headers,
+    required void Function(
+      int downloadedBytes,
+      int downloadedSegments,
+      int totalSegments,
+      int totalBytes,
+    )?
+    onProgress,
+    required Completer<void>? cancelCompleter,
+  }) async {
+    _log('Using media playlist: $mediaBaseUrl');
 
     // 3. Parse init segment (fMP4 streams use #EXT-X-MAP for a moov box).
     final initUri = _parseMapUri(mediaContent, mediaBaseUrl);
@@ -109,6 +159,7 @@ class HlsSegmentDownloader {
       var nextToLaunch = 0;
       var nextToWrite = 0;
       var activeFetches = 0;
+      final maxBufferedSegments = parallelSegments * 2;
       final doneSignals = StreamController<void>();
 
       Future<void> fetchOne(int index) async {
@@ -132,7 +183,7 @@ class HlsSegmentDownloader {
       void fillPool() {
         while (nextToLaunch < totalCount &&
             activeFetches < parallelSegments &&
-            completedData.length <= parallelSegments * 3) {
+            completedData.length <= maxBufferedSegments) {
           unawaited(fetchOne(nextToLaunch++));
         }
       }
@@ -175,7 +226,7 @@ class HlsSegmentDownloader {
           // Periodic flush to bound IOSink memory on mobile.
           // Flush after burst writes rather than using a separate timer
           // since segments arrive in bursts naturally.
-          if (downloadedSegments % 20 == 0) {
+          if (downloadedSegments % 32 == 0) {
             await sink.flush();
           }
         }
@@ -207,11 +258,12 @@ class HlsSegmentDownloader {
     final request = http.Request('GET', url)
       ..headers.addAll(headers)
       ..headers.putIfAbsent('User-Agent', () => _browserUserAgent);
-    final response = await _httpClient
-        .send(request)
-        .timeout(const Duration(seconds: 15));
+    final response = await _sendRequest(
+      request,
+      timeout: const Duration(seconds: 15),
+    );
     if (response.statusCode != 200) {
-      throw HttpException('Playlist fetch failed: HTTP ${response.statusCode}');
+      throw HttpException('HTTP ${response.statusCode} fetching HLS playlist');
     }
     return response.stream.bytesToString();
   }
@@ -224,11 +276,14 @@ class HlsSegmentDownloader {
       // Request raw bytes — segments are already encoded media data, auto-
       // decompression by the HTTP layer wastes CPU and can corrupt binary data.
       ..headers.putIfAbsent('Accept-Encoding', () => 'identity');
-    final response = await _httpClient
-        .send(request)
-        .timeout(const Duration(seconds: 30));
+    final response = await _sendRequest(
+      request,
+      timeout: const Duration(seconds: 30),
+    );
     if (response.statusCode != 200) {
-      throw HttpException('Segment fetch failed: HTTP ${response.statusCode}');
+      // Preserve the status code in the message so the error classifier
+      // can determine the right recovery strategy.
+      throw HttpException('HTTP ${response.statusCode} fetching HLS segment');
     }
     return response.stream.toBytes();
   }
@@ -264,14 +319,14 @@ class HlsSegmentDownloader {
     throw const HttpException('Segment fetch failed');
   }
 
-  /// Picks the highest-bandwidth variant from a master playlist.
-  /// Returns null if this is already a media playlist.
-  Uri? _pickBestVariant(String content, Uri baseUrl) {
-    if (!content.contains('#EXT-X-STREAM-INF')) return null;
+  /// Parses HLS variants sorted from highest to lowest bandwidth.
+  List<Uri> _parseVariants(String content, Uri baseUrl) {
+    if (!content.contains('#EXT-X-STREAM-INF')) {
+      return const <Uri>[];
+    }
 
     final lines = content.split('\n');
-    int? bestBandwidth;
-    String? bestUrl;
+    final variants = <_HlsVariantCandidate>[];
 
     for (var i = 0; i < lines.length; i++) {
       final line = lines[i].trim();
@@ -285,17 +340,22 @@ class HlsSegmentDownloader {
       for (var j = i + 1; j < lines.length; j++) {
         final uriLine = lines[j].trim();
         if (uriLine.isEmpty || uriLine.startsWith('#')) continue;
-
-        if (bestBandwidth == null || (bw != null && bw > bestBandwidth)) {
-          bestBandwidth = bw ?? 0;
-          bestUrl = uriLine;
-        }
+        variants.add(
+          _HlsVariantCandidate(
+            url: _resolveUrl(uriLine, baseUrl),
+            bandwidth: bw ?? 0,
+          ),
+        );
         break;
       }
     }
 
-    if (bestUrl == null) return null;
-    return _resolveUrl(bestUrl, baseUrl);
+    variants.sort((a, b) => b.bandwidth.compareTo(a.bandwidth));
+    final seen = <String>{};
+    return variants
+        .where((candidate) => seen.add(candidate.url.toString()))
+        .map((candidate) => candidate.url)
+        .toList(growable: false);
   }
 
   /// Parses the `#EXT-X-MAP:URI="..."` init segment URL, if present.
@@ -342,4 +402,11 @@ class HlsDownloadResult {
 
   final bool isFmp4;
   final int totalBytes;
+}
+
+class _HlsVariantCandidate {
+  const _HlsVariantCandidate({required this.url, required this.bandwidth});
+
+  final Uri url;
+  final int bandwidth;
 }

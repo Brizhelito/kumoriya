@@ -1,7 +1,7 @@
 ---
 description: "Use when designing motion narratives, transition storyboards, micro-interactions, and animation timing for Kumoriya UI. Produces animation specs with purpose, curve, duration, and trigger descriptions."
 tools: [read, search, todo]
-model: 'Gemini 3.1 Pro (Preview)'
+model: Claude Opus 4.6 (copilot)
 user-invocable: false
 ---
 

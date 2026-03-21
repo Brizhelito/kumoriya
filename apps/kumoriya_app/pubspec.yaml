@@ -29,9 +29,13 @@ dependencies:
   kumoriya_source_anime_nexus:
   kumoriya_resolver_jkplayer:
   kumoriya_resolver_streamwish:
+  kumoriya_resolver_mixdrop:
+  kumoriya_resolver_filemoon:
   kumoriya_resolver_mp4upload:
   kumoriya_resolver_pixeldrain:
   kumoriya_resolver_streamtape:
+  kumoriya_resolver_vidhide:
+  kumoriya_resolver_voe:
   kumoriya_resolver_doodstream:
   kumoriya_resolver_yourupload:
   kumoriya_resolver_okru:
@@ -53,6 +57,8 @@ dependencies:
   file_picker: ^10.3.2
   crypto: ^3.0.6
   window_manager: ^0.5.1
+  screen_brightness: ^1.0.1
+  volume_controller: ^2.0.7
 
 dev_dependencies:
   flutter_test:

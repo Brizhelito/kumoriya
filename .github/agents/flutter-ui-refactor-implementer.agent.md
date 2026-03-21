@@ -1,7 +1,7 @@
 ---
 description: "Use when implementing Flutter UI refactors, building new widgets from creative briefs, restructuring screen layouts, and converting design specs into production Flutter code for Kumoriya."
 tools: [read, search, edit, execute, todo]
-model: GPT-5.3-Codex
+model: Claude Opus 4.6 (copilot)
 user-invocable: false
 ---
 

@@ -188,7 +188,9 @@ final class AnimeAv1SourcePlugin implements SourcePlugin {
 
   Future<Result<String, KumoriyaError>> _fetchHtml(Uri uri) async {
     try {
-      final response = await _httpClient.get(uri);
+      final response = await _httpClient
+          .get(uri)
+          .timeout(const Duration(seconds: 15));
       if (response.statusCode != 200) {
         return Failure(
           AnimeAv1TransportError(

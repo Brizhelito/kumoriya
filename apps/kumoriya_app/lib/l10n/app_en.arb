@@ -35,6 +35,23 @@
   },
   "animeDetailTitle": "Anime detail",
   "animeDetailLoading": "Loading anime detail...",
+  "notificationNewEpisode": "Episode {episodeNumber} is now available",
+  "@notificationNewEpisode": {
+    "placeholders": {
+      "episodeNumber": {
+        "type": "int"
+      }
+    }
+  },
+  "notificationNewEpisodeWithTitle": "Episode {episodeNumber} - {episodeTitle} is now available",
+  "@notificationNewEpisodeWithTitle": {
+    "placeholders": {
+      "episodeNumber": {
+        "type": "int"
+      },
+      "episodeTitle": {}
+    }
+  },
   "viewEpisodeList": "Episodes",
   "episodesWord": "episodes",
   "episodePreviewTitle": "Episode preview",
@@ -460,6 +477,10 @@
   "autoDownload": "Auto-download new episodes",
   "autoDownloadEnabled": "Auto-download enabled",
   "autoDownloadDisabled": "Auto-download disabled",
+  "autoDownloadAudioPreference": "Audio preference",
+  "autoDownloadAudioAny": "Any",
+  "autoDownloadAudioSub": "SUB",
+  "autoDownloadAudioDub": "DUB",
   "downloadHlsNotSupported": "HLS streams cannot be downloaded",
   "downloadSelectQuality": "Select quality",
   "downloadSelectServer": "Select server",
@@ -501,6 +522,7 @@
   "playerSubtitles": "Subtitles",
   "playerQuality": "Quality",
   "playerNextEpisode": "Next episode",
+  "playerPreviousEpisode": "Previous episode",
   "playerRetry": "RETRY",
   "playerSkipBackward": "-10s",
   "playerSkipForward": "+10s",
@@ -560,5 +582,6 @@
   "sourceServerLinksEmpty": "No server links available for this episode.",
   "downloadDeleteConfirmTitle": "Delete download?",
   "downloadDeleteConfirmMessage": "This downloaded episode will be permanently removed from your device.",
-  "cancelAction": "Cancel"
+  "cancelAction": "Cancel",
+  "playerLockControls": "Lock controls"
 }

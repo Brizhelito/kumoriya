@@ -366,9 +366,7 @@ class _TrendingRowState extends State<_TrendingRow> {
                             '★ ${widget.anime.averageScore}',
                             style: TextStyle(
                               fontSize: 11,
-                              color: KumoriyaColors.primary.withValues(
-                                alpha: 0.85,
-                              ),
+                              color: KumoriyaColors.accentAmber,
                               fontWeight: FontWeight.w700,
                               letterSpacing: 0.2,
                             ),

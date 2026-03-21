@@ -1,7 +1,7 @@
 ---
 description: "Use when proving whether an AniList title truly exists on a source catalog and distinguishing real absence from search failure, alias miss, ambiguity, grouped entries, season splits, or transport problems. Best for confirmable existence audits per source plugin."
 tools: [read, search]
-model: "GPT-5.4"
+model: Claude Opus 4.6 (copilot)
 user-invocable: false
 ---
 

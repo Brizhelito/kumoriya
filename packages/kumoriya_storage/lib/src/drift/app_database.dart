@@ -45,7 +45,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase(super.e);
 
   @override
-  int get schemaVersion => 10;
+  int get schemaVersion => 12;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -93,6 +93,20 @@ class AppDatabase extends _$AppDatabase {
           createTable: () => m.createTable(aniSkipCacheTable),
         );
         await _createIndices();
+      }
+      if (from < 11) {
+        await _ensureColumn(
+          tableName: 'library_entry',
+          columnName: 'auto_download_audio_preference',
+          sqlDefinition: "TEXT DEFAULT 'none'",
+        );
+      }
+      if (from < 12) {
+        await _ensureColumn(
+          tableName: 'download_task',
+          columnName: 'episode_title',
+          sqlDefinition: 'TEXT',
+        );
       }
       if (from < 8) {
         await _ensureColumn(

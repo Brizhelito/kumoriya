@@ -15,6 +15,7 @@ import '../../application/models/source_availability.dart';
 import '../../application/use_cases/get_source_episode_server_links_use_case.dart';
 import '../../application/services/mal_metadata_bridge_service.dart';
 import '../../../downloads/presentation/download_providers.dart';
+import '../../../downloads/presentation/widgets/download_path_dialog.dart';
 import '../../../player/presentation/pages/player_page.dart';
 import '../providers/anime_catalog_providers.dart';
 import '../providers/storage_providers.dart';
@@ -240,6 +241,7 @@ class _EpisodeListPageState extends ConsumerState<EpisodeListPage> {
               anilistId: widget.anilistId,
               animeTitle: widget.animeTitle,
               episodeNumber: row.number.toInt().toString(),
+              episodeTitle: row.displayTitle,
               sourcePluginId: offlineTask.sourcePluginId ?? 'offline',
               serverName: offlineTask.serverName ?? 'Downloaded',
               resolved: ResolvedServerLinkResult(
@@ -280,16 +282,15 @@ class _EpisodeListPageState extends ConsumerState<EpisodeListPage> {
       ref: ref,
       anilistId: widget.anilistId,
       animeTitle: widget.animeTitle,
+      episodeTitle: row.displayTitle,
       decision: decision,
     );
   }
 
   T? _extractSuccessValue<T>(AsyncValue<Result<T, KumoriyaError>> asyncValue) {
     return asyncValue.maybeWhen(
-      data: (result) => result.fold(
-        onSuccess: (value) => value,
-        onFailure: (_) => null,
-      ),
+      data: (result) =>
+          result.fold(onSuccess: (value) => value, onFailure: (_) => null),
       orElse: () => null,
     );
   }
@@ -367,7 +368,9 @@ class _EpisodeListPageState extends ConsumerState<EpisodeListPage> {
       // manager handles true download concurrency (up to maxConcurrent).
       for (final row in downloadable) {
         final entry = row.sourceEpisodes.entries.first;
+        if (!mounted) return;
         await _enqueueEpisodeDownload(
+          context: context,
           ref: ref,
           anilistId: widget.anilistId,
           sourcePluginId: entry.key,
@@ -375,10 +378,6 @@ class _EpisodeListPageState extends ConsumerState<EpisodeListPage> {
           animeTitle: widget.animeTitle,
           coverImageUrl: _resolveCoverUrl(ref, widget.anilistId),
         );
-      }
-
-      if (mounted && downloadable.isNotEmpty) {
-        ref.invalidate(downloadTasksByAnimeProvider(widget.anilistId));
       }
     });
   }
@@ -455,18 +454,24 @@ class _EpisodeListHeader extends ConsumerWidget {
     if (sourceId == null) {
       return;
     }
+    if (!context.mounted) {
+      return;
+    }
 
-    // Resolve-and-enqueue sequentially: stream URLs carry short-lived tokens
-    // that expire in ~30-60s. Parallel resolution causes later downloads to
-    // hit 403. The download manager handles true concurrent transfers.
+    // Resolve-and-enqueue sequentially to avoid parallel resolver pressure.
+    // The queue itself is intentionally left unbounded from the UI side.
     var queued = 0;
     for (final row in downloadable) {
       final entry = row.sourceEpisodes.entries
           .where((e) => e.key == sourceId)
           .firstOrNull;
       if (entry == null) continue;
+      if (!context.mounted) {
+        return;
+      }
 
       final result = await _enqueueEpisodeDownload(
+        context: context,
         ref: ref,
         anilistId: anilistId,
         sourcePluginId: entry.key,
@@ -481,7 +486,6 @@ class _EpisodeListHeader extends ConsumerWidget {
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text(context.l10n.downloadAllQueued)));
-      ref.invalidate(downloadTasksByAnimeProvider(anilistId));
     }
   }
 
@@ -501,33 +505,43 @@ class _EpisodeListHeader extends ConsumerWidget {
     return showModalBottomSheet<String>(
       context: context,
       showDragHandle: true,
+      isScrollControlled: true,
       builder: (context) {
         return SafeArea(
-          child: ListView(
-            shrinkWrap: true,
-            children: <Widget>[
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
-                child: Text(
-                  context.l10n.downloadAllFromSource,
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w700,
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              maxHeight: MediaQuery.of(context).size.height * 0.5,
+            ),
+            child: ListView(
+              shrinkWrap: true,
+              children: <Widget>[
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+                  child: Text(
+                    context.l10n.downloadAllFromSource,
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                 ),
-              ),
-              ...playableSources.map(
-                (source) => ListTile(
-                  leading: SourceBadge(
-                    name: source.manifest.displayName,
-                    iconUrl: _sourceIcon(source.manifest),
-                    compact: true,
-                    iconOnly: true,
+                ...playableSources.map(
+                  (source) => ListTile(
+                    leading: SourceBadge(
+                      name: source.manifest.displayName,
+                      iconUrl: _sourceIcon(source.manifest),
+                      compact: true,
+                      iconOnly: true,
+                    ),
+                    title: Text(
+                      source.manifest.displayName,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    onTap: () => Navigator.of(context).pop(source.manifest.id),
                   ),
-                  title: Text(source.manifest.displayName),
-                  onTap: () => Navigator.of(context).pop(source.manifest.id),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         );
       },
@@ -647,11 +661,12 @@ class _EpisodeCardState extends ConsumerState<_EpisodeCard> {
                 ),
               ],
               const SizedBox(height: 14),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.end,
+              OverflowBar(
+                alignment: MainAxisAlignment.end,
+                spacing: 8,
+                overflowAlignment: OverflowBarAlignment.end,
                 children: <Widget>[
                   _buildDownloadButton(context, dlTask),
-                  const SizedBox(width: 8),
                   FilledButton.tonalIcon(
                     onPressed: widget.onTap,
                     icon: const Icon(Icons.play_arrow_rounded),
@@ -698,7 +713,8 @@ class _EpisodeCardState extends ConsumerState<_EpisodeCard> {
     }
 
     return IconButton(
-      icon: const Icon(Icons.download_rounded),
+      constraints: const BoxConstraints(minWidth: 52, minHeight: 52),
+      icon: const Icon(Icons.download_rounded, size: 28),
       tooltip: context.l10n.downloadEpisode,
       onPressed: () => _handleDownload(context),
     );
@@ -715,6 +731,7 @@ class _EpisodeCardState extends ConsumerState<_EpisodeCard> {
 
     final success = entry != null
         ? await _enqueueEpisodeDownload(
+            context: context,
             ref: ref,
             anilistId: widget.anilistId,
             sourcePluginId: entry.key,
@@ -728,7 +745,6 @@ class _EpisodeCardState extends ConsumerState<_EpisodeCard> {
     setState(() => _isEnqueuing = false);
     final messenger = ScaffoldMessenger.of(context);
     if (success) {
-      ref.invalidate(downloadTasksByAnimeProvider(widget.anilistId));
       messenger.showSnackBar(
         SnackBar(content: Text(context.l10n.downloadQueued)),
       );
@@ -825,13 +841,14 @@ class _ContextChip extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(999),
-        color: Theme.of(context).colorScheme.primaryContainer,
+        color: KumoriyaColors.primary.withValues(alpha: 0.85),
       ),
       child: Text(
         label,
-        style: Theme.of(
-          context,
-        ).textTheme.labelMedium?.copyWith(fontWeight: FontWeight.w700),
+        style: Theme.of(context).textTheme.labelMedium?.copyWith(
+          fontWeight: FontWeight.w700,
+          color: KumoriyaColors.textPrimary,
+        ),
       ),
     );
   }
@@ -979,6 +996,7 @@ const _excludedDownloadSource = 'kumoriya.source.anime_nexus';
 /// Resolves server links for [sourceEpisode] via [sourcePluginId], picks the
 /// best stream, and enqueues a download task. Returns true on success.
 Future<bool> _enqueueEpisodeDownload({
+  required BuildContext context,
   required WidgetRef ref,
   required int anilistId,
   required String sourcePluginId,
@@ -987,6 +1005,20 @@ Future<bool> _enqueueEpisodeDownload({
   String? coverImageUrl,
 }) async {
   try {
+    final configured = await _ensureDownloadDirectoryConfigured(
+      context: context,
+      ref: ref,
+    );
+    if (!configured) {
+      return false;
+    }
+
+    await _prefetchAniSkipForDownload(
+      ref: ref,
+      anilistId: anilistId,
+      episodeNumber: sourceEpisode.number,
+    );
+
     final sourcePlugin = ref.read(sourcePluginByIdProvider(sourcePluginId));
     final registry = ref.read(resolverRegistryProvider);
 
@@ -1002,18 +1034,94 @@ Future<bool> _enqueueEpisodeDownload({
     if (links.isEmpty) return false;
 
     final enqueueUseCase = ref.read(enqueueDownloadUseCaseProvider);
-    final result = await enqueueUseCase.call(
-      anilistId: anilistId,
-      episodeNumber: sourceEpisode.number,
-      serverLink: links.first,
-      sourcePluginId: sourcePluginId,
-      animeTitle: animeTitle,
-      coverImageUrl: coverImageUrl,
-    );
-
-    return result.fold(onSuccess: (_) => true, onFailure: (_) => false);
+    for (final link in links) {
+      final result = await enqueueUseCase.call(
+        anilistId: anilistId,
+        episodeNumber: sourceEpisode.number,
+        serverLink: link,
+        sourcePluginId: sourcePluginId,
+        animeTitle: animeTitle,
+        coverImageUrl: coverImageUrl,
+        episodeTitle: sourceEpisode.title,
+      );
+      final enqueued = result.fold(
+        onSuccess: (_) => true,
+        onFailure: (_) => false,
+      );
+      if (enqueued) {
+        return true;
+      }
+    }
+    return false;
   } catch (_) {
     return false;
+  }
+}
+
+Future<bool> _ensureDownloadDirectoryConfigured({
+  required BuildContext context,
+  required WidgetRef ref,
+}) async {
+  final directoryService = ref.read(downloadDirectoryServiceProvider);
+  if (await directoryService.hasConfiguredDownloadDirectory()) {
+    return true;
+  }
+
+  final suggestion = await directoryService.getDefaultSuggestionPath();
+  if (!context.mounted) {
+    return false;
+  }
+
+  await showDialog<void>(
+    context: context,
+    barrierDismissible: false,
+    builder: (ctx) => DownloadPathDialog(
+      suggestedPath: suggestion,
+      onUseDefault: () async {
+        final result = await directoryService.selectDirectoryPath(suggestion);
+        if (result is Success && ctx.mounted) {
+          Navigator.of(ctx).pop();
+        }
+      },
+      onBrowse: () async {
+        final outcome = await directoryService
+            .selectAndPersistCustomDirectory();
+        outcome.fold(
+          onFailure: (_) {},
+          onSuccess: (value) {
+            if (value.changed && ctx.mounted) {
+              Navigator.of(ctx).pop();
+            }
+          },
+        );
+      },
+    ),
+  );
+
+  return directoryService.hasConfiguredDownloadDirectory();
+}
+
+Future<void> _prefetchAniSkipForDownload({
+  required WidgetRef ref,
+  required int anilistId,
+  required double episodeNumber,
+}) async {
+  final normalizedEpisode = episodeNumber.toInt();
+  if (normalizedEpisode <= 0) {
+    return;
+  }
+
+  try {
+    await ref
+        .read(malMetadataBridgeProvider)
+        .getAniSkipSegments(
+          anilistId: anilistId,
+          episodeNumber: normalizedEpisode,
+          episodeLengthSeconds: 1440,
+        )
+        .timeout(const Duration(seconds: 10));
+  } catch (_) {
+    // Soft-fail: allow download to proceed if AniSkip prefetch fails.
   }
 }
 

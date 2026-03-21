@@ -99,30 +99,38 @@ void main() {
       expect(ids, isNot(contains(200)));
     });
 
-    test('subscription is cleared when favorite is removed', () async {
+    test('subscription remains after favorite is removed', () async {
       await store.setFavorite(100, isFavorite: true);
       await store.setSubscription(100, notify: true);
 
-      // Remove from favorites — library row deleted, subscription gone too
+      // Remove favorite but keep tracking row because subscription is active.
       await store.setFavorite(100, isFavorite: false);
 
       final subResult = await store.getSubscribedAnimeIds();
       final subIds = (subResult as Success<Set<int>, KumoriyaError>).value;
-      expect(subIds, isNot(contains(100)));
+      expect(subIds, contains(100));
 
       final favResult = await store.getFavoriteAnimeIds();
       final favIds = (favResult as Success<Set<int>, KumoriyaError>).value;
       expect(favIds, isNot(contains(100)));
     });
 
-    test('setSubscription on non-existent row is silent no-op', () async {
-      final result = await store.setSubscription(999, notify: true);
-      expect(result, isA<Success>());
+    test(
+      'setSubscription on non-existent row creates tracking-only entry',
+      () async {
+        final result = await store.setSubscription(999, notify: true);
+        expect(result, isA<Success>());
 
-      final idsResult = await store.getSubscribedAnimeIds();
-      final ids = (idsResult as Success<Set<int>, KumoriyaError>).value;
-      expect(ids, isNot(contains(999)));
-    });
+        final idsResult = await store.getSubscribedAnimeIds();
+        final ids = (idsResult as Success<Set<int>, KumoriyaError>).value;
+        expect(ids, contains(999));
+
+        final favoritesResult = await store.getFavoriteAnimeIds();
+        final favorites =
+            (favoritesResult as Success<Set<int>, KumoriyaError>).value;
+        expect(favorites, isNot(contains(999)));
+      },
+    );
 
     test('empty subscriptions returns empty set', () async {
       final idsResult = await store.getSubscribedAnimeIds();
@@ -189,5 +197,25 @@ void main() {
       final map = (mapResult as Success<Map<int, int?>, KumoriyaError>).value;
       expect(map.containsKey(999), isFalse);
     });
+
+    test(
+      'getTrackedAnimeWithLastEpisode returns notify and auto-download rows',
+      () async {
+        await store.setFavorite(100, isFavorite: true);
+        await store.setFavorite(200, isFavorite: true);
+        await store.setFavorite(300, isFavorite: true);
+        await store.setSubscription(100, notify: true);
+        await store.setAutoDownload(200, autoDownload: true);
+        await store.updateLastNotifiedEpisode(200, 8);
+
+        final mapResult = await store.getTrackedAnimeWithLastEpisode();
+        final map = (mapResult as Success<Map<int, int?>, KumoriyaError>).value;
+
+        expect(map.keys, containsAll(<int>[100, 200]));
+        expect(map.keys, isNot(contains(300)));
+        expect(map[100], isNull);
+        expect(map[200], 8);
+      },
+    );
   });
 }

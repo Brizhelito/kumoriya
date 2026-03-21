@@ -1,16 +1,20 @@
 import 'dart:convert';
 import 'dart:developer' as developer;
+import 'dart:io';
 
 import 'package:flutter/widgets.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:http/http.dart' as http;
 import 'package:kumoriya_anilist/kumoriya_anilist.dart';
 import 'package:kumoriya_core/kumoriya_core.dart';
+import 'package:kumoriya_plugins/kumoriya_plugins.dart';
 import 'package:kumoriya_storage/kumoriya_storage_flutter.dart';
 import 'package:workmanager/workmanager.dart';
 
 import '../features/anime_catalog/application/matching/anilist_source_matcher.dart';
+import '../features/anime_catalog/application/use_cases/get_source_episode_server_links_use_case.dart';
 import '../features/anime_catalog/application/services/background_source_availability_warmup_service.dart';
+import '../features/anime_catalog/application/services/mal_metadata_bridge_service.dart';
 import '../features/anime_catalog/application/services/plugin_runtime_catalog.dart';
 import '../features/anime_catalog/application/services/resolver_registry.dart';
 import '../features/anime_catalog/application/services/source_availability_cache_codec.dart';
@@ -18,6 +22,13 @@ import '../features/anime_catalog/application/services/source_selection_policy.d
 import '../features/anime_catalog/application/use_cases/anime_catalog_use_cases.dart';
 import '../features/anime_catalog/application/use_cases/get_source_availability_summary_use_case.dart';
 import '../features/anime_catalog/application/use_cases/load_source_availability_summary_use_case.dart';
+import '../features/anime_catalog/application/use_cases/resolve_source_server_link_use_case.dart';
+import '../features/downloads/application/auto_download_new_episodes_service.dart';
+import '../features/downloads/application/download_aniskip_file_store.dart';
+import '../features/downloads/application/download_directory_service.dart';
+import '../features/downloads/application/download_library_index_service.dart';
+import '../features/downloads/application/download_manager_service.dart';
+import '../features/downloads/application/enqueue_download_use_case.dart';
 
 /// Workmanager task name for periodic new-episode checks.
 const kCheckNewEpisodesTask = 'kumoriya.check_new_episodes';
@@ -98,24 +109,28 @@ Future<void> _runCheckNewEpisodes() async {
   final db = await openAppDatabase();
   final store = DriftLibraryStore(db);
 
-  final subResult = await store.getSubscribedWithLastEpisode();
-  if (subResult is! Success) {
+  final trackedResult = await store.getTrackedAnimeWithLastEpisode();
+  if (trackedResult is! Success) {
     developer.log(
-      'getSubscribedWithLastEpisode failed',
+      'getTrackedAnimeWithLastEpisode failed',
       name: 'CheckNewEpisodesWorker',
     );
     await db.close();
     return;
   }
 
-  final subscribed = (subResult as Success<Map<int, int?>, dynamic>).value;
+  final tracked = (trackedResult as Success<Map<int, int?>, dynamic>).value;
+  final subscribedIds = await store.getSubscribedAnimeIds().then(
+    (result) =>
+        result.fold(onSuccess: (value) => value, onFailure: (_) => <int>{}),
+  );
 
-  if (subscribed.isEmpty) {
+  if (tracked.isEmpty) {
     await db.close();
     return;
   }
 
-  final ids = subscribed.keys.toList();
+  final ids = tracked.keys.toList();
   final airingData = await _fetchAiringStatus(ids);
 
   if (airingData == null) {
@@ -127,10 +142,17 @@ Future<void> _runCheckNewEpisodes() async {
   await _initNotifications(notifications);
   final warmupIds = <int>{};
   final pendingNotifications = <({int anilistId, String title, int episode})>[];
+  final locale = Platform.localeName;
 
   final sourcePlugins = buildDefaultSourcePlugins();
   final resolverPlugins = buildDefaultResolverPlugins();
   final selectionPolicy = const SourceSelectionPolicy();
+  final resolverRegistry = ResolverRegistry(resolvers: resolverPlugins);
+  final sourceAvailabilityStore = DriftSourceAvailabilityStore(db);
+  final sourceAvailabilityCacheCodec = SourceAvailabilityCacheCodec(
+    sourcePlugins: sourcePlugins,
+    selectionPolicy: selectionPolicy,
+  );
   final repository = AnilistAnimeCatalogRepository(
     gateway: GraphqlAnilistMetadataGateway(client: HttpAnilistGraphqlClient()),
   );
@@ -138,19 +160,82 @@ Future<void> _runCheckNewEpisodes() async {
     loadAnimeDetail: (anilistId) =>
         GetAnimeDetailUseCase(repository).call(anilistId),
     loadSourceAvailability: LoadSourceAvailabilitySummaryUseCase(
-      store: DriftSourceAvailabilityStore(db),
+      store: sourceAvailabilityStore,
       computeUseCase: GetSourceAvailabilitySummaryUseCase(
         sourcePlugins: sourcePlugins,
         matcher: const AnilistSourceMatcher(),
         selectionPolicy: selectionPolicy,
-        registry: ResolverRegistry(resolvers: resolverPlugins),
+        registry: resolverRegistry,
       ),
       sourcePlugins: sourcePlugins,
-      cacheCodec: SourceAvailabilityCacheCodec(
-        sourcePlugins: sourcePlugins,
-        selectionPolicy: selectionPolicy,
-      ),
+      cacheCodec: sourceAvailabilityCacheCodec,
     ),
+  );
+  final downloadStore = DriftDownloadStore(db);
+  final downloadDirectoryService = DownloadDirectoryService(
+    store: FileDownloadDirectoryStore(),
+  );
+  final aniSkipCacheStore = DownloadAniSkipFileStore(
+    directoryService: downloadDirectoryService,
+  );
+  final malMetadataBridge = MalMetadataBridgeService(
+    aniSkipCacheStore: aniSkipCacheStore,
+  );
+  final downloadManager = DownloadManagerService(
+    store: downloadStore,
+    directoryService: downloadDirectoryService,
+    libraryIndexService: DownloadLibraryIndexService(
+      store: downloadStore,
+      directoryService: downloadDirectoryService,
+    ),
+  );
+  final enqueueDownloadUseCase = EnqueueDownloadUseCase(
+    downloadManager: downloadManager,
+    resolveUseCase: ResolveSourceServerLinkUseCase(registry: resolverRegistry),
+  );
+  final autoDownloadService = AutoDownloadNewEpisodesService(
+    libraryStore: store,
+    downloadStore: downloadStore,
+    sourceAvailabilityStore: sourceAvailabilityStore,
+    sourceAvailabilityCacheCodec: sourceAvailabilityCacheCodec,
+    sourcePlugins: sourcePlugins,
+    loadServerLinks:
+        ({
+          required SourcePlugin sourcePlugin,
+          required SourceEpisode sourceEpisode,
+        }) {
+          return GetSourceEpisodeServerLinksUseCase(
+            sourcePlugin: sourcePlugin,
+            registry: resolverRegistry,
+          ).call(sourceEpisode);
+        },
+    enqueueDownload:
+        ({
+          required int anilistId,
+          required double episodeNumber,
+          required SourceServerLink serverLink,
+          required String sourcePluginId,
+          String? animeTitle,
+          String? coverImageUrl,
+          String? episodeTitle,
+        }) {
+          return enqueueDownloadUseCase.call(
+            anilistId: anilistId,
+            episodeNumber: episodeNumber,
+            serverLink: serverLink,
+            sourcePluginId: sourcePluginId,
+            animeTitle: animeTitle,
+            coverImageUrl: coverImageUrl,
+            episodeTitle: episodeTitle,
+          );
+        },
+    prefetchAniSkip: ({required int anilistId, required int episodeNumber}) {
+      return malMetadataBridge.getAniSkipSegments(
+        anilistId: anilistId,
+        episodeNumber: episodeNumber,
+        episodeLengthSeconds: 1440,
+      );
+    },
   );
 
   for (final entry in airingData.entries) {
@@ -164,7 +249,7 @@ Future<void> _runCheckNewEpisodes() async {
     final latestAired = nextEpisode - 1;
     if (latestAired <= 0) continue;
 
-    final lastNotified = subscribed[anilistId];
+    final lastNotified = tracked[anilistId];
 
     if (lastNotified == null) {
       warmupIds.add(anilistId);
@@ -190,12 +275,48 @@ Future<void> _runCheckNewEpisodes() async {
     await warmupService.warmUp(warmupIds);
   }
 
+  for (final entry in airingData.entries) {
+    final anilistId = entry.key;
+    final title = entry.value['title'] as String;
+    final nextEpisode = entry.value['nextEpisode'] as int?;
+    if (nextEpisode == null) continue;
+
+    final latestAired = nextEpisode - 1;
+    final lastTracked = tracked[anilistId];
+    if (lastTracked == null || latestAired <= 0 || latestAired <= lastTracked) {
+      continue;
+    }
+
+    final report = await autoDownloadService.enqueueEpisodes(
+      anilistId: anilistId,
+      episodeNumbers: <int>[
+        for (var episode = lastTracked + 1; episode <= latestAired; episode++)
+          episode,
+      ],
+      animeTitle: title,
+    );
+    if (report.enqueuedEpisodes > 0) {
+      developer.log(
+        'Auto-downloaded ${report.enqueuedEpisodes} episode(s) for "$title" (id=$anilistId)',
+        name: 'CheckNewEpisodesWorker',
+      );
+    }
+  }
+
   for (final notification in pendingNotifications) {
+    if (!subscribedIds.contains(notification.anilistId)) {
+      await store.updateLastNotifiedEpisode(
+        notification.anilistId,
+        notification.episode,
+      );
+      continue;
+    }
     await _sendNotification(
       notifications,
       id: notification.anilistId,
-      title: notification.title,
+      animeTitle: notification.title,
       episodeNumber: notification.episode,
+      locale: locale,
     );
     await store.updateLastNotifiedEpisode(
       notification.anilistId,
@@ -208,6 +329,8 @@ Future<void> _runCheckNewEpisodes() async {
     );
   }
 
+  downloadManager.dispose();
+  malMetadataBridge.dispose();
   await db.close();
 }
 
@@ -313,7 +436,7 @@ Future<void> _runDebugProbe() async {
   await _sendNotification(
     notifications,
     id: DateTime.now().millisecondsSinceEpoch ~/ 1000,
-    title: 'Kumoriya Debug',
+    animeTitle: 'Kumoriya Debug',
     episodeNumber: 0,
     bodyOverride:
         'Background worker activo: la notificacion de prueba se envio correctamente.',
@@ -323,10 +446,20 @@ Future<void> _runDebugProbe() async {
 Future<void> _sendNotification(
   FlutterLocalNotificationsPlugin plugin, {
   required int id,
-  required String title,
+  required String animeTitle,
   required int episodeNumber,
+  String? episodeTitle,
   String? bodyOverride,
+  String? locale,
 }) async {
+  final body =
+      bodyOverride ??
+      _formatNotificationBody(
+        episodeNumber: episodeNumber,
+        episodeTitle: episodeTitle,
+        locale: locale,
+      );
+
   const androidDetails = AndroidNotificationDetails(
     _channelId,
     _channelName,
@@ -338,8 +471,25 @@ Future<void> _sendNotification(
 
   await plugin.show(
     id,
-    title,
-    bodyOverride ?? 'Episode $episodeNumber is now available!',
+    animeTitle,
+    body,
     const NotificationDetails(android: androidDetails),
   );
+}
+
+String _formatNotificationBody({
+  required int episodeNumber,
+  String? episodeTitle,
+  String? locale,
+}) {
+  final isSpanish = locale?.startsWith('es') ?? false;
+
+  if (episodeTitle != null && episodeTitle.isNotEmpty) {
+    return isSpanish
+        ? 'Episodio $episodeNumber - $episodeTitle ya esta disponible'
+        : 'Episode $episodeNumber - $episodeTitle is now available';
+  }
+  return isSpanish
+      ? 'Episodio $episodeNumber ya esta disponible'
+      : 'Episode $episodeNumber is now available';
 }

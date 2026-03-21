@@ -154,7 +154,8 @@ class _MobileBottomNav extends StatelessWidget {
           onTap(index);
         },
         backgroundColor: KumoriyaColors.navBackground,
-        selectedItemColor: KumoriyaColors.primary,
+        selectedItemColor: KumoriyaColors.textPrimary,
+        selectedIconTheme: const IconThemeData(color: KumoriyaColors.primary),
         unselectedItemColor: KumoriyaColors.navInactive,
         type: BottomNavigationBarType.fixed,
         elevation: 0,
