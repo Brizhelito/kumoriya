@@ -1235,7 +1235,8 @@ class _ImmersivePlayerView extends StatefulWidget {
   State<_ImmersivePlayerView> createState() => _ImmersivePlayerViewState();
 }
 
-class _ImmersivePlayerViewState extends State<_ImmersivePlayerView> {
+class _ImmersivePlayerViewState extends State<_ImmersivePlayerView>
+    with SingleTickerProviderStateMixin {
   bool _controlsVisible = true;
   Timer? _hideTimer;
   bool _seekIndicatorVisible = false;
@@ -1248,8 +1249,7 @@ class _ImmersivePlayerViewState extends State<_ImmersivePlayerView> {
   Timer? _mouseIdleTimer;
   bool _skipButtonVisible = true;
   Timer? _skipButtonHideTimer;
-  double _skipTimerProgress = 1.0;
-  Timer? _skipProgressTimer;
+  late final AnimationController _skipProgressController;
   String? _lastSkipLabel;
 
   // Double-tap seek state
@@ -1278,6 +1278,11 @@ class _ImmersivePlayerViewState extends State<_ImmersivePlayerView> {
   @override
   void initState() {
     super.initState();
+    _skipProgressController = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 5),
+      value: 1.0,
+    );
     unawaited(_initBrightness());
     unawaited(_initVolume());
     _startHideTimer();
@@ -1292,38 +1297,21 @@ class _ImmersivePlayerViewState extends State<_ImmersivePlayerView> {
       _lastSkipLabel = widget.activeSkipLabel;
       setState(() {
         _skipButtonVisible = true;
-        _skipTimerProgress = 1.0;
       });
       _skipButtonHideTimer?.cancel();
-      _skipProgressTimer?.cancel();
+      _skipProgressController.value = 1.0;
+      _skipProgressController.reverse();
 
-      const skipDuration = Duration(seconds: 5);
-      const tickInterval = Duration(milliseconds: 50);
-      final totalTicks =
-          skipDuration.inMilliseconds / tickInterval.inMilliseconds;
-      var currentTick = 0;
-
-      _skipProgressTimer = Timer.periodic(tickInterval, (timer) {
-        currentTick++;
-        if (!mounted) {
-          timer.cancel();
-          return;
-        }
-        setState(() {
-          _skipTimerProgress = 1.0 - (currentTick / totalTicks);
-        });
-      });
-
-      _skipButtonHideTimer = Timer(skipDuration, () {
-        _skipProgressTimer?.cancel();
+      _skipButtonHideTimer = Timer(const Duration(seconds: 5), () {
+        _skipProgressController.stop();
         if (mounted) setState(() => _skipButtonVisible = false);
       });
     } else if (widget.activeSkipLabel == null) {
       _lastSkipLabel = null;
       _skipButtonHideTimer?.cancel();
-      _skipProgressTimer?.cancel();
+      _skipProgressController.stop();
+      _skipProgressController.value = 1.0;
       _skipButtonVisible = true;
-      _skipTimerProgress = 1.0;
     }
   }
 
@@ -1354,7 +1342,7 @@ class _ImmersivePlayerViewState extends State<_ImmersivePlayerView> {
     _overlayHideTimer?.cancel();
     _mouseIdleTimer?.cancel();
     _skipButtonHideTimer?.cancel();
-    _skipProgressTimer?.cancel();
+    _skipProgressController.dispose();
     _doubleTapTimer?.cancel();
     if (_initialBrightness != null) {
       unawaited(ScreenBrightness().setScreenBrightness(_initialBrightness!));
@@ -2538,22 +2526,28 @@ class _ImmersivePlayerViewState extends State<_ImmersivePlayerView> {
                                               SizedBox(
                                                 width: 20,
                                                 height: 20,
-                                                child:
-                                                    CircularProgressIndicator(
-                                                      value: _skipTimerProgress,
-                                                      strokeWidth: 2,
-                                                      color: KumoriyaColors
-                                                          .textPrimary
-                                                          .withValues(
-                                                            alpha: 0.7,
-                                                          ),
-                                                      backgroundColor:
-                                                          KumoriyaColors
-                                                              .textPrimary
-                                                              .withValues(
-                                                                alpha: 0.15,
-                                                              ),
-                                                    ),
+                                                child: AnimatedBuilder(
+                                                  animation:
+                                                      _skipProgressController,
+                                                  builder: (_, _) =>
+                                                      CircularProgressIndicator(
+                                                        value:
+                                                            _skipProgressController
+                                                                .value,
+                                                        strokeWidth: 2,
+                                                        color: KumoriyaColors
+                                                            .textPrimary
+                                                            .withValues(
+                                                              alpha: 0.7,
+                                                            ),
+                                                        backgroundColor:
+                                                            KumoriyaColors
+                                                                .textPrimary
+                                                                .withValues(
+                                                                  alpha: 0.15,
+                                                                ),
+                                                      ),
+                                                ),
                                               ),
                                               const Icon(
                                                 Icons.skip_next_rounded,

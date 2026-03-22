@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
@@ -35,6 +36,9 @@ void main() async {
 
   // Restore pending downloads from a previous session.
   container.read(downloadManagerProvider).restoreQueue();
+
+  // Purge stale cache entries (fire-and-forget, non-blocking).
+  unawaited(_purgeExpiredCaches(container));
 
   runApp(
     UncontrolledProviderScope(container: container, child: const KumoriyaApp()),
@@ -74,4 +78,18 @@ Future<void> _initWorkmanager() async {
     constraints: Constraints(networkType: NetworkType.connected),
     existingWorkPolicy: ExistingWorkPolicy.replace,
   );
+}
+
+Future<void> _purgeExpiredCaches(ProviderContainer container) async {
+  try {
+    final sourceStore = container.read(sourceAvailabilityStoreProvider);
+    final anilistStore = container.read(anilistCacheStoreProvider);
+
+    await Future.wait(<Future<void>>[
+      sourceStore.deleteOlderThan(const Duration(days: 7)),
+      anilistStore.deleteOlderThan(const Duration(days: 14)),
+    ]);
+  } catch (_) {
+    // Best-effort cleanup; failures are non-critical.
+  }
 }
