@@ -24,6 +24,7 @@ enum MatchReasonCode {
   weakPrimaryTitlePenalty,
   ambiguousRunnerUp,
   titleConflict,
+  compactSimilarityBonus,
 }
 
 final class MatchReason {

@@ -3,6 +3,7 @@ import 'package:drift/drift.dart';
 import 'daos/aniskip_cache_dao.dart';
 import 'daos/anilist_cache_dao.dart';
 import 'daos/download_task_dao.dart';
+import 'daos/hls_segment_dao.dart';
 import 'daos/library_entry_dao.dart';
 import 'daos/playback_preference_dao.dart';
 import 'daos/progress_dao.dart';
@@ -11,6 +12,7 @@ import 'daos/watch_history_dao.dart';
 import 'tables/aniskip_cache_table.dart';
 import 'tables/anilist_cache_table.dart';
 import 'tables/download_task_table.dart';
+import 'tables/hls_segment_table.dart';
 import 'tables/episode_progress_table.dart';
 import 'tables/library_entry_table.dart';
 import 'tables/playback_preference_table.dart';
@@ -27,6 +29,7 @@ part 'app_database.g.dart';
     SourceAvailabilityCacheTable,
     AniSkipCacheTable,
     DownloadTaskTable,
+    HlsSegmentTable,
     LibraryEntryTable,
     AnilistCacheTable,
   ],
@@ -37,6 +40,7 @@ part 'app_database.g.dart';
     SourceAvailabilityCacheDao,
     AniSkipCacheDao,
     DownloadTaskDao,
+    HlsSegmentDao,
     LibraryEntryDao,
     AnilistCacheDao,
   ],
@@ -45,7 +49,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase(super.e);
 
   @override
-  int get schemaVersion => 12;
+  int get schemaVersion => 13;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -118,6 +122,12 @@ class AppDatabase extends _$AppDatabase {
           tableName: 'download_task',
           columnName: 'is_hls',
           sqlDefinition: 'INTEGER DEFAULT 0',
+        );
+      }
+      if (from < 13) {
+        await _createTableIfMissing(
+          tableName: 'hls_segment',
+          createTable: () => m.createTable(hlsSegmentTable),
         );
       }
     },

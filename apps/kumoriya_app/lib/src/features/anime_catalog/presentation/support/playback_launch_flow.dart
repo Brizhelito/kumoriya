@@ -298,7 +298,7 @@ class _ServerPickerSheetState extends State<_ServerPickerSheet> {
   @override
   void initState() {
     super.initState();
-    _rememberSelection = false;
+    _rememberSelection = widget.rememberedPreference != null;
   }
 
   @override

@@ -187,6 +187,25 @@ final class HybridSeriesScorer {
       );
       finalScore += 6;
     }
+    if (titleMetrics.compactSimilarity >= 0.92 &&
+        titleMetrics.tokenSetSimilarity < 0.8) {
+      final compactBonus =
+          (titleMetrics.compactSimilarity - titleMetrics.tokenSetSimilarity) *
+          config.weights.tokenSet *
+          100 *
+          0.75;
+      finalScore += compactBonus;
+      reasons.add(
+        MatchReason(
+          code: MatchReasonCode.compactSimilarityBonus,
+          impact: compactBonus,
+          metadata: <String, Object?>{
+            'compact_similarity': titleMetrics.compactSimilarity,
+            'token_set_similarity': titleMetrics.tokenSetSimilarity,
+          },
+        ),
+      );
+    }
     final weakPrimaryAliasPenalty = _weakPrimaryAliasPenalty(
       query: query,
       candidate: candidate,
@@ -273,13 +292,15 @@ final class HybridSeriesScorer {
       queryTitle.trigrams,
       candidateTitle.trigrams,
     );
+    final compactSimilarity =
+        queryTitle.compact.isNotEmpty && candidateTitle.compact.isNotEmpty
+        ? _jaroWinkler(queryTitle.compact, candidateTitle.compact)
+        : 0.0;
     final exactTitle =
         queryTitle.compact.isNotEmpty &&
         queryTitle.compact == candidateTitle.compact;
     final aliasExact = queryTitle.normalized == candidateTitle.normalized;
-    final sharedRootTitle =
-        queryTitle.rootTitle.isNotEmpty &&
-        queryTitle.rootTitle == candidateTitle.rootTitle;
+    final sharedRootTitle = _sharesRootTitle(queryTitle, candidateTitle);
     final groupedSeasonTitle =
         sharedRootTitle &&
         queryTitle.baseTitle.isNotEmpty &&
@@ -298,12 +319,45 @@ final class HybridSeriesScorer {
       tokenSortSimilarity: tokenSortSimilarity,
       jaroWinkler: jaroWinkler,
       trigramSimilarity: trigramSimilarity,
+      compactSimilarity: compactSimilarity,
       exactTitle: exactTitle,
       aliasExact: aliasExact,
       sharedRootTitle: sharedRootTitle,
       groupedSeasonTitle: groupedSeasonTitle,
       titleConflict: titleConflict,
     );
+  }
+
+  bool _sharesRootTitle(
+    NormalizedSeriesTitle queryTitle,
+    NormalizedSeriesTitle candidateTitle,
+  ) {
+    final queryRoot = queryTitle.rootTitle.trim();
+    final candidateRoot = candidateTitle.rootTitle.trim();
+    if (queryRoot.isNotEmpty && queryRoot == candidateRoot) {
+      return true;
+    }
+
+    bool isStrongRoot(String value) {
+      final tokenCount = value
+          .split(' ')
+          .where((token) => token.isNotEmpty)
+          .length;
+      return tokenCount >= 2 && value.length >= 6;
+    }
+
+    if (isStrongRoot(queryRoot) &&
+        candidateTitle.baseTitle.length > queryRoot.length &&
+        candidateTitle.baseTitle.startsWith('$queryRoot ')) {
+      return true;
+    }
+    if (isStrongRoot(candidateRoot) &&
+        queryTitle.baseTitle.length > candidateRoot.length &&
+        queryTitle.baseTitle.startsWith('$candidateRoot ')) {
+      return true;
+    }
+
+    return false;
   }
 
   double _weakPrimaryAliasPenalty({
@@ -661,6 +715,7 @@ final class _TitleMetrics {
     required this.tokenSortSimilarity,
     required this.jaroWinkler,
     required this.trigramSimilarity,
+    required this.compactSimilarity,
     required this.exactTitle,
     required this.aliasExact,
     required this.sharedRootTitle,
@@ -675,6 +730,7 @@ final class _TitleMetrics {
         tokenSortSimilarity: 0,
         jaroWinkler: 0,
         trigramSimilarity: 0,
+        compactSimilarity: 0,
         exactTitle: false,
         aliasExact: false,
         sharedRootTitle: false,
@@ -687,6 +743,7 @@ final class _TitleMetrics {
   final double tokenSortSimilarity;
   final double jaroWinkler;
   final double trigramSimilarity;
+  final double compactSimilarity;
   final bool exactTitle;
   final bool aliasExact;
   final bool sharedRootTitle;

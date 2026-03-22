@@ -188,4 +188,46 @@ void main() {
       contains(MatchReasonCode.weakPrimaryTitlePenalty),
     );
   });
+
+  test('keeps hell mode compound-word variant out of reject bucket', () {
+    final query = fingerprintBuilder.fromCanonical(
+      const CanonicalSeries(
+        canonicalId: 'anilist:127549',
+        anilistId: 127549,
+        primaryTitle:
+            'Hell Mode: Yarikomi Suki no Gamer wa Hai Settei no Isekai de Musou Suru',
+        aliases: <String>[
+          'Hell Mode',
+          'Hell Mode: The Hardcore Gamer Dominates in Another World with Garbage Balancing',
+        ],
+        format: AnimeFormat.tv,
+      ),
+    );
+    final candidate = fingerprintBuilder.fromSource(
+      const SourceSeriesRecord(
+        recordId:
+            'jkanime:hell-mode-yarikomizuki-no-gamer-wa-hai-settei-no-isekai-de-musou-suru',
+        sourceId: 'jkanime',
+        sourceSeriesId:
+            'hell-mode-yarikomizuki-no-gamer-wa-hai-settei-no-isekai-de-musou-suru',
+        primaryTitle:
+            'Hell Mode Yarikomizuki no Gamer wa Haisettei no Isekai de Musou Suru',
+        format: AnimeFormat.tv,
+      ),
+    );
+    final resolver = SeriesEntityResolver<SourceSeriesRecord>(
+      candidateIndex: SeriesCandidateIndex<SourceSeriesRecord>(
+        <SeriesFingerprint<SourceSeriesRecord>>[candidate],
+      ),
+    );
+
+    final decision = resolver.resolve(query);
+
+    expect(decision.verdict, isNot(SeriesDecisionVerdict.reject));
+    expect(decision.bestScore, greaterThanOrEqualTo(68));
+    expect(
+      decision.reasons.map((reason) => reason.code),
+      contains(MatchReasonCode.compactSimilarityBonus),
+    );
+  });
 }

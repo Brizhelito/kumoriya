@@ -137,7 +137,7 @@ final class SeriesFingerprintBuilder {
         .where((token) => !_lowSignalTokens.contains(token))
         .toSet();
     final sortedTokens = [...tokens]..sort();
-    final rootTitle = _extractRootTitle(cleaned, baseTokens.join(' ').trim());
+    final rootTitle = _extractRootTitle(lowered, baseTokens.join(' ').trim());
     return NormalizedSeriesTitle(
       raw: raw,
       normalized: tokens.join(' ').trim(),
@@ -183,12 +183,21 @@ final class SeriesFingerprintBuilder {
     return keys;
   }
 
-  String _extractRootTitle(String cleaned, String baseTitle) {
-    if (cleaned.contains(':')) {
-      return cleaned.split(':').first.trim();
-    }
-    if (cleaned.contains(' - ')) {
-      return cleaned.split(' - ').first.trim();
+  String _extractRootTitle(String rawLowered, String baseTitle) {
+    for (final separator in const [':', ' - ']) {
+      final index = rawLowered.indexOf(separator);
+      if (index > 0) {
+        final root = rawLowered
+            .substring(0, index)
+            .trim()
+            .replaceAll(RegExp(r'[^a-z0-9\s]+'), '')
+            .replaceAll(RegExp(r'\s+'), ' ')
+            .trim();
+        if (root.split(' ').where((w) => w.isNotEmpty).length >= 2 ||
+            root.length >= 6) {
+          return root;
+        }
+      }
     }
     return baseTitle;
   }

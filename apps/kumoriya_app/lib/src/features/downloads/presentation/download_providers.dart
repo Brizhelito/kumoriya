@@ -11,6 +11,7 @@ import '../../anime_catalog/presentation/providers/anime_catalog_providers.dart'
 import '../../anime_catalog/presentation/providers/storage_providers.dart';
 import '../application/download_cover_service.dart';
 import '../application/download_directory_service.dart';
+import '../application/download_foreground_service.dart';
 import '../application/download_library_index_service.dart';
 import '../application/download_manager_service.dart';
 import '../application/enqueue_download_use_case.dart';
@@ -60,6 +61,8 @@ final downloadManagerProvider = Provider<DownloadManagerService>((ref) {
     store: store,
     directoryService: ref.watch(downloadDirectoryServiceProvider),
     libraryIndexService: ref.watch(downloadLibraryIndexServiceProvider),
+    hlsSegmentStore: ref.watch(hlsSegmentStoreProvider),
+    foregroundService: DownloadForegroundService(),
     linkRefresher: _buildLinkRefresher(
       sourcePluginMap: sourcePluginMap,
       registry: registry,

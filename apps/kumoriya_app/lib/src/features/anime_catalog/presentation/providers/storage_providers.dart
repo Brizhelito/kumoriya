@@ -36,6 +36,11 @@ final downloadStoreProvider = Provider<DownloadStore>((ref) {
   return DriftDownloadStore(db);
 });
 
+final hlsSegmentStoreProvider = Provider<HlsSegmentStore>((ref) {
+  final db = ref.watch(appDatabaseProvider);
+  return DriftHlsSegmentStore(db);
+});
+
 final libraryStoreProvider = Provider<LibraryStore>((ref) {
   final db = ref.watch(appDatabaseProvider);
   return DriftLibraryStore(db);

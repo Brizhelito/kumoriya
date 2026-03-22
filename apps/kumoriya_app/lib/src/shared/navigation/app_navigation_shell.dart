@@ -20,6 +20,9 @@ class AppNavigationShell extends StatefulWidget {
 class _AppNavigationShellState extends State<AppNavigationShell> {
   KumoriyaTab _currentTab = KumoriyaTab.home;
 
+  /// Tabs that have been visited at least once and should remain in the tree.
+  final Set<KumoriyaTab> _visitedTabs = {KumoriyaTab.home};
+
   final Map<KumoriyaTab, GlobalKey<NavigatorState>> _navigatorKeys = {
     KumoriyaTab.home: GlobalKey<NavigatorState>(),
     KumoriyaTab.search: GlobalKey<NavigatorState>(),
@@ -43,7 +46,10 @@ class _AppNavigationShellState extends State<AppNavigationShell> {
       _navigatorKeys[tab]?.currentState?.popUntil((route) => route.isFirst);
       return;
     }
-    setState(() => _currentTab = tab);
+    setState(() {
+      _visitedTabs.add(tab);
+      _currentTab = tab;
+    });
   }
 
   Future<bool> _handlePopScope() async {
@@ -80,11 +86,17 @@ class _AppNavigationShellState extends State<AppNavigationShell> {
   Widget build(BuildContext context) {
     final currentIndex = _currentTab.index;
 
-    final body = IndexedStack(
-      index: currentIndex,
-      children: KumoriyaTab.values
-          .map((tab) => _buildTabNavigator(tab))
-          .toList(growable: false),
+    // Only build navigators for tabs visited at least once; hide non-active
+    // ones with Offstage so they keep their state without consuming layout.
+    final body = Stack(
+      children: <Widget>[
+        for (final tab in KumoriyaTab.values)
+          if (_visitedTabs.contains(tab))
+            Offstage(
+              offstage: tab != _currentTab,
+              child: _buildTabNavigator(tab),
+            ),
+      ],
     );
 
     if (_isDesktop) {

@@ -64,6 +64,7 @@ void main() {
             required String sourcePluginId,
             String? animeTitle,
             String? coverImageUrl,
+            String? episodeTitle,
           }) async {
             enqueuedEpisodes.add(episodeNumber);
             return const Success(null);
@@ -160,6 +161,7 @@ void main() {
             required String sourcePluginId,
             String? animeTitle,
             String? coverImageUrl,
+            String? episodeTitle,
           }) async {
             usedSourceIds.add(sourcePluginId);
             return const Success(null);

@@ -108,7 +108,6 @@ class _HomeBody extends StatelessWidget {
       backgroundColor: KumoriyaColors.surface,
       onRefresh: () async {
         onRefresh?.call();
-        await Future<void>.delayed(const Duration(milliseconds: 500));
       },
       child: CustomScrollView(
         physics: const AlwaysScrollableScrollPhysics(),

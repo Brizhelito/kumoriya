@@ -1,8 +1,13 @@
 import 'dart:async';
 import 'dart:developer' as developer;
 import 'dart:io';
+import 'dart:isolate';
 
 import 'package:http/http.dart' as http;
+import 'package:kumoriya_storage/kumoriya_storage.dart';
+import 'package:path/path.dart' as p;
+
+import 'hls_download_engine.dart';
 
 typedef HlsRequestSender =
     Future<http.StreamedResponse> Function(
@@ -15,46 +20,72 @@ const _browserUserAgent =
     'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 '
     '(KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36';
 
-/// Pre-compiled patterns for playlist parsing — avoids RegExp construction
-/// per call in hot loops.
 final _bandwidthRe = RegExp(r'BANDWIDTH=(\d+)');
 final _mapUriRe = RegExp(r'URI="([^"]+)"');
 
-/// Downloads an HLS stream by parsing the m3u8 playlist, downloading
-/// .ts segments with parallelism, and concatenating them into a single file.
+/// Orchestrates HLS downloads with per-segment persistence and Isolate-based
+/// I/O for zero UI jank.
+///
+/// ## Architecture
+/// 1. **Playlist parsing** runs on the main isolate (fast for typical playlists).
+/// 2. **Segment state** is persisted to [HlsSegmentStore] — enables
+///    pause/resume at individual segment granularity.
+/// 3. **HTTP downloads + file writes** run in a separate Isolate via
+///    [HlsDownloadEngine] — the main thread only receives progress messages.
+/// 4. **Concatenation** of completed segment files into the final output
+///    runs via [Isolate.run] to avoid blocking the UI thread.
+///
+/// ## Connection reuse
+/// A single [http.Client] lives inside the worker isolate for the entire
+/// download session, reusing TCP connections across all segment fetches
+/// (IDM-style connection pooling with minimal TCP handshake overhead).
+///
+/// ## Controlled concurrency
+/// The engine maintains a pool of N concurrent segment fetches (configurable
+/// via [parallelSegments]). When any fetch completes, the next pending
+/// segment starts immediately — keeping the pool saturated at all times.
+///
+/// ## Resumability
+/// On resume, completed segments are loaded from the DB, verified on disk,
+/// and skipped. Only pending/failed segments are re-downloaded. Segment files
+/// are stored individually so partial downloads don't corrupt completed work.
 class HlsSegmentDownloader {
   HlsSegmentDownloader({
     http.Client? httpClient,
     HlsRequestSender? sendRequest,
-    this.parallelSegments = 6,
+    this.parallelSegments = 32,
     this.maxRetries = 3,
+    HlsSegmentStore? segmentStore,
   }) : _httpClient = httpClient ?? http.Client() {
     _sendRequest =
         sendRequest ??
         (http.BaseRequest request, {required Duration timeout}) =>
             _httpClient.send(request).timeout(timeout);
+    _segmentStore = segmentStore;
   }
 
   final http.Client _httpClient;
   late final HlsRequestSender _sendRequest;
+  HlsSegmentStore? _segmentStore;
+  HlsDownloadEngine? _engine;
 
-  /// Number of segments to download in parallel.
+  /// Number of segments to download in parallel (pool size).
   final int parallelSegments;
   final int maxRetries;
 
   /// Downloads the HLS stream at [masterUrl] to [outputPath].
   ///
+  /// [taskId] — parent DownloadTask.id, used as FK for segment persistence.
   /// [headers] are applied to every HTTP request (referer, origin, etc.).
-  /// [onProgress] is called after each segment with (downloadedBytes, totalSegments).
-  /// Since HLS total size is unknown upfront, totalSegments is passed so the
-  /// caller can compute a segment-based fraction. downloadedBytes tracks the
-  /// actual byte count written so far for display purposes.
-  /// Returns an object describing whether the stream used fMP4 segments and
-  /// the best known total byte count.
-  /// If [cancelCompleter] is completed, download stops early.
+  /// [onProgress] is called after each segment with (downloadedBytes,
+  ///   downloadedSegments, totalSegments, estimatedTotalBytes).
+  /// [cancelCompleter] — complete to request cancellation.
+  ///
+  /// Returns an [HlsDownloadResult] describing stream format and byte count.
   Future<HlsDownloadResult> download({
     required Uri masterUrl,
     required String outputPath,
+    String? taskId,
     Map<String, String> headers = const <String, String>{},
     void Function(
       int downloadedBytes,
@@ -67,191 +98,305 @@ class HlsSegmentDownloader {
   }) async {
     _log('Starting HLS download: $masterUrl');
 
-    // 1. Fetch the master/variant playlist.
+    // ── 1. Fetch and parse the m3u8 playlist ───────────────────────────
     final masterContent = await _fetchPlaylistWithRetry(masterUrl, headers);
     final variants = _parseVariants(masterContent, masterUrl);
+
+    String mediaContent;
+    Uri mediaBaseUrl;
+
     if (variants.isEmpty) {
-      return _downloadResolvedPlaylist(
-        mediaContent: masterContent,
-        mediaBaseUrl: masterUrl,
-        outputPath: outputPath,
-        headers: headers,
-        onProgress: onProgress,
-        cancelCompleter: cancelCompleter,
-      );
+      mediaContent = masterContent;
+      mediaBaseUrl = masterUrl;
+    } else {
+      // Try variants from highest to lowest bandwidth.
+      String? resolvedContent;
+      Uri? resolvedBase;
+      Object? lastError;
+      for (final variant in variants) {
+        if (cancelCompleter?.isCompleted == true) {
+          throw const HttpException('HLS download cancelled');
+        }
+        try {
+          _log('Trying variant: $variant');
+          resolvedContent = await _fetchPlaylistWithRetry(variant, headers);
+          resolvedBase = variant;
+          break;
+        } catch (e) {
+          lastError = e;
+          _log('Variant failed: $variant error=$e');
+        }
+      }
+      if (resolvedContent == null || resolvedBase == null) {
+        throw HttpException('All HLS variants failed: $lastError');
+      }
+      mediaContent = resolvedContent;
+      mediaBaseUrl = resolvedBase;
     }
 
-    Object? lastError;
-    for (final variant in variants) {
-      if (cancelCompleter?.isCompleted == true) {
-        throw const HttpException('HLS download cancelled');
-      }
-      try {
-        _log('Trying HLS variant: $variant');
-        final mediaContent = await _fetchPlaylistWithRetry(variant, headers);
-        return await _downloadResolvedPlaylist(
-          mediaContent: mediaContent,
-          mediaBaseUrl: variant,
-          outputPath: outputPath,
-          headers: headers,
-          onProgress: onProgress,
-          cancelCompleter: cancelCompleter,
-        );
-      } catch (error) {
-        lastError = error;
-        _log('HLS variant failed: $variant error=$error');
-      }
-    }
-
-    throw HttpException('All HLS variants failed: $lastError');
-  }
-
-  Future<HlsDownloadResult> _downloadResolvedPlaylist({
-    required String mediaContent,
-    required Uri mediaBaseUrl,
-    required String outputPath,
-    required Map<String, String> headers,
-    required void Function(
-      int downloadedBytes,
-      int downloadedSegments,
-      int totalSegments,
-      int totalBytes,
-    )?
-    onProgress,
-    required Completer<void>? cancelCompleter,
-  }) async {
-    _log('Using media playlist: $mediaBaseUrl');
-
-    // 3. Parse init segment (fMP4 streams use #EXT-X-MAP for a moov box).
+    // ── 2. Parse segments and init segment ─────────────────────────────
     final initUri = _parseMapUri(mediaContent, mediaBaseUrl);
     final isFmp4 = initUri != null;
-    if (isFmp4) _log('fMP4 stream detected, init segment: $initUri');
-
-    // 4. Parse segment URLs.
     final segmentUrls = _parseSegments(mediaContent, mediaBaseUrl);
     if (segmentUrls.isEmpty) {
       throw const HttpException('No segments found in HLS playlist');
     }
-    _log('Found ${segmentUrls.length} segments');
+    _log('Parsed ${segmentUrls.length} segments (fMP4=$isFmp4)');
 
-    // 5. Download init segment first (required for fMP4 — contains moov box).
-    //    Without it, the concatenated media segments are unplayable.
-    final outputFile = File(outputPath);
-    final sink = outputFile.openWrite();
-    var downloadedSegments = 0;
-    var downloadedBytes = 0;
+    // ── 3. Prepare segment directory and per-segment state ─────────────
+    final segmentsDir = '${outputPath}_segments';
+    await Directory(segmentsDir).create(recursive: true);
 
-    try {
-      if (initUri != null) {
-        final initData = await _fetchSegmentWithRetry(initUri, headers);
-        sink.add(initData);
-        downloadedBytes += initData.length;
-        _log('Init segment written (${initData.length} bytes)');
-      }
+    final initSegmentPath = isFmp4 ? p.join(segmentsDir, '_init.mp4') : null;
 
-      // Event-driven pipeline: keeps [parallelSegments] fetches truly
-      // in-flight at all times. When any fetch finishes, a replacement
-      // launches immediately — independent of write order. Segments are
-      // still written sequentially for correct concatenation.
-      final totalCount = segmentUrls.length;
-      final completedData = <int, List<int>>{};
-      Object? pipelineError;
-      var nextToLaunch = 0;
-      var nextToWrite = 0;
-      var activeFetches = 0;
-      final maxBufferedSegments = parallelSegments * 2;
-      final doneSignals = StreamController<void>();
+    // Build segment descriptors — resume-aware: completed segments get
+    // skip=true so the worker isolate does not re-download them.
+    final segmentInfos = <HlsSegmentInfo>[];
+    List<HlsSegment>? persisted;
 
-      Future<void> fetchOne(int index) async {
-        activeFetches++;
-        try {
-          final data = await _fetchSegmentWithRetry(
-            segmentUrls[index],
-            headers,
-          );
-          if (cancelCompleter?.isCompleted != true) {
-            completedData[index] = data;
-          }
-        } catch (e) {
-          pipelineError ??= e;
-        } finally {
-          activeFetches--;
-          if (!doneSignals.isClosed) doneSignals.add(null);
-        }
-      }
-
-      void fillPool() {
-        while (nextToLaunch < totalCount &&
-            activeFetches < parallelSegments &&
-            completedData.length <= maxBufferedSegments) {
-          unawaited(fetchOne(nextToLaunch++));
-        }
-      }
-
-      // Seed the pipeline.
-      fillPool();
-
-      final events = StreamIterator(doneSignals.stream);
-
-      while (nextToWrite < totalCount) {
-        if (cancelCompleter?.isCompleted == true) break;
-        if (pipelineError != null) break;
-
-        // Write all completed segments available in order.
-        // Batch writes and emit progress only once for the burst to reduce
-        // callback overhead when many segments complete simultaneously.
-        var batchWrites = 0;
-        while (true) {
-          final data = completedData.remove(nextToWrite);
-          if (data == null) break;
-          sink.add(data);
-          downloadedSegments++;
-          downloadedBytes += data.length;
-          nextToWrite++;
-          batchWrites++;
-        }
-
-        if (batchWrites > 0) {
-          final dynamicEstimate = downloadedSegments > 0
-              ? (downloadedBytes / downloadedSegments * totalCount).round()
-              : 0;
-
-          onProgress?.call(
-            downloadedBytes,
-            downloadedSegments,
-            totalCount,
-            dynamicEstimate,
-          );
-
-          // Periodic flush to bound IOSink memory on mobile.
-          // Flush after burst writes rather than using a separate timer
-          // since segments arrive in bursts naturally.
-          if (downloadedSegments % 32 == 0) {
-            await sink.flush();
-          }
-        }
-
-        if (nextToWrite >= totalCount) break;
-
-        // Refill pool after writes.
-        fillPool();
-
-        // Wait for the next fetch completion signal.
-        if (!await events.moveNext()) break;
-      }
-
-      await events.cancel();
-      await doneSignals.close();
-      if (pipelineError != null) throw pipelineError!;
-    } finally {
-      await sink.close();
+    if (taskId != null && _segmentStore != null) {
+      final result = await _segmentStore!.getSegmentsForTask(taskId);
+      persisted = result.fold(
+        onSuccess: (segs) => segs.isNotEmpty ? segs : null,
+        onFailure: (_) => null,
+      );
     }
 
-    _log(
-      'HLS download complete: $downloadedSegments/${segmentUrls.length} segments ($downloadedBytes bytes)',
+    if (persisted != null && persisted.length == segmentUrls.length) {
+      // ── Resume path ──
+      final completed = persisted
+          .where((s) => s.status == HlsSegmentStatus.completed)
+          .length;
+      _log('Resuming: $completed/${persisted.length} segments completed');
+
+      for (final seg in persisted) {
+        final isCompleted =
+            seg.status == HlsSegmentStatus.completed &&
+            seg.localPath != null &&
+            File(seg.localPath!).existsSync();
+        segmentInfos.add(
+          HlsDownloadEngine.createSegmentInfo(
+            index: seg.segmentIndex,
+            url: seg.url,
+            localPath:
+                seg.localPath ??
+                p.join(
+                  segmentsDir,
+                  'seg_${seg.segmentIndex.toString().padLeft(5, '0')}.ts',
+                ),
+            skip: isCompleted,
+          ),
+        );
+      }
+    } else {
+      // ── Fresh download path ──
+      final newSegments = <HlsSegment>[];
+      for (var i = 0; i < segmentUrls.length; i++) {
+        final localPath = p.join(
+          segmentsDir,
+          'seg_${i.toString().padLeft(5, '0')}.ts',
+        );
+        final segId = taskId != null ? '$taskId:seg:$i' : 'anon:seg:$i';
+        newSegments.add(
+          HlsSegment(
+            id: segId,
+            downloadTaskId: taskId ?? '',
+            segmentIndex: i,
+            url: segmentUrls[i].toString(),
+            status: HlsSegmentStatus.pending,
+            localPath: localPath,
+          ),
+        );
+        segmentInfos.add(
+          HlsDownloadEngine.createSegmentInfo(
+            index: i,
+            url: segmentUrls[i].toString(),
+            localPath: localPath,
+          ),
+        );
+      }
+
+      // Persist segment manifest to DB.
+      if (taskId != null && _segmentStore != null) {
+        await _segmentStore!.deleteSegmentsForTask(taskId);
+        await _segmentStore!.insertSegments(newSegments);
+        _log('Persisted ${newSegments.length} segment records');
+      }
+    }
+
+    // ── 4. Launch the Isolate-based download engine ────────────────────
+    final resultCompleter = Completer<HlsDownloadResult>();
+
+    _engine = HlsDownloadEngine(
+      maxConcurrent: parallelSegments,
+      maxRetries: maxRetries,
     );
-    return HlsDownloadResult(isFmp4: isFmp4, totalBytes: downloadedBytes);
+
+    // Forward cancel requests to the engine.
+    cancelCompleter?.future.then((_) => _engine?.pause());
+
+    await _engine!.start(
+      segments: segmentInfos,
+      headers: headers,
+      segmentsDir: segmentsDir,
+      initSegmentUrl: initUri?.toString(),
+      initSegmentPath: initSegmentPath,
+
+      onProgress: (progress) {
+        onProgress?.call(
+          progress.downloadedBytes,
+          progress.completedSegments,
+          progress.totalSegments,
+          progress.estimatedTotalBytes,
+        );
+      },
+
+      onSegmentDone: (done) {
+        // Persist segment completion (non-blocking, fire-and-forget).
+        if (taskId != null && _segmentStore != null) {
+          unawaited(
+            _segmentStore!.updateSegment(
+              HlsSegment(
+                id: '$taskId:seg:${done.segmentIndex}',
+                downloadTaskId: taskId,
+                segmentIndex: done.segmentIndex,
+                url: segmentInfos[done.segmentIndex].url,
+                status: HlsSegmentStatus.completed,
+                localPath: done.localPath,
+                byteSize: done.byteSize,
+              ),
+            ),
+          );
+        }
+      },
+
+      onSegmentFailed: (failed) {
+        if (taskId != null && _segmentStore != null) {
+          unawaited(
+            _segmentStore!.updateSegment(
+              HlsSegment(
+                id: '$taskId:seg:${failed.segmentIndex}',
+                downloadTaskId: taskId,
+                segmentIndex: failed.segmentIndex,
+                url: segmentInfos[failed.segmentIndex].url,
+                status: HlsSegmentStatus.failed,
+              ),
+            ),
+          );
+        }
+      },
+
+      onDone: (result) async {
+        if (result.failedCount > 0) {
+          resultCompleter.completeError(
+            HttpException(
+              '${result.failedCount} HLS segments failed to download',
+            ),
+          );
+          return;
+        }
+
+        // ── 5. Concatenate segments → final file (in isolate) ────────
+        try {
+          final totalBytes = await _concatenateSegments(
+            segmentsDir: segmentsDir,
+            outputPath: outputPath,
+            totalSegments: segmentUrls.length,
+            initSegmentPath: initSegmentPath,
+          );
+
+          // Clean up segment files + DB records.
+          await _cleanupSegmentDir(segmentsDir);
+          if (taskId != null && _segmentStore != null) {
+            await _segmentStore!.deleteSegmentsForTask(taskId);
+          }
+
+          resultCompleter.complete(
+            HlsDownloadResult(isFmp4: isFmp4, totalBytes: totalBytes),
+          );
+        } catch (e) {
+          resultCompleter.completeError(e);
+        }
+      },
+
+      onError: (error) {
+        resultCompleter.completeError(HttpException(error.message));
+      },
+
+      onStopped: () {
+        if (cancelCompleter?.isCompleted == true) {
+          resultCompleter.completeError(
+            const HttpException('HLS download cancelled'),
+          );
+        } else {
+          resultCompleter.completeError(
+            const HttpException('HLS download paused'),
+          );
+        }
+      },
+    );
+
+    return resultCompleter.future;
   }
+
+  // ─── Concatenation (runs in separate isolate) ───────────────────────
+
+  /// Concatenates individual segment files into the final output file.
+  /// Runs via [Isolate.run] so file I/O doesn't block the main thread.
+  Future<int> _concatenateSegments({
+    required String segmentsDir,
+    required String outputPath,
+    required int totalSegments,
+    String? initSegmentPath,
+  }) async {
+    return Isolate.run(() async {
+      final sink = File(outputPath).openWrite();
+      var totalBytes = 0;
+
+      try {
+        // fMP4 init segment (moov box) must come first.
+        if (initSegmentPath != null) {
+          final initFile = File(initSegmentPath);
+          if (initFile.existsSync()) {
+            final data = initFile.readAsBytesSync();
+            sink.add(data);
+            totalBytes += data.length;
+          }
+        }
+
+        // Segments in index order — correct for playback.
+        for (var i = 0; i < totalSegments; i++) {
+          final segPath =
+              '$segmentsDir${Platform.pathSeparator}'
+              'seg_${i.toString().padLeft(5, '0')}.ts';
+          final segFile = File(segPath);
+          if (segFile.existsSync()) {
+            final data = segFile.readAsBytesSync();
+            sink.add(data);
+            totalBytes += data.length;
+          }
+        }
+        await sink.flush();
+      } finally {
+        await sink.close();
+      }
+
+      return totalBytes;
+    });
+  }
+
+  Future<void> _cleanupSegmentDir(String segmentsDir) async {
+    try {
+      final dir = Directory(segmentsDir);
+      if (await dir.exists()) {
+        await dir.delete(recursive: true);
+      }
+    } catch (e) {
+      _log('Warning: failed to clean up segments dir: $e');
+    }
+  }
+
+  // ─── Playlist fetching (runs on main isolate) ────────────────────────
 
   /// Fetches a playlist text file with a connection timeout.
   Future<String> _fetchPlaylist(Uri url, Map<String, String> headers) async {
@@ -266,26 +411,6 @@ class HlsSegmentDownloader {
       throw HttpException('HTTP ${response.statusCode} fetching HLS playlist');
     }
     return response.stream.bytesToString();
-  }
-
-  /// Fetches a single segment as bytes with a timeout.
-  Future<List<int>> _fetchSegment(Uri url, Map<String, String> headers) async {
-    final request = http.Request('GET', url)
-      ..headers.addAll(headers)
-      ..headers.putIfAbsent('User-Agent', () => _browserUserAgent)
-      // Request raw bytes — segments are already encoded media data, auto-
-      // decompression by the HTTP layer wastes CPU and can corrupt binary data.
-      ..headers.putIfAbsent('Accept-Encoding', () => 'identity');
-    final response = await _sendRequest(
-      request,
-      timeout: const Duration(seconds: 30),
-    );
-    if (response.statusCode != 200) {
-      // Preserve the status code in the message so the error classifier
-      // can determine the right recovery strategy.
-      throw HttpException('HTTP ${response.statusCode} fetching HLS segment');
-    }
-    return response.stream.toBytes();
   }
 
   Future<String> _fetchPlaylistWithRetry(
@@ -304,22 +429,7 @@ class HlsSegmentDownloader {
     throw const HttpException('Playlist fetch failed');
   }
 
-  Future<List<int>> _fetchSegmentWithRetry(
-    Uri url,
-    Map<String, String> headers,
-  ) async {
-    for (var attempt = 1; attempt <= maxRetries; attempt++) {
-      try {
-        return await _fetchSegment(url, headers);
-      } catch (_) {
-        if (attempt == maxRetries) rethrow;
-      }
-      await Future<void>.delayed(Duration(milliseconds: 150 * attempt));
-    }
-    throw const HttpException('Segment fetch failed');
-  }
-
-  /// Parses HLS variants sorted from highest to lowest bandwidth.
+  // ─── Playlist parsing ───────────────────────────────────────────────
   List<Uri> _parseVariants(String content, Uri baseUrl) {
     if (!content.contains('#EXT-X-STREAM-INF')) {
       return const <Uri>[];

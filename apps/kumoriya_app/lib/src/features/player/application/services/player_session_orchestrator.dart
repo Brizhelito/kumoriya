@@ -45,11 +45,13 @@ final class PlayerSessionOrchestrator {
     StreamSelectionPolicy? selectionPolicy,
     Duration? openTimeout,
     Duration? bufferingTimeout,
+    Duration? seekVisualGateTimeout,
     void Function(String message)? onDebugLog,
   }) : _playbackEngine = playbackEngine,
        _selectionPolicy = selectionPolicy ?? const StreamSelectionPolicy(),
        _openTimeout = openTimeout ?? const Duration(seconds: 30),
        _bufferingTimeout = bufferingTimeout ?? const Duration(seconds: 18),
+       _seekVisualGateTimeout = seekVisualGateTimeout ?? _seekVisualGateMax,
        _debugLogSink = onDebugLog {
     _subscriptions = <StreamSubscription<dynamic>>[
       _playbackEngine.playingStream.listen(_onPlayingChanged),
@@ -69,6 +71,7 @@ final class PlayerSessionOrchestrator {
   final StreamSelectionPolicy _selectionPolicy;
   final Duration _openTimeout;
   final Duration _bufferingTimeout;
+  final Duration _seekVisualGateTimeout;
   final void Function(String message)? _debugLogSink;
   late final List<StreamSubscription<dynamic>> _subscriptions;
   late final String _instanceId = identityHashCode(this).toRadixString(16);
@@ -625,14 +628,13 @@ final class PlayerSessionOrchestrator {
         _log(
           'openCurrentCandidate engine-disposed generation=$thisGeneration — stopping cascade',
         );
-        // During route teardown or runtime replacement, open may race with
-        // dispose. Treat it as cancellation, not a user-visible error.
-        return const Failure(
-          SimpleError(
-            code: 'player.engine_disposed',
-            message: 'Playback engine was disposed during open sequence.',
-            kind: KumoriyaErrorKind.cancelled,
-          ),
+        // Engine disposal during an active open is a genuine error that must
+        // be surfaced so the UI can react (e.g. show an error banner).
+        return _fail(
+          code: 'player.engine_disposed',
+          message: 'Playback engine was disposed during open sequence.',
+          kind: KumoriyaErrorKind.cancelled,
+          errorGeneration: thisGeneration,
         );
       }
       if (_isProxyRuntimeUnavailableError(error)) {
@@ -2693,12 +2695,15 @@ final class PlayerSessionOrchestrator {
   }
 
   Duration _seekVisualGateTimeoutFrom(DateTime openStartTime) {
+    if (_seekVisualGateTimeout <= Duration.zero) return Duration.zero;
     final elapsed = DateTime.now().difference(openStartTime);
     final remaining = _seekReadyBudget - elapsed;
     if (remaining <= Duration.zero) {
       return const Duration(milliseconds: 100);
     }
-    return remaining < _seekVisualGateMax ? remaining : _seekVisualGateMax;
+    return remaining < _seekVisualGateTimeout
+        ? remaining
+        : _seekVisualGateTimeout;
   }
 
   bool _isPositionNearTarget(Duration position, Duration target) {

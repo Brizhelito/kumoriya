@@ -9,6 +9,7 @@ import 'package:path/path.dart' as p;
 
 import 'download_directory_service.dart';
 import 'download_error_classifier.dart';
+import 'download_foreground_service.dart';
 import 'download_library_index_service.dart';
 import 'hls_segment_downloader.dart';
 
@@ -69,13 +70,15 @@ http.Client _createDownloadHttpClient({int maxConnectionsPerHost = 16}) {
 
 http.Client _createInsecureDownloadHttpClient({
   int maxConnectionsPerHost = 16,
+  Set<String>? approvedHosts,
 }) {
   final inner = HttpClient()
     ..autoUncompress = false
     ..connectionTimeout = const Duration(seconds: 10)
     ..idleTimeout = const Duration(seconds: 60)
     ..maxConnectionsPerHost = maxConnectionsPerHost
-    ..badCertificateCallback = (certificate, host, port) => true;
+    ..badCertificateCallback = (certificate, host, port) =>
+        approvedHosts?.contains(host) ?? false;
   return ioc.IOClient(inner);
 }
 
@@ -104,15 +107,19 @@ class DownloadManagerService {
     required DownloadStore store,
     required DownloadDirectoryService directoryService,
     required DownloadLibraryIndexService libraryIndexService,
+    HlsSegmentStore? hlsSegmentStore,
     int? maxConcurrent,
     http.Client? httpClient,
     http.Client Function()? insecureHttpClientFactory,
     int maxRetryAttempts = 3,
     DownloadLinkRefresher? linkRefresher,
     int maxReResolveAttempts = 2,
+    DownloadForegroundService? foregroundService,
   }) : _store = store,
+       _foregroundService = foregroundService,
        _directoryService = directoryService,
        _libraryIndexService = libraryIndexService,
+       _hlsSegmentStore = hlsSegmentStore,
        _maxConcurrent = (maxConcurrent ?? _defaultMaxConcurrentDownloads()),
        _httpClient =
            httpClient ??
@@ -127,6 +134,8 @@ class DownloadManagerService {
   final DownloadStore _store;
   final DownloadDirectoryService _directoryService;
   final DownloadLibraryIndexService _libraryIndexService;
+  final DownloadForegroundService? _foregroundService;
+  final HlsSegmentStore? _hlsSegmentStore;
   final http.Client _httpClient;
   final http.Client Function()? _insecureHttpClientFactory;
   final int _maxRetryAttempts;
@@ -141,6 +150,11 @@ class DownloadManagerService {
   final _reResolveAttempts = <String, int>{};
   final _insecureTlsHostsByTask = <String, Set<String>>{};
 
+  /// Hosts that have been explicitly approved for insecure TLS after a
+  /// certificate-verify failure.  Shared across all tasks so the insecure
+  /// HttpClient callback can gate on them.
+  final _approvedInsecureHosts = <String>{};
+
   final _activeDownloads = <String, _ActiveDownload>{};
   final _latestProgressByTask = <String, DownloadProgressEvent>{};
   final _progressController =
@@ -153,9 +167,9 @@ class DownloadManagerService {
   final _pendingProgressSnapshots = <String, DownloadTask>{};
   final _progressWriteInFlight = <String>{};
 
-  /// Aggregate progress is expensive (iterates all tasks). Throttle to ~2.5 Hz.
+  /// Aggregate progress is expensive (iterates all tasks). Throttle to ~1 Hz.
   final _aggregateThrottleSw = Stopwatch()..start();
-  static const _aggregateThrottleMs = 400;
+  static const _aggregateThrottleMs = 1000;
   static const _progressEmissionMs = 500;
   static const _progressDbWriteMs = 3000;
   static const _directFlushMs = 4000;
@@ -382,6 +396,11 @@ class DownloadManagerService {
         }
       },
     );
+
+    // Start foreground service on the first active download.
+    if (_activeDownloads.length == 1) {
+      unawaited(_foregroundService?.start());
+    }
 
     try {
       final target = await _resolveTargetPaths(task);
@@ -722,16 +741,15 @@ class DownloadManagerService {
     String tempPath,
     Completer<void> cancelCompleter,
   ) async {
-    final tempFile = File(tempPath);
-    if (await tempFile.exists()) {
-      await tempFile.delete();
-    }
+    // Don't delete partial file — the new engine resumes from persisted
+    // segment state. Only individual segment files matter now.
 
     final hlsDownloader = HlsSegmentDownloader(
       sendRequest: (request, {required timeout}) =>
           _sendTaskRequest(task, request, timeout: timeout),
       parallelSegments: _resolveParallelSegmentsPerDownload(),
       maxRetries: _maxRetryAttempts,
+      segmentStore: _hlsSegmentStore,
     );
     var bytesAtLastSample = 0;
     var currentSpeed = 0;
@@ -743,6 +761,7 @@ class DownloadManagerService {
     return hlsDownloader.download(
       masterUrl: task.sourceUrl,
       outputPath: tempPath,
+      taskId: task.id,
       headers: task.headers,
       cancelCompleter: cancelCompleter,
       onProgress:
@@ -972,6 +991,7 @@ class DownloadManagerService {
       _insecureTlsHostsByTask
           .putIfAbsent(task.id, () => <String>{})
           .add(request.url.host);
+      _approvedInsecureHosts.add(request.url.host);
       _log(
         'Retrying ${request.url.host} with insecure TLS fallback '
         'for task=${task.id}',
@@ -1003,6 +1023,7 @@ class DownloadManagerService {
         _insecureHttpClientFactory?.call() ??
         _createInsecureDownloadHttpClient(
           maxConnectionsPerHost: _defaultMaxConnectionsPerHost(),
+          approvedHosts: _approvedInsecureHosts,
         );
     _insecureHttpClient = created;
     return created;
@@ -1102,6 +1123,16 @@ class DownloadManagerService {
       if (await file.exists()) {
         await file.delete();
       }
+      // Clean up HLS segment directory (created by the isolate engine).
+      final segDir = Directory('${path}_segments');
+      if (await segDir.exists()) {
+        await segDir.delete(recursive: true);
+      }
+    }
+
+    // Clean up persisted HLS segment records.
+    if (_hlsSegmentStore != null && task.isHls) {
+      await _hlsSegmentStore!.deleteSegmentsForTask(task.id);
     }
 
     if (task.filePath != null) {
@@ -1275,14 +1306,26 @@ class DownloadManagerService {
       }
     }
 
+    final activeTasks = _latestProgressByTask.length;
     _aggregateProgressController.add(
       DownloadAggregateProgress(
-        activeTasks: _latestProgressByTask.length,
+        activeTasks: activeTasks,
         downloadedBytes: downloadedBytes,
         totalBytes: tasksWithKnownTotal > 0 ? totalBytes : 0,
         bytesPerSecond: bytesPerSecond,
       ),
     );
+
+    if (activeTasks > 0) {
+      unawaited(
+        _foregroundService?.updateProgress(
+          activeTasks: activeTasks,
+          bytesPerSecond: bytesPerSecond,
+        ),
+      );
+    } else {
+      unawaited(_foregroundService?.stop());
+    }
   }
 
   void _log(String message) {
@@ -1355,6 +1398,7 @@ class DownloadManagerService {
       return;
     }
     _disposed = true;
+    unawaited(_foregroundService?.stop());
     for (final active in _activeDownloads.values) {
       active.cancel();
     }

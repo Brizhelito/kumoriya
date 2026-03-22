@@ -138,41 +138,51 @@ class _EpisodeListPageState extends ConsumerState<EpisodeListPage> {
       ),
       body: rows.isEmpty
           ? EmptyStateView(message: context.l10n.episodeListEmpty)
-          : ListView(
+          : CustomScrollView(
               controller: _scrollController,
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
-              children: <Widget>[
-                _EpisodeListHeader(
-                  summary: sourceSummary,
-                  preference: preference,
-                  anilistId: widget.anilistId,
-                  animeTitle: widget.animeTitle,
-                  rows: rows,
+              slivers: <Widget>[
+                SliverPadding(
+                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+                  sliver: SliverToBoxAdapter(
+                    child: _EpisodeListHeader(
+                      summary: sourceSummary,
+                      preference: preference,
+                      anilistId: widget.anilistId,
+                      animeTitle: widget.animeTitle,
+                      rows: rows,
+                    ),
+                  ),
                 ),
-                const SizedBox(height: 12),
-                ...rows.map((row) {
-                  // Find matching download task by episode number.
-                  DownloadTask? dlTask;
-                  for (final entry in dlTaskMap.entries) {
-                    if ((entry.key - row.number).abs() < 0.001) {
-                      dlTask = entry.value;
-                      break;
-                    }
-                  }
-                  return _EpisodeCard(
-                    key: ValueKey('ep-${row.number}'),
-                    row: row,
-                    anilistId: widget.anilistId,
-                    animeTitle: widget.animeTitle,
-                    downloadTask: dlTask,
-                    onTap:
-                        row.playableSources.isEmpty ||
-                            sourceSummary == null ||
-                            _isLaunching
-                        ? null
-                        : () => _handleEpisodeTap(row, sourceSummary),
-                  );
-                }),
+                const SliverToBoxAdapter(child: SizedBox(height: 12)),
+                SliverPadding(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+                  sliver: SliverList.builder(
+                    itemCount: rows.length,
+                    itemBuilder: (context, index) {
+                      final row = rows[index];
+                      DownloadTask? dlTask;
+                      for (final entry in dlTaskMap.entries) {
+                        if ((entry.key - row.number).abs() < 0.001) {
+                          dlTask = entry.value;
+                          break;
+                        }
+                      }
+                      return _EpisodeCard(
+                        key: ValueKey('ep-${row.number}'),
+                        row: row,
+                        anilistId: widget.anilistId,
+                        animeTitle: widget.animeTitle,
+                        downloadTask: dlTask,
+                        onTap:
+                            row.playableSources.isEmpty ||
+                                sourceSummary == null ||
+                                _isLaunching
+                            ? null
+                            : () => _handleEpisodeTap(row, sourceSummary),
+                      );
+                    },
+                  ),
+                ),
               ],
             ),
     );

@@ -31,7 +31,7 @@ void main() {
 
     final result = await orchestrator.start(
       streamCandidates: <ResolvedStream>[
-        ResolvedStream(url: Uri.parse('file:///tmp/local.mp4')),
+        ResolvedStream(url: Uri.parse('ftp://ftp.example.com/local.mp4')),
       ],
     );
 
@@ -198,7 +198,10 @@ void main() {
 
   test('starts HLS candidate at initial resume position', () async {
     final engine = _FakePlaybackEngine();
-    final orchestrator = PlayerSessionOrchestrator(playbackEngine: engine);
+    final orchestrator = PlayerSessionOrchestrator(
+      playbackEngine: engine,
+      seekVisualGateTimeout: Duration.zero,
+    );
 
     final result = await orchestrator.start(
       streamCandidates: <ResolvedStream>[
@@ -325,7 +328,10 @@ void main() {
     'native seek for anime nexus loopback HLS with initial position',
     () async {
       final engine = _FakePlaybackEngine();
-      final orchestrator = PlayerSessionOrchestrator(playbackEngine: engine);
+      final orchestrator = PlayerSessionOrchestrator(
+        playbackEngine: engine,
+        seekVisualGateTimeout: Duration.zero,
+      );
 
       final result = await orchestrator.start(
         streamCandidates: <ResolvedStream>[
@@ -360,7 +366,10 @@ void main() {
           _OpenBehavior.success(),
         ],
       );
-      final orchestrator = PlayerSessionOrchestrator(playbackEngine: engine);
+      final orchestrator = PlayerSessionOrchestrator(
+        playbackEngine: engine,
+        seekVisualGateTimeout: Duration.zero,
+      );
       var latestPosition = Duration.zero;
       var latestDuration = Duration.zero;
       final positionSub = orchestrator.positionStream.listen(
@@ -402,7 +411,10 @@ void main() {
     final engine = _FakePlaybackEngine(
       openBehaviors: const <_OpenBehavior>[_OpenBehavior.success()],
     );
-    final orchestrator = PlayerSessionOrchestrator(playbackEngine: engine);
+    final orchestrator = PlayerSessionOrchestrator(
+      playbackEngine: engine,
+      seekVisualGateTimeout: Duration.zero,
+    );
 
     final result = await orchestrator.start(
       streamCandidates: <ResolvedStream>[
@@ -613,7 +625,10 @@ void main() {
           _OpenBehavior.success(),
         ],
       );
-      final orchestrator = PlayerSessionOrchestrator(playbackEngine: engine);
+      final orchestrator = PlayerSessionOrchestrator(
+        playbackEngine: engine,
+        seekVisualGateTimeout: Duration.zero,
+      );
 
       final result = await orchestrator.start(
         streamCandidates: <ResolvedStream>[
@@ -697,6 +712,7 @@ void main() {
       final orchestrator = PlayerSessionOrchestrator(
         playbackEngine: engine,
         onDebugLog: logs.add,
+        seekVisualGateTimeout: Duration.zero,
       );
 
       // Open a managed window starting at 5:00.
@@ -755,6 +771,7 @@ void main() {
     final orchestrator = PlayerSessionOrchestrator(
       playbackEngine: engine,
       onDebugLog: logs.add,
+      seekVisualGateTimeout: Duration.zero,
     );
 
     final result = await orchestrator.start(
@@ -803,6 +820,7 @@ void main() {
     final orchestrator = PlayerSessionOrchestrator(
       playbackEngine: engine,
       onDebugLog: logs.add,
+      seekVisualGateTimeout: Duration.zero,
     );
 
     final result = await orchestrator.start(
@@ -848,6 +866,7 @@ void main() {
     final orchestrator = PlayerSessionOrchestrator(
       playbackEngine: engine,
       onDebugLog: logs.add,
+      seekVisualGateTimeout: Duration.zero,
     );
 
     final result = await orchestrator.start(
@@ -893,7 +912,10 @@ void main() {
       final engine = _FakePlaybackEngine(
         openBehaviors: const <_OpenBehavior>[_OpenBehavior.success()],
       );
-      final orchestrator = PlayerSessionOrchestrator(playbackEngine: engine);
+      final orchestrator = PlayerSessionOrchestrator(
+        playbackEngine: engine,
+        seekVisualGateTimeout: Duration.zero,
+      );
       var latestPosition = Duration.zero;
       var latestDuration = Duration.zero;
       final positionSub = orchestrator.positionStream.listen(
@@ -984,7 +1006,10 @@ void main() {
           _OpenBehavior.success(),
         ],
       );
-      final orchestrator = PlayerSessionOrchestrator(playbackEngine: engine);
+      final orchestrator = PlayerSessionOrchestrator(
+        playbackEngine: engine,
+        seekVisualGateTimeout: Duration.zero,
+      );
 
       var latestPosition = Duration.zero;
       var latestDuration = Duration.zero;
@@ -1053,7 +1078,10 @@ void main() {
           _OpenBehavior.success(),
         ],
       );
-      final orchestrator = PlayerSessionOrchestrator(playbackEngine: engine);
+      final orchestrator = PlayerSessionOrchestrator(
+        playbackEngine: engine,
+        seekVisualGateTimeout: Duration.zero,
+      );
 
       var latestPosition = Duration.zero;
       final positionSub = orchestrator.positionStream.listen(
@@ -1117,7 +1145,10 @@ void main() {
       final engine = _FakePlaybackEngine(
         openBehaviors: const <_OpenBehavior>[_OpenBehavior.success()],
       );
-      final orchestrator = PlayerSessionOrchestrator(playbackEngine: engine);
+      final orchestrator = PlayerSessionOrchestrator(
+        playbackEngine: engine,
+        seekVisualGateTimeout: Duration.zero,
+      );
 
       final positions = <Duration>[];
       final durations = <Duration>[];

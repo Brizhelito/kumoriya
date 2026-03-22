@@ -16,6 +16,14 @@ final class MediaKitPlaybackEngine implements PlaybackEngine {
     Duration(seconds: 20),
   ];
 
+  /// 64 MB on mobile (limited RAM), 128 MB on desktop.
+  static int _bufferSizeForPlatform() {
+    if (Platform.isAndroid || Platform.isIOS) {
+      return 64 * 1024 * 1024;
+    }
+    return 128 * 1024 * 1024;
+  }
+
   MediaKitPlaybackEngine({
     void Function(String message)? onDebugLog,
     void Function(String reason)? onVideoOutputFallbackRequested,
@@ -26,7 +34,7 @@ final class MediaKitPlaybackEngine implements PlaybackEngine {
        player = Player(
          configuration: PlayerConfiguration(
            logLevel: kDebugMode ? MPVLogLevel.debug : MPVLogLevel.error,
-           bufferSize: 128 * 1024 * 1024,
+           bufferSize: _bufferSizeForPlatform(),
          ),
        ) {
     final useSoftwareVideoOutput = _shouldUseSoftwareVideoOutput();
@@ -974,7 +982,24 @@ final class MediaKitPlaybackEngine implements PlaybackEngine {
       final properties = <Future<void>>[
         platform.setProperty('hwdec', hwdec),
         platform.setProperty('vd-lavc-software-fallback', 'yes'),
+        // Force precise seeking to the exact requested timestamp instead of
+        // snapping to the previous keyframe — prevents blocky/corrupted
+        // frames that appear when the decoder starts mid-GOP.
+        platform.setProperty('hr-seek', 'yes'),
+        // Keep all frames during a seek instead of dropping them — avoids
+        // visual glitches (green/grey flash) while decoding catches up.
+        platform.setProperty('hr-seek-framedrop', 'no'),
+        // Lock video presentation to the audio clock for smooth playback
+        // and correct A/V sync after seeks.
+        platform.setProperty('video-sync', 'audio'),
       ];
+
+      // On Android, provide generous demuxer buffers so backward seeks
+      // within already-buffered content resolve without re-fetching.
+      if (defaultTargetPlatform == TargetPlatform.android) {
+        properties.add(platform.setProperty('demuxer-max-bytes', '100MiB'));
+        properties.add(platform.setProperty('demuxer-max-back-bytes', '50MiB'));
+      }
 
       if (isAnimeNexus) {
         // Allow the demuxer to read ~2.5 minutes ahead so playback stays

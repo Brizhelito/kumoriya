@@ -2528,6 +2528,17 @@ class $DownloadTaskTableTable extends DownloadTaskTable
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _episodeTitleMeta = const VerificationMeta(
+    'episodeTitle',
+  );
+  @override
+  late final GeneratedColumn<String> episodeTitle = GeneratedColumn<String>(
+    'episode_title',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -2549,6 +2560,7 @@ class $DownloadTaskTableTable extends DownloadTaskTable
     isHls,
     animeTitle,
     qualityLabel,
+    episodeTitle,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -2701,6 +2713,15 @@ class $DownloadTaskTableTable extends DownloadTaskTable
         ),
       );
     }
+    if (data.containsKey('episode_title')) {
+      context.handle(
+        _episodeTitleMeta,
+        episodeTitle.isAcceptableOrUnknown(
+          data['episode_title']!,
+          _episodeTitleMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -2786,6 +2807,10 @@ class $DownloadTaskTableTable extends DownloadTaskTable
         DriftSqlType.string,
         data['${effectivePrefix}quality_label'],
       ),
+      episodeTitle: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}episode_title'],
+      ),
     );
   }
 
@@ -2824,6 +2849,9 @@ class DownloadTaskTableData extends DataClass
 
   /// Stream quality label (e.g. "1080p", "720p").
   final String? qualityLabel;
+
+  /// Human-readable episode title from the source.
+  final String? episodeTitle;
   const DownloadTaskTableData({
     required this.id,
     required this.anilistId,
@@ -2844,6 +2872,7 @@ class DownloadTaskTableData extends DataClass
     this.isHls,
     this.animeTitle,
     this.qualityLabel,
+    this.episodeTitle,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -2892,6 +2921,9 @@ class DownloadTaskTableData extends DataClass
     }
     if (!nullToAbsent || qualityLabel != null) {
       map['quality_label'] = Variable<String>(qualityLabel);
+    }
+    if (!nullToAbsent || episodeTitle != null) {
+      map['episode_title'] = Variable<String>(episodeTitle);
     }
     return map;
   }
@@ -2943,6 +2975,9 @@ class DownloadTaskTableData extends DataClass
       qualityLabel: qualityLabel == null && nullToAbsent
           ? const Value.absent()
           : Value(qualityLabel),
+      episodeTitle: episodeTitle == null && nullToAbsent
+          ? const Value.absent()
+          : Value(episodeTitle),
     );
   }
 
@@ -2971,6 +3006,7 @@ class DownloadTaskTableData extends DataClass
       isHls: serializer.fromJson<bool?>(json['isHls']),
       animeTitle: serializer.fromJson<String?>(json['animeTitle']),
       qualityLabel: serializer.fromJson<String?>(json['qualityLabel']),
+      episodeTitle: serializer.fromJson<String?>(json['episodeTitle']),
     );
   }
   @override
@@ -2996,6 +3032,7 @@ class DownloadTaskTableData extends DataClass
       'isHls': serializer.toJson<bool?>(isHls),
       'animeTitle': serializer.toJson<String?>(animeTitle),
       'qualityLabel': serializer.toJson<String?>(qualityLabel),
+      'episodeTitle': serializer.toJson<String?>(episodeTitle),
     };
   }
 
@@ -3019,6 +3056,7 @@ class DownloadTaskTableData extends DataClass
     Value<bool?> isHls = const Value.absent(),
     Value<String?> animeTitle = const Value.absent(),
     Value<String?> qualityLabel = const Value.absent(),
+    Value<String?> episodeTitle = const Value.absent(),
   }) => DownloadTaskTableData(
     id: id ?? this.id,
     anilistId: anilistId ?? this.anilistId,
@@ -3043,6 +3081,7 @@ class DownloadTaskTableData extends DataClass
     isHls: isHls.present ? isHls.value : this.isHls,
     animeTitle: animeTitle.present ? animeTitle.value : this.animeTitle,
     qualityLabel: qualityLabel.present ? qualityLabel.value : this.qualityLabel,
+    episodeTitle: episodeTitle.present ? episodeTitle.value : this.episodeTitle,
   );
   DownloadTaskTableData copyWithCompanion(DownloadTaskTableCompanion data) {
     return DownloadTaskTableData(
@@ -3083,6 +3122,9 @@ class DownloadTaskTableData extends DataClass
       qualityLabel: data.qualityLabel.present
           ? data.qualityLabel.value
           : this.qualityLabel,
+      episodeTitle: data.episodeTitle.present
+          ? data.episodeTitle.value
+          : this.episodeTitle,
     );
   }
 
@@ -3107,7 +3149,8 @@ class DownloadTaskTableData extends DataClass
           ..write('headers: $headers, ')
           ..write('isHls: $isHls, ')
           ..write('animeTitle: $animeTitle, ')
-          ..write('qualityLabel: $qualityLabel')
+          ..write('qualityLabel: $qualityLabel, ')
+          ..write('episodeTitle: $episodeTitle')
           ..write(')'))
         .toString();
   }
@@ -3133,6 +3176,7 @@ class DownloadTaskTableData extends DataClass
     isHls,
     animeTitle,
     qualityLabel,
+    episodeTitle,
   );
   @override
   bool operator ==(Object other) =>
@@ -3156,7 +3200,8 @@ class DownloadTaskTableData extends DataClass
           other.headers == this.headers &&
           other.isHls == this.isHls &&
           other.animeTitle == this.animeTitle &&
-          other.qualityLabel == this.qualityLabel);
+          other.qualityLabel == this.qualityLabel &&
+          other.episodeTitle == this.episodeTitle);
 }
 
 class DownloadTaskTableCompanion
@@ -3180,6 +3225,7 @@ class DownloadTaskTableCompanion
   final Value<bool?> isHls;
   final Value<String?> animeTitle;
   final Value<String?> qualityLabel;
+  final Value<String?> episodeTitle;
   final Value<int> rowid;
   const DownloadTaskTableCompanion({
     this.id = const Value.absent(),
@@ -3201,6 +3247,7 @@ class DownloadTaskTableCompanion
     this.isHls = const Value.absent(),
     this.animeTitle = const Value.absent(),
     this.qualityLabel = const Value.absent(),
+    this.episodeTitle = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   DownloadTaskTableCompanion.insert({
@@ -3223,6 +3270,7 @@ class DownloadTaskTableCompanion
     this.isHls = const Value.absent(),
     this.animeTitle = const Value.absent(),
     this.qualityLabel = const Value.absent(),
+    this.episodeTitle = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
        anilistId = Value(anilistId),
@@ -3249,6 +3297,7 @@ class DownloadTaskTableCompanion
     Expression<bool>? isHls,
     Expression<String>? animeTitle,
     Expression<String>? qualityLabel,
+    Expression<String>? episodeTitle,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -3271,6 +3320,7 @@ class DownloadTaskTableCompanion
       if (isHls != null) 'is_hls': isHls,
       if (animeTitle != null) 'anime_title': animeTitle,
       if (qualityLabel != null) 'quality_label': qualityLabel,
+      if (episodeTitle != null) 'episode_title': episodeTitle,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -3295,6 +3345,7 @@ class DownloadTaskTableCompanion
     Value<bool?>? isHls,
     Value<String?>? animeTitle,
     Value<String?>? qualityLabel,
+    Value<String?>? episodeTitle,
     Value<int>? rowid,
   }) {
     return DownloadTaskTableCompanion(
@@ -3317,6 +3368,7 @@ class DownloadTaskTableCompanion
       isHls: isHls ?? this.isHls,
       animeTitle: animeTitle ?? this.animeTitle,
       qualityLabel: qualityLabel ?? this.qualityLabel,
+      episodeTitle: episodeTitle ?? this.episodeTitle,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -3381,6 +3433,9 @@ class DownloadTaskTableCompanion
     if (qualityLabel.present) {
       map['quality_label'] = Variable<String>(qualityLabel.value);
     }
+    if (episodeTitle.present) {
+      map['episode_title'] = Variable<String>(episodeTitle.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -3409,6 +3464,541 @@ class DownloadTaskTableCompanion
           ..write('isHls: $isHls, ')
           ..write('animeTitle: $animeTitle, ')
           ..write('qualityLabel: $qualityLabel, ')
+          ..write('episodeTitle: $episodeTitle, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $HlsSegmentTableTable extends HlsSegmentTable
+    with TableInfo<$HlsSegmentTableTable, HlsSegmentTableData> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $HlsSegmentTableTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _downloadTaskIdMeta = const VerificationMeta(
+    'downloadTaskId',
+  );
+  @override
+  late final GeneratedColumn<String> downloadTaskId = GeneratedColumn<String>(
+    'download_task_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _segmentIndexMeta = const VerificationMeta(
+    'segmentIndex',
+  );
+  @override
+  late final GeneratedColumn<int> segmentIndex = GeneratedColumn<int>(
+    'segment_index',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _urlMeta = const VerificationMeta('url');
+  @override
+  late final GeneratedColumn<String> url = GeneratedColumn<String>(
+    'url',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _statusMeta = const VerificationMeta('status');
+  @override
+  late final GeneratedColumn<String> status = GeneratedColumn<String>(
+    'status',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('pending'),
+  );
+  static const VerificationMeta _localPathMeta = const VerificationMeta(
+    'localPath',
+  );
+  @override
+  late final GeneratedColumn<String> localPath = GeneratedColumn<String>(
+    'local_path',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _byteSizeMeta = const VerificationMeta(
+    'byteSize',
+  );
+  @override
+  late final GeneratedColumn<int> byteSize = GeneratedColumn<int>(
+    'byte_size',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _retryCountMeta = const VerificationMeta(
+    'retryCount',
+  );
+  @override
+  late final GeneratedColumn<int> retryCount = GeneratedColumn<int>(
+    'retry_count',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    downloadTaskId,
+    segmentIndex,
+    url,
+    status,
+    localPath,
+    byteSize,
+    retryCount,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'hls_segment';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<HlsSegmentTableData> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('download_task_id')) {
+      context.handle(
+        _downloadTaskIdMeta,
+        downloadTaskId.isAcceptableOrUnknown(
+          data['download_task_id']!,
+          _downloadTaskIdMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_downloadTaskIdMeta);
+    }
+    if (data.containsKey('segment_index')) {
+      context.handle(
+        _segmentIndexMeta,
+        segmentIndex.isAcceptableOrUnknown(
+          data['segment_index']!,
+          _segmentIndexMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_segmentIndexMeta);
+    }
+    if (data.containsKey('url')) {
+      context.handle(
+        _urlMeta,
+        url.isAcceptableOrUnknown(data['url']!, _urlMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_urlMeta);
+    }
+    if (data.containsKey('status')) {
+      context.handle(
+        _statusMeta,
+        status.isAcceptableOrUnknown(data['status']!, _statusMeta),
+      );
+    }
+    if (data.containsKey('local_path')) {
+      context.handle(
+        _localPathMeta,
+        localPath.isAcceptableOrUnknown(data['local_path']!, _localPathMeta),
+      );
+    }
+    if (data.containsKey('byte_size')) {
+      context.handle(
+        _byteSizeMeta,
+        byteSize.isAcceptableOrUnknown(data['byte_size']!, _byteSizeMeta),
+      );
+    }
+    if (data.containsKey('retry_count')) {
+      context.handle(
+        _retryCountMeta,
+        retryCount.isAcceptableOrUnknown(data['retry_count']!, _retryCountMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  HlsSegmentTableData map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return HlsSegmentTableData(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      downloadTaskId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}download_task_id'],
+      )!,
+      segmentIndex: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}segment_index'],
+      )!,
+      url: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}url'],
+      )!,
+      status: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}status'],
+      )!,
+      localPath: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}local_path'],
+      ),
+      byteSize: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}byte_size'],
+      ),
+      retryCount: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}retry_count'],
+      )!,
+    );
+  }
+
+  @override
+  $HlsSegmentTableTable createAlias(String alias) {
+    return $HlsSegmentTableTable(attachedDatabase, alias);
+  }
+}
+
+class HlsSegmentTableData extends DataClass
+    implements Insertable<HlsSegmentTableData> {
+  /// Deterministic ID: `{downloadTaskId}:seg:{segmentIndex}`.
+  final String id;
+
+  /// FK reference to the parent download_task.id.
+  final String downloadTaskId;
+
+  /// Zero-based position in the playlist — determines concatenation order.
+  final int segmentIndex;
+
+  /// Absolute URL of the .ts segment.
+  final String url;
+
+  /// Current status: pending | downloading | completed | failed.
+  final String status;
+
+  /// Local file path where the segment is stored.
+  final String? localPath;
+
+  /// Byte count of the downloaded segment.
+  final int? byteSize;
+
+  /// Number of failed retry attempts.
+  final int retryCount;
+  const HlsSegmentTableData({
+    required this.id,
+    required this.downloadTaskId,
+    required this.segmentIndex,
+    required this.url,
+    required this.status,
+    this.localPath,
+    this.byteSize,
+    required this.retryCount,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['download_task_id'] = Variable<String>(downloadTaskId);
+    map['segment_index'] = Variable<int>(segmentIndex);
+    map['url'] = Variable<String>(url);
+    map['status'] = Variable<String>(status);
+    if (!nullToAbsent || localPath != null) {
+      map['local_path'] = Variable<String>(localPath);
+    }
+    if (!nullToAbsent || byteSize != null) {
+      map['byte_size'] = Variable<int>(byteSize);
+    }
+    map['retry_count'] = Variable<int>(retryCount);
+    return map;
+  }
+
+  HlsSegmentTableCompanion toCompanion(bool nullToAbsent) {
+    return HlsSegmentTableCompanion(
+      id: Value(id),
+      downloadTaskId: Value(downloadTaskId),
+      segmentIndex: Value(segmentIndex),
+      url: Value(url),
+      status: Value(status),
+      localPath: localPath == null && nullToAbsent
+          ? const Value.absent()
+          : Value(localPath),
+      byteSize: byteSize == null && nullToAbsent
+          ? const Value.absent()
+          : Value(byteSize),
+      retryCount: Value(retryCount),
+    );
+  }
+
+  factory HlsSegmentTableData.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return HlsSegmentTableData(
+      id: serializer.fromJson<String>(json['id']),
+      downloadTaskId: serializer.fromJson<String>(json['downloadTaskId']),
+      segmentIndex: serializer.fromJson<int>(json['segmentIndex']),
+      url: serializer.fromJson<String>(json['url']),
+      status: serializer.fromJson<String>(json['status']),
+      localPath: serializer.fromJson<String?>(json['localPath']),
+      byteSize: serializer.fromJson<int?>(json['byteSize']),
+      retryCount: serializer.fromJson<int>(json['retryCount']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'downloadTaskId': serializer.toJson<String>(downloadTaskId),
+      'segmentIndex': serializer.toJson<int>(segmentIndex),
+      'url': serializer.toJson<String>(url),
+      'status': serializer.toJson<String>(status),
+      'localPath': serializer.toJson<String?>(localPath),
+      'byteSize': serializer.toJson<int?>(byteSize),
+      'retryCount': serializer.toJson<int>(retryCount),
+    };
+  }
+
+  HlsSegmentTableData copyWith({
+    String? id,
+    String? downloadTaskId,
+    int? segmentIndex,
+    String? url,
+    String? status,
+    Value<String?> localPath = const Value.absent(),
+    Value<int?> byteSize = const Value.absent(),
+    int? retryCount,
+  }) => HlsSegmentTableData(
+    id: id ?? this.id,
+    downloadTaskId: downloadTaskId ?? this.downloadTaskId,
+    segmentIndex: segmentIndex ?? this.segmentIndex,
+    url: url ?? this.url,
+    status: status ?? this.status,
+    localPath: localPath.present ? localPath.value : this.localPath,
+    byteSize: byteSize.present ? byteSize.value : this.byteSize,
+    retryCount: retryCount ?? this.retryCount,
+  );
+  HlsSegmentTableData copyWithCompanion(HlsSegmentTableCompanion data) {
+    return HlsSegmentTableData(
+      id: data.id.present ? data.id.value : this.id,
+      downloadTaskId: data.downloadTaskId.present
+          ? data.downloadTaskId.value
+          : this.downloadTaskId,
+      segmentIndex: data.segmentIndex.present
+          ? data.segmentIndex.value
+          : this.segmentIndex,
+      url: data.url.present ? data.url.value : this.url,
+      status: data.status.present ? data.status.value : this.status,
+      localPath: data.localPath.present ? data.localPath.value : this.localPath,
+      byteSize: data.byteSize.present ? data.byteSize.value : this.byteSize,
+      retryCount: data.retryCount.present
+          ? data.retryCount.value
+          : this.retryCount,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('HlsSegmentTableData(')
+          ..write('id: $id, ')
+          ..write('downloadTaskId: $downloadTaskId, ')
+          ..write('segmentIndex: $segmentIndex, ')
+          ..write('url: $url, ')
+          ..write('status: $status, ')
+          ..write('localPath: $localPath, ')
+          ..write('byteSize: $byteSize, ')
+          ..write('retryCount: $retryCount')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    downloadTaskId,
+    segmentIndex,
+    url,
+    status,
+    localPath,
+    byteSize,
+    retryCount,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is HlsSegmentTableData &&
+          other.id == this.id &&
+          other.downloadTaskId == this.downloadTaskId &&
+          other.segmentIndex == this.segmentIndex &&
+          other.url == this.url &&
+          other.status == this.status &&
+          other.localPath == this.localPath &&
+          other.byteSize == this.byteSize &&
+          other.retryCount == this.retryCount);
+}
+
+class HlsSegmentTableCompanion extends UpdateCompanion<HlsSegmentTableData> {
+  final Value<String> id;
+  final Value<String> downloadTaskId;
+  final Value<int> segmentIndex;
+  final Value<String> url;
+  final Value<String> status;
+  final Value<String?> localPath;
+  final Value<int?> byteSize;
+  final Value<int> retryCount;
+  final Value<int> rowid;
+  const HlsSegmentTableCompanion({
+    this.id = const Value.absent(),
+    this.downloadTaskId = const Value.absent(),
+    this.segmentIndex = const Value.absent(),
+    this.url = const Value.absent(),
+    this.status = const Value.absent(),
+    this.localPath = const Value.absent(),
+    this.byteSize = const Value.absent(),
+    this.retryCount = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  HlsSegmentTableCompanion.insert({
+    required String id,
+    required String downloadTaskId,
+    required int segmentIndex,
+    required String url,
+    this.status = const Value.absent(),
+    this.localPath = const Value.absent(),
+    this.byteSize = const Value.absent(),
+    this.retryCount = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       downloadTaskId = Value(downloadTaskId),
+       segmentIndex = Value(segmentIndex),
+       url = Value(url);
+  static Insertable<HlsSegmentTableData> custom({
+    Expression<String>? id,
+    Expression<String>? downloadTaskId,
+    Expression<int>? segmentIndex,
+    Expression<String>? url,
+    Expression<String>? status,
+    Expression<String>? localPath,
+    Expression<int>? byteSize,
+    Expression<int>? retryCount,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (downloadTaskId != null) 'download_task_id': downloadTaskId,
+      if (segmentIndex != null) 'segment_index': segmentIndex,
+      if (url != null) 'url': url,
+      if (status != null) 'status': status,
+      if (localPath != null) 'local_path': localPath,
+      if (byteSize != null) 'byte_size': byteSize,
+      if (retryCount != null) 'retry_count': retryCount,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  HlsSegmentTableCompanion copyWith({
+    Value<String>? id,
+    Value<String>? downloadTaskId,
+    Value<int>? segmentIndex,
+    Value<String>? url,
+    Value<String>? status,
+    Value<String?>? localPath,
+    Value<int?>? byteSize,
+    Value<int>? retryCount,
+    Value<int>? rowid,
+  }) {
+    return HlsSegmentTableCompanion(
+      id: id ?? this.id,
+      downloadTaskId: downloadTaskId ?? this.downloadTaskId,
+      segmentIndex: segmentIndex ?? this.segmentIndex,
+      url: url ?? this.url,
+      status: status ?? this.status,
+      localPath: localPath ?? this.localPath,
+      byteSize: byteSize ?? this.byteSize,
+      retryCount: retryCount ?? this.retryCount,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (downloadTaskId.present) {
+      map['download_task_id'] = Variable<String>(downloadTaskId.value);
+    }
+    if (segmentIndex.present) {
+      map['segment_index'] = Variable<int>(segmentIndex.value);
+    }
+    if (url.present) {
+      map['url'] = Variable<String>(url.value);
+    }
+    if (status.present) {
+      map['status'] = Variable<String>(status.value);
+    }
+    if (localPath.present) {
+      map['local_path'] = Variable<String>(localPath.value);
+    }
+    if (byteSize.present) {
+      map['byte_size'] = Variable<int>(byteSize.value);
+    }
+    if (retryCount.present) {
+      map['retry_count'] = Variable<int>(retryCount.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('HlsSegmentTableCompanion(')
+          ..write('id: $id, ')
+          ..write('downloadTaskId: $downloadTaskId, ')
+          ..write('segmentIndex: $segmentIndex, ')
+          ..write('url: $url, ')
+          ..write('status: $status, ')
+          ..write('localPath: $localPath, ')
+          ..write('byteSize: $byteSize, ')
+          ..write('retryCount: $retryCount, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -4737,6 +5327,9 @@ abstract class _$AppDatabase extends GeneratedDatabase {
       $AniSkipCacheTableTable(this);
   late final $DownloadTaskTableTable downloadTaskTable =
       $DownloadTaskTableTable(this);
+  late final $HlsSegmentTableTable hlsSegmentTable = $HlsSegmentTableTable(
+    this,
+  );
   late final $LibraryEntryTableTable libraryEntryTable =
       $LibraryEntryTableTable(this);
   late final $AnilistCacheTableTable anilistCacheTable =
@@ -4755,6 +5348,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final DownloadTaskDao downloadTaskDao = DownloadTaskDao(
     this as AppDatabase,
   );
+  late final HlsSegmentDao hlsSegmentDao = HlsSegmentDao(this as AppDatabase);
   late final LibraryEntryDao libraryEntryDao = LibraryEntryDao(
     this as AppDatabase,
   );
@@ -4772,6 +5366,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     sourceAvailabilityCacheTable,
     aniSkipCacheTable,
     downloadTaskTable,
+    hlsSegmentTable,
     libraryEntryTable,
     anilistCacheTable,
   ];
@@ -6005,6 +6600,7 @@ typedef $$DownloadTaskTableTableCreateCompanionBuilder =
       Value<bool?> isHls,
       Value<String?> animeTitle,
       Value<String?> qualityLabel,
+      Value<String?> episodeTitle,
       Value<int> rowid,
     });
 typedef $$DownloadTaskTableTableUpdateCompanionBuilder =
@@ -6028,6 +6624,7 @@ typedef $$DownloadTaskTableTableUpdateCompanionBuilder =
       Value<bool?> isHls,
       Value<String?> animeTitle,
       Value<String?> qualityLabel,
+      Value<String?> episodeTitle,
       Value<int> rowid,
     });
 
@@ -6132,6 +6729,11 @@ class $$DownloadTaskTableTableFilterComposer
 
   ColumnFilters<String> get qualityLabel => $composableBuilder(
     column: $table.qualityLabel,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get episodeTitle => $composableBuilder(
+    column: $table.episodeTitle,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -6239,6 +6841,11 @@ class $$DownloadTaskTableTableOrderingComposer
     column: $table.qualityLabel,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<String> get episodeTitle => $composableBuilder(
+    column: $table.episodeTitle,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$DownloadTaskTableTableAnnotationComposer
@@ -6324,6 +6931,11 @@ class $$DownloadTaskTableTableAnnotationComposer
     column: $table.qualityLabel,
     builder: (column) => column,
   );
+
+  GeneratedColumn<String> get episodeTitle => $composableBuilder(
+    column: $table.episodeTitle,
+    builder: (column) => column,
+  );
 }
 
 class $$DownloadTaskTableTableTableManager
@@ -6385,6 +6997,7 @@ class $$DownloadTaskTableTableTableManager
                 Value<bool?> isHls = const Value.absent(),
                 Value<String?> animeTitle = const Value.absent(),
                 Value<String?> qualityLabel = const Value.absent(),
+                Value<String?> episodeTitle = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => DownloadTaskTableCompanion(
                 id: id,
@@ -6406,6 +7019,7 @@ class $$DownloadTaskTableTableTableManager
                 isHls: isHls,
                 animeTitle: animeTitle,
                 qualityLabel: qualityLabel,
+                episodeTitle: episodeTitle,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -6429,6 +7043,7 @@ class $$DownloadTaskTableTableTableManager
                 Value<bool?> isHls = const Value.absent(),
                 Value<String?> animeTitle = const Value.absent(),
                 Value<String?> qualityLabel = const Value.absent(),
+                Value<String?> episodeTitle = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => DownloadTaskTableCompanion.insert(
                 id: id,
@@ -6450,6 +7065,7 @@ class $$DownloadTaskTableTableTableManager
                 isHls: isHls,
                 animeTitle: animeTitle,
                 qualityLabel: qualityLabel,
+                episodeTitle: episodeTitle,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
@@ -6479,6 +7095,279 @@ typedef $$DownloadTaskTableTableProcessedTableManager =
         >,
       ),
       DownloadTaskTableData,
+      PrefetchHooks Function()
+    >;
+typedef $$HlsSegmentTableTableCreateCompanionBuilder =
+    HlsSegmentTableCompanion Function({
+      required String id,
+      required String downloadTaskId,
+      required int segmentIndex,
+      required String url,
+      Value<String> status,
+      Value<String?> localPath,
+      Value<int?> byteSize,
+      Value<int> retryCount,
+      Value<int> rowid,
+    });
+typedef $$HlsSegmentTableTableUpdateCompanionBuilder =
+    HlsSegmentTableCompanion Function({
+      Value<String> id,
+      Value<String> downloadTaskId,
+      Value<int> segmentIndex,
+      Value<String> url,
+      Value<String> status,
+      Value<String?> localPath,
+      Value<int?> byteSize,
+      Value<int> retryCount,
+      Value<int> rowid,
+    });
+
+class $$HlsSegmentTableTableFilterComposer
+    extends Composer<_$AppDatabase, $HlsSegmentTableTable> {
+  $$HlsSegmentTableTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get downloadTaskId => $composableBuilder(
+    column: $table.downloadTaskId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get segmentIndex => $composableBuilder(
+    column: $table.segmentIndex,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get url => $composableBuilder(
+    column: $table.url,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get status => $composableBuilder(
+    column: $table.status,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get localPath => $composableBuilder(
+    column: $table.localPath,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get byteSize => $composableBuilder(
+    column: $table.byteSize,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get retryCount => $composableBuilder(
+    column: $table.retryCount,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$HlsSegmentTableTableOrderingComposer
+    extends Composer<_$AppDatabase, $HlsSegmentTableTable> {
+  $$HlsSegmentTableTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get downloadTaskId => $composableBuilder(
+    column: $table.downloadTaskId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get segmentIndex => $composableBuilder(
+    column: $table.segmentIndex,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get url => $composableBuilder(
+    column: $table.url,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get status => $composableBuilder(
+    column: $table.status,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get localPath => $composableBuilder(
+    column: $table.localPath,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get byteSize => $composableBuilder(
+    column: $table.byteSize,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get retryCount => $composableBuilder(
+    column: $table.retryCount,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$HlsSegmentTableTableAnnotationComposer
+    extends Composer<_$AppDatabase, $HlsSegmentTableTable> {
+  $$HlsSegmentTableTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get downloadTaskId => $composableBuilder(
+    column: $table.downloadTaskId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get segmentIndex => $composableBuilder(
+    column: $table.segmentIndex,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get url =>
+      $composableBuilder(column: $table.url, builder: (column) => column);
+
+  GeneratedColumn<String> get status =>
+      $composableBuilder(column: $table.status, builder: (column) => column);
+
+  GeneratedColumn<String> get localPath =>
+      $composableBuilder(column: $table.localPath, builder: (column) => column);
+
+  GeneratedColumn<int> get byteSize =>
+      $composableBuilder(column: $table.byteSize, builder: (column) => column);
+
+  GeneratedColumn<int> get retryCount => $composableBuilder(
+    column: $table.retryCount,
+    builder: (column) => column,
+  );
+}
+
+class $$HlsSegmentTableTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $HlsSegmentTableTable,
+          HlsSegmentTableData,
+          $$HlsSegmentTableTableFilterComposer,
+          $$HlsSegmentTableTableOrderingComposer,
+          $$HlsSegmentTableTableAnnotationComposer,
+          $$HlsSegmentTableTableCreateCompanionBuilder,
+          $$HlsSegmentTableTableUpdateCompanionBuilder,
+          (
+            HlsSegmentTableData,
+            BaseReferences<
+              _$AppDatabase,
+              $HlsSegmentTableTable,
+              HlsSegmentTableData
+            >,
+          ),
+          HlsSegmentTableData,
+          PrefetchHooks Function()
+        > {
+  $$HlsSegmentTableTableTableManager(
+    _$AppDatabase db,
+    $HlsSegmentTableTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$HlsSegmentTableTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$HlsSegmentTableTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$HlsSegmentTableTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> downloadTaskId = const Value.absent(),
+                Value<int> segmentIndex = const Value.absent(),
+                Value<String> url = const Value.absent(),
+                Value<String> status = const Value.absent(),
+                Value<String?> localPath = const Value.absent(),
+                Value<int?> byteSize = const Value.absent(),
+                Value<int> retryCount = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => HlsSegmentTableCompanion(
+                id: id,
+                downloadTaskId: downloadTaskId,
+                segmentIndex: segmentIndex,
+                url: url,
+                status: status,
+                localPath: localPath,
+                byteSize: byteSize,
+                retryCount: retryCount,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String downloadTaskId,
+                required int segmentIndex,
+                required String url,
+                Value<String> status = const Value.absent(),
+                Value<String?> localPath = const Value.absent(),
+                Value<int?> byteSize = const Value.absent(),
+                Value<int> retryCount = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => HlsSegmentTableCompanion.insert(
+                id: id,
+                downloadTaskId: downloadTaskId,
+                segmentIndex: segmentIndex,
+                url: url,
+                status: status,
+                localPath: localPath,
+                byteSize: byteSize,
+                retryCount: retryCount,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$HlsSegmentTableTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $HlsSegmentTableTable,
+      HlsSegmentTableData,
+      $$HlsSegmentTableTableFilterComposer,
+      $$HlsSegmentTableTableOrderingComposer,
+      $$HlsSegmentTableTableAnnotationComposer,
+      $$HlsSegmentTableTableCreateCompanionBuilder,
+      $$HlsSegmentTableTableUpdateCompanionBuilder,
+      (
+        HlsSegmentTableData,
+        BaseReferences<
+          _$AppDatabase,
+          $HlsSegmentTableTable,
+          HlsSegmentTableData
+        >,
+      ),
+      HlsSegmentTableData,
       PrefetchHooks Function()
     >;
 typedef $$LibraryEntryTableTableCreateCompanionBuilder =
@@ -7134,6 +8023,8 @@ class $AppDatabaseManager {
       $$AniSkipCacheTableTableTableManager(_db, _db.aniSkipCacheTable);
   $$DownloadTaskTableTableTableManager get downloadTaskTable =>
       $$DownloadTaskTableTableTableManager(_db, _db.downloadTaskTable);
+  $$HlsSegmentTableTableTableManager get hlsSegmentTable =>
+      $$HlsSegmentTableTableTableManager(_db, _db.hlsSegmentTable);
   $$LibraryEntryTableTableTableManager get libraryEntryTable =>
       $$LibraryEntryTableTableTableManager(_db, _db.libraryEntryTable);
   $$AnilistCacheTableTableTableManager get anilistCacheTable =>

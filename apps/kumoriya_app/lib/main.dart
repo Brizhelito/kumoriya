@@ -12,6 +12,7 @@ import 'package:window_manager/window_manager.dart';
 
 import 'src/app/kumoriya_app.dart';
 import 'src/features/anime_catalog/presentation/providers/storage_providers.dart';
+import 'src/features/downloads/application/download_foreground_service.dart';
 import 'src/features/downloads/presentation/download_providers.dart';
 import 'src/workers/check_new_episodes_worker.dart';
 
@@ -22,20 +23,28 @@ void main() async {
   }
   MediaKit.ensureInitialized();
 
-  final db = await openAppDatabase();
-
-  // Initialize local notifications (creates the Android channel).
+  // Open DB and platform-specific init in parallel — both are independent.
+  late final AppDatabase db;
   if (Platform.isAndroid) {
-    await _initNotifications();
-    await _initWorkmanager();
+    DownloadForegroundService.initialize();
+    final results = await (
+      openAppDatabase(),
+      _initNotifications(),
+      _initWorkmanager(),
+    ).wait;
+    db = results.$1;
+  } else {
+    db = await openAppDatabase();
   }
 
   final container = ProviderContainer(
     overrides: [appDatabaseProvider.overrideWithValue(db)],
   );
 
-  // Restore pending downloads from a previous session.
-  container.read(downloadManagerProvider).restoreQueue();
+  // Restore pending downloads after the first frame to avoid blocking paint.
+  Future.microtask(
+    () => container.read(downloadManagerProvider).restoreQueue(),
+  );
 
   // Purge stale cache entries (fire-and-forget, non-blocking).
   unawaited(_purgeExpiredCaches(container));
