@@ -1927,171 +1927,36 @@ class _ImmersivePlayerViewState extends State<_ImmersivePlayerView>
                 ),
 
               // Controls overlay (animated)
-              AnimatedOpacity(
-                opacity: _controlsVisible ? 1.0 : 0.0,
-                duration: const Duration(milliseconds: 300),
-                child: IgnorePointer(
-                  ignoring: !_controlsVisible,
-                  child: Stack(
-                    fit: StackFit.expand,
-                    children: <Widget>[
-                      // Radial vignettes (replaces linear gradient)
-                      CustomPaint(
-                        size: Size.infinite,
-                        painter: const _RadialVignettePainter(),
-                      ),
-
-                      // Top-left: Back + title
-                      Positioned(
-                        left: KumoriyaSpacing.lg,
-                        top:
-                            KumoriyaSpacing.md +
-                            MediaQuery.of(context).padding.top,
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisSize: MainAxisSize.min,
-                          children: <Widget>[
-                            IconButton(
-                              onPressed: widget.onBack,
-                              tooltip: context.l10n.playerBack,
-                              icon: Icon(
-                                KumoriyaIcons.playerBack,
-                                color: KumoriyaColors.textPrimary,
-                                size: 24,
-                                shadows: const <Shadow>[
-                                  Shadow(color: Colors.black54, blurRadius: 6),
-                                ],
-                              ),
-                              iconSize: 24,
-                              padding: const EdgeInsets.all(12),
-                            ),
-                            const SizedBox(width: KumoriyaSpacing.sm),
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              mainAxisSize: MainAxisSize.min,
-                              children: <Widget>[
-                                Text(
-                                  widget.animeTitle,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: Theme.of(context).textTheme.bodySmall!
-                                      .copyWith(
-                                        color: KumoriyaColors.textMuted,
-                                        shadows: const <Shadow>[
-                                          Shadow(
-                                            color: Colors.black54,
-                                            blurRadius: 4,
-                                          ),
-                                        ],
-                                      ),
-                                ),
-                                Text(
-                                  widget.episodeTitle != null
-                                      ? 'EP ${widget.episodeNumber} \u2014 ${widget.episodeTitle}'
-                                      : 'EP ${widget.episodeNumber}',
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: Theme.of(context)
-                                      .textTheme
-                                      .headlineSmall!
-                                      .copyWith(
-                                        color: KumoriyaColors.textPrimary,
-                                        shadows: const <Shadow>[
-                                          Shadow(
-                                            color: Colors.black54,
-                                            blurRadius: 6,
-                                          ),
-                                        ],
-                                      ),
-                                ),
-                              ],
-                            ),
-                          ],
+              RepaintBoundary(
+                child: AnimatedOpacity(
+                  opacity: _controlsVisible ? 1.0 : 0.0,
+                  duration: const Duration(milliseconds: 300),
+                  child: IgnorePointer(
+                    ignoring: !_controlsVisible,
+                    child: Stack(
+                      fit: StackFit.expand,
+                      children: <Widget>[
+                        // Radial vignettes (replaces linear gradient)
+                        CustomPaint(
+                          size: Size.infinite,
+                          painter: const _RadialVignettePainter(),
                         ),
-                      ),
 
-                      // Top-right: Settings + navigation cluster
-                      Positioned(
-                        right: KumoriyaSpacing.lg,
-                        top:
-                            KumoriyaSpacing.md +
-                            MediaQuery.of(context).padding.top,
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: <Widget>[
-                            // Speed pill
-                            GestureDetector(
-                              onTap: () => _showSpeedSelector(context),
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 10,
-                                  vertical: 10,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: KumoriyaColors.playerControlBg,
-                                  borderRadius: BorderRadius.circular(
-                                    KumoriyaRadius.full,
-                                  ),
-                                ),
-                                child: Text(
-                                  '${_baseSpeed}x',
-                                  style: Theme.of(context).textTheme.labelSmall!
-                                      .copyWith(
-                                        color: _baseSpeed != 1.0
-                                            ? KumoriyaColors.accentAmber
-                                            : KumoriyaColors.textPrimary,
-                                      ),
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: KumoriyaSpacing.sm),
-                            // Auto-skip toggle
-                            GestureDetector(
-                              onTap: widget.onAutoSkipToggled,
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 10,
-                                  vertical: 10,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: KumoriyaColors.playerControlBg,
-                                  borderRadius: BorderRadius.circular(
-                                    KumoriyaRadius.full,
-                                  ),
-                                ),
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: <Widget>[
-                                    Icon(
-                                      Icons.fast_forward_rounded,
-                                      size: 16,
-                                      color: widget.autoSkipEnabled
-                                          ? KumoriyaColors.accentAmber
-                                          : KumoriyaColors.textSecondary,
-                                    ),
-                                    const SizedBox(width: 4),
-                                    Text(
-                                      'Auto',
-                                      style: Theme.of(context)
-                                          .textTheme
-                                          .labelSmall!
-                                          .copyWith(
-                                            color: widget.autoSkipEnabled
-                                                ? KumoriyaColors.accentAmber
-                                                : KumoriyaColors.textSecondary,
-                                          ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: KumoriyaSpacing.md),
-                            // Previous episode
-                            if (widget.onPreviousEpisode != null)
+                        // Top-left: Back + title
+                        Positioned(
+                          left: KumoriyaSpacing.lg,
+                          top:
+                              KumoriyaSpacing.md +
+                              MediaQuery.of(context).padding.top,
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
+                            children: <Widget>[
                               IconButton(
-                                onPressed: widget.onPreviousEpisode,
+                                onPressed: widget.onBack,
+                                tooltip: context.l10n.playerBack,
                                 icon: Icon(
-                                  KumoriyaIcons.playerPreviousEpisode,
+                                  KumoriyaIcons.playerBack,
                                   color: KumoriyaColors.textPrimary,
                                   size: 24,
                                   shadows: const <Shadow>[
@@ -2103,300 +1968,463 @@ class _ImmersivePlayerViewState extends State<_ImmersivePlayerView>
                                 ),
                                 iconSize: 24,
                                 padding: const EdgeInsets.all(12),
-                                tooltip: context.l10n.playerPreviousEpisode,
                               ),
-                            // Next episode
-                            IconButton(
-                              onPressed: widget.onOpenEpisodes,
-                              icon: Icon(
-                                KumoriyaIcons.playerNextEpisode,
-                                color: KumoriyaColors.textPrimary,
-                                size: 28,
-                                shadows: const <Shadow>[
-                                  Shadow(color: Colors.black54, blurRadius: 6),
+                              const SizedBox(width: KumoriyaSpacing.sm),
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                mainAxisSize: MainAxisSize.min,
+                                children: <Widget>[
+                                  Text(
+                                    widget.animeTitle,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .bodySmall!
+                                        .copyWith(
+                                          color: KumoriyaColors.textMuted,
+                                          shadows: const <Shadow>[
+                                            Shadow(
+                                              color: Colors.black54,
+                                              blurRadius: 4,
+                                            ),
+                                          ],
+                                        ),
+                                  ),
+                                  Text(
+                                    widget.episodeTitle != null
+                                        ? 'EP ${widget.episodeNumber} \u2014 ${widget.episodeTitle}'
+                                        : 'EP ${widget.episodeNumber}',
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .headlineSmall!
+                                        .copyWith(
+                                          color: KumoriyaColors.textPrimary,
+                                          shadows: const <Shadow>[
+                                            Shadow(
+                                              color: Colors.black54,
+                                              blurRadius: 6,
+                                            ),
+                                          ],
+                                        ),
+                                  ),
                                 ],
                               ),
-                              iconSize: 28,
-                              padding: const EdgeInsets.all(10),
-                              tooltip: context.l10n.playerNextEpisode,
-                            ),
-                            const SizedBox(width: KumoriyaSpacing.md),
-                            // Fullscreen / Orientation lock
-                            if (Platform.isWindows)
-                              IconButton(
-                                onPressed: widget.onToggleWindowsFullscreen,
-                                icon: Icon(
-                                  widget.isWindowsFullscreen
-                                      ? KumoriyaIcons.playerFullscreenExit
-                                      : KumoriyaIcons.playerFullscreen,
-                                  color: KumoriyaColors.textPrimary,
-                                  size: 24,
-                                  shadows: const <Shadow>[
-                                    Shadow(
-                                      color: Colors.black54,
-                                      blurRadius: 6,
-                                    ),
-                                  ],
-                                ),
-                                iconSize: 24,
-                                padding: const EdgeInsets.all(12),
-                                tooltip: widget.isWindowsFullscreen
-                                    ? 'Exit fullscreen'
-                                    : 'Fullscreen',
-                              )
-                            else
-                              IconButton(
-                                onPressed: _toggleOrientationLock,
-                                icon: Icon(
-                                  _orientationLocked
-                                      ? Icons.screen_lock_rotation_rounded
-                                      : Icons.screen_rotation_rounded,
-                                  color: KumoriyaColors.textPrimary,
-                                  size: 24,
-                                  shadows: const <Shadow>[
-                                    Shadow(
-                                      color: Colors.black54,
-                                      blurRadius: 6,
-                                    ),
-                                  ],
-                                ),
-                                iconSize: 24,
-                                padding: const EdgeInsets.all(12),
-                                tooltip: _orientationLocked
-                                    ? context.l10n.playerUnlockRotation
-                                    : context.l10n.playerLockRotation,
-                              ),
-                            const SizedBox(width: KumoriyaSpacing.sm),
-                            IconButton(
-                              onPressed: () {
-                                setState(() {
-                                  _controlsLocked = true;
-                                  _controlsVisible = false;
-                                });
-                                _hideTimer?.cancel();
-                              },
-                              icon: Icon(
-                                Icons.lock_outline_rounded,
-                                color: KumoriyaColors.textPrimary,
-                                size: 24,
-                                shadows: const <Shadow>[
-                                  Shadow(color: Colors.black54, blurRadius: 6),
-                                ],
-                              ),
-                              iconSize: 24,
-                              padding: const EdgeInsets.all(12),
-                              tooltip: context.l10n.playerLockControls,
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
-                      ),
 
-                      // Center: Frosted glass play/pause + bare skip buttons
-                      if (!_isDragSeeking)
-                        Center(
+                        // Top-right: Settings + navigation cluster
+                        Positioned(
+                          right: KumoriyaSpacing.lg,
+                          top:
+                              KumoriyaSpacing.md +
+                              MediaQuery.of(context).padding.top,
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: <Widget>[
-                              // Skip back
-                              SizedBox(
-                                width: 56,
-                                height: 56,
-                                child: IconButton(
-                                  onPressed: widget.onSkipBackward,
-                                  tooltip: context.l10n.playerSkipBackward,
-                                  icon: Icon(
-                                    KumoriyaIcons.playerSeekBack10,
-                                    color: KumoriyaColors.textPrimary,
-                                    size: 28,
-                                    shadows: const <Shadow>[
-                                      Shadow(
-                                        color: Color(0xCC000000),
-                                        blurRadius: 8,
+                              // Speed pill
+                              GestureDetector(
+                                onTap: () => _showSpeedSelector(context),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 10,
+                                    vertical: 10,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: KumoriyaColors.playerControlBg,
+                                    borderRadius: BorderRadius.circular(
+                                      KumoriyaRadius.full,
+                                    ),
+                                  ),
+                                  child: Text(
+                                    '${_baseSpeed}x',
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .labelSmall!
+                                        .copyWith(
+                                          color: _baseSpeed != 1.0
+                                              ? KumoriyaColors.accentAmber
+                                              : KumoriyaColors.textPrimary,
+                                        ),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: KumoriyaSpacing.sm),
+                              // Auto-skip toggle
+                              GestureDetector(
+                                onTap: widget.onAutoSkipToggled,
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 10,
+                                    vertical: 10,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: KumoriyaColors.playerControlBg,
+                                    borderRadius: BorderRadius.circular(
+                                      KumoriyaRadius.full,
+                                    ),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: <Widget>[
+                                      Icon(
+                                        Icons.fast_forward_rounded,
+                                        size: 16,
+                                        color: widget.autoSkipEnabled
+                                            ? KumoriyaColors.accentAmber
+                                            : KumoriyaColors.textSecondary,
                                       ),
-                                      Shadow(
-                                        color: Color(0x66000000),
-                                        blurRadius: 24,
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        'Auto',
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .labelSmall!
+                                            .copyWith(
+                                              color: widget.autoSkipEnabled
+                                                  ? KumoriyaColors.accentAmber
+                                                  : KumoriyaColors
+                                                        .textSecondary,
+                                            ),
                                       ),
                                     ],
                                   ),
-                                  padding: EdgeInsets.zero,
                                 ),
                               ),
-                              const SizedBox(width: KumoriyaSpacing.xxxl),
-                              // Frosted glass play/pause
-                              ClipOval(
-                                child: BackdropFilter(
-                                  filter: ImageFilter.blur(
-                                    sigmaX: 12,
-                                    sigmaY: 12,
+                              const SizedBox(width: KumoriyaSpacing.md),
+                              // Previous episode
+                              if (widget.onPreviousEpisode != null)
+                                IconButton(
+                                  onPressed: widget.onPreviousEpisode,
+                                  icon: Icon(
+                                    KumoriyaIcons.playerPreviousEpisode,
+                                    color: KumoriyaColors.textPrimary,
+                                    size: 24,
+                                    shadows: const <Shadow>[
+                                      Shadow(
+                                        color: Colors.black54,
+                                        blurRadius: 6,
+                                      ),
+                                    ],
                                   ),
-                                  child: Material(
-                                    color: Colors.transparent,
-                                    shape: const CircleBorder(),
-                                    child: InkWell(
-                                      customBorder: const CircleBorder(),
-                                      onTap: widget.onTogglePlayPause,
-                                      splashColor: KumoriyaColors.primaryLight
-                                          .withValues(alpha: 0.20),
-                                      child: Container(
-                                        width: 80,
-                                        height: 80,
-                                        decoration: BoxDecoration(
-                                          shape: BoxShape.circle,
-                                          color: const Color(
-                                            0x731E1629,
-                                          ), // surface @ 45%
-                                          border: Border.all(
-                                            color: Colors.white.withValues(
-                                              alpha: 0.10,
+                                  iconSize: 24,
+                                  padding: const EdgeInsets.all(12),
+                                  tooltip: context.l10n.playerPreviousEpisode,
+                                ),
+                              // Next episode
+                              IconButton(
+                                onPressed: widget.onOpenEpisodes,
+                                icon: Icon(
+                                  KumoriyaIcons.playerNextEpisode,
+                                  color: KumoriyaColors.textPrimary,
+                                  size: 28,
+                                  shadows: const <Shadow>[
+                                    Shadow(
+                                      color: Colors.black54,
+                                      blurRadius: 6,
+                                    ),
+                                  ],
+                                ),
+                                iconSize: 28,
+                                padding: const EdgeInsets.all(10),
+                                tooltip: context.l10n.playerNextEpisode,
+                              ),
+                              const SizedBox(width: KumoriyaSpacing.md),
+                              // Fullscreen / Orientation lock
+                              if (Platform.isWindows)
+                                IconButton(
+                                  onPressed: widget.onToggleWindowsFullscreen,
+                                  icon: Icon(
+                                    widget.isWindowsFullscreen
+                                        ? KumoriyaIcons.playerFullscreenExit
+                                        : KumoriyaIcons.playerFullscreen,
+                                    color: KumoriyaColors.textPrimary,
+                                    size: 24,
+                                    shadows: const <Shadow>[
+                                      Shadow(
+                                        color: Colors.black54,
+                                        blurRadius: 6,
+                                      ),
+                                    ],
+                                  ),
+                                  iconSize: 24,
+                                  padding: const EdgeInsets.all(12),
+                                  tooltip: widget.isWindowsFullscreen
+                                      ? 'Exit fullscreen'
+                                      : 'Fullscreen',
+                                )
+                              else
+                                IconButton(
+                                  onPressed: _toggleOrientationLock,
+                                  icon: Icon(
+                                    _orientationLocked
+                                        ? Icons.screen_lock_rotation_rounded
+                                        : Icons.screen_rotation_rounded,
+                                    color: KumoriyaColors.textPrimary,
+                                    size: 24,
+                                    shadows: const <Shadow>[
+                                      Shadow(
+                                        color: Colors.black54,
+                                        blurRadius: 6,
+                                      ),
+                                    ],
+                                  ),
+                                  iconSize: 24,
+                                  padding: const EdgeInsets.all(12),
+                                  tooltip: _orientationLocked
+                                      ? context.l10n.playerUnlockRotation
+                                      : context.l10n.playerLockRotation,
+                                ),
+                              const SizedBox(width: KumoriyaSpacing.sm),
+                              IconButton(
+                                onPressed: () {
+                                  setState(() {
+                                    _controlsLocked = true;
+                                    _controlsVisible = false;
+                                  });
+                                  _hideTimer?.cancel();
+                                },
+                                icon: Icon(
+                                  Icons.lock_outline_rounded,
+                                  color: KumoriyaColors.textPrimary,
+                                  size: 24,
+                                  shadows: const <Shadow>[
+                                    Shadow(
+                                      color: Colors.black54,
+                                      blurRadius: 6,
+                                    ),
+                                  ],
+                                ),
+                                iconSize: 24,
+                                padding: const EdgeInsets.all(12),
+                                tooltip: context.l10n.playerLockControls,
+                              ),
+                            ],
+                          ),
+                        ),
+
+                        // Center: Frosted glass play/pause + bare skip buttons
+                        if (!_isDragSeeking)
+                          Center(
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: <Widget>[
+                                // Skip back
+                                SizedBox(
+                                  width: 56,
+                                  height: 56,
+                                  child: IconButton(
+                                    onPressed: widget.onSkipBackward,
+                                    tooltip: context.l10n.playerSkipBackward,
+                                    icon: Icon(
+                                      KumoriyaIcons.playerSeekBack10,
+                                      color: KumoriyaColors.textPrimary,
+                                      size: 28,
+                                      shadows: const <Shadow>[
+                                        Shadow(
+                                          color: Color(0xCC000000),
+                                          blurRadius: 8,
+                                        ),
+                                        Shadow(
+                                          color: Color(0x66000000),
+                                          blurRadius: 24,
+                                        ),
+                                      ],
+                                    ),
+                                    padding: EdgeInsets.zero,
+                                  ),
+                                ),
+                                const SizedBox(width: KumoriyaSpacing.xxxl),
+                                // Frosted glass play/pause
+                                ClipOval(
+                                  child: BackdropFilter(
+                                    filter: ImageFilter.blur(
+                                      sigmaX: 12,
+                                      sigmaY: 12,
+                                    ),
+                                    child: Material(
+                                      color: Colors.transparent,
+                                      shape: const CircleBorder(),
+                                      child: InkWell(
+                                        customBorder: const CircleBorder(),
+                                        onTap: widget.onTogglePlayPause,
+                                        splashColor: KumoriyaColors.primaryLight
+                                            .withValues(alpha: 0.20),
+                                        child: Container(
+                                          width: 80,
+                                          height: 80,
+                                          decoration: BoxDecoration(
+                                            shape: BoxShape.circle,
+                                            color: const Color(
+                                              0x731E1629,
+                                            ), // surface @ 45%
+                                            border: Border.all(
+                                              color: Colors.white.withValues(
+                                                alpha: 0.10,
+                                              ),
                                             ),
                                           ),
-                                        ),
-                                        child: Center(
-                                          child: Icon(
-                                            widget.isPlaying
-                                                ? KumoriyaIcons.playerPause
-                                                : KumoriyaIcons.playerPlay,
-                                            color: KumoriyaColors.textPrimary,
-                                            size: 48,
+                                          child: Center(
+                                            child: Icon(
+                                              widget.isPlaying
+                                                  ? KumoriyaIcons.playerPause
+                                                  : KumoriyaIcons.playerPlay,
+                                              color: KumoriyaColors.textPrimary,
+                                              size: 48,
+                                            ),
                                           ),
                                         ),
                                       ),
                                     ),
                                   ),
                                 ),
+                                const SizedBox(width: KumoriyaSpacing.xxxl),
+                                // Skip forward
+                                SizedBox(
+                                  width: 56,
+                                  height: 56,
+                                  child: IconButton(
+                                    onPressed: widget.onSkipForward,
+                                    tooltip: context.l10n.playerSkipForward,
+                                    icon: Icon(
+                                      KumoriyaIcons.playerSeekForward10,
+                                      color: KumoriyaColors.textPrimary,
+                                      size: 28,
+                                      shadows: const <Shadow>[
+                                        Shadow(
+                                          color: Color(0xCC000000),
+                                          blurRadius: 8,
+                                        ),
+                                        Shadow(
+                                          color: Color(0x66000000),
+                                          blurRadius: 24,
+                                        ),
+                                      ],
+                                    ),
+                                    padding: EdgeInsets.zero,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+
+                        // Bottom: Bare text action selectors
+                        Positioned(
+                          left: 0,
+                          right: 0,
+                          bottom: 56,
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: <Widget>[
+                              _BottomTextAction(
+                                icon: KumoriyaIcons.playerQuality,
+                                label: context.l10n.playerQuality,
+                                onTap: widget.onQuality,
                               ),
-                              const SizedBox(width: KumoriyaSpacing.xxxl),
-                              // Skip forward
-                              SizedBox(
-                                width: 56,
-                                height: 56,
-                                child: IconButton(
-                                  onPressed: widget.onSkipForward,
-                                  tooltip: context.l10n.playerSkipForward,
-                                  icon: Icon(
-                                    KumoriyaIcons.playerSeekForward10,
-                                    color: KumoriyaColors.textPrimary,
-                                    size: 28,
+                              if (widget.hasSubtitles) ...<Widget>[
+                                const SizedBox(width: KumoriyaSpacing.xl),
+                                _BottomTextAction(
+                                  icon: KumoriyaIcons.playerSubtitle,
+                                  label: context.l10n.playerSubtitles,
+                                  onTap: widget.onSubtitle,
+                                ),
+                              ],
+                              if (widget.hasMultipleAudio) ...<Widget>[
+                                const SizedBox(width: KumoriyaSpacing.xl),
+                                _BottomTextAction(
+                                  icon: KumoriyaIcons.playerAudio,
+                                  label: context.l10n.playerAudio,
+                                  onTap: widget.onAudio,
+                                ),
+                              ],
+                            ],
+                          ),
+                        ),
+
+                        // Bottom: Time labels
+                        Positioned(
+                          left: KumoriyaSpacing.lg,
+                          bottom: 36,
+                          child: RepaintBoundary(
+                            child: Text(
+                              widget.formatDuration(widget.currentPosition),
+                              style: Theme.of(context).textTheme.labelSmall!
+                                  .copyWith(
+                                    color: KumoriyaColors.textSecondary,
                                     shadows: const <Shadow>[
                                       Shadow(
-                                        color: Color(0xCC000000),
-                                        blurRadius: 8,
-                                      ),
-                                      Shadow(
-                                        color: Color(0x66000000),
-                                        blurRadius: 24,
+                                        color: Colors.black54,
+                                        blurRadius: 4,
                                       ),
                                     ],
                                   ),
-                                  padding: EdgeInsets.zero,
+                            ),
+                          ),
+                        ),
+                        Positioned(
+                          right: KumoriyaSpacing.lg,
+                          bottom: 36,
+                          child: RepaintBoundary(
+                            child: Text(
+                              widget.formatDuration(widget.totalDuration),
+                              style: Theme.of(context).textTheme.labelSmall!
+                                  .copyWith(
+                                    color: KumoriyaColors.textSecondary,
+                                    shadows: const <Shadow>[
+                                      Shadow(
+                                        color: Colors.black54,
+                                        blurRadius: 4,
+                                      ),
+                                    ],
+                                  ),
+                            ),
+                          ),
+                        ),
+
+                        // Bottom: Full-bleed progress bar
+                        Positioned(
+                          left: 0,
+                          right: 0,
+                          bottom: 8,
+                          child: RepaintBoundary(
+                            child: SliderTheme(
+                              data: SliderThemeData(
+                                trackHeight: 3,
+                                thumbShape: const RoundSliderThumbShape(
+                                  enabledThumbRadius: 5,
+                                ),
+                                activeTrackColor: KumoriyaColors.primary,
+                                inactiveTrackColor: KumoriyaColors.textPrimary
+                                    .withValues(alpha: 0.20),
+                                thumbColor: KumoriyaColors.primaryLight,
+                                overlayShape: const RoundSliderOverlayShape(
+                                  overlayRadius: 24,
+                                ),
+                                overlayColor: KumoriyaColors.primary.withValues(
+                                  alpha: 0.15,
                                 ),
                               ),
-                            ],
-                          ),
-                        ),
-
-                      // Bottom: Bare text action selectors
-                      Positioned(
-                        left: 0,
-                        right: 0,
-                        bottom: 56,
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: <Widget>[
-                            _BottomTextAction(
-                              icon: KumoriyaIcons.playerQuality,
-                              label: context.l10n.playerQuality,
-                              onTap: widget.onQuality,
-                            ),
-                            if (widget.hasSubtitles) ...<Widget>[
-                              const SizedBox(width: KumoriyaSpacing.xl),
-                              _BottomTextAction(
-                                icon: KumoriyaIcons.playerSubtitle,
-                                label: context.l10n.playerSubtitles,
-                                onTap: widget.onSubtitle,
+                              child: Slider(
+                                value: widget.sliderValue,
+                                max: widget.sliderMax,
+                                onChangeStart: (_) {
+                                  _hideTimer?.cancel();
+                                  widget.onSeekStart?.call();
+                                },
+                                onChanged: widget.onSeekChanged,
+                                onChangeEnd: (value) {
+                                  widget.onSeekEnd?.call(value);
+                                  _startHideTimer();
+                                },
                               ),
-                            ],
-                            if (widget.hasMultipleAudio) ...<Widget>[
-                              const SizedBox(width: KumoriyaSpacing.xl),
-                              _BottomTextAction(
-                                icon: KumoriyaIcons.playerAudio,
-                                label: context.l10n.playerAudio,
-                                onTap: widget.onAudio,
-                              ),
-                            ],
-                          ],
-                        ),
-                      ),
-
-                      // Bottom: Time labels
-                      Positioned(
-                        left: KumoriyaSpacing.lg,
-                        bottom: 36,
-                        child: Text(
-                          widget.formatDuration(widget.currentPosition),
-                          style: Theme.of(context).textTheme.labelSmall!
-                              .copyWith(
-                                color: KumoriyaColors.textSecondary,
-                                shadows: const <Shadow>[
-                                  Shadow(color: Colors.black54, blurRadius: 4),
-                                ],
-                              ),
-                        ),
-                      ),
-                      Positioned(
-                        right: KumoriyaSpacing.lg,
-                        bottom: 36,
-                        child: Text(
-                          widget.formatDuration(widget.totalDuration),
-                          style: Theme.of(context).textTheme.labelSmall!
-                              .copyWith(
-                                color: KumoriyaColors.textSecondary,
-                                shadows: const <Shadow>[
-                                  Shadow(color: Colors.black54, blurRadius: 4),
-                                ],
-                              ),
-                        ),
-                      ),
-
-                      // Bottom: Full-bleed progress bar
-                      Positioned(
-                        left: 0,
-                        right: 0,
-                        bottom: 8,
-                        child: SliderTheme(
-                          data: SliderThemeData(
-                            trackHeight: 3,
-                            thumbShape: const RoundSliderThumbShape(
-                              enabledThumbRadius: 5,
-                            ),
-                            activeTrackColor: KumoriyaColors.primary,
-                            inactiveTrackColor: KumoriyaColors.textPrimary
-                                .withValues(alpha: 0.20),
-                            thumbColor: KumoriyaColors.primaryLight,
-                            overlayShape: const RoundSliderOverlayShape(
-                              overlayRadius: 24,
-                            ),
-                            overlayColor: KumoriyaColors.primary.withValues(
-                              alpha: 0.15,
                             ),
                           ),
-                          child: Slider(
-                            value: widget.sliderValue,
-                            max: widget.sliderMax,
-                            onChangeStart: (_) {
-                              _hideTimer?.cancel();
-                              widget.onSeekStart?.call();
-                            },
-                            onChanged: widget.onSeekChanged,
-                            onChangeEnd: (value) {
-                              widget.onSeekEnd?.call(value);
-                              _startHideTimer();
-                            },
-                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
               ),
@@ -2471,106 +2499,108 @@ class _ImmersivePlayerViewState extends State<_ImmersivePlayerView>
               if (widget.activeSkipLabel != null &&
                   widget.onSkipSegment != null &&
                   _skipButtonVisible)
-                Align(
-                  alignment: Alignment.bottomRight,
-                  child: SafeArea(
-                    child: Padding(
-                      padding: const EdgeInsets.only(right: 24, bottom: 92),
-                      child: AnimatedSlide(
-                        offset: _skipButtonVisible
-                            ? Offset.zero
-                            : const Offset(0.3, 0),
-                        duration: const Duration(milliseconds: 200),
-                        curve: Curves.easeOutCubic,
-                        child: AnimatedOpacity(
-                          opacity: _skipButtonVisible ? 1.0 : 0.0,
+                RepaintBoundary(
+                  child: Align(
+                    alignment: Alignment.bottomRight,
+                    child: SafeArea(
+                      child: Padding(
+                        padding: const EdgeInsets.only(right: 24, bottom: 92),
+                        child: AnimatedSlide(
+                          offset: _skipButtonVisible
+                              ? Offset.zero
+                              : const Offset(0.3, 0),
                           duration: const Duration(milliseconds: 200),
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.circular(
-                              KumoriyaRadius.full,
-                            ),
-                            child: BackdropFilter(
-                              filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
-                              child: Material(
-                                color: Colors.transparent,
-                                child: InkWell(
-                                  onTap: widget.onSkipSegment,
-                                  borderRadius: BorderRadius.circular(
-                                    KumoriyaRadius.full,
-                                  ),
-                                  child: Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 20,
-                                      vertical: 12,
+                          curve: Curves.easeOutCubic,
+                          child: AnimatedOpacity(
+                            opacity: _skipButtonVisible ? 1.0 : 0.0,
+                            duration: const Duration(milliseconds: 200),
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(
+                                KumoriyaRadius.full,
+                              ),
+                              child: BackdropFilter(
+                                filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
+                                child: Material(
+                                  color: Colors.transparent,
+                                  child: InkWell(
+                                    onTap: widget.onSkipSegment,
+                                    borderRadius: BorderRadius.circular(
+                                      KumoriyaRadius.full,
                                     ),
-                                    decoration: BoxDecoration(
-                                      color: const Color(0xB31E1629),
-                                      borderRadius: BorderRadius.circular(
-                                        KumoriyaRadius.full,
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 20,
+                                        vertical: 12,
                                       ),
-                                      border: Border.all(
-                                        color: Colors.white.withValues(
-                                          alpha: 0.10,
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xB31E1629),
+                                        borderRadius: BorderRadius.circular(
+                                          KumoriyaRadius.full,
                                         ),
-                                      ),
-                                    ),
-                                    child: Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: <Widget>[
-                                        SizedBox(
-                                          width: 20,
-                                          height: 20,
-                                          child: Stack(
-                                            alignment: Alignment.center,
-                                            children: <Widget>[
-                                              SizedBox(
-                                                width: 20,
-                                                height: 20,
-                                                child: AnimatedBuilder(
-                                                  animation:
-                                                      _skipProgressController,
-                                                  builder: (_, _) =>
-                                                      CircularProgressIndicator(
-                                                        value:
-                                                            _skipProgressController
-                                                                .value,
-                                                        strokeWidth: 2,
-                                                        color: KumoriyaColors
-                                                            .textPrimary
-                                                            .withValues(
-                                                              alpha: 0.7,
-                                                            ),
-                                                        backgroundColor:
-                                                            KumoriyaColors
-                                                                .textPrimary
-                                                                .withValues(
-                                                                  alpha: 0.15,
-                                                                ),
-                                                      ),
-                                                ),
-                                              ),
-                                              const Icon(
-                                                Icons.skip_next_rounded,
-                                                color:
-                                                    KumoriyaColors.textPrimary,
-                                                size: 14,
-                                              ),
-                                            ],
+                                        border: Border.all(
+                                          color: Colors.white.withValues(
+                                            alpha: 0.10,
                                           ),
                                         ),
-                                        const SizedBox(width: 8),
-                                        Text(
-                                          widget.activeSkipLabel!,
-                                          style: Theme.of(context)
-                                              .textTheme
-                                              .labelLarge!
-                                              .copyWith(
-                                                color:
-                                                    KumoriyaColors.textPrimary,
-                                                fontWeight: FontWeight.w700,
-                                              ),
-                                        ),
-                                      ],
+                                      ),
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: <Widget>[
+                                          SizedBox(
+                                            width: 20,
+                                            height: 20,
+                                            child: Stack(
+                                              alignment: Alignment.center,
+                                              children: <Widget>[
+                                                SizedBox(
+                                                  width: 20,
+                                                  height: 20,
+                                                  child: AnimatedBuilder(
+                                                    animation:
+                                                        _skipProgressController,
+                                                    builder: (_, _) =>
+                                                        CircularProgressIndicator(
+                                                          value:
+                                                              _skipProgressController
+                                                                  .value,
+                                                          strokeWidth: 2,
+                                                          color: KumoriyaColors
+                                                              .textPrimary
+                                                              .withValues(
+                                                                alpha: 0.7,
+                                                              ),
+                                                          backgroundColor:
+                                                              KumoriyaColors
+                                                                  .textPrimary
+                                                                  .withValues(
+                                                                    alpha: 0.15,
+                                                                  ),
+                                                        ),
+                                                  ),
+                                                ),
+                                                const Icon(
+                                                  Icons.skip_next_rounded,
+                                                  color: KumoriyaColors
+                                                      .textPrimary,
+                                                  size: 14,
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                          const SizedBox(width: 8),
+                                          Text(
+                                            widget.activeSkipLabel!,
+                                            style: Theme.of(context)
+                                                .textTheme
+                                                .labelLarge!
+                                                .copyWith(
+                                                  color: KumoriyaColors
+                                                      .textPrimary,
+                                                  fontWeight: FontWeight.w700,
+                                                ),
+                                          ),
+                                        ],
+                                      ),
                                     ),
                                   ),
                                 ),
