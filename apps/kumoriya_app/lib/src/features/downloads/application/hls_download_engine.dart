@@ -527,9 +527,11 @@ Future<void> _runDownloadPipeline({
 
     if (elapsedMs - lastProgressMs >= 500) {
       lastProgressMs = elapsedMs;
+      // When no segments have completed yet, fall back to downloadedBytes
+      // so the UI shows a non-zero total instead of 0 KB.
       final estimatedTotal = completedSegments > 0
           ? (downloadedBytes / completedSegments * totalSegments).round()
-          : 0;
+          : downloadedBytes;
       mainPort.send(
         HlsWorkerProgress(
           completedSegments: completedSegments,

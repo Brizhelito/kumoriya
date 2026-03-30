@@ -500,7 +500,7 @@ query MalIdByAnilist($id: Int) {
   Future<Map<int, MalEpisodeMetadata>> _fetchJikanEpisodes(int malId) async {
     final output = <int, MalEpisodeMetadata>{};
 
-    for (var page = 1; page <= 8; page++) {
+    for (var page = 1; page <= 25; page++) {
       final uri = Uri.parse(
         'https://api.jikan.moe/v4/anime/$malId/episodes?page=$page',
       );

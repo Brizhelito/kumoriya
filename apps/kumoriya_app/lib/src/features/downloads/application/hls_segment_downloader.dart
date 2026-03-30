@@ -56,7 +56,8 @@ class HlsSegmentDownloader {
     this.parallelSegments = 32,
     this.maxRetries = 3,
     HlsSegmentStore? segmentStore,
-  }) : _httpClient = httpClient ?? http.Client() {
+  }) : _httpClient = httpClient ?? http.Client(),
+       _usesInjectedTransport = sendRequest != null {
     _sendRequest =
         sendRequest ??
         (http.BaseRequest request, {required Duration timeout}) =>
@@ -65,6 +66,7 @@ class HlsSegmentDownloader {
   }
 
   final http.Client _httpClient;
+  final bool _usesInjectedTransport;
   late final HlsRequestSender _sendRequest;
   HlsSegmentStore? _segmentStore;
   HlsDownloadEngine? _engine;
@@ -102,38 +104,59 @@ class HlsSegmentDownloader {
     final masterContent = await _fetchPlaylistWithRetry(masterUrl, headers);
     final variants = _parseVariants(masterContent, masterUrl);
 
-    String mediaContent;
-    Uri mediaBaseUrl;
-
     if (variants.isEmpty) {
-      mediaContent = masterContent;
-      mediaBaseUrl = masterUrl;
-    } else {
-      // Try variants from highest to lowest bandwidth.
-      String? resolvedContent;
-      Uri? resolvedBase;
-      Object? lastError;
-      for (final variant in variants) {
-        if (cancelCompleter?.isCompleted == true) {
-          throw const HttpException('HLS download cancelled');
-        }
-        try {
-          _log('Trying variant: $variant');
-          resolvedContent = await _fetchPlaylistWithRetry(variant, headers);
-          resolvedBase = variant;
-          break;
-        } catch (e) {
-          lastError = e;
-          _log('Variant failed: $variant error=$e');
-        }
-      }
-      if (resolvedContent == null || resolvedBase == null) {
-        throw HttpException('All HLS variants failed: $lastError');
-      }
-      mediaContent = resolvedContent;
-      mediaBaseUrl = resolvedBase;
+      return _downloadResolvedPlaylist(
+        mediaContent: masterContent,
+        mediaBaseUrl: masterUrl,
+        outputPath: outputPath,
+        taskId: taskId,
+        headers: headers,
+        onProgress: onProgress,
+        cancelCompleter: cancelCompleter,
+      );
     }
 
+    Object? lastError;
+    for (final variant in variants) {
+      if (cancelCompleter?.isCompleted == true) {
+        throw const HttpException('HLS download cancelled');
+      }
+      try {
+        _log('Trying variant: $variant');
+        final mediaContent = await _fetchPlaylistWithRetry(variant, headers);
+        return await _downloadResolvedPlaylist(
+          mediaContent: mediaContent,
+          mediaBaseUrl: variant,
+          outputPath: outputPath,
+          taskId: taskId,
+          headers: headers,
+          onProgress: onProgress,
+          cancelCompleter: cancelCompleter,
+        );
+      } catch (e) {
+        lastError = e;
+        _log('Variant failed: $variant error=$e');
+      }
+    }
+
+    throw HttpException('All HLS variants failed: $lastError');
+  }
+
+  Future<HlsDownloadResult> _downloadResolvedPlaylist({
+    required String mediaContent,
+    required Uri mediaBaseUrl,
+    required String outputPath,
+    required String? taskId,
+    required Map<String, String> headers,
+    required void Function(
+      int downloadedBytes,
+      int downloadedSegments,
+      int totalSegments,
+      int totalBytes,
+    )?
+    onProgress,
+    required Completer<void>? cancelCompleter,
+  }) async {
     // ── 2. Parse segments and init segment ─────────────────────────────
     final initUri = _parseMapUri(mediaContent, mediaBaseUrl);
     final isFmp4 = initUri != null;
@@ -224,6 +247,36 @@ class HlsSegmentDownloader {
       }
     }
 
+    var exactTotalBytes = 0;
+    final exactTotalBytesFuture =
+        _probeExactTotalBytes(
+              headers: headers,
+              initUri: initUri,
+              segmentUrls: segmentUrls,
+            )
+            .then((value) {
+              exactTotalBytes = value;
+            })
+            .catchError((_) {
+              // Best-effort only. Download startup must not wait on size probing.
+            });
+
+    if (_usesInjectedTransport) {
+      return _downloadWithInjectedTransport(
+        segmentInfos: segmentInfos,
+        segmentUrls: segmentUrls,
+        segmentsDir: segmentsDir,
+        outputPath: outputPath,
+        taskId: taskId,
+        headers: headers,
+        initUri: initUri,
+        initSegmentPath: initSegmentPath,
+        exactTotalBytes: exactTotalBytes,
+        onProgress: onProgress,
+        cancelCompleter: cancelCompleter,
+      );
+    }
+
     // ── 4. Launch the Isolate-based download engine ────────────────────
     final resultCompleter = Completer<HlsDownloadResult>();
 
@@ -247,7 +300,7 @@ class HlsSegmentDownloader {
           progress.downloadedBytes,
           progress.completedSegments,
           progress.totalSegments,
-          progress.estimatedTotalBytes,
+          exactTotalBytes > 0 ? exactTotalBytes : progress.estimatedTotalBytes,
         );
       },
 
@@ -336,7 +389,196 @@ class HlsSegmentDownloader {
       },
     );
 
+    unawaited(exactTotalBytesFuture);
+
     return resultCompleter.future;
+  }
+
+  Future<HlsDownloadResult> _downloadWithInjectedTransport({
+    required List<HlsSegmentInfo> segmentInfos,
+    required List<Uri> segmentUrls,
+    required String segmentsDir,
+    required String outputPath,
+    required String? taskId,
+    required Map<String, String> headers,
+    required Uri? initUri,
+    required String? initSegmentPath,
+    required int exactTotalBytes,
+    required void Function(
+      int downloadedBytes,
+      int downloadedSegments,
+      int totalSegments,
+      int totalBytes,
+    )?
+    onProgress,
+    required Completer<void>? cancelCompleter,
+  }) async {
+    var downloadedBytes = 0;
+    var completedSegments = 0;
+
+    if (initUri != null && initSegmentPath != null) {
+      final initBytes = await _fetchBinaryWithRetry(initUri, headers);
+      await File(initSegmentPath).writeAsBytes(initBytes, flush: true);
+      downloadedBytes += initBytes.length;
+    }
+
+    for (final segment in segmentInfos) {
+      if (cancelCompleter?.isCompleted == true) {
+        throw const HttpException('HLS download cancelled');
+      }
+
+      if (segment.skip) {
+        final existingFile = File(segment.localPath);
+        if (await existingFile.exists()) {
+          downloadedBytes += await existingFile.length();
+        }
+        completedSegments++;
+      } else {
+        final bytes = await _fetchBinaryWithRetry(
+          Uri.parse(segment.url),
+          headers,
+        );
+        await File(segment.localPath).writeAsBytes(bytes, flush: true);
+        downloadedBytes += bytes.length;
+        completedSegments++;
+
+        if (taskId != null && _segmentStore != null) {
+          await _segmentStore!.updateSegment(
+            HlsSegment(
+              id: '$taskId:seg:${segment.index}',
+              downloadTaskId: taskId,
+              segmentIndex: segment.index,
+              url: segment.url,
+              status: HlsSegmentStatus.completed,
+              localPath: segment.localPath,
+              byteSize: bytes.length,
+            ),
+          );
+        }
+      }
+
+      onProgress?.call(
+        downloadedBytes,
+        completedSegments,
+        segmentInfos.length,
+        exactTotalBytes > 0 ? exactTotalBytes : downloadedBytes,
+      );
+    }
+
+    final totalBytes = await _concatenateSegments(
+      segmentsDir: segmentsDir,
+      outputPath: outputPath,
+      totalSegments: segmentUrls.length,
+      initSegmentPath: initSegmentPath,
+    );
+
+    await _cleanupSegmentDir(segmentsDir);
+    if (taskId != null && _segmentStore != null) {
+      await _segmentStore!.deleteSegmentsForTask(taskId);
+    }
+
+    return HlsDownloadResult(
+      isFmp4: initSegmentPath != null,
+      totalBytes: totalBytes,
+    );
+  }
+
+  Future<int> _probeExactTotalBytes({
+    required Map<String, String> headers,
+    required Uri? initUri,
+    required List<Uri> segmentUrls,
+  }) async {
+    final targets = <Uri>[...segmentUrls];
+    if (initUri != null) {
+      targets.insert(0, initUri);
+    }
+    if (targets.isEmpty) {
+      return 0;
+    }
+
+    const maxParallelProbes = 4;
+    var nextIndex = 0;
+    var totalBytes = 0;
+
+    Future<void> probeOne(Uri url) async {
+      final bytes = await _probeContentLength(url, headers);
+      if (bytes > 0) {
+        totalBytes += bytes;
+      }
+    }
+
+    Future<void> worker() async {
+      while (true) {
+        final currentIndex = nextIndex;
+        if (currentIndex >= targets.length) {
+          return;
+        }
+        nextIndex++;
+        try {
+          await probeOne(targets[currentIndex]);
+        } catch (_) {
+          // Best-effort only. If a server hides length metadata, fall back
+          // to runtime estimation from completed segments.
+        }
+      }
+    }
+
+    final workerCount = targets.length < maxParallelProbes
+        ? targets.length
+        : maxParallelProbes;
+    await Future.wait(List.generate(workerCount, (_) => worker()));
+    return totalBytes;
+  }
+
+  Future<int> _probeContentLength(Uri url, Map<String, String> headers) async {
+    final headRequest = http.Request('HEAD', url)
+      ..headers.addAll(headers)
+      ..headers.putIfAbsent('User-Agent', () => _browserUserAgent)
+      ..headers.putIfAbsent('Accept-Encoding', () => 'identity');
+    try {
+      final response = await _sendRequest(
+        headRequest,
+        timeout: const Duration(seconds: 5),
+      );
+      final contentLength = _extractResponseLength(response);
+      await response.stream.drain<void>();
+      if (contentLength > 0) {
+        return contentLength;
+      }
+    } catch (_) {
+      // Fall back to a tiny range request below.
+    }
+
+    final rangeRequest = http.Request('GET', url)
+      ..headers.addAll(headers)
+      ..headers.putIfAbsent('User-Agent', () => _browserUserAgent)
+      ..headers.putIfAbsent('Accept-Encoding', () => 'identity')
+      ..headers['Range'] = 'bytes=0-0';
+    final response = await _sendRequest(
+      rangeRequest,
+      timeout: const Duration(seconds: 5),
+    );
+    final contentLength = _extractResponseLength(response);
+    await response.stream.drain<void>();
+    return contentLength;
+  }
+
+  int _extractResponseLength(http.StreamedResponse response) {
+    final contentRange = response.headers['content-range'];
+    if (contentRange != null) {
+      final slash = contentRange.lastIndexOf('/');
+      if (slash >= 0 && slash + 1 < contentRange.length) {
+        final total = int.tryParse(contentRange.substring(slash + 1));
+        if (total != null && total > 0) {
+          return total;
+        }
+      }
+    }
+    final headerLength = int.tryParse(response.headers['content-length'] ?? '');
+    if (headerLength != null && headerLength > 0) {
+      return headerLength;
+    }
+    return response.contentLength ?? 0;
   }
 
   // ─── Concatenation (runs in separate isolate) ───────────────────────
@@ -358,9 +600,11 @@ class HlsSegmentDownloader {
         if (initSegmentPath != null) {
           final initFile = File(initSegmentPath);
           if (initFile.existsSync()) {
-            final data = initFile.readAsBytesSync();
-            sink.add(data);
-            totalBytes += data.length;
+            final stream = initFile.openRead();
+            await for (final chunk in stream) {
+              sink.add(chunk);
+              totalBytes += chunk.length;
+            }
           }
         }
 
@@ -371,9 +615,11 @@ class HlsSegmentDownloader {
               'seg_${i.toString().padLeft(5, '0')}.ts';
           final segFile = File(segPath);
           if (segFile.existsSync()) {
-            final data = segFile.readAsBytesSync();
-            sink.add(data);
-            totalBytes += data.length;
+            final stream = segFile.openRead();
+            await for (final chunk in stream) {
+              sink.add(chunk);
+              totalBytes += chunk.length;
+            }
           }
         }
         await sink.flush();
@@ -427,6 +673,35 @@ class HlsSegmentDownloader {
     }
     // Unreachable when maxRetries >= 1, but satisfies the type system.
     throw const HttpException('Playlist fetch failed');
+  }
+
+  Future<List<int>> _fetchBinary(Uri url, Map<String, String> headers) async {
+    final request = http.Request('GET', url)
+      ..headers.addAll(headers)
+      ..headers.putIfAbsent('User-Agent', () => _browserUserAgent);
+    final response = await _sendRequest(
+      request,
+      timeout: const Duration(seconds: 30),
+    );
+    if (response.statusCode != 200) {
+      throw HttpException('HTTP ${response.statusCode} fetching HLS segment');
+    }
+    return response.stream.toBytes();
+  }
+
+  Future<List<int>> _fetchBinaryWithRetry(
+    Uri url,
+    Map<String, String> headers,
+  ) async {
+    for (var attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        return await _fetchBinary(url, headers);
+      } catch (_) {
+        if (attempt == maxRetries) rethrow;
+      }
+      await Future<void>.delayed(Duration(milliseconds: 250 * attempt));
+    }
+    throw const HttpException('Segment fetch failed');
   }
 
   // ─── Playlist parsing ───────────────────────────────────────────────

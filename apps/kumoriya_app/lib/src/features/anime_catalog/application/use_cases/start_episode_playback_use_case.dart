@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:developer' as developer;
 
 import 'package:kumoriya_plugins/kumoriya_plugins.dart';
@@ -105,44 +106,58 @@ final class StartEpisodePlaybackUseCase {
         .toList(growable: false);
     final attempted = <String>{};
 
-    for (final option in autoQueue) {
-      attempted.add(option.optionKey);
-      _log(
-        'auto-open start source=${option.sourcePluginId} server=${option.serverLink.serverName} resolver=${option.resolverId}',
-      );
-      final resolved = await _resolver.call(option.serverLink);
-      if (resolved.isSuccess) {
-        final result = resolved.fold(
-          onFailure: (_) => null,
-          onSuccess: (value) => value,
-        );
-        if (result != null) {
-          return EpisodePlaybackDecision.direct(
-            launch: EpisodePlayerLaunch(option: option, resolved: result),
-            autoSelectionFailed: attempted.length > 1,
-          );
-        }
-      }
-      resolved.fold(
-        onFailure: (error) {
-          _log(
-            'auto-open failure source=${option.sourcePluginId} server=${option.serverLink.serverName} resolver=${option.resolverId} code=${error.code} message=${error.message}',
-          );
-        },
-        onSuccess: (_) {},
-      );
+    // Race all auto-queue candidates in parallel. The first successful
+    // resolution wins; remaining futures are left to complete (their results
+    // are discarded). This converts worst-case N × timeout into 1 × timeout.
+    if (autoQueue.isNotEmpty) {
+      final completer = Completer<EpisodePlaybackDecision?>();
+      var pending = autoQueue.length;
 
-      final invalidated = _playbackPreferencePolicy.invalidateAfterAutoFailure(
-        durablePreference: durablePreference,
-        failedOption: option,
-        rankedOptions: _playbackPreferencePolicy.remainingOptions(
-          options: ranked,
-          attemptedOptionKeys: attempted,
-        ),
-      );
-      if (invalidated != null) {
-        durablePreference = invalidated;
-        await _persistPreference(invalidated);
+      for (final option in autoQueue) {
+        attempted.add(option.optionKey);
+        _log(
+          'auto-open start source=${option.sourcePluginId} server=${option.serverLink.serverName} resolver=${option.resolverId}',
+        );
+
+        // ignore: unawaited_futures
+        _resolver.call(option.serverLink).then((resolved) {
+          if (completer.isCompleted) return;
+
+          if (resolved.isSuccess) {
+            final result = resolved.fold(
+              onFailure: (_) => null,
+              onSuccess: (value) => value,
+            );
+            if (result != null) {
+              completer.complete(
+                EpisodePlaybackDecision.direct(
+                  launch: EpisodePlayerLaunch(option: option, resolved: result),
+                  autoSelectionFailed: false,
+                ),
+              );
+              return;
+            }
+          }
+
+          resolved.fold(
+            onFailure: (error) {
+              _log(
+                'auto-open failure source=${option.sourcePluginId} server=${option.serverLink.serverName} resolver=${option.resolverId} code=${error.code} message=${error.message}',
+              );
+            },
+            onSuccess: (_) {},
+          );
+
+          pending--;
+          if (pending == 0 && !completer.isCompleted) {
+            completer.complete(null);
+          }
+        });
+      }
+
+      final raceResult = await completer.future;
+      if (raceResult != null) {
+        return raceResult;
       }
     }
 
@@ -258,6 +273,12 @@ final class StartEpisodePlaybackUseCase {
   }
 
   String? _fallbackIconUrl(PluginManifest manifest) {
+    if (manifest.baseUrls.isNotEmpty) {
+      final uri = Uri.tryParse(manifest.baseUrls.first);
+      if (uri != null && uri.hasScheme) {
+        return '${uri.scheme}://${uri.host}/favicon.ico';
+      }
+    }
     return null;
   }
 

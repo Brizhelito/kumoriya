@@ -56,13 +56,20 @@ final class GetSourceAvailabilitySummaryUseCase {
       ),
     );
 
-    final detectedKinds = <SourceAudioKind>{};
-    for (final episode in availability.episodes.take(3)) {
-      final result = await GetSourceEpisodeServerLinksUseCase(
-        sourcePlugin: plugin,
-        registry: _registry,
-      ).call(episode);
+    // Fetch server links for up to 3 episodes in parallel.
+    final results = await Future.wait(
+      availability.episodes
+          .take(3)
+          .map(
+            (episode) => GetSourceEpisodeServerLinksUseCase(
+              sourcePlugin: plugin,
+              registry: _registry,
+            ).call(episode),
+          ),
+    );
 
+    final detectedKinds = <SourceAudioKind>{};
+    for (final result in results) {
       result.fold(
         onFailure: (_) {},
         onSuccess: (links) {
@@ -74,10 +81,7 @@ final class GetSourceAvailabilitySummaryUseCase {
           }
         },
       );
-
-      if (detectedKinds.isNotEmpty) {
-        break;
-      }
+      if (detectedKinds.isNotEmpty) break;
     }
 
     if (detectedKinds.isEmpty) {

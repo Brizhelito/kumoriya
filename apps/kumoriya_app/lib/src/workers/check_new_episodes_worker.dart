@@ -29,6 +29,7 @@ import '../features/downloads/application/download_directory_service.dart';
 import '../features/downloads/application/download_library_index_service.dart';
 import '../features/downloads/application/download_manager_service.dart';
 import '../features/downloads/application/enqueue_download_use_case.dart';
+import '../app/runtime_config.dart';
 
 /// Workmanager task name for periodic new-episode checks.
 const kCheckNewEpisodesTask = 'kumoriya.check_new_episodes';
@@ -154,7 +155,11 @@ Future<void> _runCheckNewEpisodes() async {
     selectionPolicy: selectionPolicy,
   );
   final repository = AnilistAnimeCatalogRepository(
-    gateway: GraphqlAnilistMetadataGateway(client: HttpAnilistGraphqlClient()),
+    gateway: GraphqlAnilistMetadataGateway(
+      client: HttpAnilistGraphqlClient(
+        config: KumoriyaRuntimeConfig.anilistClient,
+      ),
+    ),
   );
   final warmupService = BackgroundSourceAvailabilityWarmupService(
     loadAnimeDetail: (anilistId) =>
@@ -238,6 +243,10 @@ Future<void> _runCheckNewEpisodes() async {
     },
   );
 
+  // Entries pending auto-download after warmup completes.
+  final autoDownloadEntries =
+      <({int anilistId, String title, int from, int to})>[];
+
   for (final entry in airingData.entries) {
     final anilistId = entry.key;
     final title = entry.value['title'] as String;
@@ -268,6 +277,12 @@ Future<void> _runCheckNewEpisodes() async {
         title: title,
         episode: latestAired,
       ));
+      autoDownloadEntries.add((
+        anilistId: anilistId,
+        title: title,
+        from: lastNotified + 1,
+        to: latestAired,
+      ));
     }
   }
 
@@ -275,29 +290,17 @@ Future<void> _runCheckNewEpisodes() async {
     await warmupService.warmUp(warmupIds);
   }
 
-  for (final entry in airingData.entries) {
-    final anilistId = entry.key;
-    final title = entry.value['title'] as String;
-    final nextEpisode = entry.value['nextEpisode'] as int?;
-    if (nextEpisode == null) continue;
-
-    final latestAired = nextEpisode - 1;
-    final lastTracked = tracked[anilistId];
-    if (lastTracked == null || latestAired <= 0 || latestAired <= lastTracked) {
-      continue;
-    }
-
+  for (final ad in autoDownloadEntries) {
     final report = await autoDownloadService.enqueueEpisodes(
-      anilistId: anilistId,
+      anilistId: ad.anilistId,
       episodeNumbers: <int>[
-        for (var episode = lastTracked + 1; episode <= latestAired; episode++)
-          episode,
+        for (var episode = ad.from; episode <= ad.to; episode++) episode,
       ],
-      animeTitle: title,
+      animeTitle: ad.title,
     );
     if (report.enqueuedEpisodes > 0) {
       developer.log(
-        'Auto-downloaded ${report.enqueuedEpisodes} episode(s) for "$title" (id=$anilistId)',
+        'Auto-downloaded ${report.enqueuedEpisodes} episode(s) for "${ad.title}" (id=${ad.anilistId})',
         name: 'CheckNewEpisodesWorker',
       );
     }
@@ -414,7 +417,9 @@ Future<Map<int, Map<String, dynamic>>?> _fetchAiringStatus(
 
 Future<void> _initNotifications(FlutterLocalNotificationsPlugin plugin) async {
   const android = AndroidInitializationSettings('@mipmap/ic_launcher');
-  await plugin.initialize(const InitializationSettings(android: android));
+  await plugin.initialize(
+    settings: const InitializationSettings(android: android),
+  );
 
   final androidPlugin = plugin
       .resolvePlatformSpecificImplementation<
@@ -470,10 +475,10 @@ Future<void> _sendNotification(
   );
 
   await plugin.show(
-    id,
-    animeTitle,
-    body,
-    const NotificationDetails(android: androidDetails),
+    id: id,
+    title: animeTitle,
+    body: body,
+    notificationDetails: const NotificationDetails(android: androidDetails),
   );
 }
 

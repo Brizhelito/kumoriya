@@ -31,9 +31,8 @@ import 'download_directory_service.dart';
 /// }
 /// ```
 final class DownloadAniSkipFileStore implements AniSkipCacheStore {
-  DownloadAniSkipFileStore({
-    required DownloadDirectoryService directoryService,
-  }) : _directoryService = directoryService;
+  DownloadAniSkipFileStore({required DownloadDirectoryService directoryService})
+    : _directoryService = directoryService;
 
   final DownloadDirectoryService _directoryService;
 
@@ -67,9 +66,8 @@ final class DownloadAniSkipFileStore implements AniSkipCacheStore {
     try {
       final map = await _readEpisodeMap(anilistId);
       if (map == null) return const Success([]);
-      final records =
-          map.values.toList(growable: false)
-            ..sort((a, b) => a.episodeNumber.compareTo(b.episodeNumber));
+      final records = map.values.toList(growable: false)
+        ..sort((a, b) => a.episodeNumber.compareTo(b.episodeNumber));
       return Success(records);
     } catch (e) {
       return Failure(
@@ -131,9 +129,13 @@ final class DownloadAniSkipFileStore implements AniSkipCacheStore {
       await for (final entity in dir.list()) {
         if (entity is! File || !entity.path.endsWith('.json')) continue;
         try {
-          await _pruneStaleEntries(entity, cutoff, removedCount: (n) {
-            removedCount += n;
-          });
+          await _pruneStaleEntries(
+            entity,
+            cutoff,
+            removedCount: (n) {
+              removedCount += n;
+            },
+          );
         } catch (_) {
           // Skip corrupt files silently.
         }
@@ -211,10 +213,7 @@ final class DownloadAniSkipFileStore implements AniSkipCacheStore {
     });
   }
 
-  Future<void> _atomicWrite(
-    File file,
-    Map<String, Object?> data,
-  ) async {
+  Future<void> _atomicWrite(File file, Map<String, Object?> data) async {
     final tmp = File('${file.path}.tmp');
     await tmp.writeAsString(
       const JsonEncoder.withIndent('  ').convert(data),

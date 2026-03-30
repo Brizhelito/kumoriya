@@ -7,6 +7,7 @@ import 'package:http/io_client.dart' as ioc;
 import 'package:kumoriya_storage/kumoriya_storage.dart';
 import 'package:path/path.dart' as p;
 
+import 'chunked_direct_downloader.dart';
 import 'download_directory_service.dart';
 import 'download_error_classifier.dart';
 import 'download_foreground_service.dart';
@@ -53,6 +54,7 @@ const _defaultUserAgent =
 // RegExp objects on every directory resolution call.
 final _unsafePathChars = RegExp(r'[<>:"/\\|?*]');
 final _trailingDots = RegExp(r'\.+$');
+final _contentRangeTotalRe = RegExp(r'/([0-9]+)$');
 
 /// Creates an [http.Client] tuned for download throughput:
 /// - Connection pool sized for parallel HLS segments.
@@ -62,7 +64,7 @@ final _trailingDots = RegExp(r'\.+$');
 http.Client _createDownloadHttpClient({int maxConnectionsPerHost = 16}) {
   final inner = HttpClient()
     ..autoUncompress = false
-    ..connectionTimeout = const Duration(seconds: 10)
+    ..connectionTimeout = const Duration(seconds: 15)
     ..idleTimeout = const Duration(seconds: 60)
     ..maxConnectionsPerHost = maxConnectionsPerHost;
   return ioc.IOClient(inner);
@@ -74,7 +76,7 @@ http.Client _createInsecureDownloadHttpClient({
 }) {
   final inner = HttpClient()
     ..autoUncompress = false
-    ..connectionTimeout = const Duration(seconds: 10)
+    ..connectionTimeout = const Duration(seconds: 15)
     ..idleTimeout = const Duration(seconds: 60)
     ..maxConnectionsPerHost = maxConnectionsPerHost
     ..badCertificateCallback = (certificate, host, port) =>
@@ -84,22 +86,22 @@ http.Client _createInsecureDownloadHttpClient({
 
 int _defaultMaxConcurrentDownloads() {
   if (Platform.isAndroid) {
-    return 2;
+    return 3;
   }
   if (Platform.isWindows) {
-    return 2;
+    return 4;
   }
   return 2;
 }
 
 int _defaultMaxConnectionsPerHost() {
   if (Platform.isAndroid) {
-    return 6;
-  }
-  if (Platform.isWindows) {
     return 8;
   }
-  return 6;
+  if (Platform.isWindows) {
+    return 12;
+  }
+  return 8;
 }
 
 class DownloadManagerService {
@@ -172,7 +174,7 @@ class DownloadManagerService {
   static const _aggregateThrottleMs = 1000;
   static const _progressEmissionMs = 500;
   static const _progressDbWriteMs = 3000;
-  static const _directFlushMs = 4000;
+  static const _directFlushMs = 2000;
 
   Stream<DownloadStatusChange> get statusChangeStream =>
       _statusChangeController.stream;
@@ -360,8 +362,11 @@ class DownloadManagerService {
     try {
       do {
         _pendingQueuePass = false;
+        final slotsAvailable = _maxConcurrent - _activeDownloads.length;
+        if (slotsAvailable <= 0) break;
         final pendingResult = await _store.getTasksByStatus(
           DownloadStatus.pending,
+          limit: slotsAvailable,
         );
         final pending = pendingResult.fold(
           onSuccess: (tasks) => tasks,
@@ -558,7 +563,7 @@ class DownloadManagerService {
         final server = refreshed.serverName ?? task.serverName ?? 'Unknown';
         final ext = refreshed.isHls ? '.ts' : '.mp4';
         refreshedFileName = 'EP $epNum - $server$qualitySuffix$ext'
-            .replaceAll(RegExp(r'[<>:"/\\|?*]'), '_')
+            .replaceAll(_unsafePathChars, '_')
             .trim();
       }
 
@@ -593,11 +598,96 @@ class DownloadManagerService {
     }
   }
 
+  /// Attempts a chunked parallel download using HTTP Range requests.
+  ///
+  /// Returns `true` if download completed (or cancelled), `false` if the
+  /// server does not support Range or the file is too small to benefit.
+  Future<bool> _tryChunkedDirectDownload(
+    DownloadTask task,
+    String tempPath,
+    Completer<void> cancelCompleter,
+  ) async {
+    final chunked = ChunkedDirectDownloader(
+      httpClient: _clientForTaskRequest(task.id, task.sourceUrl),
+    );
+
+    final sw = Stopwatch()..start();
+    var lastDbWriteMs = 0;
+
+    try {
+      final success = await chunked.tryDownload(
+        url: task.sourceUrl,
+        outputPath: tempPath,
+        headers: task.headers,
+        cancelCompleter: cancelCompleter,
+        onProgress: (downloadedBytes, totalBytes, bytesPerSecond) {
+          _emitProgress(
+            DownloadProgressEvent(
+              taskId: task.id,
+              downloadedBytes: downloadedBytes,
+              totalBytes: totalBytes,
+              bytesPerSecond: bytesPerSecond,
+            ),
+          );
+
+          final elapsedMs = sw.elapsedMilliseconds;
+          if (elapsedMs - lastDbWriteMs >= _progressDbWriteMs) {
+            lastDbWriteMs = elapsedMs;
+            _scheduleProgressPersistence(
+              _copyTask(
+                task,
+                status: DownloadStatus.downloading,
+                filePath: tempPath,
+                totalBytes: totalBytes > 0 ? totalBytes : null,
+                downloadedBytes: downloadedBytes,
+              ),
+            );
+          }
+        },
+      );
+
+      if (success) {
+        _log(
+          'Chunked download completed for ${task.id}: $tempPath',
+        );
+      }
+      return success;
+    } catch (error) {
+      _log(
+        'Chunked download failed for ${task.id}, '
+        'falling back to single-connection: $error',
+      );
+      // Clean up any chunk files on error before fallback.
+      try {
+        final dir = File(tempPath).parent;
+        if (await dir.exists()) {
+          await for (final entity in dir.list()) {
+            if (entity is File && entity.path.contains('.chunk')) {
+              await entity.delete();
+            }
+          }
+        }
+      } catch (_) {}
+      return false;
+    }
+  }
+
   Future<void> _downloadDirect(
     DownloadTask task,
     String tempPath,
     Completer<void> cancelCompleter,
   ) async {
+    // Try chunked parallel download first — significantly faster on hosts
+    // that throttle per-connection bandwidth (e.g. Streamtape CDN).
+    final chunkedSuccess = await _tryChunkedDirectDownload(
+      task,
+      tempPath,
+      cancelCompleter,
+    );
+    if (chunkedSuccess || cancelCompleter.isCompleted) return;
+
+    // Fallback: single-connection download (Range not supported or file
+    // too small to benefit from chunking).
     final tempFile = File(tempPath);
     await tempFile.parent.create(recursive: true);
 
@@ -745,8 +835,7 @@ class DownloadManagerService {
     // segment state. Only individual segment files matter now.
 
     final hlsDownloader = HlsSegmentDownloader(
-      sendRequest: (request, {required timeout}) =>
-          _sendTaskRequest(task, request, timeout: timeout),
+      httpClient: _clientForTaskRequest(task.id, task.sourceUrl),
       parallelSegments: _resolveParallelSegmentsPerDownload(),
       maxRetries: _maxRetryAttempts,
       segmentStore: _hlsSegmentStore,
@@ -953,7 +1042,7 @@ class DownloadManagerService {
     if (contentRange == null || contentRange.isEmpty) {
       return null;
     }
-    final totalMatch = RegExp(r'/([0-9]+)$').firstMatch(contentRange);
+    final totalMatch = _contentRangeTotalRe.firstMatch(contentRange);
     if (totalMatch == null) {
       return null;
     }
@@ -1334,12 +1423,12 @@ class DownloadManagerService {
 
   int _resolveParallelSegmentsPerDownload() {
     if (Platform.isAndroid) {
-      return _activeDownloads.length >= 2 ? 3 : 4;
-    }
-    if (Platform.isWindows) {
       return _activeDownloads.length >= 2 ? 4 : 6;
     }
-    return _activeDownloads.length >= 2 ? 3 : 4;
+    if (Platform.isWindows) {
+      return _activeDownloads.length >= 2 ? 6 : 8;
+    }
+    return _activeDownloads.length >= 2 ? 4 : 6;
   }
 
   void _scheduleProgressPersistence(DownloadTask task) {

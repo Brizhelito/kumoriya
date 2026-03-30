@@ -12,10 +12,10 @@ final class BackgroundSourceAvailabilityWarmupService {
     required Future<Result<AnimeDetail, KumoriyaError>> Function(int anilistId)
     loadAnimeDetail,
     required LoadSourceAvailabilitySummaryUseCase loadSourceAvailability,
-    int maxConcurrent = 2,
+    int maxConcurrent = 4,
   }) : _loadAnimeDetail = loadAnimeDetail,
        _loadSourceAvailability = loadSourceAvailability,
-       _maxConcurrent = maxConcurrent.clamp(1, 4);
+       _maxConcurrent = maxConcurrent.clamp(1, 6);
 
   final Future<Result<AnimeDetail, KumoriyaError>> Function(int anilistId)
   _loadAnimeDetail;

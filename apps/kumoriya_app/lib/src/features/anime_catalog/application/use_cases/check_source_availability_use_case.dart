@@ -513,7 +513,7 @@ final class CheckSourceAvailabilityUseCase {
         ? allQueries.length
         : isShortAnime
         ? 3
-        : 5;
+        : 6;
     final queries = allQueries.take(maxQueries).toList(growable: false);
     final earlyStopCandidateCount = isLongAnime
         ? 28

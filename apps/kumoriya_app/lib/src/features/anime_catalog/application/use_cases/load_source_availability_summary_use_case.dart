@@ -36,8 +36,8 @@ final class LoadSourceAvailabilitySummaryUseCase {
            .map((plugin) => plugin.manifest.id)
            .toSet(),
        _cacheCodec = cacheCodec,
-       _freshTtl = freshTtl ?? const Duration(hours: 6),
-       _maxStaleAge = maxStaleAge ?? const Duration(days: 3),
+       _freshTtl = freshTtl ?? const Duration(hours: 4),
+       _maxStaleAge = maxStaleAge ?? const Duration(hours: 12),
        _unavailableFreshTtl =
            unavailableFreshTtl ?? const Duration(minutes: 10);
 

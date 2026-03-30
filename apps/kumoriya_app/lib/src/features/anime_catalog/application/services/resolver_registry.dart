@@ -21,17 +21,23 @@ final class ResolverAmbiguous extends ResolverSelection {
 }
 
 final class ResolverRegistry {
-  const ResolverRegistry({required List<ResolverPlugin> resolvers})
+  ResolverRegistry({required List<ResolverPlugin> resolvers})
     : _resolvers = resolvers;
 
   final List<ResolverPlugin> _resolvers;
+  final _hostCache = <String, ResolverSelection>{};
 
   ResolverSelection selectFor(Uri url) {
+    final host = url.host;
+    final cached = _hostCache[host];
+    if (cached != null) return cached;
+
     final candidates = _resolvers
         .where((resolver) => resolver.supports(url))
         .toList(growable: false);
 
     if (candidates.isEmpty) {
+      _hostCache[host] = const ResolverNotFound();
       return const ResolverNotFound();
     }
 
@@ -44,10 +50,13 @@ final class ResolverRegistry {
         return a.manifest.id.compareTo(b.manifest.id);
       });
 
+    ResolverSelection result;
     if (sorted.length > 1 && sorted.first.priority == sorted[1].priority) {
-      return ResolverAmbiguous(resolvers: sorted);
+      result = ResolverAmbiguous(resolvers: sorted);
+    } else {
+      result = ResolverSelected(resolver: sorted.first);
     }
-
-    return ResolverSelected(resolver: sorted.first);
+    _hostCache[host] = result;
+    return result;
   }
 }

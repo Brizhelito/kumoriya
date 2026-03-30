@@ -46,8 +46,6 @@ class _FirstLaunchGate extends ConsumerStatefulWidget {
 }
 
 class _FirstLaunchGateState extends ConsumerState<_FirstLaunchGate> {
-  bool _checked = false;
-
   @override
   void initState() {
     super.initState();
@@ -83,14 +81,10 @@ class _FirstLaunchGateState extends ConsumerState<_FirstLaunchGate> {
         ),
       );
     }
-    if (mounted) setState(() => _checked = true);
   }
 
   @override
   Widget build(BuildContext context) {
-    if (!_checked) {
-      return const Scaffold(body: Center(child: CircularProgressIndicator()));
-    }
     return AppNavigationShell(
       tabBuilders: <KumoriyaTab, WidgetBuilder>{
         KumoriyaTab.home: (_) => const HomePage(),
