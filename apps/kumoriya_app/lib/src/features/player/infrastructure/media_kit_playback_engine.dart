@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
@@ -8,14 +9,9 @@ import 'package:kumoriya_plugins/kumoriya_plugins.dart';
 
 import '../application/services/playback_engine.dart';
 import '../application/models/embedded_tracks.dart';
+import '../application/models/player_diagnostics.dart';
 
 final class MediaKitPlaybackEngine implements PlaybackEngine {
-  static const List<Duration> _hlsPrerollWindows = <Duration>[
-    Duration(seconds: 4),
-    Duration(seconds: 10),
-    Duration(seconds: 20),
-  ];
-
   /// 64 MB on mobile (limited RAM), 128 MB on desktop.
   static int _bufferSizeForPlatform() {
     if (Platform.isAndroid || Platform.isIOS) {
@@ -49,6 +45,8 @@ final class MediaKitPlaybackEngine implements PlaybackEngine {
     );
     _attachVideoControllerDebugStreams();
     _attachNativeDebugStreams();
+    // P9: Diagnostics polling is now started lazily when the first
+    // listener subscribes to diagnosticsStream (onListen callback).
   }
 
   final Player player;
@@ -58,16 +56,23 @@ final class MediaKitPlaybackEngine implements PlaybackEngine {
   final bool _forceSoftwareVideoOutput;
   bool _disposed = false;
   int _openGeneration = 0;
+  Completer<void> _openCancellationCompleter = Completer<void>();
   bool _firstFrameRendered = false;
   bool _videoOutputFallbackTriggered = false;
   Timer? _videoOutputFallbackTimer;
+
+  // P5: Stream that fires once when the first video frame is rendered.
+  // Used by the orchestrator's visual gate to replace the fixed
+  // position-threshold hack with a real frame-rendered signal.
+  final Completer<void> _firstFrameCompleter = Completer<void>();
+
+  /// Completes when the video controller renders its first frame.
+  /// Used by the orchestrator to implement a frame-accurate visual gate.
+  @override
+  Future<void> get firstFrameRendered => _firstFrameCompleter.future;
   Uri? _currentAnimeNexusProxyBaseUri;
   String? _currentAnimeNexusPlaybackId;
   String? _currentAnimeNexusVariant;
-
-  /// Base master URL for the current anime-nexus stream, without query params.
-  /// Used by seekTo() to rebuild the URL with a fresh seekNonce.
-  Uri? _currentAnimeNexusMasterUri;
 
   /// O9: Reused HttpClient for loopback proxy communication.  Avoids
   /// repeated TCP connection setup overhead across seek-prefetch,
@@ -77,6 +82,109 @@ final class MediaKitPlaybackEngine implements PlaybackEngine {
   final List<StreamSubscription<dynamic>> _debugSubscriptions =
       <StreamSubscription<dynamic>>[];
   late final String _instanceId = identityHashCode(this).toRadixString(16);
+
+  // ── Diagnostics polling (debug only, lazy) ──────────────────────────────
+  Timer? _diagnosticsTimer;
+  int _diagnosticsListenerCount = 0;
+  late final StreamController<PlayerDiagnostics> _diagnosticsController =
+      StreamController<PlayerDiagnostics>.broadcast(
+    onListen: _onDiagnosticsListenerAdded,
+    onCancel: _onDiagnosticsListenerRemoved,
+  );
+  int? _lastSeekLatencyMs;
+
+  void _onDiagnosticsListenerAdded() {
+    _diagnosticsListenerCount++;
+    if (_diagnosticsListenerCount == 1) {
+      _startDiagnosticsPolling();
+    }
+  }
+
+  void _onDiagnosticsListenerRemoved() {
+    _diagnosticsListenerCount--;
+    if (_diagnosticsListenerCount <= 0) {
+      _diagnosticsListenerCount = 0;
+      _diagnosticsTimer?.cancel();
+      _diagnosticsTimer = null;
+    }
+  }
+
+  @override
+  Stream<PlayerDiagnostics> get diagnosticsStream =>
+      _diagnosticsController.stream;
+
+  /// Records a completed seek latency so the next diagnostics snapshot
+  /// includes it.  Called by the orchestrator after measuring a seek.
+  void recordSeekLatency(int milliseconds) {
+    _lastSeekLatencyMs = milliseconds;
+  }
+
+  /// P9: Polling is now lazy — only active when there are listeners on
+  /// the diagnostics stream (i.e. the debug overlay is visible).
+  /// Interval increased from 2s to 5s to reduce overhead.
+  void _startDiagnosticsPolling() {
+    if (!kDebugMode || _disposed) return;
+    _diagnosticsTimer?.cancel();
+    _diagnosticsTimer = Timer.periodic(
+      const Duration(seconds: 5),
+      (_) => _pollDiagnostics(),
+    );
+  }
+
+  Future<void> _pollDiagnostics() async {
+    if (_disposed || _diagnosticsController.isClosed) return;
+    final platform = player.platform;
+    if (platform is! NativePlayer) return;
+
+    try {
+      final results = await Future.wait(<Future<String>>[
+        platform.getProperty('estimated-vf-fps').catchError((_) => ''),
+        platform.getProperty('display-fps').catchError((_) => ''),
+        platform.getProperty('frame-drop-count').catchError((_) => ''),
+        platform.getProperty('decoder-frame-drop-count').catchError((_) => ''),
+        platform.getProperty('hwdec-current').catchError((_) => ''),
+        platform.getProperty('video-format').catchError((_) => ''),
+        platform.getProperty('video-codec').catchError((_) => ''),
+        platform.getProperty('video-params/w').catchError((_) => ''),
+        platform.getProperty('video-params/h').catchError((_) => ''),
+        platform.getProperty('demuxer-cache-duration').catchError((_) => ''),
+        platform.getProperty('demuxer-cache-state').catchError((_) => ''),
+      ]);
+
+      if (_disposed || _diagnosticsController.isClosed) return;
+
+      int? cacheBytes;
+      final cacheStateRaw = results[10];
+      if (cacheStateRaw.isNotEmpty) {
+        // demuxer-cache-state is JSON; extract total-bytes if available.
+        try {
+          final decoded = json.decode(cacheStateRaw) as Map<String, dynamic>;
+          cacheBytes = (decoded['total-bytes'] as num?)?.toInt();
+        } catch (_) {
+          // Not JSON or unexpected shape — ignore.
+        }
+      }
+
+      _diagnosticsController.add(
+        PlayerDiagnostics(
+          estimatedVfFps: double.tryParse(results[0]),
+          displayFps: double.tryParse(results[1]),
+          frameDropCount: int.tryParse(results[2]),
+          decoderFrameDropCount: int.tryParse(results[3]),
+          hwdecCurrent: results[4].isEmpty ? null : results[4],
+          videoFormat: results[5].isEmpty ? null : results[5],
+          videoCodec: results[6].isEmpty ? null : results[6],
+          videoWidth: int.tryParse(results[7]),
+          videoHeight: int.tryParse(results[8]),
+          demuxerCacheDuration: double.tryParse(results[9]),
+          demuxerCacheBytes: cacheBytes,
+          lastSeekLatencyMs: _lastSeekLatencyMs,
+        ),
+      );
+    } catch (error) {
+      _log('diagnostics-poll error=$error');
+    }
+  }
 
   @override
   Stream<bool> get playingStream => player.stream.playing;
@@ -135,7 +243,8 @@ final class MediaKitPlaybackEngine implements PlaybackEngine {
 
   @override
   Future<void> open(ResolvedStream stream, {Duration? startPosition}) async {
-    final generation = ++_openGeneration;
+    final generation = _beginOpenSequence();
+    final cancellation = _openCancellationCompleter.future;
     _log(
       'open url=${stream.url} hls=${stream.isHls} start=$startPosition generation=$generation headers=${stream.headers.keys.join(",")}',
     );
@@ -148,10 +257,6 @@ final class MediaKitPlaybackEngine implements PlaybackEngine {
       );
       _currentAnimeNexusPlaybackId = _extractAnimeNexusPlaybackId(stream.url);
       _currentAnimeNexusVariant = _extractAnimeNexusVariant(stream.url);
-      // Store the base master URL (sans seekNonce) so seekTo() can rebuild it.
-      _currentAnimeNexusMasterUri = stream.url.replace(
-        queryParameters: <String, String>{},
-      );
       // P0-B: Block until the proxy runtime is confirmed playable.
       await _ensureProxyPlayable();
       // P0-C: Fire-and-forget seek window warmup. The proxy responds
@@ -162,7 +267,6 @@ final class MediaKitPlaybackEngine implements PlaybackEngine {
       _currentAnimeNexusProxyBaseUri = null;
       _currentAnimeNexusPlaybackId = null;
       _currentAnimeNexusVariant = null;
-      _currentAnimeNexusMasterUri = null;
     }
     await _configureDecoderForStream(stream);
     _scheduleVideoOutputFallbackCheck(stream);
@@ -187,10 +291,14 @@ final class MediaKitPlaybackEngine implements PlaybackEngine {
             headers: stream.headers,
           ),
           requestedPosition: startPosition,
+          cancellation: cancellation,
         );
         return;
       }
-      await _openAnimeNexusInitialStream(stream);
+      await _openAnimeNexusInitialStream(
+        stream,
+        cancellation: cancellation,
+      );
       return;
     }
     if (stream.isHls &&
@@ -200,10 +308,16 @@ final class MediaKitPlaybackEngine implements PlaybackEngine {
         await _openAnimeNexusManagedSeekWindow(
           stream,
           requestedPosition: startPosition,
+          cancellation: cancellation,
         );
         return;
       }
-      await _openHlsAtPosition(stream, startPosition);
+      await _openHlsAtPosition(
+        stream,
+        startPosition,
+        cancellation: cancellation,
+        generation: generation,
+      );
       return;
     }
 
@@ -217,7 +331,28 @@ final class MediaKitPlaybackEngine implements PlaybackEngine {
     );
   }
 
-  Future<void> _openAnimeNexusInitialStream(ResolvedStream stream) async {
+  @override
+  Future<void> invalidatePendingOpen({String reason = 'unknown'}) async {
+    if (_disposed) {
+      return;
+    }
+    _log(
+      'invalidatePendingOpen reason=$reason currentGeneration=$_openGeneration',
+    );
+    _cancelActiveOpenWaiters(reason);
+    _openGeneration++;
+    _videoOutputFallbackTimer?.cancel();
+    try {
+      await player.stop();
+    } catch (error) {
+      _log('invalidatePendingOpen stop-failed reason=$reason error=$error');
+    }
+  }
+
+  Future<void> _openAnimeNexusInitialStream(
+    ResolvedStream stream, {
+    required Future<void> cancellation,
+  }) async {
     final generation = _openGeneration;
     _log('anime-nexus-open start url=${stream.url}');
     _throwIfInvalidated(generation);
@@ -231,10 +366,11 @@ final class MediaKitPlaybackEngine implements PlaybackEngine {
       'anime-nexus-open opened playing buffering=${player.state.buffering} duration=${player.state.duration} position=${player.state.position}',
     );
     _throwIfInvalidated(generation);
-    await _waitUntilReady();
+    await _waitUntilReady(cancellation: cancellation);
     _throwIfInvalidated(generation);
     final warmedUp = await _waitForPlaybackWarmup(
       timeout: const Duration(seconds: 25),
+      cancellation: cancellation,
     );
     if (!warmedUp) {
       _throwIfInvalidated(generation);
@@ -313,27 +449,13 @@ final class MediaKitPlaybackEngine implements PlaybackEngine {
   @override
   Future<void> seekTo(Duration position) async {
     _log('seekTo position=$position');
+    // Fire-and-forget: tell the proxy to pre-warm segments around the target
+    // so they're cached by the time mpv's HLS demuxer requests them.
     _signalSeekPrefetch(position);
-    if (_currentAnimeNexusProxyBaseUri != null) {
-      // Anime Nexus multi-track HLS: reopen with trimmed manifest instead
-      // of native seek.  mpv's ffmpeg HLS demuxer does not re-fetch audio
-      // segments on native seek — only video — leaving playback stuck in
-      // buffering forever.  Reopening with seekNonce makes the proxy trim
-      // both audio and video manifests so mpv initialises all tracks from
-      // the target position.
-      final seekUrl = _buildAnimeNexusSeekUrl(position);
-      if (seekUrl != null) {
-        _log('seekTo anime-nexus-reopen target=$position seekUrl=$seekUrl');
-        await _openAnimeNexusManagedSeekWindow(
-          ResolvedStream(url: seekUrl, isHls: true),
-          requestedPosition: position,
-        );
-        return;
-      }
-      // Fallback: if we can't build the seek URL, try native seek.
-      await _seekWhenReady(position);
-      return;
-    }
+    // Native seek for all streams.  For Anime Nexus the full manifest is
+    // already loaded in mpv (same as hls.js in a browser), so the HLS
+    // demuxer can locate the right segment for every track.  This preserves
+    // the demuxer cache — no stop/reopen cycle, no bandwidth waste.
     return player.seek(position);
   }
 
@@ -350,13 +472,16 @@ final class MediaKitPlaybackEngine implements PlaybackEngine {
       return;
     }
 
+    final prefetchQuery = <String, String>{
+      'target': position.inMilliseconds.toString(),
+    };
+    final variant = _currentAnimeNexusVariant;
+    if (variant != null) {
+      prefetchQuery['variant'] = variant;
+    }
     final prefetchUri = baseUri.replace(
       pathSegments: <String>['anime-nexus', playbackId, 'seek-prefetch'],
-      queryParameters: <String, String>{
-        'target': position.inMilliseconds.toString(),
-        if (_currentAnimeNexusVariant != null)
-          'variant': _currentAnimeNexusVariant!,
-      },
+      queryParameters: prefetchQuery,
     );
     _log('seekPrefetch signal target=$position uri=$prefetchUri');
 
@@ -420,13 +545,16 @@ final class MediaKitPlaybackEngine implements PlaybackEngine {
     // Only warm up when seeking to a non-zero position.
     if (startPosition == null || startPosition <= Duration.zero) return;
 
+    final warmupQuery = <String, String>{
+      'target': startPosition.inMilliseconds.toString(),
+    };
+    final variant = _currentAnimeNexusVariant;
+    if (variant != null) {
+      warmupQuery['variant'] = variant;
+    }
     final uri = baseUri.replace(
       pathSegments: <String>['anime-nexus', playbackId, 'warmup-seek-window'],
-      queryParameters: <String, String>{
-        'target': startPosition.inMilliseconds.toString(),
-        if (_currentAnimeNexusVariant != null)
-          'variant': _currentAnimeNexusVariant!,
-      },
+      queryParameters: warmupQuery,
     );
     _log('warmupProxySeekWindow start target=$startPosition uri=$uri');
 
@@ -446,8 +574,24 @@ final class MediaKitPlaybackEngine implements PlaybackEngine {
   }
 
   @override
+  Future<void> setSmartAudioBoost({required bool enabled}) async {
+    final platform = player.platform;
+    if (platform is! NativePlayer) return;
+    try {
+      await platform.setProperty(
+        'af',
+        enabled ? 'dynaudnorm=f=150:g=15' : '',
+      );
+    } catch (_) {
+      // Best-effort: ignore if MPV property is not available.
+    }
+  }
+
+  @override
   Future<void> dispose() async {
     _disposed = true;
+    _diagnosticsTimer?.cancel();
+    _diagnosticsController.close();
     _videoOutputFallbackTimer?.cancel();
     _proxyHttpClient?.close(force: true);
     _proxyHttpClient = null;
@@ -460,8 +604,11 @@ final class MediaKitPlaybackEngine implements PlaybackEngine {
   Future<void> _openHlsAtPosition(
     ResolvedStream stream,
     Duration startPosition,
+    {
+    required Future<void> cancellation,
+    required int generation,
+  }
   ) async {
-    final generation = _openGeneration;
     _log('hls-reopen start url=${stream.url} target=$startPosition');
     _throwIfInvalidated(generation);
     await player.stop();
@@ -479,47 +626,62 @@ final class MediaKitPlaybackEngine implements PlaybackEngine {
       'hls-reopen opened playing buffering=${player.state.buffering} duration=${player.state.duration} position=${player.state.position}',
     );
     _throwIfInvalidated(generation);
-    await _waitUntilReady();
+    await _waitUntilReady(cancellation: cancellation);
     _throwIfInvalidated(generation);
-    final startApplied = await _waitForRequestedStartPosition(startPosition);
+    final startApplied = await _waitForRequestedStartPosition(
+      startPosition,
+      cancellation: cancellation,
+    );
     _throwIfInvalidated(generation);
     if (startApplied) {
-      final progressed = await _waitForPlaybackProgressFromTarget(
+      final playbackReady = await _waitForPlaybackStartConfirmation(
         startPosition,
+        cancellation: cancellation,
       );
       _throwIfInvalidated(generation);
-      if (progressed) {
+      if (playbackReady) {
         _log(
-          'hls-reopen start-property progressed target=$startPosition buffering=${player.state.buffering} duration=${player.state.duration} position=${player.state.position}',
+          'hls-reopen start-confirmed target=$startPosition buffering=${player.state.buffering} duration=${player.state.duration} position=${player.state.position} buffer=${player.state.buffer}',
         );
         return;
       }
       _log(
-        'hls-reopen start-property stalled target=$startPosition buffering=${player.state.buffering} duration=${player.state.duration} position=${player.state.position}',
+        'hls-reopen start-confirmation stalled target=$startPosition buffering=${player.state.buffering} duration=${player.state.duration} position=${player.state.position} buffer=${player.state.buffer}',
       );
-      for (final window in _hlsPrerollWindows) {
-        final prerollStart = _computePrerollStart(startPosition, window);
-        if (prerollStart < startPosition) {
-          _throwIfInvalidated(generation);
-          final recovered = await _openHlsFromPreroll(
-            stream,
-            requestedPosition: startPosition,
-            prerollStart: prerollStart,
-          );
-          if (recovered) {
-            return;
-          }
+      // P6: Single-shot preroll attempt instead of cascading 3 windows
+      // (4s → 10s → 20s).  With native-seek-first (R5) this path is
+      // rarely reached; when it is, one 10s preroll is sufficient — the
+      // cascade added up to 30s of overhead for diminishing returns.
+      final prerollStart = _computePrerollStart(
+        startPosition,
+        const Duration(seconds: 10),
+      );
+      if (prerollStart < startPosition) {
+        _throwIfInvalidated(generation);
+        final recovered = await _openHlsFromPreroll(
+          stream,
+          requestedPosition: startPosition,
+          prerollStart: prerollStart,
+          cancellation: cancellation,
+          generation: generation,
+        );
+        if (recovered) {
+          return;
         }
       }
     }
 
     _throwIfInvalidated(generation);
-    await _waitForPlaybackWarmup();
+    await _waitForPlaybackWarmup(cancellation: cancellation);
     _log(
       'hls-reopen start-property fallback buffering=${player.state.buffering} duration=${player.state.duration} position=${player.state.position}',
     );
     _throwIfInvalidated(generation);
-    await _seekWhenReady(startPosition);
+    await _seekWhenReady(
+      startPosition,
+      generation: generation,
+      cancellation: cancellation,
+    );
     _log(
       'hls-reopen seeked buffering=${player.state.buffering} duration=${player.state.duration} position=${player.state.position}',
     );
@@ -528,6 +690,7 @@ final class MediaKitPlaybackEngine implements PlaybackEngine {
   Future<void> _openAnimeNexusManagedSeekWindow(
     ResolvedStream stream, {
     required Duration requestedPosition,
+    required Future<void> cancellation,
   }) async {
     final generation = _openGeneration;
     final seekPhaseStart = DateTime.now();
@@ -559,7 +722,7 @@ final class MediaKitPlaybackEngine implements PlaybackEngine {
       'elapsed=${openElapsed.inMilliseconds}ms',
     );
     _throwIfInvalidated(generation);
-    await _waitUntilReady();
+    await _waitUntilReady(cancellation: cancellation);
     final readyElapsed = DateTime.now().difference(seekPhaseStart);
     _log(
       'seekLatency phase=wait-until-ready '
@@ -568,7 +731,10 @@ final class MediaKitPlaybackEngine implements PlaybackEngine {
     _throwIfInvalidated(generation);
     // Reduced from 25s → 8s: proxy pre-warms content in background,
     // so if it hasn't arrived in 8s, waiting longer won't help.
-    await _waitForPlaybackWarmup(timeout: const Duration(seconds: 8));
+    await _waitForPlaybackWarmup(
+      timeout: const Duration(seconds: 8),
+      cancellation: cancellation,
+    );
     final totalElapsed = DateTime.now().difference(seekPhaseStart);
     _log(
       'hls-windowed-reopen ready requested=$requestedPosition '
@@ -581,7 +747,10 @@ final class MediaKitPlaybackEngine implements PlaybackEngine {
     );
   }
 
-  Future<void> _waitUntilReady() async {
+  Future<void> _waitUntilReady({
+    Future<void>? cancellation,
+    Duration timeout = const Duration(seconds: 25),
+  }) async {
     if (player.state.duration > Duration.zero) {
       _log(
         'waitUntilReady immediate buffering=${player.state.buffering} duration=${player.state.duration}',
@@ -621,12 +790,22 @@ final class MediaKitPlaybackEngine implements PlaybackEngine {
       }
     });
 
-    timeoutTimer = Timer(const Duration(seconds: 25), () {
+    timeoutTimer = Timer(timeout, () {
       _log(
         'waitUntilReady timeout buffering=${player.state.buffering} duration=${player.state.duration} position=${player.state.position}',
       );
       complete();
     });
+    if (cancellation != null) {
+      unawaited(
+        cancellation.then((_) {
+          _log(
+            'waitUntilReady cancelled buffering=${player.state.buffering} duration=${player.state.duration} position=${player.state.position}',
+          );
+          complete();
+        }),
+      );
+    }
 
     try {
       await completer.future;
@@ -637,26 +816,38 @@ final class MediaKitPlaybackEngine implements PlaybackEngine {
     }
   }
 
-  Future<void> _seekWhenReady(Duration targetPosition) async {
+  Future<void> _seekWhenReady(
+    Duration targetPosition, {
+    required int generation,
+    Future<void>? cancellation,
+  }) async {
     for (var attempt = 1; attempt <= 3; attempt++) {
-      _throwIfDisposed();
+      _throwIfInvalidated(generation);
       await player.seek(targetPosition);
       _log(
         'seekWhenReady attempt=$attempt target=$targetPosition buffering=${player.state.buffering} duration=${player.state.duration} position=${player.state.position}',
       );
-      final reached = await _waitForPosition(targetPosition);
+      final reached = await _waitForPosition(
+        targetPosition,
+        cancellation: cancellation,
+      );
+      _throwIfInvalidated(generation);
       if (reached) {
         _log(
           'seekWhenReady reached target=$targetPosition on attempt=$attempt',
         );
         return;
       }
-      await _waitUntilReady();
+      await _waitUntilReady(
+        cancellation: cancellation,
+        timeout: const Duration(seconds: 4),
+      );
     }
   }
 
   Future<bool> _waitForPlaybackWarmup({
     Duration timeout = const Duration(seconds: 3),
+    Future<void>? cancellation,
   }) async {
     if (player.state.position > Duration.zero && !player.state.buffering) {
       _log(
@@ -701,6 +892,16 @@ final class MediaKitPlaybackEngine implements PlaybackEngine {
       );
       complete(false);
     });
+    if (cancellation != null) {
+      unawaited(
+        cancellation.then((_) {
+          _log(
+            'waitForPlaybackWarmup cancelled position=${player.state.position} buffering=${player.state.buffering}',
+          );
+          complete(false);
+        }),
+      );
+    }
 
     try {
       return await completer.future;
@@ -711,7 +912,10 @@ final class MediaKitPlaybackEngine implements PlaybackEngine {
     }
   }
 
-  Future<bool> _waitForRequestedStartPosition(Duration targetPosition) async {
+  Future<bool> _waitForRequestedStartPosition(
+    Duration targetPosition, {
+    Future<void>? cancellation,
+  }) async {
     if (_isPositionNear(player.state.position, targetPosition)) {
       _log(
         'waitForRequestedStartPosition immediate target=$targetPosition position=${player.state.position}',
@@ -724,6 +928,7 @@ final class MediaKitPlaybackEngine implements PlaybackEngine {
     late final StreamSubscription<bool> bufferingSub;
     Timer? timeoutTimer;
     var buffering = player.state.buffering;
+    final observationStart = DateTime.now();
 
     void complete(bool value) {
       if (completer.isCompleted) {
@@ -737,6 +942,14 @@ final class MediaKitPlaybackEngine implements PlaybackEngine {
         return false;
       }
       if (buffering) {
+        return false;
+      }
+      if (player.state.duration <= Duration.zero) {
+        return false;
+      }
+      if (
+          DateTime.now().difference(observationStart) <
+              const Duration(milliseconds: 1500)) {
         return false;
       }
       return position > Duration.zero && position < const Duration(seconds: 3);
@@ -776,12 +989,22 @@ final class MediaKitPlaybackEngine implements PlaybackEngine {
       }
     });
 
-    timeoutTimer = Timer(const Duration(seconds: 6), () {
+    timeoutTimer = Timer(const Duration(seconds: 10), () {
       _log(
         'waitForRequestedStartPosition timeout target=$targetPosition position=${player.state.position} buffering=${player.state.buffering} duration=${player.state.duration}',
       );
       complete(false);
     });
+    if (cancellation != null) {
+      unawaited(
+        cancellation.then((_) {
+          _log(
+            'waitForRequestedStartPosition cancelled target=$targetPosition position=${player.state.position} buffering=${player.state.buffering} duration=${player.state.duration}',
+          );
+          complete(false);
+        }),
+      );
+    }
 
     try {
       return await completer.future;
@@ -792,19 +1015,22 @@ final class MediaKitPlaybackEngine implements PlaybackEngine {
     }
   }
 
-  Future<bool> _waitForPlaybackProgressFromTarget(
-    Duration targetPosition,
-  ) async {
-    if (player.state.position >
-        targetPosition + const Duration(milliseconds: 400)) {
+  Future<bool> _waitForPlaybackStartConfirmation(
+    Duration targetPosition, {
+    Future<void>? cancellation,
+  }) async {
+    if (_hasPlayableStartState(targetPosition)) {
       _log(
-        'waitForPlaybackProgressFromTarget immediate target=$targetPosition position=${player.state.position}',
+        'waitForPlaybackStartConfirmation immediate target=$targetPosition position=${player.state.position} buffer=${player.state.buffer}',
       );
       return true;
     }
 
     final completer = Completer<bool>();
     late final StreamSubscription<Duration> positionSub;
+    late final StreamSubscription<bool> bufferingSub;
+    late final StreamSubscription<Duration> bufferSub;
+    late final StreamSubscription<Duration> durationSub;
     Timer? timeoutTimer;
     Timer? pollTimer;
 
@@ -815,13 +1041,29 @@ final class MediaKitPlaybackEngine implements PlaybackEngine {
       completer.complete(value);
     }
 
-    positionSub = player.stream.position.listen((position) {
-      if (position > targetPosition + const Duration(milliseconds: 400)) {
+    void checkState(String source) {
+      if (_hasPlayableStartState(targetPosition)) {
         _log(
-          'waitForPlaybackProgressFromTarget advanced target=$targetPosition position=$position',
+          'waitForPlaybackStartConfirmation ready source=$source target=$targetPosition position=${player.state.position} buffer=${player.state.buffer} buffering=${player.state.buffering}',
         );
         complete(true);
       }
+    }
+
+    positionSub = player.stream.position.listen((position) {
+      checkState('position');
+    });
+
+    bufferingSub = player.stream.buffering.listen((_) {
+      checkState('buffering');
+    });
+
+    bufferSub = player.stream.buffer.listen((_) {
+      checkState('buffer');
+    });
+
+    durationSub = player.stream.duration.listen((_) {
+      checkState('duration');
     });
 
     pollTimer = Timer.periodic(const Duration(seconds: 1), (_) {
@@ -832,10 +1074,20 @@ final class MediaKitPlaybackEngine implements PlaybackEngine {
 
     timeoutTimer = Timer(const Duration(seconds: 6), () {
       _log(
-        'waitForPlaybackProgressFromTarget timeout target=$targetPosition position=${player.state.position} buffering=${player.state.buffering} completed=${player.state.completed} buffer=${player.state.buffer} percent=${player.state.bufferingPercentage}',
+        'waitForPlaybackStartConfirmation timeout target=$targetPosition position=${player.state.position} buffering=${player.state.buffering} completed=${player.state.completed} buffer=${player.state.buffer} percent=${player.state.bufferingPercentage}',
       );
       complete(false);
     });
+    if (cancellation != null) {
+      unawaited(
+        cancellation.then((_) {
+          _log(
+            'waitForPlaybackStartConfirmation cancelled target=$targetPosition position=${player.state.position} buffering=${player.state.buffering} completed=${player.state.completed} buffer=${player.state.buffer}',
+          );
+          complete(false);
+        }),
+      );
+    }
 
     try {
       return await completer.future;
@@ -843,6 +1095,9 @@ final class MediaKitPlaybackEngine implements PlaybackEngine {
       timeoutTimer.cancel();
       pollTimer.cancel();
       await positionSub.cancel();
+      await bufferingSub.cancel();
+      await bufferSub.cancel();
+      await durationSub.cancel();
     }
   }
 
@@ -850,8 +1105,9 @@ final class MediaKitPlaybackEngine implements PlaybackEngine {
     ResolvedStream stream, {
     required Duration requestedPosition,
     required Duration prerollStart,
+    required Future<void> cancellation,
+    required int generation,
   }) async {
-    final generation = _openGeneration;
     _log(
       'hls-reopen preroll start requested=$requestedPosition preroll=$prerollStart',
     );
@@ -866,23 +1122,36 @@ final class MediaKitPlaybackEngine implements PlaybackEngine {
       ),
       play: true,
     );
-    await _waitUntilReady();
-    final prerollApplied = await _waitForRequestedStartPosition(prerollStart);
+    await _waitUntilReady(cancellation: cancellation);
+    final prerollApplied = await _waitForRequestedStartPosition(
+      prerollStart,
+      cancellation: cancellation,
+    );
     if (!prerollApplied) {
       _log(
         'hls-reopen preroll failed requested=$requestedPosition preroll=$prerollStart position=${player.state.position}',
       );
       return false;
     }
-    final progressed = await _waitForPlaybackProgressFromTarget(prerollStart);
-    if (!progressed) {
+    final playbackReady = await _waitForPlaybackStartConfirmation(
+      prerollStart,
+      cancellation: cancellation,
+    );
+    if (!playbackReady) {
       _log(
         'hls-reopen preroll stalled requested=$requestedPosition preroll=$prerollStart position=${player.state.position}',
       );
       return false;
     }
-    await _seekWhenReady(requestedPosition);
-    final seekApplied = await _waitForPosition(requestedPosition);
+    await _seekWhenReady(
+      requestedPosition,
+      generation: generation,
+      cancellation: cancellation,
+    );
+    final seekApplied = await _waitForPosition(
+      requestedPosition,
+      cancellation: cancellation,
+    );
     if (!seekApplied) {
       _log(
         'hls-reopen preroll seek-failed requested=$requestedPosition preroll=$prerollStart position=${player.state.position}',
@@ -905,7 +1174,10 @@ final class MediaKitPlaybackEngine implements PlaybackEngine {
     return targetPosition - prerollWindow;
   }
 
-  Future<bool> _waitForPosition(Duration targetPosition) async {
+  Future<bool> _waitForPosition(
+    Duration targetPosition, {
+    Future<void>? cancellation,
+  }) async {
     if (_isPositionNear(player.state.position, targetPosition)) {
       return true;
     }
@@ -936,6 +1208,16 @@ final class MediaKitPlaybackEngine implements PlaybackEngine {
       );
       complete(false);
     });
+    if (cancellation != null) {
+      unawaited(
+        cancellation.then((_) {
+          _log(
+            'waitForPosition cancelled position=${player.state.position} target=$targetPosition buffering=${player.state.buffering}',
+          );
+          complete(false);
+        }),
+      );
+    }
 
     try {
       return await completer.future;
@@ -969,6 +1251,49 @@ final class MediaKitPlaybackEngine implements PlaybackEngine {
     return (actual - expected).inSeconds.abs() <= 2;
   }
 
+  bool _hasPlayableStartState(Duration targetPosition) {
+    if (player.state.duration <= Duration.zero ||
+        player.state.buffering ||
+        player.state.completed) {
+      return false;
+    }
+
+    final position = player.state.position;
+    if (position > targetPosition + const Duration(milliseconds: 400)) {
+      return true;
+    }
+    if (!_isPositionNear(position, targetPosition) || !player.state.playing) {
+      return false;
+    }
+
+    // Some sources report conservative/lagging buffer values even when mpv is
+    // already decoding smoothly from the requested target. Treat near-target,
+    // non-buffering playback as confirmed to avoid unnecessary reopen cascades.
+    if (position > Duration.zero) {
+      return true;
+    }
+
+    final buffer = player.state.buffer;
+    return buffer > position + const Duration(milliseconds: 400) ||
+        buffer > targetPosition + const Duration(milliseconds: 400) ||
+        player.state.bufferingPercentage >= 95;
+  }
+
+  int _beginOpenSequence() {
+    _cancelActiveOpenWaiters('superseded-by-new-open');
+    return ++_openGeneration;
+  }
+
+  void _cancelActiveOpenWaiters(String reason) {
+    if (!_openCancellationCompleter.isCompleted) {
+      _log(
+        'open-sequence-cancel reason=$reason generation=$_openGeneration',
+      );
+      _openCancellationCompleter.complete();
+    }
+    _openCancellationCompleter = Completer<void>();
+  }
+
   Future<void> _configureDecoderForStream(ResolvedStream stream) async {
     final platform = player.platform;
     if (platform is! NativePlayer) {
@@ -976,16 +1301,27 @@ final class MediaKitPlaybackEngine implements PlaybackEngine {
     }
 
     final isAnimeNexus = _isAnimeNexusLoopback(stream.url);
-    final hwdec = isAnimeNexus ? 'no' : 'auto-safe';
 
     try {
       final properties = <Future<void>>[
-        platform.setProperty('hwdec', hwdec),
+        // R2: Use auto-safe everywhere — mpv picks the best hw decoder
+        // (mediacodec on Android, d3d11va on Windows) and falls back to
+        // software automatically.  The old anime-nexus hwdec='no' forced
+        // software decode even on 1080p+ which caused low FPS.
+        platform.setProperty('hwdec', 'auto-safe'),
         platform.setProperty('vd-lavc-software-fallback', 'yes'),
+        // R2: Use multi-threaded software decoding as fallback.  cores-1
+        // avoids starving the Flutter UI thread.
+        platform.setProperty(
+          'vd-lavc-threads',
+          '${Platform.numberOfProcessors > 2 ? Platform.numberOfProcessors - 1 : 1}',
+        ),
         // Force precise seeking to the exact requested timestamp instead of
         // snapping to the previous keyframe — prevents blocky/corrupted
         // frames that appear when the decoder starts mid-GOP.
-        platform.setProperty('hr-seek', 'yes'),
+        // R2: Use 'default' — mpv uses hr-seek for short seeks (< ~60s)
+        // and keyframe seek for long jumps, balancing accuracy vs speed.
+        platform.setProperty('hr-seek', 'default'),
         // Keep all frames during a seek instead of dropping them — avoids
         // visual glitches (green/grey flash) while decoding catches up.
         platform.setProperty('hr-seek-framedrop', 'no'),
@@ -994,11 +1330,35 @@ final class MediaKitPlaybackEngine implements PlaybackEngine {
         platform.setProperty('video-sync', 'audio'),
       ];
 
-      // On Android, provide generous demuxer buffers so backward seeks
-      // within already-buffered content resolve without re-fetching.
+      // R2: Provide generous demuxer buffers on all platforms so backward
+      // seeks within already-buffered content resolve without re-fetching.
       if (defaultTargetPlatform == TargetPlatform.android) {
         properties.add(platform.setProperty('demuxer-max-bytes', '100MiB'));
         properties.add(platform.setProperty('demuxer-max-back-bytes', '50MiB'));
+      } else {
+        // Desktop has more RAM headroom.
+        properties.add(platform.setProperty('demuxer-max-bytes', '150MiB'));
+        properties.add(platform.setProperty('demuxer-max-back-bytes', '80MiB'));
+      }
+
+      // R2: Non-anime-nexus streams also benefit from a seekable demuxer
+      // cache and generous readahead to reduce re-fetching on backward seek.
+      if (!isAnimeNexus) {
+        properties.add(platform.setProperty('demuxer-seekable-cache', 'yes'));
+        // R5: Increased from 60s to 120s — larger readahead means more
+        // content is pre-fetched, reducing the chance of a seek landing
+        // outside cached data and needing a network round-trip.
+        properties.add(platform.setProperty('demuxer-readahead-secs', '120'));
+        // R5: Start decoding immediately instead of waiting for the buffer
+        // to fill.  Non-AN streams typically resolve to direct or CDN URLs
+        // with good throughput; stalling for initial cache fill adds 1-3s
+        // of unnecessary latency before the first frame.
+        properties.add(platform.setProperty('cache-pause-initial', 'no'));
+        // R5: Disable cache-induced pause after seeks.  mpv's default
+        // cache-pause-wait (1s) makes every seek feel sluggish because the
+        // player pauses until the cache refills.  The seek-stall watch in
+        // the orchestrator provides a safer timeout mechanism.
+        properties.add(platform.setProperty('cache-pause', 'no'));
       }
 
       if (isAnimeNexus) {
@@ -1030,10 +1390,10 @@ final class MediaKitPlaybackEngine implements PlaybackEngine {
       await Future.wait(properties);
 
       _log(
-        'decoder-config hwdec=$hwdec platform=$defaultTargetPlatform animeNexus=$isAnimeNexus',
+        'decoder-config hwdec=auto-safe platform=$defaultTargetPlatform animeNexus=$isAnimeNexus',
       );
     } catch (error) {
-      _log('decoder-config failed hwdec=$hwdec error=$error');
+      _log('decoder-config failed error=$error');
     }
   }
 
@@ -1084,15 +1444,6 @@ final class MediaKitPlaybackEngine implements PlaybackEngine {
     );
   }
 
-  /// Builds an anime-nexus master URL with seekNonce from the stored master URI.
-  /// Preserves the original variant/track path so the proxy routes correctly.
-  /// Returns null if no stream is currently open.
-  Uri? _buildAnimeNexusSeekUrl(Duration position) {
-    final masterUri = _currentAnimeNexusMasterUri;
-    if (masterUri == null) return null;
-    return _appendSeekNonce(masterUri, position);
-  }
-
   bool _shouldUseSoftwareVideoOutput() {
     return _forceSoftwareVideoOutput;
   }
@@ -1119,6 +1470,9 @@ final class MediaKitPlaybackEngine implements PlaybackEngine {
       ).listen(
         (_) {
           _firstFrameRendered = true;
+          if (!_firstFrameCompleter.isCompleted) {
+            _firstFrameCompleter.complete();
+          }
           _videoOutputFallbackTimer?.cancel();
           _log(
             'video-controller first-frame-rendered rect=${videoController.rect.value} textureId=${videoController.id.value}',

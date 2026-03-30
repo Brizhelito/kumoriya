@@ -53,28 +53,14 @@ final class StreamSelectionPolicy {
   }
 
   int _androidAnimeNexusCompatibilityPenalty(ResolvedStream stream) {
-    if (_effectivePlatform != TargetPlatform.android ||
-        !_isAnimeNexusLoopback(stream.url)) {
-      return 0;
-    }
-
-    final quality = _extractQualityScore(
-      (stream.qualityLabel ?? '').toLowerCase(),
-    );
-    if (quality == null || quality <= 720) {
-      return 0;
-    }
-
-    // Android devices are currently failing codec init on the highest
-    // Anime Nexus profile, so prefer the next compatible HLS variant first.
-    return 1000 + quality;
-  }
-
-  TargetPlatform get _effectivePlatform => _platform ?? defaultTargetPlatform;
-
-  bool _isAnimeNexusLoopback(Uri url) {
-    return url.pathSegments.isNotEmpty &&
-        url.pathSegments.first == 'anime-nexus';
+    // R2: Removed.  The old penalty existed because hwdec was forced to 'no'
+    // for anime-nexus streams, making >720p software-only and slow.  With
+    // hwdec='auto-safe' + vd-lavc-software-fallback, the decoder pipeline
+    // handles 1080p+ correctly on both hw and sw paths.
+    //
+    // If codec init failures re-surface on specific devices, add a
+    // device-model allowlist instead of a blanket quality penalty.
+    return 0;
   }
 
   int? _extractQualityScore(String qualityLabel) {

@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
 import 'package:kumoriya_app/src/features/anime_catalog/application/models/resolved_server_link_result.dart';
 import 'package:kumoriya_plugins/kumoriya_plugins.dart';
 import 'package:screen_brightness/screen_brightness.dart';
@@ -24,6 +25,7 @@ import '../../../anime_catalog/presentation/providers/storage_providers.dart';
 import '../../../downloads/presentation/download_providers.dart';
 import '../../application/models/subtitle_settings.dart';
 import '../../application/models/embedded_tracks.dart';
+import '../../application/models/player_diagnostics.dart';
 import '../../../anime_catalog/application/services/mal_metadata_bridge_service.dart';
 import '../../application/models/player_session_state.dart';
 import '../../application/services/player_session_orchestrator.dart';
@@ -31,6 +33,7 @@ import '../../application/use_cases/clear_playback_preference_use_case.dart';
 import '../../application/use_cases/save_playback_preference_use_case.dart';
 import '../../application/use_cases/save_progress_use_case.dart';
 import '../../infrastructure/media_kit_playback_engine.dart';
+import '../widgets/player_debug_overlay.dart';
 
 class PlayerPage extends ConsumerStatefulWidget {
   const PlayerPage({
@@ -188,7 +191,7 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
         return;
       }
       final now = DateTime.now();
-      if (now.difference(_lastPositionSetState).inMilliseconds >= 250) {
+      if (now.difference(_lastPositionSetState).inMilliseconds >= 500) {
         _lastPositionSetState = now;
         setState(() => _currentPosition = pos);
       } else {
@@ -504,10 +507,29 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
     return future;
   }
 
+  // Cache the last found segment to avoid re-scanning on consecutive calls
+  // at the same position. Cleared when segments list changes.
+  AniSkipSegment? _cachedActiveSegment;
+  int _cachedSegmentPositionSec = -1;
+
   AniSkipSegment? get _activeAniSkipSegment {
     if (_aniSkipSegments.isEmpty || _currentDuration <= Duration.zero) {
       return null;
     }
+    // Fast path: if position (rounded to seconds) hasn't changed, reuse cache.
+    final posSec = _currentPosition.inSeconds;
+    if (posSec == _cachedSegmentPositionSec && _cachedActiveSegment != null) {
+      // Verify cached segment is still valid (could have exited its range).
+      final seg = _cachedActiveSegment!;
+      final guardStart = seg.start - const Duration(seconds: 1);
+      final effectiveStart = guardStart > Duration.zero
+          ? guardStart
+          : Duration.zero;
+      if (_currentPosition >= effectiveStart && _currentPosition < seg.end) {
+        return seg;
+      }
+    }
+    _cachedSegmentPositionSec = posSec;
     for (final segment in _aniSkipSegments) {
       final guardStart = segment.start - const Duration(seconds: 1);
       final effectiveStart = guardStart > Duration.zero
@@ -515,9 +537,11 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
           : Duration.zero;
       if (_currentPosition >= effectiveStart &&
           _currentPosition < segment.end) {
+        _cachedActiveSegment = segment;
         return segment;
       }
     }
+    _cachedActiveSegment = null;
     return null;
   }
 
@@ -941,6 +965,16 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
             activeSkipLabel: _autoSkipEnabled ? null : _activeAniSkipLabel,
             onSkipSegment: () => unawaited(_skipActiveSegment()),
             autoSkipEnabled: _autoSkipEnabled,
+            showFallbackSkip: _aniSkipSegments.isEmpty ||
+                !_aniSkipSegments.any((s) => s.kind == AniSkipSegmentKind.opening),
+            onFallbackSkip: () {
+              final fallback = _currentPosition + const Duration(seconds: 90);
+              final maxPos = _currentDuration > const Duration(seconds: 1)
+                  ? _currentDuration - const Duration(seconds: 1)
+                  : _currentDuration;
+              final target = fallback > maxPos ? maxPos : fallback;
+              unawaited(_seekTo(target));
+            },
             onAutoSkipToggled: () {
               setState(() => _autoSkipEnabled = !_autoSkipEnabled);
             },
@@ -955,12 +989,20 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
             episodeTitle: widget.episodeTitle,
             onVolumeChanged: (vol) {
               _engine?.player.setVolume(vol * 100);
-              VolumeController().setVolume(vol.clamp(0.0, 1.0));
+              VolumeController.instance.setVolume(vol.clamp(0.0, 1.0));
+              // Activate smart audio boost (dynamic normalization) when
+              // volume exceeds 100 % so the boost raises dialogue clarity
+              // instead of hard-clipping all frequencies.
+              _engine?.setSmartAudioBoost(enabled: vol > 1.0);
             },
             onBrightnessChanged: (brightness) {
-              unawaited(ScreenBrightness().setScreenBrightness(brightness));
+              unawaited(
+                ScreenBrightness().setApplicationScreenBrightness(brightness),
+              );
             },
             onSpeedChanged: (speed) => _engine?.player.setRate(speed),
+            diagnosticsStream: engine?.diagnosticsStream,
+            seekLatencyMs: _orchestrator?.lastSeekLatencyMs,
           ),
         ),
       ),
@@ -1051,6 +1093,13 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
             unawaited(orchestrator.clearEmbeddedSubtitleTrack());
           },
         ),
+        _PlayerSelectorOption(
+          icon: Icons.tune_rounded,
+          title: context.l10n.playerSubtitleStyle,
+          subtitle: context.l10n.playerSubtitleStyleDescription,
+          selected: false,
+          onTap: () => unawaited(_showSubtitleStyleSheet(context)),
+        ),
         ...externalTracks.map(
           (track) => _PlayerSelectorOption(
             icon: Icons.closed_caption_rounded,
@@ -1082,6 +1131,314 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
           ),
         ),
       ],
+    );
+  }
+
+  Future<void> _showSubtitleStyleSheet(BuildContext context) {
+    return showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (sheetContext) {
+        return Consumer(
+          builder: (context, ref, _) {
+            final settings =
+                ref.watch(subtitleSettingsProvider).value ??
+                const SubtitleSettings();
+            final notifier = ref.read(subtitleSettingsProvider.notifier);
+
+            Widget buildColorDot({
+              required Color color,
+              required bool selected,
+              required VoidCallback onTap,
+            }) {
+              return GestureDetector(
+                onTap: onTap,
+                child: Container(
+                  width: 36,
+                  height: 36,
+                  decoration: BoxDecoration(
+                    color: color,
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: selected
+                          ? KumoriyaColors.primary
+                          : KumoriyaColors.borderSubtle,
+                      width: selected ? 3 : 1,
+                    ),
+                  ),
+                  child: selected
+                      ? Icon(
+                          Icons.check_rounded,
+                          size: 18,
+                          color: color.computeLuminance() > 0.7
+                              ? Colors.black
+                              : Colors.white,
+                        )
+                      : null,
+                ),
+              );
+            }
+
+            return SafeArea(
+              child: Padding(
+                padding: EdgeInsets.only(
+                  left: KumoriyaSpacing.md,
+                  right: KumoriyaSpacing.md,
+                  top: KumoriyaSpacing.md,
+                  bottom:
+                      MediaQuery.of(sheetContext).viewInsets.bottom +
+                      KumoriyaSpacing.lg,
+                ),
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: KumoriyaColors.surface,
+                    borderRadius: BorderRadius.circular(KumoriyaRadius.xxl),
+                    border: Border.all(color: KumoriyaColors.borderMedium),
+                  ),
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxHeight: 720),
+                    child: SingleChildScrollView(
+                      padding: const EdgeInsets.fromLTRB(
+                        KumoriyaSpacing.lg,
+                        KumoriyaSpacing.lg,
+                        KumoriyaSpacing.lg,
+                        KumoriyaSpacing.xl,
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: <Widget>[
+                          Row(
+                            children: <Widget>[
+                              Container(
+                                width: 32,
+                                height: 32,
+                                decoration: BoxDecoration(
+                                  color: KumoriyaColors.primarySurface20,
+                                  borderRadius: BorderRadius.circular(
+                                    KumoriyaRadius.md,
+                                  ),
+                                ),
+                                child: const Icon(
+                                  Icons.tune_rounded,
+                                  size: 18,
+                                  color: KumoriyaColors.textPrimary,
+                                ),
+                              ),
+                              const SizedBox(width: KumoriyaSpacing.sm),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: <Widget>[
+                                    Text(
+                                      context.l10n.playerSubtitleStyle,
+                                      style: Theme.of(
+                                        context,
+                                      ).textTheme.titleMedium,
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      context
+                                          .l10n
+                                          .playerSubtitleStyleDescription,
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .bodySmall
+                                          ?.copyWith(
+                                            color: KumoriyaColors.textSecondary,
+                                          ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: KumoriyaSpacing.lg),
+                          Text(
+                            context.l10n.settingsSubtitleFontSize,
+                            style: const TextStyle(fontWeight: FontWeight.w700),
+                          ),
+                          const SizedBox(height: KumoriyaSpacing.sm),
+                          SegmentedButton<SubtitleFontSize>(
+                            segments: <ButtonSegment<SubtitleFontSize>>[
+                              ButtonSegment(
+                                value: SubtitleFontSize.small,
+                                label: Text(context.l10n.settingsSubtitleSmall),
+                              ),
+                              ButtonSegment(
+                                value: SubtitleFontSize.medium,
+                                label: Text(
+                                  context.l10n.settingsSubtitleMedium,
+                                ),
+                              ),
+                              ButtonSegment(
+                                value: SubtitleFontSize.large,
+                                label: Text(context.l10n.settingsSubtitleLarge),
+                              ),
+                              ButtonSegment(
+                                value: SubtitleFontSize.extraLarge,
+                                label: Text(
+                                  context.l10n.settingsSubtitleExtraLarge,
+                                ),
+                              ),
+                            ],
+                            selected: <SubtitleFontSize>{settings.fontSize},
+                            onSelectionChanged: (selection) {
+                              notifier.save(
+                                (current) =>
+                                    current.copyWith(fontSize: selection.first),
+                              );
+                            },
+                          ),
+                          const SizedBox(height: KumoriyaSpacing.lg),
+                          Text(
+                            context.l10n.settingsSubtitleFontColor,
+                            style: const TextStyle(fontWeight: FontWeight.w700),
+                          ),
+                          const SizedBox(height: KumoriyaSpacing.sm),
+                          Wrap(
+                            spacing: KumoriyaSpacing.sm,
+                            runSpacing: KumoriyaSpacing.sm,
+                            children: SubtitleFontColor.values
+                                .map(
+                                  (color) => buildColorDot(
+                                    color: color.color,
+                                    selected: settings.fontColor == color,
+                                    onTap: () => notifier.save(
+                                      (current) =>
+                                          current.copyWith(fontColor: color),
+                                    ),
+                                  ),
+                                )
+                                .toList(growable: false),
+                          ),
+                          const SizedBox(height: KumoriyaSpacing.lg),
+                          Text(
+                            '${context.l10n.settingsSubtitleFontOpacity} ${(settings.fontOpacity * 100).round()}%',
+                            style: const TextStyle(fontWeight: FontWeight.w700),
+                          ),
+                          Slider(
+                            value: settings.fontOpacity,
+                            min: 0.25,
+                            max: 1.0,
+                            divisions: 3,
+                            onChanged: (value) {
+                              notifier.save(
+                                (current) =>
+                                    current.copyWith(fontOpacity: value),
+                              );
+                            },
+                          ),
+                          Text(
+                            context.l10n.settingsSubtitleBgColor,
+                            style: const TextStyle(fontWeight: FontWeight.w700),
+                          ),
+                          const SizedBox(height: KumoriyaSpacing.sm),
+                          SegmentedButton<SubtitleBackgroundColor>(
+                            segments: <ButtonSegment<SubtitleBackgroundColor>>[
+                              ButtonSegment(
+                                value: SubtitleBackgroundColor.black,
+                                label: Text(
+                                  context.l10n.settingsSubtitleBgBlack,
+                                ),
+                              ),
+                              ButtonSegment(
+                                value: SubtitleBackgroundColor.darkGray,
+                                label: Text(
+                                  context.l10n.settingsSubtitleBgDarkGray,
+                                ),
+                              ),
+                              ButtonSegment(
+                                value: SubtitleBackgroundColor.transparent,
+                                label: Text(
+                                  context.l10n.settingsSubtitleBgNone,
+                                ),
+                              ),
+                            ],
+                            selected: <SubtitleBackgroundColor>{
+                              settings.backgroundColor,
+                            },
+                            onSelectionChanged: (selection) {
+                              notifier.save(
+                                (current) => current.copyWith(
+                                  backgroundColor: selection.first,
+                                ),
+                              );
+                            },
+                          ),
+                          if (settings.backgroundColor !=
+                              SubtitleBackgroundColor.transparent) ...<Widget>[
+                            const SizedBox(height: KumoriyaSpacing.lg),
+                            Text(
+                              '${context.l10n.settingsSubtitleBgOpacity} ${(settings.backgroundOpacity * 100).round()}%',
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                            Slider(
+                              value: settings.backgroundOpacity,
+                              min: 0.0,
+                              max: 1.0,
+                              divisions: 4,
+                              onChanged: (value) {
+                                notifier.save(
+                                  (current) => current.copyWith(
+                                    backgroundOpacity: value,
+                                  ),
+                                );
+                              },
+                            ),
+                          ],
+                          const SizedBox(height: KumoriyaSpacing.lg),
+                          Text(
+                            context.l10n.settingsSubtitleEdgeStyle,
+                            style: const TextStyle(fontWeight: FontWeight.w700),
+                          ),
+                          const SizedBox(height: KumoriyaSpacing.sm),
+                          Wrap(
+                            spacing: KumoriyaSpacing.sm,
+                            runSpacing: KumoriyaSpacing.sm,
+                            children: SubtitleEdgeStyle.values
+                                .map((style) {
+                                  final label = switch (style) {
+                                    SubtitleEdgeStyle.none =>
+                                      context.l10n.settingsSubtitleEdgeNone,
+                                    SubtitleEdgeStyle.outline =>
+                                      context.l10n.settingsSubtitleEdgeOutline,
+                                    SubtitleEdgeStyle.dropShadow =>
+                                      context
+                                          .l10n
+                                          .settingsSubtitleEdgeDropShadow,
+                                    SubtitleEdgeStyle.raised =>
+                                      context.l10n.settingsSubtitleEdgeRaised,
+                                    SubtitleEdgeStyle.depressed =>
+                                      context
+                                          .l10n
+                                          .settingsSubtitleEdgeDepressed,
+                                  };
+                                  return ChoiceChip(
+                                    label: Text(label),
+                                    selected: settings.edgeStyle == style,
+                                    onSelected: (_) {
+                                      notifier.save(
+                                        (current) =>
+                                            current.copyWith(edgeStyle: style),
+                                      );
+                                    },
+                                  );
+                                })
+                                .toList(growable: false),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            );
+          },
+        );
+      },
     );
   }
 
@@ -1182,6 +1539,8 @@ class _ImmersivePlayerView extends StatefulWidget {
     required this.onSkipSegment,
     required this.autoSkipEnabled,
     this.onAutoSkipToggled,
+    this.showFallbackSkip = false,
+    this.onFallbackSkip,
     required this.isWindowsFullscreen,
     required this.onToggleWindowsFullscreen,
     this.errorMessage,
@@ -1190,6 +1549,8 @@ class _ImmersivePlayerView extends StatefulWidget {
     this.onVolumeChanged,
     this.onBrightnessChanged,
     this.onSpeedChanged,
+    this.diagnosticsStream,
+    this.seekLatencyMs,
   });
 
   final MediaKitPlaybackEngine? engine;
@@ -1222,6 +1583,8 @@ class _ImmersivePlayerView extends StatefulWidget {
   final VoidCallback? onSkipSegment;
   final bool autoSkipEnabled;
   final VoidCallback? onAutoSkipToggled;
+  final bool showFallbackSkip;
+  final VoidCallback? onFallbackSkip;
   final bool isWindowsFullscreen;
   final VoidCallback? onToggleWindowsFullscreen;
   final String? errorMessage;
@@ -1230,6 +1593,8 @@ class _ImmersivePlayerView extends StatefulWidget {
   final ValueChanged<double>? onVolumeChanged;
   final ValueChanged<double>? onBrightnessChanged;
   final ValueChanged<double>? onSpeedChanged;
+  final Stream<PlayerDiagnostics>? diagnosticsStream;
+  final int? seekLatencyMs;
 
   @override
   State<_ImmersivePlayerView> createState() => _ImmersivePlayerViewState();
@@ -1246,6 +1611,7 @@ class _ImmersivePlayerViewState extends State<_ImmersivePlayerView>
   bool _isDragSeeking = false;
   double _dragSeekAccumulatedDx = 0;
   Duration _dragSeekTargetPosition = Duration.zero;
+  DateTime _lastDragSetState = DateTime(2000);
   Timer? _mouseIdleTimer;
   bool _skipButtonVisible = true;
   Timer? _skipButtonHideTimer;
@@ -1255,6 +1621,12 @@ class _ImmersivePlayerViewState extends State<_ImmersivePlayerView>
   // Double-tap seek state
   Timer? _doubleTapTimer;
   int _lastTapZone = -1;
+
+  // Rapid-seek state: after a double-tap seek, subsequent taps in the same
+  // zone within _rapidSeekWindow keep seeking without the 200 ms wait.
+  bool _inRapidSeekMode = false;
+  Timer? _rapidSeekTimer;
+  static const Duration _rapidSeekWindow = Duration(seconds: 1);
 
   // Brightness restore
   double? _initialBrightness;
@@ -1275,6 +1647,10 @@ class _ImmersivePlayerViewState extends State<_ImmersivePlayerView>
   double _baseSpeed = 1.0;
   double _speedMultiplier = 1.0;
 
+  // Player HUD status indicators
+  Timer? _clockTimer;
+  DateTime _currentTime = DateTime.now();
+
   @override
   void initState() {
     super.initState();
@@ -1285,7 +1661,17 @@ class _ImmersivePlayerViewState extends State<_ImmersivePlayerView>
     );
     unawaited(_initBrightness());
     unawaited(_initVolume());
+    _startClockTicker();
     _startHideTimer();
+  }
+
+  void _startClockTicker() {
+    _clockTimer?.cancel();
+    _clockTimer = Timer.periodic(const Duration(seconds: 30), (_) {
+      if (mounted) {
+        setState(() => _currentTime = DateTime.now());
+      }
+    });
   }
 
   @override
@@ -1317,7 +1703,7 @@ class _ImmersivePlayerViewState extends State<_ImmersivePlayerView>
 
   Future<void> _initBrightness() async {
     try {
-      final current = await ScreenBrightness().current;
+      final current = await ScreenBrightness().application;
       _initialBrightness = current;
       if (mounted) {
         setState(() => _brightnessLevel = current);
@@ -1327,8 +1713,8 @@ class _ImmersivePlayerViewState extends State<_ImmersivePlayerView>
 
   Future<void> _initVolume() async {
     try {
-      VolumeController().showSystemUI = false;
-      final current = await VolumeController().getVolume();
+      VolumeController.instance.showSystemUI = false;
+      final current = await VolumeController.instance.getVolume();
       if (mounted) {
         setState(() => _volumeLevel = current);
       }
@@ -1342,10 +1728,14 @@ class _ImmersivePlayerViewState extends State<_ImmersivePlayerView>
     _overlayHideTimer?.cancel();
     _mouseIdleTimer?.cancel();
     _skipButtonHideTimer?.cancel();
+    _clockTimer?.cancel();
     _skipProgressController.dispose();
     _doubleTapTimer?.cancel();
+    _rapidSeekTimer?.cancel();
     if (_initialBrightness != null) {
-      unawaited(ScreenBrightness().setScreenBrightness(_initialBrightness!));
+      unawaited(
+        ScreenBrightness().setApplicationScreenBrightness(_initialBrightness!),
+      );
     }
     super.dispose();
   }
@@ -1368,23 +1758,52 @@ class _ImmersivePlayerViewState extends State<_ImmersivePlayerView>
     });
   }
 
+  int _zoneFromPosition(Offset localPosition) {
+    final width = MediaQuery.of(context).size.width;
+    if (width <= 0) return 1;
+    final third = width / 3;
+    if (localPosition.dx < third) return 0;
+    if (localPosition.dx < third * 2) return 1;
+    return 2;
+  }
+
+  void _onTapUp(TapUpDetails details) {
+    if (_controlsLocked) return;
+    final zone = _zoneFromPosition(details.localPosition);
+    _handleTapInZone(zone);
+  }
+
   void _handleTapInZone(int zone) {
     if (_controlsLocked) return;
+
+    // During rapid-seek mode every side tap acts like a seek button press.
+    // This keeps repeated taps responsive and avoids falling back to toggle.
+    if (_inRapidSeekMode && (zone == 0 || zone == 2)) {
+      _rapidSeekTimer?.cancel();
+      setState(() {
+        _lastTapZone = zone;
+      });
+      _performSeekForZone(zone);
+      _rapidSeekTimer = Timer(_rapidSeekWindow, _exitRapidSeekMode);
+      return;
+    }
+
+    // ── Double-tap detection ──
     if (_doubleTapTimer?.isActive == true && _lastTapZone == zone) {
       _doubleTapTimer!.cancel();
       _doubleTapTimer = null;
-      if (zone == 0) {
-        widget.onSkipBackward?.call();
-        _showSeekIndicator(isForward: false);
-      } else if (zone == 2) {
-        widget.onSkipForward?.call();
-        _showSeekIndicator(isForward: true);
+      if (zone == 0 || zone == 2) {
+        _performSeekForZone(zone);
+        _enterRapidSeekMode(zone);
       } else if (zone == 1 && !kIsWeb && Platform.isWindows) {
         widget.onToggleWindowsFullscreen?.call();
       }
     } else {
       _doubleTapTimer?.cancel();
-      _lastTapZone = zone;
+      _exitRapidSeekMode();
+      setState(() {
+        _lastTapZone = zone;
+      });
       _doubleTapTimer = Timer(const Duration(milliseconds: 200), () {
         _doubleTapTimer = null;
         _toggleControls();
@@ -1392,51 +1811,75 @@ class _ImmersivePlayerViewState extends State<_ImmersivePlayerView>
     }
   }
 
-  void _onMouseActivity() {
-    if (!_controlsVisible) {
-      setState(() => _controlsVisible = true);
+  void _performSeekForZone(int zone) {
+    if (zone == 0) {
+      widget.onSkipBackward?.call();
+      _showSeekIndicator(isForward: false);
+      return;
     }
-    _mouseIdleTimer?.cancel();
-    _mouseIdleTimer = Timer(const Duration(seconds: 3), () {
-      if (mounted && widget.isPlaying && !_isDragSeeking) {
-        setState(() => _controlsVisible = false);
-      }
-    });
+    if (zone == 2) {
+      widget.onSkipForward?.call();
+      _showSeekIndicator(isForward: true);
+    }
   }
 
   void _showSeekIndicator({required bool isForward}) {
     _seekIndicatorTimer?.cancel();
     setState(() {
-      _seekIndicatorVisible = true;
       _seekIndicatorForward = isForward;
+      _seekIndicatorVisible = true;
     });
-    _seekIndicatorTimer = Timer(const Duration(milliseconds: 600), () {
-      if (mounted) setState(() => _seekIndicatorVisible = false);
+    _seekIndicatorTimer = Timer(const Duration(milliseconds: 500), () {
+      if (!mounted) return;
+      setState(() {
+        _seekIndicatorVisible = false;
+      });
     });
   }
 
-  void _toggleOrientationLock() {
-    setState(() => _orientationLocked = !_orientationLocked);
-    SystemChrome.setPreferredOrientations(<DeviceOrientation>[
-      DeviceOrientation.landscapeLeft,
-      DeviceOrientation.landscapeRight,
-    ]);
+  void _enterRapidSeekMode(int zone) {
+    setState(() {
+      _inRapidSeekMode = true;
+      _lastTapZone = zone;
+    });
+    _rapidSeekTimer?.cancel();
+    _rapidSeekTimer = Timer(_rapidSeekWindow, _exitRapidSeekMode);
+  }
+
+  void _exitRapidSeekMode() {
+    if (mounted && _inRapidSeekMode) {
+      setState(() {
+        _inRapidSeekMode = false;
+      });
+    } else {
+      _inRapidSeekMode = false;
+    }
+    _rapidSeekTimer?.cancel();
+    _rapidSeekTimer = null;
   }
 
   void _onHorizontalDragStart(DragStartDetails details) {
     if (_controlsLocked) return;
-    _isDragSeeking = true;
-    _dragSeekAccumulatedDx = 0;
-    _dragSeekTargetPosition = widget.currentPosition;
+    if (Platform.isWindows) return;
+    _doubleTapTimer?.cancel();
+    _doubleTapTimer = null;
+    _exitRapidSeekMode();
+    _hideTimer?.cancel();
+    setState(() {
+      _isDragSeeking = true;
+      _controlsVisible = true;
+      _dragSeekAccumulatedDx = 0;
+      _dragSeekTargetPosition = widget.currentPosition;
+    });
   }
 
   void _onHorizontalDragUpdate(DragUpdateDetails details) {
     if (_controlsLocked) return;
     if (!_isDragSeeking) return;
-    final screenWidth = MediaQuery.of(context).size.width;
-    if (screenWidth <= 0 || widget.totalDuration <= Duration.zero) return;
 
     _dragSeekAccumulatedDx += details.delta.dx;
+    final screenWidth = MediaQuery.of(context).size.width;
+    if (screenWidth <= 0) return;
     final ratio = _dragSeekAccumulatedDx / (screenWidth * 2.5);
     final seekDeltaMs = (ratio * widget.totalDuration.inMilliseconds).round();
     final target = Duration(
@@ -1446,9 +1889,22 @@ class _ImmersivePlayerViewState extends State<_ImmersivePlayerView>
       ),
     );
 
-    setState(() {
-      _dragSeekTargetPosition = target;
-    });
+    // Throttle setState during drag to ~15 Hz (every ~66ms) to cut rebuilds.
+    _dragSeekTargetPosition = target;
+    final now = DateTime.now();
+    if (now.difference(_lastDragSetState).inMilliseconds >= 66) {
+      _lastDragSetState = now;
+      setState(() {});
+    }
+  }
+
+  void _onMouseActivity() {
+    if (!_controlsVisible && !_controlsLocked) {
+      setState(() {
+        _controlsVisible = true;
+      });
+    }
+    _startHideTimer();
   }
 
   void _onHorizontalDragEnd(DragEndDetails details) {
@@ -1476,6 +1932,9 @@ class _ImmersivePlayerViewState extends State<_ImmersivePlayerView>
   void _onVerticalDragStart(DragStartDetails details) {
     if (_controlsLocked) return;
     if (Platform.isWindows) return;
+    _doubleTapTimer?.cancel();
+    _doubleTapTimer = null;
+    _exitRapidSeekMode();
     final width = MediaQuery.of(context).size.width;
     _verticalDragStart = details.localPosition;
     _isVerticalDragBrightness = details.localPosition.dx < width / 2;
@@ -1512,6 +1971,20 @@ class _ImmersivePlayerViewState extends State<_ImmersivePlayerView>
         });
       }
     });
+  }
+
+  void _toggleOrientationLock() {
+    setState(() {
+      _orientationLocked = !_orientationLocked;
+    });
+    if (_orientationLocked) {
+      SystemChrome.setPreferredOrientations(<DeviceOrientation>[
+        DeviceOrientation.landscapeLeft,
+        DeviceOrientation.landscapeRight,
+      ]);
+    } else {
+      SystemChrome.setPreferredOrientations(<DeviceOrientation>[]);
+    }
   }
 
   KeyEventResult _handleKeyEvent(FocusNode node, KeyEvent event) {
@@ -1601,6 +2074,11 @@ class _ImmersivePlayerViewState extends State<_ImmersivePlayerView>
     return '$sign${s}s';
   }
 
+  String _formatCurrentTime(BuildContext context) {
+    final locale = Localizations.localeOf(context).toLanguageTag();
+    return DateFormat.Hm(locale).format(_currentTime);
+  }
+
   void _showSpeedSelector(BuildContext context) {
     const speeds = <double>[0.25, 0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0];
     showModalBottomSheet<double>(
@@ -1675,6 +2153,7 @@ class _ImmersivePlayerViewState extends State<_ImmersivePlayerView>
         },
         child: GestureDetector(
           behavior: HitTestBehavior.translucent,
+          onTapUp: _onTapUp,
           onHorizontalDragStart: _onHorizontalDragStart,
           onHorizontalDragUpdate: _onHorizontalDragUpdate,
           onHorizontalDragEnd: _onHorizontalDragEnd,
@@ -1683,6 +2162,9 @@ class _ImmersivePlayerViewState extends State<_ImmersivePlayerView>
           onVerticalDragEnd: _onVerticalDragEnd,
           onLongPressStart: (_) {
             if (_controlsLocked) return;
+            _doubleTapTimer?.cancel();
+            _doubleTapTimer = null;
+            _exitRapidSeekMode();
             setState(() => _speedMultiplier = 2.0);
             widget.onSpeedChanged?.call(2.0);
           },
@@ -1711,36 +2193,6 @@ class _ImmersivePlayerViewState extends State<_ImmersivePlayerView>
                 )
               else
                 const ColoredBox(color: Colors.black),
-
-              // Double-tap seek zones (3 equal thirds)
-              Row(
-                children: <Widget>[
-                  // Left 1/3 — double tap skip backward
-                  Expanded(
-                    child: GestureDetector(
-                      behavior: HitTestBehavior.opaque,
-                      onTap: () => _handleTapInZone(0),
-                      child: const SizedBox.expand(),
-                    ),
-                  ),
-                  // Center 1/3
-                  Expanded(
-                    child: GestureDetector(
-                      behavior: HitTestBehavior.opaque,
-                      onTap: () => _handleTapInZone(1),
-                      child: const SizedBox.expand(),
-                    ),
-                  ),
-                  // Right 1/3 — double tap skip forward
-                  Expanded(
-                    child: GestureDetector(
-                      behavior: HitTestBehavior.opaque,
-                      onTap: () => _handleTapInZone(2),
-                      child: const SizedBox.expand(),
-                    ),
-                  ),
-                ],
-              ),
 
               // Seek indicator (double-tap only)
               if (_seekIndicatorVisible && !_isDragSeeking)
@@ -1885,6 +2337,13 @@ class _ImmersivePlayerViewState extends State<_ImmersivePlayerView>
                   ),
                 ),
 
+              // Debug diagnostics overlay (debug builds only)
+              if (kDebugMode && widget.diagnosticsStream != null)
+                PlayerDebugOverlay(
+                  diagnosticsStream: widget.diagnosticsStream!,
+                  seekLatencyMs: widget.seekLatencyMs,
+                ),
+
               // Error banner
               if (widget.isError && widget.errorMessage != null)
                 Align(
@@ -2025,6 +2484,40 @@ class _ImmersivePlayerViewState extends State<_ImmersivePlayerView>
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: <Widget>[
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 8,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: KumoriyaColors.playerControlBg,
+                                  borderRadius: BorderRadius.circular(
+                                    KumoriyaRadius.full,
+                                  ),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: <Widget>[
+                                    Icon(
+                                      Icons.schedule_rounded,
+                                      size: 14,
+                                      color: KumoriyaColors.textSecondary,
+                                    ),
+                                    const SizedBox(width: 6),
+                                    Text(
+                                      _formatCurrentTime(context),
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .labelMedium
+                                          ?.copyWith(
+                                            color: KumoriyaColors.textPrimary,
+                                            fontWeight: FontWeight.w700,
+                                          ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(width: KumoriyaSpacing.sm),
                               // Speed pill
                               GestureDetector(
                                 onTap: () => _showSpeedSelector(context),
@@ -2307,6 +2800,27 @@ class _ImmersivePlayerViewState extends State<_ImmersivePlayerView>
                                     padding: EdgeInsets.zero,
                                   ),
                                 ),
+                                // Fallback +90s skip (discrete, only when missing opening OR ending)
+                                if (widget.showFallbackSkip && _controlsVisible)
+                                  Padding(
+                                    padding: const EdgeInsets.only(left: 8),
+                                    child: SizedBox(
+                                      height: 32,
+                                      child: TextButton(
+                                        onPressed: widget.onFallbackSkip,
+                                        style: TextButton.styleFrom(
+                                          padding: const EdgeInsets.symmetric(horizontal: 10),
+                                          backgroundColor: Colors.black38,
+                                          foregroundColor: KumoriyaColors.textSecondary,
+                                          textStyle: const TextStyle(
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                        ),
+                                        child: const Text('+90s'),
+                                      ),
+                                    ),
+                                  ),
                               ],
                             ),
                           ),
