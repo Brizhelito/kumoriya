@@ -36,6 +36,9 @@ void main() {
           continueWatchingProvider.overrideWith(
             (ref) async => Success(<AnimeWatchHistory>[_history]),
           ),
+          calendarCatalogProvider.overrideWith(
+            (ref) async => const Success(<Anime>[]),
+          ),
         ],
         child: const MaterialApp(
           localizationsDelegates: <LocalizationsDelegate<dynamic>>[
@@ -74,6 +77,9 @@ void main() {
           continueWatchingProvider.overrideWith(
             (ref) async => const Success(<AnimeWatchHistory>[]),
           ),
+          calendarCatalogProvider.overrideWith(
+            (ref) async => const Success(<Anime>[]),
+          ),
         ],
         child: const MaterialApp(
           localizationsDelegates: <LocalizationsDelegate<dynamic>>[
@@ -107,6 +113,9 @@ void main() {
             homeCatalogProvider.overrideWith((ref) async => Success(_catalog)),
             continueWatchingProvider.overrideWith(
               (ref) async => Success(<AnimeWatchHistory>[_history]),
+            ),
+            calendarCatalogProvider.overrideWith(
+              (ref) async => const Success(<Anime>[]),
             ),
             sourcePluginsProvider.overrideWithValue(const <SourcePlugin>[
               _ResumeMultiServerSourcePlugin(),
@@ -159,6 +168,9 @@ void main() {
             homeCatalogProvider.overrideWith((ref) async => Success(_catalog)),
             continueWatchingProvider.overrideWith(
               (ref) async => Success(<AnimeWatchHistory>[_history]),
+            ),
+            calendarCatalogProvider.overrideWith(
+              (ref) async => const Success(<Anime>[]),
             ),
             sourceAvailabilitySummaryProvider.overrideWith(
               (ref, anilistId) async =>
@@ -334,9 +346,13 @@ final class _ResumeFakeResolverPlugin implements ResolverPlugin {
 
   @override
   Future<Result<ResolveResult, KumoriyaError>> resolve(Uri url) async {
-    return Success(ResolveResult(streams: <ResolvedStream>[
-      ResolvedStream(url: Uri.parse('https://cdn.example${url.path}.m3u8')),
-    ]));
+    return Success(
+      ResolveResult(
+        streams: <ResolvedStream>[
+          ResolvedStream(url: Uri.parse('https://cdn.example${url.path}.m3u8')),
+        ],
+      ),
+    );
   }
 
   @override

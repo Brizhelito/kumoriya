@@ -57,35 +57,33 @@ void main() {
     expect(ranked.first.url.path, contains('720p.m3u8'));
   });
 
-  test(
-    'prefers lower Anime Nexus quality on Android when top profile is codec-risky',
-    () {
-      const androidPolicy = StreamSelectionPolicy(
-        platform: TargetPlatform.android,
-      );
+  test('R2: no longer penalises high Anime Nexus quality on Android', () {
+    const androidPolicy = StreamSelectionPolicy(
+      platform: TargetPlatform.android,
+    );
 
-      final selected = androidPolicy.selectBest(<ResolvedStream>[
-        ResolvedStream(
-          url: Uri.parse(
-            'http://127.0.0.1:41421/anime-nexus/session/master/5300/1.m3u8',
-          ),
-          qualityLabel: '1080p',
-          mimeType: 'application/vnd.apple.mpegurl',
-          isHls: true,
+    final selected = androidPolicy.selectBest(<ResolvedStream>[
+      ResolvedStream(
+        url: Uri.parse(
+          'http://127.0.0.1:41421/anime-nexus/session/master/5300/1.m3u8',
         ),
-        ResolvedStream(
-          url: Uri.parse(
-            'http://127.0.0.1:41421/anime-nexus/session/master/4400/1.m3u8',
-          ),
-          qualityLabel: '720p',
-          mimeType: 'application/vnd.apple.mpegurl',
-          isHls: true,
+        qualityLabel: '1080p',
+        mimeType: 'application/vnd.apple.mpegurl',
+        isHls: true,
+      ),
+      ResolvedStream(
+        url: Uri.parse(
+          'http://127.0.0.1:41421/anime-nexus/session/master/4400/1.m3u8',
         ),
-      ]);
+        qualityLabel: '720p',
+        mimeType: 'application/vnd.apple.mpegurl',
+        isHls: true,
+      ),
+    ]);
 
-      expect(selected, isNotNull);
-      expect(selected!.qualityLabel, '720p');
-      expect(selected.url.path, contains('/4400/'));
-    },
-  );
+    expect(selected, isNotNull);
+    // With hwdec=auto-safe the penalty is gone — 1080p ranks highest.
+    expect(selected!.qualityLabel, '1080p');
+    expect(selected.url.path, contains('/5300/'));
+  });
 }

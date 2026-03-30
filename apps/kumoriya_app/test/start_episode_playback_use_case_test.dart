@@ -647,12 +647,16 @@ class _FakeResolverPlugin implements ResolverPlugin {
 
   @override
   Future<Result<ResolveResult, KumoriyaError>> resolve(Uri url) async {
-    return Success(ResolveResult(streams: <ResolvedStream>[
-      ResolvedStream(
-        url: Uri.parse('https://cdn.example/${url.pathSegments.last}.m3u8'),
-        isHls: true,
+    return Success(
+      ResolveResult(
+        streams: <ResolvedStream>[
+          ResolvedStream(
+            url: Uri.parse('https://cdn.example/${url.pathSegments.last}.m3u8'),
+            isHls: true,
+          ),
+        ],
       ),
-    ]));
+    );
   }
 
   @override
@@ -682,12 +686,16 @@ class _FlakyResolverPlugin implements ResolverPlugin {
         ),
       );
     }
-    return Success(ResolveResult(streams: <ResolvedStream>[
-      ResolvedStream(
-        url: Uri.parse('https://cdn.example${url.path}.m3u8'),
-        isHls: true,
+    return Success(
+      ResolveResult(
+        streams: <ResolvedStream>[
+          ResolvedStream(
+            url: Uri.parse('https://cdn.example${url.path}.m3u8'),
+            isHls: true,
+          ),
+        ],
       ),
-    ]));
+    );
   }
 
   @override

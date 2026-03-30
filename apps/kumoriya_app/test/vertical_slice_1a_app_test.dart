@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
 import 'package:kumoriya_core/kumoriya_core.dart';
 import 'package:kumoriya_domain/kumoriya_domain.dart';
 import 'package:kumoriya_plugins/kumoriya_plugins.dart';
@@ -9,7 +10,10 @@ import 'package:kumoriya_storage/kumoriya_storage_flutter.dart';
 import 'package:kumoriya_app/src/app/kumoriya_app.dart';
 import 'package:kumoriya_app/src/features/anime_catalog/application/models/source_availability.dart';
 import 'package:kumoriya_app/src/features/anime_catalog/presentation/providers/anime_catalog_providers.dart';
+import 'package:kumoriya_app/src/features/downloads/application/download_directory_service.dart';
+import 'package:kumoriya_app/src/features/downloads/presentation/download_providers.dart';
 import 'package:kumoriya_app/src/features/anime_catalog/presentation/providers/storage_providers.dart';
+import 'package:kumoriya_app/src/features/anime_catalog/presentation/widgets/source_badge.dart';
 
 void main() {
   testWidgets(
@@ -34,6 +38,9 @@ void main() {
         ProviderScope(
           overrides: [
             animeCatalogRepositoryProvider.overrideWithValue(fakeRepository),
+            downloadDirectoryStoreProvider.overrideWithValue(
+              _ConfiguredDownloadDirectoryStore(),
+            ),
             sourcePluginsProvider.overrideWithValue(fakeSourcePlugins),
             sourceAvailabilitySummaryProvider.overrideWith(
               (ref, anilistId) async => Success(summary),
@@ -44,21 +51,19 @@ void main() {
         ),
       );
 
-      await tester.pumpAndSettle();
+      await _pumpUntilVisible(tester, find.text('Frieren'));
 
       expect(find.text('Frieren'), findsOneWidget);
 
       await tester.tap(find.text('Frieren').first);
-      await tester.pumpAndSettle();
+      await _pumpForUi(tester);
 
-      // Scroll down to reach the episode section (source badges are there).
-      await tester.drag(find.byType(CustomScrollView), const Offset(0, -400));
-      await tester.pumpAndSettle();
-
-      expect(find.text('JKAnime'), findsOneWidget);
-      expect(find.text('AnimeAV1'), findsOneWidget);
+      expect(find.byType(SourceBadge), findsNWidgets(2));
       expect(find.text('Episode preview'), findsOneWidget);
       expect(find.text('Play now'), findsWidgets);
+
+      // Drain pending Drift micro-timers triggered by library providers.
+      await tester.pumpAndSettle();
     },
   );
 
@@ -81,6 +86,9 @@ void main() {
       ProviderScope(
         overrides: [
           animeCatalogRepositoryProvider.overrideWithValue(fakeRepository),
+          downloadDirectoryStoreProvider.overrideWithValue(
+            _ConfiguredDownloadDirectoryStore(),
+          ),
           sourcePluginsProvider.overrideWithValue(fakeSourcePlugins),
           resolverPluginsProvider.overrideWithValue(fakeResolverPlugins),
           sourceAvailabilitySummaryProvider.overrideWith(
@@ -92,9 +100,9 @@ void main() {
       ),
     );
 
-    await tester.pumpAndSettle();
+    await _pumpUntilVisible(tester, find.text('Frieren'));
     await tester.tap(find.text('Frieren').first);
-    await tester.pumpAndSettle();
+    await _pumpForUi(tester);
 
     // Scroll until a 'Play now' label becomes visible (sliver-lazy build).
     await tester.scrollUntilVisible(
@@ -102,13 +110,13 @@ void main() {
       200,
       scrollable: find.byType(Scrollable).first,
     );
-    await tester.pumpAndSettle();
+    await _pumpForUi(tester);
 
     // Verify the episode card has a play icon (playable sources present).
     expect(find.byIcon(Icons.play_circle_outline_rounded), findsWidgets);
 
     await tester.tap(find.text('Play now').first);
-    await tester.pumpAndSettle();
+    await _pumpUntilVisible(tester, find.text('Choose a server'));
 
     expect(find.text('Choose a server'), findsOneWidget);
     expect(find.text('MP4Upload'), findsOneWidget);
@@ -136,6 +144,9 @@ void main() {
       ProviderScope(
         overrides: [
           animeCatalogRepositoryProvider.overrideWithValue(fakeRepository),
+          downloadDirectoryStoreProvider.overrideWithValue(
+            _ConfiguredDownloadDirectoryStore(),
+          ),
           sourcePluginsProvider.overrideWithValue(const <SourcePlugin>[
             _PrimarySourcePlugin(),
           ]),
@@ -148,19 +159,20 @@ void main() {
       ),
     );
 
-    await tester.pumpAndSettle();
+    await _pumpUntilVisible(tester, find.text('Frieren'));
     await tester.tap(find.text('Frieren').first);
-    await tester.pumpAndSettle();
+    await _pumpForUi(tester);
 
-    // Scroll down to reach source badges in the episode section.
-    await tester.drag(find.byType(CustomScrollView), const Offset(0, -400));
-    await tester.pumpAndSettle();
+    // Compact source badges are icon-only in the current detail UI.
+    expect(find.byType(SourceBadge), findsWidgets);
 
-    // Source badges should be visible (in Spanish locale).
-    expect(find.text('JKAnime'), findsOneWidget);
+    // Drain pending Drift micro-timers triggered by library providers.
+    await tester.pumpAndSettle();
   });
 
-  testWidgets('calendar groups airing anime by weekday', (tester) async {
+  testWidgets('calendar shows month grid and anime on selected day', (
+    tester,
+  ) async {
     final fakeRepository = _FakeAnimeCatalogRepository.success();
     final db = openInMemoryDatabase();
     addTearDown(db.close);
@@ -169,6 +181,9 @@ void main() {
       ProviderScope(
         overrides: [
           animeCatalogRepositoryProvider.overrideWithValue(fakeRepository),
+          downloadDirectoryStoreProvider.overrideWithValue(
+            _ConfiguredDownloadDirectoryStore(),
+          ),
           sourcePluginsProvider.overrideWithValue(const <SourcePlugin>[
             _PrimarySourcePlugin(),
           ]),
@@ -178,34 +193,82 @@ void main() {
       ),
     );
 
-    await tester.pumpAndSettle();
+    await _pumpUntilVisible(tester, find.text('Calendar'));
     await tester.tap(find.text('Calendar'));
-    await tester.pumpAndSettle();
+    await _pumpForUi(tester);
 
-    // Tab labels are visible
-    expect(find.text('MON'), findsOneWidget);
-    expect(find.text('TUE'), findsOneWidget);
-    expect(find.text('?'), findsOneWidget);
+    final currentMonth = DateTime.now();
+    expect(fakeRepository.airingCalendarSlotRequests, hasLength(1));
+    expect(
+      fakeRepository.airingCalendarSlotRequests.single.from,
+      DateTime(currentMonth.year, currentMonth.month),
+    );
+    expect(
+      fakeRepository.airingCalendarSlotRequests.single.to,
+      DateTime(currentMonth.year, currentMonth.month + 1),
+    );
 
-    // Tap each tab to verify content
-    await tester.tap(find.text('MON'));
-    await tester.pumpAndSettle();
+    // Month label is visible (Frieren airs March 16 2026 UTC → local).
+    final frierenLocal = DateTime.utc(2026, 3, 16, 18).toLocal();
+    final monthLabel = DateFormat.yMMMM().format(
+      DateTime(frierenLocal.year, frierenLocal.month),
+    );
+    expect(find.text(monthLabel), findsOneWidget);
+
+    // Tap on the day Frieren airs (local).
+    final frierenDay = frierenLocal.day.toString();
+    await tester.tap(find.text(frierenDay).first);
+    await _pumpForUi(tester);
     expect(find.text('Frieren'), findsOneWidget);
 
-    await tester.tap(find.text('TUE'));
-    await tester.pumpAndSettle();
+    // Tap on the day Dandadan airs (local).
+    final dandadanLocal = DateTime.utc(2026, 3, 17, 21).toLocal();
+    final dandadanDay = dandadanLocal.day.toString();
+    await tester.tap(find.text(dandadanDay).first);
+    await _pumpForUi(tester);
     expect(find.text('Dandadan'), findsOneWidget);
 
-    await tester.tap(find.text('?'));
-    await tester.pumpAndSettle();
-    expect(find.text('One Punch Man 3'), findsOneWidget);
+    await tester.tap(find.byIcon(Icons.chevron_right_rounded));
+    await _pumpForUi(tester);
+    expect(fakeRepository.airingCalendarSlotRequests, hasLength(2));
+    expect(
+      fakeRepository.airingCalendarSlotRequests.last.from,
+      DateTime(currentMonth.year, currentMonth.month + 1),
+    );
+    expect(
+      fakeRepository.airingCalendarSlotRequests.last.to,
+      DateTime(currentMonth.year, currentMonth.month + 2),
+    );
   });
+}
+
+Future<void> _pumpForUi(WidgetTester tester) async {
+  await tester.pump();
+  await tester.pump(const Duration(milliseconds: 250));
+}
+
+Future<void> _pumpUntilVisible(
+  WidgetTester tester,
+  Finder finder, {
+  Duration step = const Duration(milliseconds: 100),
+  int maxPumps = 30,
+}) async {
+  for (var i = 0; i < maxPumps; i++) {
+    await tester.pump(step);
+    if (finder.evaluate().isNotEmpty) {
+      return;
+    }
+  }
+  fail('Timed out waiting for $finder');
 }
 
 final class _FakeAnimeCatalogRepository implements AnimeCatalogRepository {
   _FakeAnimeCatalogRepository({required this.fail});
 
   final bool fail;
+  final List<({DateTime? from, DateTime? to, int page, int perPage})>
+  airingCalendarSlotRequests =
+      <({DateTime? from, DateTime? to, int page, int perPage})>[];
 
   factory _FakeAnimeCatalogRepository.success() {
     return _FakeAnimeCatalogRepository(fail: false);
@@ -266,6 +329,22 @@ final class _FakeAnimeCatalogRepository implements AnimeCatalogRepository {
   }
 
   @override
+  Future<Result<List<Anime>, KumoriyaError>> fetchAiringCalendarSlots({
+    DateTime? from,
+    DateTime? to,
+    int page = 1,
+    int perPage = 50,
+  }) async {
+    airingCalendarSlotRequests.add((
+      from: from,
+      to: to,
+      page: page,
+      perPage: perPage,
+    ));
+    return Success(_homeCatalog);
+  }
+
+  @override
   Future<Result<List<Anime>, KumoriyaError>> searchAnime(
     AnimeSearchRequest request,
   ) async {
@@ -305,6 +384,19 @@ final class _FakeAnimeCatalogRepository implements AnimeCatalogRepository {
     totalEpisodes: 12,
     status: AnimeStatus.notYetReleased,
   );
+}
+
+final class _ConfiguredDownloadDirectoryStore
+    implements DownloadDirectoryStore {
+  String? _path = 'C:/KumoriyaTestDownloads';
+
+  @override
+  Future<String?> readCustomDirectoryPath() async => _path;
+
+  @override
+  Future<void> writeCustomDirectoryPath(String? path) async {
+    _path = path;
+  }
 }
 
 final class _PrimarySourcePlugin extends _BaseFakeSourcePlugin {
@@ -458,9 +550,13 @@ final class _FakeResolverPlugin implements ResolverPlugin {
 
   @override
   Future<Result<ResolveResult, KumoriyaError>> resolve(Uri url) async {
-    return Success(ResolveResult(streams: <ResolvedStream>[
-      ResolvedStream(url: Uri.parse('https://cdn.example.com/video.mp4')),
-    ]));
+    return Success(
+      ResolveResult(
+        streams: <ResolvedStream>[
+          ResolvedStream(url: Uri.parse('https://cdn.example.com/video.mp4')),
+        ],
+      ),
+    );
   }
 }
 

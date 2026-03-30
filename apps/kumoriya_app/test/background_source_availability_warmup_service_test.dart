@@ -32,7 +32,7 @@ void main() {
         sourcePlugins: <SourcePlugin>[plugin],
         matcher: const AnilistSourceMatcher(),
         selectionPolicy: const SourceSelectionPolicy(),
-        registry: const ResolverRegistry(resolvers: <ResolverPlugin>[]),
+        registry: ResolverRegistry(resolvers: <ResolverPlugin>[]),
       ),
       sourcePlugins: <SourcePlugin>[plugin],
       cacheCodec: codec,

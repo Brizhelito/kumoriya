@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kumoriya_app/src/features/player/application/models/embedded_tracks.dart';
+import 'package:kumoriya_app/src/features/player/application/models/player_diagnostics.dart';
 import 'package:kumoriya_app/src/features/player/application/models/player_session_state.dart';
 import 'package:kumoriya_app/src/features/player/application/services/playback_engine.dart';
 import 'package:kumoriya_app/src/features/player/application/services/player_session_orchestrator.dart';
@@ -131,6 +132,40 @@ void main() {
         onFailure: (error) => expect(error.code, 'player.open_timeout'),
         onSuccess: (_) => fail('expected failure'),
       );
+      expect(engine.invalidatePendingOpenCalls, 1);
+
+      await orchestrator.dispose();
+    },
+  );
+
+  test(
+    'timeout cancels late open work so stale playing state never wins',
+    () async {
+      final engine = _FakePlaybackEngine(
+        openBehaviors: <_OpenBehavior>[
+          const _OpenBehavior.delay(milliseconds: 200),
+        ],
+      );
+      final orchestrator = PlayerSessionOrchestrator(
+        playbackEngine: engine,
+        openTimeout: const Duration(milliseconds: 50),
+      );
+
+      final result = await orchestrator.start(
+        streamCandidates: <ResolvedStream>[
+          ResolvedStream(
+            url: Uri.parse('https://cdn.example/a.m3u8'),
+            isHls: true,
+          ),
+        ],
+      );
+
+      expect(result.isFailure, isTrue);
+      await Future<void>.delayed(const Duration(milliseconds: 250));
+
+      expect(engine.invalidatePendingOpenCalls, 1);
+      expect(orchestrator.state.status, PlayerSessionStatus.error);
+      expect(orchestrator.state.errorMessage, isNotNull);
 
       await orchestrator.dispose();
     },
@@ -166,6 +201,93 @@ void main() {
     await Future<void>.delayed(const Duration(milliseconds: 350));
     expect(engine.openCalls, 3);
     expect(orchestrator.state.currentCandidateIndex, 1);
+
+    await orchestrator.dispose();
+  });
+
+  test('recovery timeout invalidates pending open work', () async {
+    final engine = _FakePlaybackEngine(
+      openBehaviors: <_OpenBehavior>[
+        const _OpenBehavior.success(bufferingStuck: true),
+        const _OpenBehavior.delay(milliseconds: 200),
+      ],
+    );
+    final orchestrator = PlayerSessionOrchestrator(
+      playbackEngine: engine,
+      openTimeout: const Duration(milliseconds: 50),
+      bufferingTimeout: const Duration(milliseconds: 50),
+    );
+
+    final result = await orchestrator.start(
+      streamCandidates: <ResolvedStream>[
+        ResolvedStream(
+          url: Uri.parse('https://cdn.example/a.m3u8'),
+          isHls: true,
+        ),
+      ],
+    );
+
+    expect(result.isSuccess, isTrue);
+    await Future<void>.delayed(const Duration(milliseconds: 250));
+
+    expect(engine.openCalls, greaterThanOrEqualTo(2));
+    expect(engine.invalidatePendingOpenCalls, 1);
+    expect(orchestrator.state.status, PlayerSessionStatus.error);
+
+    await orchestrator.dispose();
+  });
+
+  test('initial non-nexus resume open gets extra open budget', () async {
+    final engine = _FakePlaybackEngine(
+      openBehaviors: <_OpenBehavior>[
+        const _OpenBehavior.delay(milliseconds: 120),
+      ],
+    );
+    final orchestrator = PlayerSessionOrchestrator(
+      playbackEngine: engine,
+      openTimeout: const Duration(milliseconds: 50),
+    );
+
+    final result = await orchestrator.start(
+      streamCandidates: <ResolvedStream>[
+        ResolvedStream(
+          url: Uri.parse('https://cdn.example/resume.m3u8'),
+          isHls: true,
+        ),
+      ],
+      initialPosition: const Duration(minutes: 5),
+    );
+
+    expect(result.isSuccess, isTrue);
+    expect(engine.openCalls, 1);
+
+    await orchestrator.dispose();
+  });
+
+  test('grants extra open budget to anime nexus initial opens', () async {
+    final engine = _FakePlaybackEngine(
+      openBehaviors: <_OpenBehavior>[
+        const _OpenBehavior.delay(milliseconds: 120),
+      ],
+    );
+    final orchestrator = PlayerSessionOrchestrator(
+      playbackEngine: engine,
+      openTimeout: const Duration(milliseconds: 50),
+    );
+
+    final result = await orchestrator.start(
+      streamCandidates: <ResolvedStream>[
+        ResolvedStream(
+          url: Uri.parse(
+            'http://127.0.0.1:63164/anime-nexus/session/master/5300/1.m3u8',
+          ),
+          isHls: true,
+        ),
+      ],
+    );
+
+    expect(result.isSuccess, isTrue);
+    expect(engine.openCalls, 1);
 
     await orchestrator.dispose();
   });
@@ -223,6 +345,41 @@ void main() {
     await orchestrator.dispose();
   });
 
+  test('keeps native seek for buffered forward HLS seeks', () async {
+    final engine = _FakePlaybackEngine();
+    final orchestrator = PlayerSessionOrchestrator(playbackEngine: engine);
+    const currentPosition = Duration(minutes: 5);
+    const bufferedAhead = Duration(seconds: 30);
+    const targetPosition = Duration(minutes: 5, seconds: 10);
+
+    final result = await orchestrator.start(
+      streamCandidates: <ResolvedStream>[
+        ResolvedStream(
+          url: Uri.parse('https://cdn.example/master.m3u8'),
+          isHls: true,
+        ),
+      ],
+    );
+
+    expect(result.isSuccess, isTrue);
+
+    engine.emitPosition(currentPosition);
+    engine.emitBuffer(bufferedAhead);
+    await Future<void>.delayed(const Duration(milliseconds: 10));
+
+    await orchestrator.seekTo(targetPosition);
+    await Future<void>.delayed(const Duration(milliseconds: 50));
+
+    expect(engine.seekPositions, contains(targetPosition));
+    expect(
+      engine.openCalls,
+      1,
+      reason: 'buffered in-place seeks should not reopen the HLS stream',
+    );
+
+    await orchestrator.dispose();
+  });
+
   test('loads preferred external subtitle track after opening', () async {
     final engine = _FakePlaybackEngine();
     final orchestrator = PlayerSessionOrchestrator(playbackEngine: engine);
@@ -255,6 +412,56 @@ void main() {
     expect(result.isSuccess, isTrue);
     expect(engine.lastSubtitleTrack?.id, 'en');
 
+    await orchestrator.dispose();
+  });
+
+  test('retry success clears stale all-candidates info message', () async {
+    final engine = _FakePlaybackEngine(
+      openBehaviors: <_OpenBehavior>[
+        const _OpenBehavior.throwError('fail-1'),
+        const _OpenBehavior.throwError('fail-2'),
+        const _OpenBehavior.success(),
+      ],
+    );
+    final orchestrator = PlayerSessionOrchestrator(playbackEngine: engine);
+    final emittedStates = <PlayerSessionState>[];
+    final sub = orchestrator.states.listen(emittedStates.add);
+
+    final firstResult = await orchestrator.start(
+      streamCandidates: <ResolvedStream>[
+        ResolvedStream(
+          url: Uri.parse('https://cdn.example/a.m3u8'),
+          isHls: true,
+        ),
+        ResolvedStream(
+          url: Uri.parse('https://cdn.example/b.m3u8'),
+          isHls: true,
+        ),
+      ],
+    );
+
+    expect(firstResult.isFailure, isTrue);
+    expect(orchestrator.state.infoMessage, 'player.tried_all_candidates');
+
+    final retryResult = await orchestrator.retry();
+
+    expect(retryResult.isSuccess, isTrue);
+    expect(orchestrator.state.infoMessage, isNull);
+    expect(orchestrator.state.errorMessage, isNull);
+
+    final retryPlayingWithStaleInfo = emittedStates.any(
+      (state) =>
+          state.status == PlayerSessionStatus.playing &&
+          state.infoMessage == 'player.tried_all_candidates',
+    );
+    expect(
+      retryPlayingWithStaleInfo,
+      isFalse,
+      reason:
+          'stable playback after retry must not retain stale candidate info',
+    );
+
+    await sub.cancel();
     await orchestrator.dispose();
   });
 
@@ -1211,6 +1418,8 @@ final class _FakePlaybackEngine implements PlaybackEngine {
   final _errorController = StreamController<String>.broadcast();
   final _positionController = StreamController<Duration>.broadcast();
   final _durationController = StreamController<Duration>.broadcast();
+  final _bufferController = StreamController<Duration>.broadcast();
+  final _bufferingPercentageController = StreamController<double>.broadcast();
 
   int openCalls = 0;
   int playCalls = 0;
@@ -1218,8 +1427,11 @@ final class _FakePlaybackEngine implements PlaybackEngine {
   int seekCalls = 0;
   int clearSubtitleCalls = 0;
   int predictivePrewarmCalls = 0;
+  int invalidatePendingOpenCalls = 0;
   Duration? lastSeekPosition;
   Duration? lastPrewarmPosition;
+  int _issuedOpenToken = 0;
+  int _invalidatedOpenToken = 0;
   final List<Duration> seekPositions = <Duration>[];
   ExternalSubtitleTrack? lastSubtitleTrack;
   final List<Duration?> openStartPositions = <Duration?>[];
@@ -1244,14 +1456,22 @@ final class _FakePlaybackEngine implements PlaybackEngine {
   Stream<Duration> get durationStream => _durationController.stream;
 
   @override
-  Stream<Duration> get bufferStream => const Stream<Duration>.empty();
+  Stream<Duration> get bufferStream => _bufferController.stream;
 
   @override
-  Stream<double> get bufferingPercentageStream => const Stream<double>.empty();
+  Stream<double> get bufferingPercentageStream =>
+      _bufferingPercentageController.stream;
 
   @override
   Stream<EmbeddedTracks> get embeddedTracksStream =>
       const Stream<EmbeddedTracks>.empty();
+
+  @override
+  Stream<PlayerDiagnostics> get diagnosticsStream =>
+      const Stream<PlayerDiagnostics>.empty();
+
+  @override
+  Future<void> get firstFrameRendered => Future<void>.value();
 
   /// When `false`, [seekTo] will NOT emit the position on the position stream.
   /// This allows tests to simulate stall scenarios where the engine does not
@@ -1273,6 +1493,9 @@ final class _FakePlaybackEngine implements PlaybackEngine {
     predictivePrewarmCalls++;
     lastPrewarmPosition = position;
   }
+
+  @override
+  Future<void> setSmartAudioBoost({required bool enabled}) async {}
 
   @override
   Future<void> clearSubtitleTrack() async {
@@ -1297,11 +1520,14 @@ final class _FakePlaybackEngine implements PlaybackEngine {
     await _errorController.close();
     await _positionController.close();
     await _durationController.close();
+    await _bufferController.close();
+    await _bufferingPercentageController.close();
   }
 
   @override
   Future<void> open(ResolvedStream stream, {Duration? startPosition}) async {
     openCalls++;
+    final openToken = ++_issuedOpenToken;
     openStartPositions.add(startPosition);
     openUrls.add(stream.url);
     final behavior =
@@ -1314,6 +1540,10 @@ final class _FakePlaybackEngine implements PlaybackEngine {
       await Future<void>.delayed(Duration(milliseconds: behavior.delayMs!));
     }
 
+    if (openToken <= _invalidatedOpenToken) {
+      return;
+    }
+
     if (behavior.shouldThrow) {
       throw Exception(behavior.errorMessage ?? 'open fail');
     }
@@ -1323,6 +1553,12 @@ final class _FakePlaybackEngine implements PlaybackEngine {
     if (!behavior.bufferingStuck) {
       _bufferingController.add(false);
     }
+  }
+
+  @override
+  Future<void> invalidatePendingOpen({String reason = 'unknown'}) async {
+    invalidatePendingOpenCalls++;
+    _invalidatedOpenToken = _issuedOpenToken;
   }
 
   @override
@@ -1364,6 +1600,14 @@ final class _FakePlaybackEngine implements PlaybackEngine {
 
   void emitDuration(Duration value) {
     _durationController.add(value);
+  }
+
+  void emitBuffer(Duration value) {
+    _bufferController.add(value);
+  }
+
+  void emitBufferingPercentage(double value) {
+    _bufferingPercentageController.add(value);
   }
 }
 

@@ -20,6 +20,7 @@ import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kumoriya_app/src/features/player/application/models/embedded_tracks.dart';
+import 'package:kumoriya_app/src/features/player/application/models/player_diagnostics.dart';
 import 'package:kumoriya_app/src/features/player/application/services/playback_engine.dart';
 import 'package:kumoriya_app/src/features/player/application/services/player_session_orchestrator.dart';
 import 'package:kumoriya_plugins/kumoriya_plugins.dart';
@@ -199,6 +200,13 @@ final class _FakePlaybackEngineWithSeekTracking implements PlaybackEngine {
       const Stream<EmbeddedTracks>.empty();
 
   @override
+  Stream<PlayerDiagnostics> get diagnosticsStream =>
+      const Stream<PlayerDiagnostics>.empty();
+
+  @override
+  Future<void> get firstFrameRendered => Future<void>.value();
+
+  @override
   Future<void> open(ResolvedStream stream, {Duration? startPosition}) async {
     _openCallCount++;
     lastOpenStartPosition = startPosition;
@@ -213,6 +221,12 @@ final class _FakePlaybackEngineWithSeekTracking implements PlaybackEngine {
 
     _bufferingController.add(false);
   }
+
+  @override
+  Future<void> invalidatePendingOpen({String reason = 'unknown'}) async {}
+
+  @override
+  Future<void> setSmartAudioBoost({required bool enabled}) async {}
 
   @override
   Future<void> seekTo(Duration position) async {

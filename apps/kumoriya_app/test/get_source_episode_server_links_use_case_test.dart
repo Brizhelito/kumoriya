@@ -36,7 +36,7 @@ void main() {
     () async {
       final useCase = GetSourceEpisodeServerLinksUseCase(
         sourcePlugin: _FakeSourcePlugin(),
-        registry: const ResolverRegistry(resolvers: <ResolverPlugin>[]),
+        registry: ResolverRegistry(resolvers: <ResolverPlugin>[]),
       );
 
       final result = await useCase.call(

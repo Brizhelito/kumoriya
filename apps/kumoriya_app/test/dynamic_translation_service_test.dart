@@ -4,6 +4,42 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:kumoriya_app/src/shared/dynamic_translation.dart';
+import 'package:kumoriya_core/kumoriya_core.dart';
+import 'package:kumoriya_storage/kumoriya_storage.dart';
+
+final class _InMemoryTranslationCacheStore implements TranslationCacheStore {
+  final Map<String, TranslationCacheEntry> _entries =
+      <String, TranslationCacheEntry>{};
+
+  @override
+  Future<Result<int, KumoriyaError>> deleteOlderThan(Duration maxAge) async {
+    final cutoff = DateTime.now().subtract(maxAge);
+    final staleKeys = _entries.entries
+        .where((entry) => entry.value.updatedAt.isBefore(cutoff))
+        .map((entry) => entry.key)
+        .toList(growable: false);
+    for (final key in staleKeys) {
+      _entries.remove(key);
+    }
+    return Success(staleKeys.length);
+  }
+
+  @override
+  Future<Result<TranslationCacheEntry?, KumoriyaError>> get({
+    required String sourceText,
+    required String targetLanguage,
+  }) async {
+    return Success(_entries['$targetLanguage::$sourceText']);
+  }
+
+  @override
+  Future<Result<void, KumoriyaError>> upsert(
+    TranslationCacheEntry entry,
+  ) async {
+    _entries['${entry.targetLanguage}::${entry.sourceText}'] = entry;
+    return const Success(null);
+  }
+}
 
 void main() {
   group('DynamicTranslationService (Google Translate)', () {
@@ -37,10 +73,7 @@ void main() {
       service = DynamicTranslationService(
         client: buildMockClient('should not be called'),
       );
-      final result = await service.translate(
-        text: '  ',
-        targetLanguage: 'es',
-      );
+      final result = await service.translate(text: '  ', targetLanguage: 'es');
       expect(result, '  ');
     });
 
@@ -96,9 +129,7 @@ void main() {
     });
 
     test('returns original text on malformed JSON', () async {
-      final client = MockClient(
-        (_) async => http.Response('not json', 200),
-      );
+      final client = MockClient((_) async => http.Response('not json', 200));
       service = DynamicTranslationService(client: client);
       final result = await service.translate(
         text: 'Hello',
@@ -173,6 +204,48 @@ void main() {
       expect(capturedUri!.queryParameters['tl'], 'es');
       expect(capturedUri!.queryParameters['dt'], 't');
       expect(capturedUri!.queryParameters['q'], 'Hello');
+    });
+
+    test('reuses persisted cache across service instances', () async {
+      final store = _InMemoryTranslationCacheStore();
+      var callCount = 0;
+      final body = jsonEncode([
+        [
+          ['Hola mundo', 'Hello world'],
+        ],
+      ]);
+
+      final firstClient = MockClient((_) async {
+        callCount++;
+        return http.Response(body, 200);
+      });
+      final firstService = DynamicTranslationService(
+        client: firstClient,
+        cacheStore: store,
+      );
+
+      final first = await firstService.translate(
+        text: 'Hello world',
+        targetLanguage: 'es',
+      );
+
+      final secondClient = MockClient((_) async {
+        callCount++;
+        return http.Response(body, 200);
+      });
+      final secondService = DynamicTranslationService(
+        client: secondClient,
+        cacheStore: store,
+      );
+
+      final second = await secondService.translate(
+        text: 'Hello world',
+        targetLanguage: 'es',
+      );
+
+      expect(first, 'Hola mundo');
+      expect(second, 'Hola mundo');
+      expect(callCount, 1, reason: 'Second service should hit persisted cache');
     });
   });
 

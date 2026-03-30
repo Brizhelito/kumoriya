@@ -28,6 +28,9 @@ void main() {
             continueWatchingProvider.overrideWith(
               (ref) async => Success(_history),
             ),
+            calendarCatalogProvider.overrideWith(
+              (ref) async => const Success(<Anime>[]),
+            ),
           ],
           child: const MaterialApp(
             localizationsDelegates: <LocalizationsDelegate<dynamic>>[

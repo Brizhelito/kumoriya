@@ -24,6 +24,7 @@ import 'dart:math';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kumoriya_app/src/features/player/application/models/embedded_tracks.dart';
+import 'package:kumoriya_app/src/features/player/application/models/player_diagnostics.dart';
 import 'package:kumoriya_app/src/features/player/application/models/player_session_state.dart';
 import 'package:kumoriya_app/src/features/player/application/services/playback_engine.dart';
 import 'package:kumoriya_app/src/features/player/application/services/player_session_orchestrator.dart';
@@ -519,6 +520,13 @@ final class _FakeEngine implements PlaybackEngine {
       const Stream<EmbeddedTracks>.empty();
 
   @override
+  Stream<PlayerDiagnostics> get diagnosticsStream =>
+      const Stream<PlayerDiagnostics>.empty();
+
+  @override
+  Future<void> get firstFrameRendered => Future<void>.value();
+
+  @override
   Future<void> open(ResolvedStream stream, {Duration? startPosition}) async {
     final fn = _behaviors[_idx.clamp(0, _behaviors.length - 1)];
     if (_idx < _behaviors.length - 1) _idx++;
@@ -527,6 +535,12 @@ final class _FakeEngine implements PlaybackEngine {
     _playing.add(true);
     _buffering.add(false);
   }
+
+  @override
+  Future<void> invalidatePendingOpen({String reason = 'unknown'}) async {}
+
+  @override
+  Future<void> setSmartAudioBoost({required bool enabled}) async {}
 
   @override
   Future<void> play() async {}

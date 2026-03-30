@@ -211,8 +211,9 @@ final class _FakeDownloadStore implements DownloadStore {
 
   @override
   Future<Result<List<DownloadTask>, KumoriyaError>> getTasksByAnime(
-    int anilistId,
-  ) async {
+    int anilistId, {
+    int? limit,
+  }) async {
     return Success(tasksByAnime[anilistId] ?? const <DownloadTask>[]);
   }
 

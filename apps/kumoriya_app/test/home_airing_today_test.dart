@@ -106,6 +106,16 @@ final class _CapturingAnimeCatalogRepository implements AnimeCatalogRepository {
   }
 
   @override
+  Future<Result<List<Anime>, KumoriyaError>> fetchAiringCalendarSlots({
+    DateTime? from,
+    DateTime? to,
+    int page = 1,
+    int perPage = 50,
+  }) async {
+    return const Success(<Anime>[]);
+  }
+
+  @override
   Future<Result<List<Anime>, KumoriyaError>> fetchHomeCatalog({
     int page = 1,
     int perPage = 20,

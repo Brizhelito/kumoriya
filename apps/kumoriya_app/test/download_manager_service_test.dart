@@ -360,8 +360,13 @@ final class _InMemoryDownloadStore implements DownloadStore {
   }
 
   @override
-  Future<Result<List<DownloadTask>, KumoriyaError>> getAllTasks() async {
-    return Success(_tasks.values.toList(growable: false));
+  Future<Result<List<DownloadTask>, KumoriyaError>> getAllTasks({
+    int? limit,
+  }) async {
+    final all = _tasks.values.toList(growable: false);
+    if (limit != null && all.length > limit)
+      return Success(all.sublist(0, limit));
+    return Success(all);
   }
 
   @override
@@ -384,8 +389,9 @@ final class _InMemoryDownloadStore implements DownloadStore {
 
   @override
   Future<Result<List<DownloadTask>, KumoriyaError>> getTasksByAnime(
-    int anilistId,
-  ) async {
+    int anilistId, {
+    int? limit,
+  }) async {
     return Success(
       _tasks.values
           .where((task) => task.anilistId == anilistId)
@@ -395,13 +401,13 @@ final class _InMemoryDownloadStore implements DownloadStore {
 
   @override
   Future<Result<List<DownloadTask>, KumoriyaError>> getTasksByStatus(
-    DownloadStatus status,
-  ) async {
-    return Success(
-      _tasks.values
-          .where((task) => task.status == status)
-          .toList(growable: false),
-    );
+    DownloadStatus status, {
+    int? limit,
+  }) async {
+    final all = _tasks.values
+        .where((task) => task.status == status)
+        .toList(growable: false);
+    return Success(limit != null ? all.take(limit).toList() : all);
   }
 
   @override
