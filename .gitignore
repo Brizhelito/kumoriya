@@ -63,3 +63,13 @@ proxy_long*.out
 proxy_long*.err
 smoke*.out
 smoke*.err
+
+# User downloads and cache data
+downloads/
+
+# Benchmark and test output artifacts
+bench_*.json
+benchmark_results.json
+*_test_results.txt
+test_results/
+*_output.txt
