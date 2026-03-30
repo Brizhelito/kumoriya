@@ -8,6 +8,45 @@ import 'package:kumoriya_plugins/kumoriya_plugins.dart';
 
 import 'errors/animeflv_error.dart';
 
+final _whitespaceRe = RegExp(r'\s+');
+final _trailingParenRe = RegExp(r'\s*\([^)]*\)\s*$');
+final _nonAlnumRe = RegExp(r'[^a-z0-9]+');
+final _multiDashRe = RegExp(r'-+');
+final _leadTrailDashRe = RegExp(r'^-|-$');
+final _episodeNumberRe = RegExp(r'-(\d+(?:\.\d+)?)$');
+final _yearRe = RegExp(r'(19|20)\d{2}');
+final _seasonDescriptorPatterns = <RegExp>[
+  RegExp(r'\s*[-:]?\s*\b\d+(?:st|nd|rd|th)?\s+season\b$', caseSensitive: false),
+  RegExp(r'\s*[-:]?\s*\bseason\s+\d+\b$', caseSensitive: false),
+  RegExp(r'\s*[-:]?\s*\bpart\s+\d+\b$', caseSensitive: false),
+  RegExp(r'\s*[-:]?\s*\bcour\s+\d+\b$', caseSensitive: false),
+  RegExp(r'\s*[-:]?\s*\b(?:ii|iii|iv|v)\b$', caseSensitive: false),
+];
+
+const _diacriticMap = <String, String>{
+  '\u00E1': 'a',
+  '\u00E0': 'a',
+  '\u00E4': 'a',
+  '\u00E2': 'a',
+  '\u00E9': 'e',
+  '\u00E8': 'e',
+  '\u00EB': 'e',
+  '\u00EA': 'e',
+  '\u00ED': 'i',
+  '\u00EC': 'i',
+  '\u00EF': 'i',
+  '\u00EE': 'i',
+  '\u00F3': 'o',
+  '\u00F2': 'o',
+  '\u00F6': 'o',
+  '\u00F4': 'o',
+  '\u00FA': 'u',
+  '\u00F9': 'u',
+  '\u00FC': 'u',
+  '\u00FB': 'u',
+  '\u00F1': 'n',
+};
+
 /// AnimeFLV source plugin.
 ///
 /// Search: GET /browse?q={query}
@@ -279,11 +318,11 @@ final class AnimeFlvSourcePlugin implements SourcePlugin {
     String normalizationKey(String value) {
       return _stripDiacritics(
         value.trim().toLowerCase(),
-      ).replaceAll(RegExp(r'\s+'), ' ');
+      ).replaceAll(_whitespaceRe, ' ');
     }
 
     void add(String value) {
-      final normalized = value.trim().replaceAll(RegExp(r'\s+'), ' ');
+      final normalized = value.trim().replaceAll(_whitespaceRe, ' ');
       if (normalized.isEmpty) {
         return;
       }
@@ -312,23 +351,16 @@ final class AnimeFlvSourcePlugin implements SourcePlugin {
 
   String _stripSeasonDescriptor(String value) {
     var result = value.trim();
-    const patterns = <String>[
-      r'\s*[-:]?\s*\b\d+(?:st|nd|rd|th)?\s+season\b$',
-      r'\s*[-:]?\s*\bseason\s+\d+\b$',
-      r'\s*[-:]?\s*\bpart\s+\d+\b$',
-      r'\s*[-:]?\s*\bcour\s+\d+\b$',
-      r'\s*[-:]?\s*\b(?:ii|iii|iv|v)\b$',
-    ];
 
-    for (final pattern in patterns) {
-      result = result.replaceFirst(RegExp(pattern, caseSensitive: false), '');
+    for (final pattern in _seasonDescriptorPatterns) {
+      result = result.replaceFirst(pattern, '');
     }
 
     return result.trim();
   }
 
   String _stripTrailingParenthetical(String value) {
-    return value.replaceFirst(RegExp(r'\s*\([^)]*\)\s*$'), '').trim();
+    return value.replaceFirst(_trailingParenRe, '').trim();
   }
 
   String _searchQueryFromSlug(String slug) => slug.replaceAll('-', ' ').trim();
@@ -336,34 +368,17 @@ final class AnimeFlvSourcePlugin implements SourcePlugin {
   String _slugify(String value) {
     final lower = _stripDiacritics(value.toLowerCase());
     return lower
-        .replaceAll(RegExp(r'[^a-z0-9]+'), '-')
-        .replaceAll(RegExp(r'-+'), '-')
-        .replaceAll(RegExp(r'^-|-$'), '');
+        .replaceAll(_nonAlnumRe, '-')
+        .replaceAll(_multiDashRe, '-')
+        .replaceAll(_leadTrailDashRe, '');
   }
 
   String _stripDiacritics(String value) {
-    return value
-        .replaceAll('\u00E1', 'a')
-        .replaceAll('\u00E0', 'a')
-        .replaceAll('\u00E4', 'a')
-        .replaceAll('\u00E2', 'a')
-        .replaceAll('\u00E9', 'e')
-        .replaceAll('\u00E8', 'e')
-        .replaceAll('\u00EB', 'e')
-        .replaceAll('\u00EA', 'e')
-        .replaceAll('\u00ED', 'i')
-        .replaceAll('\u00EC', 'i')
-        .replaceAll('\u00EF', 'i')
-        .replaceAll('\u00EE', 'i')
-        .replaceAll('\u00F3', 'o')
-        .replaceAll('\u00F2', 'o')
-        .replaceAll('\u00F6', 'o')
-        .replaceAll('\u00F4', 'o')
-        .replaceAll('\u00FA', 'u')
-        .replaceAll('\u00F9', 'u')
-        .replaceAll('\u00FC', 'u')
-        .replaceAll('\u00FB', 'u')
-        .replaceAll('\u00F1', 'n');
+    final buffer = StringBuffer();
+    for (var i = 0; i < value.length; i++) {
+      buffer.write(_diacriticMap[value[i]] ?? value[i]);
+    }
+    return buffer.toString();
   }
 
   List<SourceEpisode> _extractEpisodesFromDetailPage(
@@ -606,7 +621,7 @@ final class AnimeFlvSourcePlugin implements SourcePlugin {
 
   double? _extractEpisodeNumberFromHref(String href) {
     // /ver/naruto-220 -> 220
-    final match = RegExp(r'-(\d+(?:\.\d+)?)$').firstMatch(href);
+    final match = _episodeNumberRe.firstMatch(href);
     if (match == null) {
       return null;
     }
@@ -639,7 +654,7 @@ final class AnimeFlvSourcePlugin implements SourcePlugin {
   }
 
   int? _extractYear(String text) {
-    final match = RegExp(r'(19|20)\d{2}').firstMatch(text);
+    final match = _yearRe.firstMatch(text);
     return match != null ? int.tryParse(match.group(0)!) : null;
   }
 

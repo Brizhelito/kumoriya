@@ -6,6 +6,74 @@ import 'package:kumoriya_plugins/kumoriya_plugins.dart';
 
 import 'errors/animeav1_error.dart';
 
+final _whitespaceRe = RegExp(r'\s+');
+final _trailingParenRe = RegExp(r'\s*\([^)]*\)\s*$');
+final _nonAlnumRe = RegExp(r'[^a-z0-9]+');
+final _multiDashRe = RegExp(r'-+');
+final _leadTrailDashRe = RegExp(r'^-|-$');
+final _yearRe = RegExp(r'(19|20)\d{2}');
+final _seasonDescriptorPatterns = <RegExp>[
+  RegExp(r'\s*[-:]?\s*\b\d+(?:st|nd|rd|th)?\s+season\b$', caseSensitive: false),
+  RegExp(r'\s*[-:]?\s*\bseason\s+\d+\b$', caseSensitive: false),
+  RegExp(r'\s*[-:]?\s*\bpart\s+\d+\b$', caseSensitive: false),
+  RegExp(r'\s*[-:]?\s*\bcour\s+\d+\b$', caseSensitive: false),
+  RegExp(r'\s*[-:]?\s*\b(?:ii|iii|iv|v)\b$', caseSensitive: false),
+];
+final _embedsPayloadRe = RegExp(
+  r'embeds:\{([\s\S]*?)\},\s*downloads:',
+  multiLine: true,
+  caseSensitive: false,
+);
+final _languageBlocksRe = RegExp(
+  r'([A-Z]+):\[(.*?)\](?=,[A-Z]+:\[|$)',
+  multiLine: true,
+  caseSensitive: false,
+);
+final _serverPatternRe = RegExp(
+  r'server:"([^"]+)",url:"([^"]+)"',
+  multiLine: true,
+  caseSensitive: false,
+);
+final _episodeBlockRe = RegExp(
+  r'episodes:\[(.*?)\],relations:',
+  multiLine: true,
+  caseSensitive: false,
+);
+final _episodeNumberRe = RegExp(
+  r'\{id:\d+,number:(\d+(?:\.\d+)?)\}',
+  multiLine: true,
+  caseSensitive: false,
+);
+final _bootstrapSlugRe = RegExp(
+  r'votes:\d+,slug:"([^"]+)"',
+  multiLine: true,
+  caseSensitive: false,
+);
+
+const _diacriticMap = <String, String>{
+  '\u00E1': 'a',
+  '\u00E0': 'a',
+  '\u00E4': 'a',
+  '\u00E2': 'a',
+  '\u00E9': 'e',
+  '\u00E8': 'e',
+  '\u00EB': 'e',
+  '\u00EA': 'e',
+  '\u00ED': 'i',
+  '\u00EC': 'i',
+  '\u00EF': 'i',
+  '\u00EE': 'i',
+  '\u00F3': 'o',
+  '\u00F2': 'o',
+  '\u00F6': 'o',
+  '\u00F4': 'o',
+  '\u00FA': 'u',
+  '\u00F9': 'u',
+  '\u00FC': 'u',
+  '\u00FB': 'u',
+  '\u00F1': 'n',
+};
+
 final class AnimeAv1SourcePlugin implements SourcePlugin {
   AnimeAv1SourcePlugin({http.Client? httpClient, Uri? baseUri})
     : _httpClient = httpClient ?? http.Client(),
@@ -259,11 +327,11 @@ final class AnimeAv1SourcePlugin implements SourcePlugin {
     String normalizationKey(String value) {
       return _stripDiacritics(
         value.trim().toLowerCase(),
-      ).replaceAll(RegExp(r'\s+'), ' ');
+      ).replaceAll(_whitespaceRe, ' ');
     }
 
     void add(String value) {
-      final normalized = value.trim().replaceAll(RegExp(r'\s+'), ' ');
+      final normalized = value.trim().replaceAll(_whitespaceRe, ' ');
       if (normalized.isEmpty) {
         return;
       }
@@ -292,23 +360,16 @@ final class AnimeAv1SourcePlugin implements SourcePlugin {
 
   String _stripSeasonDescriptor(String value) {
     var result = value.trim();
-    const patterns = <String>[
-      r'\s*[-:]?\s*\b\d+(?:st|nd|rd|th)?\s+season\b$',
-      r'\s*[-:]?\s*\bseason\s+\d+\b$',
-      r'\s*[-:]?\s*\bpart\s+\d+\b$',
-      r'\s*[-:]?\s*\bcour\s+\d+\b$',
-      r'\s*[-:]?\s*\b(?:ii|iii|iv|v)\b$',
-    ];
 
-    for (final pattern in patterns) {
-      result = result.replaceFirst(RegExp(pattern, caseSensitive: false), '');
+    for (final pattern in _seasonDescriptorPatterns) {
+      result = result.replaceFirst(pattern, '');
     }
 
     return result.trim();
   }
 
   String _stripTrailingParenthetical(String value) {
-    return value.replaceFirst(RegExp(r'\s*\([^)]*\)\s*$'), '').trim();
+    return value.replaceFirst(_trailingParenRe, '').trim();
   }
 
   String _searchQueryFromSlug(String slug) => slug.replaceAll('-', ' ').trim();
@@ -316,63 +377,32 @@ final class AnimeAv1SourcePlugin implements SourcePlugin {
   String _slugify(String value) {
     final lower = _stripDiacritics(value.toLowerCase());
     return lower
-        .replaceAll(RegExp(r'[^a-z0-9]+'), '-')
-        .replaceAll(RegExp(r'-+'), '-')
-        .replaceAll(RegExp(r'^-|-$'), '');
+        .replaceAll(_nonAlnumRe, '-')
+        .replaceAll(_multiDashRe, '-')
+        .replaceAll(_leadTrailDashRe, '');
   }
 
   String _stripDiacritics(String value) {
-    return value
-        .replaceAll('\u00E1', 'a')
-        .replaceAll('\u00E0', 'a')
-        .replaceAll('\u00E4', 'a')
-        .replaceAll('\u00E2', 'a')
-        .replaceAll('\u00E9', 'e')
-        .replaceAll('\u00E8', 'e')
-        .replaceAll('\u00EB', 'e')
-        .replaceAll('\u00EA', 'e')
-        .replaceAll('\u00ED', 'i')
-        .replaceAll('\u00EC', 'i')
-        .replaceAll('\u00EF', 'i')
-        .replaceAll('\u00EE', 'i')
-        .replaceAll('\u00F3', 'o')
-        .replaceAll('\u00F2', 'o')
-        .replaceAll('\u00F6', 'o')
-        .replaceAll('\u00F4', 'o')
-        .replaceAll('\u00FA', 'u')
-        .replaceAll('\u00F9', 'u')
-        .replaceAll('\u00FC', 'u')
-        .replaceAll('\u00FB', 'u')
-        .replaceAll('\u00F1', 'n');
+    final buffer = StringBuffer();
+    for (var i = 0; i < value.length; i++) {
+      buffer.write(_diacriticMap[value[i]] ?? value[i]);
+    }
+    return buffer.toString();
   }
 
   List<SourceServerLink> _extractServerLinksFromBootstrap(String html) {
-    final payloadMatch = RegExp(
-      r'embeds:\{([\s\S]*?)\},\s*downloads:',
-      multiLine: true,
-      caseSensitive: false,
-    ).firstMatch(html);
+    final payloadMatch = _embedsPayloadRe.firstMatch(html);
     final payload = payloadMatch?.group(1) ?? html;
-    final languageBlocks = RegExp(
-      r'([A-Z]+):\[(.*?)\](?=,[A-Z]+:\[|$)',
-      multiLine: true,
-      caseSensitive: false,
-    );
-    final serverPattern = RegExp(
-      r'server:"([^"]+)",url:"([^"]+)"',
-      multiLine: true,
-      caseSensitive: false,
-    );
 
     final links = <SourceServerLink>[];
     final seenKeys = <String>{};
     var index = 0;
 
-    for (final languageMatch in languageBlocks.allMatches(payload)) {
+    for (final languageMatch in _languageBlocksRe.allMatches(payload)) {
       final language = _mapLanguageLabel(languageMatch.group(1));
       final block = languageMatch.group(2) ?? '';
 
-      for (final serverMatch in serverPattern.allMatches(block)) {
+      for (final serverMatch in _serverPatternRe.allMatches(block)) {
         final serverName = serverMatch.group(1)?.trim() ?? '';
         final rawUrl = serverMatch.group(2)?.replaceAll(r'\/', '/') ?? '';
         final uri = Uri.tryParse(rawUrl);
@@ -401,7 +431,7 @@ final class AnimeAv1SourcePlugin implements SourcePlugin {
       return links;
     }
 
-    for (final serverMatch in serverPattern.allMatches(payload)) {
+    for (final serverMatch in _serverPatternRe.allMatches(payload)) {
       final serverName = serverMatch.group(1)?.trim() ?? '';
       final rawUrl = serverMatch.group(2)?.replaceAll(r'\/', '/') ?? '';
       final uri = Uri.tryParse(rawUrl);
@@ -428,21 +458,13 @@ final class AnimeAv1SourcePlugin implements SourcePlugin {
   }
 
   List<SourceEpisode> _extractEpisodesFromBootstrap(String html, String slug) {
-    final blockMatch = RegExp(
-      r'episodes:\[(.*?)\],relations:',
-      multiLine: true,
-      caseSensitive: false,
-    ).firstMatch(html);
+    final blockMatch = _episodeBlockRe.firstMatch(html);
     final block = blockMatch?.group(1);
     if (block == null || block.isEmpty) {
       return const <SourceEpisode>[];
     }
 
-    final matches = RegExp(
-      r'\{id:\d+,number:(\d+(?:\.\d+)?)\}',
-      multiLine: true,
-      caseSensitive: false,
-    ).allMatches(block);
+    final matches = _episodeNumberRe.allMatches(block);
 
     return _buildEpisodesFromNumbers(
       matches
@@ -530,11 +552,7 @@ final class AnimeAv1SourcePlugin implements SourcePlugin {
   }
 
   String? _extractBootstrapSlug(String html) {
-    final match = RegExp(
-      r'votes:\d+,slug:"([^"]+)"',
-      multiLine: true,
-      caseSensitive: false,
-    ).firstMatch(html);
+    final match = _bootstrapSlugRe.firstMatch(html);
     return match?.group(1)?.trim();
   }
 
@@ -580,7 +598,7 @@ final class AnimeAv1SourcePlugin implements SourcePlugin {
     if (text == null) {
       return null;
     }
-    final match = RegExp(r'(19|20)\d{2}').firstMatch(text);
+    final match = _yearRe.firstMatch(text);
     return match != null ? int.tryParse(match.group(0)!) : null;
   }
 

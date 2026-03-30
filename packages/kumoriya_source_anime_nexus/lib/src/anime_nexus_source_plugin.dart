@@ -8,6 +8,61 @@ import 'package:kumoriya_plugins/kumoriya_plugins.dart';
 
 import 'errors/anime_nexus_source_error.dart';
 
+final _whitespaceRe = RegExp(r'\s+');
+final _trailingParenRe = RegExp(r'\s*\([^)]*\)\s*$');
+final _multiDashRe = RegExp(r'-+');
+final _leadTrailDashRe = RegExp(r'^-|-$');
+final _htmlTitleRe = RegExp(
+  r'<title>(.*?)</title>',
+  caseSensitive: false,
+  dotAll: true,
+);
+final _watchPrefixRe = RegExp(r'^Watch\s+', caseSensitive: false);
+final _onlineFreeRe = RegExp(
+  r'\s+(?:TV|Movie|OVA|ONA|Special)\s+Online Free.*$',
+  caseSensitive: false,
+);
+final _pipeAnimeSuffixRe = RegExp(
+  r'\s*\|\s*(?:TV|Movie|OVA|ONA|Special)\s+Anime.*$',
+  caseSensitive: false,
+);
+final _formatRe = RegExp(
+  r'\b(TV|Movie|OVA|ONA|Special)\b',
+  caseSensitive: false,
+);
+final _guidSuffixRe = RegExp(r'-[a-f0-9]{20}$');
+final _seasonDescriptorPatterns = <RegExp>[
+  RegExp(r'\s*[-:]?\s*\b\d+(?:st|nd|rd|th)?\s+season\b$', caseSensitive: false),
+  RegExp(r'\s*[-:]?\s*\bseason\s+\d+\b$', caseSensitive: false),
+  RegExp(r'\s*[-:]?\s*\bpart\s+\d+\b$', caseSensitive: false),
+  RegExp(r'\s*[-:]?\s*\bcour\s+\d+\b$', caseSensitive: false),
+  RegExp(r'\s*[-:]?\s*\b(?:ii|iii|iv|v)\b$', caseSensitive: false),
+];
+
+const _diacriticMap = <String, String>{
+  '\u00E1': 'a',
+  '\u00E0': 'a',
+  '\u00E4': 'a',
+  '\u00E2': 'a',
+  '\u00E9': 'e',
+  '\u00E8': 'e',
+  '\u00EB': 'e',
+  '\u00EA': 'e',
+  '\u00ED': 'i',
+  '\u00EC': 'i',
+  '\u00EF': 'i',
+  '\u00EE': 'i',
+  '\u00F3': 'o',
+  '\u00F2': 'o',
+  '\u00F6': 'o',
+  '\u00F4': 'o',
+  '\u00FA': 'u',
+  '\u00F9': 'u',
+  '\u00FC': 'u',
+  '\u00FB': 'u',
+  '\u00F1': 'n',
+};
+
 final class AnimeNexusSourcePlugin implements SourcePlugin {
   AnimeNexusSourcePlugin({
     Dio? dio,
@@ -494,11 +549,7 @@ final class AnimeNexusSourcePlugin implements SourcePlugin {
   }
 
   String? _extractHtmlTitle(String html) {
-    return RegExp(
-      r'<title>(.*?)</title>',
-      caseSensitive: false,
-      dotAll: true,
-    ).firstMatch(html)?.group(1)?.trim();
+    return _htmlTitleRe.firstMatch(html)?.group(1)?.trim();
   }
 
   String _normalizeSeriesPageTitle(String? rawTitle) {
@@ -507,21 +558,9 @@ final class AnimeNexusSourcePlugin implements SourcePlugin {
       return title;
     }
 
-    title = title.replaceFirst(RegExp(r'^Watch\s+', caseSensitive: false), '');
-    title = title.replaceFirst(
-      RegExp(
-        r'\s+(?:TV|Movie|OVA|ONA|Special)\s+Online Free.*$',
-        caseSensitive: false,
-      ),
-      '',
-    );
-    title = title.replaceFirst(
-      RegExp(
-        r'\s*\|\s*(?:TV|Movie|OVA|ONA|Special)\s+Anime.*$',
-        caseSensitive: false,
-      ),
-      '',
-    );
+    title = title.replaceFirst(_watchPrefixRe, '');
+    title = title.replaceFirst(_onlineFreeRe, '');
+    title = title.replaceFirst(_pipeAnimeSuffixRe, '');
 
     return title.trim();
   }
@@ -532,15 +571,12 @@ final class AnimeNexusSourcePlugin implements SourcePlugin {
       return AnimeFormat.unknown;
     }
 
-    final formatMatch = RegExp(
-      r'\b(TV|Movie|OVA|ONA|Special)\b',
-      caseSensitive: false,
-    ).firstMatch(title);
+    final formatMatch = _formatRe.firstMatch(title);
     return _parseFormat(formatMatch?.group(1));
   }
 
   String _searchQueryFromSlug(String slug) {
-    final withoutGuid = slug.replaceFirst(RegExp(r'-[a-f0-9]{20}$'), '');
+    final withoutGuid = slug.replaceFirst(_guidSuffixRe, '');
     return withoutGuid.replaceAll('-', ' ').trim();
   }
 
@@ -549,7 +585,7 @@ final class AnimeNexusSourcePlugin implements SourcePlugin {
     final seen = <String>{};
 
     void add(String value) {
-      final normalized = value.trim().replaceAll(RegExp(r'\s+'), ' ');
+      final normalized = value.trim().replaceAll(_whitespaceRe, ' ');
       if (normalized.isEmpty) {
         return;
       }
@@ -644,23 +680,16 @@ final class AnimeNexusSourcePlugin implements SourcePlugin {
 
   String _stripSeasonDescriptor(String value) {
     var result = value.trim();
-    const patterns = <String>[
-      r'\s*[-:]?\s*\b\d+(?:st|nd|rd|th)?\s+season\b$',
-      r'\s*[-:]?\s*\bseason\s+\d+\b$',
-      r'\s*[-:]?\s*\bpart\s+\d+\b$',
-      r'\s*[-:]?\s*\bcour\s+\d+\b$',
-      r'\s*[-:]?\s*\b(?:ii|iii|iv|v)\b$',
-    ];
 
-    for (final pattern in patterns) {
-      result = result.replaceFirst(RegExp(pattern, caseSensitive: false), '');
+    for (final pattern in _seasonDescriptorPatterns) {
+      result = result.replaceFirst(pattern, '');
     }
 
     return result.trim();
   }
 
   String _stripTrailingParenthetical(String value) {
-    return value.replaceFirst(RegExp(r'\s*\([^)]*\)\s*$'), '').trim();
+    return value.replaceFirst(_trailingParenRe, '').trim();
   }
 
   String _extractRootTitle(String value) {
@@ -713,33 +742,16 @@ final class AnimeNexusSourcePlugin implements SourcePlugin {
 
     return buffer
         .toString()
-        .replaceAll(RegExp(r'-+'), '-')
-        .replaceAll(RegExp(r'^-|-$'), '');
+        .replaceAll(_multiDashRe, '-')
+        .replaceAll(_leadTrailDashRe, '');
   }
 
   String _stripDiacritics(String value) {
-    return value
-        .replaceAll('\u00E1', 'a')
-        .replaceAll('\u00E0', 'a')
-        .replaceAll('\u00E4', 'a')
-        .replaceAll('\u00E2', 'a')
-        .replaceAll('\u00E9', 'e')
-        .replaceAll('\u00E8', 'e')
-        .replaceAll('\u00EB', 'e')
-        .replaceAll('\u00EA', 'e')
-        .replaceAll('\u00ED', 'i')
-        .replaceAll('\u00EC', 'i')
-        .replaceAll('\u00EF', 'i')
-        .replaceAll('\u00EE', 'i')
-        .replaceAll('\u00F3', 'o')
-        .replaceAll('\u00F2', 'o')
-        .replaceAll('\u00F6', 'o')
-        .replaceAll('\u00F4', 'o')
-        .replaceAll('\u00FA', 'u')
-        .replaceAll('\u00F9', 'u')
-        .replaceAll('\u00FC', 'u')
-        .replaceAll('\u00FB', 'u')
-        .replaceAll('\u00F1', 'n');
+    final buffer = StringBuffer();
+    for (var i = 0; i < value.length; i++) {
+      buffer.write(_diacriticMap[value[i]] ?? value[i]);
+    }
+    return buffer.toString();
   }
 
   Map<String, String> _pageHeaders(Uri referer) {
