@@ -33,3 +33,5 @@ workspace:
   - packages/kumoriya_storage
   - packages/kumoriya_testing
   - packages/kumoriya_matching
+  - packages/kumoriya_resolver_common
+  - tools/resolver_cli

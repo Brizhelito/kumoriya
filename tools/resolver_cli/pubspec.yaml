@@ -1,0 +1,56 @@
+name: resolver_cli
+description: CLI tool for testing and benchmarking Kumoriya video resolvers.
+publish_to: none
+
+resolution: workspace
+
+environment:
+  sdk: ^3.11.1
+
+dependencies:
+  args: ^2.6.0
+  http: ^1.3.0
+  kumoriya_core:
+    path: ../../packages/kumoriya_core
+  kumoriya_plugins:
+    path: ../../packages/kumoriya_plugins
+  kumoriya_resolver_anime_nexus:
+    path: ../../packages/kumoriya_resolver_anime_nexus
+  kumoriya_resolver_doodstream:
+    path: ../../packages/kumoriya_resolver_doodstream
+  kumoriya_resolver_filemoon:
+    path: ../../packages/kumoriya_resolver_filemoon
+  kumoriya_resolver_hqq:
+    path: ../../packages/kumoriya_resolver_hqq
+  kumoriya_resolver_jkplayer:
+    path: ../../packages/kumoriya_resolver_jkplayer
+  kumoriya_resolver_mixdrop:
+    path: ../../packages/kumoriya_resolver_mixdrop
+  kumoriya_resolver_mp4upload:
+    path: ../../packages/kumoriya_resolver_mp4upload
+  kumoriya_resolver_okru:
+    path: ../../packages/kumoriya_resolver_okru
+  kumoriya_resolver_pixeldrain:
+    path: ../../packages/kumoriya_resolver_pixeldrain
+  kumoriya_resolver_streamtape:
+    path: ../../packages/kumoriya_resolver_streamtape
+  kumoriya_resolver_streamwish:
+    path: ../../packages/kumoriya_resolver_streamwish
+  kumoriya_resolver_upnshare:
+    path: ../../packages/kumoriya_resolver_upnshare
+  kumoriya_resolver_vidhide:
+    path: ../../packages/kumoriya_resolver_vidhide
+  kumoriya_resolver_voe:
+    path: ../../packages/kumoriya_resolver_voe
+  kumoriya_resolver_yourupload:
+    path: ../../packages/kumoriya_resolver_yourupload
+  kumoriya_resolver_zilla:
+    path: ../../packages/kumoriya_resolver_zilla
+  kumoriya_source_animeflv:
+    path: ../../packages/kumoriya_source_animeflv
+  kumoriya_source_jkanime:
+    path: ../../packages/kumoriya_source_jkanime
+  kumoriya_source_animeav1:
+    path: ../../packages/kumoriya_source_animeav1
+  kumoriya_source_anime_nexus:
+    path: ../../packages/kumoriya_source_anime_nexus
