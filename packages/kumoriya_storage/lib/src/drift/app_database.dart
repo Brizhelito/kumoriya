@@ -1,6 +1,7 @@
 import 'package:drift/drift.dart';
 
 import 'daos/aniskip_cache_dao.dart';
+import 'daos/episode_cache_dao.dart';
 import 'daos/anilist_cache_dao.dart';
 import 'daos/download_task_dao.dart';
 import 'daos/hls_segment_dao.dart';
@@ -8,8 +9,10 @@ import 'daos/library_entry_dao.dart';
 import 'daos/playback_preference_dao.dart';
 import 'daos/progress_dao.dart';
 import 'daos/source_availability_cache_dao.dart';
+import 'daos/translation_cache_dao.dart';
 import 'daos/watch_history_dao.dart';
 import 'tables/aniskip_cache_table.dart';
+import 'tables/episode_catalog_cache_table.dart';
 import 'tables/anilist_cache_table.dart';
 import 'tables/download_task_table.dart';
 import 'tables/hls_segment_table.dart';
@@ -17,6 +20,7 @@ import 'tables/episode_progress_table.dart';
 import 'tables/library_entry_table.dart';
 import 'tables/playback_preference_table.dart';
 import 'tables/source_availability_cache_table.dart';
+import 'tables/translation_cache_table.dart';
 import 'tables/watch_history_table.dart';
 
 part 'app_database.g.dart';
@@ -32,6 +36,8 @@ part 'app_database.g.dart';
     HlsSegmentTable,
     LibraryEntryTable,
     AnilistCacheTable,
+    TranslationCacheTable,
+    EpisodeCatalogCacheTable,
   ],
   daos: [
     ProgressDao,
@@ -43,13 +49,15 @@ part 'app_database.g.dart';
     HlsSegmentDao,
     LibraryEntryDao,
     AnilistCacheDao,
+    TranslationCacheDao,
+    EpisodeCacheDao,
   ],
 )
 class AppDatabase extends _$AppDatabase {
   AppDatabase(super.e);
 
   @override
-  int get schemaVersion => 13;
+  int get schemaVersion => 16;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -130,6 +138,23 @@ class AppDatabase extends _$AppDatabase {
           createTable: () => m.createTable(hlsSegmentTable),
         );
       }
+      if (from < 14) {
+        await _createIndices();
+      }
+      if (from < 15) {
+        await _createTableIfMissing(
+          tableName: 'translation_cache',
+          createTable: () => m.createTable(translationCacheTable),
+        );
+        await _createIndices();
+      }
+      if (from < 16) {
+        await _createTableIfMissing(
+          tableName: 'episode_catalog_cache',
+          createTable: () => m.createTable(episodeCatalogCacheTable),
+        );
+        await _createIndices();
+      }
     },
     beforeOpen: (details) async {
       if (details.wasCreated) {
@@ -173,6 +198,18 @@ class AppDatabase extends _$AppDatabase {
     await _createTableIfMissing(
       tableName: 'aniskip_cache',
       createTable: () => m.createTable(aniSkipCacheTable),
+    );
+    await _createTableIfMissing(
+      tableName: 'hls_segment',
+      createTable: () => m.createTable(hlsSegmentTable),
+    );
+    await _createTableIfMissing(
+      tableName: 'translation_cache',
+      createTable: () => m.createTable(translationCacheTable),
+    );
+    await _createTableIfMissing(
+      tableName: 'episode_catalog_cache',
+      createTable: () => m.createTable(episodeCatalogCacheTable),
     );
     await _createIndices();
   }
@@ -256,6 +293,30 @@ class AppDatabase extends _$AppDatabase {
     await customStatement(
       'CREATE INDEX IF NOT EXISTS idx_aniskip_cache_anime '
       'ON aniskip_cache (anilist_id, episode_number)',
+    );
+    await customStatement(
+      'CREATE INDEX IF NOT EXISTS idx_hls_segment_task '
+      'ON hls_segment (download_task_id, segment_index)',
+    );
+    await customStatement(
+      'CREATE INDEX IF NOT EXISTS idx_library_entry_notify '
+      'ON library_entry (notify_new_episodes) WHERE notify_new_episodes = 1',
+    );
+    await customStatement(
+      'CREATE INDEX IF NOT EXISTS idx_library_entry_auto_download '
+      'ON library_entry (auto_download_new_episodes) WHERE auto_download_new_episodes = 1',
+    );
+    await customStatement(
+      'CREATE INDEX IF NOT EXISTS idx_translation_cache_updated '
+      'ON translation_cache (updated_at)',
+    );
+    await customStatement(
+      'CREATE INDEX IF NOT EXISTS idx_episode_catalog_cache_anime '
+      'ON episode_catalog_cache (anilist_id, episode_number)',
+    );
+    await customStatement(
+      'CREATE INDEX IF NOT EXISTS idx_episode_catalog_cache_updated '
+      'ON episode_catalog_cache (updated_at)',
     );
   }
 }

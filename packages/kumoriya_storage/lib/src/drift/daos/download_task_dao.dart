@@ -40,24 +40,39 @@ class DownloadTaskDao extends DatabaseAccessor<AppDatabase>
         .getSingleOrNull();
   }
 
-  Future<List<DownloadTaskTableData>> getTasksByAnime(int anilistId) {
-    return (select(downloadTaskTable)
-          ..where((t) => t.anilistId.equals(anilistId))
-          ..orderBy([(t) => OrderingTerm.desc(t.createdAt)]))
-        .get();
+  Future<List<DownloadTaskTableData>> getTasksByAnime(
+    int anilistId, {
+    int? limit,
+  }) {
+    final query = select(downloadTaskTable)
+      ..where((t) => t.anilistId.equals(anilistId))
+      ..orderBy([(t) => OrderingTerm.desc(t.createdAt)]);
+    if (limit != null) {
+      query.limit(limit);
+    }
+    return query.get();
   }
 
-  Future<List<DownloadTaskTableData>> getTasksByStatus(String status) {
-    return (select(downloadTaskTable)
-          ..where((t) => t.status.equals(status))
-          ..orderBy([(t) => OrderingTerm.desc(t.createdAt)]))
-        .get();
+  Future<List<DownloadTaskTableData>> getTasksByStatus(
+    String status, {
+    int? limit,
+  }) {
+    final query = select(downloadTaskTable)
+      ..where((t) => t.status.equals(status))
+      ..orderBy([(t) => OrderingTerm.asc(t.createdAt)]);
+    if (limit != null) {
+      query.limit(limit);
+    }
+    return query.get();
   }
 
-  Future<List<DownloadTaskTableData>> getAllTasks() {
-    return (select(
-      downloadTaskTable,
-    )..orderBy([(t) => OrderingTerm.desc(t.createdAt)])).get();
+  Future<List<DownloadTaskTableData>> getAllTasks({int? limit}) {
+    final query = select(downloadTaskTable)
+      ..orderBy([(t) => OrderingTerm.desc(t.createdAt)]);
+    if (limit != null) {
+      query.limit(limit);
+    }
+    return query.get();
   }
 
   Future<void> deleteTask(String id) {

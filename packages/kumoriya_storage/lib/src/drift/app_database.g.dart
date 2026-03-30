@@ -5312,6 +5312,832 @@ class AnilistCacheTableCompanion
   }
 }
 
+class $TranslationCacheTableTable extends TranslationCacheTable
+    with TableInfo<$TranslationCacheTableTable, TranslationCacheTableData> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $TranslationCacheTableTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _sourceTextMeta = const VerificationMeta(
+    'sourceText',
+  );
+  @override
+  late final GeneratedColumn<String> sourceText = GeneratedColumn<String>(
+    'source_text',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _targetLanguageMeta = const VerificationMeta(
+    'targetLanguage',
+  );
+  @override
+  late final GeneratedColumn<String> targetLanguage = GeneratedColumn<String>(
+    'target_language',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _translatedTextMeta = const VerificationMeta(
+    'translatedText',
+  );
+  @override
+  late final GeneratedColumn<String> translatedText = GeneratedColumn<String>(
+    'translated_text',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<int> updatedAt = GeneratedColumn<int>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    sourceText,
+    targetLanguage,
+    translatedText,
+    updatedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'translation_cache';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<TranslationCacheTableData> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('source_text')) {
+      context.handle(
+        _sourceTextMeta,
+        sourceText.isAcceptableOrUnknown(data['source_text']!, _sourceTextMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_sourceTextMeta);
+    }
+    if (data.containsKey('target_language')) {
+      context.handle(
+        _targetLanguageMeta,
+        targetLanguage.isAcceptableOrUnknown(
+          data['target_language']!,
+          _targetLanguageMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_targetLanguageMeta);
+    }
+    if (data.containsKey('translated_text')) {
+      context.handle(
+        _translatedTextMeta,
+        translatedText.isAcceptableOrUnknown(
+          data['translated_text']!,
+          _translatedTextMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_translatedTextMeta);
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_updatedAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {sourceText, targetLanguage};
+  @override
+  TranslationCacheTableData map(
+    Map<String, dynamic> data, {
+    String? tablePrefix,
+  }) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return TranslationCacheTableData(
+      sourceText: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}source_text'],
+      )!,
+      targetLanguage: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}target_language'],
+      )!,
+      translatedText: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}translated_text'],
+      )!,
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}updated_at'],
+      )!,
+    );
+  }
+
+  @override
+  $TranslationCacheTableTable createAlias(String alias) {
+    return $TranslationCacheTableTable(attachedDatabase, alias);
+  }
+}
+
+class TranslationCacheTableData extends DataClass
+    implements Insertable<TranslationCacheTableData> {
+  final String sourceText;
+  final String targetLanguage;
+  final String translatedText;
+  final int updatedAt;
+  const TranslationCacheTableData({
+    required this.sourceText,
+    required this.targetLanguage,
+    required this.translatedText,
+    required this.updatedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['source_text'] = Variable<String>(sourceText);
+    map['target_language'] = Variable<String>(targetLanguage);
+    map['translated_text'] = Variable<String>(translatedText);
+    map['updated_at'] = Variable<int>(updatedAt);
+    return map;
+  }
+
+  TranslationCacheTableCompanion toCompanion(bool nullToAbsent) {
+    return TranslationCacheTableCompanion(
+      sourceText: Value(sourceText),
+      targetLanguage: Value(targetLanguage),
+      translatedText: Value(translatedText),
+      updatedAt: Value(updatedAt),
+    );
+  }
+
+  factory TranslationCacheTableData.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return TranslationCacheTableData(
+      sourceText: serializer.fromJson<String>(json['sourceText']),
+      targetLanguage: serializer.fromJson<String>(json['targetLanguage']),
+      translatedText: serializer.fromJson<String>(json['translatedText']),
+      updatedAt: serializer.fromJson<int>(json['updatedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'sourceText': serializer.toJson<String>(sourceText),
+      'targetLanguage': serializer.toJson<String>(targetLanguage),
+      'translatedText': serializer.toJson<String>(translatedText),
+      'updatedAt': serializer.toJson<int>(updatedAt),
+    };
+  }
+
+  TranslationCacheTableData copyWith({
+    String? sourceText,
+    String? targetLanguage,
+    String? translatedText,
+    int? updatedAt,
+  }) => TranslationCacheTableData(
+    sourceText: sourceText ?? this.sourceText,
+    targetLanguage: targetLanguage ?? this.targetLanguage,
+    translatedText: translatedText ?? this.translatedText,
+    updatedAt: updatedAt ?? this.updatedAt,
+  );
+  TranslationCacheTableData copyWithCompanion(
+    TranslationCacheTableCompanion data,
+  ) {
+    return TranslationCacheTableData(
+      sourceText: data.sourceText.present
+          ? data.sourceText.value
+          : this.sourceText,
+      targetLanguage: data.targetLanguage.present
+          ? data.targetLanguage.value
+          : this.targetLanguage,
+      translatedText: data.translatedText.present
+          ? data.translatedText.value
+          : this.translatedText,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('TranslationCacheTableData(')
+          ..write('sourceText: $sourceText, ')
+          ..write('targetLanguage: $targetLanguage, ')
+          ..write('translatedText: $translatedText, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode =>
+      Object.hash(sourceText, targetLanguage, translatedText, updatedAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is TranslationCacheTableData &&
+          other.sourceText == this.sourceText &&
+          other.targetLanguage == this.targetLanguage &&
+          other.translatedText == this.translatedText &&
+          other.updatedAt == this.updatedAt);
+}
+
+class TranslationCacheTableCompanion
+    extends UpdateCompanion<TranslationCacheTableData> {
+  final Value<String> sourceText;
+  final Value<String> targetLanguage;
+  final Value<String> translatedText;
+  final Value<int> updatedAt;
+  final Value<int> rowid;
+  const TranslationCacheTableCompanion({
+    this.sourceText = const Value.absent(),
+    this.targetLanguage = const Value.absent(),
+    this.translatedText = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  TranslationCacheTableCompanion.insert({
+    required String sourceText,
+    required String targetLanguage,
+    required String translatedText,
+    required int updatedAt,
+    this.rowid = const Value.absent(),
+  }) : sourceText = Value(sourceText),
+       targetLanguage = Value(targetLanguage),
+       translatedText = Value(translatedText),
+       updatedAt = Value(updatedAt);
+  static Insertable<TranslationCacheTableData> custom({
+    Expression<String>? sourceText,
+    Expression<String>? targetLanguage,
+    Expression<String>? translatedText,
+    Expression<int>? updatedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (sourceText != null) 'source_text': sourceText,
+      if (targetLanguage != null) 'target_language': targetLanguage,
+      if (translatedText != null) 'translated_text': translatedText,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  TranslationCacheTableCompanion copyWith({
+    Value<String>? sourceText,
+    Value<String>? targetLanguage,
+    Value<String>? translatedText,
+    Value<int>? updatedAt,
+    Value<int>? rowid,
+  }) {
+    return TranslationCacheTableCompanion(
+      sourceText: sourceText ?? this.sourceText,
+      targetLanguage: targetLanguage ?? this.targetLanguage,
+      translatedText: translatedText ?? this.translatedText,
+      updatedAt: updatedAt ?? this.updatedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (sourceText.present) {
+      map['source_text'] = Variable<String>(sourceText.value);
+    }
+    if (targetLanguage.present) {
+      map['target_language'] = Variable<String>(targetLanguage.value);
+    }
+    if (translatedText.present) {
+      map['translated_text'] = Variable<String>(translatedText.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<int>(updatedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('TranslationCacheTableCompanion(')
+          ..write('sourceText: $sourceText, ')
+          ..write('targetLanguage: $targetLanguage, ')
+          ..write('translatedText: $translatedText, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $EpisodeCatalogCacheTableTable extends EpisodeCatalogCacheTable
+    with
+        TableInfo<
+          $EpisodeCatalogCacheTableTable,
+          EpisodeCatalogCacheTableData
+        > {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $EpisodeCatalogCacheTableTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _anilistIdMeta = const VerificationMeta(
+    'anilistId',
+  );
+  @override
+  late final GeneratedColumn<int> anilistId = GeneratedColumn<int>(
+    'anilist_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _episodeNumberMeta = const VerificationMeta(
+    'episodeNumber',
+  );
+  @override
+  late final GeneratedColumn<double> episodeNumber = GeneratedColumn<double>(
+    'episode_number',
+    aliasedName,
+    false,
+    type: DriftSqlType.double,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _titleMeta = const VerificationMeta('title');
+  @override
+  late final GeneratedColumn<String> title = GeneratedColumn<String>(
+    'title',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _airDateMeta = const VerificationMeta(
+    'airDate',
+  );
+  @override
+  late final GeneratedColumn<int> airDate = GeneratedColumn<int>(
+    'air_date',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _isAiredMeta = const VerificationMeta(
+    'isAired',
+  );
+  @override
+  late final GeneratedColumn<bool> isAired = GeneratedColumn<bool>(
+    'is_aired',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("is_aired" IN (0, 1))',
+    ),
+    defaultValue: const Constant(true),
+  );
+  static const VerificationMeta _isFillerMeta = const VerificationMeta(
+    'isFiller',
+  );
+  @override
+  late final GeneratedColumn<bool> isFiller = GeneratedColumn<bool>(
+    'is_filler',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("is_filler" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<int> updatedAt = GeneratedColumn<int>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    anilistId,
+    episodeNumber,
+    title,
+    airDate,
+    isAired,
+    isFiller,
+    updatedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'episode_catalog_cache';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<EpisodeCatalogCacheTableData> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('anilist_id')) {
+      context.handle(
+        _anilistIdMeta,
+        anilistId.isAcceptableOrUnknown(data['anilist_id']!, _anilistIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_anilistIdMeta);
+    }
+    if (data.containsKey('episode_number')) {
+      context.handle(
+        _episodeNumberMeta,
+        episodeNumber.isAcceptableOrUnknown(
+          data['episode_number']!,
+          _episodeNumberMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_episodeNumberMeta);
+    }
+    if (data.containsKey('title')) {
+      context.handle(
+        _titleMeta,
+        title.isAcceptableOrUnknown(data['title']!, _titleMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_titleMeta);
+    }
+    if (data.containsKey('air_date')) {
+      context.handle(
+        _airDateMeta,
+        airDate.isAcceptableOrUnknown(data['air_date']!, _airDateMeta),
+      );
+    }
+    if (data.containsKey('is_aired')) {
+      context.handle(
+        _isAiredMeta,
+        isAired.isAcceptableOrUnknown(data['is_aired']!, _isAiredMeta),
+      );
+    }
+    if (data.containsKey('is_filler')) {
+      context.handle(
+        _isFillerMeta,
+        isFiller.isAcceptableOrUnknown(data['is_filler']!, _isFillerMeta),
+      );
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_updatedAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {anilistId, episodeNumber};
+  @override
+  EpisodeCatalogCacheTableData map(
+    Map<String, dynamic> data, {
+    String? tablePrefix,
+  }) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return EpisodeCatalogCacheTableData(
+      anilistId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}anilist_id'],
+      )!,
+      episodeNumber: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}episode_number'],
+      )!,
+      title: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}title'],
+      )!,
+      airDate: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}air_date'],
+      ),
+      isAired: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}is_aired'],
+      )!,
+      isFiller: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}is_filler'],
+      )!,
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}updated_at'],
+      )!,
+    );
+  }
+
+  @override
+  $EpisodeCatalogCacheTableTable createAlias(String alias) {
+    return $EpisodeCatalogCacheTableTable(attachedDatabase, alias);
+  }
+}
+
+class EpisodeCatalogCacheTableData extends DataClass
+    implements Insertable<EpisodeCatalogCacheTableData> {
+  final int anilistId;
+  final double episodeNumber;
+  final String title;
+  final int? airDate;
+  final bool isAired;
+  final bool isFiller;
+  final int updatedAt;
+  const EpisodeCatalogCacheTableData({
+    required this.anilistId,
+    required this.episodeNumber,
+    required this.title,
+    this.airDate,
+    required this.isAired,
+    required this.isFiller,
+    required this.updatedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['anilist_id'] = Variable<int>(anilistId);
+    map['episode_number'] = Variable<double>(episodeNumber);
+    map['title'] = Variable<String>(title);
+    if (!nullToAbsent || airDate != null) {
+      map['air_date'] = Variable<int>(airDate);
+    }
+    map['is_aired'] = Variable<bool>(isAired);
+    map['is_filler'] = Variable<bool>(isFiller);
+    map['updated_at'] = Variable<int>(updatedAt);
+    return map;
+  }
+
+  EpisodeCatalogCacheTableCompanion toCompanion(bool nullToAbsent) {
+    return EpisodeCatalogCacheTableCompanion(
+      anilistId: Value(anilistId),
+      episodeNumber: Value(episodeNumber),
+      title: Value(title),
+      airDate: airDate == null && nullToAbsent
+          ? const Value.absent()
+          : Value(airDate),
+      isAired: Value(isAired),
+      isFiller: Value(isFiller),
+      updatedAt: Value(updatedAt),
+    );
+  }
+
+  factory EpisodeCatalogCacheTableData.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return EpisodeCatalogCacheTableData(
+      anilistId: serializer.fromJson<int>(json['anilistId']),
+      episodeNumber: serializer.fromJson<double>(json['episodeNumber']),
+      title: serializer.fromJson<String>(json['title']),
+      airDate: serializer.fromJson<int?>(json['airDate']),
+      isAired: serializer.fromJson<bool>(json['isAired']),
+      isFiller: serializer.fromJson<bool>(json['isFiller']),
+      updatedAt: serializer.fromJson<int>(json['updatedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'anilistId': serializer.toJson<int>(anilistId),
+      'episodeNumber': serializer.toJson<double>(episodeNumber),
+      'title': serializer.toJson<String>(title),
+      'airDate': serializer.toJson<int?>(airDate),
+      'isAired': serializer.toJson<bool>(isAired),
+      'isFiller': serializer.toJson<bool>(isFiller),
+      'updatedAt': serializer.toJson<int>(updatedAt),
+    };
+  }
+
+  EpisodeCatalogCacheTableData copyWith({
+    int? anilistId,
+    double? episodeNumber,
+    String? title,
+    Value<int?> airDate = const Value.absent(),
+    bool? isAired,
+    bool? isFiller,
+    int? updatedAt,
+  }) => EpisodeCatalogCacheTableData(
+    anilistId: anilistId ?? this.anilistId,
+    episodeNumber: episodeNumber ?? this.episodeNumber,
+    title: title ?? this.title,
+    airDate: airDate.present ? airDate.value : this.airDate,
+    isAired: isAired ?? this.isAired,
+    isFiller: isFiller ?? this.isFiller,
+    updatedAt: updatedAt ?? this.updatedAt,
+  );
+  EpisodeCatalogCacheTableData copyWithCompanion(
+    EpisodeCatalogCacheTableCompanion data,
+  ) {
+    return EpisodeCatalogCacheTableData(
+      anilistId: data.anilistId.present ? data.anilistId.value : this.anilistId,
+      episodeNumber: data.episodeNumber.present
+          ? data.episodeNumber.value
+          : this.episodeNumber,
+      title: data.title.present ? data.title.value : this.title,
+      airDate: data.airDate.present ? data.airDate.value : this.airDate,
+      isAired: data.isAired.present ? data.isAired.value : this.isAired,
+      isFiller: data.isFiller.present ? data.isFiller.value : this.isFiller,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('EpisodeCatalogCacheTableData(')
+          ..write('anilistId: $anilistId, ')
+          ..write('episodeNumber: $episodeNumber, ')
+          ..write('title: $title, ')
+          ..write('airDate: $airDate, ')
+          ..write('isAired: $isAired, ')
+          ..write('isFiller: $isFiller, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    anilistId,
+    episodeNumber,
+    title,
+    airDate,
+    isAired,
+    isFiller,
+    updatedAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is EpisodeCatalogCacheTableData &&
+          other.anilistId == this.anilistId &&
+          other.episodeNumber == this.episodeNumber &&
+          other.title == this.title &&
+          other.airDate == this.airDate &&
+          other.isAired == this.isAired &&
+          other.isFiller == this.isFiller &&
+          other.updatedAt == this.updatedAt);
+}
+
+class EpisodeCatalogCacheTableCompanion
+    extends UpdateCompanion<EpisodeCatalogCacheTableData> {
+  final Value<int> anilistId;
+  final Value<double> episodeNumber;
+  final Value<String> title;
+  final Value<int?> airDate;
+  final Value<bool> isAired;
+  final Value<bool> isFiller;
+  final Value<int> updatedAt;
+  final Value<int> rowid;
+  const EpisodeCatalogCacheTableCompanion({
+    this.anilistId = const Value.absent(),
+    this.episodeNumber = const Value.absent(),
+    this.title = const Value.absent(),
+    this.airDate = const Value.absent(),
+    this.isAired = const Value.absent(),
+    this.isFiller = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  EpisodeCatalogCacheTableCompanion.insert({
+    required int anilistId,
+    required double episodeNumber,
+    required String title,
+    this.airDate = const Value.absent(),
+    this.isAired = const Value.absent(),
+    this.isFiller = const Value.absent(),
+    required int updatedAt,
+    this.rowid = const Value.absent(),
+  }) : anilistId = Value(anilistId),
+       episodeNumber = Value(episodeNumber),
+       title = Value(title),
+       updatedAt = Value(updatedAt);
+  static Insertable<EpisodeCatalogCacheTableData> custom({
+    Expression<int>? anilistId,
+    Expression<double>? episodeNumber,
+    Expression<String>? title,
+    Expression<int>? airDate,
+    Expression<bool>? isAired,
+    Expression<bool>? isFiller,
+    Expression<int>? updatedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (anilistId != null) 'anilist_id': anilistId,
+      if (episodeNumber != null) 'episode_number': episodeNumber,
+      if (title != null) 'title': title,
+      if (airDate != null) 'air_date': airDate,
+      if (isAired != null) 'is_aired': isAired,
+      if (isFiller != null) 'is_filler': isFiller,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  EpisodeCatalogCacheTableCompanion copyWith({
+    Value<int>? anilistId,
+    Value<double>? episodeNumber,
+    Value<String>? title,
+    Value<int?>? airDate,
+    Value<bool>? isAired,
+    Value<bool>? isFiller,
+    Value<int>? updatedAt,
+    Value<int>? rowid,
+  }) {
+    return EpisodeCatalogCacheTableCompanion(
+      anilistId: anilistId ?? this.anilistId,
+      episodeNumber: episodeNumber ?? this.episodeNumber,
+      title: title ?? this.title,
+      airDate: airDate ?? this.airDate,
+      isAired: isAired ?? this.isAired,
+      isFiller: isFiller ?? this.isFiller,
+      updatedAt: updatedAt ?? this.updatedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (anilistId.present) {
+      map['anilist_id'] = Variable<int>(anilistId.value);
+    }
+    if (episodeNumber.present) {
+      map['episode_number'] = Variable<double>(episodeNumber.value);
+    }
+    if (title.present) {
+      map['title'] = Variable<String>(title.value);
+    }
+    if (airDate.present) {
+      map['air_date'] = Variable<int>(airDate.value);
+    }
+    if (isAired.present) {
+      map['is_aired'] = Variable<bool>(isAired.value);
+    }
+    if (isFiller.present) {
+      map['is_filler'] = Variable<bool>(isFiller.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<int>(updatedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('EpisodeCatalogCacheTableCompanion(')
+          ..write('anilistId: $anilistId, ')
+          ..write('episodeNumber: $episodeNumber, ')
+          ..write('title: $title, ')
+          ..write('airDate: $airDate, ')
+          ..write('isAired: $isAired, ')
+          ..write('isFiller: $isFiller, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -5334,6 +6160,10 @@ abstract class _$AppDatabase extends GeneratedDatabase {
       $LibraryEntryTableTable(this);
   late final $AnilistCacheTableTable anilistCacheTable =
       $AnilistCacheTableTable(this);
+  late final $TranslationCacheTableTable translationCacheTable =
+      $TranslationCacheTableTable(this);
+  late final $EpisodeCatalogCacheTableTable episodeCatalogCacheTable =
+      $EpisodeCatalogCacheTableTable(this);
   late final ProgressDao progressDao = ProgressDao(this as AppDatabase);
   late final WatchHistoryDao watchHistoryDao = WatchHistoryDao(
     this as AppDatabase,
@@ -5355,6 +6185,12 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final AnilistCacheDao anilistCacheDao = AnilistCacheDao(
     this as AppDatabase,
   );
+  late final TranslationCacheDao translationCacheDao = TranslationCacheDao(
+    this as AppDatabase,
+  );
+  late final EpisodeCacheDao episodeCacheDao = EpisodeCacheDao(
+    this as AppDatabase,
+  );
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -5369,6 +6205,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     hlsSegmentTable,
     libraryEntryTable,
     anilistCacheTable,
+    translationCacheTable,
+    episodeCatalogCacheTable,
   ];
 }
 
@@ -8000,6 +8838,471 @@ typedef $$AnilistCacheTableTableProcessedTableManager =
       AnilistCacheTableData,
       PrefetchHooks Function()
     >;
+typedef $$TranslationCacheTableTableCreateCompanionBuilder =
+    TranslationCacheTableCompanion Function({
+      required String sourceText,
+      required String targetLanguage,
+      required String translatedText,
+      required int updatedAt,
+      Value<int> rowid,
+    });
+typedef $$TranslationCacheTableTableUpdateCompanionBuilder =
+    TranslationCacheTableCompanion Function({
+      Value<String> sourceText,
+      Value<String> targetLanguage,
+      Value<String> translatedText,
+      Value<int> updatedAt,
+      Value<int> rowid,
+    });
+
+class $$TranslationCacheTableTableFilterComposer
+    extends Composer<_$AppDatabase, $TranslationCacheTableTable> {
+  $$TranslationCacheTableTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get sourceText => $composableBuilder(
+    column: $table.sourceText,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get targetLanguage => $composableBuilder(
+    column: $table.targetLanguage,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get translatedText => $composableBuilder(
+    column: $table.translatedText,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$TranslationCacheTableTableOrderingComposer
+    extends Composer<_$AppDatabase, $TranslationCacheTableTable> {
+  $$TranslationCacheTableTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get sourceText => $composableBuilder(
+    column: $table.sourceText,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get targetLanguage => $composableBuilder(
+    column: $table.targetLanguage,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get translatedText => $composableBuilder(
+    column: $table.translatedText,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$TranslationCacheTableTableAnnotationComposer
+    extends Composer<_$AppDatabase, $TranslationCacheTableTable> {
+  $$TranslationCacheTableTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get sourceText => $composableBuilder(
+    column: $table.sourceText,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get targetLanguage => $composableBuilder(
+    column: $table.targetLanguage,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get translatedText => $composableBuilder(
+    column: $table.translatedText,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+}
+
+class $$TranslationCacheTableTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $TranslationCacheTableTable,
+          TranslationCacheTableData,
+          $$TranslationCacheTableTableFilterComposer,
+          $$TranslationCacheTableTableOrderingComposer,
+          $$TranslationCacheTableTableAnnotationComposer,
+          $$TranslationCacheTableTableCreateCompanionBuilder,
+          $$TranslationCacheTableTableUpdateCompanionBuilder,
+          (
+            TranslationCacheTableData,
+            BaseReferences<
+              _$AppDatabase,
+              $TranslationCacheTableTable,
+              TranslationCacheTableData
+            >,
+          ),
+          TranslationCacheTableData,
+          PrefetchHooks Function()
+        > {
+  $$TranslationCacheTableTableTableManager(
+    _$AppDatabase db,
+    $TranslationCacheTableTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$TranslationCacheTableTableFilterComposer(
+                $db: db,
+                $table: table,
+              ),
+          createOrderingComposer: () =>
+              $$TranslationCacheTableTableOrderingComposer(
+                $db: db,
+                $table: table,
+              ),
+          createComputedFieldComposer: () =>
+              $$TranslationCacheTableTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<String> sourceText = const Value.absent(),
+                Value<String> targetLanguage = const Value.absent(),
+                Value<String> translatedText = const Value.absent(),
+                Value<int> updatedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => TranslationCacheTableCompanion(
+                sourceText: sourceText,
+                targetLanguage: targetLanguage,
+                translatedText: translatedText,
+                updatedAt: updatedAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String sourceText,
+                required String targetLanguage,
+                required String translatedText,
+                required int updatedAt,
+                Value<int> rowid = const Value.absent(),
+              }) => TranslationCacheTableCompanion.insert(
+                sourceText: sourceText,
+                targetLanguage: targetLanguage,
+                translatedText: translatedText,
+                updatedAt: updatedAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$TranslationCacheTableTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $TranslationCacheTableTable,
+      TranslationCacheTableData,
+      $$TranslationCacheTableTableFilterComposer,
+      $$TranslationCacheTableTableOrderingComposer,
+      $$TranslationCacheTableTableAnnotationComposer,
+      $$TranslationCacheTableTableCreateCompanionBuilder,
+      $$TranslationCacheTableTableUpdateCompanionBuilder,
+      (
+        TranslationCacheTableData,
+        BaseReferences<
+          _$AppDatabase,
+          $TranslationCacheTableTable,
+          TranslationCacheTableData
+        >,
+      ),
+      TranslationCacheTableData,
+      PrefetchHooks Function()
+    >;
+typedef $$EpisodeCatalogCacheTableTableCreateCompanionBuilder =
+    EpisodeCatalogCacheTableCompanion Function({
+      required int anilistId,
+      required double episodeNumber,
+      required String title,
+      Value<int?> airDate,
+      Value<bool> isAired,
+      Value<bool> isFiller,
+      required int updatedAt,
+      Value<int> rowid,
+    });
+typedef $$EpisodeCatalogCacheTableTableUpdateCompanionBuilder =
+    EpisodeCatalogCacheTableCompanion Function({
+      Value<int> anilistId,
+      Value<double> episodeNumber,
+      Value<String> title,
+      Value<int?> airDate,
+      Value<bool> isAired,
+      Value<bool> isFiller,
+      Value<int> updatedAt,
+      Value<int> rowid,
+    });
+
+class $$EpisodeCatalogCacheTableTableFilterComposer
+    extends Composer<_$AppDatabase, $EpisodeCatalogCacheTableTable> {
+  $$EpisodeCatalogCacheTableTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get anilistId => $composableBuilder(
+    column: $table.anilistId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get episodeNumber => $composableBuilder(
+    column: $table.episodeNumber,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get title => $composableBuilder(
+    column: $table.title,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get airDate => $composableBuilder(
+    column: $table.airDate,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get isAired => $composableBuilder(
+    column: $table.isAired,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get isFiller => $composableBuilder(
+    column: $table.isFiller,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$EpisodeCatalogCacheTableTableOrderingComposer
+    extends Composer<_$AppDatabase, $EpisodeCatalogCacheTableTable> {
+  $$EpisodeCatalogCacheTableTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get anilistId => $composableBuilder(
+    column: $table.anilistId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get episodeNumber => $composableBuilder(
+    column: $table.episodeNumber,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get title => $composableBuilder(
+    column: $table.title,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get airDate => $composableBuilder(
+    column: $table.airDate,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get isAired => $composableBuilder(
+    column: $table.isAired,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get isFiller => $composableBuilder(
+    column: $table.isFiller,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$EpisodeCatalogCacheTableTableAnnotationComposer
+    extends Composer<_$AppDatabase, $EpisodeCatalogCacheTableTable> {
+  $$EpisodeCatalogCacheTableTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get anilistId =>
+      $composableBuilder(column: $table.anilistId, builder: (column) => column);
+
+  GeneratedColumn<double> get episodeNumber => $composableBuilder(
+    column: $table.episodeNumber,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get title =>
+      $composableBuilder(column: $table.title, builder: (column) => column);
+
+  GeneratedColumn<int> get airDate =>
+      $composableBuilder(column: $table.airDate, builder: (column) => column);
+
+  GeneratedColumn<bool> get isAired =>
+      $composableBuilder(column: $table.isAired, builder: (column) => column);
+
+  GeneratedColumn<bool> get isFiller =>
+      $composableBuilder(column: $table.isFiller, builder: (column) => column);
+
+  GeneratedColumn<int> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+}
+
+class $$EpisodeCatalogCacheTableTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $EpisodeCatalogCacheTableTable,
+          EpisodeCatalogCacheTableData,
+          $$EpisodeCatalogCacheTableTableFilterComposer,
+          $$EpisodeCatalogCacheTableTableOrderingComposer,
+          $$EpisodeCatalogCacheTableTableAnnotationComposer,
+          $$EpisodeCatalogCacheTableTableCreateCompanionBuilder,
+          $$EpisodeCatalogCacheTableTableUpdateCompanionBuilder,
+          (
+            EpisodeCatalogCacheTableData,
+            BaseReferences<
+              _$AppDatabase,
+              $EpisodeCatalogCacheTableTable,
+              EpisodeCatalogCacheTableData
+            >,
+          ),
+          EpisodeCatalogCacheTableData,
+          PrefetchHooks Function()
+        > {
+  $$EpisodeCatalogCacheTableTableTableManager(
+    _$AppDatabase db,
+    $EpisodeCatalogCacheTableTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$EpisodeCatalogCacheTableTableFilterComposer(
+                $db: db,
+                $table: table,
+              ),
+          createOrderingComposer: () =>
+              $$EpisodeCatalogCacheTableTableOrderingComposer(
+                $db: db,
+                $table: table,
+              ),
+          createComputedFieldComposer: () =>
+              $$EpisodeCatalogCacheTableTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<int> anilistId = const Value.absent(),
+                Value<double> episodeNumber = const Value.absent(),
+                Value<String> title = const Value.absent(),
+                Value<int?> airDate = const Value.absent(),
+                Value<bool> isAired = const Value.absent(),
+                Value<bool> isFiller = const Value.absent(),
+                Value<int> updatedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => EpisodeCatalogCacheTableCompanion(
+                anilistId: anilistId,
+                episodeNumber: episodeNumber,
+                title: title,
+                airDate: airDate,
+                isAired: isAired,
+                isFiller: isFiller,
+                updatedAt: updatedAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required int anilistId,
+                required double episodeNumber,
+                required String title,
+                Value<int?> airDate = const Value.absent(),
+                Value<bool> isAired = const Value.absent(),
+                Value<bool> isFiller = const Value.absent(),
+                required int updatedAt,
+                Value<int> rowid = const Value.absent(),
+              }) => EpisodeCatalogCacheTableCompanion.insert(
+                anilistId: anilistId,
+                episodeNumber: episodeNumber,
+                title: title,
+                airDate: airDate,
+                isAired: isAired,
+                isFiller: isFiller,
+                updatedAt: updatedAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$EpisodeCatalogCacheTableTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $EpisodeCatalogCacheTableTable,
+      EpisodeCatalogCacheTableData,
+      $$EpisodeCatalogCacheTableTableFilterComposer,
+      $$EpisodeCatalogCacheTableTableOrderingComposer,
+      $$EpisodeCatalogCacheTableTableAnnotationComposer,
+      $$EpisodeCatalogCacheTableTableCreateCompanionBuilder,
+      $$EpisodeCatalogCacheTableTableUpdateCompanionBuilder,
+      (
+        EpisodeCatalogCacheTableData,
+        BaseReferences<
+          _$AppDatabase,
+          $EpisodeCatalogCacheTableTable,
+          EpisodeCatalogCacheTableData
+        >,
+      ),
+      EpisodeCatalogCacheTableData,
+      PrefetchHooks Function()
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -8029,4 +9332,11 @@ class $AppDatabaseManager {
       $$LibraryEntryTableTableTableManager(_db, _db.libraryEntryTable);
   $$AnilistCacheTableTableTableManager get anilistCacheTable =>
       $$AnilistCacheTableTableTableManager(_db, _db.anilistCacheTable);
+  $$TranslationCacheTableTableTableManager get translationCacheTable =>
+      $$TranslationCacheTableTableTableManager(_db, _db.translationCacheTable);
+  $$EpisodeCatalogCacheTableTableTableManager get episodeCatalogCacheTable =>
+      $$EpisodeCatalogCacheTableTableTableManager(
+        _db,
+        _db.episodeCatalogCacheTable,
+      );
 }

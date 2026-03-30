@@ -50,6 +50,13 @@ class LibraryEntryDao extends DatabaseAccessor<AppDatabase>
         .get();
   }
 
+  Future<List<int>> getFavoriteAnimeIds() {
+    final query = selectOnly(libraryEntryTable)
+      ..addColumns([libraryEntryTable.anilistId])
+      ..where(libraryEntryTable.addedAt.isBiggerThanValue(0));
+    return query.map((row) => row.read(libraryEntryTable.anilistId)!).get();
+  }
+
   Future<void> updateSubscription(int anilistId, {required bool notify}) {
     return transaction(() async {
       final existing = await (select(
@@ -90,6 +97,13 @@ class LibraryEntryDao extends DatabaseAccessor<AppDatabase>
           ..where((t) => t.notifyNewEpisodes.equals(true))
           ..orderBy([(t) => OrderingTerm.desc(t.addedAt)]))
         .get();
+  }
+
+  Future<List<int>> getSubscribedAnimeIds() {
+    final query = selectOnly(libraryEntryTable)
+      ..addColumns([libraryEntryTable.anilistId])
+      ..where(libraryEntryTable.notifyNewEpisodes.equals(true));
+    return query.map((row) => row.read(libraryEntryTable.anilistId)!).get();
   }
 
   Future<List<LibraryEntryTableData>> getTrackedEntries() {
@@ -144,5 +158,12 @@ class LibraryEntryDao extends DatabaseAccessor<AppDatabase>
           ..where((t) => t.autoDownloadNewEpisodes.equals(true))
           ..orderBy([(t) => OrderingTerm.desc(t.addedAt)]))
         .get();
+  }
+
+  Future<List<int>> getAutoDownloadAnimeIds() {
+    final query = selectOnly(libraryEntryTable)
+      ..addColumns([libraryEntryTable.anilistId])
+      ..where(libraryEntryTable.autoDownloadNewEpisodes.equals(true));
+    return query.map((row) => row.read(libraryEntryTable.anilistId)!).get();
   }
 }

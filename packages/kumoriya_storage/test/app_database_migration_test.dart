@@ -92,7 +92,14 @@ void main() {
       final versionRow = await db
           .customSelect('PRAGMA user_version')
           .getSingle();
-      expect(versionRow.read<int>('user_version'), 8);
+      expect(versionRow.read<int>('user_version'), 15);
+
+      final translationTables = await db
+          .customSelect(
+            "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'translation_cache'",
+          )
+          .get();
+      expect(translationTables, isNotEmpty);
     },
   );
 }

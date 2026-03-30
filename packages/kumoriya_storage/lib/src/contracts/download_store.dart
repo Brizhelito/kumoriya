@@ -71,14 +71,16 @@ abstract interface class DownloadStore {
   );
 
   Future<Result<List<DownloadTask>, KumoriyaError>> getTasksByAnime(
-    int anilistId,
-  );
+    int anilistId, {
+    int? limit,
+  });
 
   Future<Result<List<DownloadTask>, KumoriyaError>> getTasksByStatus(
-    DownloadStatus status,
-  );
+    DownloadStatus status, {
+    int? limit,
+  });
 
-  Future<Result<List<DownloadTask>, KumoriyaError>> getAllTasks();
+  Future<Result<List<DownloadTask>, KumoriyaError>> getAllTasks({int? limit});
 
   Future<Result<void, KumoriyaError>> deleteTask(String id);
 }

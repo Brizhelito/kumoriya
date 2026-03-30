@@ -81,10 +81,11 @@ final class DriftDownloadStore implements DownloadStore {
 
   @override
   Future<Result<List<DownloadTask>, KumoriyaError>> getTasksByAnime(
-    int anilistId,
-  ) async {
+    int anilistId, {
+    int? limit,
+  }) async {
     try {
-      final rows = await _dao.getTasksByAnime(anilistId);
+      final rows = await _dao.getTasksByAnime(anilistId, limit: limit);
       return Success(rows.map(_rowToTask).toList());
     } catch (e) {
       return Failure(
@@ -99,10 +100,11 @@ final class DriftDownloadStore implements DownloadStore {
 
   @override
   Future<Result<List<DownloadTask>, KumoriyaError>> getTasksByStatus(
-    DownloadStatus status,
-  ) async {
+    DownloadStatus status, {
+    int? limit,
+  }) async {
     try {
-      final rows = await _dao.getTasksByStatus(status.name);
+      final rows = await _dao.getTasksByStatus(status.name, limit: limit);
       return Success(rows.map(_rowToTask).toList());
     } catch (e) {
       return Failure(
@@ -116,9 +118,11 @@ final class DriftDownloadStore implements DownloadStore {
   }
 
   @override
-  Future<Result<List<DownloadTask>, KumoriyaError>> getAllTasks() async {
+  Future<Result<List<DownloadTask>, KumoriyaError>> getAllTasks({
+    int? limit,
+  }) async {
     try {
-      final rows = await _dao.getAllTasks();
+      final rows = await _dao.getAllTasks(limit: limit);
       return Success(rows.map(_rowToTask).toList());
     } catch (e) {
       return Failure(

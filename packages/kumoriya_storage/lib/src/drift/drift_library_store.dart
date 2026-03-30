@@ -38,8 +38,8 @@ final class DriftLibraryStore implements LibraryStore {
   @override
   Future<Result<Set<int>, KumoriyaError>> getFavoriteAnimeIds() async {
     try {
-      final rows = await _dao.getAllFavorites();
-      return Success(rows.map((r) => r.anilistId).toSet());
+      final ids = await _dao.getFavoriteAnimeIds();
+      return Success(ids.toSet());
     } catch (e) {
       return Failure(
         SimpleError(
@@ -73,8 +73,8 @@ final class DriftLibraryStore implements LibraryStore {
   @override
   Future<Result<Set<int>, KumoriyaError>> getSubscribedAnimeIds() async {
     try {
-      final rows = await _dao.getSubscribedEntries();
-      return Success(rows.map((r) => r.anilistId).toSet());
+      final ids = await _dao.getSubscribedAnimeIds();
+      return Success(ids.toSet());
     } catch (e) {
       return Failure(
         SimpleError(
@@ -178,8 +178,8 @@ final class DriftLibraryStore implements LibraryStore {
   @override
   Future<Result<Set<int>, KumoriyaError>> getAutoDownloadAnimeIds() async {
     try {
-      final rows = await _dao.getAutoDownloadEntries();
-      return Success(rows.map((r) => r.anilistId).toSet());
+      final ids = await _dao.getAutoDownloadAnimeIds();
+      return Success(ids.toSet());
     } catch (e) {
       return Failure(
         SimpleError(
