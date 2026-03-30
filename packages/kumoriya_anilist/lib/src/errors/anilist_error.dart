@@ -24,6 +24,25 @@ final class AnilistTransportError extends AnilistError {
   final int? statusCode;
 }
 
+final class AnilistServiceUnavailableError extends AnilistError {
+  const AnilistServiceUnavailableError({
+    required super.message,
+    this.statusCode,
+  }) : super(
+         code: 'anilist.service_unavailable',
+         kind: KumoriyaErrorKind.transport,
+       );
+
+  final int? statusCode;
+}
+
+final class AnilistRateLimitError extends AnilistError {
+  const AnilistRateLimitError({required super.message, this.retryAfter})
+    : super(code: 'anilist.rate_limit', kind: KumoriyaErrorKind.transport);
+
+  final Duration? retryAfter;
+}
+
 final class AnilistMappingError extends AnilistError {
   const AnilistMappingError({required super.message})
     : super(code: 'anilist.mapping', kind: KumoriyaErrorKind.mapping);

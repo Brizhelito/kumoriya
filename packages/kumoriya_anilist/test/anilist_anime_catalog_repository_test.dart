@@ -1,5 +1,6 @@
 import 'package:kumoriya_anilist/kumoriya_anilist.dart';
 import 'package:kumoriya_core/kumoriya_core.dart';
+import 'package:kumoriya_domain/kumoriya_domain.dart';
 import 'package:test/test.dart';
 
 void main() {
@@ -74,6 +75,35 @@ void main() {
     );
   });
 
+  test('repository maps season catalog on success', () async {
+    final repository = AnilistAnimeCatalogRepository(
+      gateway: _FakeGateway(
+        seasonCatalog: const Success(<Map<String, dynamic>>[
+          <String, dynamic>{
+            'id': 19,
+            'title': <String, dynamic>{'romaji': 'Jujutsu Kaisen'},
+            'format': 'TV',
+            'status': 'RELEASING',
+            'trending': 9000,
+          },
+        ]),
+      ),
+    );
+
+    final result = await repository.fetchSeasonCatalog(
+      const SeasonalCatalogRequest(season: AnimeSeason.winter, year: 2026),
+    );
+
+    expect(result.isSuccess, isTrue);
+    result.fold(
+      onFailure: (_) => fail('expected success'),
+      onSuccess: (animeList) {
+        expect(animeList, hasLength(1));
+        expect(animeList.first.title.romaji, 'Jujutsu Kaisen');
+      },
+    );
+  });
+
   test('repository returns mapping error when payload is invalid', () async {
     final repository = AnilistAnimeCatalogRepository(
       gateway: _FakeGateway(
@@ -116,17 +146,53 @@ void main() {
 final class _FakeGateway implements AnilistMetadataGateway {
   _FakeGateway({
     this.homeCatalog = const Success(<Map<String, dynamic>>[]),
+    this.seasonCatalog = const Success(<Map<String, dynamic>>[]),
+    this.upcomingSeasonCatalog = const Success(<Map<String, dynamic>>[]),
+    this.seasonRecommendations = const Success(<Map<String, dynamic>>[]),
     this.airingCalendar = const Success(<Map<String, dynamic>>[]),
     this.detail = const Failure(AnilistNotFoundError(message: 'not found')),
   });
 
   final Result<List<Map<String, dynamic>>, KumoriyaError> homeCatalog;
+  final Result<List<Map<String, dynamic>>, KumoriyaError> seasonCatalog;
+  final Result<List<Map<String, dynamic>>, KumoriyaError> upcomingSeasonCatalog;
+  final Result<List<Map<String, dynamic>>, KumoriyaError> seasonRecommendations;
   final Result<List<Map<String, dynamic>>, KumoriyaError> airingCalendar;
   final Result<Map<String, dynamic>, KumoriyaError> detail;
 
   @override
+  Future<Result<List<Map<String, dynamic>>, KumoriyaError>> fetchSeasonCatalog(
+    SeasonalCatalogRequest request,
+  ) async {
+    return seasonCatalog;
+  }
+
+  @override
+  Future<Result<List<Map<String, dynamic>>, KumoriyaError>>
+  fetchUpcomingSeasonCatalog(SeasonalCatalogRequest request) async {
+    return upcomingSeasonCatalog;
+  }
+
+  @override
+  Future<Result<List<Map<String, dynamic>>, KumoriyaError>>
+  fetchSeasonRecommendations(SeasonalCatalogRequest request) async {
+    return seasonRecommendations;
+  }
+
+  @override
   Future<Result<List<Map<String, dynamic>>, KumoriyaError>>
   fetchAiringCalendar({
+    DateTime? from,
+    DateTime? to,
+    int page = 1,
+    int perPage = 50,
+  }) async {
+    return airingCalendar;
+  }
+
+  @override
+  Future<Result<List<Map<String, dynamic>>, KumoriyaError>>
+  fetchAiringCalendarSlots({
     DateTime? from,
     DateTime? to,
     int page = 1,

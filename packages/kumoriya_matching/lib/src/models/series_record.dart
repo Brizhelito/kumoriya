@@ -75,14 +75,18 @@ final class SourceSeriesRecord {
   }
 }
 
+final _seasonInfoSeasonRe = RegExp(
+  r'\b(?:season\s+(\d+)|(\d+)(?:st|nd|rd|th)\s+season)\b',
+);
+final _seasonInfoPartRe = RegExp(r'\bpart\s+(\d+)\b');
+final _seasonInfoCourRe = RegExp(r'\bcour\s+(\d+)\b');
+
 SeriesSeasonInfo inferSeasonInfoFromTitles(Iterable<String> titles) {
   for (final title in titles) {
     final lower = title.toLowerCase();
-    final seasonMatch = RegExp(
-      r'\b(?:season\s+(\d+)|(\d+)(?:st|nd|rd|th)\s+season)\b',
-    ).firstMatch(lower);
-    final partMatch = RegExp(r'\bpart\s+(\d+)\b').firstMatch(lower);
-    final courMatch = RegExp(r'\bcour\s+(\d+)\b').firstMatch(lower);
+    final seasonMatch = _seasonInfoSeasonRe.firstMatch(lower);
+    final partMatch = _seasonInfoPartRe.firstMatch(lower);
+    final courMatch = _seasonInfoCourRe.firstMatch(lower);
     final seasonNumber = int.tryParse(
       seasonMatch?.group(1) ?? seasonMatch?.group(2) ?? '',
     );

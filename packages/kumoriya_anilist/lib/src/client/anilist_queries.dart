@@ -1,10 +1,20 @@
 const String trendingAnimeQuery = r'''
 query TrendingAnime(
   $page: Int,
-  $perPage: Int
+  $perPage: Int,
+  $season: MediaSeason,
+  $seasonYear: Int,
+  $statusIn: [MediaStatus]
 ) {
   Page(page: $page, perPage: $perPage) {
-    media(type: ANIME, sort: [TRENDING_DESC], isAdult: false) {
+    media(
+      type: ANIME,
+      season: $season,
+      seasonYear: $seasonYear,
+      status_in: $statusIn,
+      sort: [SCORE_DESC, POPULARITY_DESC, TRENDING_DESC],
+      isAdult: false
+    ) {
       id
       title {
         romaji
@@ -48,6 +58,129 @@ query SearchAnime(
       episodes
       averageScore
       status
+      nextAiringEpisode {
+        episode
+        airingAt
+      }
+      coverImage {
+        large
+        medium
+      }
+    }
+  }
+}
+''';
+
+const String seasonalAnimeQuery = r'''
+query SeasonalAnime(
+  $page: Int,
+  $perPage: Int,
+  $season: MediaSeason,
+  $seasonYear: Int,
+  $status: MediaStatus
+) {
+  Page(page: $page, perPage: $perPage) {
+    media(
+      type: ANIME,
+      season: $season,
+      seasonYear: $seasonYear,
+      status: $status,
+      sort: [TRENDING_DESC],
+      isAdult: false
+    ) {
+      id
+      title {
+        romaji
+        english
+        native
+      }
+      format
+      seasonYear
+      episodes
+      averageScore
+      status
+      trending
+      nextAiringEpisode {
+        episode
+        airingAt
+      }
+      coverImage {
+        large
+        medium
+      }
+    }
+  }
+}
+''';
+
+const String upcomingSeasonAnimeQuery = r'''
+query UpcomingSeasonAnime(
+  $page: Int,
+  $perPage: Int,
+  $season: MediaSeason,
+  $seasonYear: Int
+) {
+  Page(page: $page, perPage: $perPage) {
+    media(
+      type: ANIME,
+      season: $season,
+      seasonYear: $seasonYear,
+      status: NOT_YET_RELEASED,
+      sort: [TRENDING_DESC],
+      isAdult: false
+    ) {
+      id
+      title {
+        romaji
+        english
+        native
+      }
+      format
+      seasonYear
+      episodes
+      averageScore
+      status
+      trending
+      nextAiringEpisode {
+        episode
+        airingAt
+      }
+      coverImage {
+        large
+        medium
+      }
+    }
+  }
+}
+''';
+
+const String seasonRecommendationsQuery = r'''
+query SeasonRecommendations(
+  $page: Int,
+  $perPage: Int,
+  $season: MediaSeason,
+  $seasonYear: Int
+) {
+  Page(page: $page, perPage: $perPage) {
+    media(
+      type: ANIME,
+      season: $season,
+      seasonYear: $seasonYear,
+      sort: [SCORE_DESC, POPULARITY_DESC],
+      isAdult: false
+    ) {
+      id
+      title {
+        romaji
+        english
+        native
+      }
+      format
+      seasonYear
+      episodes
+      averageScore
+      status
+      trending
       nextAiringEpisode {
         episode
         airingAt

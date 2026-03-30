@@ -62,6 +62,20 @@ final class SeriesFingerprint<T> {
 final class SeriesFingerprintBuilder {
   const SeriesFingerprintBuilder();
 
+  // Cached RegExp instances — avoid recompilation on every normalization call.
+  static final RegExp _punctuationRe = RegExp(
+    "[\\(\\)\\[\\]\\{\\}!?,.\\\"'`]+",
+  );
+  static final RegExp _separatorRe = RegExp(r'[:/_\\|+-]+');
+  static final RegExp _whitespaceRe = RegExp(r'\s+');
+  static final RegExp _nonAlnumRe = RegExp(r'[^a-z0-9\s]+');
+  static final RegExp _ordinalSeasonRe = RegExp(
+    r'\b(\d+)(st|nd|rd|th)\s+season\b',
+  );
+  static final RegExp _seasonNumberRe = RegExp(r'\bseason\s+(\d+)\b');
+  static final RegExp _partNumberRe = RegExp(r'\bpart\s+(\d+)\b');
+  static final RegExp _courNumberRe = RegExp(r'\bcour\s+(\d+)\b');
+
   SeriesFingerprint<SourceSeriesRecord> fromSource(SourceSeriesRecord record) {
     final titles = _normalizeTitles(record.titles);
     return SeriesFingerprint<SourceSeriesRecord>(
@@ -121,10 +135,10 @@ final class SeriesFingerprintBuilder {
     final lowered = _stripDiacritics(raw.trim().toLowerCase());
     final cleaned = _normalizeSeasonMarkers(
       lowered
-          .replaceAll(RegExp("[\\(\\)\\[\\]\\{\\}!?,.\\\"'`]+"), ' ')
-          .replaceAll(RegExp(r'[:/_\\|+-]+'), ' ')
+          .replaceAll(_punctuationRe, ' ')
+          .replaceAll(_separatorRe, ' ')
           .replaceAll('&', ' and '),
-    ).replaceAll(RegExp(r'\s+'), ' ').trim();
+    ).replaceAll(_whitespaceRe, ' ').trim();
     final tokens = cleaned
         .split(' ')
         .where((token) => token.isNotEmpty)
@@ -190,8 +204,8 @@ final class SeriesFingerprintBuilder {
         final root = rawLowered
             .substring(0, index)
             .trim()
-            .replaceAll(RegExp(r'[^a-z0-9\s]+'), '')
-            .replaceAll(RegExp(r'\s+'), ' ')
+            .replaceAll(_nonAlnumRe, '')
+            .replaceAll(_whitespaceRe, ' ')
             .trim();
         if (root.split(' ').where((w) => w.isNotEmpty).length >= 2 ||
             root.length >= 6) {
@@ -230,49 +244,50 @@ final class SeriesFingerprintBuilder {
   String _normalizeSeasonMarkers(String value) {
     return value
         .replaceAllMapped(
-          RegExp(r'\b(\d+)(st|nd|rd|th)\s+season\b'),
+          _ordinalSeasonRe,
           (match) => ' season ${match.group(1)} ',
         )
         .replaceAllMapped(
-          RegExp(r'\bseason\s+(\d+)\b'),
+          _seasonNumberRe,
           (match) => ' season ${match.group(1)} ',
         )
-        .replaceAllMapped(
-          RegExp(r'\bpart\s+(\d+)\b'),
-          (match) => ' part ${match.group(1)} ',
-        )
-        .replaceAllMapped(
-          RegExp(r'\bcour\s+(\d+)\b'),
-          (match) => ' cour ${match.group(1)} ',
-        );
+        .replaceAllMapped(_partNumberRe, (match) => ' part ${match.group(1)} ')
+        .replaceAllMapped(_courNumberRe, (match) => ' cour ${match.group(1)} ');
   }
 
   String _stripDiacritics(String value) {
-    return value
-        .replaceAll('\u00E1', 'a')
-        .replaceAll('\u00E0', 'a')
-        .replaceAll('\u00E4', 'a')
-        .replaceAll('\u00E2', 'a')
-        .replaceAll('\u00E3', 'a')
-        .replaceAll('\u00E9', 'e')
-        .replaceAll('\u00E8', 'e')
-        .replaceAll('\u00EB', 'e')
-        .replaceAll('\u00EA', 'e')
-        .replaceAll('\u00ED', 'i')
-        .replaceAll('\u00EC', 'i')
-        .replaceAll('\u00EF', 'i')
-        .replaceAll('\u00EE', 'i')
-        .replaceAll('\u00F3', 'o')
-        .replaceAll('\u00F2', 'o')
-        .replaceAll('\u00F6', 'o')
-        .replaceAll('\u00F4', 'o')
-        .replaceAll('\u00F5', 'o')
-        .replaceAll('\u00FA', 'u')
-        .replaceAll('\u00F9', 'u')
-        .replaceAll('\u00FC', 'u')
-        .replaceAll('\u00FB', 'u')
-        .replaceAll('\u00F1', 'n');
+    final buffer = StringBuffer();
+    for (var i = 0; i < value.length; i++) {
+      buffer.write(_diacriticMap[value[i]] ?? value[i]);
+    }
+    return buffer.toString();
   }
+
+  static const Map<String, String> _diacriticMap = <String, String>{
+    '\u00E1': 'a',
+    '\u00E0': 'a',
+    '\u00E4': 'a',
+    '\u00E2': 'a',
+    '\u00E3': 'a',
+    '\u00E9': 'e',
+    '\u00E8': 'e',
+    '\u00EB': 'e',
+    '\u00EA': 'e',
+    '\u00ED': 'i',
+    '\u00EC': 'i',
+    '\u00EF': 'i',
+    '\u00EE': 'i',
+    '\u00F3': 'o',
+    '\u00F2': 'o',
+    '\u00F6': 'o',
+    '\u00F4': 'o',
+    '\u00F5': 'o',
+    '\u00FA': 'u',
+    '\u00F9': 'u',
+    '\u00FC': 'u',
+    '\u00FB': 'u',
+    '\u00F1': 'n',
+  };
 }
 
 const Set<String> _lowSignalTokens = <String>{

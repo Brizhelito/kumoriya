@@ -619,18 +619,24 @@ final class HybridSeriesScorer {
     if (left.isEmpty || right.isEmpty) {
       return 0;
     }
-    return _ratio(
-      left.intersection(right).length.toDouble(),
-      left.union(right).length.toDouble(),
-    );
+    var intersectionCount = 0;
+    for (final item in left) {
+      if (right.contains(item)) intersectionCount++;
+    }
+    final unionCount = left.length + right.length - intersectionCount;
+    return _ratio(intersectionCount.toDouble(), unionCount.toDouble());
   }
 
   double _dice(Set<String> left, Set<String> right) {
     if (left.isEmpty || right.isEmpty) {
       return 0;
     }
+    var intersectionCount = 0;
+    for (final item in left) {
+      if (right.contains(item)) intersectionCount++;
+    }
     return _ratio(
-      (2 * left.intersection(right).length).toDouble(),
+      (2 * intersectionCount).toDouble(),
       (left.length + right.length).toDouble(),
     );
   }

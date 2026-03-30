@@ -1,5 +1,6 @@
 import 'dart:developer' as developer;
 import 'package:kumoriya_core/kumoriya_core.dart';
+import 'package:kumoriya_domain/kumoriya_domain.dart';
 
 import '../client/anilist_graphql_client.dart';
 import '../client/anilist_queries.dart';
@@ -17,9 +18,16 @@ final class GraphqlAnilistMetadataGateway implements AnilistMetadataGateway {
     int page = 1,
     int perPage = 20,
   }) async {
+    final seasonWindow = _currentSeasonWindow();
     final result = await _client.execute(
       query: trendingAnimeQuery,
-      variables: <String, dynamic>{'page': page, 'perPage': perPage},
+      variables: <String, dynamic>{
+        'page': page,
+        'perPage': perPage,
+        'season': seasonWindow.season,
+        'seasonYear': seasonWindow.year,
+        'statusIn': const <String>['RELEASING', 'NOT_YET_RELEASED'],
+      },
     );
 
     return result.fold(
@@ -42,6 +50,83 @@ final class GraphqlAnilistMetadataGateway implements AnilistMetadataGateway {
         );
         return Failure(err);
       },
+    );
+  }
+
+  @override
+  Future<Result<List<Map<String, dynamic>>, KumoriyaError>> fetchSeasonCatalog(
+    SeasonalCatalogRequest request,
+  ) async {
+    final currentSeason = await _fetchSeasonMedia(
+      query: seasonalAnimeQuery,
+      request: request,
+      status: 'RELEASING',
+      logLabel: 'fetchSeasonCatalog.current',
+    );
+    if (currentSeason.isFailure) {
+      return currentSeason;
+    }
+
+    final merged = <int, Map<String, dynamic>>{};
+    final currentSeasonMedia = currentSeason.fold(
+      onSuccess: (value) => value,
+      onFailure: (_) => const <Map<String, dynamic>>[],
+    );
+    for (final item in currentSeasonMedia) {
+      final animeId = item['id'];
+      if (animeId is int) {
+        merged[animeId] = item;
+      }
+    }
+
+    if (request.includeCarryovers) {
+      final previousRequest = _previousSeasonRequest(request);
+      final carryovers = await _fetchSeasonMedia(
+        query: seasonalAnimeQuery,
+        request: previousRequest,
+        status: 'RELEASING',
+        logLabel: 'fetchSeasonCatalog.carryovers',
+      );
+      if (carryovers.isFailure) {
+        return carryovers;
+      }
+
+      final carryoverMedia = carryovers.fold(
+        onSuccess: (value) => value,
+        onFailure: (_) => const <Map<String, dynamic>>[],
+      );
+      for (final item in carryoverMedia) {
+        final animeId = item['id'];
+        if (animeId is int) {
+          merged.putIfAbsent(animeId, () => item);
+        }
+      }
+    }
+
+    final sorted = merged.values.toList(growable: false)
+      ..sort(
+        (left, right) => _trendingScore(right).compareTo(_trendingScore(left)),
+      );
+    return Success(sorted);
+  }
+
+  @override
+  Future<Result<List<Map<String, dynamic>>, KumoriyaError>>
+  fetchUpcomingSeasonCatalog(SeasonalCatalogRequest request) {
+    return _fetchSeasonMedia(
+      query: upcomingSeasonAnimeQuery,
+      request: request,
+      logLabel: 'fetchUpcomingSeasonCatalog',
+    );
+  }
+
+  @override
+  Future<Result<List<Map<String, dynamic>>, KumoriyaError>>
+  fetchSeasonRecommendations(SeasonalCatalogRequest request) {
+    return _fetchSeasonMedia(
+      query: seasonRecommendationsQuery,
+      request: request,
+      logLabel: 'fetchSeasonRecommendations',
     );
   }
 
@@ -71,34 +156,41 @@ final class GraphqlAnilistMetadataGateway implements AnilistMetadataGateway {
         },
       );
 
-      final folded = result.fold<
-        Result<({List<Map<String, dynamic>> media, bool hasNext}), KumoriyaError>
-      >(
-        onSuccess: (data) {
-          final media = _extractAiringScheduleMediaList(data);
-          if (media == null) {
-            return const Failure(
-              AnilistMappingError(
-                message:
-                    'Airing calendar payload does not contain Page.airingSchedules list.',
-              ),
-            );
-          }
+      final folded = result
+          .fold<
+            Result<
+              ({List<Map<String, dynamic>> media, bool hasNext}),
+              KumoriyaError
+            >
+          >(
+            onSuccess: (data) {
+              final media = _extractAiringScheduleMediaList(data);
+              if (media == null) {
+                return const Failure(
+                  AnilistMappingError(
+                    message:
+                        'Airing calendar payload does not contain Page.airingSchedules list.',
+                  ),
+                );
+              }
 
-          final next = _extractHasNextPage(data) ?? false;
-          return Success((media: media, hasNext: next));
-        },
-        onFailure: (err) {
-          developer.log(
-            'fetchAiringCalendar error [${err.code}/${err.kind.name}]: ${err.message}',
-            name: 'GraphqlAnilistMetadataGateway',
+              final next = _extractHasNextPage(data) ?? false;
+              return Success((media: media, hasNext: next));
+            },
+            onFailure: (err) {
+              developer.log(
+                'fetchAiringCalendar error [${err.code}/${err.kind.name}]: ${err.message}',
+                name: 'GraphqlAnilistMetadataGateway',
+              );
+              return Failure(err);
+            },
           );
-          return Failure(err);
-        },
-      );
 
       if (folded.isFailure) {
-        return folded.fold(onSuccess: (_) => throw StateError('unreachable'), onFailure: Failure.new);
+        return folded.fold(
+          onSuccess: (_) => throw StateError('unreachable'),
+          onFailure: Failure.new,
+        );
       }
 
       final pageData = folded.fold(
@@ -129,6 +221,86 @@ final class GraphqlAnilistMetadataGateway implements AnilistMetadataGateway {
             _nextAiringTimestamp(left).compareTo(_nextAiringTimestamp(right)),
       );
     return Success(merged);
+  }
+
+  @override
+  Future<Result<List<Map<String, dynamic>>, KumoriyaError>>
+  fetchAiringCalendarSlots({
+    DateTime? from,
+    DateTime? to,
+    int page = 1,
+    int perPage = 50,
+  }) async {
+    final fromDate = (from ?? DateTime.now()).toUtc();
+    final toDate = (to ?? fromDate.add(const Duration(days: 7))).toUtc();
+
+    final allEntries = <Map<String, dynamic>>[];
+    var currentPage = page;
+    var hasNextPage = true;
+
+    while (hasNextPage) {
+      final result = await _client.execute(
+        query: airingCalendarQuery,
+        variables: <String, dynamic>{
+          'page': currentPage,
+          'perPage': perPage,
+          'airingAtGreater': fromDate.millisecondsSinceEpoch ~/ 1000,
+          'airingAtLesser': toDate.millisecondsSinceEpoch ~/ 1000,
+        },
+      );
+
+      final folded = result
+          .fold<
+            Result<
+              ({List<Map<String, dynamic>> media, bool hasNext}),
+              KumoriyaError
+            >
+          >(
+            onSuccess: (data) {
+              final media = _extractAiringScheduleEntries(data);
+              if (media == null) {
+                return const Failure(
+                  AnilistMappingError(
+                    message:
+                        'Airing calendar payload does not contain Page.airingSchedules list.',
+                  ),
+                );
+              }
+
+              final next = _extractHasNextPage(data) ?? false;
+              return Success((media: media, hasNext: next));
+            },
+            onFailure: (err) {
+              developer.log(
+                'fetchAiringCalendarSlots error [${err.code}/${err.kind.name}]: ${err.message}',
+                name: 'GraphqlAnilistMetadataGateway',
+              );
+              return Failure(err);
+            },
+          );
+
+      if (folded.isFailure) {
+        return folded.fold(
+          onSuccess: (_) => throw StateError('unreachable'),
+          onFailure: Failure.new,
+        );
+      }
+
+      final pageData = folded.fold(
+        onSuccess: (value) => value,
+        onFailure: (_) => throw StateError('unreachable'),
+      );
+
+      allEntries.addAll(pageData.media);
+      hasNextPage = pageData.hasNext;
+      currentPage += 1;
+    }
+
+    allEntries.sort(
+      (left, right) =>
+          _nextAiringTimestamp(left).compareTo(_nextAiringTimestamp(right)),
+    );
+    return Success(allEntries);
   }
 
   @override
@@ -207,6 +379,100 @@ final class GraphqlAnilistMetadataGateway implements AnilistMetadataGateway {
     );
   }
 
+  Future<Result<List<Map<String, dynamic>>, KumoriyaError>> _fetchSeasonMedia({
+    required String query,
+    required SeasonalCatalogRequest request,
+    String? status,
+    required String logLabel,
+  }) async {
+    final result = await _client.execute(
+      query: query,
+      variables: <String, dynamic>{
+        'page': request.page,
+        'perPage': request.perPage,
+        'season': _mapSeason(request.season),
+        'seasonYear': request.year,
+        ...?status == null ? null : <String, dynamic>{'status': status},
+      },
+    );
+
+    return result.fold(
+      onSuccess: (data) {
+        final media = _extractMediaList(data);
+        if (media == null) {
+          return Failure(
+            AnilistMappingError(
+              message: '$logLabel payload does not contain Page.media list.',
+            ),
+          );
+        }
+
+        return Success(media);
+      },
+      onFailure: (err) {
+        developer.log(
+          '$logLabel error [${err.code}/${err.kind.name}]: ${err.message}',
+          name: 'GraphqlAnilistMetadataGateway',
+        );
+        return Failure(err);
+      },
+    );
+  }
+
+  SeasonalCatalogRequest _previousSeasonRequest(
+    SeasonalCatalogRequest request,
+  ) {
+    return switch (request.season) {
+      AnimeSeason.winter => SeasonalCatalogRequest(
+        season: AnimeSeason.fall,
+        year: request.year - 1,
+        page: request.page,
+        perPage: request.perPage,
+        includeCarryovers: false,
+      ),
+      AnimeSeason.spring => SeasonalCatalogRequest(
+        season: AnimeSeason.winter,
+        year: request.year,
+        page: request.page,
+        perPage: request.perPage,
+        includeCarryovers: false,
+      ),
+      AnimeSeason.summer => SeasonalCatalogRequest(
+        season: AnimeSeason.spring,
+        year: request.year,
+        page: request.page,
+        perPage: request.perPage,
+        includeCarryovers: false,
+      ),
+      AnimeSeason.fall => SeasonalCatalogRequest(
+        season: AnimeSeason.summer,
+        year: request.year,
+        page: request.page,
+        perPage: request.perPage,
+        includeCarryovers: false,
+      ),
+    };
+  }
+
+  String _mapSeason(AnimeSeason season) {
+    return switch (season) {
+      AnimeSeason.winter => 'WINTER',
+      AnimeSeason.spring => 'SPRING',
+      AnimeSeason.summer => 'SUMMER',
+      AnimeSeason.fall => 'FALL',
+    };
+  }
+
+  ({String season, int year}) _currentSeasonWindow() {
+    final now = DateTime.now().toUtc();
+    return switch (now.month) {
+      12 || 1 || 2 => (season: 'WINTER', year: now.year),
+      3 || 4 || 5 => (season: 'SPRING', year: now.year),
+      6 || 7 || 8 => (season: 'SUMMER', year: now.year),
+      _ => (season: 'FALL', year: now.year),
+    };
+  }
+
   List<Map<String, dynamic>>? _extractMediaList(Map<String, dynamic> data) {
     final page = data['Page'];
     if (page is! Map<String, dynamic>) {
@@ -279,6 +545,52 @@ final class GraphqlAnilistMetadataGateway implements AnilistMetadataGateway {
     return result;
   }
 
+  /// Like [_extractAiringScheduleMediaList] but returns every entry
+  /// without deduplicating by anime ID.
+  List<Map<String, dynamic>>? _extractAiringScheduleEntries(
+    Map<String, dynamic> data,
+  ) {
+    final page = data['Page'];
+    if (page is! Map<String, dynamic>) {
+      return null;
+    }
+
+    final schedules = page['airingSchedules'];
+    if (schedules is! List) {
+      return null;
+    }
+
+    final entries = <Map<String, dynamic>>[];
+    for (final item in schedules) {
+      if (item is! Map<String, dynamic>) {
+        continue;
+      }
+
+      final media = item['media'];
+      if (media is! Map<String, dynamic>) {
+        continue;
+      }
+
+      final animeId = media['id'];
+      if (animeId is! int) {
+        continue;
+      }
+
+      if (media['isAdult'] == true) {
+        continue;
+      }
+
+      final enrichedMedia = Map<String, dynamic>.from(media);
+      enrichedMedia['nextAiringEpisode'] = <String, dynamic>{
+        'episode': item['episode'],
+        'airingAt': item['airingAt'],
+      };
+      entries.add(enrichedMedia);
+    }
+
+    return entries;
+  }
+
   bool? _extractHasNextPage(Map<String, dynamic> data) {
     final page = data['Page'];
     if (page is! Map<String, dynamic>) {
@@ -302,5 +614,10 @@ final class GraphqlAnilistMetadataGateway implements AnilistMetadataGateway {
 
     final airingAt = nextAiring['airingAt'];
     return airingAt is int ? airingAt : 1 << 31;
+  }
+
+  int _trendingScore(Map<String, dynamic> media) {
+    final trending = media['trending'];
+    return trending is int ? trending : -1;
   }
 }
