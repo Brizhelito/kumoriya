@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:kumoriya_core/kumoriya_core.dart';
 import 'package:kumoriya_plugins/kumoriya_plugins.dart';
+import 'package:kumoriya_resolver_common/kumoriya_resolver_common.dart';
 
 import 'errors/filemoon_resolver_error.dart';
 
@@ -87,7 +88,7 @@ final class FilemoonResolverPlugin implements ResolverPlugin {
     try {
       final response = await _httpClient
           .get(url, headers: _requestHeaders(url))
-          .timeout(const Duration(seconds: 15));
+          .timeout(const Duration(seconds: 8));
 
       if (response.statusCode != 200) {
         return Failure(
@@ -98,9 +99,21 @@ final class FilemoonResolverPlugin implements ResolverPlugin {
         );
       }
 
+      if (!isResponseSizeAcceptable(response)) {
+        return const Failure(
+          FilemoonTransportError(
+            message: 'Filemoon response too large.',
+          ),
+        );
+      }
+
       final streams = _extractStreams(response.body, resolverUrl: url);
       if (streams.isEmpty) {
-        if (_isDynamicHost(url.host)) {
+        // Only attempt the expensive dynamic API flow if the page is from a
+        // known dynamic host AND the payload actually contains stream hints
+        // (player init, HLS references, etc). This avoids a wasted 8s round-
+        // trip when the page is genuinely empty or unavailable.
+        if (_isDynamicHost(url.host) && _hasStreamHints(response.body)) {
           final dynamicResult = await _resolveDynamicByseFlow(
             url,
             httpClient: _httpClient,
@@ -172,7 +185,7 @@ Future<Result<List<ResolvedStream>, KumoriyaError>?> _resolveDynamicByseFlow(
   try {
     final detailsResponse = await client
         .get(detailsUri, headers: _requestHeaders(sourceUrl))
-        .timeout(const Duration(seconds: 15));
+        .timeout(const Duration(seconds: 8));
 
     if (detailsResponse.statusCode != 200) {
       return null;
@@ -226,7 +239,7 @@ Future<Result<List<ResolvedStream>, KumoriyaError>?> _resolveFromEmbedFrame({
           targetUrl,
           headers: _requestHeaders(targetUrl, referer: refererUrl),
         )
-        .timeout(const Duration(seconds: 15));
+        .timeout(const Duration(seconds: 8));
 
     if (response.statusCode != 200) {
       return null;
@@ -305,6 +318,38 @@ Map<String, String> _requestHeaders(Uri url, {Uri? referer}) {
   };
 }
 
+final _fmSourceWithLabelRe = RegExp(
+  r'''{[^{}]{0,200}?file\s*:\s*(?:"([^"]+)"|'([^']+)')[^{}]{0,200}?(?:label\s*:\s*(?:"([^"]+)"|'([^']+)'))?[^{}]{0,200}?}''',
+  caseSensitive: false,
+  multiLine: true,
+);
+
+final _fmKeyedRe = RegExp(
+  r'''(?:file|src|source|hls)\s*[:=]\s*(?:"([^"]+)"|'([^']+)')''',
+  caseSensitive: false,
+  multiLine: true,
+);
+
+final _fmDirectRe = RegExp(
+  r'''https?:\/\/[\w\-._~:/?#\[\]@!$&'()*+,;=%]+''',
+  caseSensitive: false,
+  multiLine: true,
+);
+
+final _fmStreamHintsRe = RegExp(
+  r'''(sources|file\s*:|hls|master\.m3u8|\.mp4)''',
+  caseSensitive: false,
+  multiLine: true,
+);
+
+final _fmUnavailableRe = RegExp(
+  r'''(video source is unavailable|embedding from this domain is not allowed|we can\'t find the video)''',
+  caseSensitive: false,
+  multiLine: true,
+);
+
+final _fmQualityRe = RegExp(r'(2160|1440|1080|720|480|360)p');
+
 List<ResolvedStream> _extractStreams(
   String payload, {
   required Uri resolverUrl,
@@ -318,13 +363,7 @@ List<ResolvedStream> _extractStreams(
   final streams = <ResolvedStream>[];
   final seen = <String>{};
 
-  final sourceWithLabelPattern = RegExp(
-    r'''\{[^{}]{0,200}?file\s*:\s*(?:"([^"]+)"|'([^']+)')[^{}]{0,200}?(?:label\s*:\s*(?:"([^"]+)"|'([^']+)'))?[^{}]{0,200}?\}''',
-    caseSensitive: false,
-    multiLine: true,
-  );
-
-  for (final match in sourceWithLabelPattern.allMatches(normalized)) {
+  for (final match in _fmSourceWithLabelRe.allMatches(normalized)) {
     final file = (match.group(1) ?? match.group(2))?.trim();
     final label = (match.group(3) ?? match.group(4))?.trim();
     if (file == null || file.isEmpty) {
@@ -342,12 +381,7 @@ List<ResolvedStream> _extractStreams(
     }
   }
 
-  final keyedPattern = RegExp(
-    r'''(?:file|src|source|hls)\s*[:=]\s*(?:"([^"]+)"|'([^']+)')''',
-    caseSensitive: false,
-    multiLine: true,
-  );
-  for (final match in keyedPattern.allMatches(normalized)) {
+  for (final match in _fmKeyedRe.allMatches(normalized)) {
     final raw = (match.group(1) ?? match.group(2))?.trim();
     if (raw == null || raw.isEmpty) {
       continue;
@@ -364,12 +398,7 @@ List<ResolvedStream> _extractStreams(
     }
   }
 
-  final directPattern = RegExp(
-    r'''https?:\/\/[\w\-._~:/?#\[\]@!$&'()*+,;=%]+''',
-    caseSensitive: false,
-    multiLine: true,
-  );
-  for (final match in directPattern.allMatches(normalized)) {
+  for (final match in _fmDirectRe.allMatches(normalized)) {
     final raw = match.group(0)?.trim();
     if (raw == null || raw.isEmpty) {
       continue;
@@ -426,11 +455,7 @@ bool _isPlayableUri(Uri uri) {
 }
 
 bool _hasStreamHints(String payload) {
-  return RegExp(
-    r'''(sources|file\s*:|hls|master\.m3u8|\.mp4)''',
-    caseSensitive: false,
-    multiLine: true,
-  ).hasMatch(payload);
+  return _fmStreamHintsRe.hasMatch(payload);
 }
 
 bool _isDynamicHost(String host) {
@@ -442,11 +467,7 @@ bool _isDynamicHost(String host) {
 }
 
 bool _isUnavailablePayload(String payload) {
-  return RegExp(
-    r'''(video source is unavailable|embedding from this domain is not allowed|we can\'t find the video)''',
-    caseSensitive: false,
-    multiLine: true,
-  ).hasMatch(payload);
+  return _fmUnavailableRe.hasMatch(payload);
 }
 
 ResolvedStream _toResolvedStream(
@@ -472,9 +493,7 @@ ResolvedStream _toResolvedStream(
 }
 
 String _inferQuality(Uri url) {
-  final match = RegExp(
-    r'(2160|1440|1080|720|480|360)p',
-  ).firstMatch(url.toString().toLowerCase());
+  final match = _fmQualityRe.firstMatch(url.toString().toLowerCase());
   if (match != null) {
     return '${match.group(1)}p';
   }

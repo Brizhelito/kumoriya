@@ -1,6 +1,8 @@
 import 'package:http/http.dart' as http;
 import 'package:kumoriya_core/kumoriya_core.dart';
 import 'package:kumoriya_plugins/kumoriya_plugins.dart';
+import 'package:kumoriya_resolver_common/kumoriya_resolver_common.dart'
+    as common;
 
 import 'errors/vidhide_resolver_error.dart';
 
@@ -88,7 +90,7 @@ final class VidhideResolverPlugin implements ResolverPlugin {
       final request = http.Request('GET', url)..headers.addAll(_headers(url));
       final response = await _httpClient
           .send(request)
-          .timeout(const Duration(seconds: 15));
+          .timeout(const Duration(seconds: 8));
       final effectiveUrl = switch (response) {
         http.BaseResponseWithUrl responseWithUrl => responseWithUrl.url,
         _ => url,
@@ -103,8 +105,17 @@ final class VidhideResolverPlugin implements ResolverPlugin {
         );
       }
 
+      const maxBytes = 5 * 1024 * 1024; // 5 MB
+      final contentLength = response.contentLength;
+      if (contentLength != null && contentLength > maxBytes) {
+        response.stream.listen(null).cancel();
+        return const Failure(
+          VidhideTransportError(message: 'VidHide response too large.'),
+        );
+      }
+
       final payload = await response.stream.bytesToString();
-      final extractionPayload = _buildExtractionPayload(payload);
+      final extractionPayload = common.buildExtractionPayload(payload);
       final streams = _extractStreams(extractionPayload, effectiveUrl);
       if (streams.isEmpty) {
         if (_hasHints(extractionPayload)) {
@@ -133,124 +144,25 @@ final class VidhideResolverPlugin implements ResolverPlugin {
   }
 }
 
-String _buildExtractionPayload(String payload) {
-  final parts = <String>[payload];
-  for (final unpacked in _unpackDeanEdwardsPayloads(payload)) {
-    if (unpacked.trim().isNotEmpty) {
-      parts.add(unpacked);
-    }
-  }
-  return parts.join('\n');
-}
+final _vhKeyedRe = RegExp(
+  r'''(?:file|src|source|hls)\s*[:=]\s*(?:"([^"]+)"|'([^']+)')''',
+  caseSensitive: false,
+  multiLine: true,
+);
 
-List<String> _unpackDeanEdwardsPayloads(String payload) {
-  final pattern = RegExp(
-    r"""eval\(function\(p,a,c,k,e,d\)\{[\s\S]*?return p\}\('([\s\S]*?)',\s*(\d+),\s*(\d+),\s*'([\s\S]*?)'\.split\('\|'\)""",
-    caseSensitive: false,
-    multiLine: true,
-  );
+final _vhDirectRe = RegExp(
+  r'''https?:\/\/[\w\-._~:/?#\[\]@!$&'()*+,;=%]+''',
+  caseSensitive: false,
+  multiLine: true,
+);
 
-  final unpacked = <String>[];
-  for (final match in pattern.allMatches(payload)) {
-    final rawPacked = match.group(1);
-    final rawBase = match.group(2);
-    final rawCount = match.group(3);
-    final rawDictionary = match.group(4);
-    if (rawPacked == null ||
-        rawBase == null ||
-        rawCount == null ||
-        rawDictionary == null) {
-      continue;
-    }
+final _vhHintsRe = RegExp(
+  r'''(sources|source|hls|master\.m3u8|\.mp4|eval\(function\(p,a,c,k,e,d\))''',
+  caseSensitive: false,
+  multiLine: true,
+);
 
-    final base = int.tryParse(rawBase);
-    final count = int.tryParse(rawCount);
-    if (base == null || count == null || base < 2 || base > 36 || count <= 0) {
-      continue;
-    }
-
-    final tokens = rawDictionary.split('|');
-    var decoded = _decodeJsEscapes(rawPacked);
-
-    for (var i = count - 1; i >= 0; i--) {
-      if (i >= tokens.length) {
-        continue;
-      }
-      final replacement = tokens[i];
-      if (replacement.isEmpty) {
-        continue;
-      }
-
-      final key = i.toRadixString(base);
-      decoded = decoded.replaceAll(
-        RegExp(r'\b' + RegExp.escape(key) + r'\b'),
-        replacement,
-      );
-    }
-
-    if (decoded.trim().isNotEmpty) {
-      unpacked.add(decoded);
-    }
-  }
-  return unpacked;
-}
-
-String _decodeJsEscapes(String value) {
-  final output = StringBuffer();
-  var i = 0;
-  while (i < value.length) {
-    final char = value[i];
-    if (char != '\\') {
-      output.write(char);
-      i++;
-      continue;
-    }
-
-    if (i + 1 >= value.length) {
-      i++;
-      continue;
-    }
-
-    final next = value[i + 1];
-    switch (next) {
-      case '/':
-        output.write('/');
-        i += 2;
-      case 'x':
-        if (i + 3 < value.length) {
-          final hex = int.tryParse(value.substring(i + 2, i + 4), radix: 16);
-          if (hex != null) {
-            output.write(String.fromCharCode(hex));
-            i += 4;
-          } else {
-            output.write(next);
-            i += 2;
-          }
-        } else {
-          output.write(next);
-          i += 2;
-        }
-      case 'u':
-        if (i + 5 < value.length) {
-          final hex = int.tryParse(value.substring(i + 2, i + 6), radix: 16);
-          if (hex != null) {
-            output.write(String.fromCharCode(hex));
-            i += 6;
-          } else {
-            output.write(next);
-            i += 2;
-          }
-        } else {
-          output.write(next);
-          i += 2;
-        }
-      default:
-        output.write(next);
-        i += 2;
-    }
-  }
-  return output.toString();
-}
+final _vhQualityRe = RegExp(r'(2160|1440|1080|720|480|360)p');
 
 Map<String, String> _headers(Uri url) {
   final origin = '${url.scheme}://${url.host}';
@@ -265,11 +177,7 @@ List<ResolvedStream> _extractStreams(String payload, Uri baseUrl) {
 
   final candidates = <String>{};
 
-  final keyed = RegExp(
-    r'''(?:file|src|source|hls)\s*[:=]\s*(?:"([^"]+)"|'([^']+)')''',
-    caseSensitive: false,
-    multiLine: true,
-  );
+  final keyed = _vhKeyedRe;
   for (final m in keyed.allMatches(normalized)) {
     final raw = (m.group(1) ?? m.group(2))?.trim();
     if (raw != null && raw.isNotEmpty) {
@@ -277,11 +185,7 @@ List<ResolvedStream> _extractStreams(String payload, Uri baseUrl) {
     }
   }
 
-  final direct = RegExp(
-    r'''https?:\/\/[\w\-._~:/?#\[\]@!$&'()*+,;=%]+''',
-    caseSensitive: false,
-    multiLine: true,
-  );
+  final direct = _vhDirectRe;
   for (final m in direct.allMatches(normalized)) {
     final raw = m.group(0)?.trim();
     if (raw != null && raw.isNotEmpty) {
@@ -341,11 +245,7 @@ bool _isPlayable(Uri uri) {
 }
 
 bool _hasHints(String payload) {
-  return RegExp(
-    r'''(sources|source|hls|master\.m3u8|\.mp4|eval\(function\(p,a,c,k,e,d\))''',
-    caseSensitive: false,
-    multiLine: true,
-  ).hasMatch(payload);
+  return _vhHintsRe.hasMatch(payload);
 }
 
 ResolvedStream _toResolved(Uri uri, Uri baseUrl) {
@@ -365,9 +265,7 @@ ResolvedStream _toResolved(Uri uri, Uri baseUrl) {
 }
 
 String _inferQuality(Uri uri) {
-  final match = RegExp(
-    r'(2160|1440|1080|720|480|360)p',
-  ).firstMatch(uri.toString().toLowerCase());
+  final match = _vhQualityRe.firstMatch(uri.toString().toLowerCase());
   if (match != null) {
     return '${match.group(1)}p';
   }

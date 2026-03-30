@@ -24,6 +24,10 @@ final class AnimeNexusResolverPlugin implements ResolverPlugin {
   final Dio _dio;
   final void Function(String message)? _debugLogSink;
 
+  static final _uuidRe = RegExp(
+    r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$',
+  );
+
   @override
   PluginManifest get manifest => const PluginManifest(
     id: 'kumoriya.resolver.anime_nexus',
@@ -50,10 +54,7 @@ final class AnimeNexusResolverPlugin implements ResolverPlugin {
       return false;
     }
 
-    final uuidPattern = RegExp(
-      r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$',
-    );
-    if (!uuidPattern.hasMatch(segments[1].toLowerCase())) {
+    if (!_uuidRe.hasMatch(segments[1].toLowerCase())) {
       return false;
     }
 

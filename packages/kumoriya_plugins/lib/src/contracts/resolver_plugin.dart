@@ -10,6 +10,7 @@ final class ResolvedStream {
     this.mimeType,
     this.isHls = false,
     this.headers = const <String, String>{},
+    this.supportsEmbeddedTrackSelection = true,
   });
 
   final Uri url;
@@ -17,6 +18,11 @@ final class ResolvedStream {
   final String? mimeType;
   final bool isHls;
   final Map<String, String> headers;
+
+  /// Whether the player should expose embedded audio/subtitle track switching
+  /// for this stream. Set to `false` when the underlying container or CDN
+  /// does not handle track switching reliably (e.g. certain HLS streams).
+  final bool supportsEmbeddedTrackSelection;
 }
 
 /// Bundle returned by [ResolverPlugin.resolve] carrying playable streams

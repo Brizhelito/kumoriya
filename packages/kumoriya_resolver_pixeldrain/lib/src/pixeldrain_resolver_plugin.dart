@@ -59,7 +59,7 @@ final class PixeldrainResolverPlugin implements ResolverPlugin {
     try {
       final response = await _httpClient
           .get(url)
-          .timeout(const Duration(seconds: 15));
+          .timeout(const Duration(seconds: 8));
 
       if (response.statusCode != 200) {
         return Failure(
@@ -111,31 +111,34 @@ Uri? _extractApiUrlFromInput(Uri url) {
   return null;
 }
 
+final _pdApiRe = RegExp(
+  r'''https?:\/\/(?:www\.)?pixeldrain\.com\/api\/file\/[A-Za-z0-9]+''',
+  caseSensitive: false,
+);
+
+final _pdIdRe = RegExp(r'''"id":"([A-Za-z0-9]+)"''', caseSensitive: false);
+
+final _pdHintsRe = RegExp(
+  r'''(og:video|twitter:player:stream|viewer_data|mime_type|allow_video_player)''',
+  caseSensitive: false,
+  multiLine: true,
+);
+
 Uri? _extractApiUrlFromPayload(String payload) {
   final normalized = payload.replaceAll(r'\/', '/');
-  final directMatch = RegExp(
-    r'''https?:\/\/(?:www\.)?pixeldrain\.com\/api\/file\/[A-Za-z0-9]+''',
-    caseSensitive: false,
-  ).firstMatch(normalized);
+  final directMatch = _pdApiRe.firstMatch(normalized);
   final direct = directMatch?.group(0);
   if (direct != null) {
     return Uri.tryParse(direct);
   }
 
-  final idMatch = RegExp(
-    r'''"id":"([A-Za-z0-9]+)"''',
-    caseSensitive: false,
-  ).firstMatch(normalized);
+  final idMatch = _pdIdRe.firstMatch(normalized);
   final id = idMatch?.group(1);
   return id == null ? null : Uri.parse('https://pixeldrain.com/api/file/$id');
 }
 
 bool _hasHints(String payload) {
-  return RegExp(
-    r'''(og:video|twitter:player:stream|viewer_data|mime_type|allow_video_player)''',
-    caseSensitive: false,
-    multiLine: true,
-  ).hasMatch(payload);
+  return _pdHintsRe.hasMatch(payload);
 }
 
 ResolvedStream _toResolved(Uri uri) {

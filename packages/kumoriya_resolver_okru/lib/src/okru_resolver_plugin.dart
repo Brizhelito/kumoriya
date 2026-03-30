@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:kumoriya_core/kumoriya_core.dart';
 import 'package:kumoriya_plugins/kumoriya_plugins.dart';
+import 'package:kumoriya_resolver_common/kumoriya_resolver_common.dart';
 
 import 'errors/okru_resolver_error.dart';
 
@@ -59,12 +60,20 @@ final class OkruResolverPlugin implements ResolverPlugin {
     try {
       final response = await _httpClient
           .get(url, headers: _headers(url))
-          .timeout(const Duration(seconds: 15));
+          .timeout(const Duration(seconds: 8));
 
       if (response.statusCode != 200) {
         return Failure(
           OkruTransportError(
             message: 'Okru request failed with status ${response.statusCode}.',
+          ),
+        );
+      }
+
+      if (!isResponseSizeAcceptable(response)) {
+        return const Failure(
+          OkruTransportError(
+            message: 'Okru response too large.',
           ),
         );
       }
@@ -98,12 +107,14 @@ Map<String, String> _headers(Uri url) {
   return <String, String>{'Referer': '$origin/', 'Origin': origin};
 }
 
+final _dataOptionsRe = RegExp(
+  r'data-options="([^"]+)"',
+  caseSensitive: false,
+  multiLine: true,
+);
+
 List<ResolvedStream> _extractStreams(String payload, {required Uri baseUrl}) {
-  final dataOptionsMatch = RegExp(
-    r'data-options="([^"]+)"',
-    caseSensitive: false,
-    multiLine: true,
-  ).firstMatch(payload);
+  final dataOptionsMatch = _dataOptionsRe.firstMatch(payload);
   final dataOptionsRaw = dataOptionsMatch?.group(1);
   if (dataOptionsRaw == null || dataOptionsRaw.isEmpty) {
     return const <ResolvedStream>[];
@@ -211,10 +222,12 @@ String _qualityLabel(Object? raw) {
   return nameToResolution[value] ?? value;
 }
 
+final _okruHintsRe = RegExp(
+  r'(data-options=|flashvars|metadata&quot;|hlsManifestUrl|okVideoPlayerEnabled)',
+  caseSensitive: false,
+  multiLine: true,
+);
+
 bool _hasHints(String payload) {
-  return RegExp(
-    r'(data-options=|flashvars|metadata&quot;|hlsManifestUrl|okVideoPlayerEnabled)',
-    caseSensitive: false,
-    multiLine: true,
-  ).hasMatch(payload);
+  return _okruHintsRe.hasMatch(payload);
 }

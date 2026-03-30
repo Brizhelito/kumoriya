@@ -9,7 +9,7 @@ final class VoeResolverPlugin implements ResolverPlugin {
     : _httpClient = httpClient ?? http.Client();
 
   final http.Client _httpClient;
-  static const int _maxRedirectDepth = 5;
+  static const int _maxRedirectDepth = 3;
 
   static const Set<String> _supportedHosts = <String>{
     'voe.sx',
@@ -89,9 +89,11 @@ final class VoeResolverPlugin implements ResolverPlugin {
       String? redirectLimitMessage;
 
       for (var hop = 0; hop < _maxRedirectDepth; hop++) {
+        // Use short timeout per hop since we may need up to 3 hops.
+        // Total worst case: 3 × 5s = 15s instead of 5 × 10s = 50s.
         final response = await _httpClient
             .get(currentUrl, headers: _requestHeaders(currentUrl, referer))
-            .timeout(const Duration(seconds: 15));
+            .timeout(const Duration(seconds: 5));
 
         if (response.statusCode != 200) {
           return Failure(
@@ -184,6 +186,77 @@ final class _FetchedPayload {
   final String body;
 }
 
+final _voeLocationHrefRe = RegExp(
+  r'''(?:window\.)?location(?:\.href)?\s*=\s*(?:["'`])([^"'`]+)(?:["'`])''',
+  caseSensitive: false,
+);
+
+final _voeLocationReplaceRe = RegExp(
+  r'''location\.replace\(\s*(?:["'`])([^"'`]+)(?:["'`])\s*\)''',
+  caseSensitive: false,
+);
+
+final _voeKeyedRe = RegExp(
+  r'''(?:hls|file|src|source|url)\s*[:=]\s*(?:"([^"]+)"|'([^']+)')''',
+  caseSensitive: false,
+  multiLine: true,
+);
+
+final _voeDirectRe = RegExp(
+  r'''https?:\/\/[\w\-._~:/?#\[\]@!$&'()*+,;=%]+''',
+  caseSensitive: false,
+  multiLine: true,
+);
+
+final _voeSourceTagRe = RegExp(
+  r'''<source[^>]+src\s*=\s*(?:"([^"]+)"|'([^']+)')''',
+  caseSensitive: false,
+  multiLine: true,
+);
+
+final _voeBase64Re = RegExp(
+  r'''["']([A-Za-z0-9+/=]{24,})["']''',
+  caseSensitive: false,
+  multiLine: true,
+);
+
+final _voeWhitespaceRe = RegExp(r'\s+');
+
+final _voeLeadingQuotesRe = RegExp(r'''^[\'"+]''');
+final _voeTrailingQuotesRe = RegExp(r'''[\'"),;\]]+$''');
+
+final _voeStreamHintsRe = RegExp(
+  r'''(hls|source|sources|master\.m3u8|\.mp4|api\/video)''',
+  caseSensitive: false,
+  multiLine: true,
+);
+
+final _voeTokenGatedRe = RegExp(
+  r'''(api2\/session\/generate-token|session\/sync\?|guestMode|permanentToken)''',
+  caseSensitive: false,
+  multiLine: true,
+);
+
+final _voeEngineUpdateRe = RegExp(
+  r'''(\/engine\/update|loader\.[a-z0-9]+\.js|meta name="csrf-token")''',
+  caseSensitive: false,
+  multiLine: true,
+);
+
+final _voeSessionConfirmRe = RegExp(
+  r'''(guestMode|permanentToken|test-videos\.co\.uk|Big_Buck_Bunny|api2\/session\/generate-token)''',
+  caseSensitive: false,
+  multiLine: true,
+);
+
+final _voeDeanEdwardsRe = RegExp(
+  r"""eval\(function\(p,a,c,k,e,d\)\{[\s\S]*?return p\}\('([\s\S]*?)',\s*(\d+),\s*(\d+),\s*'([\s\S]*?)'\.split\('\|'\)""",
+  caseSensitive: false,
+  multiLine: true,
+);
+
+final _voeQualityRe = RegExp(r'(2160|1440|1080|720|480|360)p');
+
 Map<String, String> _requestHeaders(Uri url, Uri? referer) {
   final origin = '${url.scheme}://${url.host}';
   final resolvedReferer = referer == null ? '$origin/' : referer.toString();
@@ -197,16 +270,7 @@ Uri? _extractJavascriptRedirect(String payload, {required Uri baseUrl}) {
       .replaceAll(r'\u0026', '&')
       .replaceAll(r'\x2F', '/');
 
-  final patterns = <RegExp>[
-    RegExp(
-      r'''(?:window\.)?location(?:\.href)?\s*=\s*(?:["'`])([^"'`]+)(?:["'`])''',
-      caseSensitive: false,
-    ),
-    RegExp(
-      r'''location\.replace\(\s*(?:["'`])([^"'`]+)(?:["'`])\s*\)''',
-      caseSensitive: false,
-    ),
-  ];
+  final patterns = <RegExp>[_voeLocationHrefRe, _voeLocationReplaceRe];
 
   for (final pattern in patterns) {
     final match = pattern.firstMatch(normalized);
@@ -233,36 +297,21 @@ List<Uri> _extractStreams(String payload, Uri resolverUrl) {
 
   final rawCandidates = <String>{};
 
-  final keyedPattern = RegExp(
-    r'''(?:hls|file|src|source|url)\s*[:=]\s*(?:"([^"]+)"|'([^']+)')''',
-    caseSensitive: false,
-    multiLine: true,
-  );
-  for (final match in keyedPattern.allMatches(normalized)) {
+  for (final match in _voeKeyedRe.allMatches(normalized)) {
     final value = match.group(1) ?? match.group(2);
     if (value != null && value.trim().isNotEmpty) {
       rawCandidates.add(_cleanCandidate(value));
     }
   }
 
-  final directUrlPattern = RegExp(
-    r'''https?:\/\/[\w\-._~:/?#\[\]@!$&'()*+,;=%]+''',
-    caseSensitive: false,
-    multiLine: true,
-  );
-  for (final match in directUrlPattern.allMatches(normalized)) {
+  for (final match in _voeDirectRe.allMatches(normalized)) {
     final value = match.group(0);
     if (value != null && value.trim().isNotEmpty) {
       rawCandidates.add(_cleanCandidate(value));
     }
   }
 
-  final sourceTagPattern = RegExp(
-    r'''<source[^>]+src\s*=\s*(?:"([^"]+)"|'([^']+)')''',
-    caseSensitive: false,
-    multiLine: true,
-  );
-  for (final match in sourceTagPattern.allMatches(normalized)) {
+  for (final match in _voeSourceTagRe.allMatches(normalized)) {
     final value = match.group(1) ?? match.group(2);
     if (value != null && value.trim().isNotEmpty) {
       rawCandidates.add(_cleanCandidate(value));
@@ -298,13 +347,7 @@ List<Uri> _extractStreams(String payload, Uri resolverUrl) {
 
 Set<String> _extractBase64EmbeddedCandidates(String payload) {
   final candidates = <String>{};
-  final encodedPattern = RegExp(
-    r'''["']([A-Za-z0-9+/=]{24,})["']''',
-    caseSensitive: false,
-    multiLine: true,
-  );
-
-  for (final match in encodedPattern.allMatches(payload)) {
+  for (final match in _voeBase64Re.allMatches(payload)) {
     final encoded = match.group(1);
     if (encoded == null || encoded.isEmpty) {
       continue;
@@ -321,12 +364,7 @@ Set<String> _extractBase64EmbeddedCandidates(String payload) {
         .replaceAll(r'\u0026', '&')
         .replaceAll(r'\x2F', '/');
 
-    final directUrlPattern = RegExp(
-      r'''https?:\/\/[\w\-._~:/?#\[\]@!$&'()*+,;=%]+''',
-      caseSensitive: false,
-      multiLine: true,
-    );
-    for (final directMatch in directUrlPattern.allMatches(normalizedDecoded)) {
+    for (final directMatch in _voeDirectRe.allMatches(normalizedDecoded)) {
       final value = directMatch.group(0);
       if (value != null && value.trim().isNotEmpty) {
         candidates.add(_cleanCandidate(value));
@@ -354,7 +392,7 @@ String? _tryDecodeBase64(String encoded) {
 }
 
 String _normalizeBase64(String value) {
-  final clean = value.replaceAll(RegExp(r'\s+'), '');
+  final clean = value.replaceAll(_voeWhitespaceRe, '');
   final remainder = clean.length % 4;
   if (remainder == 0) {
     return clean;
@@ -387,8 +425,8 @@ Uri? _toAbsoluteUri(String raw, Uri baseUri) {
 String _cleanCandidate(String value) {
   return value
       .trim()
-      .replaceAll(RegExp(r'''^[\'"]+'''), '')
-      .replaceAll(RegExp(r'''[\'"),;\]]+$'''), '');
+      .replaceAll(_voeLeadingQuotesRe, '')
+      .replaceAll(_voeTrailingQuotesRe, '');
 }
 
 bool _isPlayableUri(Uri uri) {
@@ -423,36 +461,20 @@ bool _isKnownPlaceholderUri(Uri uri) {
 }
 
 bool _hasStreamHints(String payload) {
-  return RegExp(
-    r'''(hls|source|sources|master\.m3u8|\.mp4|api\/video)''',
-    caseSensitive: false,
-    multiLine: true,
-  ).hasMatch(payload);
+  return _voeStreamHintsRe.hasMatch(payload);
 }
 
 bool _isTokenGatedPayload(String payload) {
-  return RegExp(
-    r'''(api2\/session\/generate-token|session\/sync\?|guestMode|permanentToken)''',
-    caseSensitive: false,
-    multiLine: true,
-  ).hasMatch(payload);
+  return _voeTokenGatedRe.hasMatch(payload);
 }
 
 bool _isSessionGatedPayload(String payload) {
-  final hasEngineUpdate = RegExp(
-    r'''(\/engine\/update|loader\.[a-z0-9]+\.js|meta name="csrf-token")''',
-    caseSensitive: false,
-    multiLine: true,
-  ).hasMatch(payload);
+  final hasEngineUpdate = _voeEngineUpdateRe.hasMatch(payload);
   if (!hasEngineUpdate) {
     return false;
   }
 
-  return RegExp(
-    r'''(guestMode|permanentToken|test-videos\.co\.uk|Big_Buck_Bunny|api2\/session\/generate-token)''',
-    caseSensitive: false,
-    multiLine: true,
-  ).hasMatch(payload);
+  return _voeSessionConfirmRe.hasMatch(payload);
 }
 
 Uri _normalizeEmbedUrl(Uri url) {
@@ -473,11 +495,7 @@ String _buildExtractionPayload(String payload) {
 }
 
 List<String> _unpackDeanEdwardsPayloads(String payload) {
-  final pattern = RegExp(
-    r"""eval\(function\(p,a,c,k,e,d\)\{[\s\S]*?return p\}\('([\s\S]*?)',\s*(\d+),\s*(\d+),\s*'([\s\S]*?)'\.split\('\|'\)""",
-    caseSensitive: false,
-    multiLine: true,
-  );
+  final pattern = _voeDeanEdwardsRe;
 
   final unpacked = <String>[];
   for (final match in pattern.allMatches(payload)) {
@@ -589,9 +607,7 @@ ResolvedStream _toResolvedStream(Uri url, Uri resolverUrl) {
 }
 
 String _inferQuality(Uri url) {
-  final match = RegExp(
-    r'(2160|1440|1080|720|480|360)p',
-  ).firstMatch(url.toString().toLowerCase());
+  final match = _voeQualityRe.firstMatch(url.toString().toLowerCase());
   if (match != null) {
     return '${match.group(1)}p';
   }

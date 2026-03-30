@@ -3,6 +3,7 @@ import 'dart:math';
 import 'package:http/http.dart' as http;
 import 'package:kumoriya_core/kumoriya_core.dart';
 import 'package:kumoriya_plugins/kumoriya_plugins.dart';
+import 'package:kumoriya_resolver_common/kumoriya_resolver_common.dart';
 
 import 'errors/doodstream_resolver_error.dart';
 
@@ -116,13 +117,21 @@ final class DoodstreamResolverPlugin implements ResolverPlugin {
     try {
       final embedResponse = await _httpClient
           .get(url, headers: _headers(url))
-          .timeout(const Duration(seconds: 15));
+          .timeout(const Duration(seconds: 8));
 
       if (embedResponse.statusCode != 200) {
         return Failure(
           DoodstreamTransportError(
             message:
                 'Doodstream embed request failed with status ${embedResponse.statusCode}.',
+          ),
+        );
+      }
+
+      if (!isResponseSizeAcceptable(embedResponse)) {
+        return const Failure(
+          DoodstreamTransportError(
+            message: 'Doodstream embed response too large.',
           ),
         );
       }
@@ -150,9 +159,10 @@ final class DoodstreamResolverPlugin implements ResolverPlugin {
         fragment: null,
       );
 
+      // Token endpoint is lightweight — short timeout reduces total resolve time.
       final tokenResponse = await _httpClient
           .get(tokenUrl, headers: _tokenHeaders(url))
-          .timeout(const Duration(seconds: 15));
+          .timeout(const Duration(seconds: 8));
 
       if (tokenResponse.statusCode != 200) {
         return Failure(
@@ -222,23 +232,25 @@ Map<String, String> _playbackHeaders(Uri embedUrl) {
   return <String, String>{'Referer': '${embedUrl.scheme}://${embedUrl.host}/'};
 }
 
-String? _extractPassMd5Path(String payload) {
-  final pattern = RegExp(
-    r'''['"](/pass_md5/[^"']+)['"]''',
-    caseSensitive: false,
-    multiLine: true,
-  );
+final _passMd5PathRe = RegExp(
+  r'''['"](/pass_md5/[^"']+)['"]''',
+  caseSensitive: false,
+  multiLine: true,
+);
 
-  final match = pattern.firstMatch(payload);
+final _doodHintsRe = RegExp(
+  r'''(pass_md5|dsplayer|dood|\.mp4|source)''',
+  caseSensitive: false,
+  multiLine: true,
+);
+
+String? _extractPassMd5Path(String payload) {
+  final match = _passMd5PathRe.firstMatch(payload);
   return match?.group(1)?.trim();
 }
 
 bool _hasHints(String payload) {
-  return RegExp(
-    r'''(pass_md5|dsplayer|dood|\.mp4|source)''',
-    caseSensitive: false,
-    multiLine: true,
-  ).hasMatch(payload);
+  return _doodHintsRe.hasMatch(payload);
 }
 
 String _generateRandomString(int length) {

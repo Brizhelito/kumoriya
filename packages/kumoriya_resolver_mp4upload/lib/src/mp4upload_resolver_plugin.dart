@@ -61,7 +61,7 @@ final class Mp4uploadResolverPlugin implements ResolverPlugin {
     try {
       final response = await _httpClient
           .get(url, headers: _headers(url))
-          .timeout(const Duration(seconds: 15));
+          .timeout(const Duration(seconds: 8));
 
       if (response.statusCode != 200) {
         return Failure(
@@ -105,6 +105,18 @@ Map<String, String> _headers(Uri url) {
   return <String, String>{'Referer': '$origin/', 'Origin': origin};
 }
 
+final _mp4KeyedRe = RegExp(
+  r'''(?:file|src|source)\s*[:=]\s*(?:"([^"]+)"|'([^']+)')''',
+  caseSensitive: false,
+  multiLine: true,
+);
+
+final _mp4DirectRe = RegExp(
+  r'''https?:\/\/[\w\-._~:/?#\[\]@!$&'()*+,;=%]+''',
+  caseSensitive: false,
+  multiLine: true,
+);
+
 List<ResolvedStream> _extractStreams(String payload, {required Uri baseUrl}) {
   final normalized = payload
       .replaceAll(r'\/', '/')
@@ -113,24 +125,14 @@ List<ResolvedStream> _extractStreams(String payload, {required Uri baseUrl}) {
 
   final candidates = <String>{};
 
-  final keyedPattern = RegExp(
-    r'''(?:file|src|source)\s*[:=]\s*(?:"([^"]+)"|'([^']+)')''',
-    caseSensitive: false,
-    multiLine: true,
-  );
-  for (final m in keyedPattern.allMatches(normalized)) {
+  for (final m in _mp4KeyedRe.allMatches(normalized)) {
     final raw = (m.group(1) ?? m.group(2))?.trim();
     if (raw != null && raw.isNotEmpty) {
       candidates.add(raw);
     }
   }
 
-  final directPattern = RegExp(
-    r'''https?:\/\/[\w\-._~:/?#\[\]@!$&'()*+,;=%]+''',
-    caseSensitive: false,
-    multiLine: true,
-  );
-  for (final m in directPattern.allMatches(normalized)) {
+  for (final m in _mp4DirectRe.allMatches(normalized)) {
     final raw = m.group(0)?.trim();
     if (raw != null && raw.isNotEmpty) {
       candidates.add(raw);
@@ -186,12 +188,16 @@ bool _isPlayable(Uri uri) {
   return path.contains('.mp4') || path.contains('.m3u8');
 }
 
+final _mp4HintsRe = RegExp(
+  r'''(source|sources|file\s*:|\.mp4|\.m3u8)''',
+  caseSensitive: false,
+  multiLine: true,
+);
+
+final _qualityRe = RegExp(r'(2160|1440|1080|720|480|360)p');
+
 bool _hasHints(String payload) {
-  return RegExp(
-    r'''(source|sources|file\s*:|\.mp4|\.m3u8)''',
-    caseSensitive: false,
-    multiLine: true,
-  ).hasMatch(payload);
+  return _mp4HintsRe.hasMatch(payload);
 }
 
 ResolvedStream _toResolved(Uri uri, Uri baseUrl) {
@@ -211,9 +217,7 @@ ResolvedStream _toResolved(Uri uri, Uri baseUrl) {
 }
 
 String _inferQuality(Uri uri) {
-  final match = RegExp(
-    r'(2160|1440|1080|720|480|360)p',
-  ).firstMatch(uri.toString().toLowerCase());
+  final match = _qualityRe.firstMatch(uri.toString().toLowerCase());
   if (match != null) {
     return '${match.group(1)}p';
   }

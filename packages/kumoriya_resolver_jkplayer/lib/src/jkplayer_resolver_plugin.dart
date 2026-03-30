@@ -64,7 +64,7 @@ final class JkPlayerResolverPlugin implements ResolverPlugin {
     try {
       final response = await _httpClient
           .get(url, headers: _requestHeaders(_baseUri))
-          .timeout(const Duration(seconds: 15));
+          .timeout(const Duration(seconds: 8));
 
       if (response.statusCode != 200) {
         return Failure(
@@ -80,11 +80,7 @@ final class JkPlayerResolverPlugin implements ResolverPlugin {
         allowUnknownExtension: false,
       );
       if (streamUrls.isEmpty) {
-        final hasUrlHints = RegExp(
-          r'''(m3u8|mp4|source|file|url\s*:)''',
-          caseSensitive: false,
-          multiLine: true,
-        ).hasMatch(response.body);
+        final hasUrlHints = _jkUrlHintsRe.hasMatch(response.body);
 
         if (hasUrlHints) {
           return const Failure(
@@ -169,7 +165,7 @@ final class JkPlayerJkResolverPlugin implements ResolverPlugin {
     try {
       final response = await _httpClient
           .get(url, headers: _requestHeaders(_baseUri))
-          .timeout(const Duration(seconds: 15));
+          .timeout(const Duration(seconds: 8));
 
       if (response.statusCode != 200) {
         return Failure(
@@ -206,6 +202,26 @@ final class JkPlayerJkResolverPlugin implements ResolverPlugin {
     }
   }
 }
+
+final _jkUrlHintsRe = RegExp(
+  r'''(m3u8|mp4|source|file|url\s*:)''',
+  caseSensitive: false,
+  multiLine: true,
+);
+
+final _jkDirectRe = RegExp(
+  r'''https?:\/\/[^\s"'<>]+''',
+  caseSensitive: false,
+  multiLine: true,
+);
+
+final _jkKeyedRe = RegExp(
+  r'''(?:url|file|source)\s*:\s*(?:"([^"]+)"|'([^']+)')''',
+  caseSensitive: false,
+  multiLine: true,
+);
+
+final _jkQualityRe = RegExp(r'(2160|1440|1080|720|480|360)p');
 
 bool _isJkAnimeHost(Uri url) {
   final host = url.host.toLowerCase();
@@ -248,24 +264,14 @@ List<Uri> _extractStreamUrls(
 
   final candidates = <String>{};
 
-  final directPattern = RegExp(
-    r'''https?:\/\/[^\s"'<>]+''',
-    caseSensitive: false,
-    multiLine: true,
-  );
-  for (final match in directPattern.allMatches(normalized)) {
+  for (final match in _jkDirectRe.allMatches(normalized)) {
     final value = match.group(0);
     if (value != null && value.isNotEmpty) {
       candidates.add(value.trim());
     }
   }
 
-  final keyedPattern = RegExp(
-    r'''(?:url|file|source)\s*:\s*(?:"([^"]+)"|'([^']+)')''',
-    caseSensitive: false,
-    multiLine: true,
-  );
-  for (final match in keyedPattern.allMatches(normalized)) {
+  for (final match in _jkKeyedRe.allMatches(normalized)) {
     final raw = match.group(1) ?? match.group(2);
     if (raw != null && raw.isNotEmpty) {
       candidates.add(raw.trim());
@@ -298,7 +304,7 @@ List<Uri> _extractStreamUrls(
 
 String _inferQualityLabel(Uri url) {
   final value = url.toString().toLowerCase();
-  final match = RegExp(r'(2160|1440|1080|720|480|360)p').firstMatch(value);
+  final match = _jkQualityRe.firstMatch(value);
   if (match != null) {
     return '${match.group(1)}p';
   }

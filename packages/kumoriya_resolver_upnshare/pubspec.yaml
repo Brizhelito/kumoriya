@@ -12,7 +12,7 @@ dependencies:
   http: ^1.2.2
   kumoriya_core:
   kumoriya_plugins:
-  pointycastle: ^3.9.1
+  pointycastle: ^4.0.0
 
 dev_dependencies:
   lints: ^6.0.0

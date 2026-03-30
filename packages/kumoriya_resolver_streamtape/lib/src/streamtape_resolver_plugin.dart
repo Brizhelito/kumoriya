@@ -1,6 +1,7 @@
 import 'package:http/http.dart' as http;
 import 'package:kumoriya_core/kumoriya_core.dart';
 import 'package:kumoriya_plugins/kumoriya_plugins.dart';
+import 'package:kumoriya_resolver_common/kumoriya_resolver_common.dart';
 
 import 'errors/streamtape_resolver_error.dart';
 
@@ -92,13 +93,21 @@ final class StreamtapeResolverPlugin implements ResolverPlugin {
     try {
       final response = await _httpClient
           .get(url, headers: _headers(url))
-          .timeout(const Duration(seconds: 15));
+          .timeout(const Duration(seconds: 8));
 
       if (response.statusCode != 200) {
         return Failure(
           StreamtapeTransportError(
             message:
                 'Streamtape request failed with status ${response.statusCode}.',
+          ),
+        );
+      }
+
+      if (!isResponseSizeAcceptable(response)) {
+        return const Failure(
+          StreamtapeTransportError(
+            message: 'Streamtape response too large.',
           ),
         );
       }
@@ -137,6 +146,26 @@ Map<String, String> _headers(Uri url) {
   return <String, String>{'Referer': '$origin/', 'Origin': origin};
 }
 
+final _stTokenRe = RegExp(
+  r'''document\.getElementById\([^)]+\)\.innerHTML\s*=\s*["`']\s*(\/\/[^"'`\s]+)["`']\s*\+\s*\(\s*["`']\s*([^"'`]+)["`']\s*\)\s*\.substring\(\s*(\d+)\s*\)''',
+  caseSensitive: false,
+  multiLine: true,
+);
+
+final _stDirectRe = RegExp(
+  r'''https?:\/\/[^\s"'<>]*?(?:tapecontent\.net|streamtape\.com)[^\s"'<>]*?\.mp4[^\s"'<>]*''',
+  caseSensitive: false,
+  multiLine: true,
+);
+
+final _stHintsRe = RegExp(
+  r'''(getElementById|robotlink|tapecontent|\.mp4|innerHTML)''',
+  caseSensitive: false,
+  multiLine: true,
+);
+
+final _stQualityRe = RegExp(r'(2160|1440|1080|720|480|360)p');
+
 List<ResolvedStream> _extractStreams(String payload, {required Uri baseUrl}) {
   final normalized = payload
       .replaceAll(r'\/', '/')
@@ -146,15 +175,7 @@ List<ResolvedStream> _extractStreams(String payload, {required Uri baseUrl}) {
   final streams = <ResolvedStream>[];
   final seen = <String>{};
 
-  // Streamtape pattern: document.getElementById('xxx').innerHTML = "//URL" + 'token'.substring(offset)
-  // The real URL is the concatenation of two parts.
-  final tokenPattern = RegExp(
-    r'''document\.getElementById\([^)]+\)\.innerHTML\s*=\s*["`']\s*(\/\/[^"'`\s]+)["`']\s*\+\s*\(\s*["`']\s*([^"'`]+)["`']\s*\)\s*\.substring\(\s*(\d+)\s*\)''',
-    caseSensitive: false,
-    multiLine: true,
-  );
-
-  for (final match in tokenPattern.allMatches(normalized)) {
+  for (final match in _stTokenRe.allMatches(normalized)) {
     final urlBase = match.group(1)?.trim();
     final tokenFull = match.group(2)?.trim();
     final offsetStr = match.group(3)?.trim();
@@ -179,12 +200,7 @@ List<ResolvedStream> _extractStreams(String payload, {required Uri baseUrl}) {
   }
 
   // Fallback: look for direct tapecontent.net or streamtape CDN URLs
-  final directPattern = RegExp(
-    r'''https?:\/\/[^\s"'<>]*?(?:tapecontent\.net|streamtape\.com)[^\s"'<>]*?\.mp4[^\s"'<>]*''',
-    caseSensitive: false,
-    multiLine: true,
-  );
-  for (final match in directPattern.allMatches(normalized)) {
+  for (final match in _stDirectRe.allMatches(normalized)) {
     final raw = match.group(0)?.trim();
     if (raw == null || raw.isEmpty) {
       continue;
@@ -204,11 +220,7 @@ List<ResolvedStream> _extractStreams(String payload, {required Uri baseUrl}) {
 }
 
 bool _hasHints(String payload) {
-  return RegExp(
-    r'''(getElementById|robotlink|tapecontent|\.mp4|innerHTML)''',
-    caseSensitive: false,
-    multiLine: true,
-  ).hasMatch(payload);
+  return _stHintsRe.hasMatch(payload);
 }
 
 ResolvedStream _toResolved(Uri uri, Uri baseUrl) {
@@ -228,9 +240,7 @@ ResolvedStream _toResolved(Uri uri, Uri baseUrl) {
 }
 
 String _inferQuality(Uri uri) {
-  final match = RegExp(
-    r'(2160|1440|1080|720|480|360)p',
-  ).firstMatch(uri.toString().toLowerCase());
+  final match = _stQualityRe.firstMatch(uri.toString().toLowerCase());
   if (match != null) {
     return '${match.group(1)}p';
   }

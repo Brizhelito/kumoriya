@@ -60,7 +60,7 @@ final class HqqResolverPlugin implements ResolverPlugin {
     try {
       final pageResponse = await _httpClient
           .get(embedUrl, headers: _pageHeaders())
-          .timeout(const Duration(seconds: 15));
+          .timeout(const Duration(seconds: 8));
 
       if (pageResponse.statusCode != 200) {
         return Failure(
@@ -147,7 +147,7 @@ final class HqqResolverPlugin implements ResolverPlugin {
 
     final response = await _httpClient
         .post(md5Url, headers: _md5Headers(embedUrl), body: jsonEncode(payload))
-        .timeout(const Duration(seconds: 15));
+        .timeout(const Duration(seconds: 8));
 
     final body = response.body.trim();
     if (body.isEmpty) {
@@ -254,6 +254,29 @@ List<ResolvedStream> _extractStreamsFromMd5Payload(
   return <ResolvedStream>[_toResolvedStream(uri, baseUrl)];
 }
 
+final _hqqSourceRe = RegExp(
+  r'''(?:olplayer\.src\(\s*\{[\s\S]*?src:\s*["']?|<source[^>]+src=["'])(https?:\/\/|\/\/)[^"'<>]+(?:\.m3u8|\.mp4)[^"'<>]*''',
+  caseSensitive: false,
+  multiLine: true,
+);
+
+final _hqqUrlRe = RegExp(
+  r'''(https?:\/\/|\/\/)[^"'<>]+(?:\.m3u8|\.mp4)[^"'<>]*''',
+  caseSensitive: false,
+);
+
+final _hqqHintsRe = RegExp(
+  r'(og:video|olplayer|embed_player|get_md5\.php|get_player_image\.php|videojs)',
+  caseSensitive: false,
+  multiLine: true,
+);
+
+final _hqqChallengeRe = RegExp(
+  r'(get_player_image\.php|click_hash|checkbotclick|need_captcha|h-captcha)',
+  caseSensitive: false,
+  multiLine: true,
+);
+
 List<ResolvedStream> _extractTrustedStreams(
   String payload, {
   required Uri baseUrl,
@@ -264,23 +287,15 @@ List<ResolvedStream> _extractTrustedStreams(
       .replaceAll(r'\u0026', '&');
 
   final candidates = <String>{};
-  final sourcePattern = RegExp(
-    r'''(?:olplayer\.src\(\s*\{[\s\S]*?src:\s*["']?|<source[^>]+src=["'])(https?:\/\/|\/\/)[^"'<>]+(?:\.m3u8|\.mp4)[^"'<>]*''',
-    caseSensitive: false,
-    multiLine: true,
-  );
 
-  for (final match in sourcePattern.allMatches(normalized)) {
+  for (final match in _hqqSourceRe.allMatches(normalized)) {
     final snippet = match.group(0);
     if (snippet == null ||
         snippet.contains('/*') ||
         snippet.contains('//olplayer')) {
       continue;
     }
-    final urlMatch = RegExp(
-      r'''(https?:\/\/|\/\/)[^"'<>]+(?:\.m3u8|\.mp4)[^"'<>]*''',
-      caseSensitive: false,
-    ).firstMatch(snippet);
+    final urlMatch = _hqqUrlRe.firstMatch(snippet);
     final candidate = urlMatch?.group(0);
     if (candidate != null && candidate.isNotEmpty) {
       candidates.add(
@@ -298,19 +313,11 @@ List<ResolvedStream> _extractTrustedStreams(
 }
 
 bool _hasHints(String payload) {
-  return RegExp(
-    r'(og:video|olplayer|embed_player|get_md5\.php|get_player_image\.php|videojs)',
-    caseSensitive: false,
-    multiLine: true,
-  ).hasMatch(payload);
+  return _hqqHintsRe.hasMatch(payload);
 }
 
 bool _requiresChallenge(String payload) {
-  return RegExp(
-    r'(get_player_image\.php|click_hash|checkbotclick|need_captcha|h-captcha)',
-    caseSensitive: false,
-    multiLine: true,
-  ).hasMatch(payload);
+  return _hqqChallengeRe.hasMatch(payload);
 }
 
 Map<String, dynamic>? _tryDecodeJsonObject(String payload) {
@@ -404,12 +411,18 @@ _HqqPageConfig _extractPageConfig(String payload) {
   );
 }
 
+final _hqqQuotedValueCache = <String, RegExp>{};
+
 String? _extractQuotedValue(String payload, String variableName) {
-  final match = RegExp(
-    '$variableName\\s*=\\s*[\'"]([^\'"]*)[\'"]',
-    caseSensitive: false,
-    multiLine: true,
-  ).firstMatch(payload);
+  final re = _hqqQuotedValueCache.putIfAbsent(
+    variableName,
+    () => RegExp(
+      '$variableName\\s*=\\s*[\'"]([^\'"]*)[\'"]',
+      caseSensitive: false,
+      multiLine: true,
+    ),
+  );
+  final match = re.firstMatch(payload);
   return match?.group(1)?.trim();
 }
 

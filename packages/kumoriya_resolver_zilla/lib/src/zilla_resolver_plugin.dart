@@ -56,7 +56,7 @@ final class ZillaResolverPlugin implements ResolverPlugin {
     try {
       final response = await _httpClient
           .get(playlistUrl, headers: _headers(url))
-          .timeout(const Duration(seconds: 15));
+          .timeout(const Duration(seconds: 8));
 
       if (response.statusCode != 200) {
         return Failure(

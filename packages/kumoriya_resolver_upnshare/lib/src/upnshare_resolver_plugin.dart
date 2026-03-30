@@ -60,7 +60,7 @@ final class UpnshareResolverPlugin implements ResolverPlugin {
     try {
       final response = await _httpClient
           .get(apiUrl, headers: _headers(url))
-          .timeout(const Duration(seconds: 15));
+          .timeout(const Duration(seconds: 8));
 
       if (response.statusCode != 200) {
         return Failure(
@@ -167,16 +167,18 @@ List<ResolvedStream> _extractStreams(
   Map<String, dynamic> payload, {
   required Uri baseUrl,
 }) {
-  final candidates = <String>[
-    if (payload['cf'] is String) payload['cf'] as String,
-    if (payload['source'] is String) payload['source'] as String,
+  final entries = <({String raw, String key})>[
+    if (payload['cf'] is String)
+      (raw: payload['cf'] as String, key: 'cf'),
+    if (payload['source'] is String)
+      (raw: payload['source'] as String, key: 'source'),
   ];
 
   final streams = <ResolvedStream>[];
   final seen = <String>{};
 
-  for (final raw in candidates) {
-    final normalized = raw.replaceAll(r'\/', '/').trim();
+  for (final entry in entries) {
+    final normalized = entry.raw.replaceAll(r'\/', '/').trim();
     if (normalized.isEmpty || !seen.add(normalized)) {
       continue;
     }
@@ -186,15 +188,17 @@ List<ResolvedStream> _extractStreams(
       continue;
     }
 
+    final isHls = _isHlsCandidate(uri, normalized);
+    final quality = _inferQuality(uri);
+
     streams.add(
       ResolvedStream(
         url: uri,
-        qualityLabel: 'auto',
-        mimeType: _isHlsCandidate(uri, normalized)
-            ? 'application/vnd.apple.mpegurl'
-            : 'video/mp4',
-        isHls: _isHlsCandidate(uri, normalized),
+        qualityLabel: quality,
+        mimeType: isHls ? 'application/vnd.apple.mpegurl' : 'video/mp4',
+        isHls: isHls,
         headers: _streamHeaders(baseUrl),
+        supportsEmbeddedTrackSelection: false,
       ),
     );
   }
@@ -223,6 +227,16 @@ Uint8List _hexToBytes(String value) {
     );
   }
   return output;
+}
+
+final _qualityRe = RegExp(r'(2160|1440|1080|720|480|360)p?');
+
+String _inferQuality(Uri uri) {
+  final match = _qualityRe.firstMatch(uri.toString());
+  if (match != null) {
+    return '${match.group(1)}p';
+  }
+  return 'auto';
 }
 
 bool _isHexString(String value) {

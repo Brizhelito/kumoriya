@@ -62,7 +62,7 @@ final class YouruploadResolverPlugin implements ResolverPlugin {
     try {
       final response = await _httpClient
           .get(url, headers: _headers(url))
-          .timeout(const Duration(seconds: 15));
+          .timeout(const Duration(seconds: 8));
 
       if (response.statusCode != 200) {
         return Failure(
@@ -107,6 +107,26 @@ Map<String, String> _headers(Uri url) {
   return <String, String>{'Referer': '$origin/', 'Origin': origin};
 }
 
+final _yuKeyedRe = RegExp(
+  r'''(?:og:video|twitter:player:stream|file)\D+https?:\/\/[^\s"'<>]+''',
+  caseSensitive: false,
+  multiLine: true,
+);
+
+final _yuUrlRe = RegExp(r'''https?:\/\/[^\s"'<>]+''', caseSensitive: false);
+
+final _yuDirectRe = RegExp(
+  r'''https?:\/\/[^\s"'<>]+''',
+  caseSensitive: false,
+  multiLine: true,
+);
+
+final _yuHintsRe = RegExp(
+  r'''(og:video|twitter:player:stream|jwplayerOptions|video\.mp4|file:)''',
+  caseSensitive: false,
+  multiLine: true,
+);
+
 List<ResolvedStream> _extractStreams(String payload, {required Uri baseUrl}) {
   final normalized = payload
       .replaceAll(r'\/', '/')
@@ -114,28 +134,15 @@ List<ResolvedStream> _extractStreams(String payload, {required Uri baseUrl}) {
       .replaceAll(r'\u0026', '&');
   final candidates = <String>{};
 
-  final keyedPattern = RegExp(
-    r'''(?:og:video|twitter:player:stream|file)\D+https?:\/\/[^\s"'<>]+''',
-    caseSensitive: false,
-    multiLine: true,
-  );
-  for (final match in keyedPattern.allMatches(normalized)) {
-    final raw = RegExp(
-      r'''https?:\/\/[^\s"'<>]+''',
-      caseSensitive: false,
-    ).firstMatch(match.group(0) ?? '');
+  for (final match in _yuKeyedRe.allMatches(normalized)) {
+    final raw = _yuUrlRe.firstMatch(match.group(0) ?? '');
     final value = raw?.group(0)?.trim();
     if (value != null && value.isNotEmpty) {
       candidates.add(value);
     }
   }
 
-  final directPattern = RegExp(
-    r'''https?:\/\/[^\s"'<>]+''',
-    caseSensitive: false,
-    multiLine: true,
-  );
-  for (final match in directPattern.allMatches(normalized)) {
+  for (final match in _yuDirectRe.allMatches(normalized)) {
     final value = match.group(0)?.trim();
     if (value != null &&
         value.isNotEmpty &&
@@ -159,11 +166,7 @@ List<ResolvedStream> _extractStreams(String payload, {required Uri baseUrl}) {
 }
 
 bool _hasHints(String payload) {
-  return RegExp(
-    r'''(og:video|twitter:player:stream|jwplayerOptions|video\.mp4|file:)''',
-    caseSensitive: false,
-    multiLine: true,
-  ).hasMatch(payload);
+  return _yuHintsRe.hasMatch(payload);
 }
 
 ResolvedStream _toResolved(Uri uri, Uri baseUrl) {
