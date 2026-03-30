@@ -272,6 +272,13 @@ String mapErrorMessage(BuildContext context, KumoriyaError error) {
   }
 
   if (error.code.startsWith('anilist.')) {
+    if (error.code == 'anilist.rate_limit') {
+      return context.l10n.errorRateLimitedAnilist;
+    }
+    if (error.code == 'anilist.service_unavailable') {
+      return context.l10n.errorServiceUnavailableAnilist;
+    }
+
     switch (error.kind) {
       case KumoriyaErrorKind.transport:
         return context.l10n.errorTransportAnilist;

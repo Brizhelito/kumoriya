@@ -31,6 +31,7 @@ import '../../../player/presentation/pages/player_page.dart';
 import 'episode_list_page.dart';
 import '../support/episode_display_title.dart';
 import '../support/playback_launch_flow.dart';
+import '../support/plugin_icon_helpers.dart';
 import '../widgets/source_badge.dart';
 
 class AnimeDetailPage extends ConsumerStatefulWidget {
@@ -632,9 +633,7 @@ class _DetailHero extends StatelessWidget {
                       bucket: KumoriyaImageCacheBucket.artwork,
                       width: 120,
                       height: 170,
-                      fit: defaultTargetPlatform == TargetPlatform.android
-                          ? BoxFit.contain
-                          : BoxFit.cover,
+                      fit: BoxFit.cover,
                       alignment: Alignment.topCenter,
                       borderRadius: BorderRadius.circular(KumoriyaRadius.xxl),
                     ),
@@ -791,21 +790,44 @@ class _EpisodeDetailSection extends ConsumerStatefulWidget {
 class _EpisodeDetailSectionState extends ConsumerState<_EpisodeDetailSection> {
   static const int _collapsedEpisodeCount = 12;
   static const int _longSeriesThreshold = 80;
+  static const int _pageSize = 50;
 
   bool _isLaunching = false;
+  bool _isRefreshingSources = false;
   bool _showAllEpisodes = false;
   bool _didAniSkipPrefetch = false;
+  int _currentPage = 0;
+  bool _didAutoSelectPage = false;
 
-  void _scheduleAniSkipPrefetch(List<AnimeEpisode> episodes) {
+  void _scheduleAniSkipPrefetch(
+    List<AnimeEpisode> episodes, {
+    int? focusedEpisodeNumber,
+  }) {
     if (_didAniSkipPrefetch || episodes.isEmpty) {
       return;
     }
-    final episodeNumbers = episodes
+    var episodeNumbers = episodes
         .where((episode) => episode.isAired)
         .map((episode) => episode.number.toInt())
         .where((episodeNumber) => episodeNumber > 0)
         .toSet()
         .toList(growable: false);
+    if (episodeNumbers.isEmpty) {
+      return;
+    }
+
+    if (episodeNumbers.length > _collapsedEpisodeCount) {
+      final focus = focusedEpisodeNumber ?? episodeNumbers.last;
+      final startIndex = (episodeNumbers.indexOf(focus) - 2).clamp(
+        0,
+        episodeNumbers.length - 1,
+      );
+      episodeNumbers = episodeNumbers
+          .skip(startIndex)
+          .take(_collapsedEpisodeCount)
+          .toList(growable: false);
+    }
+
     if (episodeNumbers.isEmpty) {
       return;
     }
@@ -854,8 +876,12 @@ class _EpisodeDetailSectionState extends ConsumerState<_EpisodeDetailSection> {
           ) ??
           0,
     );
-    _scheduleAniSkipPrefetch(widget.detail.episodes);
+    _scheduleAniSkipPrefetch(
+      widget.detail.episodes,
+      focusedEpisodeNumber: latestProgress?.episodeNumber.toInt(),
+    );
     final isLongSeries = totalEpisodeEstimate >= _longSeriesThreshold;
+    // For long series, build ALL rows (no previewLimit) so pagination works.
     final rowsResult = _buildDetailEpisodeRows(
       animeEpisodes: widget.detail.episodes,
       availabilitySummary: summary,
@@ -867,22 +893,41 @@ class _EpisodeDetailSectionState extends ConsumerState<_EpisodeDetailSection> {
           .continueWatchingEpisode(episodeNumber.toInt().toString()),
       upcomingLabel: context.l10n.episodeStatusUpcoming,
       readyLabel: context.l10n.episodePlayNowLabel,
-      previewLimit: !_showAllEpisodes && isLongSeries
-          ? _collapsedEpisodeCount
-          : null,
+      previewLimit: null,
     );
-    final rows = rowsResult.rows;
-    final visibleRows =
-        _showAllEpisodes || rows.length <= _collapsedEpisodeCount
-        ? rows
-        : rows.take(_collapsedEpisodeCount).toList(growable: false);
+    final allRows = rowsResult.rows;
+
+    // Auto-select page containing latest progress (runs once).
+    if (!_didAutoSelectPage && latestProgress != null && allRows.isNotEmpty) {
+      _didAutoSelectPage = true;
+      final focusIndex = allRows.indexWhere(
+        (row) => (row.number - latestProgress.episodeNumber).abs() < 0.001,
+      );
+      if (focusIndex >= 0) {
+        _currentPage = focusIndex ~/ _pageSize;
+      }
+    }
+
+    final pageCount = allRows.isEmpty ? 0 : ((allRows.length - 1) ~/ _pageSize) + 1;
+    final pageStart = _currentPage * _pageSize;
+    final pagedRows = allRows.skip(pageStart).take(_pageSize).toList(growable: false);
+
+    // For short series without pagination, use collapsed preview logic.
+    final List<_DetailEpisodeRowData> visibleRows;
+    if (isLongSeries || pageCount > 1) {
+      visibleRows = pagedRows;
+    } else if (_showAllEpisodes || allRows.length <= _collapsedEpisodeCount) {
+      visibleRows = allRows;
+    } else {
+      visibleRows = allRows.take(_collapsedEpisodeCount).toList(growable: false);
+    }
     final hiddenEpisodeCount = rowsResult.totalCount - visibleRows.length;
     final sourceBadges =
         summary?.playableSources
             .map(
               (source) => SourceBadge(
                 name: source.manifest.displayName,
-                iconUrl: _sourceIconUrl(source.manifest),
+                iconUrl: effectiveSourceIconUrl(source.manifest),
                 audioKinds: source.availableAudioKinds,
                 compact: true,
                 iconOnly: true,
@@ -919,10 +964,22 @@ class _EpisodeDetailSectionState extends ConsumerState<_EpisodeDetailSection> {
               context,
             ).textTheme.bodySmall!.copyWith(color: KumoriyaColors.textTertiary),
           ),
+          const Spacer(),
+          TextButton.icon(
+            onPressed: _isRefreshingSources ? null : _refreshSources,
+            icon: _isRefreshingSources
+                ? const SizedBox(
+                    width: 14,
+                    height: 14,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.refresh_rounded, size: 16),
+            label: Text(_refreshSourcesLabel(context)),
+          ),
         ],
       ),
       if (!isLongSeries &&
-          rows.any(
+          allRows.any(
             (row) => row.sourceEpisodes.keys.any(
               (id) => id != _excludedDetailDownloadSource,
             ),
@@ -931,7 +988,7 @@ class _EpisodeDetailSectionState extends ConsumerState<_EpisodeDetailSection> {
         Align(
           alignment: Alignment.centerLeft,
           child: _DetailDownloadAllButton(
-            rows: rows,
+            rows: allRows,
             anilistId: widget.detail.anime.anilistId,
             animeTitle: widget.detail.anime.title.romaji,
             coverImageUrl: widget.detail.anime.coverImageUrl,
@@ -954,7 +1011,22 @@ class _EpisodeDetailSectionState extends ConsumerState<_EpisodeDetailSection> {
       const SizedBox(height: 10),
     ];
 
-    if (rows.isEmpty) {
+    // Add page selector for long series with multiple pages.
+    if (pageCount > 1) {
+      contentChildren.addAll(<Widget>[
+        const SizedBox(height: 6),
+        _DetailPageSelector(
+          pageCount: pageCount,
+          currentPage: _currentPage,
+          pageSize: _pageSize,
+          totalRows: allRows.length,
+          onPageSelected: (page) => setState(() => _currentPage = page),
+        ),
+        const SizedBox(height: 6),
+      ]);
+    }
+
+    if (allRows.isEmpty) {
       contentChildren.add(
         Text(
           context.l10n.episodeListEmpty,
@@ -966,12 +1038,12 @@ class _EpisodeDetailSectionState extends ConsumerState<_EpisodeDetailSection> {
       final dlTasksState = ref.watch(
         downloadTasksByAnimeProvider(widget.detail.anime.anilistId),
       );
-      final dlTaskMap = <double, DownloadTask>{};
+      final dlTaskMap = <int, DownloadTask>{};
       dlTasksState.whenData((result) {
         result.fold(
           onSuccess: (tasks) {
             for (final t in tasks) {
-              dlTaskMap[t.episodeNumber] = t;
+              dlTaskMap[(t.episodeNumber * 1000).round()] = t;
             }
           },
           onFailure: (_) {},
@@ -980,13 +1052,9 @@ class _EpisodeDetailSectionState extends ConsumerState<_EpisodeDetailSection> {
 
       contentChildren.addAll(
         visibleRows.map((row) {
-          DownloadTask? dlTask;
-          for (final entry in dlTaskMap.entries) {
-            if ((entry.key - row.number).abs() < 0.001) {
-              dlTask = entry.value;
-              break;
-            }
-          }
+          // Direct map lookup by rounded key to avoid float comparison issues.
+          final dlKey = (row.number * 1000).round();
+          final dlTask = dlTaskMap[dlKey];
           return _DetailEpisodeCard(
             row: row,
             anilistId: widget.detail.anime.anilistId,
@@ -1018,7 +1086,7 @@ class _EpisodeDetailSectionState extends ConsumerState<_EpisodeDetailSection> {
         ]);
       } else if (!isLongSeries &&
           _showAllEpisodes &&
-          rows.length > _collapsedEpisodeCount) {
+          allRows.length > _collapsedEpisodeCount) {
         contentChildren.addAll(<Widget>[
           const SizedBox(height: 6),
           Center(
@@ -1047,6 +1115,41 @@ class _EpisodeDetailSectionState extends ConsumerState<_EpisodeDetailSection> {
         children: contentChildren,
       ),
     );
+  }
+
+  Future<void> _refreshSources() async {
+    if (_isRefreshingSources) {
+      return;
+    }
+    setState(() => _isRefreshingSources = true);
+
+    final result = await ref
+        .read(loadSourceAvailabilitySummaryUseCaseProvider)
+        .refresh(widget.detail);
+
+    if (!mounted) {
+      return;
+    }
+
+    setState(() => _isRefreshingSources = false);
+    ref.invalidate(
+      sourceAvailabilitySummaryProvider(widget.detail.anime.anilistId),
+    );
+
+    result.fold(
+      onFailure: (error) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(mapErrorMessage(context, error))),
+        );
+      },
+      onSuccess: (_) {},
+    );
+  }
+
+  String _refreshSourcesLabel(BuildContext context) {
+    return Localizations.localeOf(context).languageCode == 'es'
+        ? 'Refrescar fuentes'
+        : 'Refresh sources';
   }
 
   Future<void> _handleEpisodeTap(
@@ -1518,6 +1621,51 @@ class _ActionButton extends StatelessWidget {
   }
 }
 
+// ─── Page selector for detail section ────────────────────────────────────────
+
+class _DetailPageSelector extends StatelessWidget {
+  const _DetailPageSelector({
+    required this.pageCount,
+    required this.currentPage,
+    required this.pageSize,
+    required this.totalRows,
+    required this.onPageSelected,
+  });
+
+  final int pageCount;
+  final int currentPage;
+  final int pageSize;
+  final int totalRows;
+  final void Function(int page) onPageSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 36,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        itemCount: pageCount,
+        separatorBuilder: (_, __) => const SizedBox(width: 6),
+        itemBuilder: (context, index) {
+          final start = index * pageSize + 1;
+          final end = ((index + 1) * pageSize).clamp(0, totalRows);
+          final isSelected = index == currentPage;
+          return ChoiceChip(
+            label: Text(
+              '$start–$end',
+              style: const TextStyle(fontSize: 11),
+            ),
+            selected: isSelected,
+            onSelected: (_) => onPageSelected(index),
+            visualDensity: VisualDensity.compact,
+            padding: const EdgeInsets.symmetric(horizontal: 4),
+          );
+        },
+      ),
+    );
+  }
+}
+
 T? _extractSuccessValue<T>(AsyncValue asyncValue) {
   return asyncValue.maybeWhen(
     data: (result) {
@@ -1756,13 +1904,6 @@ String _statusLabel(BuildContext context, AnimeStatus status) {
     AnimeStatus.hiatus => context.l10n.statusOnHiatus,
     AnimeStatus.unknown => context.l10n.statusUnknown,
   };
-}
-
-String? _sourceIconUrl(PluginManifest manifest) {
-  if (manifest.iconUrl != null && manifest.iconUrl!.trim().isNotEmpty) {
-    return manifest.iconUrl;
-  }
-  return null;
 }
 
 String _debugPreferenceSummary(PlaybackPreference preference) {
@@ -2050,7 +2191,7 @@ class _DetailDownloadAllButtonState
                 (source) => ListTile(
                   leading: SourceBadge(
                     name: source.manifest.displayName,
-                    iconUrl: source.manifest.iconUrl,
+                    iconUrl: effectiveSourceIconUrl(source.manifest),
                     compact: true,
                     iconOnly: true,
                   ),

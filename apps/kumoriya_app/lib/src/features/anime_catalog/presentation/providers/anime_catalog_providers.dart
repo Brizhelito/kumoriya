@@ -6,13 +6,16 @@ import 'package:kumoriya_core/kumoriya_core.dart';
 import 'package:kumoriya_domain/kumoriya_domain.dart';
 import 'package:kumoriya_plugins/kumoriya_plugins.dart';
 
+import '../../../../app/runtime_config.dart';
 import '../../application/use_cases/anime_catalog_use_cases.dart';
 import '../../application/matching/anilist_source_matcher.dart';
 import '../../application/models/resolved_server_link_result.dart';
 import '../../application/models/episode_playback.dart';
+import '../../application/models/seasonal_discovery_catalog.dart';
 import '../../application/models/source_availability.dart';
 import '../../application/services/anime_nexus_chapter_service.dart';
 import '../../application/services/background_source_availability_warmup_service.dart';
+import '../../application/services/cached_anime_catalog_repository.dart';
 import '../../application/services/resolver_registry.dart';
 import '../../application/services/mal_metadata_bridge_service.dart';
 import '../../application/services/plugin_runtime_catalog.dart';
@@ -28,7 +31,7 @@ import '../../../player/application/use_cases/clear_playback_preference_use_case
 import 'storage_providers.dart';
 
 final anilistGraphqlClientProvider = Provider<AnilistGraphqlClient>((ref) {
-  return HttpAnilistGraphqlClient();
+  return HttpAnilistGraphqlClient(config: KumoriyaRuntimeConfig.anilistClient);
 });
 
 final anilistMetadataGatewayProvider = Provider<AnilistMetadataGateway>((ref) {
@@ -38,8 +41,12 @@ final anilistMetadataGatewayProvider = Provider<AnilistMetadataGateway>((ref) {
 });
 
 final animeCatalogRepositoryProvider = Provider<AnimeCatalogRepository>((ref) {
-  return AnilistAnimeCatalogRepository(
-    gateway: ref.watch(anilistMetadataGatewayProvider),
+  return CachedAnimeCatalogRepository(
+    delegate: AnilistAnimeCatalogRepository(
+      gateway: ref.watch(anilistMetadataGatewayProvider),
+    ),
+    cacheStore: ref.watch(anilistCacheStoreProvider),
+    episodeCacheStore: ref.watch(episodeCacheStoreProvider),
   );
 });
 
@@ -170,11 +177,57 @@ final getHomeCatalogUseCaseProvider = Provider<GetHomeCatalogUseCase>((ref) {
   return GetHomeCatalogUseCase(ref.watch(animeCatalogRepositoryProvider));
 });
 
+final getTrendingCatalogUseCaseProvider = Provider<GetTrendingCatalogUseCase>((
+  ref,
+) {
+  return GetTrendingCatalogUseCase(ref.watch(animeCatalogRepositoryProvider));
+});
+
+final getSeasonCatalogUseCaseProvider = Provider<GetSeasonCatalogUseCase>((
+  ref,
+) {
+  return GetSeasonCatalogUseCase(ref.watch(animeCatalogRepositoryProvider));
+});
+
+final getUpcomingSeasonCatalogUseCaseProvider =
+    Provider<GetUpcomingSeasonCatalogUseCase>((ref) {
+      return GetUpcomingSeasonCatalogUseCase(
+        ref.watch(animeCatalogRepositoryProvider),
+      );
+    });
+
+final getSeasonRecommendationsUseCaseProvider =
+    Provider<GetSeasonRecommendationsUseCase>((ref) {
+      return GetSeasonRecommendationsUseCase(
+        ref.watch(animeCatalogRepositoryProvider),
+      );
+    });
+
+final getSeasonalDiscoveryCatalogUseCaseProvider =
+    Provider<GetSeasonalDiscoveryCatalogUseCase>((ref) {
+      return GetSeasonalDiscoveryCatalogUseCase(
+        seasonCatalog: ref.watch(getSeasonCatalogUseCaseProvider),
+        upcomingSeasonCatalog: ref.watch(
+          getUpcomingSeasonCatalogUseCaseProvider,
+        ),
+        seasonRecommendations: ref.watch(
+          getSeasonRecommendationsUseCaseProvider,
+        ),
+      );
+    });
+
 final getCalendarCatalogUseCaseProvider = Provider<GetCalendarCatalogUseCase>((
   ref,
 ) {
   return GetCalendarCatalogUseCase(ref.watch(animeCatalogRepositoryProvider));
 });
+
+final getAiringCalendarSlotsUseCaseProvider =
+    Provider<GetAiringCalendarSlotsUseCase>((ref) {
+      return GetAiringCalendarSlotsUseCase(
+        ref.watch(animeCatalogRepositoryProvider),
+      );
+    });
 
 final searchAnimeUseCaseProvider = Provider<SearchAnimeUseCase>((ref) {
   return SearchAnimeUseCase(ref.watch(animeCatalogRepositoryProvider));
@@ -258,11 +311,40 @@ final startEpisodePlaybackUseCaseProvider =
 
 final homeCatalogProvider =
     FutureProvider.autoDispose<Result<List<Anime>, KumoriyaError>>((ref) async {
+      final link = ref.keepAlive();
+      final timer = Timer(const Duration(minutes: 15), link.close);
+      ref.onDispose(timer.cancel);
       return ref.watch(getHomeCatalogUseCaseProvider).call();
+    });
+
+final trendingCatalogProvider = FutureProvider.autoDispose
+    .family<Result<List<Anime>, KumoriyaError>, int>((ref, perPage) async {
+      final link = ref.keepAlive();
+      final timer = Timer(const Duration(minutes: 15), link.close);
+      ref.onDispose(timer.cancel);
+      return ref
+          .watch(getTrendingCatalogUseCaseProvider)
+          .call(perPage: perPage);
+    });
+
+final seasonalDiscoveryCatalogProvider = FutureProvider.autoDispose
+    .family<
+      Result<SeasonalDiscoveryCatalog, KumoriyaError>,
+      SeasonalCatalogRequest
+    >((ref, request) async {
+      final link = ref.keepAlive();
+      final timer = Timer(const Duration(minutes: 15), link.close);
+      ref.onDispose(timer.cancel);
+      return ref
+          .watch(getSeasonalDiscoveryCatalogUseCaseProvider)
+          .call(request);
     });
 
 final calendarCatalogProvider =
     FutureProvider.autoDispose<Result<List<Anime>, KumoriyaError>>((ref) async {
+      final link = ref.keepAlive();
+      final timer = Timer(const Duration(minutes: 5), link.close);
+      ref.onDispose(timer.cancel);
       final now = DateTime.now();
       final from = startOfLocalCalendarWeek(now);
       return ref
@@ -280,6 +362,70 @@ DateTime startOfLocalCalendarWeek(DateTime value) {
   return startOfDay.subtract(Duration(days: daysFromMonday));
 }
 
+DateTime calendarMonthKey(DateTime value) => DateTime(value.year, value.month);
+
+// ---------------------------------------------------------------------------
+// Month calendar providers
+// ---------------------------------------------------------------------------
+
+/// The month currently displayed in the calendar grid.
+final calendarFocusMonthProvider =
+    NotifierProvider<CalendarFocusMonthNotifier, DateTime>(
+      CalendarFocusMonthNotifier.new,
+    );
+
+class CalendarFocusMonthNotifier extends Notifier<DateTime> {
+  @override
+  DateTime build() {
+    final now = DateTime.now();
+    return calendarMonthKey(now);
+  }
+
+  void set(DateTime value) => state = calendarMonthKey(value);
+}
+
+/// The specific day selected by the user (defaults to today).
+final calendarSelectedDayProvider =
+    NotifierProvider<CalendarSelectedDayNotifier, DateTime>(
+      CalendarSelectedDayNotifier.new,
+    );
+
+class CalendarSelectedDayNotifier extends Notifier<DateTime> {
+  @override
+  DateTime build() {
+    final now = DateTime.now();
+    return DateTime(now.year, now.month, now.day);
+  }
+
+  void set(DateTime value) => state = value;
+}
+
+/// Fetches airing entries for a single calendar month and keeps them warm in
+/// memory for a short session window so moving back and forth does not refetch
+/// immediately.
+final calendarMonthSlotsProvider = FutureProvider.autoDispose
+    .family<Result<List<Anime>, KumoriyaError>, DateTime>((ref, month) async {
+      final link = ref.keepAlive();
+      final timer = Timer(const Duration(minutes: 10), link.close);
+      ref.onDispose(timer.cancel);
+
+      final normalizedMonth = calendarMonthKey(month);
+      final from = normalizedMonth;
+      final to = DateTime(normalizedMonth.year, normalizedMonth.month + 1);
+
+      return ref
+          .watch(getAiringCalendarSlotsUseCaseProvider)
+          .call(from: from, to: to, perPage: 100);
+    });
+
+final calendarFocusedMonthSlotsProvider =
+    FutureProvider.autoDispose<Result<List<Anime>, KumoriyaError>>((ref) async {
+      final focusMonth = ref.watch(calendarFocusMonthProvider);
+      return ref.watch(
+        calendarMonthSlotsProvider(calendarMonthKey(focusMonth)).future,
+      );
+    });
+
 final searchCatalogProvider = FutureProvider.autoDispose
     .family<Result<List<Anime>, KumoriyaError>, String>((ref, query) async {
       if (query.trim().isEmpty) {
@@ -291,7 +437,9 @@ final searchCatalogProvider = FutureProvider.autoDispose
 
 final animeDetailProvider = FutureProvider.autoDispose
     .family<Result<AnimeDetail, KumoriyaError>, int>((ref, anilistId) async {
-      ref.keepAlive();
+      final link = ref.keepAlive();
+      final timer = Timer(const Duration(minutes: 20), link.close);
+      ref.onDispose(timer.cancel);
       return ref.watch(getAnimeDetailUseCaseProvider).call(anilistId);
     });
 
@@ -300,6 +448,9 @@ final animeEpisodesProvider = FutureProvider.autoDispose
       ref,
       anilistId,
     ) async {
+      final link = ref.keepAlive();
+      final timer = Timer(const Duration(minutes: 20), link.close);
+      ref.onDispose(timer.cancel);
       return ref.watch(getAnimeEpisodesUseCaseProvider).call(anilistId);
     });
 
@@ -308,7 +459,9 @@ final sourceAvailabilitySummaryProvider = FutureProvider.autoDispose
       ref,
       anilistId,
     ) async {
-      ref.keepAlive();
+      final link = ref.keepAlive();
+      final timer = Timer(const Duration(minutes: 5), link.close);
+      ref.onDispose(timer.cancel);
       final detailResult = await ref.watch(
         animeDetailProvider(anilistId).future,
       );

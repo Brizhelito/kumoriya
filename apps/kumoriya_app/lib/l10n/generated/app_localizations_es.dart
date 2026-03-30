@@ -30,6 +30,14 @@ class AppLocalizationsEs extends AppLocalizations {
       'No se pudo conectar con AniList. Revisa tu conexion y vuelve a intentar.';
 
   @override
+  String get errorServiceUnavailableAnilist =>
+      'AniList no esta disponible en este momento. Intenta mas tarde.';
+
+  @override
+  String get errorRateLimitedAnilist =>
+      'AniList esta limitando las solicitudes en este momento. Espera un poco y vuelve a intentar.';
+
+  @override
   String get errorMappingAnilist =>
       'AniList devolvio datos que no se pudieron interpretar de forma segura.';
 
@@ -74,6 +82,70 @@ class AppLocalizationsEs extends AppLocalizations {
   @override
   String get homeEmptyCatalog =>
       'No se encontraron animes en tendencia en AniList en este momento.';
+
+  @override
+  String get homeSeasonHubSection => 'Temporadas';
+
+  @override
+  String get homeSeasonHubTitle => 'Explorar temporada';
+
+  @override
+  String get homeSeasonHubSubtitle =>
+      'Mira lo mas trending de la season, los proximos estrenos y los picks de la comunidad.';
+
+  @override
+  String get trendingPageTitle => 'Trending';
+
+  @override
+  String get trendingPageSubtitle =>
+      'Ranking completo de AniList ordenado por tendencia actual.';
+
+  @override
+  String get seasonHubTitle => 'Por temporada';
+
+  @override
+  String get seasonHubSubtitle =>
+      'Cambia de season para ver que domina ahora, que sigue por estrenarse y que recomienda mas la comunidad.';
+
+  @override
+  String get seasonHubLoading => 'Cargando temporada...';
+
+  @override
+  String get seasonHubCarryoverNote =>
+      'Incluye series que comenzaron en la temporada anterior y siguen en emision durante esta season.';
+
+  @override
+  String get seasonHubInSeasonSection => 'En emision';
+
+  @override
+  String get seasonHubUpcomingSection => 'Proximos lanzamientos';
+
+  @override
+  String get seasonHubRecommendedSection => 'Recomendados por la comunidad';
+
+  @override
+  String get seasonHubInSeasonEmpty =>
+      'No hay animes en emision para esta season.';
+
+  @override
+  String get seasonHubUpcomingEmpty =>
+      'No hay estrenos confirmados para esta season.';
+
+  @override
+  String get seasonHubRecommendedEmpty =>
+      'Todavia no hay suficientes senales de comunidad para recomendar esta season.';
+
+  @override
+  String get seasonWinter => 'Invierno';
+
+  @override
+  String get seasonSpring => 'Primavera';
+
+  @override
+  String get seasonSummer => 'Verano';
+
+  @override
+  String get seasonFall => 'Otono';
 
   @override
   String get searchTitle => 'Buscar en AniList';
@@ -822,7 +894,7 @@ class AppLocalizationsEs extends AppLocalizations {
   String get calendarTitle => 'Calendario';
 
   @override
-  String get calendarSubtitle => 'Emisión por día';
+  String get calendarSubtitle => 'Calendario de emisión por fecha';
 
   @override
   String get calendarNoAiring => 'No se encontraron animes en emisión.';
@@ -838,6 +910,24 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get downloadsSubtitle => 'Episodios sin conexión';
+
+  @override
+  String get downloadsTabActive => 'Activas';
+
+  @override
+  String get downloadsTabQueue => 'En cola';
+
+  @override
+  String get downloadsTabCompleted => 'Descargadas';
+
+  @override
+  String get downloadsActiveEmpty => 'No hay descargas activas.';
+
+  @override
+  String get downloadsQueueEmpty => 'No hay descargas en cola.';
+
+  @override
+  String get downloadsCompletedEmpty => 'No hay episodios descargados.';
 
   @override
   String get libraryTitle => 'Biblioteca';
@@ -1008,6 +1098,45 @@ class AppLocalizationsEs extends AppLocalizations {
   String get settingsSubtitleFontSize => 'Tamaño de fuente';
 
   @override
+  String get settingsSubtitleFontColor => 'Color del texto';
+
+  @override
+  String get settingsSubtitleFontOpacity => 'Opacidad del texto';
+
+  @override
+  String get settingsSubtitleBgColor => 'Color del fondo';
+
+  @override
+  String get settingsSubtitleBgOpacity => 'Opacidad del fondo';
+
+  @override
+  String get settingsSubtitleBgBlack => 'Negro';
+
+  @override
+  String get settingsSubtitleBgDarkGray => 'Gris oscuro';
+
+  @override
+  String get settingsSubtitleBgNone => 'Sin fondo';
+
+  @override
+  String get settingsSubtitleEdgeStyle => 'Estilo del borde';
+
+  @override
+  String get settingsSubtitleEdgeNone => 'Ninguno';
+
+  @override
+  String get settingsSubtitleEdgeOutline => 'Contorno';
+
+  @override
+  String get settingsSubtitleEdgeDropShadow => 'Sombra';
+
+  @override
+  String get settingsSubtitleEdgeRaised => 'Relieve';
+
+  @override
+  String get settingsSubtitleEdgeDepressed => 'Hundido';
+
+  @override
   String get settingsSubtitleSmall => 'P';
 
   @override
@@ -1022,6 +1151,13 @@ class AppLocalizationsEs extends AppLocalizations {
   @override
   String get settingsSubtitleBackground =>
       'Mostrar fondo detrás de los subtítulos';
+
+  @override
+  String get playerSubtitleStyle => 'Estilo de subtítulos';
+
+  @override
+  String get playerSubtitleStyleDescription =>
+      'Mejora la legibilidad sin salir del reproductor.';
 
   @override
   String get playerSkipIntro => 'Saltar intro';

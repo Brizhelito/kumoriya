@@ -18,6 +18,7 @@ class AnimeCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(KumoriyaRadius.xl),
@@ -35,18 +36,18 @@ class AnimeCard extends StatelessWidget {
             anime.title.romaji,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: Theme.of(
-              context,
-            ).textTheme.labelLarge!.copyWith(color: KumoriyaColors.textPrimary),
+            style: textTheme.labelLarge!.copyWith(
+              color: KumoriyaColors.textPrimary,
+            ),
           ),
           if (anime.releaseYear != null)
             Text(
               anime.releaseYear.toString(),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: Theme.of(
-                context,
-              ).textTheme.bodySmall!.copyWith(color: KumoriyaColors.textMuted),
+              style: textTheme.bodySmall!.copyWith(
+                color: KumoriyaColors.textMuted,
+              ),
             ),
         ],
       ),
@@ -125,8 +126,10 @@ class _PosterImageState extends State<_PosterImage> {
                   left: 8,
                   child: _EpisodeCountBadge(count: widget.episodeCount!),
                 ),
-              if (_hovered)
-                Center(
+              AnimatedOpacity(
+                opacity: _hovered ? 1.0 : 0.0,
+                duration: const Duration(milliseconds: 250),
+                child: Center(
                   child: AnimatedScale(
                     scale: _hovered ? 1.0 : 0.7,
                     duration: const Duration(milliseconds: 250),
@@ -154,6 +157,7 @@ class _PosterImageState extends State<_PosterImage> {
                     ),
                   ),
                 ),
+              ),
             ],
           ),
         ),

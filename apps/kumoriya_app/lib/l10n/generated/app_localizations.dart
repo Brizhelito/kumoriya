@@ -134,6 +134,18 @@ abstract class AppLocalizations {
   /// **'Could not reach AniList. Check your connection and retry.'**
   String get errorTransportAnilist;
 
+  /// No description provided for @errorServiceUnavailableAnilist.
+  ///
+  /// In en, this message translates to:
+  /// **'AniList is temporarily unavailable. Check back in a moment.'**
+  String get errorServiceUnavailableAnilist;
+
+  /// No description provided for @errorRateLimitedAnilist.
+  ///
+  /// In en, this message translates to:
+  /// **'AniList is rate-limiting requests right now. Please wait a moment and retry.'**
+  String get errorRateLimitedAnilist;
+
   /// No description provided for @errorMappingAnilist.
   ///
   /// In en, this message translates to:
@@ -205,6 +217,120 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'No trending anime found in AniList right now.'**
   String get homeEmptyCatalog;
+
+  /// No description provided for @homeSeasonHubSection.
+  ///
+  /// In en, this message translates to:
+  /// **'Seasons'**
+  String get homeSeasonHubSection;
+
+  /// No description provided for @homeSeasonHubTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Explore this season'**
+  String get homeSeasonHubTitle;
+
+  /// No description provided for @homeSeasonHubSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'See the most trending shows, upcoming premieres, and the community\'s top picks.'**
+  String get homeSeasonHubSubtitle;
+
+  /// No description provided for @trendingPageTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Trending'**
+  String get trendingPageTitle;
+
+  /// No description provided for @trendingPageSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Full AniList ranking sorted by current trend momentum.'**
+  String get trendingPageSubtitle;
+
+  /// No description provided for @seasonHubTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Seasonal'**
+  String get seasonHubTitle;
+
+  /// No description provided for @seasonHubSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Switch seasons to see what is trending now, what is still upcoming, and what the community is backing the most.'**
+  String get seasonHubSubtitle;
+
+  /// No description provided for @seasonHubLoading.
+  ///
+  /// In en, this message translates to:
+  /// **'Loading season...'**
+  String get seasonHubLoading;
+
+  /// No description provided for @seasonHubCarryoverNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Includes shows that started in the previous season and are still releasing during this one.'**
+  String get seasonHubCarryoverNote;
+
+  /// No description provided for @seasonHubInSeasonSection.
+  ///
+  /// In en, this message translates to:
+  /// **'Now airing'**
+  String get seasonHubInSeasonSection;
+
+  /// No description provided for @seasonHubUpcomingSection.
+  ///
+  /// In en, this message translates to:
+  /// **'Upcoming releases'**
+  String get seasonHubUpcomingSection;
+
+  /// No description provided for @seasonHubRecommendedSection.
+  ///
+  /// In en, this message translates to:
+  /// **'Community picks'**
+  String get seasonHubRecommendedSection;
+
+  /// No description provided for @seasonHubInSeasonEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No anime are airing for this season.'**
+  String get seasonHubInSeasonEmpty;
+
+  /// No description provided for @seasonHubUpcomingEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No confirmed premieres for this season yet.'**
+  String get seasonHubUpcomingEmpty;
+
+  /// No description provided for @seasonHubRecommendedEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'There is not enough community signal to recommend this season yet.'**
+  String get seasonHubRecommendedEmpty;
+
+  /// No description provided for @seasonWinter.
+  ///
+  /// In en, this message translates to:
+  /// **'Winter'**
+  String get seasonWinter;
+
+  /// No description provided for @seasonSpring.
+  ///
+  /// In en, this message translates to:
+  /// **'Spring'**
+  String get seasonSpring;
+
+  /// No description provided for @seasonSummer.
+  ///
+  /// In en, this message translates to:
+  /// **'Summer'**
+  String get seasonSummer;
+
+  /// No description provided for @seasonFall.
+  ///
+  /// In en, this message translates to:
+  /// **'Fall'**
+  String get seasonFall;
 
   /// No description provided for @searchTitle.
   ///
@@ -1414,7 +1540,7 @@ abstract class AppLocalizations {
   /// No description provided for @calendarSubtitle.
   ///
   /// In en, this message translates to:
-  /// **'Airing by day'**
+  /// **'Airing schedule by date'**
   String get calendarSubtitle;
 
   /// No description provided for @calendarNoAiring.
@@ -1446,6 +1572,42 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Offline episodes'**
   String get downloadsSubtitle;
+
+  /// No description provided for @downloadsTabActive.
+  ///
+  /// In en, this message translates to:
+  /// **'Active'**
+  String get downloadsTabActive;
+
+  /// No description provided for @downloadsTabQueue.
+  ///
+  /// In en, this message translates to:
+  /// **'Queue'**
+  String get downloadsTabQueue;
+
+  /// No description provided for @downloadsTabCompleted.
+  ///
+  /// In en, this message translates to:
+  /// **'Completed'**
+  String get downloadsTabCompleted;
+
+  /// No description provided for @downloadsActiveEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No active downloads.'**
+  String get downloadsActiveEmpty;
+
+  /// No description provided for @downloadsQueueEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No downloads queued.'**
+  String get downloadsQueueEmpty;
+
+  /// No description provided for @downloadsCompletedEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No completed downloads.'**
+  String get downloadsCompletedEmpty;
 
   /// No description provided for @libraryTitle.
   ///
@@ -1759,6 +1921,84 @@ abstract class AppLocalizations {
   /// **'Font size'**
   String get settingsSubtitleFontSize;
 
+  /// No description provided for @settingsSubtitleFontColor.
+  ///
+  /// In en, this message translates to:
+  /// **'Font color'**
+  String get settingsSubtitleFontColor;
+
+  /// No description provided for @settingsSubtitleFontOpacity.
+  ///
+  /// In en, this message translates to:
+  /// **'Font opacity'**
+  String get settingsSubtitleFontOpacity;
+
+  /// No description provided for @settingsSubtitleBgColor.
+  ///
+  /// In en, this message translates to:
+  /// **'Background color'**
+  String get settingsSubtitleBgColor;
+
+  /// No description provided for @settingsSubtitleBgOpacity.
+  ///
+  /// In en, this message translates to:
+  /// **'Background opacity'**
+  String get settingsSubtitleBgOpacity;
+
+  /// No description provided for @settingsSubtitleBgBlack.
+  ///
+  /// In en, this message translates to:
+  /// **'Black'**
+  String get settingsSubtitleBgBlack;
+
+  /// No description provided for @settingsSubtitleBgDarkGray.
+  ///
+  /// In en, this message translates to:
+  /// **'Dark gray'**
+  String get settingsSubtitleBgDarkGray;
+
+  /// No description provided for @settingsSubtitleBgNone.
+  ///
+  /// In en, this message translates to:
+  /// **'None'**
+  String get settingsSubtitleBgNone;
+
+  /// No description provided for @settingsSubtitleEdgeStyle.
+  ///
+  /// In en, this message translates to:
+  /// **'Edge style'**
+  String get settingsSubtitleEdgeStyle;
+
+  /// No description provided for @settingsSubtitleEdgeNone.
+  ///
+  /// In en, this message translates to:
+  /// **'None'**
+  String get settingsSubtitleEdgeNone;
+
+  /// No description provided for @settingsSubtitleEdgeOutline.
+  ///
+  /// In en, this message translates to:
+  /// **'Outline'**
+  String get settingsSubtitleEdgeOutline;
+
+  /// No description provided for @settingsSubtitleEdgeDropShadow.
+  ///
+  /// In en, this message translates to:
+  /// **'Drop shadow'**
+  String get settingsSubtitleEdgeDropShadow;
+
+  /// No description provided for @settingsSubtitleEdgeRaised.
+  ///
+  /// In en, this message translates to:
+  /// **'Raised'**
+  String get settingsSubtitleEdgeRaised;
+
+  /// No description provided for @settingsSubtitleEdgeDepressed.
+  ///
+  /// In en, this message translates to:
+  /// **'Depressed'**
+  String get settingsSubtitleEdgeDepressed;
+
   /// No description provided for @settingsSubtitleSmall.
   ///
   /// In en, this message translates to:
@@ -1788,6 +2028,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Show background behind subtitles'**
   String get settingsSubtitleBackground;
+
+  /// No description provided for @playerSubtitleStyle.
+  ///
+  /// In en, this message translates to:
+  /// **'Subtitle style'**
+  String get playerSubtitleStyle;
+
+  /// No description provided for @playerSubtitleStyleDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Improve readability without leaving the player.'**
+  String get playerSubtitleStyleDescription;
 
   /// No description provided for @playerSkipIntro.
   ///

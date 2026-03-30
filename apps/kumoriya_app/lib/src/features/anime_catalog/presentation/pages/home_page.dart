@@ -26,8 +26,12 @@ import '../../../player/presentation/pages/anime_nexus_playground_page.dart';
 import '../providers/anime_catalog_providers.dart';
 import '../providers/storage_providers.dart';
 import '../support/playback_launch_flow.dart';
+import '../support/season_presentation.dart';
+import '../widgets/anime_ranked_tile.dart';
 import 'anime_detail_page.dart';
 import 'episode_list_page.dart';
+import 'season_hub_page.dart';
+import 'trending_page.dart';
 
 class HomePage extends ConsumerWidget {
   const HomePage({super.key});
@@ -36,7 +40,6 @@ class HomePage extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final homeCatalog = ref.watch(homeCatalogProvider);
     final continueWatching = ref.watch(continueWatchingProvider);
-    final airingToday = ref.watch(calendarCatalogProvider);
 
     return Scaffold(
       backgroundColor: KumoriyaColors.background,
@@ -61,7 +64,6 @@ class HomePage extends ConsumerWidget {
             onSuccess: (animeList) => _HomeBody(
               animeList: animeList,
               continueWatching: continueWatching,
-              airingToday: airingToday,
               onRefresh: () {
                 ref.invalidate(homeCatalogProvider);
                 ref.invalidate(continueWatchingProvider);
@@ -79,14 +81,12 @@ class _HomeBody extends StatelessWidget {
   const _HomeBody({
     required this.animeList,
     required this.continueWatching,
-    required this.airingToday,
     this.onRefresh,
   });
 
   final List<Anime> animeList;
   final AsyncValue<Result<List<AnimeWatchHistory>, KumoriyaError>>
   continueWatching;
-  final AsyncValue<Result<List<Anime>, KumoriyaError>> airingToday;
   final VoidCallback? onRefresh;
 
   void _openDetail(BuildContext context, int anilistId) {
@@ -95,6 +95,18 @@ class _HomeBody extends StatelessWidget {
         builder: (_) => AnimeDetailPage(anilistId: anilistId),
       ),
     );
+  }
+
+  void _openTrending(BuildContext context) {
+    Navigator.of(
+      context,
+    ).push(MaterialPageRoute<void>(builder: (_) => const TrendingPage()));
+  }
+
+  void _openSeasonHub(BuildContext context) {
+    Navigator.of(
+      context,
+    ).push(MaterialPageRoute<void>(builder: (_) => const SeasonHubPage()));
   }
 
   @override
@@ -127,10 +139,22 @@ class _HomeBody extends StatelessWidget {
               onRetry: onRefresh,
             ),
           ),
+          SliverToBoxAdapter(child: _AiringTodaySection(onRetry: onRefresh)),
           SliverToBoxAdapter(
-            child: _AiringTodaySection(
-              airingToday: airingToday,
-              onRetry: onRefresh,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 24, 16, 0),
+              child: KumoriyaSectionHeader(
+                title: context.l10n.homeSeasonHubSection,
+                onSeeAll: () => _openSeasonHub(context),
+              ),
+            ),
+          ),
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+              child: _SeasonHubSpotlightCard(
+                onTap: () => _openSeasonHub(context),
+              ),
             ),
           ),
           if (animeList.isNotEmpty) ...<Widget>[
@@ -139,6 +163,7 @@ class _HomeBody extends StatelessWidget {
                 padding: const EdgeInsets.fromLTRB(16, 32, 16, 12),
                 child: KumoriyaSectionHeader(
                   title: context.l10n.homeTrendingSection,
+                  onSeeAll: () => _openTrending(context),
                 ),
               ),
             ),
@@ -147,7 +172,7 @@ class _HomeBody extends StatelessWidget {
               sliver: SliverList(
                 delegate: SliverChildBuilderDelegate((context, index) {
                   final anime = animeList[index];
-                  return _TrendingRow(
+                  return AnimeRankedTile(
                     anime: anime,
                     rank: index + 1,
                     onTap: () => _openDetail(context, anime.anilistId),
@@ -172,6 +197,7 @@ class _HomeBody extends StatelessWidget {
 class _MobileHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: Row(
@@ -194,7 +220,7 @@ class _MobileHeader extends StatelessWidget {
             child: Text(
               'K',
               style: TextStyle(
-                color: Theme.of(context).colorScheme.onPrimary,
+                color: theme.colorScheme.onPrimary,
                 fontSize: 16,
                 fontWeight: FontWeight.w900,
               ),
@@ -207,9 +233,9 @@ class _MobileHeader extends StatelessWidget {
             children: <Widget>[
               Text(
                 'Kumoriya',
-                style: Theme.of(
-                  context,
-                ).textTheme.headlineSmall?.copyWith(letterSpacing: -0.3),
+                style: theme.textTheme.headlineSmall?.copyWith(
+                  letterSpacing: -0.3,
+                ),
               ),
               Text(
                 DateFormat.MMMd(
@@ -241,146 +267,75 @@ class _MobileHeader extends StatelessWidget {
   }
 }
 
-class _TrendingRow extends StatefulWidget {
-  const _TrendingRow({
-    required this.anime,
-    required this.rank,
-    required this.onTap,
-  });
+class _SeasonHubSpotlightCard extends StatelessWidget {
+  const _SeasonHubSpotlightCard({required this.onTap});
 
-  final Anime anime;
-  final int rank;
   final VoidCallback onTap;
 
   @override
-  State<_TrendingRow> createState() => _TrendingRowState();
-}
-
-class _TrendingRowState extends State<_TrendingRow> {
-  bool _hovered = false;
-
-  @override
   Widget build(BuildContext context) {
-    return MouseRegion(
-      onEnter: (_) => setState(() => _hovered = true),
-      onExit: (_) => setState(() => _hovered = false),
+    final request = currentSeasonalCatalogRequest();
+    return Material(
+      color: Colors.transparent,
       child: InkWell(
-        onTap: widget.onTap,
         borderRadius: BorderRadius.circular(KumoriyaRadius.xxl),
-        splashColor: KumoriyaColors.primary.withValues(alpha: 0.08),
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
-          margin: const EdgeInsets.only(bottom: 8),
-          padding: const EdgeInsets.all(12),
+        onTap: onTap,
+        child: Ink(
+          padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: _hovered
-                ? KumoriyaColors.surface
-                : KumoriyaColors.surfaceDim,
             borderRadius: BorderRadius.circular(KumoriyaRadius.xxl),
-            border: Border.all(
-              color: _hovered
-                  ? KumoriyaColors.borderMedium
-                  : KumoriyaColors.borderSubtle,
+            gradient: LinearGradient(
+              colors: <Color>[
+                KumoriyaColors.surface,
+                KumoriyaColors.surfaceDim,
+              ],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
             ),
+            border: Border.all(color: KumoriyaColors.borderMedium),
           ),
           child: Row(
             children: <Widget>[
-              SizedBox(
-                width: 32,
-                child: Text(
-                  '${widget.rank}',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w800,
-                    color: KumoriyaColors.primary.withValues(alpha: 0.50),
-                    fontStyle: FontStyle.italic,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 12),
-              ClipRRect(
-                borderRadius: BorderRadius.circular(KumoriyaRadius.md),
-                child: KumoriyaCachedImage(
-                  url: widget.anime.coverImageUrl,
-                  bucket: KumoriyaImageCacheBucket.artwork,
-                  width: 52,
-                  height: 52,
-                  fit: BoxFit.cover,
-                ),
-              ),
-              const SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: <Widget>[
                     Text(
-                      widget.anime.title.romaji,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: Theme.of(context).textTheme.labelLarge,
+                      context.l10n.homeSeasonHubTitle,
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w800,
+                      ),
                     ),
-                    const SizedBox(height: 4),
-                    Row(
-                      children: <Widget>[
-                        if (widget.anime.releaseYear != null) ...<Widget>[
-                          Text(
-                            '${widget.anime.releaseYear}',
-                            style: const TextStyle(
-                              fontSize: 11,
-                              color: KumoriyaColors.textDisabled,
-                            ),
-                          ),
-                          const SizedBox(width: 6),
-                          Container(
-                            width: 3,
-                            height: 3,
-                            decoration: const BoxDecoration(
-                              color: KumoriyaColors.borderMedium,
-                              shape: BoxShape.circle,
-                            ),
-                          ),
-                          const SizedBox(width: 6),
-                        ],
-                        Text(
-                          widget.anime.format.name.toUpperCase(),
-                          style: const TextStyle(
-                            fontSize: 11,
-                            color: KumoriyaColors.textDisabled,
-                            letterSpacing: 0.3,
-                          ),
-                        ),
-                        if (widget.anime.averageScore != null) ...<Widget>[
-                          const SizedBox(width: 6),
-                          Container(
-                            width: 3,
-                            height: 3,
-                            decoration: const BoxDecoration(
-                              color: KumoriyaColors.borderMedium,
-                              shape: BoxShape.circle,
-                            ),
-                          ),
-                          const SizedBox(width: 6),
-                          Text(
-                            '★ ${widget.anime.averageScore}',
-                            style: TextStyle(
-                              fontSize: 11,
-                              color: KumoriyaColors.accentAmber,
-                              fontWeight: FontWeight.w700,
-                              letterSpacing: 0.2,
-                            ),
-                          ),
-                        ],
-                      ],
+                    const SizedBox(height: 6),
+                    Text(
+                      displaySeasonYearLabel(
+                        context,
+                        request.season,
+                        request.year,
+                      ),
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: KumoriyaColors.primary,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      context.l10n.homeSeasonHubSubtitle,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 13,
+                        color: KumoriyaColors.textTertiary,
+                      ),
                     ),
                   ],
                 ),
               ),
-              const SizedBox(width: 8),
+              const SizedBox(width: 12),
               const Icon(
-                Icons.chevron_right_rounded,
-                color: KumoriyaColors.textDisabled,
-                size: 20,
+                Icons.auto_awesome_rounded,
+                color: KumoriyaColors.primary,
               ),
             ],
           ),
@@ -803,14 +758,14 @@ class _ContinueWatchingCardWrapperState
 // Airing Today section
 // ---------------------------------------------------------------------------
 
-class _AiringTodaySection extends StatelessWidget {
-  const _AiringTodaySection({required this.airingToday, this.onRetry});
+class _AiringTodaySection extends ConsumerWidget {
+  const _AiringTodaySection({this.onRetry});
 
-  final AsyncValue<Result<List<Anime>, KumoriyaError>> airingToday;
   final VoidCallback? onRetry;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final airingToday = ref.watch(calendarCatalogProvider);
     return airingToday.when(
       loading: () => const Padding(
         padding: EdgeInsets.only(top: 18),
@@ -852,7 +807,7 @@ class _AiringTodaySection extends StatelessWidget {
                   ),
                 ),
                 SizedBox(
-                  height: 120,
+                  height: 128,
                   child: ListView.separated(
                     scrollDirection: Axis.horizontal,
                     padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -964,6 +919,7 @@ class _AiringTodayCardState extends State<_AiringTodayCard> {
           duration: const Duration(milliseconds: 180),
           width: 260,
           padding: const EdgeInsets.all(12),
+          clipBehavior: Clip.hardEdge,
           decoration: BoxDecoration(
             color: _hovered
                 ? KumoriyaColors.surface

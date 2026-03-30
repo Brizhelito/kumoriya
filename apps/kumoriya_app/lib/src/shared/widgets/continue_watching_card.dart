@@ -36,6 +36,7 @@ class _ContinueWatchingCardState extends State<ContinueWatchingCard> {
       1.0,
     );
     final progressPercent = (progressFraction * 100).round().clamp(0, 100);
+    final textTheme = Theme.of(context).textTheme;
 
     return MouseRegion(
       onEnter: (_) => setState(() => _hovered = true),
@@ -134,30 +135,26 @@ class _ContinueWatchingCardState extends State<ContinueWatchingCard> {
                               widget.title,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: Theme.of(context).textTheme.labelMedium!
-                                  .copyWith(
-                                    color: KumoriyaColors.textSecondary,
-                                  ),
+                              style: textTheme.labelMedium!.copyWith(
+                                color: KumoriyaColors.textSecondary,
+                              ),
                             ),
                             const SizedBox(height: 3),
                             Text(
                               '${context.l10n.continueWatchingEpisode(epNumber)} · $progressPercent%',
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: Theme.of(context).textTheme.titleSmall!
-                                  .copyWith(color: KumoriyaColors.textPrimary),
+                              style: textTheme.titleSmall!.copyWith(
+                                color: KumoriyaColors.textPrimary,
+                              ),
                             ),
                           ],
                         ),
                       ),
                       const SizedBox(width: 10),
-                      AnimatedScale(
-                        scale: _hovered ? 1.03 : 1.0,
-                        duration: const Duration(milliseconds: 220),
-                        child: _ResumeButton(
-                          onTap: widget.isLaunching ? null : widget.onResume,
-                          compact: true,
-                        ),
+                      _ResumeButton(
+                        onTap: widget.isLaunching ? null : widget.onResume,
+                        compact: true,
                       ),
                     ],
                   ),

@@ -47,6 +47,7 @@ class _EpisodeRowState extends State<EpisodeRow> {
   Widget build(BuildContext context) {
     final isActive = widget.isCurrentEpisode;
     final epNum = widget.number.toInt();
+    final textTheme = Theme.of(context).textTheme;
 
     Widget row = MouseRegion(
       onEnter: (_) => setState(() => _hovered = true),
@@ -92,12 +93,11 @@ class _EpisodeRowState extends State<EpisodeRow> {
                             widget.displayTitle,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: Theme.of(context).textTheme.labelLarge
-                                ?.copyWith(
-                                  color: isActive
-                                      ? KumoriyaColors.textPrimary
-                                      : KumoriyaColors.textSecondary,
-                                ),
+                            style: textTheme.labelLarge?.copyWith(
+                              color: isActive
+                                  ? KumoriyaColors.textPrimary
+                                  : KumoriyaColors.textSecondary,
+                            ),
                           ),
                         ),
                         if (isActive && widget.activeLabel != null)
@@ -302,7 +302,7 @@ class _NowPlayingBadgeState extends State<_NowPlayingBadge>
         ),
         child: Text(
           context.l10n.episodePlaying,
-          style: TextStyle(
+          style: const TextStyle(
             fontSize: 9,
             fontWeight: FontWeight.w800,
             color: KumoriyaColors.primary,

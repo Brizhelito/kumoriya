@@ -442,6 +442,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
+          // ── Font size ──
           Text(
             context.l10n.settingsSubtitleFontSize,
             style: const TextStyle(fontWeight: FontWeight.w600),
@@ -472,11 +473,142 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
             },
           ),
           const SizedBox(height: 16),
-          SwitchListTile(
-            contentPadding: EdgeInsets.zero,
-            title: Text(context.l10n.settingsSubtitleBackground),
-            value: settings.showBackground,
-            onChanged: (value) => notifier.setShowBackground(value),
+
+          // ── Font color ──
+          Text(
+            context.l10n.settingsSubtitleFontColor,
+            style: const TextStyle(fontWeight: FontWeight.w600),
+          ),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            children: SubtitleFontColor.values.map((c) {
+              final selected = settings.fontColor == c;
+              return GestureDetector(
+                onTap: () => notifier.save((s) => s.copyWith(fontColor: c)),
+                child: Container(
+                  width: 36,
+                  height: 36,
+                  decoration: BoxDecoration(
+                    color: c.color,
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: selected
+                          ? KumoriyaColors.primary
+                          : KumoriyaColors.borderSubtle,
+                      width: selected ? 3 : 1,
+                    ),
+                  ),
+                  child: selected
+                      ? Icon(
+                          Icons.check,
+                          size: 18,
+                          color:
+                              c == SubtitleFontColor.white ||
+                                  c == SubtitleFontColor.yellow
+                              ? Colors.black
+                              : Colors.white,
+                        )
+                      : null,
+                ),
+              );
+            }).toList(),
+          ),
+          const SizedBox(height: 16),
+
+          // ── Font opacity ──
+          Text(
+            context.l10n.settingsSubtitleFontOpacity,
+            style: const TextStyle(fontWeight: FontWeight.w600),
+          ),
+          Slider(
+            value: settings.fontOpacity,
+            min: 0.25,
+            max: 1.0,
+            divisions: 3,
+            label: '${(settings.fontOpacity * 100).round()}%',
+            onChanged: (v) => notifier.save((s) => s.copyWith(fontOpacity: v)),
+          ),
+          const SizedBox(height: 8),
+
+          // ── Background color ──
+          Text(
+            context.l10n.settingsSubtitleBgColor,
+            style: const TextStyle(fontWeight: FontWeight.w600),
+          ),
+          const SizedBox(height: 8),
+          SegmentedButton<SubtitleBackgroundColor>(
+            segments: <ButtonSegment<SubtitleBackgroundColor>>[
+              ButtonSegment(
+                value: SubtitleBackgroundColor.black,
+                label: Text(context.l10n.settingsSubtitleBgBlack),
+              ),
+              ButtonSegment(
+                value: SubtitleBackgroundColor.darkGray,
+                label: Text(context.l10n.settingsSubtitleBgDarkGray),
+              ),
+              ButtonSegment(
+                value: SubtitleBackgroundColor.transparent,
+                label: Text(context.l10n.settingsSubtitleBgNone),
+              ),
+            ],
+            selected: {settings.backgroundColor},
+            onSelectionChanged: (selection) {
+              notifier.save(
+                (s) => s.copyWith(backgroundColor: selection.first),
+              );
+            },
+          ),
+          const SizedBox(height: 16),
+
+          // ── Background opacity ──
+          if (settings.backgroundColor !=
+              SubtitleBackgroundColor.transparent) ...<Widget>[
+            Text(
+              context.l10n.settingsSubtitleBgOpacity,
+              style: const TextStyle(fontWeight: FontWeight.w600),
+            ),
+            Slider(
+              value: settings.backgroundOpacity,
+              min: 0.0,
+              max: 1.0,
+              divisions: 4,
+              label: '${(settings.backgroundOpacity * 100).round()}%',
+              onChanged: (v) =>
+                  notifier.save((s) => s.copyWith(backgroundOpacity: v)),
+            ),
+            const SizedBox(height: 8),
+          ],
+
+          // ── Edge / outline style ──
+          Text(
+            context.l10n.settingsSubtitleEdgeStyle,
+            style: const TextStyle(fontWeight: FontWeight.w600),
+          ),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: SubtitleEdgeStyle.values.map((style) {
+              final selected = settings.edgeStyle == style;
+              final label = switch (style) {
+                SubtitleEdgeStyle.none => context.l10n.settingsSubtitleEdgeNone,
+                SubtitleEdgeStyle.outline =>
+                  context.l10n.settingsSubtitleEdgeOutline,
+                SubtitleEdgeStyle.dropShadow =>
+                  context.l10n.settingsSubtitleEdgeDropShadow,
+                SubtitleEdgeStyle.raised =>
+                  context.l10n.settingsSubtitleEdgeRaised,
+                SubtitleEdgeStyle.depressed =>
+                  context.l10n.settingsSubtitleEdgeDepressed,
+              };
+              return ChoiceChip(
+                label: Text(label),
+                selected: selected,
+                onSelected: (_) =>
+                    notifier.save((s) => s.copyWith(edgeStyle: style)),
+              );
+            }).toList(),
           ),
           const SizedBox(height: 16),
           _SubtitlePreviewCard(settings: settings),
@@ -551,6 +683,22 @@ class _SubtitlePreviewCard extends StatelessWidget {
         : 'This is how subtitles will look during playback.';
     final previewFontSize = settings.fontSize.pixels * 0.42;
 
+    final effectiveFontColor = settings.fontColor.color.withValues(
+      alpha: settings.fontOpacity,
+    );
+    final effectiveBgColor =
+        settings.backgroundColor == SubtitleBackgroundColor.transparent
+        ? Colors.transparent
+        : settings.backgroundColor.color.withValues(
+            alpha: settings.backgroundOpacity,
+          );
+    final hasBg =
+        settings.backgroundColor != SubtitleBackgroundColor.transparent &&
+        settings.backgroundOpacity > 0;
+
+    // Scale edge shadows for preview size
+    final config = settings.toViewConfiguration();
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(16),
@@ -578,12 +726,12 @@ class _SubtitlePreviewCard extends StatelessWidget {
           Align(
             alignment: Alignment.bottomCenter,
             child: Container(
-              padding: settings.showBackground
+              padding: hasBg
                   ? const EdgeInsets.symmetric(horizontal: 12, vertical: 6)
                   : EdgeInsets.zero,
-              decoration: settings.showBackground
+              decoration: hasBg
                   ? BoxDecoration(
-                      color: Colors.black.withValues(alpha: 0.74),
+                      color: effectiveBgColor,
                       borderRadius: BorderRadius.circular(KumoriyaRadius.lg),
                     )
                   : null,
@@ -593,15 +741,9 @@ class _SubtitlePreviewCard extends StatelessWidget {
                 style: TextStyle(
                   fontSize: previewFontSize,
                   fontWeight: FontWeight.w700,
-                  color: Colors.white,
+                  color: effectiveFontColor,
                   height: 1.2,
-                  shadows: const <Shadow>[
-                    Shadow(
-                      blurRadius: 6,
-                      color: Colors.black87,
-                      offset: Offset(0, 1),
-                    ),
-                  ],
+                  shadows: config.style.shadows,
                 ),
               ),
             ),

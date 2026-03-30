@@ -4,7 +4,6 @@ import 'package:intl/intl.dart';
 import 'package:kumoriya_domain/kumoriya_domain.dart';
 
 import '../../../../app/l10n.dart';
-import '../../../../shared/icons/kumoriya_icons.dart';
 import '../../../../shared/theme/kumoriya_theme.dart';
 import '../../../../shared/widgets/kumoriya_cached_image.dart';
 import '../../../../shared/widgets/status_pill.dart';
@@ -12,242 +11,453 @@ import '../../../../shared/widgets/state_views.dart';
 import '../providers/anime_catalog_providers.dart';
 import 'anime_detail_page.dart';
 
-class CalendarPage extends ConsumerStatefulWidget {
+class CalendarPage extends ConsumerWidget {
   const CalendarPage({super.key});
 
   @override
-  ConsumerState<CalendarPage> createState() => _CalendarPageState();
-}
+  Widget build(BuildContext context, WidgetRef ref) {
+    final slotsAsync = ref.watch(calendarFocusedMonthSlotsProvider);
+    // Fast-path: reuse the home-page week data (already cached) so today's
+    // schedule is visible immediately while the full month loads.
+    final weekSlotsAsync = ref.watch(calendarCatalogProvider);
 
-class _CalendarPageState extends ConsumerState<CalendarPage>
-    with TickerProviderStateMixin {
-  TabController? _tabController;
-
-  @override
-  void dispose() {
-    _tabController?.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final catalogState = ref.watch(calendarCatalogProvider);
+    final partialSlots = weekSlotsAsync.maybeWhen(
+      data: (r) => r.fold(onFailure: (_) => null, onSuccess: (s) => s),
+      orElse: () => null,
+    );
 
     return Scaffold(
       backgroundColor: KumoriyaColors.background,
       body: SafeArea(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: <Widget>[
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
-              child: Text(
-                context.l10n.calendarTitle,
-                style: Theme.of(context).textTheme.headlineMedium,
-              ),
+        child: slotsAsync.when(
+          loading: () => partialSlots != null && partialSlots.isNotEmpty
+              ? _CalendarBody(slots: partialSlots)
+              : const LoadingStateView(),
+          error: (_, _) => ErrorStateView(
+            message: context.l10n.genericLoadFailure,
+            onRetry: () => _retryFocusedMonth(ref),
+          ),
+          data: (result) => result.fold(
+            onFailure: (error) => ErrorStateView(
+              message: mapErrorMessage(context, error),
+              onRetry: () => _retryFocusedMonth(ref),
             ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-              child: Text(
-                context.l10n.calendarSubtitle,
-                style: const TextStyle(
-                  fontSize: 13,
-                  color: KumoriyaColors.textTertiary,
-                ),
-              ),
-            ),
-            Expanded(
-              child: catalogState.when(
-                loading: () => const LoadingStateView(),
-                error: (_, _) => ErrorStateView(
-                  message: context.l10n.genericLoadFailure,
-                  onRetry: () => ref.invalidate(calendarCatalogProvider),
-                ),
-                data: (result) => result.fold(
-                  onFailure: (error) => ErrorStateView(
-                    message: mapErrorMessage(context, error),
-                    onRetry: () => ref.invalidate(calendarCatalogProvider),
-                  ),
-                  onSuccess: (animeList) =>
-                      _buildTabCalendar(context, animeList),
-                ),
-              ),
-            ),
-          ],
+            onSuccess: (slots) => _CalendarBody(slots: slots),
+          ),
         ),
       ),
     );
   }
+}
 
-  Widget _buildTabCalendar(BuildContext context, List<Anime> animeList) {
-    final airing = animeList
-        .where(
-          (a) =>
-              a.status == AnimeStatus.releasing ||
-              a.status == AnimeStatus.notYetReleased,
-        )
-        .toList(growable: false);
+void _retryFocusedMonth(WidgetRef ref) {
+  final month = calendarMonthKey(ref.read(calendarFocusMonthProvider));
+  ref.invalidate(calendarMonthSlotsProvider(month));
+  ref.invalidate(calendarFocusedMonthSlotsProvider);
+}
 
-    if (airing.isEmpty) {
-      return EmptyStateView(
-        message: context.l10n.calendarNoAiring,
-        icon: KumoriyaIcons.navCalendarActive,
-      );
+// ---------------------------------------------------------------------------
+// Calendar body: header + month grid + day detail list
+// ---------------------------------------------------------------------------
+
+class _CalendarBody extends ConsumerStatefulWidget {
+  const _CalendarBody({required this.slots});
+
+  final List<Anime> slots;
+
+  @override
+  ConsumerState<_CalendarBody> createState() => _CalendarBodyState();
+}
+
+class _CalendarBodyState extends ConsumerState<_CalendarBody> {
+  late Map<DateTime, List<Anime>> _grouped;
+
+  @override
+  void initState() {
+    super.initState();
+    _grouped = _groupByDate(widget.slots);
+  }
+
+  @override
+  void didUpdateWidget(covariant _CalendarBody oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!identical(oldWidget.slots, widget.slots)) {
+      _grouped = _groupByDate(widget.slots);
     }
+  }
 
-    final grouped = <int, List<Anime>>{};
-    final todayWeekday = DateTime.now().weekday;
-
-    for (final anime in airing) {
-      final nextAiringAt = anime.nextAiringAt?.toLocal();
-      if (nextAiringAt == null) {
-        grouped.putIfAbsent(todayWeekday, () => <Anime>[]).add(anime);
-        continue;
-      }
-      grouped.putIfAbsent(nextAiringAt.weekday, () => <Anime>[]).add(anime);
+  static Map<DateTime, List<Anime>> _groupByDate(List<Anime> slots) {
+    final map = <DateTime, List<Anime>>{};
+    for (final anime in slots) {
+      final at = anime.nextAiringAt?.toLocal();
+      if (at == null) continue;
+      final day = DateTime(at.year, at.month, at.day);
+      map.putIfAbsent(day, () => <Anime>[]).add(anime);
     }
-
-    for (final items in grouped.values) {
-      items.sort((left, right) {
-        final leftDate = left.nextAiringAt;
-        final rightDate = right.nextAiringAt;
-        if (leftDate == null && rightDate == null) {
-          return left.title.romaji.compareTo(right.title.romaji);
-        }
-        if (leftDate == null) return 1;
-        if (rightDate == null) return -1;
-        final byDate = leftDate.compareTo(rightDate);
-        if (byDate != 0) return byDate;
-        return left.title.romaji.compareTo(right.title.romaji);
+    // Sort each day's list by airing time.
+    for (final list in map.values) {
+      list.sort((a, b) {
+        final at = a.nextAiringAt ?? DateTime(2100);
+        final bt = b.nextAiringAt ?? DateTime(2100);
+        return at.compareTo(bt);
       });
     }
+    return map;
+  }
 
-    // Build ordered list of (weekday, label, items) tuples for tabs.
-    final tabs =
-        <({int weekday, String label, List<Anime> items, bool showTime})>[];
+  @override
+  Widget build(BuildContext context) {
+    final focusMonth = ref.watch(calendarFocusMonthProvider);
+    final selectedDay = ref.watch(calendarSelectedDayProvider);
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
 
-    for (final weekday in <int>[
-      DateTime.monday,
-      DateTime.tuesday,
-      DateTime.wednesday,
-      DateTime.thursday,
-      DateTime.friday,
-      DateTime.saturday,
-      DateTime.sunday,
-    ]) {
-      final items = grouped[weekday] ?? const <Anime>[];
-      tabs.add((
-        weekday: weekday,
-        label: _weekdayShortLabel(context, weekday),
-        items: List<Anime>.from(items, growable: false),
-        showTime: true,
-      ));
-    }
+    // Allowed navigation range: [prevMonth .. nextMonth].
+    final minMonth = DateTime(now.year, now.month - 1);
+    final maxMonth = DateTime(now.year, now.month + 1);
 
-    // Find the initial tab index — default to today's weekday.
-    final todayIndex = tabs.indexWhere((t) => t.weekday == todayWeekday);
-    final initialIndex = todayIndex >= 0 ? todayIndex : 0;
+    final locale = Localizations.localeOf(context).toString();
+    final monthLabel = DateFormat.yMMMM(locale).format(focusMonth);
 
-    // Recreate the tab controller only when the tab count changes.
-    if (_tabController == null || _tabController!.length != tabs.length) {
-      _tabController?.dispose();
-      _tabController = TabController(
-        length: tabs.length,
-        vsync: this,
-        initialIndex: initialIndex,
-      );
-    }
+    final canGoBack = focusMonth.isAfter(minMonth);
+    final canGoForward =
+        focusMonth.isBefore(maxMonth) ||
+        (focusMonth.year == maxMonth.year &&
+            focusMonth.month == maxMonth.month &&
+            false);
 
-    return Column(
-      children: <Widget>[
-        TabBar(
-          controller: _tabController,
-          isScrollable: true,
-          tabAlignment: TabAlignment.start,
-          labelColor: KumoriyaColors.primary,
-          unselectedLabelColor: KumoriyaColors.navInactive,
-          indicatorColor: KumoriyaColors.primary,
-          indicatorSize: TabBarIndicatorSize.label,
-          labelStyle: const TextStyle(
-            fontSize: 13,
-            fontWeight: FontWeight.w800,
+    final selectedAnime = _grouped[selectedDay] ?? const <Anime>[];
+
+    return CustomScrollView(
+      slivers: <Widget>[
+        // Title + subtitle
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
+            child: Text(
+              context.l10n.calendarTitle,
+              style: Theme.of(context).textTheme.headlineMedium,
+            ),
           ),
-          unselectedLabelStyle: const TextStyle(
-            fontSize: 13,
-            fontWeight: FontWeight.w600,
-          ),
-          dividerColor: Colors.transparent,
-          padding: const EdgeInsets.symmetric(horizontal: 12),
-          tabs: tabs.map((tab) {
-            final isToday = tab.weekday == todayWeekday;
-            return Tab(
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: <Widget>[
-                  Text(tab.label),
-                  if (isToday) ...<Widget>[
-                    const SizedBox(width: 6),
-                    Container(
-                      width: 7,
-                      height: 7,
-                      decoration: const BoxDecoration(
-                        color: KumoriyaColors.primary,
-                        shape: BoxShape.circle,
-                      ),
-                    ),
-                  ],
-                ],
+        ),
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+            child: Text(
+              context.l10n.calendarSubtitle,
+              style: const TextStyle(
+                fontSize: 13,
+                color: KumoriyaColors.textTertiary,
               ),
-            );
-          }).toList(),
-        ),
-        Expanded(
-          child: TabBarView(
-            controller: _tabController,
-            children: tabs.map((tab) {
-              if (tab.items.isEmpty) {
-                return EmptyStateView(
-                  message: context.l10n.calendarNoAiring,
-                  icon: Icons.event_busy_rounded,
-                );
-              }
-
-              return ListView.builder(
-                padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
-                itemCount: tab.items.length,
-                itemBuilder: (context, index) {
-                  final anime = tab.items[index];
-                  return Padding(
-                    padding: const EdgeInsets.only(bottom: 8),
-                    child: _AiringRow(
-                      anime: anime,
-                      showTime: tab.showTime,
-                      onTap: () => Navigator.of(context).push(
-                        MaterialPageRoute<void>(
-                          builder: (_) =>
-                              AnimeDetailPage(anilistId: anime.anilistId),
-                        ),
-                      ),
-                    ),
-                  );
-                },
-              );
-            }).toList(),
+            ),
           ),
         ),
+
+        // Month navigation row
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+            child: Row(
+              children: <Widget>[
+                IconButton(
+                  onPressed: canGoBack
+                      ? () {
+                          final prev = DateTime(
+                            focusMonth.year,
+                            focusMonth.month - 1,
+                          );
+                          ref
+                              .read(calendarFocusMonthProvider.notifier)
+                              .set(prev);
+                          ref
+                              .read(calendarSelectedDayProvider.notifier)
+                              .set(DateTime(prev.year, prev.month));
+                        }
+                      : null,
+                  icon: const Icon(Icons.chevron_left_rounded),
+                  color: KumoriyaColors.textPrimary,
+                  disabledColor: KumoriyaColors.textDisabled,
+                ),
+                Expanded(
+                  child: Text(
+                    monthLabel,
+                    textAlign: TextAlign.center,
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+                IconButton(
+                  onPressed: canGoForward
+                      ? () {
+                          final next = DateTime(
+                            focusMonth.year,
+                            focusMonth.month + 1,
+                          );
+                          ref
+                              .read(calendarFocusMonthProvider.notifier)
+                              .set(next);
+                          ref
+                              .read(calendarSelectedDayProvider.notifier)
+                              .set(DateTime(next.year, next.month));
+                        }
+                      : null,
+                  icon: const Icon(Icons.chevron_right_rounded),
+                  color: KumoriyaColors.textPrimary,
+                  disabledColor: KumoriyaColors.textDisabled,
+                ),
+              ],
+            ),
+          ),
+        ),
+
+        // Week-day header + month grid
+        SliverToBoxAdapter(child: _WeekdayHeader(locale: locale)),
+        SliverToBoxAdapter(
+          child: _MonthGrid(
+            focusMonth: focusMonth,
+            selectedDay: selectedDay,
+            today: today,
+            grouped: _grouped,
+            minMonth: minMonth,
+            maxMonth: maxMonth,
+            onDayTapped: (day) {
+              ref.read(calendarSelectedDayProvider.notifier).set(day);
+            },
+          ),
+        ),
+
+        const SliverToBoxAdapter(child: SizedBox(height: 8)),
+
+        // Selected-day anime list
+        if (selectedAnime.isEmpty)
+          SliverFillRemaining(
+            hasScrollBody: false,
+            child: Center(
+              child: Text(
+                context.l10n.calendarNoAiring,
+                style: const TextStyle(
+                  fontSize: 13,
+                  color: KumoriyaColors.textDisabled,
+                ),
+              ),
+            ),
+          )
+        else
+          SliverPadding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 32),
+            sliver: SliverList.builder(
+              itemCount: selectedAnime.length,
+              itemBuilder: (context, index) {
+                final anime = selectedAnime[index];
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: _AiringRow(
+                    anime: anime,
+                    showTime: true,
+                    onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder: (_) =>
+                            AnimeDetailPage(anilistId: anime.anilistId),
+                      ),
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
       ],
     );
   }
 }
 
-String _weekdayShortLabel(BuildContext context, int weekday) {
-  final now = DateTime.now();
-  final daysUntilWeekday = (weekday - now.weekday) % 7;
-  final date = now.add(Duration(days: daysUntilWeekday));
-  return DateFormat.E(
-    Localizations.localeOf(context).toString(),
-  ).format(date).toUpperCase();
+// ---------------------------------------------------------------------------
+// Weekday header row (Mon – Sun)
+// ---------------------------------------------------------------------------
+
+class _WeekdayHeader extends StatelessWidget {
+  const _WeekdayHeader({required this.locale});
+
+  final String locale;
+
+  @override
+  Widget build(BuildContext context) {
+    // Generate short weekday labels starting from Monday.
+    final labels = List<String>.generate(7, (i) {
+      // DateTime weekday: Monday = 1 ... Sunday = 7
+      // Find the next Monday from epoch reference.
+      final date = DateTime(2024, 1, 1 + i); // Jan 1 2024 is a Monday.
+      return DateFormat.E(locale).format(date).toUpperCase();
+    });
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      child: Row(
+        children: labels
+            .map(
+              (label) => Expanded(
+                child: Center(
+                  child: Text(
+                    label,
+                    style: const TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      color: KumoriyaColors.textDisabled,
+                    ),
+                  ),
+                ),
+              ),
+            )
+            .toList(),
+      ),
+    );
+  }
 }
+
+// ---------------------------------------------------------------------------
+// Month grid
+// ---------------------------------------------------------------------------
+
+class _MonthGrid extends StatelessWidget {
+  const _MonthGrid({
+    required this.focusMonth,
+    required this.selectedDay,
+    required this.today,
+    required this.grouped,
+    required this.minMonth,
+    required this.maxMonth,
+    required this.onDayTapped,
+  });
+
+  final DateTime focusMonth;
+  final DateTime selectedDay;
+  final DateTime today;
+  final Map<DateTime, List<Anime>> grouped;
+  final DateTime minMonth;
+  final DateTime maxMonth;
+  final ValueChanged<DateTime> onDayTapped;
+
+  @override
+  Widget build(BuildContext context) {
+    final firstOfMonth = DateTime(focusMonth.year, focusMonth.month);
+    final daysInMonth = DateTime(focusMonth.year, focusMonth.month + 1, 0).day;
+    // Monday = 1. Offset so column 0 = Monday.
+    final startWeekday = (firstOfMonth.weekday - 1) % 7;
+
+    final totalCells = startWeekday + daysInMonth;
+    final rowCount = (totalCells / 7).ceil();
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Column(
+        children: List<Widget>.generate(rowCount, (row) {
+          return Row(
+            children: List<Widget>.generate(7, (col) {
+              final cellIndex = row * 7 + col;
+              if (cellIndex < startWeekday ||
+                  cellIndex >= startWeekday + daysInMonth) {
+                return const Expanded(child: SizedBox(height: 44));
+              }
+
+              final day = cellIndex - startWeekday + 1;
+              final date = DateTime(focusMonth.year, focusMonth.month, day);
+              final isToday = date == today;
+              final isSelected = date == selectedDay;
+              final hasAiring = grouped.containsKey(date);
+
+              return Expanded(
+                child: GestureDetector(
+                  onTap: () => onDayTapped(date),
+                  child: _DayCell(
+                    day: day,
+                    isToday: isToday,
+                    isSelected: isSelected,
+                    hasAiring: hasAiring,
+                  ),
+                ),
+              );
+            }),
+          );
+        }),
+      ),
+    );
+  }
+}
+
+class _DayCell extends StatelessWidget {
+  const _DayCell({
+    required this.day,
+    required this.isToday,
+    required this.isSelected,
+    required this.hasAiring,
+  });
+
+  final int day;
+  final bool isToday;
+  final bool isSelected;
+  final bool hasAiring;
+
+  @override
+  Widget build(BuildContext context) {
+    Color bgColor;
+    Color textColor;
+
+    if (isSelected) {
+      bgColor = KumoriyaColors.primary;
+      textColor = KumoriyaColors.textPrimary;
+    } else if (isToday) {
+      bgColor = KumoriyaColors.primaryContainer;
+      textColor = KumoriyaColors.primary;
+    } else {
+      bgColor = Colors.transparent;
+      textColor = KumoriyaColors.textSecondary;
+    }
+
+    return Container(
+      height: 44,
+      alignment: Alignment.center,
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: <Widget>[
+          Container(
+            width: 32,
+            height: 32,
+            decoration: BoxDecoration(color: bgColor, shape: BoxShape.circle),
+            alignment: Alignment.center,
+            child: Text(
+              '$day',
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: isToday || isSelected
+                    ? FontWeight.w800
+                    : FontWeight.w500,
+                color: textColor,
+              ),
+            ),
+          ),
+          if (hasAiring)
+            Container(
+              margin: const EdgeInsets.only(top: 2),
+              width: 5,
+              height: 5,
+              decoration: BoxDecoration(
+                color: isSelected
+                    ? KumoriyaColors.primary
+                    : KumoriyaColors.statusAiring,
+                shape: BoxShape.circle,
+              ),
+            )
+          else
+            const SizedBox(height: 7),
+        ],
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Airing row (reused from before)
+// ---------------------------------------------------------------------------
 
 class _AiringRow extends StatefulWidget {
   const _AiringRow({

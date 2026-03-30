@@ -91,7 +91,9 @@ bool _isGenericEpisodeTitle(
       .replaceAll(RegExp(r'\s+'), ' ')
       .trim();
   if (animeNormalized != null && animeNormalized.isNotEmpty) {
-    final noPunct = withoutBrackets.replaceAll(RegExp(r'[^a-z0-9 ]'), ' ').trim();
+    final noPunct = withoutBrackets
+        .replaceAll(RegExp(r'[^a-z0-9 ]'), ' ')
+        .trim();
     if (noPunct.startsWith(animeNormalized)) {
       final suffix = noPunct.substring(animeNormalized.length).trim();
       if (suffix == episodeInt.toString() ||

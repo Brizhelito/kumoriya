@@ -21,6 +21,7 @@ import '../providers/anime_catalog_providers.dart';
 import '../providers/storage_providers.dart';
 import '../support/episode_display_title.dart';
 import '../support/playback_launch_flow.dart';
+import '../support/plugin_icon_helpers.dart';
 import '../widgets/source_badge.dart';
 import '../../../../shared/theme/kumoriya_theme.dart';
 
@@ -41,11 +42,25 @@ class EpisodeListPage extends ConsumerStatefulWidget {
 }
 
 class _EpisodeListPageState extends ConsumerState<EpisodeListPage> {
+  static const int _aniSkipPrefetchWindowBefore = 10;
+  static const int _aniSkipPrefetchWindowAfter = 50;
+  static const int _aniSkipPrefetchLargeSeries = 150;
+  static const int _pageSize = 50;
+
   bool _isLaunching = false;
   final ScrollController _scrollController = ScrollController();
   bool _didScrollToFocus = false;
   bool _didAutoDownloadCheck = false;
   bool _didAniSkipPrefetch = false;
+
+  int _currentPage = 0;
+  bool _didAutoSelectPage = false;
+
+  List<_EpisodeRowData>? _cachedRows;
+  List<AnimeEpisode>? _prevEpisodes;
+  SourceAvailabilitySummary? _prevSummary;
+  List<EpisodeProgress>? _prevProgress;
+  Map<int, MalEpisodeMetadata>? _prevMalMetadata;
 
   @override
   void dispose() {
@@ -99,19 +114,48 @@ class _EpisodeListPageState extends ConsumerState<EpisodeListPage> {
       );
     }
 
-    final rows = _buildEpisodeRows(
-      animeEpisodes: animeEpisodes,
-      availabilitySummary: sourceSummary,
-      progressList: progressList,
-      malEpisodeMetadata: malEpisodeMetadata,
-      focusedEpisodeNumber: widget.focusedEpisodeNumber,
-      animeTitle: widget.animeTitle,
-      fallbackTitleBuilder: (episodeNumber) => context.l10n
-          .continueWatchingEpisode(episodeNumber.toInt().toString()),
-      upcomingLabel: context.l10n.episodeStatusUpcoming,
-      readyLabel: context.l10n.episodePlayNowLabel,
-    );
-    _scheduleScrollToFocus(rows);
+    final bool inputsChanged =
+        !identical(_prevEpisodes, animeEpisodes) ||
+        !identical(_prevSummary, sourceSummary) ||
+        !identical(_prevProgress, progressList) ||
+        !identical(_prevMalMetadata, malEpisodeMetadata);
+
+    if (inputsChanged || _cachedRows == null) {
+      _cachedRows = _buildEpisodeRows(
+        animeEpisodes: animeEpisodes,
+        availabilitySummary: sourceSummary,
+        progressList: progressList,
+        malEpisodeMetadata: malEpisodeMetadata,
+        focusedEpisodeNumber: widget.focusedEpisodeNumber,
+        animeTitle: widget.animeTitle,
+        fallbackTitleBuilder: (episodeNumber) => context.l10n
+            .continueWatchingEpisode(episodeNumber.toInt().toString()),
+        upcomingLabel: context.l10n.episodeStatusUpcoming,
+        readyLabel: context.l10n.episodePlayNowLabel,
+      );
+      _prevEpisodes = animeEpisodes;
+      _prevSummary = sourceSummary;
+      _prevProgress = progressList;
+      _prevMalMetadata = malEpisodeMetadata;
+    }
+    final rows = _cachedRows!;
+
+    // Auto-select the page that contains the focused episode (runs once).
+    if (!_didAutoSelectPage && widget.focusedEpisodeNumber != null && rows.isNotEmpty) {
+      _didAutoSelectPage = true;
+      final focusIndex = rows.indexWhere(
+        (row) => (row.number - widget.focusedEpisodeNumber!).abs() < 0.001,
+      );
+      if (focusIndex >= 0) {
+        _currentPage = focusIndex ~/ _pageSize;
+      }
+    }
+
+    final pageCount = rows.isEmpty ? 0 : ((rows.length - 1) ~/ _pageSize) + 1;
+    final pageStart = _currentPage * _pageSize;
+    final visibleRows = rows.skip(pageStart).take(_pageSize).toList(growable: false);
+
+    _scheduleScrollToFocus(visibleRows);
     _scheduleAutoDownloadCheck(rows);
     _scheduleAniSkipPrefetch(animeEpisodes);
 
@@ -120,12 +164,12 @@ class _EpisodeListPageState extends ConsumerState<EpisodeListPage> {
     final dlTasksState = ref.watch(
       downloadTasksByAnimeProvider(widget.anilistId),
     );
-    final dlTaskMap = <double, DownloadTask>{};
+    final dlTaskMap = <int, DownloadTask>{};
     dlTasksState.whenData((result) {
       result.fold(
         onSuccess: (tasks) {
           for (final t in tasks) {
-            dlTaskMap[t.episodeNumber] = t;
+            dlTaskMap[(t.episodeNumber * 1000).round()] = t;
           }
         },
         onFailure: (_) {},
@@ -153,20 +197,36 @@ class _EpisodeListPageState extends ConsumerState<EpisodeListPage> {
                     ),
                   ),
                 ),
+                if (pageCount > 1) ...<Widget>[
+                  const SliverToBoxAdapter(child: SizedBox(height: 10)),
+                  SliverToBoxAdapter(
+                    child: _PageSelector(
+                      pageCount: pageCount,
+                      currentPage: _currentPage,
+                      pageSize: _pageSize,
+                      totalRows: rows.length,
+                      onPageSelected: (page) {
+                        setState(() {
+                          _currentPage = page;
+                          _didScrollToFocus = true;
+                        });
+                        WidgetsBinding.instance.addPostFrameCallback((_) {
+                          if (mounted && _scrollController.hasClients) {
+                            _scrollController.jumpTo(0);
+                          }
+                        });
+                      },
+                    ),
+                  ),
+                ],
                 const SliverToBoxAdapter(child: SizedBox(height: 12)),
                 SliverPadding(
                   padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
                   sliver: SliverList.builder(
-                    itemCount: rows.length,
+                    itemCount: visibleRows.length,
                     itemBuilder: (context, index) {
-                      final row = rows[index];
-                      DownloadTask? dlTask;
-                      for (final entry in dlTaskMap.entries) {
-                        if ((entry.key - row.number).abs() < 0.001) {
-                          dlTask = entry.value;
-                          break;
-                        }
-                      }
+                      final row = visibleRows[index];
+                      final dlTask = dlTaskMap[(row.number * 1000).round()];
                       return _EpisodeCard(
                         key: ValueKey('ep-${row.number}'),
                         row: row,
@@ -192,12 +252,31 @@ class _EpisodeListPageState extends ConsumerState<EpisodeListPage> {
     if (_didAniSkipPrefetch || animeEpisodes.isEmpty) {
       return;
     }
-    final episodeNumbers = animeEpisodes
+    var episodeNumbers = animeEpisodes
         .where((episode) => episode.isAired)
         .map((episode) => episode.number.toInt())
         .where((episodeNumber) => episodeNumber > 0)
         .toSet()
         .toList(growable: false);
+    if (episodeNumbers.isEmpty) {
+      return;
+    }
+
+    if (episodeNumbers.length > _aniSkipPrefetchLargeSeries) {
+      final focus = widget.focusedEpisodeNumber?.toInt() ?? episodeNumbers.last;
+      final rangeStart = (focus - _aniSkipPrefetchWindowBefore).clamp(
+        episodeNumbers.first,
+        episodeNumbers.last,
+      );
+      final rangeEnd = (focus + _aniSkipPrefetchWindowAfter).clamp(
+        episodeNumbers.first,
+        episodeNumbers.last,
+      );
+      episodeNumbers = episodeNumbers
+          .where((n) => n >= rangeStart && n <= rangeEnd)
+          .toList(growable: false);
+    }
+
     if (episodeNumbers.isEmpty) {
       return;
     }
@@ -430,7 +509,7 @@ class _EpisodeListHeader extends ConsumerWidget {
                 .map(
                   (source) => SourceBadge(
                     name: source.manifest.displayName,
-                    iconUrl: _sourceIcon(source.manifest),
+                    iconUrl: effectiveSourceIconUrl(source.manifest),
                     audioKinds: source.availableAudioKinds,
                     compact: true,
                     highlighted:
@@ -538,7 +617,7 @@ class _EpisodeListHeader extends ConsumerWidget {
                   (source) => ListTile(
                     leading: SourceBadge(
                       name: source.manifest.displayName,
-                      iconUrl: _sourceIcon(source.manifest),
+                      iconUrl: effectiveSourceIconUrl(source.manifest),
                       compact: true,
                       iconOnly: true,
                     ),
@@ -969,12 +1048,91 @@ String _formatDate(DateTime dt) {
   return '${local.year}-${local.month.toString().padLeft(2, '0')}-${local.day.toString().padLeft(2, '0')}';
 }
 
-String? _sourceIcon(PluginManifest manifest) {
-  if (manifest.iconUrl != null && manifest.iconUrl!.trim().isNotEmpty) {
-    return manifest.iconUrl;
-  }
-  return null;
+// ─── Page selector ───────────────────────────────────────────────────────────
+
+class _PageSelector extends StatefulWidget {
+  const _PageSelector({
+    required this.pageCount,
+    required this.currentPage,
+    required this.pageSize,
+    required this.totalRows,
+    required this.onPageSelected,
+  });
+
+  final int pageCount;
+  final int currentPage;
+  final int pageSize;
+  final int totalRows;
+  final void Function(int page) onPageSelected;
+
+  @override
+  State<_PageSelector> createState() => _PageSelectorState();
 }
+
+class _PageSelectorState extends State<_PageSelector> {
+  final ScrollController _chipScroll = ScrollController();
+
+  @override
+  void didUpdateWidget(_PageSelector old) {
+    super.didUpdateWidget(old);
+    if (old.currentPage != widget.currentPage) {
+      _scrollToCurrentChip();
+    }
+  }
+
+  void _scrollToCurrentChip() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !_chipScroll.hasClients) return;
+      const chipWidth = 80.0;
+      const chipSpacing = 8.0;
+      final target = widget.currentPage * (chipWidth + chipSpacing);
+      _chipScroll.animateTo(
+        target.clamp(0.0, _chipScroll.position.maxScrollExtent),
+        duration: const Duration(milliseconds: 200),
+        curve: Curves.easeOut,
+      );
+    });
+  }
+
+  @override
+  void dispose() {
+    _chipScroll.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 42,
+      child: ListView.separated(
+        controller: _chipScroll,
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        itemCount: widget.pageCount,
+        separatorBuilder: (_, __) => const SizedBox(width: 8),
+        itemBuilder: (context, index) {
+          final start = index * widget.pageSize + 1;
+          final end = ((index + 1) * widget.pageSize).clamp(
+            0,
+            widget.totalRows,
+          );
+          final isSelected = index == widget.currentPage;
+          return ChoiceChip(
+            label: Text(
+              '$start–$end',
+              style: const TextStyle(fontSize: 12),
+            ),
+            selected: isSelected,
+            onSelected: (_) => widget.onPageSelected(index),
+            visualDensity: VisualDensity.compact,
+          );
+        },
+      ),
+    );
+  }
+}
+
+// ─── Episode row data ─────────────────────────────────────────────────────────
 
 final class _EpisodeRowData {
   const _EpisodeRowData({

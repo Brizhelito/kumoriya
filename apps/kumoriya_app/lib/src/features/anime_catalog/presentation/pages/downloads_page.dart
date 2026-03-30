@@ -10,6 +10,7 @@ import '../../../../shared/icons/kumoriya_icons.dart';
 import '../../../../shared/theme/kumoriya_theme.dart';
 import '../../../../shared/widgets/kumoriya_cached_image.dart';
 import '../../../../shared/widgets/state_views.dart';
+import '../../../../shared/widgets/translated_dynamic_text.dart';
 import '../../application/models/resolved_server_link_result.dart';
 import '../../../downloads/application/download_manager_service.dart';
 import '../../../downloads/presentation/download_providers.dart';
@@ -23,67 +24,85 @@ class DownloadsPage extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final tasksState = ref.watch(allDownloadTasksProvider);
 
-    return Scaffold(
-      backgroundColor: KumoriyaColors.background,
-      body: SafeArea(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: <Widget>[
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
-              child: Row(
-                children: <Widget>[
-                  Expanded(
-                    child: Text(
-                      context.l10n.downloadsTitle,
-                      style: Theme.of(context).textTheme.headlineMedium,
+    return DefaultTabController(
+      length: 3,
+      child: Scaffold(
+        backgroundColor: KumoriyaColors.background,
+        body: SafeArea(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
+                child: Row(
+                  children: <Widget>[
+                    Expanded(
+                      child: Text(
+                        context.l10n.downloadsTitle,
+                        style: Theme.of(context).textTheme.headlineMedium,
+                      ),
                     ),
-                  ),
-                  IconButton(
-                    tooltip: context.l10n.retry,
-                    onPressed: () => _refreshDownloads(ref),
-                    icon: const Icon(
-                      KumoriyaIcons.sync,
-                      color: KumoriyaColors.textPrimary,
+                    IconButton(
+                      tooltip: context.l10n.retry,
+                      onPressed: () => _refreshDownloads(ref),
+                      icon: const Icon(
+                        KumoriyaIcons.sync,
+                        color: KumoriyaColors.textPrimary,
+                      ),
                     ),
+                  ],
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 4),
+                child: Text(
+                  context.l10n.downloadsSubtitle,
+                  style: const TextStyle(
+                    fontSize: 13,
+                    color: KumoriyaColors.textTertiary,
                   ),
+                ),
+              ),
+              TabBar(
+                labelStyle: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                ),
+                indicatorColor: KumoriyaColors.primary,
+                labelColor: KumoriyaColors.primary,
+                unselectedLabelColor: KumoriyaColors.textSecondary,
+                dividerColor: KumoriyaColors.borderSubtle,
+                tabs: <Tab>[
+                  Tab(text: context.l10n.downloadsTabActive),
+                  Tab(text: context.l10n.downloadsTabQueue),
+                  Tab(text: context.l10n.downloadsTabCompleted),
                 ],
               ),
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
-              child: Text(
-                context.l10n.downloadsSubtitle,
-                style: const TextStyle(
-                  fontSize: 13,
-                  color: KumoriyaColors.textTertiary,
-                ),
-              ),
-            ),
-            Expanded(
-              child: StateTransitionSwitcher(
-                stateKey: tasksState.isLoading
-                    ? 'loading'
-                    : tasksState.hasError
-                    ? 'error'
-                    : 'content',
-                child: tasksState.when(
-                  loading: () => const LoadingStateView(),
-                  error: (_, _) => ErrorStateView(
-                    message: context.l10n.genericLoadFailure,
-                    onRetry: () => _refreshDownloads(ref),
-                  ),
-                  data: (result) => result.fold(
-                    onFailure: (error) => ErrorStateView(
-                      message: mapErrorMessage(context, error),
+              Expanded(
+                child: StateTransitionSwitcher(
+                  stateKey: tasksState.isLoading
+                      ? 'loading'
+                      : tasksState.hasError
+                      ? 'error'
+                      : 'content',
+                  child: tasksState.when(
+                    loading: () => const LoadingStateView(),
+                    error: (_, _) => ErrorStateView(
+                      message: context.l10n.genericLoadFailure,
                       onRetry: () => _refreshDownloads(ref),
                     ),
-                    onSuccess: (tasks) => _DownloadsBody(tasks: tasks),
+                    data: (result) => result.fold(
+                      onFailure: (error) => ErrorStateView(
+                        message: mapErrorMessage(context, error),
+                        onRetry: () => _refreshDownloads(ref),
+                      ),
+                      onSuccess: (tasks) => _DownloadsBody(tasks: tasks),
+                    ),
                   ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -97,6 +116,45 @@ class _DownloadsBody extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final downloading = tasks
+        .where(
+          (t) =>
+              t.status == DownloadStatus.downloading ||
+              t.status == DownloadStatus.paused,
+        )
+        .toList(growable: false);
+    final queued = tasks
+        .where(
+          (t) =>
+              t.status == DownloadStatus.pending ||
+              t.status == DownloadStatus.failed,
+        )
+        .toList(growable: false);
+    final completed = tasks
+        .where((t) => t.status == DownloadStatus.completed)
+        .toList(growable: false);
+    final groupedCompleted = _groupCompletedTasks(completed);
+
+    return TabBarView(
+      children: <Widget>[
+        _ActiveTabContent(tasks: downloading, ref: ref),
+        _QueueTabContent(tasks: queued, ref: ref),
+        _CompletedTabContent(grouped: groupedCompleted, ref: ref),
+      ],
+    );
+  }
+}
+
+// ─── Tab content widgets ──────────────────────────────────────────────────────
+
+class _ActiveTabContent extends StatelessWidget {
+  const _ActiveTabContent({required this.tasks, required this.ref});
+
+  final List<DownloadTask> tasks;
+  final WidgetRef ref;
+
+  @override
+  Widget build(BuildContext context) {
     if (tasks.isEmpty) {
       return RefreshIndicator(
         onRefresh: () => _refreshDownloads(ref),
@@ -107,7 +165,7 @@ class _DownloadsBody extends ConsumerWidget {
               padding: const EdgeInsets.only(top: 36),
               child: EmptyStateView(
                 icon: Icons.download_rounded,
-                message: context.l10n.myListDownloadsEmpty,
+                message: context.l10n.downloadsActiveEmpty,
                 actionLabel: context.l10n.retry,
                 onAction: () => _refreshDownloads(ref),
               ),
@@ -117,41 +175,20 @@ class _DownloadsBody extends ConsumerWidget {
       );
     }
 
-    final active = tasks
-        .where((t) => t.status != DownloadStatus.completed)
-        .toList(growable: false);
-    final completed = tasks
-        .where((t) => t.status == DownloadStatus.completed)
-        .toList(growable: false);
-    final groupedCompleted = _groupCompletedTasks(completed);
-
     return RefreshIndicator(
       onRefresh: () => _refreshDownloads(ref),
       child: ListView(
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
         children: <Widget>[
-          if (active.isNotEmpty) ...<Widget>[
-            const Padding(
-              padding: EdgeInsets.only(bottom: 8),
-              child: _ActiveDownloadsHeader(),
-            ),
-            ...active.map(
-              (task) => Padding(
-                key: ValueKey('active-${task.id}'),
-                padding: const EdgeInsets.only(bottom: 8),
-                child: _ActiveDownloadRow(task: task),
-              ),
-            ),
-            if (groupedCompleted.isNotEmpty) const SizedBox(height: 12),
-          ],
-          ...groupedCompleted.entries.map(
-            (entry) => Padding(
-              key: ValueKey('completed-${entry.key}'),
-              padding: const EdgeInsets.only(bottom: 12),
-              child: _CompletedAnimeCard(
-                anilistId: entry.key,
-                episodes: entry.value,
-              ),
+          const Padding(
+            padding: EdgeInsets.only(bottom: 8),
+            child: _ActiveDownloadsHeader(),
+          ),
+          ...tasks.map(
+            (task) => Padding(
+              key: ValueKey('active-${task.id}'),
+              padding: const EdgeInsets.only(bottom: 8),
+              child: _ActiveDownloadRow(task: task),
             ),
           ),
         ],
@@ -159,6 +196,103 @@ class _DownloadsBody extends ConsumerWidget {
     );
   }
 }
+
+class _QueueTabContent extends StatelessWidget {
+  const _QueueTabContent({required this.tasks, required this.ref});
+
+  final List<DownloadTask> tasks;
+  final WidgetRef ref;
+
+  @override
+  Widget build(BuildContext context) {
+    if (tasks.isEmpty) {
+      return RefreshIndicator(
+        onRefresh: () => _refreshDownloads(ref),
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
+          children: <Widget>[
+            Padding(
+              padding: const EdgeInsets.only(top: 36),
+              child: EmptyStateView(
+                icon: Icons.hourglass_empty_rounded,
+                message: context.l10n.downloadsQueueEmpty,
+                actionLabel: context.l10n.retry,
+                onAction: () => _refreshDownloads(ref),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return RefreshIndicator(
+      onRefresh: () => _refreshDownloads(ref),
+      child: ListView(
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
+        children: tasks
+            .map(
+              (task) => Padding(
+                key: ValueKey('queue-${task.id}'),
+                padding: const EdgeInsets.only(bottom: 8),
+                child: _ActiveDownloadRow(task: task),
+              ),
+            )
+            .toList(),
+      ),
+    );
+  }
+}
+
+class _CompletedTabContent extends StatelessWidget {
+  const _CompletedTabContent({required this.grouped, required this.ref});
+
+  final Map<int, List<DownloadTask>> grouped;
+  final WidgetRef ref;
+
+  @override
+  Widget build(BuildContext context) {
+    if (grouped.isEmpty) {
+      return RefreshIndicator(
+        onRefresh: () => _refreshDownloads(ref),
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
+          children: <Widget>[
+            Padding(
+              padding: const EdgeInsets.only(top: 36),
+              child: EmptyStateView(
+                icon: Icons.download_done_rounded,
+                message: context.l10n.downloadsCompletedEmpty,
+                actionLabel: context.l10n.retry,
+                onAction: () => _refreshDownloads(ref),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return RefreshIndicator(
+      onRefresh: () => _refreshDownloads(ref),
+      child: ListView(
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
+        children: grouped.entries
+            .map(
+              (entry) => Padding(
+                key: ValueKey('completed-${entry.key}'),
+                padding: const EdgeInsets.only(bottom: 12),
+                child: _CompletedAnimeCard(
+                  anilistId: entry.key,
+                  episodes: entry.value,
+                ),
+              ),
+            )
+            .toList(),
+      ),
+    );
+  }
+}
+
+// ─── Active downloads header ─────────────────────────────────────────────────
 
 class _ActiveDownloadsHeader extends ConsumerWidget {
   const _ActiveDownloadsHeader();
@@ -303,7 +437,7 @@ class _ActiveDownloadRowState extends ConsumerState<_ActiveDownloadRow> {
                         if (task.episodeTitle != null &&
                             task.episodeTitle!.trim().isNotEmpty) ...<Widget>[
                           const SizedBox(height: 2),
-                          Text(
+                          TranslatedDynamicText(
                             task.episodeTitle!,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
@@ -590,7 +724,7 @@ class _CompletedEpisodeTile extends StatelessWidget {
                   if (task.episodeTitle != null &&
                       task.episodeTitle!.trim().isNotEmpty) ...<Widget>[
                     const SizedBox(height: 2),
-                    Text(
+                    TranslatedDynamicText(
                       task.episodeTitle!,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
