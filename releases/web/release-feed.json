@@ -1,0 +1,147 @@
+{
+  "generated_at": "2026-03-31T23:59:00Z",
+  "latest": {
+    "version": "0.1.2",
+    "tag": "v0.1.2",
+    "date": "2026-03-31",
+    "channel": "alpha",
+    "downloads": {
+      "android": {
+        "url": "https://pub-8159019abe1741a097538b976c19722c.r2.dev/artifacts/android/v0.1.2/kumoriya-0.1.2.apk",
+        "file_name": "kumoriya-0.1.2.apk"
+      },
+      "windows": {
+        "url": "https://pub-8159019abe1741a097538b976c19722c.r2.dev/artifacts/windows/v0.1.2/Kumoriya-0.1.2-windows-x64-setup.exe",
+        "file_name": "Kumoriya-0.1.2-windows-x64-setup.exe"
+      }
+    },
+    "release_notes": {
+      "es": "v0.1.2: version visible en Configuracion y check automatico de updates en startup",
+      "en": "v0.1.2: settings version visibility and startup update check"
+    }
+  },
+  "changelog": [
+    {
+      "version": "0.1.2",
+      "tag": "v0.1.2",
+      "date": "2026-03-31",
+      "channel": "alpha",
+      "release_notes": {
+        "es": "Version de parche enfocada en visibilidad de actualizacion y claridad en UX de release.",
+        "en": "Patch release focused on update visibility and release UX clarity."
+      },
+      "notes": {
+        "es": {
+          "resumen": "Version de parche enfocada en visibilidad de actualizacion y claridad en UX de release.",
+          "agregado": [
+            "Configuracion ahora muestra la version instalada de la app en la seccion Aplicacion."
+          ],
+          "cambios": [
+            "Version de la app actualizada a 0.1.2+3."
+          ],
+          "corregido": [
+            "La verificacion automatica de actualizacion ahora se ejecuta al inicio en Android y Windows."
+          ]
+        },
+        "en": {
+          "summary": "Patch release focused on update visibility and release UX clarity.",
+          "added": [
+            "Settings now shows the installed app version in the App section."
+          ],
+          "changed": [
+            "App version bumped to 0.1.2+3."
+          ],
+          "fixed": [
+            "Automatic update check now runs at startup on Android and Windows."
+          ]
+        }
+      },
+      "downloads": {
+        "android": "https://pub-8159019abe1741a097538b976c19722c.r2.dev/artifacts/android/v0.1.2/kumoriya-0.1.2.apk",
+        "windows": "https://pub-8159019abe1741a097538b976c19722c.r2.dev/artifacts/windows/v0.1.2/Kumoriya-0.1.2-windows-x64-setup.exe"
+      }
+    },
+    {
+      "version": "0.1.1",
+      "tag": "v0.1.1",
+      "date": "2026-03-31",
+      "channel": "alpha",
+      "release_notes": {
+        "es": "Mejoras de update, permisos y rendimiento de descarga.",
+        "en": "Update, permissions, and download performance improvements."
+      },
+      "notes": {
+        "es": {
+          "resumen": "Version de parche enfocada en identidad Android, rendimiento de descarga, permisos y localizacion.",
+          "agregado": [
+            "Descargador paralelo por rangos para APK.",
+            "Cliente HTTP Cronet en Android.",
+            "Permiso REQUEST_INSTALL_PACKAGES."
+          ],
+          "cambios": [
+            "applicationId Android cambiado a dev.kumoriya.app.",
+            "Nombre visible de app: Kumoriya.",
+            "Build debug con sufijo .debug."
+          ],
+          "corregido": [
+            "Fallo silencioso del instalador cuando faltaba permiso de instalacion.",
+            "Dialogo inicial de carpeta de descarga sin localizacion correcta."
+          ]
+        },
+        "en": {
+          "summary": "Patch release focused on Android identity, download performance, permissions flow, and localization.",
+          "added": [
+            "Parallel range-based APK downloader.",
+            "Cronet HTTP client on Android.",
+            "REQUEST_INSTALL_PACKAGES permission."
+          ],
+          "changed": [
+            "Android applicationId changed to dev.kumoriya.app.",
+            "App display name set to Kumoriya.",
+            "Debug builds use .debug suffix."
+          ],
+          "fixed": [
+            "Silent installer failure when install permission was denied.",
+            "First-launch download folder dialog localization issues."
+          ]
+        }
+      },
+      "downloads": {
+        "android": "https://pub-8159019abe1741a097538b976c19722c.r2.dev/artifacts/android/v0.1.1/kumoriya-0.1.1.apk",
+        "windows": "https://pub-8159019abe1741a097538b976c19722c.r2.dev/artifacts/windows/v0.1.1/Kumoriya-0.1.1-windows-x64-setup.exe"
+      }
+    },
+    {
+      "version": "0.1.0",
+      "tag": "v0.1.0",
+      "date": "2026-03-30",
+      "channel": "alpha",
+      "release_notes": {
+        "es": "Primer lanzamiento publico alpha con distribucion para Android y Windows.",
+        "en": "Initial public alpha release for Android and Windows."
+      },
+      "notes": {
+        "es": {
+          "resumen": "Primer lanzamiento publico alpha.",
+          "agregado": [
+            "Flujo inicial de actualizacion por update.json remoto.",
+            "Descarga APK Android e instalacion por intent del sistema.",
+            "Instalador EXE para Windows con cierre seguro de app."
+          ]
+        },
+        "en": {
+          "summary": "Initial public alpha release.",
+          "added": [
+            "Initial app update flow using remote update.json.",
+            "Android APK download and installer handoff.",
+            "Windows EXE installer handoff with safe app shutdown."
+          ]
+        }
+      },
+      "downloads": {
+        "android": "https://pub-8159019abe1741a097538b976c19722c.r2.dev/artifacts/android/v0.1.0/kumoriya-0.1.0.apk",
+        "windows": "https://pub-8159019abe1741a097538b976c19722c.r2.dev/artifacts/windows/v0.1.0/Kumoriya-0.1.0-windows-x64-setup.exe"
+      }
+    }
+  ]
+}

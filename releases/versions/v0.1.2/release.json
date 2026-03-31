@@ -1,0 +1,24 @@
+{
+  "tag": "v0.1.2",
+  "date": "2026-03-31",
+  "channels": [
+    "alpha"
+  ],
+  "changelog_paths": {
+    "en": "docs/releases/en/v0.1.2.md",
+    "es": "docs/releases/es/v0.1.2.md"
+  },
+  "version": "0.1.2",
+  "artifacts": {
+    "android": {
+      "public_url": "https://pub-8159019abe1741a097538b976c19722c.r2.dev/artifacts/android/v0.1.2/kumoriya-0.1.2.apk",
+      "file_name": "kumoriya-0.1.2.apk",
+      "r2_key": "artifacts/android/v0.1.2/kumoriya-0.1.2.apk"
+    },
+    "windows": {
+      "public_url": "https://pub-8159019abe1741a097538b976c19722c.r2.dev/artifacts/windows/v0.1.2/Kumoriya-0.1.2-windows-x64-setup.exe",
+      "file_name": "Kumoriya-0.1.2-windows-x64-setup.exe",
+      "r2_key": "artifacts/windows/v0.1.2/Kumoriya-0.1.2-windows-x64-setup.exe"
+    }
+  }
+}

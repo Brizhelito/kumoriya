@@ -1699,6 +1699,12 @@ abstract class AppLocalizations {
   /// **'Language'**
   String get settingsLanguageLabel;
 
+  /// No description provided for @settingsVersionLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Version'**
+  String get settingsVersionLabel;
+
   /// No description provided for @settingsLanguageEnglish.
   ///
   /// In en, this message translates to:

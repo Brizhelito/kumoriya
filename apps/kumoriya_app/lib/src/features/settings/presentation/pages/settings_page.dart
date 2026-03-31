@@ -38,6 +38,8 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
   bool _runningDebugUpdateProbe = false;
   bool _runningForcedDebugUpdateProbe = false;
   bool _clearingPlaybackPreferences = false;
+  bool _loadingAppVersion = true;
+  String _appVersionLabel = '-';
 
   bool get _supportsNotificationRequest => Platform.isAndroid || Platform.isIOS;
 
@@ -45,6 +47,22 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
   void initState() {
     super.initState();
     _refreshNotificationStatus();
+    _loadAppVersion();
+  }
+
+  Future<void> _loadAppVersion() async {
+    try {
+      final info = await PackageInfo.fromPlatform();
+      final version = 'v${info.version}';
+      if (!mounted) return;
+      setState(() {
+        _appVersionLabel = version;
+        _loadingAppVersion = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _loadingAppVersion = false);
+    }
   }
 
   Future<void> _refreshNotificationStatus() async {
@@ -540,6 +558,13 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                   title: context.l10n.settingsAppTitle,
                   child: Column(
                     children: <Widget>[
+                      _ReadOnlySettingRow(
+                        label: context.l10n.settingsVersionLabel,
+                        value: _loadingAppVersion
+                            ? context.l10n.loadingGeneric
+                            : _appVersionLabel,
+                      ),
+                      const SizedBox(height: 4),
                       _ReadOnlySettingRow(
                         label: context.l10n.settingsThemeLabel,
                         value: context.l10n.settingsThemeDark,

@@ -44,10 +44,19 @@ function Upload-FileToR2(
   [string]$FilePath,
   [string]$Bucket,
   [string]$Key,
-  [string]$Endpoint
+  [string]$Endpoint,
+  [string]$ContentType,
+  [string]$ContentDisposition
 ) {
   Write-Host "Uploading: $FilePath -> s3://$Bucket/$Key"
-  aws s3 cp "$FilePath" "s3://$Bucket/$Key" --endpoint-url "$Endpoint" --region auto
+  $cmd = @("s3", "cp", "$FilePath", "s3://$Bucket/$Key", "--endpoint-url", "$Endpoint", "--region", "auto")
+  if ($ContentType) {
+    $cmd += @("--content-type", "$ContentType")
+  }
+  if ($ContentDisposition) {
+    $cmd += @("--content-disposition", "$ContentDisposition")
+  }
+  aws @cmd
 }
 
 if ([string]::IsNullOrWhiteSpace($BucketName)) {
@@ -171,15 +180,15 @@ $updateManifest | ConvertTo-Json -Depth 8 | Set-Content -Path $updateManifestPat
 if ($BuildAndroid) {
   $tempAndroidPath = Join-Path $env:TEMP $androidFileName
   Copy-Item -Path $apkOutPath -Destination $tempAndroidPath -Force
-  Upload-FileToR2 -FilePath $tempAndroidPath -Bucket $BucketName -Key $androidKey -Endpoint $EndpointUrl
+  Upload-FileToR2 -FilePath $tempAndroidPath -Bucket $BucketName -Key $androidKey -Endpoint $EndpointUrl -ContentType "application/vnd.android.package-archive" -ContentDisposition "attachment; filename=`"$androidFileName`""
 }
 
 if ($BuildWindows) {
-  Upload-FileToR2 -FilePath $setupOutPath -Bucket $BucketName -Key $windowsKey -Endpoint $EndpointUrl
+  Upload-FileToR2 -FilePath $setupOutPath -Bucket $BucketName -Key $windowsKey -Endpoint $EndpointUrl -ContentType "application/octet-stream" -ContentDisposition "attachment; filename=`"$(Split-Path $setupOutPath -Leaf)`""
 }
 
-Upload-FileToR2 -FilePath $releaseJsonPath -Bucket $BucketName -Key $releaseJsonKey -Endpoint $EndpointUrl
-Upload-FileToR2 -FilePath $updateManifestPath -Bucket $BucketName -Key "update.json" -Endpoint $EndpointUrl
+Upload-FileToR2 -FilePath $releaseJsonPath -Bucket $BucketName -Key $releaseJsonKey -Endpoint $EndpointUrl -ContentType "application/json"
+Upload-FileToR2 -FilePath $updateManifestPath -Bucket $BucketName -Key "update.json" -Endpoint $EndpointUrl -ContentType "application/json"
 
 if (Test-Path $releaseNotesEsPath) {
   Upload-FileToR2 -FilePath $releaseNotesEsPath -Bucket $BucketName -Key $changelogEsKey -Endpoint $EndpointUrl

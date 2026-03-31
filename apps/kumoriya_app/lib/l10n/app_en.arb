@@ -539,6 +539,7 @@
   "settingsThemeLabel": "Theme",
   "settingsThemeDark": "Dark",
   "settingsLanguageLabel": "Language",
+  "settingsVersionLabel": "Version",
   "settingsLanguageEnglish": "English",
   "settingsLanguageSpanish": "Spanish",
   "settingsDesktopOnlyVisibleNote": "On Windows only desktop-relevant settings are shown.",

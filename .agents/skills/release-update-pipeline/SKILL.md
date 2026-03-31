@@ -14,6 +14,7 @@ Ship a new Kumoriya version with reproducible artifacts and auditable release me
 Coverage includes:
 - versions
 - changelog + release notes
+- static website metadata generation (Astro/Vercel)
 - compile/build
 - artifact naming and checksums
 - R2 upload + update manifest update
@@ -39,7 +40,8 @@ Collect before execution:
 4. platforms to publish (android/windows)
 5. R2 bucket and path conventions
 6. distribution files expected for this version
-7. git branch and tag policy
+7. website static metadata destination path (default: `visual_reference/public/data/release-feed.json`)
+8. git branch and tag policy
 
 If an input is missing, ask only for the missing minimum.
 
@@ -52,6 +54,12 @@ Use these defaults unless the user says otherwise:
 - android artifact path: `artifacts/android/vX.Y.Z/kumoriya-X.Y.Z.apk`
 - windows artifact path: `artifacts/windows/vX.Y.Z/Kumoriya-X.Y.Z-windows-x64-setup.exe`
 - update manifest URL path: `/update.json`
+- website release feed path: `visual_reference/public/data/release-feed.json`
+- website release feed format: one JSON file containing `latest` + `changelog[]`
+
+Separation rule:
+- R2 is for downloadable binaries and app update manifest.
+- Website changelog/version cards must be served from static metadata in the website repo/CDN, not fetched from R2 on each page load.
 
 ## Workflow
 
@@ -136,7 +144,67 @@ Validation:
 
 Never publish manifest pointing to missing artifacts.
 
-### Phase 6: Upload to Cloudflare R2
+### Phase 6: Website Static Metadata (Astro/Vercel)
+
+Generate static metadata for the website so the site does not perform runtime reads against R2 for release/changelog data.
+
+Required output file:
+- `visual_reference/public/data/release-feed.json` (or user-specified path)
+
+Required structure:
+- `generated_at` (ISO timestamp)
+- `latest` object (version/tag/date/channel/download URLs)
+- `changelog` array newest-first with summary/notes for EN and ES
+
+Website metadata rule (strict):
+- Changelog content must be inlined in JSON (`notes.en` / `notes.es`).
+- Do not publish `notes_urls` or runtime links to remote markdown for website rendering.
+- The website should only use download links to R2 binaries when users click download.
+
+Minimum schema:
+```json
+{
+	"generated_at": "2026-03-31T00:00:00Z",
+	"latest": {
+		"version": "0.1.2",
+		"tag": "v0.1.2",
+		"date": "2026-03-31",
+		"channel": "alpha",
+		"downloads": {
+			"android": { "url": "...", "file_name": "..." },
+			"windows": { "url": "...", "file_name": "..." }
+		}
+	},
+	"changelog": [
+		{
+			"version": "0.1.2",
+			"tag": "v0.1.2",
+			"date": "2026-03-31",
+			"notes": {
+				"en": "...",
+				"es": "..."
+			}
+		}
+	]
+}
+```
+
+Build metadata source of truth:
+1. `releases/versions/vX.Y.Z/release.json`
+2. `docs/releases/en/vX.Y.Z.md`
+3. `docs/releases/es/vX.Y.Z.md`
+4. release index in `docs/releases/README.md`
+
+Validation:
+1. JSON parses correctly
+2. latest tag/version matches release tag
+3. `latest.downloads.*.url` matches published artifacts
+4. `changelog[0].tag` equals current release tag
+5. `changelog[*].notes` exists for EN and ES and is non-empty
+6. no `notes_urls` field is present in website JSON
+7. file is committed in same release PR/commit set
+
+### Phase 7: Upload to Cloudflare R2
 
 Upload artifacts first, manifest last.
 
@@ -163,7 +231,7 @@ rclone copy <update_json> <remote>:<bucket>/
 
 If credentials are unavailable, prepare all files and provide exact upload commands.
 
-### Phase 7: Git Commits + Tag
+### Phase 8: Git Commits + Tag
 
 Commit in reviewable slices:
 1. `chore(release): bump version to vX.Y.Z`
@@ -183,7 +251,7 @@ git push origin vX.Y.Z
 
 Do not include unrelated changes.
 
-### Phase 8: Release TODO Checklist (Gate)
+### Phase 9: Release TODO Checklist (Gate)
 
 All must be true before declaring done:
 - version updated everywhere required
@@ -194,6 +262,7 @@ All must be true before declaring done:
 - release builds succeeded
 - artifact names/paths normalized
 - SHA-256 hashes generated
+- website static metadata generated and validated
 - binaries uploaded to R2
 - update.json uploaded last
 - git commits clean and scoped
@@ -223,6 +292,7 @@ Release Execution Report
 - Files changed:
 - Artifacts generated:
 - Checksums:
+- Website metadata status:
 - R2 upload status:
 - Manifest status:
 - Git commits:

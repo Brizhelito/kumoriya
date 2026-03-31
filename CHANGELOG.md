@@ -2,6 +2,17 @@
 
 All notable changes to Kumoriya will be documented in this file.
 
+## [v0.1.2] - 2026-03-31
+
+### Added
+- Settings now shows the installed app version in the App section.
+
+### Changed
+- App version bumped to `0.1.2+3`.
+
+### Fixed
+- Update availability check now runs automatically at startup on Android and Windows, so release builds can detect remote updates without relying on debug-only actions.
+
 ## [v0.1.1] - 2026-03-31
 
 ### Added

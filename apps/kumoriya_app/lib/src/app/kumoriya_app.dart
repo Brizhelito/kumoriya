@@ -11,6 +11,8 @@ import '../features/anime_catalog/presentation/pages/home_page.dart';
 import '../features/anime_catalog/presentation/pages/library_page.dart';
 import '../features/anime_catalog/presentation/pages/search_page.dart';
 import '../features/anime_catalog/presentation/providers/anime_catalog_providers.dart';
+import '../features/app_update/presentation/widgets/update_available_dialog.dart';
+import '../features/app_update/presentation/app_update_providers.dart';
 import '../features/downloads/application/download_directory_service.dart';
 import '../features/downloads/presentation/download_providers.dart';
 import '../features/downloads/presentation/widgets/download_path_dialog.dart';
@@ -49,10 +51,15 @@ class _FirstLaunchGate extends ConsumerStatefulWidget {
 }
 
 class _FirstLaunchGateState extends ConsumerState<_FirstLaunchGate> {
+  bool _runningStartupUpdateCheck = false;
+
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _checkDownloadPath());
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      await _checkDownloadPath();
+      await _checkForStartupUpdate();
+    });
   }
 
   Future<void> _checkDownloadPath() async {
@@ -86,6 +93,35 @@ class _FirstLaunchGateState extends ConsumerState<_FirstLaunchGate> {
           },
         ),
       );
+    }
+  }
+
+  Future<void> _checkForStartupUpdate() async {
+    if (!mounted || _runningStartupUpdateCheck) {
+      return;
+    }
+
+    if (!Platform.isAndroid && !Platform.isWindows) {
+      return;
+    }
+
+    _runningStartupUpdateCheck = true;
+    try {
+      final result = await ref.read(appUpdateServiceProvider).checkForUpdate();
+      if (!mounted) return;
+
+      final maybeUpdate = result.fold(
+        onSuccess: (update) => update,
+        onFailure: (_) => null,
+      );
+
+      if (maybeUpdate == null || !mounted) {
+        return;
+      }
+
+      await UpdateAvailableDialog.show(context, maybeUpdate);
+    } finally {
+      _runningStartupUpdateCheck = false;
     }
   }
 

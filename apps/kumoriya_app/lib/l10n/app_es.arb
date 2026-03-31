@@ -539,6 +539,7 @@
   "settingsThemeLabel": "Tema",
   "settingsThemeDark": "Oscuro",
   "settingsLanguageLabel": "Idioma",
+  "settingsVersionLabel": "Versión",
   "settingsLanguageEnglish": "Inglés",
   "settingsLanguageSpanish": "Español",
   "settingsDesktopOnlyVisibleNote": "En Windows solo se muestran ajustes aplicables a escritorio.",

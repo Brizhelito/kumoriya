@@ -1,0 +1,28 @@
+{
+  "generated_at": "2026-03-31T23:59:00Z",
+  "current_version": "0.1.2",
+  "current_tag": "v0.1.2",
+  "release_date": "2026-03-31",
+  "channel": "alpha",
+  "headline": {
+    "es": "Kumoriya v0.1.2 disponible",
+    "en": "Kumoriya v0.1.2 available"
+  },
+  "release_notes_short": {
+    "es": "Version visible en Configuracion y check automatico de updates en startup.",
+    "en": "Settings version visibility and startup update check."
+  },
+  "downloads": {
+    "android": {
+      "label": "Android APK",
+      "url": "https://pub-8159019abe1741a097538b976c19722c.r2.dev/artifacts/android/v0.1.2/kumoriya-0.1.2.apk",
+      "file_name": "kumoriya-0.1.2.apk"
+    },
+    "windows": {
+      "label": "Windows Installer",
+      "url": "https://pub-8159019abe1741a097538b976c19722c.r2.dev/artifacts/windows/v0.1.2/Kumoriya-0.1.2-windows-x64-setup.exe",
+      "file_name": "Kumoriya-0.1.2-windows-x64-setup.exe"
+    }
+  },
+  "changelog_url": "/data/changelog.json"
+}

@@ -1,12 +1,12 @@
 {
   "android": {
-    "release_notes": "v0.1.1: mejoras de update, permisos y rendimiento de descarga",
-    "latest_version": "0.1.1",
-    "url": "https://pub-8159019abe1741a097538b976c19722c.r2.dev/artifacts/android/v0.1.1/kumoriya-0.1.1.apk"
+    "url": "https://pub-8159019abe1741a097538b976c19722c.r2.dev/artifacts/android/v0.1.2/kumoriya-0.1.2.apk",
+    "release_notes": "v0.1.2: version visible en Configuración y check automático de updates en startup",
+    "latest_version": "0.1.2"
   },
   "windows": {
-    "release_notes": "v0.1.1: mejoras de update, permisos y rendimiento de descarga",
-    "latest_version": "0.1.1",
-    "url": "https://pub-8159019abe1741a097538b976c19722c.r2.dev/artifacts/windows/v0.1.1/Kumoriya-0.1.1-windows-x64-setup.exe"
+    "url": "https://pub-8159019abe1741a097538b976c19722c.r2.dev/artifacts/windows/v0.1.2/Kumoriya-0.1.2-windows-x64-setup.exe",
+    "release_notes": "v0.1.2: version visible en Configuración y check automático de updates en startup",
+    "latest_version": "0.1.2"
   }
 }
