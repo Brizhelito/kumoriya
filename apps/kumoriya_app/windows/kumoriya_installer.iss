@@ -1,6 +1,6 @@
 [Setup]
 AppName=Kumoriya
-AppVersion=0.1.0
+AppVersion=0.1.1
 AppPublisher=Kumoriya
 AppPublisherURL=https://kumoriya.app
 AppSupportURL=https://kumoriya.app
@@ -8,7 +8,7 @@ AppUpdatesURL=https://kumoriya.app
 DefaultDirName={autopf}\Kumoriya
 DefaultGroupName=Kumoriya
 OutputDir=..\build\windows\installer
-OutputBaseFilename=Kumoriya-0.1.0-windows-x64-setup
+OutputBaseFilename=Kumoriya-0.1.1-windows-x64-setup
 SetupIconFile=..\..\..\windows.ico
 Compression=lzma2/ultra64
 SolidCompression=yes
