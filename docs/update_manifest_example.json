@@ -1,0 +1,12 @@
+{
+  "android": {
+    "latest_version": "0.1.0",
+    "url": "https://pub-8159019abe1741a097538b976c19722c.r2.dev/kumoriya-0.1.0.apk",
+    "release_notes": "Primera versión alfa."
+  },
+  "windows": {
+    "latest_version": "0.1.0",
+    "url": "https://pub-8159019abe1741a097538b976c19722c.r2.dev/kumoriya-0.1.0-setup.exe",
+    "release_notes": "Primera versión alfa."
+  }
+}

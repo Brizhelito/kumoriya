@@ -21,15 +21,22 @@ final class DriftAnilistCacheStore implements AnilistCacheStore {
           titleRomaji: Value(entry.titleRomaji),
           titleEnglish: Value(entry.titleEnglish),
           titleNative: Value(entry.titleNative),
+          synonyms: Value(
+            entry.synonyms != null ? jsonEncode(entry.synonyms) : null,
+          ),
           coverImageUrl: Value(entry.coverImageUrl),
           bannerImageUrl: Value(entry.bannerImageUrl),
           status: Value(entry.status),
+          season: Value(entry.season),
           averageScore: Value(entry.averageScore),
+          popularity: Value(entry.popularity),
           genres: Value(entry.genres != null ? jsonEncode(entry.genres) : null),
           synopsis: Value(entry.synopsis),
           format: Value(entry.format),
           releaseYear: Value(entry.releaseYear),
           totalEpisodes: Value(entry.totalEpisodes),
+          nextAiringEpisode: Value(entry.nextAiringEpisode),
+          nextAiringAt: Value(entry.nextAiringAt?.millisecondsSinceEpoch),
           updatedAt: Value(entry.updatedAt.millisecondsSinceEpoch),
         ),
       );
@@ -94,6 +101,95 @@ final class DriftAnilistCacheStore implements AnilistCacheStore {
     }
   }
 
+  @override
+  Future<Result<List<AnilistCacheEntry>, KumoriyaError>> getRecent({
+    int limit = 20,
+    int offset = 0,
+  }) async {
+    try {
+      final rows = await _dao.getRecent(limit: limit, offset: offset);
+      return Success(rows.map(_rowToEntry).toList(growable: false));
+    } catch (e) {
+      return Failure(
+        SimpleError(
+          code: 'storage.anilist_cache_query_failed',
+          message: 'Failed to query recent AniList cache entries: $e',
+          kind: KumoriyaErrorKind.unexpected,
+        ),
+      );
+    }
+  }
+
+  @override
+  Future<Result<List<AnilistCacheEntry>, KumoriyaError>> getByStatus(
+    String status, {
+    int limit = 20,
+    int offset = 0,
+  }) async {
+    try {
+      final rows = await _dao.getByStatus(status, limit: limit, offset: offset);
+      return Success(rows.map(_rowToEntry).toList(growable: false));
+    } catch (e) {
+      return Failure(
+        SimpleError(
+          code: 'storage.anilist_cache_query_failed',
+          message: 'Failed to query AniList cache by status: $e',
+          kind: KumoriyaErrorKind.unexpected,
+        ),
+      );
+    }
+  }
+
+  @override
+  Future<Result<List<AnilistCacheEntry>, KumoriyaError>> getByYearAndStatus(
+    int year, {
+    String? status,
+    int limit = 20,
+    int offset = 0,
+  }) async {
+    try {
+      final rows = await _dao.getByYearAndStatus(
+        year,
+        status: status,
+        limit: limit,
+        offset: offset,
+      );
+      return Success(rows.map(_rowToEntry).toList(growable: false));
+    } catch (e) {
+      return Failure(
+        SimpleError(
+          code: 'storage.anilist_cache_query_failed',
+          message: 'Failed to query AniList cache by year/status: $e',
+          kind: KumoriyaErrorKind.unexpected,
+        ),
+      );
+    }
+  }
+
+  @override
+  Future<Result<List<AnilistCacheEntry>, KumoriyaError>> searchByTitle(
+    String query, {
+    int limit = 20,
+    int offset = 0,
+  }) async {
+    try {
+      final rows = await _dao.searchByTitle(
+        query,
+        limit: limit,
+        offset: offset,
+      );
+      return Success(rows.map(_rowToEntry).toList(growable: false));
+    } catch (e) {
+      return Failure(
+        SimpleError(
+          code: 'storage.anilist_cache_query_failed',
+          message: 'Failed to search AniList cache by title: $e',
+          kind: KumoriyaErrorKind.unexpected,
+        ),
+      );
+    }
+  }
+
   AnilistCacheEntry _rowToEntry(AnilistCacheTableData row) {
     List<String>? genres;
     if (row.genres != null) {
@@ -105,20 +201,37 @@ final class DriftAnilistCacheStore implements AnilistCacheStore {
       }
     }
 
+    List<String>? synonyms;
+    if (row.synonyms != null) {
+      try {
+        final decoded = jsonDecode(row.synonyms!) as List<dynamic>;
+        synonyms = decoded.whereType<String>().toList(growable: false);
+      } catch (_) {
+        synonyms = null;
+      }
+    }
+
     return AnilistCacheEntry(
       anilistId: row.anilistId,
       titleRomaji: row.titleRomaji,
       titleEnglish: row.titleEnglish,
       titleNative: row.titleNative,
+      synonyms: synonyms,
       coverImageUrl: row.coverImageUrl,
       bannerImageUrl: row.bannerImageUrl,
       status: row.status,
+      season: row.season,
       averageScore: row.averageScore,
+      popularity: row.popularity,
       genres: genres,
       synopsis: row.synopsis,
       format: row.format,
       releaseYear: row.releaseYear,
       totalEpisodes: row.totalEpisodes,
+      nextAiringEpisode: row.nextAiringEpisode,
+      nextAiringAt: row.nextAiringAt != null
+          ? DateTime.fromMillisecondsSinceEpoch(row.nextAiringAt!)
+          : null,
       updatedAt: DateTime.fromMillisecondsSinceEpoch(row.updatedAt),
     );
   }

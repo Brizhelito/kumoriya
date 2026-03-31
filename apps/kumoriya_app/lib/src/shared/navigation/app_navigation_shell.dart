@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
+import '../../features/anime_catalog/application/services/cached_anime_catalog_repository.dart';
 import '../../features/settings/presentation/pages/settings_page.dart';
 import '../../app/l10n.dart';
 import '../icons/kumoriya_icons.dart';
@@ -9,9 +10,17 @@ import '../theme/kumoriya_theme.dart';
 enum KumoriyaTab { home, search, calendar, library, downloads }
 
 class AppNavigationShell extends StatefulWidget {
-  const AppNavigationShell({super.key, required this.tabBuilders});
+  const AppNavigationShell({
+    super.key,
+    required this.tabBuilders,
+    this.fallbackReasonNotifier,
+  });
 
   final Map<KumoriyaTab, WidgetBuilder> tabBuilders;
+
+  /// When non-null, a persistent banner is shown to indicate the fallback
+  /// reason ([FallbackReason.offline] or [FallbackReason.anilistDown]).
+  final ValueNotifier<FallbackReason>? fallbackReasonNotifier;
 
   @override
   State<AppNavigationShell> createState() => _AppNavigationShellState();
@@ -82,6 +91,43 @@ class _AppNavigationShellState extends State<AppNavigationShell> {
     );
   }
 
+  Widget _buildOfflineBanner(Widget body) {
+    final notifier = widget.fallbackReasonNotifier;
+    if (notifier == null) return body;
+    return ValueListenableBuilder<FallbackReason>(
+      valueListenable: notifier,
+      builder: (context, reason, child) {
+        return Column(
+          children: <Widget>[
+            if (reason != FallbackReason.none)
+              SafeArea(
+                bottom: false,
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(vertical: 4),
+                  color: reason == FallbackReason.offline
+                      ? KumoriyaColors.statusWarning
+                      : KumoriyaColors.statusDanger,
+                  child: Text(
+                    reason == FallbackReason.offline
+                        ? context.l10n.offlineBanner
+                        : context.l10n.anilistDownBanner,
+                    textAlign: TextAlign.center,
+                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ),
+            Expanded(child: child!),
+          ],
+        );
+      },
+      child: body,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final currentIndex = _currentTab.index;
@@ -99,6 +145,8 @@ class _AppNavigationShellState extends State<AppNavigationShell> {
       ],
     );
 
+    final bodyWithBanner = _buildOfflineBanner(body);
+
     if (_isDesktop) {
       return PopScope(
         canPop: false,
@@ -114,7 +162,7 @@ class _AppNavigationShellState extends State<AppNavigationShell> {
                 onTap: _onTabSelected,
                 onOpenSettings: () => _openSettings(context),
               ),
-              Expanded(child: body),
+              Expanded(child: bodyWithBanner),
             ],
           ),
         ),
@@ -128,7 +176,7 @@ class _AppNavigationShellState extends State<AppNavigationShell> {
       },
       child: Scaffold(
         backgroundColor: KumoriyaColors.background,
-        body: body,
+        body: bodyWithBanner,
         bottomNavigationBar: _MobileBottomNav(
           currentIndex: currentIndex,
           onTap: _onTabSelected,

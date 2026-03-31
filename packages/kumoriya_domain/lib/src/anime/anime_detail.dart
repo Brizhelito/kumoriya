@@ -5,17 +5,16 @@ import 'anime_relation.dart';
 final class AnimeDetail {
   const AnimeDetail({
     required this.anime,
-    this.synopsis,
     this.episodes = const <AnimeEpisode>[],
-    this.genres = const <String>[],
-    this.bannerImageUrl,
     this.relations = const <AnimeRelation>[],
   });
 
   final Anime anime;
-  final String? synopsis;
   final List<AnimeEpisode> episodes;
-  final List<String> genres;
-  final String? bannerImageUrl;
   final List<AnimeRelation> relations;
+
+  /// Convenience accessors delegating to [anime].
+  String? get synopsis => anime.synopsis;
+  List<String> get genres => anime.genres;
+  String? get bannerImageUrl => anime.bannerImageUrl;
 }

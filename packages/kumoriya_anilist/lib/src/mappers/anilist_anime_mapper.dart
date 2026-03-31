@@ -19,10 +19,15 @@ final class AnilistAnimeMapper {
       format: _mapFormat(media['format'] as String?),
       releaseYear: media['seasonYear'] as int?,
       coverImageUrl: _extractCoverImage(media['coverImage']),
+      bannerImageUrl: media['bannerImage'] as String?,
       totalEpisodes: media['episodes'] as int?,
       nextAiringEpisodeNumber: nextAiringEpisode,
       nextAiringAt: nextAiringAt,
       averageScore: media['averageScore'] as int?,
+      popularity: media['popularity'] as int?,
+      season: media['season'] as String?,
+      synopsis: _cleanSynopsis(media['description'] as String?),
+      genres: _stringList(media['genres']),
       status: _mapStatus(media['status'] as String?),
     );
   }
@@ -31,10 +36,7 @@ final class AnilistAnimeMapper {
     final anime = mapAnime(media);
     return AnimeDetail(
       anime: anime,
-      synopsis: _cleanSynopsis(media['description'] as String?),
       episodes: mapEpisodes(media),
-      genres: _stringList(media['genres']),
-      bannerImageUrl: media['bannerImage'] as String?,
       relations: _mapRelations(media['relations']),
     );
   }

@@ -34,6 +34,12 @@ class AppLocalizationsEs extends AppLocalizations {
       'AniList no esta disponible en este momento. Intenta mas tarde.';
 
   @override
+  String get offlineBanner => 'Sin conexión';
+
+  @override
+  String get anilistDownBanner => 'AniList caído';
+
+  @override
   String get errorRateLimitedAnilist =>
       'AniList esta limitando las solicitudes en este momento. Espera un poco y vuelve a intentar.';
 

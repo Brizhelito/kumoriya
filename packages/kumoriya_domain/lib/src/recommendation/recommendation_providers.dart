@@ -12,9 +12,13 @@ final recommendationProviderProvider = Provider<RecommendationProvider>((ref) {
 
 /// Provider para el use case de recomendaciones disponibles
 @riverpod
-GetAvailableRecommendationsUseCase getAvailableRecommendationsUseCase(GetAvailableRecommendationsUseCaseRef ref) {
+GetAvailableRecommendationsUseCase getAvailableRecommendationsUseCase(
+  GetAvailableRecommendationsUseCaseRef ref,
+) {
   final provider = ref.watch(recommendationProviderProvider);
-  final getAvailability = ref.watch(loadSourceAvailabilitySummaryUseCaseProvider).call;
+  final getAvailability = ref
+      .watch(loadSourceAvailabilitySummaryUseCaseProvider)
+      .call;
   return GetAvailableRecommendationsUseCase(
     provider: provider,
     getAvailability: getAvailability,

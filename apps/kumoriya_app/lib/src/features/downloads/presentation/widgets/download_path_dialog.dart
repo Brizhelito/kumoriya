@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../../app/l10n.dart';
 import '../../../../shared/theme/kumoriya_theme.dart';
 
 class DownloadPathDialog extends StatelessWidget {
@@ -18,13 +19,13 @@ class DownloadPathDialog extends StatelessWidget {
   Widget build(BuildContext context) {
     return AlertDialog(
       backgroundColor: KumoriyaColors.surface,
-      title: const Text('Choose Download Folder'),
+      title: Text(context.l10n.downloadFolderTitle),
       content: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Select a folder for offline downloads.',
+            context.l10n.downloadFolderDescription,
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
               color: KumoriyaColors.textSecondary,
             ),
@@ -50,14 +51,17 @@ class DownloadPathDialog extends StatelessWidget {
         TextButton(
           onPressed: () => Navigator.of(context).pop(),
           child: Text(
-            'Not Now',
+            context.l10n.downloadCancel,
             style: TextStyle(color: KumoriyaColors.textMuted),
           ),
         ),
-        TextButton(onPressed: onBrowse, child: const Text('Browse')),
+        TextButton(
+          onPressed: onBrowse,
+          child: Text(context.l10n.downloadFolderChange),
+        ),
         FilledButton(
           onPressed: onUseDefault,
-          child: const Text('Use Recommended'),
+          child: Text(context.l10n.downloadFolderReset),
         ),
       ],
     );

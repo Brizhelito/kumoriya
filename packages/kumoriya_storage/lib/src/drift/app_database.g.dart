@@ -4518,6 +4518,17 @@ class $AnilistCacheTableTable extends AnilistCacheTable
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _synonymsMeta = const VerificationMeta(
+    'synonyms',
+  );
+  @override
+  late final GeneratedColumn<String> synonyms = GeneratedColumn<String>(
+    'synonyms',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _coverImageUrlMeta = const VerificationMeta(
     'coverImageUrl',
   );
@@ -4549,12 +4560,32 @@ class $AnilistCacheTableTable extends AnilistCacheTable
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _seasonMeta = const VerificationMeta('season');
+  @override
+  late final GeneratedColumn<String> season = GeneratedColumn<String>(
+    'season',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _averageScoreMeta = const VerificationMeta(
     'averageScore',
   );
   @override
   late final GeneratedColumn<int> averageScore = GeneratedColumn<int>(
     'average_score',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _popularityMeta = const VerificationMeta(
+    'popularity',
+  );
+  @override
+  late final GeneratedColumn<int> popularity = GeneratedColumn<int>(
+    'popularity',
     aliasedName,
     true,
     type: DriftSqlType.int,
@@ -4611,6 +4642,28 @@ class $AnilistCacheTableTable extends AnilistCacheTable
     type: DriftSqlType.int,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _nextAiringEpisodeMeta = const VerificationMeta(
+    'nextAiringEpisode',
+  );
+  @override
+  late final GeneratedColumn<int> nextAiringEpisode = GeneratedColumn<int>(
+    'next_airing_episode',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _nextAiringAtMeta = const VerificationMeta(
+    'nextAiringAt',
+  );
+  @override
+  late final GeneratedColumn<int> nextAiringAt = GeneratedColumn<int>(
+    'next_airing_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _updatedAtMeta = const VerificationMeta(
     'updatedAt',
   );
@@ -4628,15 +4681,20 @@ class $AnilistCacheTableTable extends AnilistCacheTable
     titleRomaji,
     titleEnglish,
     titleNative,
+    synonyms,
     coverImageUrl,
     bannerImageUrl,
     status,
+    season,
     averageScore,
+    popularity,
     genres,
     synopsis,
     format,
     releaseYear,
     totalEpisodes,
+    nextAiringEpisode,
+    nextAiringAt,
     updatedAt,
   ];
   @override
@@ -4686,6 +4744,12 @@ class $AnilistCacheTableTable extends AnilistCacheTable
         ),
       );
     }
+    if (data.containsKey('synonyms')) {
+      context.handle(
+        _synonymsMeta,
+        synonyms.isAcceptableOrUnknown(data['synonyms']!, _synonymsMeta),
+      );
+    }
     if (data.containsKey('cover_image_url')) {
       context.handle(
         _coverImageUrlMeta,
@@ -4710,6 +4774,12 @@ class $AnilistCacheTableTable extends AnilistCacheTable
         status.isAcceptableOrUnknown(data['status']!, _statusMeta),
       );
     }
+    if (data.containsKey('season')) {
+      context.handle(
+        _seasonMeta,
+        season.isAcceptableOrUnknown(data['season']!, _seasonMeta),
+      );
+    }
     if (data.containsKey('average_score')) {
       context.handle(
         _averageScoreMeta,
@@ -4717,6 +4787,12 @@ class $AnilistCacheTableTable extends AnilistCacheTable
           data['average_score']!,
           _averageScoreMeta,
         ),
+      );
+    }
+    if (data.containsKey('popularity')) {
+      context.handle(
+        _popularityMeta,
+        popularity.isAcceptableOrUnknown(data['popularity']!, _popularityMeta),
       );
     }
     if (data.containsKey('genres')) {
@@ -4755,6 +4831,24 @@ class $AnilistCacheTableTable extends AnilistCacheTable
         ),
       );
     }
+    if (data.containsKey('next_airing_episode')) {
+      context.handle(
+        _nextAiringEpisodeMeta,
+        nextAiringEpisode.isAcceptableOrUnknown(
+          data['next_airing_episode']!,
+          _nextAiringEpisodeMeta,
+        ),
+      );
+    }
+    if (data.containsKey('next_airing_at')) {
+      context.handle(
+        _nextAiringAtMeta,
+        nextAiringAt.isAcceptableOrUnknown(
+          data['next_airing_at']!,
+          _nextAiringAtMeta,
+        ),
+      );
+    }
     if (data.containsKey('updated_at')) {
       context.handle(
         _updatedAtMeta,
@@ -4788,6 +4882,10 @@ class $AnilistCacheTableTable extends AnilistCacheTable
         DriftSqlType.string,
         data['${effectivePrefix}title_native'],
       ),
+      synonyms: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}synonyms'],
+      ),
       coverImageUrl: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}cover_image_url'],
@@ -4800,9 +4898,17 @@ class $AnilistCacheTableTable extends AnilistCacheTable
         DriftSqlType.string,
         data['${effectivePrefix}status'],
       ),
+      season: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}season'],
+      ),
       averageScore: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}average_score'],
+      ),
+      popularity: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}popularity'],
       ),
       genres: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
@@ -4824,6 +4930,14 @@ class $AnilistCacheTableTable extends AnilistCacheTable
         DriftSqlType.int,
         data['${effectivePrefix}total_episodes'],
       ),
+      nextAiringEpisode: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}next_airing_episode'],
+      ),
+      nextAiringAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}next_airing_at'],
+      ),
       updatedAt: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}updated_at'],
@@ -4843,30 +4957,40 @@ class AnilistCacheTableData extends DataClass
   final String titleRomaji;
   final String? titleEnglish;
   final String? titleNative;
+  final String? synonyms;
   final String? coverImageUrl;
   final String? bannerImageUrl;
   final String? status;
+  final String? season;
   final int? averageScore;
+  final int? popularity;
   final String? genres;
   final String? synopsis;
   final String? format;
   final int? releaseYear;
   final int? totalEpisodes;
+  final int? nextAiringEpisode;
+  final int? nextAiringAt;
   final int updatedAt;
   const AnilistCacheTableData({
     required this.anilistId,
     required this.titleRomaji,
     this.titleEnglish,
     this.titleNative,
+    this.synonyms,
     this.coverImageUrl,
     this.bannerImageUrl,
     this.status,
+    this.season,
     this.averageScore,
+    this.popularity,
     this.genres,
     this.synopsis,
     this.format,
     this.releaseYear,
     this.totalEpisodes,
+    this.nextAiringEpisode,
+    this.nextAiringAt,
     required this.updatedAt,
   });
   @override
@@ -4880,6 +5004,9 @@ class AnilistCacheTableData extends DataClass
     if (!nullToAbsent || titleNative != null) {
       map['title_native'] = Variable<String>(titleNative);
     }
+    if (!nullToAbsent || synonyms != null) {
+      map['synonyms'] = Variable<String>(synonyms);
+    }
     if (!nullToAbsent || coverImageUrl != null) {
       map['cover_image_url'] = Variable<String>(coverImageUrl);
     }
@@ -4889,8 +5016,14 @@ class AnilistCacheTableData extends DataClass
     if (!nullToAbsent || status != null) {
       map['status'] = Variable<String>(status);
     }
+    if (!nullToAbsent || season != null) {
+      map['season'] = Variable<String>(season);
+    }
     if (!nullToAbsent || averageScore != null) {
       map['average_score'] = Variable<int>(averageScore);
+    }
+    if (!nullToAbsent || popularity != null) {
+      map['popularity'] = Variable<int>(popularity);
     }
     if (!nullToAbsent || genres != null) {
       map['genres'] = Variable<String>(genres);
@@ -4907,6 +5040,12 @@ class AnilistCacheTableData extends DataClass
     if (!nullToAbsent || totalEpisodes != null) {
       map['total_episodes'] = Variable<int>(totalEpisodes);
     }
+    if (!nullToAbsent || nextAiringEpisode != null) {
+      map['next_airing_episode'] = Variable<int>(nextAiringEpisode);
+    }
+    if (!nullToAbsent || nextAiringAt != null) {
+      map['next_airing_at'] = Variable<int>(nextAiringAt);
+    }
     map['updated_at'] = Variable<int>(updatedAt);
     return map;
   }
@@ -4921,6 +5060,9 @@ class AnilistCacheTableData extends DataClass
       titleNative: titleNative == null && nullToAbsent
           ? const Value.absent()
           : Value(titleNative),
+      synonyms: synonyms == null && nullToAbsent
+          ? const Value.absent()
+          : Value(synonyms),
       coverImageUrl: coverImageUrl == null && nullToAbsent
           ? const Value.absent()
           : Value(coverImageUrl),
@@ -4930,9 +5072,15 @@ class AnilistCacheTableData extends DataClass
       status: status == null && nullToAbsent
           ? const Value.absent()
           : Value(status),
+      season: season == null && nullToAbsent
+          ? const Value.absent()
+          : Value(season),
       averageScore: averageScore == null && nullToAbsent
           ? const Value.absent()
           : Value(averageScore),
+      popularity: popularity == null && nullToAbsent
+          ? const Value.absent()
+          : Value(popularity),
       genres: genres == null && nullToAbsent
           ? const Value.absent()
           : Value(genres),
@@ -4948,6 +5096,12 @@ class AnilistCacheTableData extends DataClass
       totalEpisodes: totalEpisodes == null && nullToAbsent
           ? const Value.absent()
           : Value(totalEpisodes),
+      nextAiringEpisode: nextAiringEpisode == null && nullToAbsent
+          ? const Value.absent()
+          : Value(nextAiringEpisode),
+      nextAiringAt: nextAiringAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(nextAiringAt),
       updatedAt: Value(updatedAt),
     );
   }
@@ -4962,15 +5116,20 @@ class AnilistCacheTableData extends DataClass
       titleRomaji: serializer.fromJson<String>(json['titleRomaji']),
       titleEnglish: serializer.fromJson<String?>(json['titleEnglish']),
       titleNative: serializer.fromJson<String?>(json['titleNative']),
+      synonyms: serializer.fromJson<String?>(json['synonyms']),
       coverImageUrl: serializer.fromJson<String?>(json['coverImageUrl']),
       bannerImageUrl: serializer.fromJson<String?>(json['bannerImageUrl']),
       status: serializer.fromJson<String?>(json['status']),
+      season: serializer.fromJson<String?>(json['season']),
       averageScore: serializer.fromJson<int?>(json['averageScore']),
+      popularity: serializer.fromJson<int?>(json['popularity']),
       genres: serializer.fromJson<String?>(json['genres']),
       synopsis: serializer.fromJson<String?>(json['synopsis']),
       format: serializer.fromJson<String?>(json['format']),
       releaseYear: serializer.fromJson<int?>(json['releaseYear']),
       totalEpisodes: serializer.fromJson<int?>(json['totalEpisodes']),
+      nextAiringEpisode: serializer.fromJson<int?>(json['nextAiringEpisode']),
+      nextAiringAt: serializer.fromJson<int?>(json['nextAiringAt']),
       updatedAt: serializer.fromJson<int>(json['updatedAt']),
     );
   }
@@ -4982,15 +5141,20 @@ class AnilistCacheTableData extends DataClass
       'titleRomaji': serializer.toJson<String>(titleRomaji),
       'titleEnglish': serializer.toJson<String?>(titleEnglish),
       'titleNative': serializer.toJson<String?>(titleNative),
+      'synonyms': serializer.toJson<String?>(synonyms),
       'coverImageUrl': serializer.toJson<String?>(coverImageUrl),
       'bannerImageUrl': serializer.toJson<String?>(bannerImageUrl),
       'status': serializer.toJson<String?>(status),
+      'season': serializer.toJson<String?>(season),
       'averageScore': serializer.toJson<int?>(averageScore),
+      'popularity': serializer.toJson<int?>(popularity),
       'genres': serializer.toJson<String?>(genres),
       'synopsis': serializer.toJson<String?>(synopsis),
       'format': serializer.toJson<String?>(format),
       'releaseYear': serializer.toJson<int?>(releaseYear),
       'totalEpisodes': serializer.toJson<int?>(totalEpisodes),
+      'nextAiringEpisode': serializer.toJson<int?>(nextAiringEpisode),
+      'nextAiringAt': serializer.toJson<int?>(nextAiringAt),
       'updatedAt': serializer.toJson<int>(updatedAt),
     };
   }
@@ -5000,21 +5164,27 @@ class AnilistCacheTableData extends DataClass
     String? titleRomaji,
     Value<String?> titleEnglish = const Value.absent(),
     Value<String?> titleNative = const Value.absent(),
+    Value<String?> synonyms = const Value.absent(),
     Value<String?> coverImageUrl = const Value.absent(),
     Value<String?> bannerImageUrl = const Value.absent(),
     Value<String?> status = const Value.absent(),
+    Value<String?> season = const Value.absent(),
     Value<int?> averageScore = const Value.absent(),
+    Value<int?> popularity = const Value.absent(),
     Value<String?> genres = const Value.absent(),
     Value<String?> synopsis = const Value.absent(),
     Value<String?> format = const Value.absent(),
     Value<int?> releaseYear = const Value.absent(),
     Value<int?> totalEpisodes = const Value.absent(),
+    Value<int?> nextAiringEpisode = const Value.absent(),
+    Value<int?> nextAiringAt = const Value.absent(),
     int? updatedAt,
   }) => AnilistCacheTableData(
     anilistId: anilistId ?? this.anilistId,
     titleRomaji: titleRomaji ?? this.titleRomaji,
     titleEnglish: titleEnglish.present ? titleEnglish.value : this.titleEnglish,
     titleNative: titleNative.present ? titleNative.value : this.titleNative,
+    synonyms: synonyms.present ? synonyms.value : this.synonyms,
     coverImageUrl: coverImageUrl.present
         ? coverImageUrl.value
         : this.coverImageUrl,
@@ -5022,7 +5192,9 @@ class AnilistCacheTableData extends DataClass
         ? bannerImageUrl.value
         : this.bannerImageUrl,
     status: status.present ? status.value : this.status,
+    season: season.present ? season.value : this.season,
     averageScore: averageScore.present ? averageScore.value : this.averageScore,
+    popularity: popularity.present ? popularity.value : this.popularity,
     genres: genres.present ? genres.value : this.genres,
     synopsis: synopsis.present ? synopsis.value : this.synopsis,
     format: format.present ? format.value : this.format,
@@ -5030,6 +5202,10 @@ class AnilistCacheTableData extends DataClass
     totalEpisodes: totalEpisodes.present
         ? totalEpisodes.value
         : this.totalEpisodes,
+    nextAiringEpisode: nextAiringEpisode.present
+        ? nextAiringEpisode.value
+        : this.nextAiringEpisode,
+    nextAiringAt: nextAiringAt.present ? nextAiringAt.value : this.nextAiringAt,
     updatedAt: updatedAt ?? this.updatedAt,
   );
   AnilistCacheTableData copyWithCompanion(AnilistCacheTableCompanion data) {
@@ -5044,6 +5220,7 @@ class AnilistCacheTableData extends DataClass
       titleNative: data.titleNative.present
           ? data.titleNative.value
           : this.titleNative,
+      synonyms: data.synonyms.present ? data.synonyms.value : this.synonyms,
       coverImageUrl: data.coverImageUrl.present
           ? data.coverImageUrl.value
           : this.coverImageUrl,
@@ -5051,9 +5228,13 @@ class AnilistCacheTableData extends DataClass
           ? data.bannerImageUrl.value
           : this.bannerImageUrl,
       status: data.status.present ? data.status.value : this.status,
+      season: data.season.present ? data.season.value : this.season,
       averageScore: data.averageScore.present
           ? data.averageScore.value
           : this.averageScore,
+      popularity: data.popularity.present
+          ? data.popularity.value
+          : this.popularity,
       genres: data.genres.present ? data.genres.value : this.genres,
       synopsis: data.synopsis.present ? data.synopsis.value : this.synopsis,
       format: data.format.present ? data.format.value : this.format,
@@ -5063,6 +5244,12 @@ class AnilistCacheTableData extends DataClass
       totalEpisodes: data.totalEpisodes.present
           ? data.totalEpisodes.value
           : this.totalEpisodes,
+      nextAiringEpisode: data.nextAiringEpisode.present
+          ? data.nextAiringEpisode.value
+          : this.nextAiringEpisode,
+      nextAiringAt: data.nextAiringAt.present
+          ? data.nextAiringAt.value
+          : this.nextAiringAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
     );
   }
@@ -5074,15 +5261,20 @@ class AnilistCacheTableData extends DataClass
           ..write('titleRomaji: $titleRomaji, ')
           ..write('titleEnglish: $titleEnglish, ')
           ..write('titleNative: $titleNative, ')
+          ..write('synonyms: $synonyms, ')
           ..write('coverImageUrl: $coverImageUrl, ')
           ..write('bannerImageUrl: $bannerImageUrl, ')
           ..write('status: $status, ')
+          ..write('season: $season, ')
           ..write('averageScore: $averageScore, ')
+          ..write('popularity: $popularity, ')
           ..write('genres: $genres, ')
           ..write('synopsis: $synopsis, ')
           ..write('format: $format, ')
           ..write('releaseYear: $releaseYear, ')
           ..write('totalEpisodes: $totalEpisodes, ')
+          ..write('nextAiringEpisode: $nextAiringEpisode, ')
+          ..write('nextAiringAt: $nextAiringAt, ')
           ..write('updatedAt: $updatedAt')
           ..write(')'))
         .toString();
@@ -5094,15 +5286,20 @@ class AnilistCacheTableData extends DataClass
     titleRomaji,
     titleEnglish,
     titleNative,
+    synonyms,
     coverImageUrl,
     bannerImageUrl,
     status,
+    season,
     averageScore,
+    popularity,
     genres,
     synopsis,
     format,
     releaseYear,
     totalEpisodes,
+    nextAiringEpisode,
+    nextAiringAt,
     updatedAt,
   );
   @override
@@ -5113,15 +5310,20 @@ class AnilistCacheTableData extends DataClass
           other.titleRomaji == this.titleRomaji &&
           other.titleEnglish == this.titleEnglish &&
           other.titleNative == this.titleNative &&
+          other.synonyms == this.synonyms &&
           other.coverImageUrl == this.coverImageUrl &&
           other.bannerImageUrl == this.bannerImageUrl &&
           other.status == this.status &&
+          other.season == this.season &&
           other.averageScore == this.averageScore &&
+          other.popularity == this.popularity &&
           other.genres == this.genres &&
           other.synopsis == this.synopsis &&
           other.format == this.format &&
           other.releaseYear == this.releaseYear &&
           other.totalEpisodes == this.totalEpisodes &&
+          other.nextAiringEpisode == this.nextAiringEpisode &&
+          other.nextAiringAt == this.nextAiringAt &&
           other.updatedAt == this.updatedAt);
 }
 
@@ -5131,30 +5333,40 @@ class AnilistCacheTableCompanion
   final Value<String> titleRomaji;
   final Value<String?> titleEnglish;
   final Value<String?> titleNative;
+  final Value<String?> synonyms;
   final Value<String?> coverImageUrl;
   final Value<String?> bannerImageUrl;
   final Value<String?> status;
+  final Value<String?> season;
   final Value<int?> averageScore;
+  final Value<int?> popularity;
   final Value<String?> genres;
   final Value<String?> synopsis;
   final Value<String?> format;
   final Value<int?> releaseYear;
   final Value<int?> totalEpisodes;
+  final Value<int?> nextAiringEpisode;
+  final Value<int?> nextAiringAt;
   final Value<int> updatedAt;
   const AnilistCacheTableCompanion({
     this.anilistId = const Value.absent(),
     this.titleRomaji = const Value.absent(),
     this.titleEnglish = const Value.absent(),
     this.titleNative = const Value.absent(),
+    this.synonyms = const Value.absent(),
     this.coverImageUrl = const Value.absent(),
     this.bannerImageUrl = const Value.absent(),
     this.status = const Value.absent(),
+    this.season = const Value.absent(),
     this.averageScore = const Value.absent(),
+    this.popularity = const Value.absent(),
     this.genres = const Value.absent(),
     this.synopsis = const Value.absent(),
     this.format = const Value.absent(),
     this.releaseYear = const Value.absent(),
     this.totalEpisodes = const Value.absent(),
+    this.nextAiringEpisode = const Value.absent(),
+    this.nextAiringAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
   });
   AnilistCacheTableCompanion.insert({
@@ -5162,15 +5374,20 @@ class AnilistCacheTableCompanion
     required String titleRomaji,
     this.titleEnglish = const Value.absent(),
     this.titleNative = const Value.absent(),
+    this.synonyms = const Value.absent(),
     this.coverImageUrl = const Value.absent(),
     this.bannerImageUrl = const Value.absent(),
     this.status = const Value.absent(),
+    this.season = const Value.absent(),
     this.averageScore = const Value.absent(),
+    this.popularity = const Value.absent(),
     this.genres = const Value.absent(),
     this.synopsis = const Value.absent(),
     this.format = const Value.absent(),
     this.releaseYear = const Value.absent(),
     this.totalEpisodes = const Value.absent(),
+    this.nextAiringEpisode = const Value.absent(),
+    this.nextAiringAt = const Value.absent(),
     required int updatedAt,
   }) : titleRomaji = Value(titleRomaji),
        updatedAt = Value(updatedAt);
@@ -5179,15 +5396,20 @@ class AnilistCacheTableCompanion
     Expression<String>? titleRomaji,
     Expression<String>? titleEnglish,
     Expression<String>? titleNative,
+    Expression<String>? synonyms,
     Expression<String>? coverImageUrl,
     Expression<String>? bannerImageUrl,
     Expression<String>? status,
+    Expression<String>? season,
     Expression<int>? averageScore,
+    Expression<int>? popularity,
     Expression<String>? genres,
     Expression<String>? synopsis,
     Expression<String>? format,
     Expression<int>? releaseYear,
     Expression<int>? totalEpisodes,
+    Expression<int>? nextAiringEpisode,
+    Expression<int>? nextAiringAt,
     Expression<int>? updatedAt,
   }) {
     return RawValuesInsertable({
@@ -5195,15 +5417,20 @@ class AnilistCacheTableCompanion
       if (titleRomaji != null) 'title_romaji': titleRomaji,
       if (titleEnglish != null) 'title_english': titleEnglish,
       if (titleNative != null) 'title_native': titleNative,
+      if (synonyms != null) 'synonyms': synonyms,
       if (coverImageUrl != null) 'cover_image_url': coverImageUrl,
       if (bannerImageUrl != null) 'banner_image_url': bannerImageUrl,
       if (status != null) 'status': status,
+      if (season != null) 'season': season,
       if (averageScore != null) 'average_score': averageScore,
+      if (popularity != null) 'popularity': popularity,
       if (genres != null) 'genres': genres,
       if (synopsis != null) 'synopsis': synopsis,
       if (format != null) 'format': format,
       if (releaseYear != null) 'release_year': releaseYear,
       if (totalEpisodes != null) 'total_episodes': totalEpisodes,
+      if (nextAiringEpisode != null) 'next_airing_episode': nextAiringEpisode,
+      if (nextAiringAt != null) 'next_airing_at': nextAiringAt,
       if (updatedAt != null) 'updated_at': updatedAt,
     });
   }
@@ -5213,15 +5440,20 @@ class AnilistCacheTableCompanion
     Value<String>? titleRomaji,
     Value<String?>? titleEnglish,
     Value<String?>? titleNative,
+    Value<String?>? synonyms,
     Value<String?>? coverImageUrl,
     Value<String?>? bannerImageUrl,
     Value<String?>? status,
+    Value<String?>? season,
     Value<int?>? averageScore,
+    Value<int?>? popularity,
     Value<String?>? genres,
     Value<String?>? synopsis,
     Value<String?>? format,
     Value<int?>? releaseYear,
     Value<int?>? totalEpisodes,
+    Value<int?>? nextAiringEpisode,
+    Value<int?>? nextAiringAt,
     Value<int>? updatedAt,
   }) {
     return AnilistCacheTableCompanion(
@@ -5229,15 +5461,20 @@ class AnilistCacheTableCompanion
       titleRomaji: titleRomaji ?? this.titleRomaji,
       titleEnglish: titleEnglish ?? this.titleEnglish,
       titleNative: titleNative ?? this.titleNative,
+      synonyms: synonyms ?? this.synonyms,
       coverImageUrl: coverImageUrl ?? this.coverImageUrl,
       bannerImageUrl: bannerImageUrl ?? this.bannerImageUrl,
       status: status ?? this.status,
+      season: season ?? this.season,
       averageScore: averageScore ?? this.averageScore,
+      popularity: popularity ?? this.popularity,
       genres: genres ?? this.genres,
       synopsis: synopsis ?? this.synopsis,
       format: format ?? this.format,
       releaseYear: releaseYear ?? this.releaseYear,
       totalEpisodes: totalEpisodes ?? this.totalEpisodes,
+      nextAiringEpisode: nextAiringEpisode ?? this.nextAiringEpisode,
+      nextAiringAt: nextAiringAt ?? this.nextAiringAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );
   }
@@ -5257,6 +5494,9 @@ class AnilistCacheTableCompanion
     if (titleNative.present) {
       map['title_native'] = Variable<String>(titleNative.value);
     }
+    if (synonyms.present) {
+      map['synonyms'] = Variable<String>(synonyms.value);
+    }
     if (coverImageUrl.present) {
       map['cover_image_url'] = Variable<String>(coverImageUrl.value);
     }
@@ -5266,8 +5506,14 @@ class AnilistCacheTableCompanion
     if (status.present) {
       map['status'] = Variable<String>(status.value);
     }
+    if (season.present) {
+      map['season'] = Variable<String>(season.value);
+    }
     if (averageScore.present) {
       map['average_score'] = Variable<int>(averageScore.value);
+    }
+    if (popularity.present) {
+      map['popularity'] = Variable<int>(popularity.value);
     }
     if (genres.present) {
       map['genres'] = Variable<String>(genres.value);
@@ -5284,6 +5530,12 @@ class AnilistCacheTableCompanion
     if (totalEpisodes.present) {
       map['total_episodes'] = Variable<int>(totalEpisodes.value);
     }
+    if (nextAiringEpisode.present) {
+      map['next_airing_episode'] = Variable<int>(nextAiringEpisode.value);
+    }
+    if (nextAiringAt.present) {
+      map['next_airing_at'] = Variable<int>(nextAiringAt.value);
+    }
     if (updatedAt.present) {
       map['updated_at'] = Variable<int>(updatedAt.value);
     }
@@ -5297,15 +5549,20 @@ class AnilistCacheTableCompanion
           ..write('titleRomaji: $titleRomaji, ')
           ..write('titleEnglish: $titleEnglish, ')
           ..write('titleNative: $titleNative, ')
+          ..write('synonyms: $synonyms, ')
           ..write('coverImageUrl: $coverImageUrl, ')
           ..write('bannerImageUrl: $bannerImageUrl, ')
           ..write('status: $status, ')
+          ..write('season: $season, ')
           ..write('averageScore: $averageScore, ')
+          ..write('popularity: $popularity, ')
           ..write('genres: $genres, ')
           ..write('synopsis: $synopsis, ')
           ..write('format: $format, ')
           ..write('releaseYear: $releaseYear, ')
           ..write('totalEpisodes: $totalEpisodes, ')
+          ..write('nextAiringEpisode: $nextAiringEpisode, ')
+          ..write('nextAiringAt: $nextAiringAt, ')
           ..write('updatedAt: $updatedAt')
           ..write(')'))
         .toString();
@@ -8450,15 +8707,20 @@ typedef $$AnilistCacheTableTableCreateCompanionBuilder =
       required String titleRomaji,
       Value<String?> titleEnglish,
       Value<String?> titleNative,
+      Value<String?> synonyms,
       Value<String?> coverImageUrl,
       Value<String?> bannerImageUrl,
       Value<String?> status,
+      Value<String?> season,
       Value<int?> averageScore,
+      Value<int?> popularity,
       Value<String?> genres,
       Value<String?> synopsis,
       Value<String?> format,
       Value<int?> releaseYear,
       Value<int?> totalEpisodes,
+      Value<int?> nextAiringEpisode,
+      Value<int?> nextAiringAt,
       required int updatedAt,
     });
 typedef $$AnilistCacheTableTableUpdateCompanionBuilder =
@@ -8467,15 +8729,20 @@ typedef $$AnilistCacheTableTableUpdateCompanionBuilder =
       Value<String> titleRomaji,
       Value<String?> titleEnglish,
       Value<String?> titleNative,
+      Value<String?> synonyms,
       Value<String?> coverImageUrl,
       Value<String?> bannerImageUrl,
       Value<String?> status,
+      Value<String?> season,
       Value<int?> averageScore,
+      Value<int?> popularity,
       Value<String?> genres,
       Value<String?> synopsis,
       Value<String?> format,
       Value<int?> releaseYear,
       Value<int?> totalEpisodes,
+      Value<int?> nextAiringEpisode,
+      Value<int?> nextAiringAt,
       Value<int> updatedAt,
     });
 
@@ -8508,6 +8775,11 @@ class $$AnilistCacheTableTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
+  ColumnFilters<String> get synonyms => $composableBuilder(
+    column: $table.synonyms,
+    builder: (column) => ColumnFilters(column),
+  );
+
   ColumnFilters<String> get coverImageUrl => $composableBuilder(
     column: $table.coverImageUrl,
     builder: (column) => ColumnFilters(column),
@@ -8523,8 +8795,18 @@ class $$AnilistCacheTableTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
+  ColumnFilters<String> get season => $composableBuilder(
+    column: $table.season,
+    builder: (column) => ColumnFilters(column),
+  );
+
   ColumnFilters<int> get averageScore => $composableBuilder(
     column: $table.averageScore,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get popularity => $composableBuilder(
+    column: $table.popularity,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -8550,6 +8832,16 @@ class $$AnilistCacheTableTableFilterComposer
 
   ColumnFilters<int> get totalEpisodes => $composableBuilder(
     column: $table.totalEpisodes,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get nextAiringEpisode => $composableBuilder(
+    column: $table.nextAiringEpisode,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get nextAiringAt => $composableBuilder(
+    column: $table.nextAiringAt,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -8588,6 +8880,11 @@ class $$AnilistCacheTableTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get synonyms => $composableBuilder(
+    column: $table.synonyms,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get coverImageUrl => $composableBuilder(
     column: $table.coverImageUrl,
     builder: (column) => ColumnOrderings(column),
@@ -8603,8 +8900,18 @@ class $$AnilistCacheTableTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get season => $composableBuilder(
+    column: $table.season,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<int> get averageScore => $composableBuilder(
     column: $table.averageScore,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get popularity => $composableBuilder(
+    column: $table.popularity,
     builder: (column) => ColumnOrderings(column),
   );
 
@@ -8630,6 +8937,16 @@ class $$AnilistCacheTableTableOrderingComposer
 
   ColumnOrderings<int> get totalEpisodes => $composableBuilder(
     column: $table.totalEpisodes,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get nextAiringEpisode => $composableBuilder(
+    column: $table.nextAiringEpisode,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get nextAiringAt => $composableBuilder(
+    column: $table.nextAiringAt,
     builder: (column) => ColumnOrderings(column),
   );
 
@@ -8666,6 +8983,9 @@ class $$AnilistCacheTableTableAnnotationComposer
     builder: (column) => column,
   );
 
+  GeneratedColumn<String> get synonyms =>
+      $composableBuilder(column: $table.synonyms, builder: (column) => column);
+
   GeneratedColumn<String> get coverImageUrl => $composableBuilder(
     column: $table.coverImageUrl,
     builder: (column) => column,
@@ -8679,8 +8999,16 @@ class $$AnilistCacheTableTableAnnotationComposer
   GeneratedColumn<String> get status =>
       $composableBuilder(column: $table.status, builder: (column) => column);
 
+  GeneratedColumn<String> get season =>
+      $composableBuilder(column: $table.season, builder: (column) => column);
+
   GeneratedColumn<int> get averageScore => $composableBuilder(
     column: $table.averageScore,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get popularity => $composableBuilder(
+    column: $table.popularity,
     builder: (column) => column,
   );
 
@@ -8700,6 +9028,16 @@ class $$AnilistCacheTableTableAnnotationComposer
 
   GeneratedColumn<int> get totalEpisodes => $composableBuilder(
     column: $table.totalEpisodes,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get nextAiringEpisode => $composableBuilder(
+    column: $table.nextAiringEpisode,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get nextAiringAt => $composableBuilder(
+    column: $table.nextAiringAt,
     builder: (column) => column,
   );
 
@@ -8751,30 +9089,40 @@ class $$AnilistCacheTableTableTableManager
                 Value<String> titleRomaji = const Value.absent(),
                 Value<String?> titleEnglish = const Value.absent(),
                 Value<String?> titleNative = const Value.absent(),
+                Value<String?> synonyms = const Value.absent(),
                 Value<String?> coverImageUrl = const Value.absent(),
                 Value<String?> bannerImageUrl = const Value.absent(),
                 Value<String?> status = const Value.absent(),
+                Value<String?> season = const Value.absent(),
                 Value<int?> averageScore = const Value.absent(),
+                Value<int?> popularity = const Value.absent(),
                 Value<String?> genres = const Value.absent(),
                 Value<String?> synopsis = const Value.absent(),
                 Value<String?> format = const Value.absent(),
                 Value<int?> releaseYear = const Value.absent(),
                 Value<int?> totalEpisodes = const Value.absent(),
+                Value<int?> nextAiringEpisode = const Value.absent(),
+                Value<int?> nextAiringAt = const Value.absent(),
                 Value<int> updatedAt = const Value.absent(),
               }) => AnilistCacheTableCompanion(
                 anilistId: anilistId,
                 titleRomaji: titleRomaji,
                 titleEnglish: titleEnglish,
                 titleNative: titleNative,
+                synonyms: synonyms,
                 coverImageUrl: coverImageUrl,
                 bannerImageUrl: bannerImageUrl,
                 status: status,
+                season: season,
                 averageScore: averageScore,
+                popularity: popularity,
                 genres: genres,
                 synopsis: synopsis,
                 format: format,
                 releaseYear: releaseYear,
                 totalEpisodes: totalEpisodes,
+                nextAiringEpisode: nextAiringEpisode,
+                nextAiringAt: nextAiringAt,
                 updatedAt: updatedAt,
               ),
           createCompanionCallback:
@@ -8783,30 +9131,40 @@ class $$AnilistCacheTableTableTableManager
                 required String titleRomaji,
                 Value<String?> titleEnglish = const Value.absent(),
                 Value<String?> titleNative = const Value.absent(),
+                Value<String?> synonyms = const Value.absent(),
                 Value<String?> coverImageUrl = const Value.absent(),
                 Value<String?> bannerImageUrl = const Value.absent(),
                 Value<String?> status = const Value.absent(),
+                Value<String?> season = const Value.absent(),
                 Value<int?> averageScore = const Value.absent(),
+                Value<int?> popularity = const Value.absent(),
                 Value<String?> genres = const Value.absent(),
                 Value<String?> synopsis = const Value.absent(),
                 Value<String?> format = const Value.absent(),
                 Value<int?> releaseYear = const Value.absent(),
                 Value<int?> totalEpisodes = const Value.absent(),
+                Value<int?> nextAiringEpisode = const Value.absent(),
+                Value<int?> nextAiringAt = const Value.absent(),
                 required int updatedAt,
               }) => AnilistCacheTableCompanion.insert(
                 anilistId: anilistId,
                 titleRomaji: titleRomaji,
                 titleEnglish: titleEnglish,
                 titleNative: titleNative,
+                synonyms: synonyms,
                 coverImageUrl: coverImageUrl,
                 bannerImageUrl: bannerImageUrl,
                 status: status,
+                season: season,
                 averageScore: averageScore,
+                popularity: popularity,
                 genres: genres,
                 synopsis: synopsis,
                 format: format,
                 releaseYear: releaseYear,
                 totalEpisodes: totalEpisodes,
+                nextAiringEpisode: nextAiringEpisode,
+                nextAiringAt: nextAiringAt,
                 updatedAt: updatedAt,
               ),
           withReferenceMapper: (p0) => p0

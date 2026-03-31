@@ -21,11 +21,17 @@ query TrendingAnime(
         english
         native
       }
+      synonyms
       format
+      season
       seasonYear
       episodes
       averageScore
+      popularity
       status
+      description(asHtml: false)
+      genres
+      bannerImage
       nextAiringEpisode {
         episode
         airingAt
@@ -53,11 +59,17 @@ query SearchAnime(
         english
         native
       }
+      synonyms
       format
+      season
       seasonYear
       episodes
       averageScore
+      popularity
       status
+      description(asHtml: false)
+      genres
+      bannerImage
       nextAiringEpisode {
         episode
         airingAt
@@ -94,11 +106,17 @@ query SeasonalAnime(
         english
         native
       }
+      synonyms
       format
+      season
       seasonYear
       episodes
       averageScore
+      popularity
       status
+      description(asHtml: false)
+      genres
+      bannerImage
       trending
       nextAiringEpisode {
         episode
@@ -135,11 +153,17 @@ query UpcomingSeasonAnime(
         english
         native
       }
+      synonyms
       format
+      season
       seasonYear
       episodes
       averageScore
+      popularity
       status
+      description(asHtml: false)
+      genres
+      bannerImage
       trending
       nextAiringEpisode {
         episode
@@ -175,11 +199,17 @@ query SeasonRecommendations(
         english
         native
       }
+      synonyms
       format
+      season
       seasonYear
       episodes
       averageScore
+      popularity
       status
+      description(asHtml: false)
+      genres
+      bannerImage
       trending
       nextAiringEpisode {
         episode
@@ -220,11 +250,17 @@ query AiringCalendar(
           english
           native
         }
+        synonyms
         format
+        season
         seasonYear
         episodes
         averageScore
+        popularity
         status
+        description(asHtml: false)
+        genres
+        bannerImage
         coverImage {
           large
           medium

@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kumoriya_anilist/kumoriya_anilist.dart';
 import 'package:kumoriya_core/kumoriya_core.dart';
@@ -40,15 +41,28 @@ final anilistMetadataGatewayProvider = Provider<AnilistMetadataGateway>((ref) {
   );
 });
 
+final _cachedAnimeCatalogRepositoryProvider =
+    Provider<CachedAnimeCatalogRepository>((ref) {
+      return CachedAnimeCatalogRepository(
+        delegate: AnilistAnimeCatalogRepository(
+          gateway: ref.watch(anilistMetadataGatewayProvider),
+        ),
+        cacheStore: ref.watch(anilistCacheStoreProvider),
+        episodeCacheStore: ref.watch(episodeCacheStoreProvider),
+      );
+    });
+
 final animeCatalogRepositoryProvider = Provider<AnimeCatalogRepository>((ref) {
-  return CachedAnimeCatalogRepository(
-    delegate: AnilistAnimeCatalogRepository(
-      gateway: ref.watch(anilistMetadataGatewayProvider),
-    ),
-    cacheStore: ref.watch(anilistCacheStoreProvider),
-    episodeCacheStore: ref.watch(episodeCacheStoreProvider),
-  );
+  return ref.watch(_cachedAnimeCatalogRepositoryProvider);
 });
+
+/// Indicates why the most recent catalog fetch fell back to locally-cached
+/// data: [FallbackReason.offline], [FallbackReason.anilistDown], or
+/// [FallbackReason.none] when operating normally.
+final anilistCacheFallbackReasonProvider =
+    Provider<ValueNotifier<FallbackReason>>((ref) {
+      return ref.watch(_cachedAnimeCatalogRepositoryProvider).fallbackReason;
+    });
 
 final sourcePluginsProvider = Provider<List<SourcePlugin>>((ref) {
   return buildDefaultSourcePlugins();

@@ -1,4 +1,4 @@
-package com.example.kumoriya_app
+package dev.kumoriya.app
 
 import io.flutter.embedding.android.FlutterActivity
 

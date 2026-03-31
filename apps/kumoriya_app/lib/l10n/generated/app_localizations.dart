@@ -140,6 +140,18 @@ abstract class AppLocalizations {
   /// **'AniList is temporarily unavailable. Check back in a moment.'**
   String get errorServiceUnavailableAnilist;
 
+  /// No description provided for @offlineBanner.
+  ///
+  /// In en, this message translates to:
+  /// **'Offline'**
+  String get offlineBanner;
+
+  /// No description provided for @anilistDownBanner.
+  ///
+  /// In en, this message translates to:
+  /// **'AniList is down'**
+  String get anilistDownBanner;
+
   /// No description provided for @errorRateLimitedAnilist.
   ///
   /// In en, this message translates to:

@@ -34,6 +34,12 @@ class AppLocalizationsEn extends AppLocalizations {
       'AniList is temporarily unavailable. Check back in a moment.';
 
   @override
+  String get offlineBanner => 'Offline';
+
+  @override
+  String get anilistDownBanner => 'AniList is down';
+
+  @override
   String get errorRateLimitedAnilist =>
       'AniList is rate-limiting requests right now. Please wait a moment and retry.';
 

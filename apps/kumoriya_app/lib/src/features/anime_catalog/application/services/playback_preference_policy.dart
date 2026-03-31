@@ -178,10 +178,19 @@ final class PlaybackPreferencePolicy {
       }
     }
 
-    add(_findExactMatch(rankedOptions, episodePreference));
-    add(_findExactMatch(rankedOptions, durablePreference));
-    addBestForSource(episodePreference?.preferredSourcePluginId);
-    addAllForSource(episodePreference?.preferredSourcePluginId);
+    // When durablePreference specifies an exact server match, try *only* that
+    // server. If it fails, show the picker instead of attempting others.
+    // This respects user intent ("remember this choice") while showing
+    // alternatives when the remembered choice is unavailable.
+    final exactMatch = _findExactMatch(rankedOptions, durablePreference);
+    if (exactMatch != null) {
+      add(exactMatch);
+      return queue;
+    }
+
+    // Episode progress influences *ranking* (done in rankOptions) but must
+    // NOT trigger automatic resolution — the user should always see the
+    // server picker when there is no durable pref.
     addBestForSource(durablePreference?.preferredSourcePluginId);
     addAllForSource(durablePreference?.preferredSourcePluginId);
     add(
@@ -196,7 +205,7 @@ final class PlaybackPreferencePolicy {
       return queue;
     }
 
-    if (episodePreference == null && durablePreference == null) {
+    if (durablePreference == null) {
       final topSourceId = rankedOptions.first.sourcePluginId;
       final topSourceOptions = rankedOptions
           .where((option) => option.sourcePluginId == topSourceId)
@@ -219,10 +228,16 @@ final class PlaybackPreferencePolicy {
   int automaticAttemptLimit({
     required PlaybackPreference? durablePreference,
     required PlaybackPreference? episodePreference,
+    required List<EpisodePlaybackOption> autoQueue,
   }) {
-    return episodePreference != null || durablePreference != null
-        ? _maxAutomaticAttemptsWithPreference
-        : 1;
+    // If the auto-queue contains only the exact match of a durable preference,
+    // try once. If it fails, show the selector. Otherwise, allow up to 4 attempts.
+    if (durablePreference != null &&
+        autoQueue.length == 1 &&
+        _matchesExactPreference(autoQueue.first, durablePreference)) {
+      return 1;
+    }
+    return durablePreference != null ? _maxAutomaticAttemptsWithPreference : 1;
   }
 
   PlaybackPreference? invalidateAfterAutoFailure({

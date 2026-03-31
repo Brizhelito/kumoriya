@@ -3,12 +3,16 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 import '../../../../app/l10n.dart';
 import '../../../../shared/icons/kumoriya_icons.dart';
 import '../../../../shared/theme/kumoriya_theme.dart';
 import '../../../../shared/widgets/state_views.dart';
+import '../../../app_update/application/app_update_service.dart';
+import '../../../app_update/presentation/app_update_providers.dart';
+import '../../../app_update/presentation/widgets/update_available_dialog.dart';
 import '../../../anime_catalog/presentation/providers/storage_providers.dart';
 import '../../../downloads/presentation/download_providers.dart';
 import '../../../player/application/models/subtitle_settings.dart';
@@ -22,10 +26,17 @@ class SettingsPage extends ConsumerStatefulWidget {
 }
 
 class _SettingsPageState extends ConsumerState<SettingsPage> {
+  static const String _debugForcedAndroidUrl =
+      'https://pub-8159019abe1741a097538b976c19722c.r2.dev/artifacts/android/v0.1.0/kumoriya-0.1.0.apk';
+  static const String _debugForcedWindowsUrl =
+      'https://pub-8159019abe1741a097538b976c19722c.r2.dev/artifacts/windows/v0.1.0/Kumoriya-0.1.0-windows-x64-setup.exe';
+
   PermissionStatus? _notificationStatus;
   bool _loadingNotificationStatus = true;
   bool _requestingNotifications = false;
   bool _runningDebugNotificationProbe = false;
+  bool _runningDebugUpdateProbe = false;
+  bool _runningForcedDebugUpdateProbe = false;
   bool _clearingPlaybackPreferences = false;
 
   bool get _supportsNotificationRequest => Platform.isAndroid || Platform.isIOS;
@@ -105,6 +116,90 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
     } finally {
       if (mounted) {
         setState(() => _runningDebugNotificationProbe = false);
+      }
+    }
+  }
+
+  Future<void> _runDebugUpdateProbe() async {
+    if (_runningDebugUpdateProbe) {
+      return;
+    }
+
+    setState(() => _runningDebugUpdateProbe = true);
+    final result = await ref.read(appUpdateServiceProvider).checkForUpdate();
+    if (!mounted) {
+      return;
+    }
+
+    setState(() => _runningDebugUpdateProbe = false);
+
+    result.fold(
+      onFailure: (error) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Update check fallo (debug): ${error.code}')),
+        );
+      },
+      onSuccess: (update) async {
+        if (update == null) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                'No hay update disponible para esta version (debug).',
+              ),
+            ),
+          );
+          return;
+        }
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Update detectada: v${update.newVersion} (debug)'),
+          ),
+        );
+
+        await UpdateAvailableDialog.show(context, update);
+      },
+    );
+  }
+
+  Future<void> _runForcedDebugUpdateProbe() async {
+    if (_runningForcedDebugUpdateProbe) {
+      return;
+    }
+
+    setState(() => _runningForcedDebugUpdateProbe = true);
+    try {
+      final packageInfo = await PackageInfo.fromPlatform();
+      final forced = AvailableUpdate(
+        currentVersion: packageInfo.version,
+        newVersion: '${packageInfo.version}-forced',
+        downloadUrl: Platform.isWindows
+            ? _debugForcedWindowsUrl
+            : _debugForcedAndroidUrl,
+        releaseNotes:
+            'Modo debug forzado: abre el dialogo sin depender de version remota.',
+      );
+
+      if (!mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Dialogo de update forzado abierto (debug).'),
+        ),
+      );
+      await UpdateAvailableDialog.show(context, forced);
+    } catch (e) {
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('No se pudo abrir update forzado (debug): $e')),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _runningForcedDebugUpdateProbe = false);
       }
     }
   }
@@ -305,6 +400,42 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                                       )
                                     : const Icon(KumoriyaIcons.bugReport),
                                 label: const Text('Test notificacion (debug)'),
+                              ),
+                            if (kDebugMode &&
+                                (Platform.isAndroid || Platform.isWindows))
+                              FilledButton.tonalIcon(
+                                onPressed: _runningDebugUpdateProbe
+                                    ? null
+                                    : _runDebugUpdateProbe,
+                                icon: _runningDebugUpdateProbe
+                                    ? const SizedBox(
+                                        width: 18,
+                                        height: 18,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                        ),
+                                      )
+                                    : const Icon(Icons.system_update_rounded),
+                                label: const Text('Test update E2E (debug)'),
+                              ),
+                            if (kDebugMode &&
+                                (Platform.isAndroid || Platform.isWindows))
+                              FilledButton.tonalIcon(
+                                onPressed: _runningForcedDebugUpdateProbe
+                                    ? null
+                                    : _runForcedDebugUpdateProbe,
+                                icon: _runningForcedDebugUpdateProbe
+                                    ? const SizedBox(
+                                        width: 18,
+                                        height: 18,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                        ),
+                                      )
+                                    : const Icon(Icons.bolt_rounded),
+                                label: const Text(
+                                  'Forzar dialogo update (debug)',
+                                ),
                               ),
                           ],
                         ),

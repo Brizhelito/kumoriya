@@ -57,7 +57,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase(super.e);
 
   @override
-  int get schemaVersion => 16;
+  int get schemaVersion => 17;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -154,6 +154,33 @@ class AppDatabase extends _$AppDatabase {
           createTable: () => m.createTable(episodeCatalogCacheTable),
         );
         await _createIndices();
+      }
+      if (from < 17) {
+        await _ensureColumn(
+          tableName: 'anilist_cache',
+          columnName: 'synonyms',
+          sqlDefinition: 'TEXT',
+        );
+        await _ensureColumn(
+          tableName: 'anilist_cache',
+          columnName: 'season',
+          sqlDefinition: 'TEXT',
+        );
+        await _ensureColumn(
+          tableName: 'anilist_cache',
+          columnName: 'popularity',
+          sqlDefinition: 'INTEGER',
+        );
+        await _ensureColumn(
+          tableName: 'anilist_cache',
+          columnName: 'next_airing_episode',
+          sqlDefinition: 'INTEGER',
+        );
+        await _ensureColumn(
+          tableName: 'anilist_cache',
+          columnName: 'next_airing_at',
+          sqlDefinition: 'INTEGER',
+        );
       }
     },
     beforeOpen: (details) async {

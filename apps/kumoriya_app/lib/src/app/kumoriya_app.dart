@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -8,6 +10,7 @@ import '../features/anime_catalog/presentation/pages/downloads_page.dart';
 import '../features/anime_catalog/presentation/pages/home_page.dart';
 import '../features/anime_catalog/presentation/pages/library_page.dart';
 import '../features/anime_catalog/presentation/pages/search_page.dart';
+import '../features/anime_catalog/presentation/providers/anime_catalog_providers.dart';
 import '../features/downloads/application/download_directory_service.dart';
 import '../features/downloads/presentation/download_providers.dart';
 import '../features/downloads/presentation/widgets/download_path_dialog.dart';
@@ -56,6 +59,9 @@ class _FirstLaunchGateState extends ConsumerState<_FirstLaunchGate> {
     final service = ref.read(downloadDirectoryServiceProvider);
     final configured = await service.hasConfiguredDownloadDirectory();
     if (!configured && mounted) {
+      if (Platform.isAndroid) {
+        await DownloadDirectoryService.requestAndroidStorageAccess();
+      }
       final suggestion = await service.getDefaultSuggestionPath();
       if (!mounted) return;
       await showDialog<void>(
@@ -86,6 +92,7 @@ class _FirstLaunchGateState extends ConsumerState<_FirstLaunchGate> {
   @override
   Widget build(BuildContext context) {
     return AppNavigationShell(
+      fallbackReasonNotifier: ref.watch(anilistCacheFallbackReasonProvider),
       tabBuilders: <KumoriyaTab, WidgetBuilder>{
         KumoriyaTab.home: (_) => const HomePage(),
         KumoriyaTab.search: (_) => const SearchPage(),

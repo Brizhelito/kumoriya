@@ -91,19 +91,17 @@ final class StartEpisodePlaybackUseCase {
       episodePreference: reconciliation.episodePreference,
       sourcePriorityIndex: _sourceSelectionPolicy.priorityIndex,
     );
-    final autoQueue = _playbackPreferencePolicy
-        .buildAutoQueue(
-          rankedOptions: ranked,
-          durablePreference: durablePreference,
-          episodePreference: reconciliation.episodePreference,
-        )
-        .take(
-          _playbackPreferencePolicy.automaticAttemptLimit(
-            durablePreference: durablePreference,
-            episodePreference: reconciliation.episodePreference,
-          ),
-        )
-        .toList(growable: false);
+    final fullAutoQueue = _playbackPreferencePolicy.buildAutoQueue(
+      rankedOptions: ranked,
+      durablePreference: durablePreference,
+      episodePreference: reconciliation.episodePreference,
+    );
+    final attemptLimit = _playbackPreferencePolicy.automaticAttemptLimit(
+      durablePreference: durablePreference,
+      episodePreference: reconciliation.episodePreference,
+      autoQueue: fullAutoQueue,
+    );
+    final autoQueue = fullAutoQueue.take(attemptLimit).toList(growable: false);
     final attempted = <String>{};
 
     // Race all auto-queue candidates in parallel. The first successful
@@ -163,7 +161,7 @@ final class StartEpisodePlaybackUseCase {
 
     final remaining = _playbackPreferencePolicy.rankRemainingOptions(
       options: options,
-      attemptedOptionKeys: attempted,
+      attemptedOptionKeys: autoQueue.length == 1 ? <String>{} : attempted,
       durablePreference: durablePreference,
       episodePreference: reconciliation.episodePreference,
       sourcePriorityIndex: _sourceSelectionPolicy.priorityIndex,

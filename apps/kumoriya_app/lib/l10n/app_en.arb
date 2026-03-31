@@ -12,6 +12,8 @@
   },
   "errorTransportAnilist": "Could not reach AniList. Check your connection and retry.",
   "errorServiceUnavailableAnilist": "AniList is temporarily unavailable. Check back in a moment.",
+  "offlineBanner": "Offline",
+  "anilistDownBanner": "AniList is down",
   "errorRateLimitedAnilist": "AniList is rate-limiting requests right now. Please wait a moment and retry.",
   "errorMappingAnilist": "AniList returned data we could not parse safely.",
   "errorNotFoundAnilist": "Anime not found in AniList.",

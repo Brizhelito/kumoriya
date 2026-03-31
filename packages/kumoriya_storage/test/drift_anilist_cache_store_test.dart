@@ -131,5 +131,161 @@ void main() {
           (getResult as Success<AnilistCacheEntry?, KumoriyaError>).value!;
       expect(saved.genres, isNull);
     });
+
+    // ----- getRecent -----
+
+    test('getRecent returns entries ordered by updatedAt desc', () async {
+      await store.upsert(
+        makeEntry(anilistId: 1, updatedAt: DateTime(2025, 1, 1)),
+      );
+      await store.upsert(
+        makeEntry(anilistId: 2, updatedAt: DateTime(2025, 6, 1)),
+      );
+      await store.upsert(
+        makeEntry(anilistId: 3, updatedAt: DateTime(2025, 3, 1)),
+      );
+
+      final result = await store.getRecent(limit: 10);
+      final entries =
+          (result as Success<List<AnilistCacheEntry>, KumoriyaError>).value;
+      expect(entries.map((e) => e.anilistId).toList(), [2, 3, 1]);
+    });
+
+    test('getRecent respects limit and offset', () async {
+      for (var i = 1; i <= 5; i++) {
+        await store.upsert(
+          makeEntry(anilistId: i, updatedAt: DateTime(2025, i, 1)),
+        );
+      }
+
+      final result = await store.getRecent(limit: 2, offset: 1);
+      final entries =
+          (result as Success<List<AnilistCacheEntry>, KumoriyaError>).value;
+      // Ordered desc by month: 5,4,3,2,1 → offset 1, limit 2 → [4, 3]
+      expect(entries.map((e) => e.anilistId).toList(), [4, 3]);
+    });
+
+    // ----- getByStatus -----
+
+    test('getByStatus filters by status', () async {
+      await store.upsert(_entryWithStatus(1, 'RELEASING'));
+      await store.upsert(_entryWithStatus(2, 'FINISHED'));
+      await store.upsert(_entryWithStatus(3, 'RELEASING'));
+
+      final result = await store.getByStatus('RELEASING');
+      final entries =
+          (result as Success<List<AnilistCacheEntry>, KumoriyaError>).value;
+      expect(entries.map((e) => e.anilistId).toSet(), {1, 3});
+    });
+
+    test('getByStatus returns empty list for no matches', () async {
+      await store.upsert(_entryWithStatus(1, 'FINISHED'));
+
+      final result = await store.getByStatus('NOT_YET_RELEASED');
+      final entries =
+          (result as Success<List<AnilistCacheEntry>, KumoriyaError>).value;
+      expect(entries, isEmpty);
+    });
+
+    // ----- getByYearAndStatus -----
+
+    test('getByYearAndStatus filters by year only', () async {
+      await store.upsert(_entryWithYearStatus(1, 2024, 'RELEASING'));
+      await store.upsert(_entryWithYearStatus(2, 2025, 'RELEASING'));
+      await store.upsert(_entryWithYearStatus(3, 2025, 'FINISHED'));
+
+      final result = await store.getByYearAndStatus(2025);
+      final entries =
+          (result as Success<List<AnilistCacheEntry>, KumoriyaError>).value;
+      expect(entries.map((e) => e.anilistId).toSet(), {2, 3});
+    });
+
+    test('getByYearAndStatus filters by year and status', () async {
+      await store.upsert(_entryWithYearStatus(1, 2025, 'RELEASING'));
+      await store.upsert(_entryWithYearStatus(2, 2025, 'FINISHED'));
+      await store.upsert(_entryWithYearStatus(3, 2024, 'RELEASING'));
+
+      final result = await store.getByYearAndStatus(2025, status: 'RELEASING');
+      final entries =
+          (result as Success<List<AnilistCacheEntry>, KumoriyaError>).value;
+      expect(entries.length, 1);
+      expect(entries.first.anilistId, 1);
+    });
+
+    // ----- searchByTitle -----
+
+    test('searchByTitle matches romaji', () async {
+      await store.upsert(_entryWithTitles(1, 'Frieren', null, null));
+      await store.upsert(_entryWithTitles(2, 'Naruto', null, null));
+
+      final result = await store.searchByTitle('frier');
+      final entries =
+          (result as Success<List<AnilistCacheEntry>, KumoriyaError>).value;
+      expect(entries.length, 1);
+      expect(entries.first.anilistId, 1);
+    });
+
+    test('searchByTitle matches english title', () async {
+      await store.upsert(_entryWithTitles(1, 'Romaji', 'Beyond Journey', null));
+
+      final result = await store.searchByTitle('Journey');
+      final entries =
+          (result as Success<List<AnilistCacheEntry>, KumoriyaError>).value;
+      expect(entries.length, 1);
+    });
+
+    test('searchByTitle matches native title', () async {
+      await store.upsert(_entryWithTitles(1, 'Romaji', null, '葬送のフリーレン'));
+
+      final result = await store.searchByTitle('フリーレン');
+      final entries =
+          (result as Success<List<AnilistCacheEntry>, KumoriyaError>).value;
+      expect(entries.length, 1);
+    });
+
+    test('searchByTitle returns empty for no match', () async {
+      await store.upsert(_entryWithTitles(1, 'Frieren', 'Beyond', '葬送'));
+
+      final result = await store.searchByTitle('Naruto');
+      final entries =
+          (result as Success<List<AnilistCacheEntry>, KumoriyaError>).value;
+      expect(entries, isEmpty);
+    });
   });
+}
+
+AnilistCacheEntry _entryWithStatus(int id, String status) {
+  return AnilistCacheEntry(
+    anilistId: id,
+    titleRomaji: 'Title $id',
+    status: status,
+    updatedAt: DateTime(2025, 6, 1),
+  );
+}
+
+AnilistCacheEntry _entryWithYearStatus(int id, int year, String status) {
+  return AnilistCacheEntry(
+    anilistId: id,
+    titleRomaji: 'Title $id',
+    status: status,
+    releaseYear: year,
+    averageScore: 80 + id,
+    updatedAt: DateTime(2025, 6, 1),
+  );
+}
+
+AnilistCacheEntry _entryWithTitles(
+  int id,
+  String romaji,
+  String? english,
+  String? native_,
+) {
+  return AnilistCacheEntry(
+    anilistId: id,
+    titleRomaji: romaji,
+    titleEnglish: english,
+    titleNative: native_,
+    averageScore: 90,
+    updatedAt: DateTime(2025, 6, 1),
+  );
 }

@@ -65,7 +65,7 @@ void main() {
   );
 
   test(
-    're-entry prefers the last successful server for the current episode',
+    'durable preference drives auto-play even when episode progress differs',
     () async {
       const source = _MultiServerSourcePlugin();
       final summary = await _summaryFor(const <SourcePlugin>[
@@ -107,9 +107,53 @@ void main() {
             availabilitySummary: summary,
           );
 
+      // Durable preference (Backup) drives auto-play, NOT episode progress.
       expect(decision.type, EpisodePlaybackDecisionType.direct);
-      expect(decision.launch!.option.serverLink.serverName, 'Streamwish');
+      expect(decision.launch!.option.serverLink.serverName, 'Backup');
       expect(decision.launch!.option.isPreferred, isTrue);
+    },
+  );
+
+  test(
+    'shows server picker when only episode progress exists (no durable pref)',
+    () async {
+      const source = _MultiServerSourcePlugin();
+      final summary = await _summaryFor(const <SourcePlugin>[
+        source,
+      ], registry: registry);
+
+      // No durable preference, only episode progress.
+      await store.upsert(
+        EpisodeProgress(
+          anilistId: _detail.anime.anilistId,
+          episodeNumber: 1,
+          position: const Duration(minutes: 5),
+          updatedAt: DateTime(2026, 2, 1),
+          watchState: WatchState.watching,
+          lastSourcePluginId: source.manifest.id,
+          lastServerName: 'Streamwish',
+          lastResolverPluginId: 'kumoriya.resolver.fake',
+        ),
+      );
+
+      final decision =
+          await _buildUseCase(
+            sourcePlugins: <SourcePlugin>[source],
+            store: store,
+            registry: registry,
+            resolver: resolver,
+          ).call(
+            anilistId: _detail.anime.anilistId,
+            episodeNumber: 1,
+            availabilitySummary: summary,
+          );
+
+      // Episode progress must NOT trigger auto-play; user sees the picker.
+      expect(decision.type, EpisodePlaybackDecisionType.selection);
+      expect(decision.options, hasLength(3));
+      // The previously used server should still be ranked first.
+      expect(decision.options.first.serverLink.serverName, 'Streamwish');
+      expect(decision.options.first.isPreferred, isTrue);
     },
   );
 
@@ -153,12 +197,21 @@ void main() {
       final preference =
           (stored as Success<PlaybackPreference?, KumoriyaError>).value!;
 
-      expect(decision.type, EpisodePlaybackDecisionType.direct);
-      expect(decision.launch!.option.serverLink.serverName, 'Backup');
+      // When exact-match preference fails, show selector with all available
+      // options (not just remaining). User can manually select an alternative.
+      expect(decision.type, EpisodePlaybackDecisionType.selection);
+      expect(decision.options, hasLength(3));
+      // AutoFail still ranked first as preferred, but not auto-selected.
+      expect(decision.options.first.serverLink.serverName, 'AutoFail');
+      expect(decision.options.first.isPreferred, isTrue);
       expect(decision.autoSelectionFailed, isTrue);
+      // Preference remains unchanged since not cached via invalidation path.
       expect(preference.preferredSourcePluginId, source.manifest.id);
-      expect(preference.preferredServerName, isNull);
-      expect(preference.preferredResolverPluginId, isNull);
+      expect(preference.preferredServerName, 'AutoFail');
+      expect(
+        preference.preferredResolverPluginId,
+        'kumoriya.resolver.fake.flaky',
+      );
     },
   );
 
@@ -287,8 +340,10 @@ void main() {
         decision.launch!.option.sourcePluginId,
         fallbackSource.manifest.id,
       );
-      expect(decision.autoSelectionFailed, isTrue);
-      expect(preference.preferredSourcePluginId, isNull);
+      // Parallel race: autoSelectionFailed is false when any candidate wins.
+      expect(decision.autoSelectionFailed, isFalse);
+      // Parallel race does not invalidate preferences per-failure.
+      expect(preference.preferredSourcePluginId, failingSource.manifest.id);
       expect(preference.preferredServerName, isNull);
       expect(preference.preferredResolverPluginId, isNull);
     },
@@ -333,12 +388,66 @@ void main() {
       final preference =
           (stored as Success<PlaybackPreference?, KumoriyaError>).value!;
 
-      expect(decision.type, EpisodePlaybackDecisionType.direct);
-      expect(decision.launch!.option.audioKind, SourceAudioKind.sub);
+      // When preferred audio (DUB) has no exact-match server and entire source
+      // fails, show selector with all available options. User picks alternative.
+      expect(decision.type, EpisodePlaybackDecisionType.selection);
+      expect(decision.options, hasLength(2));
+      // DUB option appears first due to audio preference ranking.
+      expect(decision.options.first.audioKind, SourceAudioKind.dub);
       expect(decision.autoSelectionFailed, isTrue);
-      expect(preference.preferredAudioPreference, isNull);
+      // Preference remains unchanged.
+      expect(preference.preferredAudioPreference, PlaybackAudioPreference.dub);
     },
   );
+
+  test('shows selector when the preferred server fails to resolve', () async {
+    final flakyRegistry = ResolverRegistry(
+      resolvers: <ResolverPlugin>[_FlakyResolverPlugin()],
+    );
+    final flakyResolver = ResolveSourceServerLinkUseCase(
+      registry: flakyRegistry,
+    );
+    const source = _MultiServerSourcePlugin();
+    final summary = await _summaryFor(const <SourcePlugin>[
+      source,
+    ], registry: flakyRegistry);
+
+    // Prefer 'AutoFail' server (which will fail to resolve).
+    await store.upsertPlaybackPreference(
+      PlaybackPreference(
+        anilistId: _detail.anime.anilistId,
+        preferredSourcePluginId: source.manifest.id,
+        preferredServerName: 'AutoFail',
+        preferredResolverPluginId: 'kumoriya.resolver.fake.flaky',
+        updatedAt: DateTime(2026, 1, 1),
+      ),
+    );
+
+    final decision =
+        await _buildUseCase(
+          sourcePlugins: <SourcePlugin>[source],
+          store: store,
+          registry: flakyRegistry,
+          resolver: flakyResolver,
+        ).call(
+          anilistId: _detail.anime.anilistId,
+          episodeNumber: 1,
+          availabilitySummary: summary,
+        );
+
+    // When the exact-match preferred server fails, the user should see
+    // all available servers ranked by preference, but not auto-selected.
+    expect(decision.type, EpisodePlaybackDecisionType.selection);
+    // All 3 servers are shown (not filtered as "attempted").
+    expect(decision.options, hasLength(3));
+    expect(decision.autoSelectionFailed, isTrue);
+    // AutoFail ranked first (as preferred), but not auto-selected.
+    expect(decision.options.first.serverLink.serverName, 'AutoFail');
+    expect(decision.options.first.isPreferred, isTrue);
+    // Backup and Streamwish are fallback options.
+    expect(decision.options[1].serverLink.serverName, 'Backup');
+    expect(decision.options[2].serverLink.serverName, 'Streamwish');
+  });
 
   test(
     'shows selector when there is no preference and the top source has multiple usable servers',

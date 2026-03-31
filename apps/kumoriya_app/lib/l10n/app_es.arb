@@ -12,6 +12,8 @@
   },
   "errorTransportAnilist": "No se pudo conectar con AniList. Revisa tu conexion y vuelve a intentar.",
   "errorServiceUnavailableAnilist": "AniList no esta disponible en este momento. Intenta mas tarde.",
+  "offlineBanner": "Sin conexión",
+  "anilistDownBanner": "AniList caído",
   "errorRateLimitedAnilist": "AniList esta limitando las solicitudes en este momento. Espera un poco y vuelve a intentar.",
   "errorMappingAnilist": "AniList devolvio datos que no se pudieron interpretar de forma segura.",
   "errorNotFoundAnilist": "No se encontro el anime en AniList.",

@@ -118,10 +118,9 @@ void main() {
         final batchResult = await store.updateSegments(updates);
         expect(batchResult.isSuccess, isTrue);
 
-        final loaded = (await store.getSegmentsForTask('dl-hls-1')).fold(
-          onSuccess: (segs) => segs,
-          onFailure: (_) => <HlsSegment>[],
-        );
+        final loaded = (await store.getSegmentsForTask(
+          'dl-hls-1',
+        )).fold(onSuccess: (segs) => segs, onFailure: (_) => <HlsSegment>[]);
 
         expect(loaded[0].status, HlsSegmentStatus.completed);
         expect(loaded[1].status, HlsSegmentStatus.failed);
@@ -137,10 +136,9 @@ void main() {
         final deleteResult = await store.deleteSegmentsForTask('dl-hls-1');
         expect(deleteResult.isSuccess, isTrue);
 
-        final loaded = (await store.getSegmentsForTask('dl-hls-1')).fold(
-          onSuccess: (segs) => segs,
-          onFailure: (_) => <HlsSegment>[],
-        );
+        final loaded = (await store.getSegmentsForTask(
+          'dl-hls-1',
+        )).fold(onSuccess: (segs) => segs, onFailure: (_) => <HlsSegment>[]);
         expect(loaded, isEmpty);
       });
     });
@@ -169,22 +167,19 @@ void main() {
         final completedCount = (await store.countSegmentsByStatus(
           'dl-hls-1',
           HlsSegmentStatus.completed,
-        ))
-            .fold(onSuccess: (c) => c, onFailure: (_) => -1);
+        )).fold(onSuccess: (c) => c, onFailure: (_) => -1);
         expect(completedCount, 2);
 
         final pendingCount = (await store.countSegmentsByStatus(
           'dl-hls-1',
           HlsSegmentStatus.pending,
-        ))
-            .fold(onSuccess: (c) => c, onFailure: (_) => -1);
+        )).fold(onSuccess: (c) => c, onFailure: (_) => -1);
         expect(pendingCount, 1);
 
         final failedCount = (await store.countSegmentsByStatus(
           'dl-hls-1',
           HlsSegmentStatus.failed,
-        ))
-            .fold(onSuccess: (c) => c, onFailure: (_) => -1);
+        )).fold(onSuccess: (c) => c, onFailure: (_) => -1);
         expect(failedCount, 1);
       });
     });
@@ -195,29 +190,24 @@ void main() {
           makeSegment(index: 0, taskId: 'task-a'),
           makeSegment(index: 1, taskId: 'task-a'),
         ]);
-        await store.insertSegments([
-          makeSegment(index: 0, taskId: 'task-b'),
-        ]);
+        await store.insertSegments([makeSegment(index: 0, taskId: 'task-b')]);
 
-        final taskA = (await store.getSegmentsForTask('task-a')).fold(
-          onSuccess: (segs) => segs,
-          onFailure: (_) => <HlsSegment>[],
-        );
+        final taskA = (await store.getSegmentsForTask(
+          'task-a',
+        )).fold(onSuccess: (segs) => segs, onFailure: (_) => <HlsSegment>[]);
         expect(taskA, hasLength(2));
 
-        final taskB = (await store.getSegmentsForTask('task-b')).fold(
-          onSuccess: (segs) => segs,
-          onFailure: (_) => <HlsSegment>[],
-        );
+        final taskB = (await store.getSegmentsForTask(
+          'task-b',
+        )).fold(onSuccess: (segs) => segs, onFailure: (_) => <HlsSegment>[]);
         expect(taskB, hasLength(1));
 
         // Deleting task-a doesn't affect task-b.
         await store.deleteSegmentsForTask('task-a');
 
-        final afterDelete = (await store.getSegmentsForTask('task-b')).fold(
-          onSuccess: (segs) => segs,
-          onFailure: (_) => <HlsSegment>[],
-        );
+        final afterDelete = (await store.getSegmentsForTask(
+          'task-b',
+        )).fold(onSuccess: (segs) => segs, onFailure: (_) => <HlsSegment>[]);
         expect(afterDelete, hasLength(1));
       });
     });

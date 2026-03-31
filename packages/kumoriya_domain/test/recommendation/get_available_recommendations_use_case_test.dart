@@ -5,20 +5,34 @@ import 'package:kumoriya_domain/src/source_availability/models/source_availabili
 
 class FakeRecommendationProvider implements RecommendationProvider {
   @override
-  Future<List<int>> fetchRecommendations({required int animeId, int? limit}) async {
+  Future<List<int>> fetchRecommendations({
+    required int animeId,
+    int? limit,
+  }) async {
     return [1, 2, 3, 4];
   }
 }
 
 void main() {
-  test('GetAvailableRecommendationsUseCase filtra por playableSources', () async {
-    final provider = FakeRecommendationProvider();
-    final getAvailability = (int id) async =>
-      id % 2 == 0
-        ? SourceAvailabilitySummary(playableSources: ['ok'], status: SourceAvailabilityStatus.available)
-        : SourceAvailabilitySummary(playableSources: [], status: SourceAvailabilityStatus.unavailable);
-    final useCase = GetAvailableRecommendationsUseCase(provider: provider, getAvailability: getAvailability);
-    final result = await useCase.call(animeId: 123);
-    expect(result, [2, 4]);
-  });
+  test(
+    'GetAvailableRecommendationsUseCase filtra por playableSources',
+    () async {
+      final provider = FakeRecommendationProvider();
+      final getAvailability = (int id) async => id % 2 == 0
+          ? SourceAvailabilitySummary(
+              playableSources: ['ok'],
+              status: SourceAvailabilityStatus.available,
+            )
+          : SourceAvailabilitySummary(
+              playableSources: [],
+              status: SourceAvailabilityStatus.unavailable,
+            );
+      final useCase = GetAvailableRecommendationsUseCase(
+        provider: provider,
+        getAvailability: getAvailability,
+      );
+      final result = await useCase.call(animeId: 123);
+      expect(result, [2, 4]);
+    },
+  );
 }
