@@ -2,6 +2,7 @@ import 'dart:developer' as developer;
 
 import 'package:kumoriya_core/kumoriya_core.dart';
 import 'package:kumoriya_plugins/kumoriya_plugins.dart';
+import 'package:sentry_flutter/sentry_flutter.dart';
 
 import '../models/resolved_server_link_result.dart';
 import '../services/resolver_registry.dart';
@@ -66,12 +67,32 @@ final class ResolveSourceServerLinkUseCase {
         _log(
           'resolve failure server=${sourceServerLink.serverName} resolver=${resolver.manifest.id} code=${error.code} message=${error.message}',
         );
+        Sentry.captureException(
+          Exception('Resolver failure: ${error.code}'),
+          withScope: (scope) {
+            scope.setTag('resolver_id', resolver.manifest.id);
+            scope.setTag('server_name', sourceServerLink.serverName);
+            scope.setTag('host', url.host);
+            scope.setTag('error_code', error.code);
+          },
+        );
         return Failure(error);
       },
       onSuccess: (resolveResult) {
         if (resolveResult.streams.isEmpty) {
           _log(
             'resolve empty server=${sourceServerLink.serverName} resolver=${resolver.manifest.id}',
+          );
+          Sentry.addBreadcrumb(
+            Breadcrumb(
+              message: 'Resolver returned zero streams',
+              category: 'resolver',
+              data: {
+                'resolver_id': resolver.manifest.id,
+                'server_name': sourceServerLink.serverName,
+                'host': url.host,
+              },
+            ),
           );
           return const Failure(
             SimpleError(

@@ -20,4 +20,20 @@ class WatchHistoryDao extends DatabaseAccessor<AppDatabase>
           ..limit(limit))
         .get();
   }
+
+  Future<List<WatchHistoryTableData>> getAllHistory() {
+    return (select(
+      watchHistoryTable,
+    )..orderBy([(t) => OrderingTerm.desc(t.lastAccessedAt)])).get();
+  }
+
+  Future<int> deleteHistoryEntry(int anilistId) {
+    return (delete(
+      watchHistoryTable,
+    )..where((t) => t.anilistId.equals(anilistId))).go();
+  }
+
+  Future<int> clearAllHistory() {
+    return delete(watchHistoryTable).go();
+  }
 }

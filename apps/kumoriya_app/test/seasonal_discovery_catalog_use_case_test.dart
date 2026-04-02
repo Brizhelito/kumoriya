@@ -6,15 +6,15 @@ import 'package:kumoriya_domain/kumoriya_domain.dart';
 void main() {
   test('aggregates in-season, upcoming, and recommended catalogs', () async {
     final repository = _FakeAnimeCatalogRepository(
-      seasonCatalog: Success(<Anime>[_anime(1, 'Solo Leveling')]),
-      upcomingCatalog: Success(<Anime>[_anime(2, 'Witch Watch')]),
-      recommendations: Success(<Anime>[_anime(3, 'Frieren')]),
+      discoveryResult: Success(
+        SeasonDiscoveryResult(
+          inSeason: <Anime>[_anime(1, 'Solo Leveling')],
+          upcoming: <Anime>[_anime(2, 'Witch Watch')],
+          recommended: <Anime>[_anime(3, 'Frieren')],
+        ),
+      ),
     );
-    final useCase = GetSeasonalDiscoveryCatalogUseCase(
-      seasonCatalog: GetSeasonCatalogUseCase(repository),
-      upcomingSeasonCatalog: GetUpcomingSeasonCatalogUseCase(repository),
-      seasonRecommendations: GetSeasonRecommendationsUseCase(repository),
-    );
+    final useCase = GetSeasonalDiscoveryCatalogUseCase(repository);
 
     final result = await useCase.call(
       const SeasonalCatalogRequest(season: AnimeSeason.spring, year: 2026),
@@ -42,35 +42,36 @@ Anime _anime(int id, String title) {
 }
 
 final class _FakeAnimeCatalogRepository implements AnimeCatalogRepository {
-  _FakeAnimeCatalogRepository({
-    required this.seasonCatalog,
-    required this.upcomingCatalog,
-    required this.recommendations,
-  });
+  _FakeAnimeCatalogRepository({required this.discoveryResult});
 
-  final Result<List<Anime>, KumoriyaError> seasonCatalog;
-  final Result<List<Anime>, KumoriyaError> upcomingCatalog;
-  final Result<List<Anime>, KumoriyaError> recommendations;
+  final Result<SeasonDiscoveryResult, KumoriyaError> discoveryResult;
+
+  @override
+  Future<Result<SeasonDiscoveryResult, KumoriyaError>> fetchSeasonDiscovery(
+    SeasonalCatalogRequest request,
+  ) async {
+    return discoveryResult;
+  }
 
   @override
   Future<Result<List<Anime>, KumoriyaError>> fetchSeasonCatalog(
     SeasonalCatalogRequest request,
   ) async {
-    return seasonCatalog;
+    return const Success(<Anime>[]);
   }
 
   @override
   Future<Result<List<Anime>, KumoriyaError>> fetchUpcomingSeasonCatalog(
     SeasonalCatalogRequest request,
   ) async {
-    return upcomingCatalog;
+    return const Success(<Anime>[]);
   }
 
   @override
   Future<Result<List<Anime>, KumoriyaError>> fetchSeasonRecommendations(
     SeasonalCatalogRequest request,
   ) async {
-    return recommendations;
+    return const Success(<Anime>[]);
   }
 
   @override
@@ -118,5 +119,29 @@ final class _FakeAnimeCatalogRepository implements AnimeCatalogRepository {
     int anilistId,
   ) {
     throw UnimplementedError();
+  }
+
+  @override
+  Future<Result<List<Anime>, KumoriyaError>> fetchBatchAnimeByIds(
+    List<int> ids,
+  ) async {
+    return const Success(<Anime>[]);
+  }
+
+  @override
+  Future<Result<List<Anime>, KumoriyaError>> browseAnime(
+    AnimeBrowseRequest request,
+  ) async {
+    return const Success(<Anime>[]);
+  }
+
+  @override
+  Future<Result<List<String>, KumoriyaError>> fetchGenreCollection() async {
+    return const Success(<String>[]);
+  }
+
+  @override
+  Future<Result<List<AnimeTag>, KumoriyaError>> fetchTagCollection() async {
+    return const Success(<AnimeTag>[]);
   }
 }

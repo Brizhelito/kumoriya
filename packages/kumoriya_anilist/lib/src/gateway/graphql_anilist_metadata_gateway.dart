@@ -379,6 +379,103 @@ final class GraphqlAnilistMetadataGateway implements AnilistMetadataGateway {
     );
   }
 
+  @override
+  Future<Result<Map<String, List<Map<String, dynamic>>>, KumoriyaError>>
+  fetchSeasonDiscovery(SeasonalCatalogRequest request) async {
+    final previous = _previousSeasonRequest(request);
+    final result = await _client.execute(
+      query: seasonDiscoveryQuery,
+      variables: <String, dynamic>{
+        'page': request.page,
+        'perPage': request.perPage,
+        'season': _mapSeason(request.season),
+        'seasonYear': request.year,
+        'prevSeason': _mapSeason(previous.season),
+        'prevSeasonYear': previous.year,
+        'includeCarryover': request.includeCarryovers,
+      },
+    );
+
+    return result.fold(
+      onSuccess: (data) {
+        final sections = <String, List<Map<String, dynamic>>>{};
+        for (final alias in const <String>[
+          'current',
+          'upcoming',
+          'recommended',
+          'carryover',
+        ]) {
+          final page = data[alias];
+          if (page is! Map<String, dynamic>) continue;
+          final media = page['media'];
+          if (media is! List) continue;
+          final mapped = <Map<String, dynamic>>[
+            for (final item in media)
+              if (item is Map<String, dynamic>) item,
+          ];
+          sections[alias] = mapped;
+        }
+
+        if (!sections.containsKey('current')) {
+          return const Failure(
+            AnilistMappingError(
+              message:
+                  'Season discovery payload does not contain current Page.media list.',
+            ),
+          );
+        }
+
+        return Success(sections);
+      },
+      onFailure: (err) {
+        developer.log(
+          'fetchSeasonDiscovery error [${err.code}/${err.kind.name}]: ${err.message}',
+          name: 'GraphqlAnilistMetadataGateway',
+        );
+        return Failure(err);
+      },
+    );
+  }
+
+  @override
+  Future<Result<List<Map<String, dynamic>>, KumoriyaError>>
+  fetchBatchAnimeByIds(List<int> ids, {int page = 1, int perPage = 50}) async {
+    if (ids.isEmpty) {
+      return const Success(<Map<String, dynamic>>[]);
+    }
+
+    final result = await _client.execute(
+      query: batchAnimeByIdsQuery,
+      variables: <String, dynamic>{
+        'ids': ids,
+        'page': page,
+        'perPage': perPage,
+      },
+    );
+
+    return result.fold(
+      onSuccess: (data) {
+        final media = _extractMediaList(data);
+        if (media == null) {
+          return const Failure(
+            AnilistMappingError(
+              message: 'Batch anime payload does not contain Page.media list.',
+            ),
+          );
+        }
+
+        return Success(media);
+      },
+      onFailure: (err) {
+        developer.log(
+          'fetchBatchAnimeByIds error [${err.code}/${err.kind.name}]: ${err.message}',
+          name: 'GraphqlAnilistMetadataGateway',
+        );
+        return Failure(err);
+      },
+    );
+  }
+
   Future<Result<List<Map<String, dynamic>>, KumoriyaError>> _fetchSeasonMedia({
     required String query,
     required SeasonalCatalogRequest request,
@@ -619,5 +716,132 @@ final class GraphqlAnilistMetadataGateway implements AnilistMetadataGateway {
   int _trendingScore(Map<String, dynamic> media) {
     final trending = media['trending'];
     return trending is int ? trending : -1;
+  }
+
+  // -------------------------------------------------------------------------
+  // Browse / Discover
+  // -------------------------------------------------------------------------
+
+  @override
+  Future<Result<List<Map<String, dynamic>>, KumoriyaError>> browseAnime({
+    String? search,
+    List<String>? genres,
+    List<String>? tags,
+    List<String>? formats,
+    String? season,
+    int? seasonYear,
+    List<String>? statuses,
+    List<String>? sort,
+    int page = 1,
+    int perPage = 20,
+  }) async {
+    final variables = <String, dynamic>{
+      'page': page,
+      'perPage': perPage,
+      if (search != null) 'search': search,
+      if (genres != null) 'genres': genres,
+      if (tags != null) 'tags': tags,
+      if (formats != null) 'formatIn': formats,
+      if (season != null) 'season': season,
+      if (seasonYear != null) 'seasonYear': seasonYear,
+      if (statuses != null) 'statusIn': statuses,
+      if (sort != null) 'sort': sort,
+    };
+
+    final result = await _client.execute(
+      query: browseAnimeQuery,
+      variables: variables,
+    );
+
+    return result.fold(
+      onSuccess: (data) {
+        final media = _extractMediaList(data);
+        if (media == null) {
+          return const Failure(
+            AnilistMappingError(
+              message: 'Browse payload does not contain Page.media list.',
+            ),
+          );
+        }
+
+        return Success(media);
+      },
+      onFailure: (err) {
+        developer.log(
+          'browseAnime error [${err.code}/${err.kind.name}]: ${err.message}',
+          name: 'GraphqlAnilistMetadataGateway',
+        );
+        return Failure(err);
+      },
+    );
+  }
+
+  @override
+  Future<Result<List<String>, KumoriyaError>> fetchGenreCollection() async {
+    final result = await _client.execute(
+      query: genreCollectionQuery,
+      variables: const <String, dynamic>{},
+    );
+
+    return result.fold(
+      onSuccess: (data) {
+        final raw = data['GenreCollection'];
+        if (raw is! List) {
+          return const Failure(
+            AnilistMappingError(
+              message: 'GenreCollection payload is not a list.',
+            ),
+          );
+        }
+
+        final genres = <String>[
+          for (final item in raw)
+            if (item is String) item,
+        ];
+        return Success(genres);
+      },
+      onFailure: (err) {
+        developer.log(
+          'fetchGenreCollection error [${err.code}/${err.kind.name}]: ${err.message}',
+          name: 'GraphqlAnilistMetadataGateway',
+        );
+        return Failure(err);
+      },
+    );
+  }
+
+  @override
+  Future<Result<List<Map<String, dynamic>>, KumoriyaError>>
+  fetchTagCollection() async {
+    final result = await _client.execute(
+      query: tagCollectionQuery,
+      variables: const <String, dynamic>{},
+    );
+
+    return result.fold(
+      onSuccess: (data) {
+        final raw = data['MediaTagCollection'];
+        if (raw is! List) {
+          return const Failure(
+            AnilistMappingError(
+              message: 'MediaTagCollection payload is not a list.',
+            ),
+          );
+        }
+
+        final tags = <Map<String, dynamic>>[
+          for (final item in raw)
+            if (item is Map<String, dynamic>) item,
+        ];
+        return Success(tags);
+      },
+      onFailure: (err) {
+        developer.log(
+          'fetchTagCollection error [${err.code}/${err.kind.name}]: ${err.message}',
+          name: 'GraphqlAnilistMetadataGateway',
+        );
+        return Failure(err);
+      },
+    );
   }
 }

@@ -1,7 +1,7 @@
 name: kumoriya_app
 description: Kumoriya main Flutter application.
 publish_to: none
-version: 0.1.2+3
+version: 0.1.4+5
 
 resolution: workspace
 
@@ -63,6 +63,7 @@ dependencies:
   flutter_foreground_task: ^9.2.1
   open_filex: ^4.7.0
   package_info_plus: ^9.0.1
+  sentry_flutter: ^9.16.0
 
 dev_dependencies:
   flutter_test:

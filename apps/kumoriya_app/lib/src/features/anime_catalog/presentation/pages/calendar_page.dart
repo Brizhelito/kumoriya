@@ -214,16 +214,34 @@ class _CalendarBodyState extends ConsumerState<_CalendarBody> {
         // Week-day header + month grid
         SliverToBoxAdapter(child: _WeekdayHeader(locale: locale)),
         SliverToBoxAdapter(
-          child: _MonthGrid(
-            focusMonth: focusMonth,
-            selectedDay: selectedDay,
-            today: today,
-            grouped: _grouped,
-            minMonth: minMonth,
-            maxMonth: maxMonth,
-            onDayTapped: (day) {
-              ref.read(calendarSelectedDayProvider.notifier).set(day);
+          child: GestureDetector(
+            onHorizontalDragEnd: (details) {
+              if (details.primaryVelocity == null) return;
+              if (details.primaryVelocity! < -200 && canGoForward) {
+                final next = DateTime(focusMonth.year, focusMonth.month + 1);
+                ref.read(calendarFocusMonthProvider.notifier).set(next);
+                ref
+                    .read(calendarSelectedDayProvider.notifier)
+                    .set(DateTime(next.year, next.month));
+              } else if (details.primaryVelocity! > 200 && canGoBack) {
+                final prev = DateTime(focusMonth.year, focusMonth.month - 1);
+                ref.read(calendarFocusMonthProvider.notifier).set(prev);
+                ref
+                    .read(calendarSelectedDayProvider.notifier)
+                    .set(DateTime(prev.year, prev.month));
+              }
             },
+            child: _MonthGrid(
+              focusMonth: focusMonth,
+              selectedDay: selectedDay,
+              today: today,
+              grouped: _grouped,
+              minMonth: minMonth,
+              maxMonth: maxMonth,
+              onDayTapped: (day) {
+                ref.read(calendarSelectedDayProvider.notifier).set(day);
+              },
+            ),
           ),
         ),
 
@@ -356,7 +374,7 @@ class _MonthGrid extends StatelessWidget {
               final cellIndex = row * 7 + col;
               if (cellIndex < startWeekday ||
                   cellIndex >= startWeekday + daysInMonth) {
-                return const Expanded(child: SizedBox(height: 44));
+                return const Expanded(child: SizedBox(height: 40));
               }
 
               final day = cellIndex - startWeekday + 1;
@@ -414,7 +432,7 @@ class _DayCell extends StatelessWidget {
     }
 
     return Container(
-      height: 44,
+      height: 40,
       alignment: Alignment.center,
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,

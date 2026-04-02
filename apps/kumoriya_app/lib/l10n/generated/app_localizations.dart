@@ -1345,6 +1345,12 @@ abstract class AppLocalizations {
   /// **'Download failed'**
   String get downloadFailed;
 
+  /// No description provided for @downloadFileNotFound.
+  ///
+  /// In en, this message translates to:
+  /// **'Downloaded file not found — it may have been deleted.'**
+  String get downloadFileNotFound;
+
   /// No description provided for @downloadPaused.
   ///
   /// In en, this message translates to:
@@ -1488,6 +1494,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'DUB'**
   String get autoDownloadAudioDub;
+
+  /// No description provided for @downloadAllChooseAudio.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose audio type'**
+  String get downloadAllChooseAudio;
 
   /// No description provided for @downloadHlsNotSupported.
   ///
@@ -2083,6 +2095,24 @@ abstract class AppLocalizations {
   /// **'No server links available for this episode.'**
   String get sourceServerLinksEmpty;
 
+  /// No description provided for @downloadClearQueue.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear queue'**
+  String get downloadClearQueue;
+
+  /// No description provided for @downloadClearQueueConfirmTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear queue?'**
+  String get downloadClearQueueConfirmTitle;
+
+  /// No description provided for @downloadClearQueueConfirmMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'All pending and failed downloads will be removed.'**
+  String get downloadClearQueueConfirmMessage;
+
   /// No description provided for @downloadDeleteConfirmTitle.
   ///
   /// In en, this message translates to:
@@ -2106,6 +2136,396 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Lock controls'**
   String get playerLockControls;
+
+  /// No description provided for @historyGroupToday.
+  ///
+  /// In en, this message translates to:
+  /// **'Today'**
+  String get historyGroupToday;
+
+  /// No description provided for @historyGroupYesterday.
+  ///
+  /// In en, this message translates to:
+  /// **'Yesterday'**
+  String get historyGroupYesterday;
+
+  /// No description provided for @historyGroupThisWeek.
+  ///
+  /// In en, this message translates to:
+  /// **'This Week'**
+  String get historyGroupThisWeek;
+
+  /// No description provided for @historyGroupThisMonth.
+  ///
+  /// In en, this message translates to:
+  /// **'This Month'**
+  String get historyGroupThisMonth;
+
+  /// No description provided for @historyGroupOlder.
+  ///
+  /// In en, this message translates to:
+  /// **'Older'**
+  String get historyGroupOlder;
+
+  /// No description provided for @historyDeleteEntryTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove from history?'**
+  String get historyDeleteEntryTitle;
+
+  /// No description provided for @historyDeleteEntryMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'This anime will be removed from your watch history.'**
+  String get historyDeleteEntryMessage;
+
+  /// No description provided for @historyClearAllTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear all history?'**
+  String get historyClearAllTitle;
+
+  /// No description provided for @historyClearAllMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Your entire watch history will be permanently deleted.'**
+  String get historyClearAllMessage;
+
+  /// No description provided for @historyClearAllAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear all history'**
+  String get historyClearAllAction;
+
+  /// No description provided for @deleteAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete'**
+  String get deleteAction;
+
+  /// No description provided for @removeAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove'**
+  String get removeAction;
+
+  /// No description provided for @downloadViewAnimeDetails.
+  ///
+  /// In en, this message translates to:
+  /// **'View anime details'**
+  String get downloadViewAnimeDetails;
+
+  /// No description provided for @downloadDeleteAllEpisodes.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete all episodes'**
+  String get downloadDeleteAllEpisodes;
+
+  /// No description provided for @downloadDeleteEpisode.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete episode'**
+  String get downloadDeleteEpisode;
+
+  /// No description provided for @downloadDeleteAllConfirmTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete all downloaded episodes?'**
+  String get downloadDeleteAllConfirmTitle;
+
+  /// No description provided for @downloadDeleteAllConfirmMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'All downloaded episodes for this anime will be permanently removed.'**
+  String get downloadDeleteAllConfirmMessage;
+
+  /// No description provided for @librarySortAlphabetical.
+  ///
+  /// In en, this message translates to:
+  /// **'A-Z'**
+  String get librarySortAlphabetical;
+
+  /// No description provided for @librarySortRecentlyAdded.
+  ///
+  /// In en, this message translates to:
+  /// **'Recently added'**
+  String get librarySortRecentlyAdded;
+
+  /// No description provided for @librarySortRecentlyWatched.
+  ///
+  /// In en, this message translates to:
+  /// **'Recently watched'**
+  String get librarySortRecentlyWatched;
+
+  /// No description provided for @libraryActionSave.
+  ///
+  /// In en, this message translates to:
+  /// **'Save'**
+  String get libraryActionSave;
+
+  /// No description provided for @libraryActionNotify.
+  ///
+  /// In en, this message translates to:
+  /// **'Notify'**
+  String get libraryActionNotify;
+
+  /// No description provided for @libraryActionAutoDownload.
+  ///
+  /// In en, this message translates to:
+  /// **'Auto DL'**
+  String get libraryActionAutoDownload;
+
+  /// No description provided for @discoverTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Discover'**
+  String get discoverTitle;
+
+  /// No description provided for @discoverSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Find your next anime'**
+  String get discoverSubtitle;
+
+  /// No description provided for @discoverTrending.
+  ///
+  /// In en, this message translates to:
+  /// **'Trending Now'**
+  String get discoverTrending;
+
+  /// No description provided for @discoverTopRated.
+  ///
+  /// In en, this message translates to:
+  /// **'Top Rated'**
+  String get discoverTopRated;
+
+  /// No description provided for @discoverPopular.
+  ///
+  /// In en, this message translates to:
+  /// **'Most Popular'**
+  String get discoverPopular;
+
+  /// No description provided for @discoverGenres.
+  ///
+  /// In en, this message translates to:
+  /// **'Browse by Genre'**
+  String get discoverGenres;
+
+  /// No description provided for @discoverCantRemember.
+  ///
+  /// In en, this message translates to:
+  /// **'Can\'t remember the name?'**
+  String get discoverCantRemember;
+
+  /// No description provided for @discoverCantRememberSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Find anime by describing what it\'s about'**
+  String get discoverCantRememberSubtitle;
+
+  /// No description provided for @discoverStartTagSearch.
+  ///
+  /// In en, this message translates to:
+  /// **'Start tag search'**
+  String get discoverStartTagSearch;
+
+  /// No description provided for @browseResultsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Browse Results'**
+  String get browseResultsTitle;
+
+  /// No description provided for @browseNoResults.
+  ///
+  /// In en, this message translates to:
+  /// **'No anime found with these filters.'**
+  String get browseNoResults;
+
+  /// No description provided for @browseFilterGenre.
+  ///
+  /// In en, this message translates to:
+  /// **'Genre'**
+  String get browseFilterGenre;
+
+  /// No description provided for @browseFilterFormat.
+  ///
+  /// In en, this message translates to:
+  /// **'Format'**
+  String get browseFilterFormat;
+
+  /// No description provided for @browseFilterSeason.
+  ///
+  /// In en, this message translates to:
+  /// **'Season'**
+  String get browseFilterSeason;
+
+  /// No description provided for @browseFilterYear.
+  ///
+  /// In en, this message translates to:
+  /// **'Year'**
+  String get browseFilterYear;
+
+  /// No description provided for @browseFilterSort.
+  ///
+  /// In en, this message translates to:
+  /// **'Sort by'**
+  String get browseFilterSort;
+
+  /// No description provided for @browseFilterStatus.
+  ///
+  /// In en, this message translates to:
+  /// **'Status'**
+  String get browseFilterStatus;
+
+  /// No description provided for @browseFilterTags.
+  ///
+  /// In en, this message translates to:
+  /// **'Tags'**
+  String get browseFilterTags;
+
+  /// No description provided for @browseFilterApply.
+  ///
+  /// In en, this message translates to:
+  /// **'Apply filters'**
+  String get browseFilterApply;
+
+  /// No description provided for @browseFilterClear.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear filters'**
+  String get browseFilterClear;
+
+  /// No description provided for @browseSortTrending.
+  ///
+  /// In en, this message translates to:
+  /// **'Trending'**
+  String get browseSortTrending;
+
+  /// No description provided for @browseSortScore.
+  ///
+  /// In en, this message translates to:
+  /// **'Score'**
+  String get browseSortScore;
+
+  /// No description provided for @browseSortPopularity.
+  ///
+  /// In en, this message translates to:
+  /// **'Popularity'**
+  String get browseSortPopularity;
+
+  /// No description provided for @browseSortFavourites.
+  ///
+  /// In en, this message translates to:
+  /// **'Favourites'**
+  String get browseSortFavourites;
+
+  /// No description provided for @browseSortNewest.
+  ///
+  /// In en, this message translates to:
+  /// **'Newest'**
+  String get browseSortNewest;
+
+  /// No description provided for @browseSortTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Title'**
+  String get browseSortTitle;
+
+  /// No description provided for @tagSearchTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Find by Tags'**
+  String get tagSearchTitle;
+
+  /// No description provided for @tagSearchSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Select tags that describe the anime you\'re looking for'**
+  String get tagSearchSubtitle;
+
+  /// No description provided for @tagSearchSelectCategory.
+  ///
+  /// In en, this message translates to:
+  /// **'Select a category'**
+  String get tagSearchSelectCategory;
+
+  /// No description provided for @tagSearchSelectedTags.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} tags selected'**
+  String tagSearchSelectedTags(int count);
+
+  /// No description provided for @tagSearchFindAnime.
+  ///
+  /// In en, this message translates to:
+  /// **'Find anime'**
+  String get tagSearchFindAnime;
+
+  /// No description provided for @tagSearchNoTags.
+  ///
+  /// In en, this message translates to:
+  /// **'No tags selected yet'**
+  String get tagSearchNoTags;
+
+  /// No description provided for @tagSearchGuideStep1.
+  ///
+  /// In en, this message translates to:
+  /// **'Open a category to see its tags'**
+  String get tagSearchGuideStep1;
+
+  /// No description provided for @tagSearchGuideStep2.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap tags that match what you remember'**
+  String get tagSearchGuideStep2;
+
+  /// No description provided for @tagSearchGuideStep3.
+  ///
+  /// In en, this message translates to:
+  /// **'Press find to see matching anime'**
+  String get tagSearchGuideStep3;
+
+  /// No description provided for @tagSearchFilterHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Filter tags by name...'**
+  String get tagSearchFilterHint;
+
+  /// No description provided for @browseGenreApply.
+  ///
+  /// In en, this message translates to:
+  /// **'Apply ({count})'**
+  String browseGenreApply(int count);
+
+  /// No description provided for @formatTv.
+  ///
+  /// In en, this message translates to:
+  /// **'TV'**
+  String get formatTv;
+
+  /// No description provided for @formatMovie.
+  ///
+  /// In en, this message translates to:
+  /// **'Movie'**
+  String get formatMovie;
+
+  /// No description provided for @formatOva.
+  ///
+  /// In en, this message translates to:
+  /// **'OVA'**
+  String get formatOva;
+
+  /// No description provided for @formatOna.
+  ///
+  /// In en, this message translates to:
+  /// **'ONA'**
+  String get formatOna;
+
+  /// No description provided for @formatSpecial.
+  ///
+  /// In en, this message translates to:
+  /// **'Special'**
+  String get formatSpecial;
 }
 
 class _AppLocalizationsDelegate

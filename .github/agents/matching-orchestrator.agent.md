@@ -1,7 +1,7 @@
 ---
 description: "Use when coordinating AniList-to-source matching hardening, source availability audits, search API or autocomplete discovery, matcher calibration, and regression validation across source plugins. Delegates to matching specialists and enforces an evidence-first, premium-quality workflow."
 tools: [execute/runNotebookCell, execute/testFailure, execute/getTerminalOutput, execute/awaitTerminal, execute/killTerminal, execute/createAndRunTask, execute/runInTerminal, execute/runTests, read/getNotebookSummary, read/problems, read/readFile, read/terminalSelection, read/terminalLastCommand, edit/createDirectory, edit/createFile, edit/createJupyterNotebook, edit/editFiles, edit/editNotebook, edit/rename, search/changes, search/codebase, search/fileSearch, search/listDirectory, search/searchResults, search/textSearch, search/searchSubagent, search/usages, todo, agent]
-model: "GPT-5.4"
+model: Claude Opus 4.6 (copilot)
 agents: [anilist-query-strategist, source-search-surface-auditor, source-catalog-existence-verifier, browser-matching-dataset-validator, matcher-calibration-auditor, matching-regression-guardian]
 user-invocable: true
 argument-hint: "Describe the AniList/source matching goal, target plugins, dataset scope, and confidence bar"

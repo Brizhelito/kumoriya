@@ -24,6 +24,9 @@ final class StreamwishResolverPlugin implements ResolverPlugin {
   };
 
   static const List<String> _mirrorHosts = <String>[
+    'sfastwish.com',
+    'awish.pro',
+    'wishfast.top',
     'playnixes.com',
     'medixiru.com',
     'hgplaycdn.com',
@@ -95,6 +98,11 @@ final class StreamwishResolverPlugin implements ResolverPlugin {
           .timeout(const Duration(seconds: 8));
 
       if (response.statusCode != 200) {
+        // Primary host failed — try mirror hosts before giving up.
+        final fallbackStreams = await _tryKnownMirrorFallback(url);
+        if (fallbackStreams.isNotEmpty) {
+          return Success(ResolveResult(streams: fallbackStreams));
+        }
         return Failure(
           StreamwishTransportError(
             message:
@@ -129,6 +137,11 @@ final class StreamwishResolverPlugin implements ResolverPlugin {
 
       return Success(ResolveResult(streams: streams));
     } catch (error) {
+      // Network/timeout failure — try mirror hosts before giving up.
+      final fallbackStreams = await _tryKnownMirrorFallback(url);
+      if (fallbackStreams.isNotEmpty) {
+        return Success(ResolveResult(streams: fallbackStreams));
+      }
       return Failure(
         StreamwishTransportError(
           message: 'StreamWish resolve request failed: $error',
@@ -174,7 +187,7 @@ final class StreamwishResolverPlugin implements ResolverPlugin {
 }
 
 final _swKeyedRe = RegExp(
-  r'''(?:file|src|source|hls)\s*[:=]\s*(?:"([^"]+)"|'([^']+)')''',
+  r'''(?:file|src|source|hls|wurl|url|m3u8|mp4)\s*[:=]\s*(?:"([^"]+)"|\'([^\']+)\')''',
   caseSensitive: false,
   multiLine: true,
 );
@@ -272,10 +285,13 @@ bool _isPlayable(Uri uri) {
     return false;
   }
 
-  final path = uri.path.toLowerCase();
-  return path.contains('.m3u8') ||
-      path.contains('.mp4') ||
-      path.contains('/hls/');
+  final full = uri.toString().toLowerCase();
+  return full.contains('.m3u8') ||
+      full.contains('.mp4') ||
+      full.contains('/hls/') ||
+      full.contains('/playlist') ||
+      full.contains('/video/') ||
+      full.contains('/stream');
 }
 
 bool _hasHints(String payload) {

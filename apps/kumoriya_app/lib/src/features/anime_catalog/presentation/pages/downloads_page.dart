@@ -73,9 +73,9 @@ class DownloadsPage extends ConsumerWidget {
                 unselectedLabelColor: KumoriyaColors.textSecondary,
                 dividerColor: KumoriyaColors.borderSubtle,
                 tabs: <Tab>[
+                  Tab(text: context.l10n.downloadsTabCompleted),
                   Tab(text: context.l10n.downloadsTabActive),
                   Tab(text: context.l10n.downloadsTabQueue),
-                  Tab(text: context.l10n.downloadsTabCompleted),
                 ],
               ),
               Expanded(
@@ -137,9 +137,9 @@ class _DownloadsBody extends ConsumerWidget {
 
     return TabBarView(
       children: <Widget>[
+        _CompletedTabContent(grouped: groupedCompleted, ref: ref),
         _ActiveTabContent(tasks: downloading, ref: ref),
         _QueueTabContent(tasks: queued, ref: ref),
-        _CompletedTabContent(grouped: groupedCompleted, ref: ref),
       ],
     );
   }
@@ -229,15 +229,19 @@ class _QueueTabContent extends StatelessWidget {
       onRefresh: () => _refreshDownloads(ref),
       child: ListView(
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
-        children: tasks
-            .map(
-              (task) => Padding(
-                key: ValueKey('queue-${task.id}'),
-                padding: const EdgeInsets.only(bottom: 8),
-                child: _ActiveDownloadRow(task: task),
-              ),
-            )
-            .toList(),
+        children: <Widget>[
+          Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: _QueueHeader(ref: ref),
+          ),
+          ...tasks.map(
+            (task) => Padding(
+              key: ValueKey('queue-${task.id}'),
+              padding: const EdgeInsets.only(bottom: 8),
+              child: _ActiveDownloadRow(task: task),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -330,6 +334,64 @@ class _ActiveDownloadsHeader extends ConsumerWidget {
           onPressed: () => ref.read(downloadManagerProvider).cancelAll(),
           icon: const Icon(KumoriyaIcons.close, size: 16),
           label: Text(context.l10n.downloadCancel),
+          style: TextButton.styleFrom(
+            foregroundColor: KumoriyaColors.statusDanger,
+            textStyle: const TextStyle(fontSize: 12),
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+// ─── Queue header ─────────────────────────────────────────────────────────────
+
+class _QueueHeader extends StatelessWidget {
+  const _QueueHeader({required this.ref});
+
+  final WidgetRef ref;
+
+  Future<void> _confirmClearQueue(BuildContext context) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(ctx.l10n.downloadClearQueueConfirmTitle),
+        content: Text(ctx.l10n.downloadClearQueueConfirmMessage),
+        actions: <Widget>[
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: Text(ctx.l10n.cancelAction),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            style: TextButton.styleFrom(
+              foregroundColor: KumoriyaColors.statusDanger,
+            ),
+            child: Text(ctx.l10n.downloadClearQueue),
+          ),
+        ],
+      ),
+    );
+    if (confirmed ?? false) {
+      await ref.read(downloadManagerProvider).clearQueue();
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: <Widget>[
+        Expanded(
+          child: Text(
+            context.l10n.downloadsTabQueue,
+            style: Theme.of(context).textTheme.labelLarge,
+          ),
+        ),
+        TextButton.icon(
+          onPressed: () => _confirmClearQueue(context),
+          icon: const Icon(Icons.delete_sweep_rounded, size: 16),
+          label: Text(context.l10n.downloadClearQueue),
           style: TextButton.styleFrom(
             foregroundColor: KumoriyaColors.statusDanger,
             textStyle: const TextStyle(fontSize: 12),
@@ -604,6 +666,7 @@ class _CompletedAnimeCardState extends ConsumerState<_CompletedAnimeCard> {
           InkWell(
             borderRadius: BorderRadius.circular(KumoriyaRadius.xxl),
             onTap: () => setState(() => _expanded = !_expanded),
+            onLongPress: () => _showAnimeContextMenu(context, ref),
             child: Padding(
               padding: const EdgeInsets.all(12),
               child: Row(
@@ -679,110 +742,220 @@ class _CompletedAnimeCardState extends ConsumerState<_CompletedAnimeCard> {
       ),
     );
   }
+
+  Future<void> _showAnimeContextMenu(
+    BuildContext context,
+    WidgetRef ref,
+  ) async {
+    final action = await showModalBottomSheet<String>(
+      context: context,
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            ListTile(
+              leading: const Icon(Icons.info_outline_rounded),
+              title: Text(context.l10n.downloadViewAnimeDetails),
+              onTap: () => Navigator.of(ctx).pop('details'),
+            ),
+            ListTile(
+              leading: const Icon(
+                Icons.delete_sweep_rounded,
+                color: KumoriyaColors.statusDanger,
+              ),
+              title: Text(
+                context.l10n.downloadDeleteAllEpisodes,
+                style: const TextStyle(color: KumoriyaColors.statusDanger),
+              ),
+              onTap: () => Navigator.of(ctx).pop('delete_all'),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (!context.mounted || action == null) return;
+
+    if (action == 'details') {
+      Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) => AnimeDetailPage(anilistId: widget.anilistId),
+        ),
+      );
+    } else if (action == 'delete_all') {
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: Text(context.l10n.downloadDeleteAllConfirmTitle),
+          content: Text(context.l10n.downloadDeleteAllConfirmMessage),
+          actions: <Widget>[
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(false),
+              child: Text(context.l10n.cancelAction),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(true),
+              style: TextButton.styleFrom(
+                foregroundColor: KumoriyaColors.statusDanger,
+              ),
+              child: Text(context.l10n.deleteAction),
+            ),
+          ],
+        ),
+      );
+      if (confirmed == true) {
+        final manager = ref.read(downloadManagerProvider);
+        for (final ep in widget.episodes) {
+          manager.deleteCompleted(ep.id);
+        }
+      }
+    }
+  }
 }
 
 // ─── Single completed episode tile ───────────────────────────────────────────
 
-class _CompletedEpisodeTile extends StatelessWidget {
+class _CompletedEpisodeTile extends ConsumerWidget {
   const _CompletedEpisodeTile({required this.task, required this.onDelete});
 
   final DownloadTask task;
   final VoidCallback onDelete;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final quality = task.qualityLabel;
     final server = task.serverName;
     final size = task.totalBytes ?? task.downloadedBytes ?? 0;
 
-    return InkWell(
-      onTap: () => _playDownloaded(context, task),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-        child: Row(
-          children: <Widget>[
-            const Icon(
-              Icons.play_circle_filled_rounded,
-              size: 28,
-              color: KumoriyaColors.primary,
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: <Widget>[
-                  Text(
-                    context.l10n.downloadEpisodeLabel(
-                      task.episodeNumber.toInt(),
+    return Dismissible(
+      key: ValueKey('ep-tile-${task.id}'),
+      direction: DismissDirection.endToStart,
+      confirmDismiss: (_) async {
+        final confirmed = await showDialog<bool>(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: Text(context.l10n.downloadDeleteConfirmTitle),
+            content: Text(context.l10n.downloadDeleteConfirmMessage),
+            actions: <Widget>[
+              TextButton(
+                onPressed: () => Navigator.of(ctx).pop(false),
+                child: Text(context.l10n.cancelAction),
+              ),
+              TextButton(
+                onPressed: () => Navigator.of(ctx).pop(true),
+                style: TextButton.styleFrom(
+                  foregroundColor: KumoriyaColors.statusDanger,
+                ),
+                child: Text(context.l10n.downloadDelete),
+              ),
+            ],
+          ),
+        );
+        return confirmed == true;
+      },
+      onDismissed: (_) => onDelete(),
+      background: Container(
+        alignment: Alignment.centerRight,
+        padding: const EdgeInsets.only(right: 20),
+        color: KumoriyaColors.statusDanger,
+        child: const Icon(Icons.delete_rounded, color: Colors.white),
+      ),
+      child: InkWell(
+        onTap: () => _playDownloaded(context, ref, task),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          child: Row(
+            children: <Widget>[
+              const Icon(
+                Icons.play_circle_filled_rounded,
+                size: 28,
+                color: KumoriyaColors.primary,
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Text(
+                      context.l10n.downloadEpisodeLabel(
+                        task.episodeNumber.toInt(),
+                      ),
+                      style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: KumoriyaColors.textPrimary,
+                      ),
                     ),
-                    style: const TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      color: KumoriyaColors.textPrimary,
-                    ),
-                  ),
-                  if (task.episodeTitle != null &&
-                      task.episodeTitle!.trim().isNotEmpty) ...<Widget>[
+                    if (task.episodeTitle != null &&
+                        task.episodeTitle!.trim().isNotEmpty) ...<Widget>[
+                      const SizedBox(height: 2),
+                      TranslatedDynamicText(
+                        task.episodeTitle!,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 10,
+                          color: KumoriyaColors.textDisabled,
+                        ),
+                      ),
+                    ],
                     const SizedBox(height: 2),
-                    TranslatedDynamicText(
-                      task.episodeTitle!,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+                    Text(
+                      [server, quality, _fmtBytes(size)].nonNulls.join(' · '),
                       style: const TextStyle(
                         fontSize: 10,
                         color: KumoriyaColors.textDisabled,
                       ),
                     ),
                   ],
-                  const SizedBox(height: 2),
-                  Text(
-                    [server, quality, _fmtBytes(size)].nonNulls.join(' · '),
-                    style: const TextStyle(
-                      fontSize: 10,
-                      color: KumoriyaColors.textDisabled,
-                    ),
-                  ),
-                ],
+                ),
               ),
-            ),
-            IconButton(
-              icon: const Icon(Icons.delete_outline_rounded, size: 18),
-              tooltip: context.l10n.downloadDelete,
-              onPressed: () async {
-                final confirmed = await showDialog<bool>(
-                  context: context,
-                  builder: (context) => AlertDialog(
-                    title: Text(context.l10n.downloadDeleteConfirmTitle),
-                    content: Text(context.l10n.downloadDeleteConfirmMessage),
-                    actions: <Widget>[
-                      TextButton(
-                        onPressed: () => Navigator.of(context).pop(false),
-                        child: Text(context.l10n.cancelAction),
-                      ),
-                      TextButton(
-                        onPressed: () => Navigator.of(context).pop(true),
-                        style: TextButton.styleFrom(
-                          foregroundColor: KumoriyaColors.statusDanger,
+              IconButton(
+                icon: const Icon(Icons.delete_outline_rounded, size: 18),
+                tooltip: context.l10n.downloadDelete,
+                onPressed: () async {
+                  final confirmed = await showDialog<bool>(
+                    context: context,
+                    builder: (context) => AlertDialog(
+                      title: Text(context.l10n.downloadDeleteConfirmTitle),
+                      content: Text(context.l10n.downloadDeleteConfirmMessage),
+                      actions: <Widget>[
+                        TextButton(
+                          onPressed: () => Navigator.of(context).pop(false),
+                          child: Text(context.l10n.cancelAction),
                         ),
-                        child: Text(context.l10n.downloadDelete),
-                      ),
-                    ],
-                  ),
-                );
-                if (confirmed == true) {
-                  onDelete();
-                }
-              },
-            ),
-          ],
+                        TextButton(
+                          onPressed: () => Navigator.of(context).pop(true),
+                          style: TextButton.styleFrom(
+                            foregroundColor: KumoriyaColors.statusDanger,
+                          ),
+                          child: Text(context.l10n.downloadDelete),
+                        ),
+                      ],
+                    ),
+                  );
+                  if (confirmed == true) {
+                    onDelete();
+                  }
+                },
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
 
-  void _playDownloaded(BuildContext context, DownloadTask task) {
+  void _playDownloaded(BuildContext context, WidgetRef ref, DownloadTask task) {
     if (task.filePath == null) return;
     final file = File(task.filePath!);
+    if (!file.existsSync()) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(context.l10n.downloadFileNotFound)),
+      );
+      // Clean up the orphan DB record — the file has been removed externally.
+      ref.read(downloadManagerProvider).deleteCompleted(task.id);
+      return;
+    }
     Navigator.of(context, rootNavigator: true).push(
       MaterialPageRoute<void>(
         builder: (_) => PlayerPage(
@@ -809,7 +982,11 @@ class _CompletedEpisodeTile extends StatelessWidget {
 
 Future<void> _refreshDownloads(WidgetRef ref) async {
   await ref.read(downloadManagerProvider).syncDownloadedLibrary();
-  ref.invalidate(allDownloadTasksProvider);
+  try {
+    ref.invalidate(allDownloadTasksProvider);
+  } on StateError {
+    // Widget was unmounted before invalidate could run — safe to ignore.
+  }
 }
 
 Map<int, List<DownloadTask>> _groupCompletedTasks(List<DownloadTask> tasks) {

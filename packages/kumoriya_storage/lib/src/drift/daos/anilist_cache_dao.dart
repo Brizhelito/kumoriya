@@ -91,4 +91,10 @@ class AnilistCacheDao extends DatabaseAccessor<AppDatabase>
           ..limit(limit, offset: offset))
         .get();
   }
+
+  Future<List<AnilistCacheTableData>> getByIds(List<int> ids) {
+    return (select(
+      anilistCacheTable,
+    )..where((t) => t.anilistId.isIn(ids))).get();
+  }
 }

@@ -7,16 +7,59 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kumoriya_storage/kumoriya_storage_flutter.dart';
 import 'package:media_kit/media_kit.dart';
+import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:workmanager/workmanager.dart';
 import 'package:window_manager/window_manager.dart';
 
 import 'src/app/kumoriya_app.dart';
+import 'src/config/app_config.dart';
 import 'src/features/downloads/application/download_foreground_service.dart';
 import 'src/features/downloads/presentation/download_providers.dart';
 import 'src/shared/storage_providers.dart';
 import 'src/workers/check_new_episodes_worker.dart';
 
-void main() async {
+Future<void> main() async {
+  await SentryFlutter.init((options) {
+    options.dsn = AppConfig.sentryDsn;
+    options.environment = AppConfig.sentryEnvironment;
+    options.release = AppConfig.sentryRelease;
+
+    // Performance: sample 20% of transactions.
+    options.tracesSampleRate = 0.2;
+    options.enableAutoPerformanceTracing = true;
+
+    // Attachments: capture screenshot and view hierarchy on errors.
+    options.attachScreenshot = true;
+    options.screenshotQuality = SentryScreenshotQuality.medium;
+    // ignore: experimental_member_use
+    options.attachViewHierarchy = true;
+
+    // Session Replay: capture all error replays, 10% of normal sessions.
+    options.replay.sessionSampleRate = 0.1;
+    options.replay.onErrorSampleRate = 1.0;
+
+    // ANR detection (Android).
+    options.anrEnabled = true;
+    options.anrTimeoutInterval = const Duration(seconds: 5);
+
+    // Breadcrumbs: increase cap for richer context.
+    options.maxBreadcrumbs = 150;
+
+    // Drop known media_kit disposal race-condition assertion errors.
+    options.beforeSend = (event, hint) {
+      final exceptions = event.exceptions;
+      if (exceptions != null && exceptions.isNotEmpty) {
+        final value = exceptions.first.value ?? '';
+        if (value.contains('[Player] has been disposed')) {
+          return null; // drop — known media_kit race, not actionable
+        }
+      }
+      return event;
+    };
+  }, appRunner: _appMain);
+}
+
+Future<void> _appMain() async {
   final startupWatch = Stopwatch()..start();
 
   WidgetsFlutterBinding.ensureInitialized();
@@ -56,7 +99,12 @@ void main() async {
   unawaited(_purgeExpiredCaches(container));
 
   runApp(
-    UncontrolledProviderScope(container: container, child: const KumoriyaApp()),
+    SentryWidget(
+      child: UncontrolledProviderScope(
+        container: container,
+        child: const KumoriyaApp(),
+      ),
+    ),
   );
 
   if (kDebugMode) {

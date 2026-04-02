@@ -17,9 +17,7 @@ const int maxEmbedResponseBytes = 5 * 1024 * 1024;
 /// on the already-received body length check.
 bool isResponseSizeAcceptable(http.Response response, {int? maxBytes}) {
   final limit = maxBytes ?? maxEmbedResponseBytes;
-  final contentLength = int.tryParse(
-    response.headers['content-length'] ?? '',
-  );
+  final contentLength = int.tryParse(response.headers['content-length'] ?? '');
   if (contentLength != null && contentLength > limit) {
     return false;
   }

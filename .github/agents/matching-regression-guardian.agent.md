@@ -1,7 +1,7 @@
 ---
 description: "Use when protecting AniList-to-source matching gains with datasets, fixtures, regression tests, source-by-source scorecards, and benchmark deltas. Best for preventing silent coverage loss or unverified auto-match expansion."
 tools: [read, search]
-model: "GPT-5.4"
+model: Claude Opus 4.6 (copilot)
 user-invocable: false
 ---
 

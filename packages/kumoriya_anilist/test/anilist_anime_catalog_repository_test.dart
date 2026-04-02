@@ -224,4 +224,47 @@ final class _FakeGateway implements AnilistMetadataGateway {
   }) async {
     return homeCatalog;
   }
+
+  @override
+  Future<Result<Map<String, List<Map<String, dynamic>>>, KumoriyaError>>
+  fetchSeasonDiscovery(SeasonalCatalogRequest request) async {
+    return const Success(<String, List<Map<String, dynamic>>>{
+      'current': <Map<String, dynamic>>[],
+      'upcoming': <Map<String, dynamic>>[],
+      'recommended': <Map<String, dynamic>>[],
+    });
+  }
+
+  @override
+  Future<Result<List<Map<String, dynamic>>, KumoriyaError>>
+  fetchBatchAnimeByIds(List<int> ids, {int page = 1, int perPage = 50}) async {
+    return const Success(<Map<String, dynamic>>[]);
+  }
+
+  @override
+  Future<Result<List<Map<String, dynamic>>, KumoriyaError>> browseAnime({
+    String? search,
+    List<String>? genres,
+    List<String>? tags,
+    List<String>? formats,
+    String? season,
+    int? seasonYear,
+    List<String>? statuses,
+    List<String>? sort,
+    int page = 1,
+    int perPage = 20,
+  }) async {
+    return const Success(<Map<String, dynamic>>[]);
+  }
+
+  @override
+  Future<Result<List<String>, KumoriyaError>> fetchGenreCollection() async {
+    return const Success(<String>[]);
+  }
+
+  @override
+  Future<Result<List<Map<String, dynamic>>, KumoriyaError>>
+  fetchTagCollection() async {
+    return const Success(<Map<String, dynamic>>[]);
+  }
 }

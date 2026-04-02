@@ -9,6 +9,7 @@ import 'package:permission_handler/permission_handler.dart';
 import '../../../../app/l10n.dart';
 import '../../../../shared/icons/kumoriya_icons.dart';
 import '../../../../shared/theme/kumoriya_theme.dart';
+import '../../../../shared/widgets/bug_report_button.dart';
 import '../../../../shared/widgets/state_views.dart';
 import '../../../app_update/application/app_update_service.dart';
 import '../../../app_update/presentation/app_update_providers.dart';
@@ -576,6 +577,13 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                             ? context.l10n.settingsLanguageSpanish
                             : context.l10n.settingsLanguageEnglish,
                       ),
+                      const SizedBox(height: 16),
+                      const Divider(
+                        height: 1,
+                        color: KumoriyaColors.borderSubtle,
+                      ),
+                      const SizedBox(height: 12),
+                      const BugReportButton(),
                     ],
                   ),
                 ),

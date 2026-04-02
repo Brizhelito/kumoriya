@@ -72,9 +72,7 @@ final class OkruResolverPlugin implements ResolverPlugin {
 
       if (!isResponseSizeAcceptable(response)) {
         return const Failure(
-          OkruTransportError(
-            message: 'Okru response too large.',
-          ),
+          OkruTransportError(message: 'Okru response too large.'),
         );
       }
 
@@ -104,18 +102,26 @@ final class OkruResolverPlugin implements ResolverPlugin {
 
 Map<String, String> _headers(Uri url) {
   final origin = '${url.scheme}://${url.host}';
-  return <String, String>{'Referer': '$origin/', 'Origin': origin};
+  return <String, String>{
+    'Referer': '$origin/',
+    'Origin': origin,
+    // Disable gzip: Dart's http.Client auto-decompresses, but being explicit
+    // prevents intermediate proxies from re-encoding responses.
+    'Accept-Encoding': 'identity',
+  };
 }
 
 final _dataOptionsRe = RegExp(
-  r'data-options="([^"]+)"',
+  // Match both double-quoted and single-quoted attribute values.
+  r'''data-options\s*=\s*(?:"([^"]+)"|'([^']+)')''',
   caseSensitive: false,
   multiLine: true,
 );
 
 List<ResolvedStream> _extractStreams(String payload, {required Uri baseUrl}) {
   final dataOptionsMatch = _dataOptionsRe.firstMatch(payload);
-  final dataOptionsRaw = dataOptionsMatch?.group(1);
+  // group(1) = double-quoted value, group(2) = single-quoted value
+  final dataOptionsRaw = dataOptionsMatch?.group(1) ?? dataOptionsMatch?.group(2);
   if (dataOptionsRaw == null || dataOptionsRaw.isEmpty) {
     return const <ResolvedStream>[];
   }

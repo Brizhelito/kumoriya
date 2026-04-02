@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kumoriya_app/l10n/generated/app_localizations.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 
 import '../features/anime_catalog/presentation/pages/calendar_page.dart';
 import '../features/anime_catalog/presentation/pages/downloads_page.dart';
@@ -11,7 +12,10 @@ import '../features/anime_catalog/presentation/pages/home_page.dart';
 import '../features/anime_catalog/presentation/pages/library_page.dart';
 import '../features/anime_catalog/presentation/pages/search_page.dart';
 import '../features/anime_catalog/presentation/providers/anime_catalog_providers.dart';
+import '../features/app_update/application/release_notes_catalog.dart';
+import '../features/app_update/application/seen_app_version_store.dart';
 import '../features/app_update/presentation/widgets/update_available_dialog.dart';
+import '../features/app_update/presentation/widgets/post_update_release_notes_dialog.dart';
 import '../features/app_update/presentation/app_update_providers.dart';
 import '../features/downloads/application/download_directory_service.dart';
 import '../features/downloads/presentation/download_providers.dart';
@@ -51,15 +55,58 @@ class _FirstLaunchGate extends ConsumerStatefulWidget {
 }
 
 class _FirstLaunchGateState extends ConsumerState<_FirstLaunchGate> {
+  final SeenAppVersionStore _seenAppVersionStore = const SeenAppVersionStore();
   bool _runningStartupUpdateCheck = false;
+  bool _checkedReleaseNotes = false;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       await _checkDownloadPath();
+      await _showReleaseNotesIfNeeded();
       await _checkForStartupUpdate();
     });
+  }
+
+  Future<void> _showReleaseNotesIfNeeded() async {
+    if (!mounted || _checkedReleaseNotes) {
+      return;
+    }
+    _checkedReleaseNotes = true;
+
+    try {
+      final info = await PackageInfo.fromPlatform();
+      final currentVersion = info.version;
+      final previousVersion = await _seenAppVersionStore.read();
+
+      if (previousVersion == null || previousVersion == currentVersion) {
+        await _seenAppVersionStore.write(currentVersion);
+        return;
+      }
+
+      if (!mounted) {
+        return;
+      }
+
+      final notes = releaseNotesForVersion(
+        currentVersion,
+        Localizations.localeOf(context),
+      );
+      await _seenAppVersionStore.write(currentVersion);
+
+      if (notes == null || !mounted) {
+        return;
+      }
+
+      await PostUpdateReleaseNotesDialog.show(
+        context,
+        previousVersion: previousVersion,
+        notes: notes,
+      );
+    } catch (_) {
+      // Best-effort UX enhancement; startup should continue even if it fails.
+    }
   }
 
   Future<void> _checkDownloadPath() async {

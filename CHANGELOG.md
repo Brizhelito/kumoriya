@@ -2,6 +2,46 @@
 
 All notable changes to Kumoriya will be documented in this file.
 
+## [v0.1.4] - 2026-04-02
+
+### Added
+- **Clear download queue button** — queue tab now shows a "Clear queue" action with confirmation dialog that removes all pending and failed tasks.
+
+### Changed
+- Download cancel/clear operations now remove tasks from UI/store first, then perform artifact cleanup in background for immediate UI feedback.
+
+### Fixed
+- **Windows cancel delay in Downloads UI** — cancelled tasks now disappear immediately instead of waiting on large HLS segment folder deletion.
+- **Orphan HLS segment folders after app restart** — startup cleanup now removes stale `*_segments` directories not linked to active tasks (Windows/Android).
+- **FormatException on resolver responses** — resolver plugins now use malformed-safe UTF-8 decoding for non-UTF-8 embed responses.
+- **StateError: Using "ref" after widget unmount** — downloads refresh now guards `ref.invalidate()` after async gaps.
+
+## [v0.1.3] - 2026-04-01
+
+### Added
+- **Browse Anime Page** — advanced genre/format/sort filtering with multi-genre selection and persistent filter state.
+- **Tag-Guided Anime Finder** — discover anime by AniList tags organized by category, with inline step-by-step guide.
+- **Bug Report Button** — in-app feedback widget in Settings that captures user reports directly to Sentry with tagging and categorization.
+- **Sentry crash monitoring** — full error tracking and user feedback integration via `sentry_flutter`.
+- **Consolidated Seasonal Discovery** — single AniList request combining current-season, upcoming, and recommended anime.
+- **AniList genre/tag collection queries** — fetch all valid genres and tags in one request each.
+- **Batch anime metadata fetch** — load full catalog data for a list of AniList IDs in one request.
+- **Watch history management** — `getAllHistory`, `deleteHistoryEntry`, and `clearAllHistory` methods in storage.
+- **AniList cache batch lookup** — `getByIds` for prefetching cache by ID list.
+
+### Changed
+- **Player seek accumulation** — double-tap seek zones now accumulate ±10s with visual Delta indicator (e.g. "+30s"), commits after 800ms idle. Keyboard arrows support accumulation.
+- **Safer auto-next episode** — prevents position listeners from re-triggering auto-next during page transition.
+- **StreamWish mirror fallback** — added 3 new mirror hosts (`sfastwish.com`, `awish.pro`, `wishfast.top`); primary failures try mirrors before giving up.
+- **Honorific-hyphen normalization** — titles like "Hime-sama" now correctly match "Himesama" in AniList matching.
+- **Consolidated AniList GraphQL queries** — fewer network round-trips for browsing and discovery.
+- Download resolution failures now log detailed Sentry breadcrumbs.
+
+### Fixed
+- Disposed engine crashes — race where media_kit teardown triggered operations on already-disposed native player.
+- Player seek indicator now shows dynamic accumulated Delta instead of fixed ±10s.
+- Better playback teardown — stop before dispose reduces race windows.
+
 ## [v0.1.2] - 2026-03-31
 
 ### Added
@@ -36,7 +76,7 @@ All notable changes to Kumoriya will be documented in this file.
 - Update installer failing silently when `REQUEST_INSTALL_PACKAGES` was denied — now prompts the user to the system settings to grant the permission.
 - First-launch download folder dialog showing English text regardless of device locale.
 
-
+## [v0.1.0] - 2026-03-30
 
 ### Added / Agregado
 - Initial public alpha app release for Android and Windows.

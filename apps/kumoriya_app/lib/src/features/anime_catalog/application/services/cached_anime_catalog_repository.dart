@@ -258,6 +258,103 @@ final class CachedAnimeCatalogRepository implements AnimeCatalogRepository {
     );
   }
 
+  @override
+  Future<Result<SeasonDiscoveryResult, KumoriyaError>> fetchSeasonDiscovery(
+    SeasonalCatalogRequest request,
+  ) async {
+    final result = await _delegate.fetchSeasonDiscovery(request);
+
+    if (result.isSuccess) {
+      fallbackReason.value = FallbackReason.none;
+      final discovery =
+          (result as Success<SeasonDiscoveryResult, KumoriyaError>).value;
+      // Persist all anime from all three lists.
+      await _persistAnimeList(Success(discovery.inSeason));
+      await _persistAnimeList(Success(discovery.upcoming));
+      await _persistAnimeList(Success(discovery.recommended));
+      return result;
+    }
+
+    // For season discovery, fall back to individual cached queries.
+    final reason = _classifyTransportError(result);
+    if (reason == null) return result;
+
+    final cachedCurrent = await _cacheStore.getByYearAndStatus(
+      request.year,
+      status: 'RELEASING',
+      limit: request.perPage,
+    );
+    final currentAnime = cachedCurrent.fold(
+      onSuccess: (entries) =>
+          entries.map(_entryToAnime).toList(growable: false),
+      onFailure: (_) => const <Anime>[],
+    );
+
+    if (currentAnime.isEmpty) {
+      return result; // No useful cached data.
+    }
+
+    fallbackReason.value = reason;
+
+    final cachedUpcoming = await _cacheStore.getByStatus(
+      'NOT_YET_RELEASED',
+      limit: request.perPage,
+    );
+    final upcomingAnime = cachedUpcoming.fold(
+      onSuccess: (entries) =>
+          entries.map(_entryToAnime).toList(growable: false),
+      onFailure: (_) => const <Anime>[],
+    );
+
+    final cachedRecommended = await _cacheStore.getByYearAndStatus(
+      request.year,
+      limit: request.perPage,
+    );
+    final recommendedAnime = cachedRecommended.fold(
+      onSuccess: (entries) =>
+          entries.map(_entryToAnime).toList(growable: false),
+      onFailure: (_) => const <Anime>[],
+    );
+
+    return Success(
+      SeasonDiscoveryResult(
+        inSeason: currentAnime,
+        upcoming: upcomingAnime,
+        recommended: recommendedAnime,
+      ),
+    );
+  }
+
+  @override
+  Future<Result<List<Anime>, KumoriyaError>> fetchBatchAnimeByIds(
+    List<int> ids,
+  ) async {
+    final result = await _delegate.fetchBatchAnimeByIds(ids);
+    if (result.isSuccess) {
+      fallbackReason.value = FallbackReason.none;
+      await _persistAnimeList(result);
+      return result;
+    }
+    return _fallbackFromCache(result, () => _cacheStore.getByIds(ids));
+  }
+
+  @override
+  Future<Result<List<Anime>, KumoriyaError>> browseAnime(
+    AnimeBrowseRequest request,
+  ) {
+    return _delegate.browseAnime(request);
+  }
+
+  @override
+  Future<Result<List<String>, KumoriyaError>> fetchGenreCollection() {
+    return _delegate.fetchGenreCollection();
+  }
+
+  @override
+  Future<Result<List<AnimeTag>, KumoriyaError>> fetchTagCollection() {
+    return _delegate.fetchTagCollection();
+  }
+
   // ---------------------------------------------------------------------------
   // Cache fallback helpers
   // ---------------------------------------------------------------------------

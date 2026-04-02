@@ -648,7 +648,11 @@ class HlsSegmentDownloader {
   Future<String> _fetchPlaylist(Uri url, Map<String, String> headers) async {
     final request = http.Request('GET', url)
       ..headers.addAll(headers)
-      ..headers.putIfAbsent('User-Agent', () => _browserUserAgent);
+      ..headers.putIfAbsent('User-Agent', () => _browserUserAgent)
+      // Disable compression: the download HTTP client has autoUncompress=false.
+      // Without this, CDNs may return gzip-compressed M3U8 data, which would
+      // cause bytesToString() to throw FormatException on the binary payload.
+      ..headers['Accept-Encoding'] = 'identity';
     final response = await _sendRequest(
       request,
       timeout: const Duration(seconds: 15),

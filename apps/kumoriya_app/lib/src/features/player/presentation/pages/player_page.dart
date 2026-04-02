@@ -758,6 +758,14 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
     _log(
       'open next downloaded episode ep=$nextEpisodeNumber file=${file.path}',
     );
+    // Prevent position listeners from triggering further auto-next while
+    // the pushReplacement is in-flight.
+    _isExiting = true;
+    _autoNextTriggeredByEndingResidual = true;
+    await _positionSub?.cancel();
+    await _completionSub?.cancel();
+    _positionSub = null;
+    _completionSub = null;
     // Keep the player locked while replacing this page with the next player
     // instance, avoiding an intermediate orientation/UI transition.
     _orientationRestoreTimer?.cancel();
@@ -807,6 +815,11 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
         downloadTask.filePath!.trim().isNotEmpty) {
       final file = File(downloadTask.filePath!);
       if (await file.exists() && mounted) {
+        _isExiting = true;
+        await _positionSub?.cancel();
+        await _completionSub?.cancel();
+        _positionSub = null;
+        _completionSub = null;
         _orientationRestoreTimer?.cancel();
         _orientationRestoreTimer = null;
         _suppressOrientationRestore = true;
@@ -962,11 +975,15 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
                 ),
               );
             },
+            onSeekByDelta: (target) => unawaited(_seekTo(target)),
             activeSkipLabel: _autoSkipEnabled ? null : _activeAniSkipLabel,
             onSkipSegment: () => unawaited(_skipActiveSegment()),
             autoSkipEnabled: _autoSkipEnabled,
-            showFallbackSkip: _aniSkipSegments.isEmpty ||
-                !_aniSkipSegments.any((s) => s.kind == AniSkipSegmentKind.opening),
+            showFallbackSkip:
+                _aniSkipSegments.isEmpty ||
+                !_aniSkipSegments.any(
+                  (s) => s.kind == AniSkipSegmentKind.opening,
+                ),
             onFallbackSkip: () {
               final fallback = _currentPosition + const Duration(seconds: 90);
               final maxPos = _currentDuration > const Duration(seconds: 1)
@@ -1535,6 +1552,7 @@ class _ImmersivePlayerView extends StatefulWidget {
     required this.formatDuration,
     required this.onSkipBackward,
     required this.onSkipForward,
+    this.onSeekByDelta,
     required this.activeSkipLabel,
     required this.onSkipSegment,
     required this.autoSkipEnabled,
@@ -1579,6 +1597,7 @@ class _ImmersivePlayerView extends StatefulWidget {
   final VoidCallback? onSubtitle;
   final VoidCallback? onSkipBackward;
   final VoidCallback? onSkipForward;
+  final ValueChanged<Duration>? onSeekByDelta;
   final String? activeSkipLabel;
   final VoidCallback? onSkipSegment;
   final bool autoSkipEnabled;
@@ -1607,6 +1626,11 @@ class _ImmersivePlayerViewState extends State<_ImmersivePlayerView>
   bool _seekIndicatorVisible = false;
   bool _seekIndicatorForward = true;
   Timer? _seekIndicatorTimer;
+
+  // Accumulated seek state: taps add ±10s, commit after idle.
+  int _pendingSeekSeconds = 0;
+  Timer? _seekCommitTimer;
+  static const Duration _seekCommitDelay = Duration(milliseconds: 800);
   bool _orientationLocked = true;
   bool _isDragSeeking = false;
   double _dragSeekAccumulatedDx = 0;
@@ -1725,6 +1749,7 @@ class _ImmersivePlayerViewState extends State<_ImmersivePlayerView>
   void dispose() {
     _hideTimer?.cancel();
     _seekIndicatorTimer?.cancel();
+    _seekCommitTimer?.cancel();
     _overlayHideTimer?.cancel();
     _mouseIdleTimer?.cancel();
     _skipButtonHideTimer?.cancel();
@@ -1813,27 +1838,57 @@ class _ImmersivePlayerViewState extends State<_ImmersivePlayerView>
 
   void _performSeekForZone(int zone) {
     if (zone == 0) {
-      widget.onSkipBackward?.call();
-      _showSeekIndicator(isForward: false);
+      _accumulateSeek(-10);
       return;
     }
     if (zone == 2) {
-      widget.onSkipForward?.call();
-      _showSeekIndicator(isForward: true);
+      _accumulateSeek(10);
     }
   }
 
-  void _showSeekIndicator({required bool isForward}) {
+  void _accumulateSeek(int deltaSeconds) {
+    _seekCommitTimer?.cancel();
     _seekIndicatorTimer?.cancel();
     setState(() {
-      _seekIndicatorForward = isForward;
+      _pendingSeekSeconds += deltaSeconds;
+      _seekIndicatorForward = _pendingSeekSeconds >= 0;
       _seekIndicatorVisible = true;
     });
-    _seekIndicatorTimer = Timer(const Duration(milliseconds: 500), () {
-      if (!mounted) return;
-      setState(() {
-        _seekIndicatorVisible = false;
-      });
+    _seekCommitTimer = Timer(_seekCommitDelay, _commitPendingSeek);
+  }
+
+  void _commitPendingSeek() {
+    if (!mounted || _pendingSeekSeconds == 0) {
+      _hidePendingSeekIndicator();
+      return;
+    }
+    final delta = _pendingSeekSeconds;
+    _pendingSeekSeconds = 0;
+    if (delta > 0) {
+      // Forward seek
+      final maxPos = widget.totalDuration - const Duration(seconds: 1);
+      final target = widget.currentPosition + Duration(seconds: delta);
+      widget.onSeekByDelta?.call(
+        target > maxPos && maxPos > Duration.zero ? maxPos : target,
+      );
+    } else {
+      // Backward seek
+      final target = widget.currentPosition + Duration(seconds: delta);
+      widget.onSeekByDelta?.call(
+        target < Duration.zero ? Duration.zero : target,
+      );
+    }
+    // Hide indicator after a short delay so user sees the final value.
+    _seekIndicatorTimer = Timer(const Duration(milliseconds: 400), () {
+      _hidePendingSeekIndicator();
+    });
+  }
+
+  void _hidePendingSeekIndicator() {
+    if (!mounted) return;
+    setState(() {
+      _seekIndicatorVisible = false;
+      _pendingSeekSeconds = 0;
     });
   }
 
@@ -1996,13 +2051,11 @@ class _ImmersivePlayerViewState extends State<_ImmersivePlayerView>
         _startHideTimer();
         return KeyEventResult.handled;
       case LogicalKeyboardKey.arrowLeft:
-        widget.onSkipBackward?.call();
-        _showSeekIndicator(isForward: false);
+        _accumulateSeek(-10);
         _startHideTimer();
         return KeyEventResult.handled;
       case LogicalKeyboardKey.arrowRight:
-        widget.onSkipForward?.call();
-        _showSeekIndicator(isForward: true);
+        _accumulateSeek(10);
         _startHideTimer();
         return KeyEventResult.handled;
       case LogicalKeyboardKey.arrowUp:
@@ -2194,7 +2247,7 @@ class _ImmersivePlayerViewState extends State<_ImmersivePlayerView>
               else
                 const ColoredBox(color: Colors.black),
 
-              // Seek indicator (double-tap only)
+              // Seek indicator (double-tap accumulation)
               if (_seekIndicatorVisible && !_isDragSeeking)
                 Align(
                   alignment: _seekIndicatorForward
@@ -2202,26 +2255,27 @@ class _ImmersivePlayerViewState extends State<_ImmersivePlayerView>
                       : Alignment.centerLeft,
                   child: Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 64),
-                    child: Row(
+                    child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: <Widget>[
                         Icon(
                           _seekIndicatorForward
-                              ? Icons.forward_10_rounded
-                              : Icons.replay_10_rounded,
+                              ? Icons.fast_forward_rounded
+                              : Icons.fast_rewind_rounded,
                           color: KumoriyaColors.textPrimary,
-                          size: 28,
+                          size: 36,
                           shadows: const <Shadow>[
                             Shadow(color: Color(0xCC000000), blurRadius: 8),
                             Shadow(color: Color(0x66000000), blurRadius: 24),
                           ],
                         ),
-                        const SizedBox(width: 8),
+                        const SizedBox(height: 4),
                         Text(
-                          _seekIndicatorForward ? '+10s' : '-10s',
+                          '${_pendingSeekSeconds >= 0 ? '+' : ''}${_pendingSeekSeconds}s',
                           style: Theme.of(context).textTheme.headlineSmall!
                               .copyWith(
                                 color: KumoriyaColors.textPrimary,
+                                fontWeight: FontWeight.w700,
                                 shadows: const <Shadow>[
                                   Shadow(
                                     color: Color(0xCC000000),
@@ -2809,9 +2863,12 @@ class _ImmersivePlayerViewState extends State<_ImmersivePlayerView>
                                       child: TextButton(
                                         onPressed: widget.onFallbackSkip,
                                         style: TextButton.styleFrom(
-                                          padding: const EdgeInsets.symmetric(horizontal: 10),
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 10,
+                                          ),
                                           backgroundColor: Colors.black38,
-                                          foregroundColor: KumoriyaColors.textSecondary,
+                                          foregroundColor:
+                                              KumoriyaColors.textSecondary,
                                           textStyle: const TextStyle(
                                             fontSize: 12,
                                             fontWeight: FontWeight.w500,

@@ -45,4 +45,38 @@ abstract interface class AnilistMetadataGateway {
   Future<Result<Map<String, dynamic>, KumoriyaError>> fetchAnimeDetail(
     int anilistId,
   );
+
+  /// Fetches current-season, upcoming, recommended, and optionally carryover
+  /// anime in a single HTTP request using the combo query.
+  ///
+  /// Returns a map with keys `current`, `upcoming`, `recommended`, and
+  /// optionally `carryover`, each containing a list of raw media JSON maps.
+  Future<Result<Map<String, List<Map<String, dynamic>>>, KumoriyaError>>
+  fetchSeasonDiscovery(SeasonalCatalogRequest request);
+
+  /// Fetches full catalog-level metadata for a batch of AniList IDs in a
+  /// single request.
+  Future<Result<List<Map<String, dynamic>>, KumoriyaError>>
+  fetchBatchAnimeByIds(List<int> ids, {int page = 1, int perPage = 50});
+
+  /// Browses anime with advanced filters (genres, tags, format, sort, etc.).
+  Future<Result<List<Map<String, dynamic>>, KumoriyaError>> browseAnime({
+    String? search,
+    List<String>? genres,
+    List<String>? tags,
+    List<String>? formats,
+    String? season,
+    int? seasonYear,
+    List<String>? statuses,
+    List<String>? sort,
+    int page = 1,
+    int perPage = 20,
+  });
+
+  /// Fetches all available genre names.
+  Future<Result<List<String>, KumoriyaError>> fetchGenreCollection();
+
+  /// Fetches all available media tags.
+  Future<Result<List<Map<String, dynamic>>, KumoriyaError>>
+  fetchTagCollection();
 }

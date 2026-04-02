@@ -308,6 +308,26 @@ class DownloadManagerService {
     _statusChangeController.add(const DownloadStatusChange(taskId: ''));
   }
 
+  /// Removes all [DownloadStatus.pending] and [DownloadStatus.failed] tasks
+  /// without touching active downloads.
+  Future<void> clearQueue() async {
+    for (final status in [DownloadStatus.pending, DownloadStatus.failed]) {
+      final result = await _store.getTasksByStatus(status);
+      final tasks = result.fold(
+        onSuccess: (value) => value,
+        onFailure: (_) => <DownloadTask>[],
+      );
+      for (final task in tasks) {
+        _clearScheduledProgressPersistence(task.id);
+        await _drainTaskWrites(task.id);
+        await _deleteTaskArtifacts(task);
+        await _store.deleteTask(task.id);
+        _taskWriteChains.remove(task.id);
+      }
+    }
+    _statusChangeController.add(const DownloadStatusChange(taskId: ''));
+  }
+
   Future<void> retry(String taskId) async => resume(taskId);
 
   Future<void> retryFailed(String taskId) async => resume(taskId);
@@ -647,9 +667,7 @@ class DownloadManagerService {
       );
 
       if (success) {
-        _log(
-          'Chunked download completed for ${task.id}: $tempPath',
-        );
+        _log('Chunked download completed for ${task.id}: $tempPath');
       }
       return success;
     } catch (error) {
@@ -1221,7 +1239,7 @@ class DownloadManagerService {
 
     // Clean up persisted HLS segment records.
     if (_hlsSegmentStore != null && task.isHls) {
-      await _hlsSegmentStore!.deleteSegmentsForTask(task.id);
+      await _hlsSegmentStore.deleteSegmentsForTask(task.id);
     }
 
     if (task.filePath != null) {

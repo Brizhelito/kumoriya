@@ -1,9 +1,12 @@
 import 'package:kumoriya_core/kumoriya_core.dart';
 
 import '../anime/anime.dart';
+import '../anime/anime_browse_request.dart';
 import '../anime/anime_detail.dart';
 import '../anime/anime_episode.dart';
 import '../anime/anime_season.dart';
+import '../anime/anime_tag.dart';
+import '../anime/season_discovery_result.dart';
 
 final class AnimeSearchRequest {
   const AnimeSearchRequest({
@@ -60,4 +63,28 @@ abstract interface class AnimeCatalogRepository {
   Future<Result<List<AnimeEpisode>, KumoriyaError>> fetchAnimeEpisodes(
     int anilistId,
   );
+
+  /// Fetches current-season, upcoming, and recommended anime in a single
+  /// consolidated operation. When [SeasonalCatalogRequest.includeCarryovers]
+  /// is true, still-airing shows from the previous season are merged into
+  /// [SeasonDiscoveryResult.inSeason].
+  Future<Result<SeasonDiscoveryResult, KumoriyaError>> fetchSeasonDiscovery(
+    SeasonalCatalogRequest request,
+  );
+
+  /// Fetches full catalog-level metadata for a batch of AniList IDs.
+  Future<Result<List<Anime>, KumoriyaError>> fetchBatchAnimeByIds(
+    List<int> ids,
+  );
+
+  /// Browses anime with advanced filters (genres, tags, format, season, sort).
+  Future<Result<List<Anime>, KumoriyaError>> browseAnime(
+    AnimeBrowseRequest request,
+  );
+
+  /// Fetches all available genre names from AniList.
+  Future<Result<List<String>, KumoriyaError>> fetchGenreCollection();
+
+  /// Fetches all available tags from AniList.
+  Future<Result<List<AnimeTag>, KumoriyaError>> fetchTagCollection();
 }

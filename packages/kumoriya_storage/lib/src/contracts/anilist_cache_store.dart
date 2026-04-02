@@ -80,4 +80,9 @@ abstract interface class AnilistCacheStore {
     int limit = 20,
     int offset = 0,
   });
+
+  /// Entries matching the given list of AniList IDs.
+  Future<Result<List<AnilistCacheEntry>, KumoriyaError>> getByIds(
+    List<int> ids,
+  );
 }

@@ -129,4 +129,56 @@ final class _CapturingAnimeCatalogRepository implements AnimeCatalogRepository {
   ) {
     throw UnimplementedError();
   }
+
+  @override
+  Future<Result<List<Anime>, KumoriyaError>> fetchSeasonCatalog(
+    SeasonalCatalogRequest request,
+  ) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<Result<List<Anime>, KumoriyaError>> fetchUpcomingSeasonCatalog(
+    SeasonalCatalogRequest request,
+  ) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<Result<List<Anime>, KumoriyaError>> fetchSeasonRecommendations(
+    SeasonalCatalogRequest request,
+  ) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<Result<SeasonDiscoveryResult, KumoriyaError>> fetchSeasonDiscovery(
+    SeasonalCatalogRequest request,
+  ) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<Result<List<Anime>, KumoriyaError>> fetchBatchAnimeByIds(
+    List<int> ids,
+  ) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<Result<List<Anime>, KumoriyaError>> browseAnime(
+    AnimeBrowseRequest request,
+  ) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<Result<List<String>, KumoriyaError>> fetchGenreCollection() {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<Result<List<AnimeTag>, KumoriyaError>> fetchTagCollection() {
+    throw UnimplementedError();
+  }
 }

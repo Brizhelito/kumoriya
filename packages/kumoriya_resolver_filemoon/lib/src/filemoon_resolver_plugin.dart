@@ -101,9 +101,7 @@ final class FilemoonResolverPlugin implements ResolverPlugin {
 
       if (!isResponseSizeAcceptable(response)) {
         return const Failure(
-          FilemoonTransportError(
-            message: 'Filemoon response too large.',
-          ),
+          FilemoonTransportError(message: 'Filemoon response too large.'),
         );
       }
 

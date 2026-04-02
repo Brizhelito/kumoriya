@@ -159,4 +159,19 @@ final class _FakeAnimeProgressStore implements AnimeProgressStore {
   }) async {
     return const Success(null);
   }
+
+  @override
+  Future<Result<List<AnimeWatchHistory>, KumoriyaError>> getAllHistory() async {
+    return const Success(<AnimeWatchHistory>[]);
+  }
+
+  @override
+  Future<Result<void, KumoriyaError>> deleteHistoryEntry(int anilistId) async {
+    return const Success(null);
+  }
+
+  @override
+  Future<Result<void, KumoriyaError>> clearAllHistory() async {
+    return const Success(null);
+  }
 }

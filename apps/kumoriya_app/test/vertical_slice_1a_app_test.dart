@@ -351,6 +351,64 @@ final class _FakeAnimeCatalogRepository implements AnimeCatalogRepository {
     return Success(<Anime>[_anime]);
   }
 
+  @override
+  Future<Result<List<Anime>, KumoriyaError>> fetchSeasonCatalog(
+    SeasonalCatalogRequest request,
+  ) async {
+    return const Success(<Anime>[]);
+  }
+
+  @override
+  Future<Result<List<Anime>, KumoriyaError>> fetchUpcomingSeasonCatalog(
+    SeasonalCatalogRequest request,
+  ) async {
+    return const Success(<Anime>[]);
+  }
+
+  @override
+  Future<Result<List<Anime>, KumoriyaError>> fetchSeasonRecommendations(
+    SeasonalCatalogRequest request,
+  ) async {
+    return const Success(<Anime>[]);
+  }
+
+  @override
+  Future<Result<SeasonDiscoveryResult, KumoriyaError>> fetchSeasonDiscovery(
+    SeasonalCatalogRequest request,
+  ) async {
+    return const Success(
+      SeasonDiscoveryResult(
+        inSeason: <Anime>[],
+        upcoming: <Anime>[],
+        recommended: <Anime>[],
+      ),
+    );
+  }
+
+  @override
+  Future<Result<List<Anime>, KumoriyaError>> fetchBatchAnimeByIds(
+    List<int> ids,
+  ) async {
+    return const Success(<Anime>[]);
+  }
+
+  @override
+  Future<Result<List<Anime>, KumoriyaError>> browseAnime(
+    AnimeBrowseRequest request,
+  ) async {
+    return const Success(<Anime>[]);
+  }
+
+  @override
+  Future<Result<List<String>, KumoriyaError>> fetchGenreCollection() async {
+    return const Success(<String>[]);
+  }
+
+  @override
+  Future<Result<List<AnimeTag>, KumoriyaError>> fetchTagCollection() async {
+    return const Success(<AnimeTag>[]);
+  }
+
   static final List<Anime> _homeCatalog = <Anime>[
     _anime,
     _secondAnime,

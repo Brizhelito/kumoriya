@@ -1,3 +1,43 @@
+// ---------------------------------------------------------------------------
+// Shared GraphQL fragment
+// ---------------------------------------------------------------------------
+
+/// Standard catalog fields shared across all media-list queries.
+/// Append to any query document that uses `...MediaFields`.
+const String _mediaFragment = r'''
+fragment MediaFields on Media {
+  id
+  title {
+    romaji
+    english
+    native
+  }
+  synonyms
+  format
+  season
+  seasonYear
+  episodes
+  averageScore
+  popularity
+  status
+  description(asHtml: false)
+  genres
+  bannerImage
+  nextAiringEpisode {
+    episode
+    airingAt
+  }
+  coverImage {
+    large
+    medium
+  }
+}
+''';
+
+// ---------------------------------------------------------------------------
+// Individual queries (kept for backward compatibility)
+// ---------------------------------------------------------------------------
+
 const String trendingAnimeQuery = r'''
 query TrendingAnime(
   $page: Int,
@@ -346,6 +386,158 @@ query BatchAiringStatus($ids: [Int]) {
         airingAt
       }
     }
+  }
+}
+''';
+
+// ---------------------------------------------------------------------------
+// Combo queries (request consolidation)
+// ---------------------------------------------------------------------------
+
+/// Fetches current-season, upcoming, recommended, and optionally carryover
+/// anime in a **single** GraphQL request using aliased Page blocks.
+///
+/// Set `$includeCarryover` to `true` and supply `$prevSeason` / `$prevSeasonYear`
+/// to include still-airing shows from the previous season.
+const String _seasonDiscoveryBody = r'''
+query SeasonDiscovery(
+  $page: Int,
+  $perPage: Int,
+  $season: MediaSeason,
+  $seasonYear: Int,
+  $prevSeason: MediaSeason,
+  $prevSeasonYear: Int,
+  $includeCarryover: Boolean!
+) {
+  current: Page(page: $page, perPage: $perPage) {
+    media(
+      type: ANIME,
+      season: $season,
+      seasonYear: $seasonYear,
+      status: RELEASING,
+      sort: [TRENDING_DESC],
+      isAdult: false
+    ) {
+      ...MediaFields
+      trending
+    }
+  }
+  upcoming: Page(page: $page, perPage: $perPage) {
+    media(
+      type: ANIME,
+      season: $season,
+      seasonYear: $seasonYear,
+      status: NOT_YET_RELEASED,
+      sort: [TRENDING_DESC],
+      isAdult: false
+    ) {
+      ...MediaFields
+      trending
+    }
+  }
+  recommended: Page(page: $page, perPage: $perPage) {
+    media(
+      type: ANIME,
+      season: $season,
+      seasonYear: $seasonYear,
+      sort: [SCORE_DESC, POPULARITY_DESC],
+      isAdult: false
+    ) {
+      ...MediaFields
+      trending
+    }
+  }
+  carryover: Page(page: $page, perPage: $perPage) @include(if: $includeCarryover) {
+    media(
+      type: ANIME,
+      season: $prevSeason,
+      seasonYear: $prevSeasonYear,
+      status: RELEASING,
+      sort: [TRENDING_DESC],
+      isAdult: false
+    ) {
+      ...MediaFields
+      trending
+    }
+  }
+}
+''';
+
+const String seasonDiscoveryQuery = _seasonDiscoveryBody + _mediaFragment;
+
+/// Full-metadata batch query for library / favorites prefetch.
+/// Uses `id_in` to fetch complete catalog-level fields for a list of AniList
+/// IDs in a single request.
+const String _batchAnimeByIdsBody = r'''
+query BatchAnimeByIds($ids: [Int], $page: Int, $perPage: Int) {
+  Page(page: $page, perPage: $perPage) {
+    media(id_in: $ids, type: ANIME) {
+      ...MediaFields
+    }
+  }
+}
+''';
+
+const String batchAnimeByIdsQuery = _batchAnimeByIdsBody + _mediaFragment;
+
+// ---------------------------------------------------------------------------
+// Browse / Discover queries
+// ---------------------------------------------------------------------------
+
+/// Flexible browse query with optional filters.
+/// All filter variables are nullable – AniList ignores null variables.
+const String _browseAnimeBody = r'''
+query BrowseAnime(
+  $page: Int,
+  $perPage: Int,
+  $search: String,
+  $genres: [String],
+  $tags: [String],
+  $formatIn: [MediaFormat],
+  $season: MediaSeason,
+  $seasonYear: Int,
+  $statusIn: [MediaStatus],
+  $sort: [MediaSort]
+) {
+  Page(page: $page, perPage: $perPage) {
+    pageInfo {
+      hasNextPage
+    }
+    media(
+      type: ANIME,
+      search: $search,
+      genre_in: $genres,
+      tag_in: $tags,
+      format_in: $formatIn,
+      season: $season,
+      seasonYear: $seasonYear,
+      status_in: $statusIn,
+      sort: $sort,
+      isAdult: false
+    ) {
+      ...MediaFields
+    }
+  }
+}
+''';
+
+const String browseAnimeQuery = _browseAnimeBody + _mediaFragment;
+
+/// Fetches the list of all genre names.
+const String genreCollectionQuery = r'''
+query GenreCollection {
+  GenreCollection
+}
+''';
+
+/// Fetches all media tags with category grouping.
+const String tagCollectionQuery = r'''
+query TagCollection {
+  MediaTagCollection {
+    name
+    description
+    category
+    isAdult
   }
 }
 ''';

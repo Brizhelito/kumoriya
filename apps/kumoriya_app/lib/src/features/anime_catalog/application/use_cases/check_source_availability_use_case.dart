@@ -316,9 +316,13 @@ final class CheckSourceAvailabilityUseCase {
     }
 
     final normalizedRoot = _slugify(rootTitle);
+    final rootVariants = <String>{
+      normalizedRoot,
+      ..._expandSlugVariants(normalizedRoot),
+    };
     for (final candidate in directCandidates) {
       final normalizedCandidateTitle = _slugify(candidate.title);
-      if (normalizedCandidateTitle != normalizedRoot) {
+      if (!rootVariants.contains(normalizedCandidateTitle)) {
         continue;
       }
 
@@ -446,12 +450,20 @@ final class CheckSourceAvailabilityUseCase {
     if (normalizedCandidate.isEmpty) {
       return false;
     }
+    final candidateVariants = <String>{
+      normalizedCandidate,
+      ..._expandSlugVariants(normalizedCandidate),
+    };
 
     for (final queryTitle in queryTitles) {
       final normalizedQuery = _slugify(queryTitle);
       if (normalizedQuery.isEmpty) {
         continue;
       }
+      final queryVariants = <String>{
+        normalizedQuery,
+        ..._expandSlugVariants(normalizedQuery),
+      };
 
       final tokenCount = queryTitle
           .trim()
@@ -460,15 +472,18 @@ final class CheckSourceAvailabilityUseCase {
           .length;
       final strongEnoughPrefix =
           tokenCount >= 3 || normalizedQuery.length >= 16;
-      if (normalizedCandidate == normalizedQuery) {
-        return true;
-      }
-      if (strongEnoughPrefix &&
-          normalizedCandidate.startsWith('$normalizedQuery-')) {
-        return true;
-      }
-      if (strongEnoughPrefix && normalizedCandidate.contains(normalizedQuery)) {
-        return true;
+
+      for (final qv in queryVariants) {
+        if (candidateVariants.contains(qv)) {
+          return true;
+        }
+        if (strongEnoughPrefix) {
+          for (final cv in candidateVariants) {
+            if (cv.startsWith('$qv-') || cv.contains(qv)) {
+              return true;
+            }
+          }
+        }
       }
     }
 
@@ -479,10 +494,16 @@ final class CheckSourceAvailabilityUseCase {
     Set<String> queryTitles,
     SourceAnimeMatch candidate,
   ) {
-    final normalizedQueries = queryTitles
-        .map(_slugify)
-        .where((title) => title.isNotEmpty)
-        .toSet();
+    final normalizedQueries = <String>{};
+    for (final title in queryTitles) {
+      final slug = _slugify(title);
+      if (slug.isNotEmpty) {
+        normalizedQueries.add(slug);
+        for (final variant in _expandSlugVariants(slug)) {
+          normalizedQueries.add(variant);
+        }
+      }
+    }
     final candidateTitles = <String>[candidate.title, ...candidate.aliases];
 
     for (final title in candidateTitles) {
@@ -693,9 +714,12 @@ final class CheckSourceAvailabilityUseCase {
     }
 
     add(value);
+    final stripped = _stripSearchNoise(value);
+    add(stripped);
     addBareTrailingSeasonVariants(value);
     final withoutSeason = _stripSeasonDescriptor(value);
     add(withoutSeason);
+    add(_stripSearchNoise(withoutSeason));
     add(_swapSeasonNotation(value));
     add(_swapSeasonNotation(withoutSeason));
 
@@ -744,6 +768,22 @@ final class CheckSourceAvailabilityUseCase {
     }
 
     return (rootTitle: rootTitle, seasonNumber: seasonNumber);
+  }
+
+  /// Strips punctuation, commas, quotes, and collapses honorific hyphens
+  /// so search queries are closer to how source sites index titles.
+  String _stripSearchNoise(String value) {
+    return value
+        .replaceAll(
+          RegExp(
+            r'(?<=[a-zA-Z])-(?=sama|san|chan|kun)\b',
+            caseSensitive: false,
+          ),
+          '',
+        )
+        .replaceAll(RegExp('[,"\'`]+'), '')
+        .replaceAll(RegExp(r'\s+'), ' ')
+        .trim();
   }
 
   bool _hasExplicitSeasonDescriptor(String value) {

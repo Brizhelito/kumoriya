@@ -1,0 +1,24 @@
+{
+  "artifacts": {
+    "android": {
+      "public_url": "https://pub-8159019abe1741a097538b976c19722c.r2.dev/artifacts/android/v0.1.3/kumoriya-0.1.3.apk",
+      "file_name": "kumoriya-0.1.3.apk",
+      "r2_key": "artifacts/android/v0.1.3/kumoriya-0.1.3.apk"
+    },
+    "windows": {
+      "public_url": "https://pub-8159019abe1741a097538b976c19722c.r2.dev/artifacts/windows/v0.1.3/Kumoriya-0.1.3-windows-x64-setup.exe",
+      "file_name": "Kumoriya-0.1.3-windows-x64-setup.exe",
+      "r2_key": "artifacts/windows/v0.1.3/Kumoriya-0.1.3-windows-x64-setup.exe"
+    }
+  },
+  "channels": [
+    "alpha"
+  ],
+  "tag": "v0.1.3",
+  "date": "2026-04-01",
+  "version": "0.1.3",
+  "changelog_paths": {
+    "en": "docs/releases/en/v0.1.3.md",
+    "es": "docs/releases/es/v0.1.3.md"
+  }
+}

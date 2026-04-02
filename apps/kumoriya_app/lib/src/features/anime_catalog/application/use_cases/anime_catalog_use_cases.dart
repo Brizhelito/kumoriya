@@ -66,74 +66,27 @@ final class GetSeasonRecommendationsUseCase {
 }
 
 final class GetSeasonalDiscoveryCatalogUseCase {
-  const GetSeasonalDiscoveryCatalogUseCase({
-    required GetSeasonCatalogUseCase seasonCatalog,
-    required GetUpcomingSeasonCatalogUseCase upcomingSeasonCatalog,
-    required GetSeasonRecommendationsUseCase seasonRecommendations,
-  }) : _seasonCatalog = seasonCatalog,
-       _upcomingSeasonCatalog = upcomingSeasonCatalog,
-       _seasonRecommendations = seasonRecommendations;
+  const GetSeasonalDiscoveryCatalogUseCase(this._repository);
 
-  final GetSeasonCatalogUseCase _seasonCatalog;
-  final GetUpcomingSeasonCatalogUseCase _upcomingSeasonCatalog;
-  final GetSeasonRecommendationsUseCase _seasonRecommendations;
+  final AnimeCatalogRepository _repository;
 
   Future<Result<SeasonalDiscoveryCatalog, KumoriyaError>> call(
     SeasonalCatalogRequest request,
   ) async {
-    final results = await Future.wait<Result<List<Anime>, KumoriyaError>>(
-      <Future<Result<List<Anime>, KumoriyaError>>>[
-        _seasonCatalog.call(request),
-        _upcomingSeasonCatalog.call(
-          SeasonalCatalogRequest(
-            season: request.season,
-            year: request.year,
-            page: request.page,
-            perPage: request.perPage,
-            includeCarryovers: false,
-          ),
-        ),
-        _seasonRecommendations.call(
-          SeasonalCatalogRequest(
-            season: request.season,
-            year: request.year,
-            page: request.page,
-            perPage: request.perPage,
-            includeCarryovers: false,
-          ),
-        ),
-      ],
-    );
+    final result = await _repository.fetchSeasonDiscovery(request);
 
-    for (final result in results) {
-      if (result.isFailure) {
-        return result.fold(
-          onSuccess: (_) => throw StateError('unreachable'),
-          onFailure: Failure.new,
+    return result.fold(
+      onSuccess: (discovery) {
+        return Success(
+          SeasonalDiscoveryCatalog(
+            request: request,
+            inSeason: discovery.inSeason,
+            upcoming: discovery.upcoming,
+            recommended: discovery.recommended,
+          ),
         );
-      }
-    }
-
-    final inSeason = results[0].fold(
-      onSuccess: (value) => value,
-      onFailure: (_) => throw StateError('unreachable'),
-    );
-    final upcoming = results[1].fold(
-      onSuccess: (value) => value,
-      onFailure: (_) => throw StateError('unreachable'),
-    );
-    final recommended = results[2].fold(
-      onSuccess: (value) => value,
-      onFailure: (_) => throw StateError('unreachable'),
-    );
-
-    return Success(
-      SeasonalDiscoveryCatalog(
-        request: request,
-        inSeason: inSeason,
-        upcoming: upcoming,
-        recommended: recommended,
-      ),
+      },
+      onFailure: Failure.new,
     );
   }
 }
@@ -205,5 +158,45 @@ final class GetAnimeEpisodesUseCase {
 
   Future<Result<List<AnimeEpisode>, KumoriyaError>> call(int anilistId) {
     return _repository.fetchAnimeEpisodes(anilistId);
+  }
+}
+
+final class GetBatchAnimeByIdsUseCase {
+  const GetBatchAnimeByIdsUseCase(this._repository);
+
+  final AnimeCatalogRepository _repository;
+
+  Future<Result<List<Anime>, KumoriyaError>> call(List<int> ids) {
+    return _repository.fetchBatchAnimeByIds(ids);
+  }
+}
+
+final class BrowseAnimeUseCase {
+  const BrowseAnimeUseCase(this._repository);
+
+  final AnimeCatalogRepository _repository;
+
+  Future<Result<List<Anime>, KumoriyaError>> call(AnimeBrowseRequest request) {
+    return _repository.browseAnime(request);
+  }
+}
+
+final class GetGenreCollectionUseCase {
+  const GetGenreCollectionUseCase(this._repository);
+
+  final AnimeCatalogRepository _repository;
+
+  Future<Result<List<String>, KumoriyaError>> call() {
+    return _repository.fetchGenreCollection();
+  }
+}
+
+final class GetTagCollectionUseCase {
+  const GetTagCollectionUseCase(this._repository);
+
+  final AnimeCatalogRepository _repository;
+
+  Future<Result<List<AnimeTag>, KumoriyaError>> call() {
+    return _repository.fetchTagCollection();
   }
 }

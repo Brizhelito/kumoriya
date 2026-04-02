@@ -462,17 +462,23 @@ query MalIdByAnilist($id: Int) {
 }
 ''';
 
-    final response = await _httpClient.post(
-      _anilistGraphQlEndpoint,
-      headers: <String, String>{
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-      },
-      body: jsonEncode(<String, dynamic>{
-        'query': query,
-        'variables': <String, dynamic>{'id': anilistId},
-      }),
-    );
+    final http.Response response;
+    try {
+      response = await _httpClient.post(
+        _anilistGraphQlEndpoint,
+        headers: <String, String>{
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+        body: jsonEncode(<String, dynamic>{
+          'query': query,
+          'variables': <String, dynamic>{'id': anilistId},
+        }),
+      );
+    } on Exception {
+      // Network unreachable / DNS failure / timeout — not actionable.
+      return null;
+    }
 
     if (response.statusCode < 200 || response.statusCode >= 300) {
       return null;
@@ -504,7 +510,12 @@ query MalIdByAnilist($id: Int) {
       final uri = Uri.parse(
         'https://api.jikan.moe/v4/anime/$malId/episodes?page=$page',
       );
-      final response = await _httpClient.get(uri);
+      final http.Response response;
+      try {
+        response = await _httpClient.get(uri);
+      } on Exception {
+        break;
+      }
       if (response.statusCode < 200 || response.statusCode >= 300) {
         break;
       }
@@ -607,7 +618,12 @@ query MalIdByAnilist($id: Int) {
     final uri = Uri.parse(
       'https://api.aniskip.com/v2/skip-times/$malId/$episodeNumber?types[]=op&types[]=ed&episodeLength=$episodeLengthSeconds',
     );
-    final response = await _httpClient.get(uri);
+    final http.Response response;
+    try {
+      response = await _httpClient.get(uri);
+    } on Exception {
+      return const <AniSkipSegment>[];
+    }
     if (response.statusCode < 200 || response.statusCode >= 300) {
       return const <AniSkipSegment>[];
     }

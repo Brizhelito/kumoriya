@@ -171,6 +171,64 @@ final class DriftAnimeProgressStore implements AnimeProgressStore {
     }
   }
 
+  AnimeWatchHistory _mapHistoryRow(WatchHistoryTableData r) =>
+      AnimeWatchHistory(
+        anilistId: r.anilistId,
+        lastEpisodeNumber: r.lastEpisodeNumber,
+        lastAccessedAt: DateTime.fromMillisecondsSinceEpoch(r.lastAccessedAt),
+        lastSourcePluginId: r.lastSourcePluginId,
+        lastPositionSeconds: r.lastPositionSeconds,
+        lastTotalDurationSeconds: r.lastTotalDurationSeconds,
+      );
+
+  @override
+  Future<Result<List<AnimeWatchHistory>, KumoriyaError>> getAllHistory() async {
+    try {
+      final rows = await _historyDao.getAllHistory();
+      return Success(rows.map(_mapHistoryRow).toList());
+    } catch (e) {
+      return Failure(
+        SimpleError(
+          code: 'storage.read_failed',
+          message: 'Failed to read all watch history: $e',
+          kind: KumoriyaErrorKind.unexpected,
+        ),
+      );
+    }
+  }
+
+  @override
+  Future<Result<void, KumoriyaError>> deleteHistoryEntry(int anilistId) async {
+    try {
+      await _historyDao.deleteHistoryEntry(anilistId);
+      return const Success(null);
+    } catch (e) {
+      return Failure(
+        SimpleError(
+          code: 'storage.delete_failed',
+          message: 'Failed to delete history entry: $e',
+          kind: KumoriyaErrorKind.unexpected,
+        ),
+      );
+    }
+  }
+
+  @override
+  Future<Result<void, KumoriyaError>> clearAllHistory() async {
+    try {
+      await _historyDao.clearAllHistory();
+      return const Success(null);
+    } catch (e) {
+      return Failure(
+        SimpleError(
+          code: 'storage.delete_failed',
+          message: 'Failed to clear watch history: $e',
+          kind: KumoriyaErrorKind.unexpected,
+        ),
+      );
+    }
+  }
+
   @override
   Future<Result<void, KumoriyaError>> upsertPlaybackPreference(
     PlaybackPreference preference,

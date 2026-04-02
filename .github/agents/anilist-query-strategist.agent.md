@@ -1,7 +1,7 @@
 ---
 description: "Use when deriving deterministic source search queries from AniList metadata, aliases, year, format, season, and franchise context before source-plugin matching. Best for query expansion, alias prioritization, and conservative candidate retrieval planning."
 tools: [read, search]
-model: "GPT-5.4"
+model: Claude Opus 4.6 (copilot)
 user-invocable: false
 ---
 

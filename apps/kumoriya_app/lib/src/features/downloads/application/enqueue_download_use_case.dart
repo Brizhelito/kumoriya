@@ -5,6 +5,7 @@ import 'dart:io';
 import 'package:kumoriya_core/kumoriya_core.dart';
 import 'package:kumoriya_plugins/kumoriya_plugins.dart';
 import 'package:kumoriya_storage/kumoriya_storage.dart';
+import 'package:sentry_flutter/sentry_flutter.dart';
 
 import '../../anime_catalog/application/use_cases/resolve_source_server_link_use_case.dart';
 import 'download_cover_service.dart';
@@ -69,10 +70,30 @@ class EnqueueDownloadUseCase {
     return resolveResult.fold(
       onFailure: (error) {
         _log('resolve failed: ${error.message}');
+        Sentry.captureException(
+          Exception('Download resolve failure: ${error.code}'),
+          withScope: (scope) {
+            scope.setTag('anilist_id', anilistId.toString());
+            scope.setTag('episode', episodeNumber.toString());
+            scope.setTag('server_name', serverLink.serverName);
+            scope.setTag('error_code', error.code);
+          },
+        );
         return Failure(error);
       },
       onSuccess: (resolved) {
         if (resolved.streams.isEmpty) {
+          Sentry.addBreadcrumb(
+            Breadcrumb(
+              message: 'Download resolved zero streams',
+              category: 'download',
+              data: {
+                'anilist_id': anilistId.toString(),
+                'episode': episodeNumber.toString(),
+                'server_name': serverLink.serverName,
+              },
+            ),
+          );
           return const Failure(
             SimpleError(
               code: 'download.no_streams',

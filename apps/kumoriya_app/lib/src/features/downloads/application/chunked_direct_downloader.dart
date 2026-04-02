@@ -51,11 +51,9 @@ const _minChunkSizeBytes = 512 * 1024;
 /// If the server does not support Range requests or the file is too small,
 /// returns `false` so the caller can fall back to single-connection download.
 class ChunkedDirectDownloader {
-  ChunkedDirectDownloader({
-    required http.Client httpClient,
-    int? maxChunks,
-  }) : _httpClient = httpClient,
-       _maxChunks = maxChunks ?? _platformDefaultChunks();
+  ChunkedDirectDownloader({required http.Client httpClient, int? maxChunks})
+    : _httpClient = httpClient,
+      _maxChunks = maxChunks ?? _platformDefaultChunks();
 
   final http.Client _httpClient;
   final int _maxChunks;
@@ -69,18 +67,15 @@ class ChunkedDirectDownloader {
   /// Probes the server to check Range support and file size.
   ///
   /// Returns `null` if the probe fails or chunked download is not advisable.
-  Future<_ProbeResult?> _probe(
-    Uri url,
-    Map<String, String> headers,
-  ) async {
+  Future<_ProbeResult?> _probe(Uri url, Map<String, String> headers) async {
     try {
       final request = http.Request('HEAD', url);
       request.headers.addAll(headers);
       request.headers.putIfAbsent('User-Agent', () => _browserUserAgent);
 
-      final response = await _httpClient.send(request).timeout(
-        const Duration(seconds: 8),
-      );
+      final response = await _httpClient
+          .send(request)
+          .timeout(const Duration(seconds: 8));
       await response.stream.drain<void>();
 
       if (response.statusCode != 200) return null;
@@ -124,10 +119,7 @@ class ChunkedDirectDownloader {
 
     // Step 2: Calculate chunk boundaries.
     final totalBytes = probe.totalBytes;
-    final numChunks = min(
-      _maxChunks,
-      max(1, totalBytes ~/ _minChunkSizeBytes),
-    );
+    final numChunks = min(_maxChunks, max(1, totalBytes ~/ _minChunkSizeBytes));
     if (numChunks <= 1) return false;
 
     final chunkSize = totalBytes ~/ numChunks;
@@ -137,13 +129,17 @@ class ChunkedDirectDownloader {
     final chunks = <_ChunkSpec>[];
     for (var i = 0; i < numChunks; i++) {
       final start = i * chunkSize;
-      final end = (i == numChunks - 1) ? totalBytes - 1 : (start + chunkSize - 1);
-      chunks.add(_ChunkSpec(
-        index: i,
-        start: start,
-        end: end,
-        tempFile: File('$outputPath.chunk$i'),
-      ));
+      final end = (i == numChunks - 1)
+          ? totalBytes - 1
+          : (start + chunkSize - 1);
+      chunks.add(
+        _ChunkSpec(
+          index: i,
+          start: start,
+          end: end,
+          tempFile: File('$outputPath.chunk$i'),
+        ),
+      );
     }
 
     // Step 3: Resume — check existing chunk progress.
@@ -184,9 +180,9 @@ class ChunkedDirectDownloader {
       }
     }
 
-    final pendingChunks = chunks.where(
-      (c) => c.downloadedBytes < (c.end - c.start + 1),
-    ).toList();
+    final pendingChunks = chunks
+        .where((c) => c.downloadedBytes < (c.end - c.start + 1))
+        .toList();
 
     if (pendingChunks.isEmpty) {
       // All chunks already downloaded — go straight to concatenation.
@@ -271,9 +267,9 @@ class ChunkedDirectDownloader {
         final adjustedStart = chunk.start + chunk.downloadedBytes;
         retryRequest.headers['Range'] = 'bytes=$adjustedStart-${chunk.end}';
 
-        final response = await _httpClient.send(retryRequest).timeout(
-          const Duration(seconds: 15),
-        );
+        final response = await _httpClient
+            .send(retryRequest)
+            .timeout(const Duration(seconds: 15));
 
         if (response.statusCode != 206 && response.statusCode != 200) {
           await response.stream.drain<void>();
@@ -313,9 +309,7 @@ class ChunkedDirectDownloader {
         lastError = error;
         if (cancelCompleter.isCompleted) return;
         if (attempt < maxRetries) {
-          await Future<void>.delayed(
-            Duration(milliseconds: 300 * attempt),
-          );
+          await Future<void>.delayed(Duration(milliseconds: 300 * attempt));
         }
       }
     }

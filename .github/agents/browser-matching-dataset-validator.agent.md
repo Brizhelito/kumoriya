@@ -1,7 +1,7 @@
 ---
 description: "Use when validating AniList-to-source availability with real browser evidence and building labeled matching datasets of 40 or more anime. Includes manual_search_seed coverage, Anime Nexus audit, and reproducible browser-based evidence capture."
 tools: [browser, read, search, edit, runCommands, todo]
-model: "GPT-5.4"
+model: Claude Opus 4.6 (copilot)
 user-invocable: true
 argument-hint: "Describe the sources to audit, desired sample size, and where to write the dataset/report"
 ---

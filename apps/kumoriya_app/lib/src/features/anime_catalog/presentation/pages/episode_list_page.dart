@@ -141,7 +141,9 @@ class _EpisodeListPageState extends ConsumerState<EpisodeListPage> {
     final rows = _cachedRows!;
 
     // Auto-select the page that contains the focused episode (runs once).
-    if (!_didAutoSelectPage && widget.focusedEpisodeNumber != null && rows.isNotEmpty) {
+    if (!_didAutoSelectPage &&
+        widget.focusedEpisodeNumber != null &&
+        rows.isNotEmpty) {
       _didAutoSelectPage = true;
       final focusIndex = rows.indexWhere(
         (row) => (row.number - widget.focusedEpisodeNumber!).abs() < 0.001,
@@ -153,7 +155,10 @@ class _EpisodeListPageState extends ConsumerState<EpisodeListPage> {
 
     final pageCount = rows.isEmpty ? 0 : ((rows.length - 1) ~/ _pageSize) + 1;
     final pageStart = _currentPage * _pageSize;
-    final visibleRows = rows.skip(pageStart).take(_pageSize).toList(growable: false);
+    final visibleRows = rows
+        .skip(pageStart)
+        .take(_pageSize)
+        .toList(growable: false);
 
     _scheduleScrollToFocus(visibleRows);
     _scheduleAutoDownloadCheck(rows);
@@ -343,6 +348,11 @@ class _EpisodeListPageState extends ConsumerState<EpisodeListPage> {
         );
         return;
       }
+      // File was deleted outside the app — clean up the orphan record so the
+      // provider reflects reality and the streaming path can proceed.
+      unawaited(
+        ref.read(downloadManagerProvider).deleteCompleted(offlineTask.id),
+      );
     }
 
     if (!mounted) {
@@ -547,6 +557,17 @@ class _EpisodeListHeader extends ConsumerWidget {
       return;
     }
 
+    // Check if the selected source has both SUB and DUB.
+    SourceAudioKind? audioPreference;
+    final selectedSource = summary?.playableSources
+        .where((s) => s.manifest.id == sourceId)
+        .firstOrNull;
+    if (selectedSource != null &&
+        selectedSource.availableAudioKinds.length > 1) {
+      audioPreference = await _pickAudioKind(context);
+      if (audioPreference == null || !context.mounted) return;
+    }
+
     // Resolve-and-enqueue sequentially to avoid parallel resolver pressure.
     // The queue itself is intentionally left unbounded from the UI side.
     var queued = 0;
@@ -565,6 +586,7 @@ class _EpisodeListHeader extends ConsumerWidget {
         anilistId: anilistId,
         sourcePluginId: entry.key,
         sourceEpisode: entry.value,
+        audioPreference: audioPreference,
         animeTitle: animeTitle,
         coverImageUrl: _resolveCoverUrl(ref, anilistId),
       );
@@ -576,6 +598,41 @@ class _EpisodeListHeader extends ConsumerWidget {
         context,
       ).showSnackBar(SnackBar(content: Text(context.l10n.downloadAllQueued)));
     }
+  }
+
+  Future<SourceAudioKind?> _pickAudioKind(BuildContext context) {
+    return showModalBottomSheet<SourceAudioKind>(
+      context: context,
+      showDragHandle: true,
+      builder: (context) {
+        return SafeArea(
+          child: ListView(
+            shrinkWrap: true,
+            children: <Widget>[
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+                child: Text(
+                  context.l10n.downloadAllChooseAudio,
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+              ListTile(
+                leading: const Icon(Icons.subtitles_rounded),
+                title: const Text('SUB'),
+                onTap: () => Navigator.of(context).pop(SourceAudioKind.sub),
+              ),
+              ListTile(
+                leading: const Icon(Icons.record_voice_over_rounded),
+                title: const Text('DUB'),
+                onTap: () => Navigator.of(context).pop(SourceAudioKind.dub),
+              ),
+            ],
+          ),
+        );
+      },
+    );
   }
 
   Future<String?> _pickSourceForBulkDownload(BuildContext context) async {
@@ -713,6 +770,8 @@ class _EpisodeCardState extends ConsumerState<_EpisodeCard> {
                             Expanded(
                               child: Text(
                                 row.displayTitle,
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
                                 style: Theme.of(context).textTheme.titleMedium
                                     ?.copyWith(fontWeight: FontWeight.w700),
                               ),
@@ -726,6 +785,8 @@ class _EpisodeCardState extends ConsumerState<_EpisodeCard> {
                         const SizedBox(height: 4),
                         Text(
                           row.secondaryText,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                           style: Theme.of(context).textTheme.bodyMedium
                               ?.copyWith(color: colorScheme.onSurfaceVariant),
                         ),
@@ -1118,10 +1179,7 @@ class _PageSelectorState extends State<_PageSelector> {
           );
           final isSelected = index == widget.currentPage;
           return ChoiceChip(
-            label: Text(
-              '$start–$end',
-              style: const TextStyle(fontSize: 12),
-            ),
+            label: Text('$start–$end', style: const TextStyle(fontSize: 12)),
             selected: isSelected,
             onSelected: (_) => widget.onPageSelected(index),
             visualDensity: VisualDensity.compact,
@@ -1169,6 +1227,7 @@ Future<bool> _enqueueEpisodeDownload({
   required int anilistId,
   required String sourcePluginId,
   required SourceEpisode sourceEpisode,
+  SourceAudioKind? audioPreference,
   String? animeTitle,
   String? coverImageUrl,
 }) async {
@@ -1195,11 +1254,22 @@ Future<bool> _enqueueEpisodeDownload({
       registry: registry,
     ).call(sourceEpisode);
 
-    final links = linksResult.fold(
+    var links = linksResult.fold(
       onSuccess: (l) => l,
       onFailure: (_) => <SourceServerLink>[],
     );
     if (links.isEmpty) return false;
+
+    // Filter by audio preference when provided.
+    if (audioPreference != null) {
+      final filtered = links
+          .where((link) {
+            final kind = sourceAudioKindFromCode(link.language);
+            return kind == audioPreference;
+          })
+          .toList(growable: false);
+      if (filtered.isNotEmpty) links = filtered;
+    }
 
     final enqueueUseCase = ref.read(enqueueDownloadUseCaseProvider);
     for (final link in links) {

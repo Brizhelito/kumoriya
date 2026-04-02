@@ -3,6 +3,7 @@ import 'dart:developer' as developer;
 
 import 'package:kumoriya_plugins/kumoriya_plugins.dart';
 import 'package:kumoriya_storage/kumoriya_storage.dart';
+import 'package:sentry_flutter/sentry_flutter.dart';
 
 import '../models/episode_playback.dart';
 import '../models/source_availability.dart';
@@ -142,6 +143,18 @@ final class StartEpisodePlaybackUseCase {
               _log(
                 'auto-open failure source=${option.sourcePluginId} server=${option.serverLink.serverName} resolver=${option.resolverId} code=${error.code} message=${error.message}',
               );
+              Sentry.addBreadcrumb(
+                Breadcrumb(
+                  message: 'Auto-open resolver failure',
+                  category: 'playback',
+                  data: {
+                    'source_plugin_id': option.sourcePluginId,
+                    'server_name': option.serverLink.serverName,
+                    'resolver_id': option.resolverId,
+                    'error_code': error.code,
+                  },
+                ),
+              );
             },
             onSuccess: (_) {},
           );
@@ -168,6 +181,17 @@ final class StartEpisodePlaybackUseCase {
     );
 
     if (remaining.isEmpty) {
+      if (autoQueue.isNotEmpty) {
+        Sentry.captureMessage(
+          'All auto-queue resolvers exhausted',
+          level: SentryLevel.warning,
+          withScope: (scope) {
+            scope.setTag('anilist_id', anilistId.toString());
+            scope.setTag('episode', episodeNumber.toString());
+            scope.setTag('attempted_count', attempted.length.toString());
+          },
+        );
+      }
       return EpisodePlaybackDecision.unavailable(
         autoSelectionFailed: autoQueue.isNotEmpty,
       );

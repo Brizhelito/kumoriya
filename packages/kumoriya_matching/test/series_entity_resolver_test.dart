@@ -230,4 +230,39 @@ void main() {
       contains(MatchReasonCode.compactSimilarityBonus),
     );
   });
+
+  test('auto matches honorific-hyphen variant (Hime-sama vs Himesama)', () {
+    final query = fingerprintBuilder.fromCanonical(
+      const CanonicalSeries(
+        canonicalId: 'anilist:176370',
+        anilistId: 176370,
+        primaryTitle: 'Hime-sama, "Goumon" no Jikan desu 2nd Season',
+        aliases: <String>[
+          "'Tis Time for \"Torture,\" Princess Season 2",
+          'HimeGou 2',
+        ],
+        format: AnimeFormat.tv,
+        releaseYear: 2026,
+      ),
+    );
+    final candidate = fingerprintBuilder.fromSource(
+      const SourceSeriesRecord(
+        recordId: 'jkanime:himesama-goumon-no-jikan-desu-2nd-season',
+        sourceId: 'jkanime',
+        sourceSeriesId: 'himesama-goumon-no-jikan-desu-2nd-season',
+        primaryTitle: 'Himesama "Goumon" no Jikan desu 2nd Season',
+        format: AnimeFormat.tv,
+      ),
+    );
+    final resolver = SeriesEntityResolver<SourceSeriesRecord>(
+      candidateIndex: SeriesCandidateIndex<SourceSeriesRecord>(
+        <SeriesFingerprint<SourceSeriesRecord>>[candidate],
+      ),
+    );
+
+    final decision = resolver.resolve(query);
+
+    expect(decision.verdict, SeriesDecisionVerdict.autoMatch);
+    expect(decision.bestScore, greaterThanOrEqualTo(84));
+  });
 }

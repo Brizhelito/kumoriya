@@ -106,9 +106,7 @@ final class StreamtapeResolverPlugin implements ResolverPlugin {
 
       if (!isResponseSizeAcceptable(response)) {
         return const Failure(
-          StreamtapeTransportError(
-            message: 'Streamtape response too large.',
-          ),
+          StreamtapeTransportError(message: 'Streamtape response too large.'),
         );
       }
 

@@ -1,6 +1,98 @@
 {
-  "generated_at": "2026-03-31T23:59:00Z",
+  "generated_at": "2026-04-02T01:35:00Z",
   "items": [
+    {
+      "version": "0.1.4",
+      "tag": "v0.1.4",
+      "date": "2026-04-02",
+      "channel": "alpha",
+      "summary": {
+        "es": "Version de parche enfocada en cancelacion de descargas, limpieza de huerfanos y robustez HLS.",
+        "en": "Patch release focused on download cancellation, orphan cleanup, and HLS robustness."
+      },
+      "notes": {
+        "es": {
+          "resumen": "Version de parche enfocada en descargas, limpieza y robustez de reproduccion.",
+          "agregado": [
+            "Boton para limpiar la cola completa de descargas."
+          ],
+          "cambios": [
+            "Cancelar y limpiar reflejan el cambio de inmediato en la UI antes de terminar la limpieza en segundo plano."
+          ],
+          "corregido": [
+            "Las cancelaciones en Windows desaparecen de inmediato en la UI.",
+            "Se limpian carpetas *_segments huerfanas al iniciar.",
+            "Los resolvers toleran respuestas embed no UTF-8.",
+            "El refresh de descargas evita StateError tras gaps async."
+          ]
+        },
+        "en": {
+          "summary": "Patch release focused on downloads, cleanup, and playback robustness.",
+          "added": [
+            "Clear queue action for pending and failed download tasks."
+          ],
+          "changed": [
+            "Cancel and clear flows now update the UI immediately before background cleanup finishes."
+          ],
+          "fixed": [
+            "Windows cancellations disappear immediately in the UI.",
+            "Orphan *_segments folders are cleaned at startup.",
+            "Resolvers safely tolerate non-UTF-8 embed responses.",
+            "Downloads refresh avoids StateError after async gaps."
+          ]
+        }
+      },
+      "downloads": {
+        "android": "https://pub-8159019abe1741a097538b976c19722c.r2.dev/artifacts/android/v0.1.4/kumoriya-0.1.4.apk",
+        "windows": "https://pub-8159019abe1741a097538b976c19722c.r2.dev/artifacts/windows/v0.1.4/Kumoriya-0.1.4-windows-x64-setup.exe"
+      }
+    },
+    {
+      "version": "0.1.3",
+      "tag": "v0.1.3",
+      "date": "2026-04-01",
+      "channel": "alpha",
+      "summary": {
+        "es": "Version alpha con mejoras en exploracion, reproductor, matching y catalogo AniList.",
+        "en": "Alpha release with improvements in discovery, player behavior, matching, and AniList catalog flow."
+      },
+      "notes": {
+        "es": {
+          "resumen": "Version alpha enfocada en discovery, estabilidad del reproductor y mejoras del catalogo AniList.",
+          "agregado": [
+            "Browse Anime con filtros avanzados y buscador por tags de AniList.",
+            "Boton de reporte de bugs y monitoreo de errores con Sentry."
+          ],
+          "cambios": [
+            "Acumulacion de seek en reproductor con indicador visual.",
+            "Menos round-trips con queries GraphQL consolidadas y mejoras de matching."
+          ],
+          "corregido": [
+            "Race conditions en teardown del reproductor.",
+            "Indicador de seek acumulado y estabilidad de auto-next."
+          ]
+        },
+        "en": {
+          "summary": "Alpha release focused on discovery, player stability, and AniList catalog improvements.",
+          "added": [
+            "Browse Anime with advanced filters and AniList tag-guided finder.",
+            "In-app bug reporting and Sentry monitoring."
+          ],
+          "changed": [
+            "Accumulated seek behavior with visual indicator.",
+            "Fewer round-trips through consolidated GraphQL queries and matching improvements."
+          ],
+          "fixed": [
+            "Player teardown race conditions.",
+            "Accumulated seek indicator and auto-next stability."
+          ]
+        }
+      },
+      "downloads": {
+        "android": "https://pub-8159019abe1741a097538b976c19722c.r2.dev/artifacts/android/v0.1.3/kumoriya-0.1.3.apk",
+        "windows": "https://pub-8159019abe1741a097538b976c19722c.r2.dev/artifacts/windows/v0.1.3/Kumoriya-0.1.3-windows-x64-setup.exe"
+      }
+    },
     {
       "version": "0.1.2",
       "tag": "v0.1.2",

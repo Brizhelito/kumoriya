@@ -67,6 +67,9 @@ final class SeriesFingerprintBuilder {
     "[\\(\\)\\[\\]\\{\\}!?,.\\\"'`]+",
   );
   static final RegExp _separatorRe = RegExp(r'[:/_\\|+-]+');
+  static final RegExp _honorificHyphenRe = RegExp(
+    r'(?<=[a-z])-(?=sama|san|chan|kun|dono|senpai|sensei)\b',
+  );
   static final RegExp _whitespaceRe = RegExp(r'\s+');
   static final RegExp _nonAlnumRe = RegExp(r'[^a-z0-9\s]+');
   static final RegExp _ordinalSeasonRe = RegExp(
@@ -133,8 +136,9 @@ final class SeriesFingerprintBuilder {
 
   NormalizedSeriesTitle _normalizeTitle(String raw) {
     final lowered = _stripDiacritics(raw.trim().toLowerCase());
+    final honorificCollapsed = lowered.replaceAll(_honorificHyphenRe, '');
     final cleaned = _normalizeSeasonMarkers(
-      lowered
+      honorificCollapsed
           .replaceAll(_punctuationRe, ' ')
           .replaceAll(_separatorRe, ' ')
           .replaceAll('&', ' and '),

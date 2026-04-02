@@ -119,6 +119,16 @@ final continueWatchingProvider =
       return ref.watch(animeProgressStoreProvider).getRecentHistory(limit: 10);
     });
 
+final allWatchHistoryProvider =
+    FutureProvider.autoDispose<Result<List<AnimeWatchHistory>, KumoriyaError>>((
+      ref,
+    ) async {
+      final link = ref.keepAlive();
+      final timer = Timer(const Duration(minutes: 5), link.close);
+      ref.onDispose(timer.cancel);
+      return ref.watch(animeProgressStoreProvider).getAllHistory();
+    });
+
 final latestEpisodeProgressProvider = FutureProvider.autoDispose
     .family<Result<EpisodeProgress?, KumoriyaError>, int>((
       ref,

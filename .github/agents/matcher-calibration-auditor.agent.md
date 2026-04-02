@@ -1,7 +1,7 @@
 ---
 description: "Use when calibrating AniList-to-source matching logic from real evidence: blocking, scoring, penalties, thresholds, review-needed policy, and explainability. Best for false-positive prevention, false-negative recovery, and source-aware threshold tuning."
 tools: [read, search]
-model: "GPT-5.4"
+model: Claude Opus 4.6 (copilot)
 user-invocable: false
 ---
 

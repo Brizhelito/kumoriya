@@ -1,7 +1,7 @@
 ---
 description: "Use when auditing how a source plugin should search a site: HTML search routes, direct APIs, hidden JSON endpoints, or autocomplete surfaces. Best for ranking source search paths, query params, stability, transport quirks, and autocomplete feasibility."
 tools: [read, search]
-model: "GPT-5.4"
+model: Claude Opus 4.6 (copilot)
 user-invocable: false
 ---
 

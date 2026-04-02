@@ -168,8 +168,7 @@ List<ResolvedStream> _extractStreams(
   required Uri baseUrl,
 }) {
   final entries = <({String raw, String key})>[
-    if (payload['cf'] is String)
-      (raw: payload['cf'] as String, key: 'cf'),
+    if (payload['cf'] is String) (raw: payload['cf'] as String, key: 'cf'),
     if (payload['source'] is String)
       (raw: payload['source'] as String, key: 'source'),
   ];

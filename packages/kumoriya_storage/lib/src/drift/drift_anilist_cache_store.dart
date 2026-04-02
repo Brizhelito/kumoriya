@@ -190,6 +190,27 @@ final class DriftAnilistCacheStore implements AnilistCacheStore {
     }
   }
 
+  @override
+  Future<Result<List<AnilistCacheEntry>, KumoriyaError>> getByIds(
+    List<int> ids,
+  ) async {
+    if (ids.isEmpty) {
+      return const Success(<AnilistCacheEntry>[]);
+    }
+    try {
+      final rows = await _dao.getByIds(ids);
+      return Success(rows.map(_rowToEntry).toList(growable: false));
+    } catch (e) {
+      return Failure(
+        SimpleError(
+          code: 'storage.anilist_cache_query_failed',
+          message: 'Failed to query AniList cache by IDs: $e',
+          kind: KumoriyaErrorKind.unexpected,
+        ),
+      );
+    }
+  }
+
   AnilistCacheEntry _rowToEntry(AnilistCacheTableData row) {
     List<String>? genres;
     if (row.genres != null) {

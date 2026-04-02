@@ -618,7 +618,8 @@ final class PlayerSessionOrchestrator {
       return Success(candidate);
     } on TimeoutException {
       await _invalidatePendingEngineOpen(
-        reason: 'open-timeout generation=$thisGeneration index=$_currentCandidateIndex',
+        reason:
+            'open-timeout generation=$thisGeneration index=$_currentCandidateIndex',
       );
       _log(
         'openCurrentCandidate timeout generation=$thisGeneration index=$_currentCandidateIndex',
@@ -2453,9 +2454,11 @@ final class PlayerSessionOrchestrator {
     // P5: Primary signal — real first-frame from the video output.
     // This is the most reliable signal that a frame is actually visible.
     unawaited(
-      _playbackEngine.firstFrameRendered.then((_) {
-        completeOnce(true, 'first-frame-rendered');
-      }).catchError((_) {}),
+      _playbackEngine.firstFrameRendered
+          .then((_) {
+            completeOnce(true, 'first-frame-rendered');
+          })
+          .catchError((_) {}),
     );
 
     // Secondary signal — position + playing heuristic as fallback.

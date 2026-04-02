@@ -184,7 +184,7 @@ class _AnimeDetailPageState extends ConsumerState<AnimeDetailPage> {
   }
 }
 
-class _AnimeDetailBody extends StatelessWidget {
+class _AnimeDetailBody extends ConsumerWidget {
   const _AnimeDetailBody({
     required this.detail,
     required this.availabilityState,
@@ -197,149 +197,161 @@ class _AnimeDetailBody extends StatelessWidget {
   final AsyncValue<Result<EpisodeProgress?, KumoriyaError>> latestProgressState;
 
   @override
-  Widget build(BuildContext context) {
-    return CustomScrollView(
-      slivers: <Widget>[
-        SliverAppBar(
-          expandedHeight: 280,
-          pinned: true,
-          stretch: true,
-          backgroundColor: KumoriyaColors.background,
-          elevation: 0,
-          flexibleSpace: FlexibleSpaceBar(
-            background: _DetailHero(detail: detail),
-            stretchModes: const <StretchMode>[StretchMode.fadeTitle],
+  Widget build(BuildContext context, WidgetRef ref) {
+    return RefreshIndicator(
+      onRefresh: () async {
+        ref.invalidate(animeDetailProvider(detail.anime.anilistId));
+        ref.invalidate(
+          sourceAvailabilitySummaryProvider(detail.anime.anilistId),
+        );
+        ref.invalidate(latestEpisodeProgressProvider(detail.anime.anilistId));
+      },
+      child: CustomScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        slivers: <Widget>[
+          SliverAppBar(
+            expandedHeight: 280,
+            pinned: true,
+            stretch: true,
+            backgroundColor: KumoriyaColors.background,
+            elevation: 0,
+            flexibleSpace: FlexibleSpaceBar(
+              background: _DetailHero(detail: detail),
+              stretchModes: const <StretchMode>[StretchMode.fadeTitle],
+            ),
           ),
-        ),
-        SliverPadding(
-          padding: const EdgeInsets.fromLTRB(16, 18, 16, 28),
-          sliver: SliverList(
-            delegate: SliverChildListDelegate(<Widget>[
-              _TitleBlock(detail: detail),
-              const SizedBox(height: 14),
-              _PlayResumeCta(
-                anilistId: detail.anime.anilistId,
-                animeTitle: detail.anime.title.romaji,
-                availabilityState: availabilityState,
-                latestProgressState: latestProgressState,
-              ),
-              const SizedBox(height: 12),
-              _LibraryActions(anilistId: detail.anime.anilistId),
-              if (detail.synopsis != null &&
-                  detail.synopsis!.trim().isNotEmpty) ...<Widget>[
-                const SizedBox(height: 16),
-                _CollapsibleSynopsis(synopsis: detail.synopsis!),
-              ],
-              if (detail.genres.isNotEmpty) ...<Widget>[
-                const SizedBox(height: 16),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: detail.genres
-                      .map(
-                        (genre) =>
-                            MetaChip(label: displayGenreLabel(context, genre)),
-                      )
-                      .toList(growable: false),
+          SliverPadding(
+            padding: const EdgeInsets.fromLTRB(16, 18, 16, 28),
+            sliver: SliverList(
+              delegate: SliverChildListDelegate(<Widget>[
+                _TitleBlock(detail: detail),
+                const SizedBox(height: 14),
+                _PlayResumeCta(
+                  anilistId: detail.anime.anilistId,
+                  animeTitle: detail.anime.title.romaji,
+                  availabilityState: availabilityState,
+                  latestProgressState: latestProgressState,
                 ),
-              ],
-              const SizedBox(height: 22),
-              _EpisodeDetailSection(
-                detail: detail,
-                availabilityState: availabilityState,
-                latestProgressState: latestProgressState,
-              ),
-              if (detail.relations.isNotEmpty) ...<Widget>[
-                const SizedBox(height: 22),
-                Text(
-                  context.l10n.relationsTitle,
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w700,
+                const SizedBox(height: 12),
+                _LibraryActions(anilistId: detail.anime.anilistId),
+                if (detail.synopsis != null &&
+                    detail.synopsis!.trim().isNotEmpty) ...<Widget>[
+                  const SizedBox(height: 16),
+                  _CollapsibleSynopsis(synopsis: detail.synopsis!),
+                ],
+                if (detail.genres.isNotEmpty) ...<Widget>[
+                  const SizedBox(height: 16),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: detail.genres
+                        .map(
+                          (genre) => MetaChip(
+                            label: displayGenreLabel(context, genre),
+                          ),
+                        )
+                        .toList(growable: false),
                   ),
+                ],
+                const SizedBox(height: 22),
+                _EpisodeDetailSection(
+                  detail: detail,
+                  availabilityState: availabilityState,
+                  latestProgressState: latestProgressState,
                 ),
-                const SizedBox(height: 8),
-                ...detail.relations
-                    .take(6)
-                    .map(
-                      (relation) => Padding(
-                        padding: const EdgeInsets.only(bottom: 8),
-                        child: InkWell(
-                          borderRadius: BorderRadius.circular(
-                            KumoriyaRadius.xl,
-                          ),
-                          onTap: () => Navigator.of(context).push(
-                            MaterialPageRoute<void>(
-                              builder: (_) => AnimeDetailPage(
-                                anilistId: relation.anime.anilistId,
+                if (detail.relations.isNotEmpty) ...<Widget>[
+                  const SizedBox(height: 22),
+                  Text(
+                    context.l10n.relationsTitle,
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  ...detail.relations
+                      .take(6)
+                      .map(
+                        (relation) => Padding(
+                          padding: const EdgeInsets.only(bottom: 8),
+                          child: InkWell(
+                            borderRadius: BorderRadius.circular(
+                              KumoriyaRadius.xl,
+                            ),
+                            onTap: () => Navigator.of(context).push(
+                              MaterialPageRoute<void>(
+                                builder: (_) => AnimeDetailPage(
+                                  anilistId: relation.anime.anilistId,
+                                ),
                               ),
                             ),
-                          ),
-                          child: Container(
-                            padding: const EdgeInsets.all(12),
-                            decoration: BoxDecoration(
-                              color: KumoriyaColors.surface.withValues(
-                                alpha: 0.6,
+                            child: Container(
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: KumoriyaColors.surface.withValues(
+                                  alpha: 0.6,
+                                ),
+                                borderRadius: BorderRadius.circular(
+                                  KumoriyaRadius.xl,
+                                ),
+                                border: Border.all(
+                                  color: KumoriyaColors.borderSubtle,
+                                ),
                               ),
-                              borderRadius: BorderRadius.circular(
-                                KumoriyaRadius.xl,
-                              ),
-                              border: Border.all(
-                                color: KumoriyaColors.borderSubtle,
-                              ),
-                            ),
-                            child: Row(
-                              children: <Widget>[
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: <Widget>[
-                                      Text(
-                                        relation.anime.title.romaji,
-                                        maxLines: 2,
-                                        overflow: TextOverflow.ellipsis,
-                                        style: Theme.of(context)
-                                            .textTheme
-                                            .titleSmall!
-                                            .copyWith(
-                                              color: KumoriyaColors.textPrimary,
+                              child: Row(
+                                children: <Widget>[
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: <Widget>[
+                                        Text(
+                                          relation.anime.title.romaji,
+                                          maxLines: 2,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: Theme.of(context)
+                                              .textTheme
+                                              .titleSmall!
+                                              .copyWith(
+                                                color:
+                                                    KumoriyaColors.textPrimary,
+                                              ),
+                                        ),
+                                        const SizedBox(height: 8),
+                                        Wrap(
+                                          spacing: 6,
+                                          runSpacing: 6,
+                                          children: <Widget>[
+                                            _RelationTypeBadge(
+                                              type: relation.type,
                                             ),
-                                      ),
-                                      const SizedBox(height: 8),
-                                      Wrap(
-                                        spacing: 6,
-                                        runSpacing: 6,
-                                        children: <Widget>[
-                                          _RelationTypeBadge(
-                                            type: relation.type,
-                                          ),
-                                          MetaChip(
-                                            label: _formatLabel(
-                                              context,
-                                              relation.anime.format,
+                                            MetaChip(
+                                              label: _formatLabel(
+                                                context,
+                                                relation.anime.format,
+                                              ),
                                             ),
-                                          ),
-                                        ],
-                                      ),
-                                    ],
+                                          ],
+                                        ),
+                                      ],
+                                    ),
                                   ),
-                                ),
-                                const SizedBox(width: 10),
-                                const Icon(
-                                  Icons.chevron_right_rounded,
-                                  color: KumoriyaColors.textDisabled,
-                                ),
-                              ],
+                                  const SizedBox(width: 10),
+                                  const Icon(
+                                    Icons.chevron_right_rounded,
+                                    color: KumoriyaColors.textDisabled,
+                                  ),
+                                ],
+                              ),
                             ),
                           ),
                         ),
                       ),
-                    ),
-              ],
-            ]),
+                ],
+              ]),
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }
@@ -484,6 +496,11 @@ class _PlayResumeCtaState extends ConsumerState<_PlayResumeCta> {
         );
         return;
       }
+      // File was deleted outside the app — clean up the orphan record so the
+      // provider reflects reality and the streaming path can proceed.
+      unawaited(
+        ref.read(downloadManagerProvider).deleteCompleted(offlineTask.id),
+      );
     }
 
     setState(() => _isLaunching = true);
@@ -614,78 +631,81 @@ class _DetailHero extends StatelessWidget {
           ),
         ),
         SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 84, 16, 20),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: <Widget>[
-                Semantics(
-                  image: true,
-                  label: '${detail.anime.title.romaji} cover',
-                  child: GestureDetector(
-                    onTap: () => _showArtworkPreview(
-                      context,
-                      detail.anime.coverImageUrl,
-                      detail.anime.title.romaji,
-                    ),
-                    child: KumoriyaCachedImage(
-                      url: detail.anime.coverImageUrl,
-                      bucket: KumoriyaImageCacheBucket.artwork,
-                      width: 120,
-                      height: 170,
-                      fit: BoxFit.cover,
-                      alignment: Alignment.topCenter,
-                      borderRadius: BorderRadius.circular(KumoriyaRadius.xxl),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisAlignment: MainAxisAlignment.end,
-                    children: <Widget>[
-                      Text(
+          child: Align(
+            alignment: Alignment.bottomLeft,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 20),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: <Widget>[
+                  Semantics(
+                    image: true,
+                    label: '${detail.anime.title.romaji} cover',
+                    child: GestureDetector(
+                      onTap: () => _showArtworkPreview(
+                        context,
+                        detail.anime.coverImageUrl,
                         detail.anime.title.romaji,
-                        maxLines: 3,
-                        overflow: TextOverflow.ellipsis,
-                        style: Theme.of(context).textTheme.headlineMedium
-                            ?.copyWith(
-                              color: KumoriyaColors.textPrimary,
-                              fontWeight: FontWeight.w800,
-                            ),
                       ),
-                      const SizedBox(height: 8),
-                      Wrap(
-                        spacing: 8,
-                        runSpacing: 8,
-                        children: <Widget>[
-                          _HeroMetaPill(
-                            label: _formatLabel(context, detail.anime.format),
-                          ),
-                          _HeroMetaPill(
-                            label: _statusLabel(context, detail.anime.status),
-                          ),
-                          if (detail.anime.releaseYear != null)
-                            _HeroMetaPill(
-                              label: detail.anime.releaseYear.toString(),
-                            ),
-                          if (detail.anime.totalEpisodes != null)
-                            _HeroMetaPill(
-                              label:
-                                  '${detail.anime.totalEpisodes} ${context.l10n.episodesWord}',
-                            ),
-                          if (detail.anime.averageScore != null)
-                            _HeroMetaPill(
-                              label: '★ ${detail.anime.averageScore}/100',
-                              textColor: KumoriyaColors.accentAmber,
-                            ),
-                        ],
+                      child: KumoriyaCachedImage(
+                        url: detail.anime.coverImageUrl,
+                        bucket: KumoriyaImageCacheBucket.artwork,
+                        width: 120,
+                        height: 170,
+                        fit: BoxFit.cover,
+                        alignment: Alignment.topCenter,
+                        borderRadius: BorderRadius.circular(KumoriyaRadius.xxl),
                       ),
-                    ],
+                    ),
                   ),
-                ),
-              ],
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: <Widget>[
+                        Text(
+                          detail.anime.title.romaji,
+                          maxLines: 3,
+                          overflow: TextOverflow.ellipsis,
+                          style: Theme.of(context).textTheme.headlineMedium
+                              ?.copyWith(
+                                color: KumoriyaColors.textPrimary,
+                                fontWeight: FontWeight.w800,
+                              ),
+                        ),
+                        const SizedBox(height: 8),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: <Widget>[
+                            _HeroMetaPill(
+                              label: _formatLabel(context, detail.anime.format),
+                            ),
+                            _HeroMetaPill(
+                              label: _statusLabel(context, detail.anime.status),
+                            ),
+                            if (detail.anime.releaseYear != null)
+                              _HeroMetaPill(
+                                label: detail.anime.releaseYear.toString(),
+                              ),
+                            if (detail.anime.totalEpisodes != null)
+                              _HeroMetaPill(
+                                label:
+                                    '${detail.anime.totalEpisodes} ${context.l10n.episodesWord}',
+                              ),
+                            if (detail.anime.averageScore != null)
+                              _HeroMetaPill(
+                                label: '★ ${detail.anime.averageScore}/100',
+                                textColor: KumoriyaColors.accentAmber,
+                              ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ),
@@ -908,9 +928,14 @@ class _EpisodeDetailSectionState extends ConsumerState<_EpisodeDetailSection> {
       }
     }
 
-    final pageCount = allRows.isEmpty ? 0 : ((allRows.length - 1) ~/ _pageSize) + 1;
+    final pageCount = allRows.isEmpty
+        ? 0
+        : ((allRows.length - 1) ~/ _pageSize) + 1;
     final pageStart = _currentPage * _pageSize;
-    final pagedRows = allRows.skip(pageStart).take(_pageSize).toList(growable: false);
+    final pagedRows = allRows
+        .skip(pageStart)
+        .take(_pageSize)
+        .toList(growable: false);
 
     // For short series without pagination, use collapsed preview logic.
     final List<_DetailEpisodeRowData> visibleRows;
@@ -919,7 +944,9 @@ class _EpisodeDetailSectionState extends ConsumerState<_EpisodeDetailSection> {
     } else if (_showAllEpisodes || allRows.length <= _collapsedEpisodeCount) {
       visibleRows = allRows;
     } else {
-      visibleRows = allRows.take(_collapsedEpisodeCount).toList(growable: false);
+      visibleRows = allRows
+          .take(_collapsedEpisodeCount)
+          .toList(growable: false);
     }
     final hiddenEpisodeCount = rowsResult.totalCount - visibleRows.length;
     final sourceBadges =
@@ -956,15 +983,18 @@ class _EpisodeDetailSectionState extends ConsumerState<_EpisodeDetailSection> {
             ),
             const SizedBox(width: 6),
           ],
-          Text(
-            rowsResult.totalCount == 0
-                ? context.l10n.episodeListEmpty
-                : '${rowsResult.totalCount} ${context.l10n.episodesWord}',
-            style: Theme.of(
-              context,
-            ).textTheme.bodySmall!.copyWith(color: KumoriyaColors.textTertiary),
+          Expanded(
+            child: Text(
+              rowsResult.totalCount == 0
+                  ? context.l10n.episodeListEmpty
+                  : '${rowsResult.totalCount} ${context.l10n.episodesWord}',
+              style: Theme.of(context).textTheme.bodySmall!.copyWith(
+                color: KumoriyaColors.textTertiary,
+              ),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
           ),
-          const Spacer(),
           TextButton.icon(
             onPressed: _isRefreshingSources ? null : _refreshSources,
             icon: _isRefreshingSources
@@ -1202,6 +1232,11 @@ class _EpisodeDetailSectionState extends ConsumerState<_EpisodeDetailSection> {
         );
         return;
       }
+      // File was deleted outside the app — clean up the orphan record so the
+      // provider reflects reality and the streaming path can proceed.
+      unawaited(
+        ref.read(downloadManagerProvider).deleteCompleted(offlineTask.id),
+      );
     }
 
     if (!mounted) {
@@ -1343,54 +1378,74 @@ class _DetailEpisodeCardState extends ConsumerState<_DetailEpisodeCard> {
         .toList();
     if (entries.isEmpty) return;
 
-    // Use the first available source plugin.
-    final entry = entries.first;
-
     setState(() => _isEnqueuing = true);
 
     try {
-      final sourcePlugin = ref.read(sourcePluginByIdProvider(entry.key));
       final registry = ref.read(resolverRegistryProvider);
 
-      final linksResult = await GetSourceEpisodeServerLinksUseCase(
-        sourcePlugin: sourcePlugin,
-        registry: registry,
-      ).call(entry.value);
+      // Aggregate server links from ALL available source plugins so the user
+      // sees every downloadable server, not just those from the first source.
+      final allOptions = <_DownloadServerOption>[];
+      final optionSourceMap =
+          <_DownloadServerOption, MapEntry<String, SourceEpisode>>{};
 
-      final links = linksResult.fold(
-        onSuccess: (l) => l,
-        onFailure: (_) => <SourceServerLink>[],
-      );
+      for (final entry in entries) {
+        final sourcePlugin = ref.read(sourcePluginByIdProvider(entry.key));
+        final linksResult = await GetSourceEpisodeServerLinksUseCase(
+          sourcePlugin: sourcePlugin,
+          registry: registry,
+        ).call(entry.value);
+
+        linksResult.fold(
+          onSuccess: (links) {
+            for (final link in links) {
+              final opt = _DownloadServerOption(
+                link: link,
+                sourcePluginId: entry.key,
+                sourceName: sourcePlugin.manifest.displayName,
+                sourceIconUrl: sourcePlugin.manifest.iconUrl,
+                sourceEpisode: entry.value,
+              );
+              allOptions.add(opt);
+              optionSourceMap[opt] = entry;
+            }
+          },
+          onFailure: (_) {},
+        );
+      }
 
       if (!context.mounted) return;
 
-      if (links.isEmpty) {
+      if (allOptions.isEmpty) {
         setState(() => _isEnqueuing = false);
         messenger.showSnackBar(SnackBar(content: Text(l10n.downloadFailed)));
         return;
       }
 
       // If multiple servers, let user choose.
-      SourceServerLink chosenLink;
-      if (links.length > 1) {
+      _DownloadServerOption chosenOption;
+      if (allOptions.length > 1) {
         setState(() => _isEnqueuing = false);
-        final picked = await _showServerPicker(context, links);
+        final picked = await _showDownloadServerPicker(context, allOptions);
         if (picked == null || !mounted) return;
-        chosenLink = picked;
+        chosenOption = picked;
         setState(() => _isEnqueuing = true);
       } else {
-        chosenLink = links.first;
+        chosenOption = allOptions.first;
       }
+
+      final chosenLink = chosenOption.link;
+      final chosenEntry = optionSourceMap[chosenOption] ?? entries.first;
 
       final enqueueUseCase = ref.read(enqueueDownloadUseCaseProvider);
       final result = await enqueueUseCase.call(
         anilistId: widget.anilistId,
-        episodeNumber: entry.value.number,
+        episodeNumber: chosenEntry.value.number,
         serverLink: chosenLink,
-        sourcePluginId: entry.key,
+        sourcePluginId: chosenEntry.key,
         animeTitle: widget.animeTitle,
         coverImageUrl: widget.coverImageUrl,
-        episodeTitle: entry.value.title,
+        episodeTitle: chosenEntry.value.title,
       );
 
       if (!mounted) return;
@@ -1443,17 +1498,14 @@ class _LibraryActions extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
+        Row(
+          mainAxisAlignment: MainAxisAlignment.start,
           children: <Widget>[
             _ActionButton(
               icon: isFav
                   ? Icons.favorite_rounded
                   : Icons.favorite_border_rounded,
-              label: isFav
-                  ? context.l10n.removeFavorite
-                  : context.l10n.addFavorite,
+              label: context.l10n.libraryActionSave,
               active: isFav,
               onTap: () async {
                 await ref
@@ -1462,15 +1514,14 @@ class _LibraryActions extends ConsumerWidget {
                 ref.invalidate(favoriteAnimeIdsProvider);
               },
             ),
+            const SizedBox(width: 20),
             _ActionButton(
               icon: isSub
                   ? Icons.notifications_active_rounded
                   : Icons.notifications_none_rounded,
-              label: isSub ? context.l10n.unsubscribe : context.l10n.subscribe,
+              label: context.l10n.libraryActionNotify,
               active: isSub,
               onTap: () async {
-                // Request POST_NOTIFICATIONS permission on Android 13+
-                // before toggling subscription on.
                 if (!isSub && Platform.isAndroid) {
                   final status = await Permission.notification.request();
                   if (!status.isGranted) return;
@@ -1482,11 +1533,12 @@ class _LibraryActions extends ConsumerWidget {
                 ref.invalidate(isSubscribedProvider(anilistId));
               },
             ),
+            const SizedBox(width: 20),
             _ActionButton(
               icon: isAutoDl
                   ? Icons.download_done_rounded
                   : Icons.download_rounded,
-              label: context.l10n.autoDownload,
+              label: context.l10n.libraryActionAutoDownload,
               active: isAutoDl,
               onTap: isSub
                   ? () async {
@@ -1568,14 +1620,6 @@ class _ActionButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final desktop = switch (Theme.of(context).platform) {
-      TargetPlatform.linux ||
-      TargetPlatform.macOS ||
-      TargetPlatform.windows => true,
-      TargetPlatform.android ||
-      TargetPlatform.iOS ||
-      TargetPlatform.fuchsia => false,
-    };
     final disabled = onTap == null;
     final color = disabled
         ? KumoriyaColors.textDisabled
@@ -1585,31 +1629,35 @@ class _ActionButton extends StatelessWidget {
 
     return GestureDetector(
       onTap: onTap,
-      child: Container(
-        padding: EdgeInsets.symmetric(
-          horizontal: desktop ? 14 : 12,
-          vertical: 8,
-        ),
-        decoration: BoxDecoration(
-          color: active
-              ? KumoriyaColors.primary.withValues(alpha: 0.12)
-              : KumoriyaColors.surface,
-          borderRadius: BorderRadius.circular(KumoriyaRadius.full),
-          border: Border.all(
-            color: active
-                ? KumoriyaColors.primary.withValues(alpha: 0.35)
-                : KumoriyaColors.borderSubtle,
-          ),
-        ),
-        child: Row(
+      child: SizedBox(
+        width: 64,
+        child: Column(
           mainAxisSize: MainAxisSize.min,
           children: <Widget>[
-            Icon(icon, size: 16, color: color),
-            const SizedBox(width: 6),
+            Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                color: active
+                    ? KumoriyaColors.primary.withValues(alpha: 0.12)
+                    : KumoriyaColors.surface,
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: active
+                      ? KumoriyaColors.primary.withValues(alpha: 0.35)
+                      : KumoriyaColors.borderSubtle,
+                ),
+              ),
+              child: Icon(icon, size: 20, color: color),
+            ),
+            const SizedBox(height: 4),
             Text(
               label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.center,
               style: TextStyle(
-                fontSize: 12,
+                fontSize: 11,
                 fontWeight: FontWeight.w600,
                 color: color,
               ),
@@ -1651,10 +1699,7 @@ class _DetailPageSelector extends StatelessWidget {
           final end = ((index + 1) * pageSize).clamp(0, totalRows);
           final isSelected = index == currentPage;
           return ChoiceChip(
-            label: Text(
-              '$start–$end',
-              style: const TextStyle(fontSize: 11),
-            ),
+            label: Text('$start–$end', style: const TextStyle(fontSize: 11)),
             selected: isSelected,
             onSelected: (_) => onPageSelected(index),
             visualDensity: VisualDensity.compact,
@@ -1937,6 +1982,7 @@ Future<bool> _enqueueDetailEpisodeDownload({
   required int anilistId,
   required String sourcePluginId,
   required SourceEpisode sourceEpisode,
+  SourceAudioKind? audioPreference,
   String? animeTitle,
   String? coverImageUrl,
 }) async {
@@ -1949,11 +1995,22 @@ Future<bool> _enqueueDetailEpisodeDownload({
       registry: registry,
     ).call(sourceEpisode);
 
-    final links = linksResult.fold(
+    var links = linksResult.fold(
       onSuccess: (l) => l,
       onFailure: (_) => <SourceServerLink>[],
     );
     if (links.isEmpty) return false;
+
+    // Filter by audio preference when provided.
+    if (audioPreference != null) {
+      final filtered = links
+          .where((link) {
+            final kind = sourceAudioKindFromCode(link.language);
+            return kind == audioPreference;
+          })
+          .toList(growable: false);
+      if (filtered.isNotEmpty) links = filtered;
+    }
 
     final enqueueUseCase = ref.read(enqueueDownloadUseCaseProvider);
     for (final link in links) {
@@ -2123,6 +2180,19 @@ class _DetailDownloadAllButtonState
       return;
     }
 
+    if (!context.mounted) return;
+
+    // Check if the selected source has both SUB and DUB.
+    SourceAudioKind? audioPreference;
+    final selectedSource = widget.availableSources
+        .where((s) => s.manifest.id == sourceId)
+        .firstOrNull;
+    if (selectedSource != null &&
+        selectedSource.availableAudioKinds.length > 1) {
+      audioPreference = await _pickAudioKind(context);
+      if (audioPreference == null || !context.mounted) return;
+    }
+
     setState(() => _isEnqueuing = true);
     var queued = 0;
 
@@ -2137,6 +2207,7 @@ class _DetailDownloadAllButtonState
         anilistId: widget.anilistId,
         sourcePluginId: entry.key,
         sourceEpisode: entry.value,
+        audioPreference: audioPreference,
         animeTitle: widget.animeTitle,
         coverImageUrl: widget.coverImageUrl,
       );
@@ -2151,6 +2222,41 @@ class _DetailDownloadAllButtonState
         context,
       ).showSnackBar(SnackBar(content: Text(context.l10n.downloadAllQueued)));
     }
+  }
+
+  Future<SourceAudioKind?> _pickAudioKind(BuildContext context) {
+    return showModalBottomSheet<SourceAudioKind>(
+      context: context,
+      showDragHandle: true,
+      builder: (context) {
+        return SafeArea(
+          child: ListView(
+            shrinkWrap: true,
+            children: <Widget>[
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+                child: Text(
+                  context.l10n.downloadAllChooseAudio,
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+              ListTile(
+                leading: const Icon(Icons.subtitles_rounded),
+                title: const Text('SUB'),
+                onTap: () => Navigator.of(context).pop(SourceAudioKind.sub),
+              ),
+              ListTile(
+                leading: const Icon(Icons.record_voice_over_rounded),
+                title: const Text('DUB'),
+                onTap: () => Navigator.of(context).pop(SourceAudioKind.dub),
+              ),
+            ],
+          ),
+        );
+      },
+    );
   }
 
   Future<String?> _pickSourceForBulkDownload(BuildContext context) async {
@@ -2207,68 +2313,259 @@ class _DetailDownloadAllButtonState
   }
 }
 
-// ─── Server picker dialog ────────────────────────────────────────────────────
+// ─── Download server picker ──────────────────────────────────────────────────
 
-Future<SourceServerLink?> _showServerPicker(
+/// A server link bundled with its source plugin metadata for display in the
+/// download server picker.
+final class _DownloadServerOption {
+  const _DownloadServerOption({
+    required this.link,
+    required this.sourcePluginId,
+    required this.sourceName,
+    this.sourceIconUrl,
+    this.sourceEpisode,
+  });
+
+  final SourceServerLink link;
+  final String sourcePluginId;
+  final String sourceName;
+  final String? sourceIconUrl;
+  final SourceEpisode? sourceEpisode;
+}
+
+Future<_DownloadServerOption?> _showDownloadServerPicker(
   BuildContext context,
-  List<SourceServerLink> links,
+  List<_DownloadServerOption> options,
 ) {
-  return showModalBottomSheet<SourceServerLink>(
+  return showModalBottomSheet<_DownloadServerOption>(
     context: context,
-    backgroundColor: KumoriyaColors.surface,
-    shape: const RoundedRectangleBorder(
-      borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-    ),
-    builder: (ctx) => SafeArea(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: <Widget>[
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-            child: Row(
-              children: <Widget>[
-                const Icon(
-                  Icons.dns_rounded,
-                  size: 20,
-                  color: KumoriyaColors.primary,
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  context.l10n.downloadSelectServer,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w700,
-                    color: KumoriyaColors.textPrimary,
+    showDragHandle: true,
+    isScrollControlled: true,
+    builder: (context) => _DownloadServerPickerSheet(options: options),
+  );
+}
+
+class _DownloadServerPickerSheet extends StatefulWidget {
+  const _DownloadServerPickerSheet({required this.options});
+
+  final List<_DownloadServerOption> options;
+
+  @override
+  State<_DownloadServerPickerSheet> createState() =>
+      _DownloadServerPickerSheetState();
+}
+
+class _DownloadServerPickerSheetState
+    extends State<_DownloadServerPickerSheet> {
+  static const String _allSources = '__all__';
+  String _selectedSourceId = _allSources;
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final grouped = <String, List<_DownloadServerOption>>{};
+    for (final opt in widget.options) {
+      grouped.putIfAbsent(opt.sourcePluginId, () => []).add(opt);
+    }
+    final sourceEntries = grouped.entries.toList(growable: false);
+    final filteredEntries = _selectedSourceId == _allSources
+        ? sourceEntries
+        : sourceEntries
+              .where((e) => e.key == _selectedSourceId)
+              .toList(growable: false);
+
+    return SafeArea(
+      child: FractionallySizedBox(
+        heightFactor: 0.75,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Row(
+                children: <Widget>[
+                  const Icon(
+                    Icons.download_rounded,
+                    size: 22,
+                    color: KumoriyaColors.primary,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      context.l10n.downloadSelectServer,
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
+              if (sourceEntries.length > 1) ...<Widget>[
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    children: <Widget>[
+                      Padding(
+                        padding: const EdgeInsets.only(right: 8),
+                        child: ChoiceChip(
+                          label: Text(context.l10n.serverPickerAllSources),
+                          selected: _selectedSourceId == _allSources,
+                          onSelected: (_) {
+                            setState(() => _selectedSourceId = _allSources);
+                          },
+                        ),
+                      ),
+                      ...sourceEntries.map((entry) {
+                        final rep = entry.value.first;
+                        return Padding(
+                          padding: const EdgeInsets.only(right: 8),
+                          child: ChoiceChip(
+                            selected: _selectedSourceId == entry.key,
+                            onSelected: (_) {
+                              setState(() => _selectedSourceId = entry.key);
+                            },
+                            label: Text(
+                              '${rep.sourceName} (${entry.value.length})',
+                            ),
+                            avatar: _DownloadSourceAvatar(
+                              sourceName: rep.sourceName,
+                              iconUrl: rep.sourceIconUrl,
+                            ),
+                          ),
+                        );
+                      }),
+                    ],
                   ),
                 ),
+                const SizedBox(height: 14),
               ],
-            ),
-          ),
-          const Divider(),
-          ...links.map(
-            (link) => ListTile(
-              leading: const Icon(Icons.cloud_download_rounded, size: 20),
-              title: Text(
-                link.serverName,
-                style: const TextStyle(fontWeight: FontWeight.w600),
-              ),
-              subtitle: link.detectedHost != null
-                  ? Text(
-                      link.detectedHost!,
-                      style: const TextStyle(
-                        fontSize: 11,
-                        color: KumoriyaColors.textDisabled,
+              Expanded(
+                child: ListView.separated(
+                  itemCount: filteredEntries.length,
+                  separatorBuilder: (_, index) => const SizedBox(height: 14),
+                  itemBuilder: (context, index) {
+                    final entry = filteredEntries[index];
+                    final sourceOptions = entry.value;
+                    final rep = sourceOptions.first;
+                    return Container(
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: colorScheme.surfaceContainerLow,
+                        borderRadius: BorderRadius.circular(24),
                       ),
-                    )
-                  : null,
-              onTap: () => Navigator.of(ctx).pop(link),
-            ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: <Widget>[
+                          Row(
+                            children: <Widget>[
+                              SourceBadge(
+                                name: rep.sourceName,
+                                iconUrl: rep.sourceIconUrl,
+                                compact: true,
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                '${sourceOptions.length} server${sourceOptions.length != 1 ? 's' : ''}',
+                                style: Theme.of(context).textTheme.bodySmall
+                                    ?.copyWith(
+                                      color: colorScheme.onSurfaceVariant,
+                                    ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 12),
+                          ...sourceOptions.map(
+                            (opt) => Padding(
+                              padding: EdgeInsets.only(
+                                top: opt == sourceOptions.first ? 0 : 10,
+                              ),
+                              child: Material(
+                                color: colorScheme.surface,
+                                borderRadius: BorderRadius.circular(22),
+                                child: InkWell(
+                                  onTap: () => Navigator.of(context).pop(opt),
+                                  borderRadius: BorderRadius.circular(22),
+                                  child: Padding(
+                                    padding: const EdgeInsets.all(14),
+                                    child: Row(
+                                      children: <Widget>[
+                                        const Icon(
+                                          Icons.cloud_download_rounded,
+                                          size: 22,
+                                        ),
+                                        const SizedBox(width: 12),
+                                        Expanded(
+                                          child: Column(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            children: <Widget>[
+                                              Text(
+                                                opt.link.serverName,
+                                                style: Theme.of(context)
+                                                    .textTheme
+                                                    .titleMedium
+                                                    ?.copyWith(
+                                                      fontWeight:
+                                                          FontWeight.w700,
+                                                    ),
+                                              ),
+                                              if (opt.link.detectedHost !=
+                                                  null) ...<Widget>[
+                                                const SizedBox(height: 4),
+                                                Text(
+                                                  opt.link.detectedHost!,
+                                                  style: TextStyle(
+                                                    fontSize: 11,
+                                                    color: colorScheme
+                                                        .onSurfaceVariant,
+                                                  ),
+                                                ),
+                                              ],
+                                            ],
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ],
           ),
-          const SizedBox(height: 8),
-        ],
+        ),
       ),
-    ),
-  );
+    );
+  }
+}
+
+class _DownloadSourceAvatar extends StatelessWidget {
+  const _DownloadSourceAvatar({required this.sourceName, this.iconUrl});
+
+  final String sourceName;
+  final String? iconUrl;
+
+  @override
+  Widget build(BuildContext context) {
+    if (iconUrl != null && iconUrl!.trim().isNotEmpty) {
+      return CircleAvatar(
+        radius: 12,
+        backgroundImage: NetworkImage(iconUrl!),
+        backgroundColor: Colors.transparent,
+      );
+    }
+    return CircleAvatar(
+      radius: 12,
+      child: Text(sourceName.characters.first.toUpperCase()),
+    );
+  }
 }
 
 class _RelationTypeBadge extends StatelessWidget {

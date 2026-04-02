@@ -1,11 +1,7 @@
-import 'package:flutter/foundation.dart';
 import 'package:kumoriya_plugins/kumoriya_plugins.dart';
 
 final class StreamSelectionPolicy {
-  const StreamSelectionPolicy({TargetPlatform? platform})
-    : _platform = platform;
-
-  final TargetPlatform? _platform;
+  const StreamSelectionPolicy();
 
   List<ResolvedStream> rankCandidates(List<ResolvedStream> candidates) {
     if (candidates.isEmpty) {

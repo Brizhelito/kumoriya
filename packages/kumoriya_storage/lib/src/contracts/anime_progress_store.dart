@@ -98,6 +98,12 @@ abstract interface class AnimeProgressStore {
     int limit = 20,
   });
 
+  Future<Result<List<AnimeWatchHistory>, KumoriyaError>> getAllHistory();
+
+  Future<Result<void, KumoriyaError>> deleteHistoryEntry(int anilistId);
+
+  Future<Result<void, KumoriyaError>> clearAllHistory();
+
   Future<Result<void, KumoriyaError>> upsertPlaybackPreference(
     PlaybackPreference preference,
   );

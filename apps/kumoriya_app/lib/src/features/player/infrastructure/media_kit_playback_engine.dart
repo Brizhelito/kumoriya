@@ -88,9 +88,9 @@ final class MediaKitPlaybackEngine implements PlaybackEngine {
   int _diagnosticsListenerCount = 0;
   late final StreamController<PlayerDiagnostics> _diagnosticsController =
       StreamController<PlayerDiagnostics>.broadcast(
-    onListen: _onDiagnosticsListenerAdded,
-    onCancel: _onDiagnosticsListenerRemoved,
-  );
+        onListen: _onDiagnosticsListenerAdded,
+        onCancel: _onDiagnosticsListenerRemoved,
+      );
   int? _lastSeekLatencyMs;
 
   void _onDiagnosticsListenerAdded() {
@@ -295,10 +295,7 @@ final class MediaKitPlaybackEngine implements PlaybackEngine {
         );
         return;
       }
-      await _openAnimeNexusInitialStream(
-        stream,
-        cancellation: cancellation,
-      );
+      await _openAnimeNexusInitialStream(stream, cancellation: cancellation);
       return;
     }
     if (stream.isHls &&
@@ -388,6 +385,7 @@ final class MediaKitPlaybackEngine implements PlaybackEngine {
 
   @override
   Future<void> setSubtitleTrack(ExternalSubtitleTrack track) {
+    if (_disposed) return Future<void>.value();
     if (track.uri != null) {
       return player.setSubtitleTrack(
         SubtitleTrack.uri(
@@ -409,11 +407,13 @@ final class MediaKitPlaybackEngine implements PlaybackEngine {
 
   @override
   Future<void> clearSubtitleTrack() {
+    if (_disposed) return Future<void>.value();
     return player.setSubtitleTrack(SubtitleTrack.no());
   }
 
   @override
   Future<void> setEmbeddedAudioTrack(EmbeddedAudioTrack track) {
+    if (_disposed) return Future<void>.value();
     _log('setEmbeddedAudioTrack id=${track.id} title=${track.title}');
     return player.setAudioTrack(
       AudioTrack(track.id, track.title, track.language),
@@ -422,6 +422,7 @@ final class MediaKitPlaybackEngine implements PlaybackEngine {
 
   @override
   Future<void> setEmbeddedSubtitleTrack(EmbeddedSubtitleTrack track) {
+    if (_disposed) return Future<void>.value();
     _log('setEmbeddedSubtitleTrack id=${track.id} title=${track.title}');
     return player.setSubtitleTrack(
       SubtitleTrack(track.id, track.title, track.language),
@@ -430,24 +431,28 @@ final class MediaKitPlaybackEngine implements PlaybackEngine {
 
   @override
   Future<void> clearEmbeddedSubtitleTrack() {
+    if (_disposed) return Future<void>.value();
     _log('clearEmbeddedSubtitleTrack');
     return player.setSubtitleTrack(SubtitleTrack.no());
   }
 
   @override
   Future<void> pause() {
+    if (_disposed) return Future<void>.value();
     _log('pause');
     return player.pause();
   }
 
   @override
   Future<void> play() {
+    if (_disposed) return Future<void>.value();
     _log('play');
     return player.play();
   }
 
   @override
   Future<void> seekTo(Duration position) async {
+    if (_disposed) return;
     _log('seekTo position=$position');
     // Fire-and-forget: tell the proxy to pre-warm segments around the target
     // so they're cached by the time mpv's HLS demuxer requests them.
@@ -578,10 +583,7 @@ final class MediaKitPlaybackEngine implements PlaybackEngine {
     final platform = player.platform;
     if (platform is! NativePlayer) return;
     try {
-      await platform.setProperty(
-        'af',
-        enabled ? 'dynaudnorm=f=150:g=15' : '',
-      );
+      await platform.setProperty('af', enabled ? 'dynaudnorm=f=150:g=15' : '');
     } catch (_) {
       // Best-effort: ignore if MPV property is not available.
     }
@@ -598,17 +600,25 @@ final class MediaKitPlaybackEngine implements PlaybackEngine {
     for (final subscription in _debugSubscriptions) {
       await subscription.cancel();
     }
-    await player.dispose();
+    // Stop playback before disposing to reduce the race window where
+    // AndroidVideoController.widListener can trigger a seek on the
+    // already-disposed native player (media_kit internal race).
+    try {
+      await player.stop();
+    } catch (_) {}
+    try {
+      await player.dispose();
+    } catch (e) {
+      _debugLogSink?.call('[MediaKitPlaybackEngine] dispose error=$e');
+    }
   }
 
   Future<void> _openHlsAtPosition(
     ResolvedStream stream,
-    Duration startPosition,
-    {
+    Duration startPosition, {
     required Future<void> cancellation,
     required int generation,
-  }
-  ) async {
+  }) async {
     _log('hls-reopen start url=${stream.url} target=$startPosition');
     _throwIfInvalidated(generation);
     await player.stop();
@@ -947,9 +957,8 @@ final class MediaKitPlaybackEngine implements PlaybackEngine {
       if (player.state.duration <= Duration.zero) {
         return false;
       }
-      if (
-          DateTime.now().difference(observationStart) <
-              const Duration(milliseconds: 1500)) {
+      if (DateTime.now().difference(observationStart) <
+          const Duration(milliseconds: 1500)) {
         return false;
       }
       return position > Duration.zero && position < const Duration(seconds: 3);
@@ -1286,9 +1295,7 @@ final class MediaKitPlaybackEngine implements PlaybackEngine {
 
   void _cancelActiveOpenWaiters(String reason) {
     if (!_openCancellationCompleter.isCompleted) {
-      _log(
-        'open-sequence-cancel reason=$reason generation=$_openGeneration',
-      );
+      _log('open-sequence-cancel reason=$reason generation=$_openGeneration');
       _openCancellationCompleter.complete();
     }
     _openCancellationCompleter = Completer<void>();

@@ -220,13 +220,7 @@ final getSeasonRecommendationsUseCaseProvider =
 final getSeasonalDiscoveryCatalogUseCaseProvider =
     Provider<GetSeasonalDiscoveryCatalogUseCase>((ref) {
       return GetSeasonalDiscoveryCatalogUseCase(
-        seasonCatalog: ref.watch(getSeasonCatalogUseCaseProvider),
-        upcomingSeasonCatalog: ref.watch(
-          getUpcomingSeasonCatalogUseCaseProvider,
-        ),
-        seasonRecommendations: ref.watch(
-          getSeasonRecommendationsUseCaseProvider,
-        ),
+        ref.watch(animeCatalogRepositoryProvider),
       );
     });
 
@@ -255,6 +249,28 @@ final getAnimeEpisodesUseCaseProvider = Provider<GetAnimeEpisodesUseCase>((
   ref,
 ) {
   return GetAnimeEpisodesUseCase(ref.watch(animeCatalogRepositoryProvider));
+});
+
+final getBatchAnimeByIdsUseCaseProvider = Provider<GetBatchAnimeByIdsUseCase>((
+  ref,
+) {
+  return GetBatchAnimeByIdsUseCase(ref.watch(animeCatalogRepositoryProvider));
+});
+
+final browseAnimeUseCaseProvider = Provider<BrowseAnimeUseCase>((ref) {
+  return BrowseAnimeUseCase(ref.watch(animeCatalogRepositoryProvider));
+});
+
+final getGenreCollectionUseCaseProvider = Provider<GetGenreCollectionUseCase>((
+  ref,
+) {
+  return GetGenreCollectionUseCase(ref.watch(animeCatalogRepositoryProvider));
+});
+
+final getTagCollectionUseCaseProvider = Provider<GetTagCollectionUseCase>((
+  ref,
+) {
+  return GetTagCollectionUseCase(ref.watch(animeCatalogRepositoryProvider));
 });
 
 final getSourceAvailabilitySummaryUseCaseProvider =
@@ -447,6 +463,41 @@ final searchCatalogProvider = FutureProvider.autoDispose
       }
 
       return ref.watch(searchAnimeUseCaseProvider).call(query.trim());
+    });
+
+// ---------------------------------------------------------------------------
+// Browse / Discover providers
+// ---------------------------------------------------------------------------
+
+final browseAnimeCatalogProvider = FutureProvider.autoDispose
+    .family<Result<List<Anime>, KumoriyaError>, AnimeBrowseRequest>((
+      ref,
+      request,
+    ) async {
+      final link = ref.keepAlive();
+      final timer = Timer(const Duration(minutes: 10), link.close);
+      ref.onDispose(timer.cancel);
+      return ref.watch(browseAnimeUseCaseProvider).call(request);
+    });
+
+final genreCollectionProvider =
+    FutureProvider.autoDispose<Result<List<String>, KumoriyaError>>((
+      ref,
+    ) async {
+      final link = ref.keepAlive();
+      final timer = Timer(const Duration(minutes: 30), link.close);
+      ref.onDispose(timer.cancel);
+      return ref.watch(getGenreCollectionUseCaseProvider).call();
+    });
+
+final tagCollectionProvider =
+    FutureProvider.autoDispose<Result<List<AnimeTag>, KumoriyaError>>((
+      ref,
+    ) async {
+      final link = ref.keepAlive();
+      final timer = Timer(const Duration(minutes: 30), link.close);
+      ref.onDispose(timer.cancel);
+      return ref.watch(getTagCollectionUseCaseProvider).call();
     });
 
 final animeDetailProvider = FutureProvider.autoDispose

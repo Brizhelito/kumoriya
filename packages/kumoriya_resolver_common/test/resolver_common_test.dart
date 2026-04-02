@@ -19,7 +19,8 @@ void main() {
     });
 
     test('hasDeanEdwardsPacking detects packed JS', () {
-      const packed = r"""eval(function(p,a,c,k,e,d){return p}('x',10,1,'y'.split('|')""";
+      const packed =
+          r"""eval(function(p,a,c,k,e,d){return p}('x',10,1,'y'.split('|')""";
       expect(hasDeanEdwardsPacking(packed), isTrue);
       expect(hasDeanEdwardsPacking('no packing here'), isFalse);
     });
@@ -111,14 +112,17 @@ void main() {
 
     test('inferQualityFromUrl extracts resolution labels', () {
       expect(
-          inferQualityFromUrl(Uri.parse('https://cdn.com/1080p/stream.mp4')),
-          '1080p');
+        inferQualityFromUrl(Uri.parse('https://cdn.com/1080p/stream.mp4')),
+        '1080p',
+      );
       expect(
-          inferQualityFromUrl(Uri.parse('https://cdn.com/stream.m3u8')),
-          'auto');
+        inferQualityFromUrl(Uri.parse('https://cdn.com/stream.m3u8')),
+        'auto',
+      );
       expect(
-          inferQualityFromUrl(Uri.parse('https://cdn.com/video.mp4')),
-          'unknown');
+        inferQualityFromUrl(Uri.parse('https://cdn.com/video.mp4')),
+        'unknown',
+      );
     });
 
     test('isHostSupported matches exact and subdomain', () {
@@ -129,8 +133,9 @@ void main() {
     });
 
     test('buildEmbedHeaders includes Referer and Origin', () {
-      final headers =
-          buildEmbedHeaders(Uri.parse('https://embed.host.com/e/abc'));
+      final headers = buildEmbedHeaders(
+        Uri.parse('https://embed.host.com/e/abc'),
+      );
       expect(headers['Referer'], 'https://embed.host.com/');
       expect(headers['Origin'], 'https://embed.host.com');
     });

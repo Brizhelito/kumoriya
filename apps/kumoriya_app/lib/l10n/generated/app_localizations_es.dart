@@ -793,6 +793,10 @@ class AppLocalizationsEs extends AppLocalizations {
   String get downloadFailed => 'Descarga fallida';
 
   @override
+  String get downloadFileNotFound =>
+      'Archivo descargado no encontrado — pudo haber sido eliminado.';
+
+  @override
   String get downloadPaused => 'Pausado';
 
   @override
@@ -867,6 +871,9 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get autoDownloadAudioDub => 'DUB';
+
+  @override
+  String get downloadAllChooseAudio => 'Elegir tipo de audio';
 
   @override
   String get downloadHlsNotSupported =>
@@ -1182,6 +1189,16 @@ class AppLocalizationsEs extends AppLocalizations {
       'No hay enlaces de servidor disponibles para este episodio.';
 
   @override
+  String get downloadClearQueue => 'Limpiar cola';
+
+  @override
+  String get downloadClearQueueConfirmTitle => '¿Limpiar cola?';
+
+  @override
+  String get downloadClearQueueConfirmMessage =>
+      'Todas las descargas pendientes y fallidas serán eliminadas.';
+
+  @override
   String get downloadDeleteConfirmTitle => '¿Eliminar descarga?';
 
   @override
@@ -1193,4 +1210,209 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get playerLockControls => 'Bloquear controles';
+
+  @override
+  String get historyGroupToday => 'Hoy';
+
+  @override
+  String get historyGroupYesterday => 'Ayer';
+
+  @override
+  String get historyGroupThisWeek => 'Esta Semana';
+
+  @override
+  String get historyGroupThisMonth => 'Este Mes';
+
+  @override
+  String get historyGroupOlder => 'Anterior';
+
+  @override
+  String get historyDeleteEntryTitle => '¿Eliminar del historial?';
+
+  @override
+  String get historyDeleteEntryMessage =>
+      'Este anime será eliminado de tu historial de reproducción.';
+
+  @override
+  String get historyClearAllTitle => '¿Borrar todo el historial?';
+
+  @override
+  String get historyClearAllMessage =>
+      'Tu historial completo de reproducción será eliminado permanentemente.';
+
+  @override
+  String get historyClearAllAction => 'Borrar todo el historial';
+
+  @override
+  String get deleteAction => 'Eliminar';
+
+  @override
+  String get removeAction => 'Quitar';
+
+  @override
+  String get downloadViewAnimeDetails => 'Ver detalles del anime';
+
+  @override
+  String get downloadDeleteAllEpisodes => 'Eliminar todos los episodios';
+
+  @override
+  String get downloadDeleteEpisode => 'Eliminar episodio';
+
+  @override
+  String get downloadDeleteAllConfirmTitle =>
+      '¿Eliminar todos los episodios descargados?';
+
+  @override
+  String get downloadDeleteAllConfirmMessage =>
+      'Todos los episodios descargados de este anime serán eliminados permanentemente.';
+
+  @override
+  String get librarySortAlphabetical => 'A-Z';
+
+  @override
+  String get librarySortRecentlyAdded => 'Recién añadido';
+
+  @override
+  String get librarySortRecentlyWatched => 'Visto recientemente';
+
+  @override
+  String get libraryActionSave => 'Guardar';
+
+  @override
+  String get libraryActionNotify => 'Notificar';
+
+  @override
+  String get libraryActionAutoDownload => 'Auto DL';
+
+  @override
+  String get discoverTitle => 'Descubrir';
+
+  @override
+  String get discoverSubtitle => 'Encuentra tu próximo anime';
+
+  @override
+  String get discoverTrending => 'Tendencia ahora';
+
+  @override
+  String get discoverTopRated => 'Mejor valorados';
+
+  @override
+  String get discoverPopular => 'Más populares';
+
+  @override
+  String get discoverGenres => 'Explorar por género';
+
+  @override
+  String get discoverCantRemember => '¿No recuerdas el nombre?';
+
+  @override
+  String get discoverCantRememberSubtitle =>
+      'Busca un anime describiendo de qué trata';
+
+  @override
+  String get discoverStartTagSearch => 'Buscar por tags';
+
+  @override
+  String get browseResultsTitle => 'Resultados';
+
+  @override
+  String get browseNoResults => 'No se encontraron anime con estos filtros.';
+
+  @override
+  String get browseFilterGenre => 'Género';
+
+  @override
+  String get browseFilterFormat => 'Formato';
+
+  @override
+  String get browseFilterSeason => 'Temporada';
+
+  @override
+  String get browseFilterYear => 'Año';
+
+  @override
+  String get browseFilterSort => 'Ordenar por';
+
+  @override
+  String get browseFilterStatus => 'Estado';
+
+  @override
+  String get browseFilterTags => 'Tags';
+
+  @override
+  String get browseFilterApply => 'Aplicar filtros';
+
+  @override
+  String get browseFilterClear => 'Limpiar filtros';
+
+  @override
+  String get browseSortTrending => 'Tendencia';
+
+  @override
+  String get browseSortScore => 'Puntuación';
+
+  @override
+  String get browseSortPopularity => 'Popularidad';
+
+  @override
+  String get browseSortFavourites => 'Favoritos';
+
+  @override
+  String get browseSortNewest => 'Más recientes';
+
+  @override
+  String get browseSortTitle => 'Título';
+
+  @override
+  String get tagSearchTitle => 'Buscar por tags';
+
+  @override
+  String get tagSearchSubtitle =>
+      'Selecciona tags que describan el anime que buscas';
+
+  @override
+  String get tagSearchSelectCategory => 'Selecciona una categoría';
+
+  @override
+  String tagSearchSelectedTags(int count) {
+    return '$count tags seleccionados';
+  }
+
+  @override
+  String get tagSearchFindAnime => 'Buscar anime';
+
+  @override
+  String get tagSearchNoTags => 'Aún no hay tags seleccionados';
+
+  @override
+  String get tagSearchGuideStep1 => 'Abre una categoría para ver sus tags';
+
+  @override
+  String get tagSearchGuideStep2 => 'Toca los tags que recuerdes del anime';
+
+  @override
+  String get tagSearchGuideStep3 => 'Presiona buscar para ver resultados';
+
+  @override
+  String get tagSearchFilterHint => 'Filtrar tags por nombre...';
+
+  @override
+  String browseGenreApply(int count) {
+    return 'Aplicar ($count)';
+  }
+
+  @override
+  String get formatTv => 'TV';
+
+  @override
+  String get formatMovie => 'Película';
+
+  @override
+  String get formatOva => 'OVA';
+
+  @override
+  String get formatOna => 'ONA';
+
+  @override
+  String get formatSpecial => 'Especial';
 }

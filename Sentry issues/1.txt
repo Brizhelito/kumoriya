@@ -1,0 +1,12 @@
+StateError: Bad state: Using "ref" when a widget is about to or has been unmounted is unsafe.
+Ref relies on BuildContext, and BuildContext is unsafe to use when the widget is deactivated.
+To safely refer to the state of providers inside State.dispose(), save the provider state in a field of your State class.
+#0      ConsumerStatefulElement._assertNotDisposed (package:flutter_riverpod/src/core/consumer.dart:456:7)
+#1      ConsumerStatefulElement.invalidate (package:flutter_riverpod/src/core/consumer.dart:554:5)
+#2      _refreshDownloads (package:kumoriya_app/src/features/anime_catalog/presentation/pages/downloads_page.dart:927:7)
+#3 (<asynchronous suspension>)
+#4      RefreshIndicatorState._show.<fn>.<fn> (package:flutter/src/material/refresh_indicator.dart:579:40)
+2
+_Exception: Exception: Resolver failure: resolver.streamwish.parse
+_Exception: Exception: Resolver failure: resolver.streamtape.transport
+_Exception: Exception: Download resolve failure: resolver.okru.parse
