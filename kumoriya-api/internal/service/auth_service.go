@@ -9,15 +9,30 @@ import (
 	"github.com/rs/zerolog/log"
 
 	"go-fiber-microservice/internal/model"
-	"go-fiber-microservice/internal/repository"
 )
 
+type authUserRepository interface {
+	GetUserByID(ctx context.Context, id uuid.UUID) (*model.User, error)
+	FindOAuthAccount(ctx context.Context, provider, providerID string) (*model.OAuthAccount, error)
+	UpdateAvatar(ctx context.Context, id uuid.UUID, avatarURL string) error
+	CreateUser(ctx context.Context, displayName string, avatarURL *string) (*model.User, error)
+	UpsertOAuthAccount(ctx context.Context, acct *model.OAuthAccount) error
+	GetActiveSessionsByUser(ctx context.Context, userID uuid.UUID) ([]model.Session, error)
+	RevokeAllSessions(ctx context.Context, userID uuid.UUID) error
+	UpdateSessionHash(ctx context.Context, sessionID uuid.UUID, newHash string, newExpiry time.Time) error
+	RevokeSession(ctx context.Context, sessionID uuid.UUID) error
+	DeleteUser(ctx context.Context, id uuid.UUID) error
+	CountActiveSessions(ctx context.Context, userID uuid.UUID) (int, error)
+	RevokeOldestSession(ctx context.Context, userID uuid.UUID) error
+	CreateSession(ctx context.Context, s *model.Session) error
+}
+
 type AuthService struct {
-	userRepo *repository.UserRepo
+	userRepo authUserRepository
 	jwt      *JWTService
 }
 
-func NewAuthService(ur *repository.UserRepo, jwt *JWTService) *AuthService {
+func NewAuthService(ur authUserRepository, jwt *JWTService) *AuthService {
 	return &AuthService{userRepo: ur, jwt: jwt}
 }
 

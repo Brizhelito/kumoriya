@@ -111,25 +111,27 @@ func registerProtectedRoutes(app *fiber.App, cfg config.Config) {
 	authHandler := handler.NewAuthHandler(authSvc, oauthSvc, passkeySvc)
 	syncHandler := handler.NewSyncHandler(syncSvc)
 	profileHandler := handler.NewProfileHandler(userRepo)
+	authIPRateLimit := middleware.PerIPRateLimit(10, time.Minute)
+	oauthCallbackRateLimit := middleware.PerIPRateLimit(5, time.Minute)
 
 	// ── Auth Routes (public) ──
 	auth := app.Group("/auth")
-	auth.Get("/oauth/:provider", authHandler.OAuthStart)
-	auth.Get("/oauth/:provider/callback", authHandler.OAuthCallback)
-	auth.Post("/refresh", authHandler.Refresh)
+	auth.Get("/oauth/:provider", authIPRateLimit, authHandler.OAuthStart)
+	auth.Get("/oauth/:provider/callback", oauthCallbackRateLimit, authHandler.OAuthCallback)
+	auth.Post("/refresh", authIPRateLimit, authHandler.Refresh)
 
 	if passkeySvc != nil {
-		auth.Post("/passkeys/authenticate/begin", authHandler.PasskeyAuthBegin)
-		auth.Post("/passkeys/authenticate/finish", authHandler.PasskeyAuthFinish)
+		auth.Post("/passkeys/authenticate/begin", authIPRateLimit, authHandler.PasskeyAuthBegin)
+		auth.Post("/passkeys/authenticate/finish", authIPRateLimit, authHandler.PasskeyAuthFinish)
 	}
 
 	// ── Auth middleware for protected routes ──
 	requireAuth := middleware.RequireAuth(jwtSvc)
 
-	auth.Post("/logout", requireAuth, authHandler.Logout)
+	auth.Post("/logout", authIPRateLimit, requireAuth, authHandler.Logout)
 	if passkeySvc != nil {
-		auth.Post("/passkeys/register/begin", requireAuth, authHandler.PasskeyRegisterBegin)
-		auth.Post("/passkeys/register/finish", requireAuth, authHandler.PasskeyRegisterFinish)
+		auth.Post("/passkeys/register/begin", authIPRateLimit, requireAuth, authHandler.PasskeyRegisterBegin)
+		auth.Post("/passkeys/register/finish", authIPRateLimit, requireAuth, authHandler.PasskeyRegisterFinish)
 	}
 
 	// ── API v1 Routes (all protected) ──

@@ -1,6 +1,10 @@
 package model
 
-import "github.com/google/uuid"
+import (
+	"fmt"
+
+	"github.com/google/uuid"
+)
 
 type EpisodeProgress struct {
 	UserID             uuid.UUID `json:"user_id"`
@@ -65,4 +69,85 @@ type SyncPushRequest struct {
 type SyncPushResponse struct {
 	Applied   int      `json:"applied"`
 	Conflicts []string `json:"conflicts,omitempty"`
+}
+
+const (
+	maxSyncBatchPerEntity = 1000
+	maxSyncBatchTotal     = 5000
+)
+
+// Validate performs defensive payload validation for sync push requests.
+// It rejects malformed records early to avoid persisting invalid state.
+func (r *SyncPushRequest) Validate() error {
+	total := len(r.EpisodeProgress) + len(r.WatchHistory) + len(r.PlaybackPreferences) + len(r.LibraryEntries)
+	if total == 0 {
+		return fmt.Errorf("sync payload is empty")
+	}
+	if total > maxSyncBatchTotal {
+		return fmt.Errorf("sync payload too large")
+	}
+	if len(r.EpisodeProgress) > maxSyncBatchPerEntity ||
+		len(r.WatchHistory) > maxSyncBatchPerEntity ||
+		len(r.PlaybackPreferences) > maxSyncBatchPerEntity ||
+		len(r.LibraryEntries) > maxSyncBatchPerEntity {
+		return fmt.Errorf("sync payload exceeds per-entity limit")
+	}
+
+	for _, ep := range r.EpisodeProgress {
+		if ep.AnilistID <= 0 || ep.EpisodeNumber <= 0 || ep.UpdatedAt <= 0 {
+			return fmt.Errorf("invalid episode_progress identity or timestamp")
+		}
+		if ep.PositionSeconds < 0 {
+			return fmt.Errorf("invalid episode_progress position_seconds")
+		}
+		if ep.TotalDuration != nil && *ep.TotalDuration <= 0 {
+			return fmt.Errorf("invalid episode_progress total_duration_seconds")
+		}
+		switch ep.WatchState {
+		case "unwatched", "watching", "completed":
+		default:
+			return fmt.Errorf("invalid episode_progress watch_state")
+		}
+	}
+
+	for _, wh := range r.WatchHistory {
+		if wh.AnilistID <= 0 || wh.LastEpisodeNumber <= 0 || wh.LastAccessedAt <= 0 {
+			return fmt.Errorf("invalid watch_history identity or timestamp")
+		}
+		if wh.LastPositionSecs < 0 {
+			return fmt.Errorf("invalid watch_history last_position_seconds")
+		}
+		if wh.LastTotalDuration != nil && *wh.LastTotalDuration <= 0 {
+			return fmt.Errorf("invalid watch_history last_total_duration_seconds")
+		}
+	}
+
+	for _, pp := range r.PlaybackPreferences {
+		if pp.AnilistID <= 0 || pp.UpdatedAt <= 0 {
+			return fmt.Errorf("invalid playback_preferences identity or timestamp")
+		}
+		if pp.PreferredAudioPref != nil {
+			switch *pp.PreferredAudioPref {
+			case "none", "sub", "dub":
+			default:
+				return fmt.Errorf("invalid playback_preferences preferred_audio_preference")
+			}
+		}
+	}
+
+	for _, le := range r.LibraryEntries {
+		if le.AnilistID <= 0 || le.AddedAt <= 0 {
+			return fmt.Errorf("invalid library_entries identity or timestamp")
+		}
+		if le.LastNotifiedEpisode != nil && *le.LastNotifiedEpisode < 0 {
+			return fmt.Errorf("invalid library_entries last_notified_episode")
+		}
+		switch le.AutoDownloadAudioPref {
+		case "", "none", "sub", "dub":
+		default:
+			return fmt.Errorf("invalid library_entries auto_download_audio_preference")
+		}
+	}
+
+	return nil
 }

@@ -1,17 +1,35 @@
 package handler
 
 import (
+	"context"
+
+	"github.com/google/uuid"
 	"github.com/gofiber/fiber/v3"
 
+	"go-fiber-microservice/internal/model"
 	"go-fiber-microservice/internal/middleware"
-	"go-fiber-microservice/internal/repository"
 )
 
-type ProfileHandler struct {
-	userRepo *repository.UserRepo
+type profileUserRepository interface {
+	GetUserByID(ctx context.Context, id uuid.UUID) (*model.User, error)
+	UpdateDisplayName(ctx context.Context, id uuid.UUID, displayName string) error
+	ListOAuthAccountsByUser(ctx context.Context, userID uuid.UUID) ([]model.OAuthAccount, error)
+	GetActiveSessionsByUser(ctx context.Context, userID uuid.UUID) ([]model.Session, error)
+	GetPasskeysByUser(ctx context.Context, userID uuid.UUID) ([]model.PasskeyCredential, error)
 }
 
-func NewProfileHandler(ur *repository.UserRepo) *ProfileHandler {
+type ProfileResponse struct {
+	User          *model.User               `json:"user"`
+	LinkedAccounts []model.OAuthAccount     `json:"linked_accounts"`
+	ActiveSessions []model.Session          `json:"active_sessions"`
+	RegisteredPasskeys []model.PasskeyCredential `json:"registered_passkeys"`
+}
+
+type ProfileHandler struct {
+	userRepo profileUserRepository
+}
+
+func NewProfileHandler(ur profileUserRepository) *ProfileHandler {
 	return &ProfileHandler{userRepo: ur}
 }
 
@@ -29,8 +47,25 @@ func (h *ProfileHandler) GetProfile(c fiber.Ctx) error {
 	if user == nil {
 		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "user not found"})
 	}
+	linkedAccounts, err := h.userRepo.ListOAuthAccountsByUser(c.Context(), userID)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to fetch linked accounts"})
+	}
+	activeSessions, err := h.userRepo.GetActiveSessionsByUser(c.Context(), userID)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to fetch active sessions"})
+	}
+	registeredPasskeys, err := h.userRepo.GetPasskeysByUser(c.Context(), userID)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to fetch registered passkeys"})
+	}
 
-	return c.JSON(user)
+	return c.JSON(ProfileResponse{
+		User:               user,
+		LinkedAccounts:     linkedAccounts,
+		ActiveSessions:     activeSessions,
+		RegisteredPasskeys: registeredPasskeys,
+	})
 }
 
 // UpdateProfile handles PATCH /api/v1/profile { "display_name": "..." }
@@ -65,5 +100,23 @@ func (h *ProfileHandler) UpdateProfile(c fiber.Ctx) error {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to fetch profile"})
 	}
 
-	return c.JSON(user)
+	linkedAccounts, err := h.userRepo.ListOAuthAccountsByUser(c.Context(), userID)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to fetch linked accounts"})
+	}
+	activeSessions, err := h.userRepo.GetActiveSessionsByUser(c.Context(), userID)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to fetch active sessions"})
+	}
+	registeredPasskeys, err := h.userRepo.GetPasskeysByUser(c.Context(), userID)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to fetch registered passkeys"})
+	}
+
+	return c.JSON(ProfileResponse{
+		User:               user,
+		LinkedAccounts:     linkedAccounts,
+		ActiveSessions:     activeSessions,
+		RegisteredPasskeys: registeredPasskeys,
+	})
 }

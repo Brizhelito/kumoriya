@@ -106,6 +106,30 @@ func (r *UserRepo) FindOAuthAccount(ctx context.Context, provider, providerID st
 	return a, nil
 }
 
+func (r *UserRepo) ListOAuthAccountsByUser(ctx context.Context, userID uuid.UUID) ([]model.OAuthAccount, error) {
+	rows, err := r.pool.Query(ctx,
+		`SELECT id, user_id, provider, provider_id, email, created_at
+		 FROM oauth_accounts
+		 WHERE user_id = $1
+		 ORDER BY created_at ASC`,
+		userID,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var accounts []model.OAuthAccount
+	for rows.Next() {
+		var account model.OAuthAccount
+		if err := rows.Scan(&account.ID, &account.UserID, &account.Provider, &account.ProviderID, &account.Email, &account.CreatedAt); err != nil {
+			return nil, err
+		}
+		accounts = append(accounts, account)
+	}
+	return accounts, rows.Err()
+}
+
 // --- Sessions ---
 
 func (r *UserRepo) CreateSession(ctx context.Context, s *model.Session) error {

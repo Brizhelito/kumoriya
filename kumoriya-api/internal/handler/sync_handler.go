@@ -50,6 +50,9 @@ func (h *SyncHandler) Push(c fiber.Ctx) error {
 	if err := c.Bind().JSON(&req); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid request body"})
 	}
+	if err := req.Validate(); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": err.Error()})
+	}
 
 	resp, err := h.syncSvc.Push(c.Context(), userID, &req)
 	if err != nil {
