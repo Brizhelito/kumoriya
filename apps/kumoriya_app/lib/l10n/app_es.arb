@@ -484,6 +484,9 @@
   "downloadPaused": "Pausado",
   "downloadPending": "Pendiente",
   "downloadCancel": "Cancelar",
+  "downloadClearQueue": "Limpiar cola",
+  "downloadClearQueueConfirmTitle": "¿Limpiar cola?",
+  "downloadClearQueueConfirmMessage": "Esto eliminará todas las descargas pendientes y fallidas de la cola. Esta acción no se puede deshacer.",
   "downloadRetry": "Reintentar",
   "downloadDelete": "Eliminar",
   "downloadPause": "Pausar",
@@ -627,9 +630,6 @@
   "playerSkipCredits": "Saltar créditos",
   "clearSearch": "Borrar búsqueda",
   "sourceServerLinksEmpty": "No hay enlaces de servidor disponibles para este episodio.",
-  "downloadClearQueue": "Limpiar cola",
-  "downloadClearQueueConfirmTitle": "¿Limpiar cola?",
-  "downloadClearQueueConfirmMessage": "Todas las descargas pendientes y fallidas serán eliminadas.",
   "downloadDeleteConfirmTitle": "¿Eliminar descarga?",
   "downloadDeleteConfirmMessage": "Este episodio descargado será eliminado permanentemente de tu dispositivo.",
   "cancelAction": "Cancelar",
@@ -713,5 +713,8 @@
   "formatMovie": "Película",
   "formatOva": "OVA",
   "formatOna": "ONA",
-  "formatSpecial": "Especial"
+  "formatSpecial": "Especial",
+  "downloadRetryAllFailed": "Reintentar todas",
+  "downloadPauseAll": "Pausar todas",
+  "downloadResumeAll": "Reanudar todas"
 }

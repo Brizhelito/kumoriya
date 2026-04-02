@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:http/http.dart' as http;
 import 'package:kumoriya_core/kumoriya_core.dart';
 import 'package:kumoriya_plugins/kumoriya_plugins.dart';
@@ -111,9 +113,12 @@ final class StreamwishResolverPlugin implements ResolverPlugin {
         );
       }
 
-      final extractionPayload = common.buildExtractionPayload(response.body);
+      final extractionPayload = common.buildExtractionPayload(
+        common.safeResponseBody(response),
+      );
       var streams = _extractStreams(extractionPayload, url);
-      if (streams.isEmpty && _isLoadingShell(response.body)) {
+      if (streams.isEmpty &&
+          _isLoadingShell(common.safeResponseBody(response))) {
         final fallbackStreams = await _tryKnownMirrorFallback(url);
         if (fallbackStreams.isNotEmpty) {
           streams = fallbackStreams;
@@ -157,7 +162,10 @@ final class StreamwishResolverPlugin implements ResolverPlugin {
       return const <ResolvedStream>[];
     }
 
-    final futures = _mirrorHosts.map((mirrorHost) async {
+    final completer = Completer<List<ResolvedStream>>();
+    var remaining = _mirrorHosts.length;
+
+    for (final mirrorHost in _mirrorHosts) {
       final mirrorUrl = initialUrl.replace(
         scheme: 'https',
         host: mirrorHost,
@@ -165,29 +173,41 @@ final class StreamwishResolverPlugin implements ResolverPlugin {
         fragment: null,
       );
 
-      try {
-        final response = await _httpClient
-            .get(mirrorUrl, headers: _headers(initialUrl))
-            .timeout(const Duration(seconds: 10));
-        if (response.statusCode != 200) return const <ResolvedStream>[];
+      () async {
+        try {
+          final response = await _httpClient
+              .get(mirrorUrl, headers: _headers(initialUrl))
+              .timeout(const Duration(seconds: 10));
+          if (response.statusCode != 200) {
+            return const <ResolvedStream>[];
+          }
 
-        final payload = common.buildExtractionPayload(response.body);
-        return _extractStreams(payload, mirrorUrl);
-      } catch (_) {
-        return const <ResolvedStream>[];
-      }
-    });
+          final payload = common.buildExtractionPayload(
+            common.safeResponseBody(response),
+          );
+          return _extractStreams(payload, mirrorUrl);
+        } catch (_) {
+          return const <ResolvedStream>[];
+        }
+      }().then((streams) {
+        if (streams.isNotEmpty && !completer.isCompleted) {
+          completer.complete(streams);
+          return;
+        }
 
-    final results = await Future.wait(futures);
-    for (final streams in results) {
-      if (streams.isNotEmpty) return streams;
+        remaining -= 1;
+        if (remaining == 0 && !completer.isCompleted) {
+          completer.complete(const <ResolvedStream>[]);
+        }
+      });
     }
-    return const <ResolvedStream>[];
+
+    return completer.future;
   }
 }
 
 final _swKeyedRe = RegExp(
-  r'''(?:file|src|source|hls|wurl|url|m3u8|mp4)\s*[:=]\s*(?:"([^"]+)"|\'([^\']+)\')''',
+  r'''(?:file|src|source|hls)\s*[:=]\s*(?:"([^"]+)"|'([^']+)')''',
   caseSensitive: false,
   multiLine: true,
 );
@@ -285,13 +305,10 @@ bool _isPlayable(Uri uri) {
     return false;
   }
 
-  final full = uri.toString().toLowerCase();
-  return full.contains('.m3u8') ||
-      full.contains('.mp4') ||
-      full.contains('/hls/') ||
-      full.contains('/playlist') ||
-      full.contains('/video/') ||
-      full.contains('/stream');
+  final path = uri.path.toLowerCase();
+  return path.contains('.m3u8') ||
+      path.contains('.mp4') ||
+      path.contains('/hls/');
 }
 
 bool _hasHints(String payload) {

@@ -806,6 +806,16 @@ class AppLocalizationsEs extends AppLocalizations {
   String get downloadCancel => 'Cancelar';
 
   @override
+  String get downloadClearQueue => 'Limpiar cola';
+
+  @override
+  String get downloadClearQueueConfirmTitle => '¿Limpiar cola?';
+
+  @override
+  String get downloadClearQueueConfirmMessage =>
+      'Esto eliminará todas las descargas pendientes y fallidas de la cola. Esta acción no se puede deshacer.';
+
+  @override
   String get downloadRetry => 'Reintentar';
 
   @override
@@ -1189,16 +1199,6 @@ class AppLocalizationsEs extends AppLocalizations {
       'No hay enlaces de servidor disponibles para este episodio.';
 
   @override
-  String get downloadClearQueue => 'Limpiar cola';
-
-  @override
-  String get downloadClearQueueConfirmTitle => '¿Limpiar cola?';
-
-  @override
-  String get downloadClearQueueConfirmMessage =>
-      'Todas las descargas pendientes y fallidas serán eliminadas.';
-
-  @override
   String get downloadDeleteConfirmTitle => '¿Eliminar descarga?';
 
   @override
@@ -1415,4 +1415,13 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get formatSpecial => 'Especial';
+
+  @override
+  String get downloadRetryAllFailed => 'Reintentar todas';
+
+  @override
+  String get downloadPauseAll => 'Pausar todas';
+
+  @override
+  String get downloadResumeAll => 'Reanudar todas';
 }

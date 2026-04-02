@@ -23,4 +23,13 @@ abstract final class AppConfig {
     'SENTRY_RELEASE',
     defaultValue: 'kumoriya@0.1.3+4',
   );
+
+  /// Enables verbose download diagnostics when explicitly requested.
+  ///
+  /// Example:
+  ///   flutter run --dart-define=KUMORIYA_DOWNLOAD_DEBUG_LOGS=true
+  static const downloadDebugLogsEnabled = bool.fromEnvironment(
+    'KUMORIYA_DOWNLOAD_DEBUG_LOGS',
+    defaultValue: false,
+  );
 }

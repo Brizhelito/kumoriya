@@ -12,6 +12,7 @@ dependencies:
   http: ^1.2.2
   kumoriya_core:
   kumoriya_plugins:
+  kumoriya_resolver_common:
   pointycastle: ^4.0.0
 
 dev_dependencies:

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kumoriya_app/src/features/anime_catalog/application/services/resolver_registry.dart';
 import 'package:kumoriya_app/src/features/anime_catalog/application/use_cases/get_source_episode_server_links_use_case.dart';
@@ -51,6 +53,35 @@ void main() {
       expect(result.isFailure, isTrue);
       result.fold(
         onFailure: (error) => expect(error.code, 'source.no_supported_links'),
+        onSuccess: (_) => fail('expected failure'),
+      );
+    },
+  );
+
+  test(
+    'returns timeout when source plugin never returns server links',
+    () async {
+      final useCase = GetSourceEpisodeServerLinksUseCase(
+        sourcePlugin: _NeverCompletesSourcePlugin(),
+        registry: ResolverRegistry(resolvers: <ResolverPlugin>[]),
+        fetchTimeout: const Duration(milliseconds: 10),
+      );
+
+      final result = await useCase.call(
+        SourceEpisode(
+          sourceEpisodeId: '1',
+          number: 1,
+          title: 'Episode 1',
+          episodeUrl: Uri.parse('https://example.com/1'),
+        ),
+      );
+
+      expect(result.isFailure, isTrue);
+      result.fold(
+        onFailure: (error) {
+          expect(error.code, 'source.links_timeout');
+          expect(error.kind, KumoriyaErrorKind.transport);
+        },
         onSuccess: (_) => fail('expected failure'),
       );
     },
@@ -138,4 +169,42 @@ final class _FakeResolver implements ResolverPlugin {
 
   @override
   bool supports(Uri url) => url.host == host;
+}
+
+final class _NeverCompletesSourcePlugin implements SourcePlugin {
+  @override
+  PluginManifest get manifest => const PluginManifest(
+    id: 'never.source',
+    displayName: 'Never Source',
+    type: PluginType.source,
+    capabilities: <PluginCapability>{PluginCapability.linkExtraction},
+  );
+
+  @override
+  Future<Result<SourceAnimeDetail, KumoriyaError>> getAnimeDetail(
+    String sourceId,
+  ) async {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<Result<List<SourceEpisode>, KumoriyaError>> getEpisodes(
+    String sourceId,
+  ) async {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<Result<List<SourceServerLink>, KumoriyaError>> getEpisodeServerLinks(
+    SourceEpisode episode,
+  ) {
+    return Completer<Result<List<SourceServerLink>, KumoriyaError>>().future;
+  }
+
+  @override
+  Future<Result<List<SourceAnimeMatch>, KumoriyaError>> search(
+    SourceSearchQuery query,
+  ) async {
+    throw UnimplementedError();
+  }
 }

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:kumoriya_core/kumoriya_core.dart';
 import 'package:kumoriya_plugins/kumoriya_plugins.dart';
 
@@ -7,16 +8,34 @@ final class GetSourceEpisodeServerLinksUseCase {
   const GetSourceEpisodeServerLinksUseCase({
     required SourcePlugin sourcePlugin,
     required ResolverRegistry registry,
+    Duration fetchTimeout = const Duration(seconds: 20),
   }) : _sourcePlugin = sourcePlugin,
-       _registry = registry;
+       _registry = registry,
+       _fetchTimeout = fetchTimeout;
 
   final SourcePlugin _sourcePlugin;
   final ResolverRegistry _registry;
+  final Duration _fetchTimeout;
 
   Future<Result<List<SourceServerLink>, KumoriyaError>> call(
     SourceEpisode episode,
   ) async {
-    final result = await _sourcePlugin.getEpisodeServerLinks(episode);
+    Result<List<SourceServerLink>, KumoriyaError> result;
+    try {
+      result = await _sourcePlugin
+          .getEpisodeServerLinks(episode)
+          .timeout(_fetchTimeout);
+    } on TimeoutException {
+      return Failure(
+        SimpleError(
+          code: 'source.links_timeout',
+          message:
+              'Timed out loading episode server links after ${_fetchTimeout.inSeconds}s.',
+          kind: KumoriyaErrorKind.transport,
+        ),
+      );
+    }
+
     return result.fold(
       onFailure: Failure.new,
       onSuccess: (links) {

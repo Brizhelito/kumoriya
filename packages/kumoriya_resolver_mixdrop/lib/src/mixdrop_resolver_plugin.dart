@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:http/http.dart' as http;
 import 'package:kumoriya_core/kumoriya_core.dart';
 import 'package:kumoriya_plugins/kumoriya_plugins.dart';
@@ -111,7 +113,8 @@ final class MixdropResolverPlugin implements ResolverPlugin {
         );
       }
 
-      final payload = await response.stream.bytesToString();
+      final payloadBytes = await response.stream.toBytes();
+      final payload = utf8.decode(payloadBytes, allowMalformed: true);
       final streams = _extractStreams(payload, baseUrl: effectiveEmbedUrl);
       if (streams.isEmpty) {
         if (_hasHints(payload)) {

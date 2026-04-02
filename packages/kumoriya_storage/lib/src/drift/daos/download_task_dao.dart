@@ -66,6 +66,19 @@ class DownloadTaskDao extends DatabaseAccessor<AppDatabase>
     return query.get();
   }
 
+  Future<List<DownloadTaskTableData>> getTasksByStatuses(
+    List<String> statuses, {
+    int? limit,
+  }) {
+    final query = select(downloadTaskTable)
+      ..where((t) => t.status.isIn(statuses))
+      ..orderBy([(t) => OrderingTerm.asc(t.createdAt)]);
+    if (limit != null) {
+      query.limit(limit);
+    }
+    return query.get();
+  }
+
   Future<List<DownloadTaskTableData>> getAllTasks({int? limit}) {
     final query = select(downloadTaskTable)
       ..orderBy([(t) => OrderingTerm.desc(t.createdAt)]);

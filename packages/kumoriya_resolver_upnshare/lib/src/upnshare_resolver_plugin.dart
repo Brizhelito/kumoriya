@@ -3,6 +3,7 @@ import 'dart:typed_data';
 
 import 'package:http/http.dart' as http;
 import 'package:kumoriya_core/kumoriya_core.dart';
+import 'package:kumoriya_resolver_common/kumoriya_resolver_common.dart';
 import 'package:kumoriya_plugins/kumoriya_plugins.dart';
 import 'package:pointycastle/export.dart';
 
@@ -71,7 +72,7 @@ final class UpnshareResolverPlugin implements ResolverPlugin {
         );
       }
 
-      final payload = _decryptPayload(response.body);
+      final payload = _decryptPayload(safeResponseBody(response));
       if (payload == null) {
         return const Failure(
           UpnshareParseError(

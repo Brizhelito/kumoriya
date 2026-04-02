@@ -249,6 +249,9 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
           return;
         }
         ref.invalidate(allDownloadTasksProvider);
+        ref.invalidate(completedDownloadTasksProvider);
+        ref.invalidate(activeDownloadTasksProvider);
+        ref.invalidate(queuedDownloadTasksProvider);
         ref.invalidate(downloadDirectoryInfoProvider);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -283,6 +286,9 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
           return;
         }
         ref.invalidate(allDownloadTasksProvider);
+        ref.invalidate(completedDownloadTasksProvider);
+        ref.invalidate(activeDownloadTasksProvider);
+        ref.invalidate(queuedDownloadTasksProvider);
         ref.invalidate(downloadDirectoryInfoProvider);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(context.l10n.downloadFolderResetDone)),

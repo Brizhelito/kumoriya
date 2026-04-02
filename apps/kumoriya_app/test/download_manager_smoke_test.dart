@@ -379,6 +379,18 @@ final class _InMemoryDownloadStore implements DownloadStore {
   }
 
   @override
+  Future<Result<List<DownloadTask>, KumoriyaError>> getTasksByStatuses(
+    List<DownloadStatus> statuses, {
+    int? limit,
+  }) async {
+    final statusSet = statuses.toSet();
+    final all = _tasks.values
+        .where((task) => statusSet.contains(task.status))
+        .toList(growable: false);
+    return Success(limit != null ? all.take(limit).toList() : all);
+  }
+
+  @override
   Future<Result<void, KumoriyaError>> insertTask(DownloadTask task) async {
     _tasks[task.id] = task;
     return const Success(null);

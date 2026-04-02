@@ -296,7 +296,7 @@ final class JkAnimeSourcePlugin implements SourcePlugin {
         );
       }
 
-      return Success(response.body);
+      return Success(utf8.decode(response.bodyBytes, allowMalformed: true));
     } catch (error) {
       return Failure(
         JkAnimeTransportError(message: 'JKAnime request failed: $error'),
@@ -314,7 +314,10 @@ final class JkAnimeSourcePlugin implements SourcePlugin {
       final streamed = await _httpClient
           .send(request)
           .timeout(const Duration(seconds: 15));
-      final body = await streamed.stream.bytesToString();
+      final body = utf8.decode(
+        await streamed.stream.toBytes(),
+        allowMalformed: true,
+      );
 
       if (streamed.statusCode != 200) {
         return Failure(
@@ -395,7 +398,9 @@ final class JkAnimeSourcePlugin implements SourcePlugin {
         );
       }
 
-      final decoded = jsonDecode(response.body);
+      final decoded = jsonDecode(
+        utf8.decode(response.bodyBytes, allowMalformed: true),
+      );
       if (decoded is! Map<String, dynamic>) {
         return const Failure(
           JkAnimeParseError(

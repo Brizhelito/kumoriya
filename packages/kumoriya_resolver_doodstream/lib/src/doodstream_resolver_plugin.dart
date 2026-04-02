@@ -136,9 +136,9 @@ final class DoodstreamResolverPlugin implements ResolverPlugin {
         );
       }
 
-      final passMd5Path = _extractPassMd5Path(embedResponse.body);
+      final passMd5Path = _extractPassMd5Path(safeResponseBody(embedResponse));
       if (passMd5Path == null) {
-        if (_hasHints(embedResponse.body)) {
+        if (_hasHints(safeResponseBody(embedResponse))) {
           return const Failure(
             DoodstreamInconsistentPayloadError(
               message:
@@ -173,7 +173,7 @@ final class DoodstreamResolverPlugin implements ResolverPlugin {
         );
       }
 
-      final partialUrl = tokenResponse.body.trim();
+      final partialUrl = safeResponseBody(tokenResponse).trim();
       if (partialUrl.isEmpty || !partialUrl.startsWith('http')) {
         return const Failure(
           DoodstreamParseError(

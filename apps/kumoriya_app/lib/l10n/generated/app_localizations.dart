@@ -1369,6 +1369,24 @@ abstract class AppLocalizations {
   /// **'Cancel'**
   String get downloadCancel;
 
+  /// No description provided for @downloadClearQueue.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear queue'**
+  String get downloadClearQueue;
+
+  /// No description provided for @downloadClearQueueConfirmTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear queue?'**
+  String get downloadClearQueueConfirmTitle;
+
+  /// No description provided for @downloadClearQueueConfirmMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'This will remove all pending and failed downloads from the queue. This action cannot be undone.'**
+  String get downloadClearQueueConfirmMessage;
+
   /// No description provided for @downloadRetry.
   ///
   /// In en, this message translates to:
@@ -2095,24 +2113,6 @@ abstract class AppLocalizations {
   /// **'No server links available for this episode.'**
   String get sourceServerLinksEmpty;
 
-  /// No description provided for @downloadClearQueue.
-  ///
-  /// In en, this message translates to:
-  /// **'Clear queue'**
-  String get downloadClearQueue;
-
-  /// No description provided for @downloadClearQueueConfirmTitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Clear queue?'**
-  String get downloadClearQueueConfirmTitle;
-
-  /// No description provided for @downloadClearQueueConfirmMessage.
-  ///
-  /// In en, this message translates to:
-  /// **'All pending and failed downloads will be removed.'**
-  String get downloadClearQueueConfirmMessage;
-
   /// No description provided for @downloadDeleteConfirmTitle.
   ///
   /// In en, this message translates to:
@@ -2526,6 +2526,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Special'**
   String get formatSpecial;
+
+  /// No description provided for @downloadRetryAllFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Retry all'**
+  String get downloadRetryAllFailed;
+
+  /// No description provided for @downloadPauseAll.
+  ///
+  /// In en, this message translates to:
+  /// **'Pause all'**
+  String get downloadPauseAll;
+
+  /// No description provided for @downloadResumeAll.
+  ///
+  /// In en, this message translates to:
+  /// **'Resume all'**
+  String get downloadResumeAll;
 }
 
 class _AppLocalizationsDelegate

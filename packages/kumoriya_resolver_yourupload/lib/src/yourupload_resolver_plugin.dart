@@ -1,5 +1,6 @@
 import 'package:http/http.dart' as http;
 import 'package:kumoriya_core/kumoriya_core.dart';
+import 'package:kumoriya_resolver_common/kumoriya_resolver_common.dart';
 import 'package:kumoriya_plugins/kumoriya_plugins.dart';
 
 import 'errors/yourupload_resolver_error.dart';
@@ -73,9 +74,9 @@ final class YouruploadResolverPlugin implements ResolverPlugin {
         );
       }
 
-      final streams = _extractStreams(response.body, baseUrl: url);
+      final streams = _extractStreams(safeResponseBody(response), baseUrl: url);
       if (streams.isEmpty) {
-        if (_hasHints(response.body)) {
+        if (_hasHints(safeResponseBody(response))) {
           return const Failure(
             YouruploadInconsistentPayloadError(
               message:

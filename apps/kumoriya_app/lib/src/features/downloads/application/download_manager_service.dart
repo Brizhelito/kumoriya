@@ -8,6 +8,7 @@ import 'package:kumoriya_storage/kumoriya_storage.dart';
 import 'package:path/path.dart' as p;
 
 import 'chunked_direct_downloader.dart';
+import 'download_debug_logger.dart';
 import 'download_directory_service.dart';
 import 'download_error_classifier.dart';
 import 'download_foreground_service.dart';
@@ -131,7 +132,9 @@ class DownloadManagerService {
        _insecureHttpClientFactory = insecureHttpClientFactory,
        _maxRetryAttempts = maxRetryAttempts.clamp(1, 5),
        _linkRefresher = linkRefresher,
-       _maxReResolveAttempts = maxReResolveAttempts.clamp(0, 5);
+       _maxReResolveAttempts = maxReResolveAttempts.clamp(0, 5) {
+    unawaited(_cleanupOrphanedSegmentDirectoriesOnStartup());
+  }
 
   final DownloadStore _store;
   final DownloadDirectoryService _directoryService;
@@ -210,7 +213,11 @@ class DownloadManagerService {
         !File(task.filePath!).existsSync()) {
       await _store.deleteTask(task.id);
       _statusChangeController.add(
-        DownloadStatusChange(taskId: task.id, anilistId: task.anilistId),
+        DownloadStatusChange(
+          taskId: task.id,
+          anilistId: task.anilistId,
+          oldStatus: DownloadStatus.completed,
+        ),
       );
       return null;
     }
@@ -235,7 +242,11 @@ class DownloadManagerService {
       return;
     }
     await _store.insertTask(task);
-    _emitStatusChange(taskId: task.id, anilistId: task.anilistId);
+    _emitStatusChange(
+      taskId: task.id,
+      anilistId: task.anilistId,
+      newStatus: task.status,
+    );
     unawaited(_processQueue());
   }
 
@@ -269,15 +280,22 @@ class DownloadManagerService {
       onSuccess: (value) => value,
       onFailure: (_) => null,
     );
-    if (task != null) {
-      await _deleteTaskArtifacts(task);
-    }
 
+    // Delete from store and notify UI first for immediate feedback.
     await _store.deleteTask(taskId);
     _taskWriteChains.remove(taskId);
     _statusChangeController.add(
-      DownloadStatusChange(taskId: taskId, anilistId: task?.anilistId),
+      DownloadStatusChange(
+        taskId: taskId,
+        anilistId: task?.anilistId,
+        oldStatus: task?.status,
+      ),
     );
+
+    // File cleanup in background — does not block UI.
+    if (task != null) {
+      unawaited(_deleteTaskArtifacts(task));
+    }
     unawaited(_processQueue());
   }
 
@@ -291,6 +309,7 @@ class DownloadManagerService {
     _insecureTlsHostsByTask.clear();
     _emitAggregateProgress();
 
+    final tasksToClean = <DownloadTask>[];
     for (final status in [DownloadStatus.pending, DownloadStatus.downloading]) {
       final result = await _store.getTasksByStatus(status);
       final tasks = result.fold(
@@ -300,17 +319,21 @@ class DownloadManagerService {
       for (final task in tasks) {
         _clearScheduledProgressPersistence(task.id);
         await _drainTaskWrites(task.id);
-        await _deleteTaskArtifacts(task);
         await _store.deleteTask(task.id);
         _taskWriteChains.remove(task.id);
+        tasksToClean.add(task);
       }
     }
+
+    // Notify UI immediately, then clean up files in background.
     _statusChangeController.add(const DownloadStatusChange(taskId: ''));
+    for (final task in tasksToClean) {
+      unawaited(_deleteTaskArtifacts(task));
+    }
   }
 
-  /// Removes all [DownloadStatus.pending] and [DownloadStatus.failed] tasks
-  /// without touching active downloads.
   Future<void> clearQueue() async {
+    final tasksToClean = <DownloadTask>[];
     for (final status in [DownloadStatus.pending, DownloadStatus.failed]) {
       final result = await _store.getTasksByStatus(status);
       final tasks = result.fold(
@@ -318,19 +341,65 @@ class DownloadManagerService {
         onFailure: (_) => <DownloadTask>[],
       );
       for (final task in tasks) {
+        _reResolveAttempts.remove(task.id);
+        _insecureTlsHostsByTask.remove(task.id);
         _clearScheduledProgressPersistence(task.id);
         await _drainTaskWrites(task.id);
-        await _deleteTaskArtifacts(task);
         await _store.deleteTask(task.id);
         _taskWriteChains.remove(task.id);
+        tasksToClean.add(task);
       }
     }
+
+    // Notify UI immediately, then clean up files in background.
     _statusChangeController.add(const DownloadStatusChange(taskId: ''));
+    for (final task in tasksToClean) {
+      unawaited(_deleteTaskArtifacts(task));
+    }
   }
 
   Future<void> retry(String taskId) async => resume(taskId);
 
   Future<void> retryFailed(String taskId) async => resume(taskId);
+
+  /// Re-queues every failed download in one shot.
+  Future<void> retryAllFailed() async {
+    final result = await _store.getTasksByStatus(DownloadStatus.failed);
+    final tasks = result.fold(
+      onSuccess: (v) => v,
+      onFailure: (_) => <DownloadTask>[],
+    );
+    for (final task in tasks) {
+      await clearTaskError(task.id);
+      _reResolveAttempts.remove(task.id);
+      _insecureTlsHostsByTask.remove(task.id);
+      await _updateStatus(task.id, DownloadStatus.pending, errorMessage: null);
+    }
+    if (tasks.isNotEmpty) await _processQueue();
+  }
+
+  /// Pauses every currently downloading task.
+  Future<void> pauseAll() async {
+    final ids = _activeDownloads.keys.toList();
+    for (final id in ids) {
+      await pause(id);
+    }
+  }
+
+  /// Resumes every paused task.
+  Future<void> resumeAll() async {
+    final result = await _store.getTasksByStatus(DownloadStatus.paused);
+    final tasks = result.fold(
+      onSuccess: (v) => v,
+      onFailure: (_) => <DownloadTask>[],
+    );
+    for (final task in tasks) {
+      _reResolveAttempts.remove(task.id);
+      _insecureTlsHostsByTask.remove(task.id);
+      await _updateStatus(task.id, DownloadStatus.pending, errorMessage: null);
+    }
+    if (tasks.isNotEmpty) await _processQueue();
+  }
 
   Future<void> deleteCompleted(String taskId) async {
     _reResolveAttempts.remove(taskId);
@@ -348,7 +417,11 @@ class DownloadManagerService {
     await _store.deleteTask(taskId);
     _taskWriteChains.remove(taskId);
     _statusChangeController.add(
-      DownloadStatusChange(taskId: taskId, anilistId: task?.anilistId),
+      DownloadStatusChange(
+        taskId: taskId,
+        anilistId: task?.anilistId,
+        oldStatus: task?.status,
+      ),
     );
   }
 
@@ -386,7 +459,6 @@ class DownloadManagerService {
         if (slotsAvailable <= 0) break;
         final pendingResult = await _store.getTasksByStatus(
           DownloadStatus.pending,
-          limit: slotsAvailable,
         );
         final pending = pendingResult.fold(
           onSuccess: (tasks) => tasks,
@@ -438,12 +510,21 @@ class DownloadManagerService {
       );
       _clearScheduledProgressPersistence(task.id);
       await _persistTaskSnapshot(runningTask);
-      _emitStatusChange(taskId: task.id, anilistId: task.anilistId);
+      _emitStatusChange(
+        taskId: task.id,
+        anilistId: task.anilistId,
+        oldStatus: task.status,
+        newStatus: DownloadStatus.downloading,
+      );
 
       var finalPath = target.finalPath;
       var finalFileName = target.finalFileName;
 
       if (task.isHls) {
+        await dlLog.log(
+          'Manager',
+          'HLS download start: ${task.id} url=${task.sourceUrl} headers=${task.headers}',
+        );
         final hlsResult = await _downloadHls(
           runningTask,
           target.tempPath,
@@ -454,6 +535,10 @@ class DownloadManagerService {
           finalFileName = p.basename(finalPath);
         }
       } else {
+        await dlLog.log(
+          'Manager',
+          'Direct download start: ${task.id} url=${task.sourceUrl} headers=${task.headers}',
+        );
         await _downloadDirect(runningTask, target.tempPath, cancelCompleter);
       }
 
@@ -480,13 +565,38 @@ class DownloadManagerService {
       _removeProgress(task.id);
       _reResolveAttempts.remove(task.id);
       _insecureTlsHostsByTask.remove(task.id);
-      _emitStatusChange(taskId: task.id, anilistId: task.anilistId);
+      _emitStatusChange(
+        taskId: task.id,
+        anilistId: task.anilistId,
+        oldStatus: DownloadStatus.downloading,
+        newStatus: DownloadStatus.completed,
+      );
       _log('Download complete: ${task.id} (${completedTask.totalBytes} bytes)');
-    } catch (error) {
+      await dlLog.log(
+        'Manager',
+        'COMPLETE: ${task.id} bytes=${completedTask.totalBytes} path=${completedTask.filePath}',
+      );
+    } catch (error, stack) {
       _removeProgress(task.id);
+
+      // If the cancel completer has fired, this task was intentionally
+      // stopped (pause or cancel). Don't mark it as failed — the caller
+      // (pause/cancel) already set the correct status or deleted the task.
+      if (cancelCompleter.isCompleted) {
+        _log('Download stopped (cancelled/paused): ${task.id}');
+        return;
+      }
 
       final errorKind = classifyDownloadError(error);
       _log('Download failed: ${task.id} kind=$errorKind error=$error');
+      await dlLog.error(
+        'Manager',
+        'FAILED: ${task.id} kind=$errorKind url=${task.sourceUrl} '
+            'isHls=${task.isHls} headers=${task.headers}',
+        error,
+        stack,
+      );
+      await dlLog.flush();
 
       // Attempt automatic recovery via re-resolution / server fallback.
       if (isReResolvable(errorKind) && _linkRefresher != null) {
@@ -504,7 +614,10 @@ class DownloadManagerService {
       }
     } finally {
       _activeDownloads.remove(task.id);
-      if (!_disposed) {
+      // Only kick the queue when the task finished naturally (completed or
+      // failed).  When the user explicitly paused or cancelled, we must NOT
+      // start the next pending task — that would defeat the purpose of pause.
+      if (!_disposed && !cancelCompleter.isCompleted) {
         unawaited(_processQueue());
       }
     }
@@ -1191,7 +1304,12 @@ class DownloadManagerService {
     await _persistTaskSnapshot(
       _copyTask(task, status: status, errorMessage: errorMessage),
     );
-    _emitStatusChange(taskId: taskId, anilistId: task.anilistId);
+    _emitStatusChange(
+      taskId: taskId,
+      anilistId: task.anilistId,
+      oldStatus: task.status,
+      newStatus: status,
+    );
   }
 
   Future<void> clearTaskError(String taskId) async {
@@ -1211,42 +1329,135 @@ class DownloadManagerService {
     await _persistTaskSnapshot(
       _copyTask(task, errorMessage: null, updatedAt: DateTime.now()),
     );
-    _emitStatusChange(taskId: taskId, anilistId: task.anilistId);
+    _emitStatusChange(
+      taskId: taskId,
+      anilistId: task.anilistId,
+      oldStatus: task.status,
+      newStatus: task.status,
+    );
   }
 
   Future<void> _deleteTaskArtifacts(DownloadTask task) async {
-    final paths = <String>{};
-    if (task.filePath != null && task.filePath!.trim().isNotEmpty) {
-      paths.add(task.filePath!);
-      if (task.filePath!.endsWith('.part')) {
-        paths.add(task.filePath!.substring(0, task.filePath!.length - 5));
-      } else {
-        paths.add('${task.filePath!}.part');
-      }
-    }
+    try {
+      final paths = _artifactPathsForTask(task);
 
-    for (final path in paths) {
-      final file = File(path);
-      if (await file.exists()) {
-        await file.delete();
+      for (final path in paths) {
+        final file = File(path);
+        try {
+          if (await file.exists()) {
+            await file.delete();
+          }
+        } on FileSystemException {
+          // File may be locked or already deleted — best-effort.
+        }
+        // Clean up HLS segment directory (created by the isolate engine).
+        final segDir = Directory('${path}_segments');
+        try {
+          if (await segDir.exists()) {
+            await segDir.delete(recursive: true);
+          }
+        } on FileSystemException {
+          // Directory may be locked or already deleted — best-effort.
+        }
       }
-      // Clean up HLS segment directory (created by the isolate engine).
-      final segDir = Directory('${path}_segments');
-      if (await segDir.exists()) {
-        await segDir.delete(recursive: true);
+
+      // Clean up persisted HLS segment records.
+      if (_hlsSegmentStore != null && task.isHls) {
+        await _hlsSegmentStore.deleteSegmentsForTask(task.id);
       }
-    }
 
-    // Clean up persisted HLS segment records.
-    if (_hlsSegmentStore != null && task.isHls) {
-      await _hlsSegmentStore.deleteSegmentsForTask(task.id);
+      final filePath = task.filePath;
+      if (filePath != null) {
+        await _libraryIndexService.deleteManifestForMedia(
+          filePath.endsWith('.part')
+              ? filePath.substring(0, filePath.length - 5)
+              : filePath,
+        );
+      }
+    } catch (_) {
+      // Best-effort cleanup — errors must not propagate when called via
+      // unawaited since the task is already removed from the store.
     }
+  }
 
-    if (task.filePath != null) {
-      await _libraryIndexService.deleteManifestForMedia(
-        task.filePath!.endsWith('.part')
-            ? task.filePath!.substring(0, task.filePath!.length - 5)
-            : task.filePath!,
+  Set<String> _artifactPathsForTask(DownloadTask task) {
+    final filePath = task.filePath;
+    if (filePath == null || filePath.trim().isEmpty) {
+      return <String>{};
+    }
+    return _artifactPathsForStoredPath(filePath);
+  }
+
+  Set<String> _artifactPathsForStoredPath(String filePath) {
+    final paths = <String>{filePath};
+    if (filePath.endsWith('.part')) {
+      paths.add(filePath.substring(0, filePath.length - 5));
+    } else {
+      paths.add('$filePath.part');
+    }
+    return paths;
+  }
+
+  String _pathKey(String value) {
+    final normalized = p.normalize(value);
+    if (Platform.isWindows) {
+      return normalized.toLowerCase();
+    }
+    return normalized;
+  }
+
+  Future<void> _cleanupOrphanedSegmentDirectoriesOnStartup() async {
+    try {
+      final root = await _downloadsDir();
+      if (!await root.exists()) {
+        return;
+      }
+
+      final tasksResult = await _store.getAllTasks();
+      final tasks = tasksResult.fold(
+        onSuccess: (value) => value,
+        onFailure: (_) => <DownloadTask>[],
+      );
+
+      final expectedSegmentDirs = <String>{};
+      for (final task in tasks) {
+        for (final path in _artifactPathsForTask(task)) {
+          expectedSegmentDirs.add(_pathKey('${path}_segments'));
+        }
+      }
+
+      var deletedCount = 0;
+      await for (final entity in root.list(
+        recursive: true,
+        followLinks: false,
+      )) {
+        if (entity is! Directory) {
+          continue;
+        }
+        if (!p.basename(entity.path).endsWith('_segments')) {
+          continue;
+        }
+        final key = _pathKey(entity.path);
+        if (expectedSegmentDirs.contains(key)) {
+          continue;
+        }
+        try {
+          await entity.delete(recursive: true);
+          deletedCount++;
+        } on FileSystemException {
+          // Best-effort startup cleanup.
+        }
+      }
+
+      if (deletedCount > 0) {
+        _log('Startup cleanup removed $deletedCount orphan segment dirs');
+      }
+    } catch (error, stack) {
+      await dlLog.error(
+        'Manager',
+        'startup orphan segment cleanup failed',
+        error,
+        stack,
       );
     }
   }
@@ -1353,12 +1564,22 @@ class DownloadManagerService {
     return dir;
   }
 
-  void _emitStatusChange({required String taskId, int? anilistId}) {
+  void _emitStatusChange({
+    required String taskId,
+    int? anilistId,
+    DownloadStatus? oldStatus,
+    DownloadStatus? newStatus,
+  }) {
     if (_disposed || _statusChangeController.isClosed) {
       return;
     }
     _statusChangeController.add(
-      DownloadStatusChange(taskId: taskId, anilistId: anilistId),
+      DownloadStatusChange(
+        taskId: taskId,
+        anilistId: anilistId,
+        oldStatus: oldStatus,
+        newStatus: newStatus,
+      ),
     );
   }
 
@@ -1586,7 +1807,18 @@ class DownloadAggregateProgress {
 }
 
 class DownloadStatusChange {
-  const DownloadStatusChange({required this.taskId, this.anilistId});
+  const DownloadStatusChange({
+    required this.taskId,
+    this.anilistId,
+    this.oldStatus,
+    this.newStatus,
+  });
   final String taskId;
   final int? anilistId;
+
+  /// Status before the change. Null for new tasks, global events, or unknown.
+  final DownloadStatus? oldStatus;
+
+  /// Status after the change. Null for deletions or global events.
+  final DownloadStatus? newStatus;
 }

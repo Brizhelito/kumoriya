@@ -273,12 +273,20 @@ final class DownloadDirectoryService {
     final probe = File(
       p.join(
         directory.path,
-        '.kumoriya_write_probe_${DateTime.now().microsecondsSinceEpoch}',
+        '.kumoriya_write_probe_${DateTime.now().microsecondsSinceEpoch}_${identityHashCode(directory)}',
       ),
     );
-    await probe.writeAsString('ok', flush: true);
-    if (await probe.exists()) {
-      await probe.delete();
+    try {
+      await probe.writeAsString('ok', flush: true);
+    } on FileSystemException {
+      rethrow;
+    }
+    try {
+      if (await probe.exists()) {
+        await probe.delete();
+      }
+    } on FileSystemException {
+      // Probe cleanup is best-effort; the directory is still usable.
     }
     return directory;
   }

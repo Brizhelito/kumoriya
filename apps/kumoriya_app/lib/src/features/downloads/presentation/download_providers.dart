@@ -106,15 +106,92 @@ final downloadStatusChangeForAnimeProvider = StreamProvider.autoDispose
       );
     });
 
+// ─── Per-tab status change streams ──────────────────────────────────────────
+
+const _completedStatuses = {DownloadStatus.completed};
+const _activeStatuses = {DownloadStatus.downloading, DownloadStatus.paused};
+const _queueStatuses = {DownloadStatus.pending, DownloadStatus.failed};
+
+/// Returns true when a status change is relevant to a given tab's status group.
+bool _isRelevantToTab(DownloadStatusChange e, Set<DownloadStatus> tabStatuses) {
+  // Global events (taskId empty or both statuses null) are always relevant.
+  if (e.taskId.isEmpty) return true;
+  if (e.oldStatus == null && e.newStatus == null) return true;
+  // A task entering or leaving this tab's status group is relevant.
+  if (e.oldStatus != null && tabStatuses.contains(e.oldStatus)) return true;
+  if (e.newStatus != null && tabStatuses.contains(e.newStatus)) return true;
+  return false;
+}
+
+/// Fires only when the completed tab's data may have changed.
+final completedTabStatusChangeProvider =
+    StreamProvider.autoDispose<DownloadStatusChange>((ref) {
+      final manager = ref.watch(downloadManagerProvider);
+      return manager.statusChangeStream
+          .where((e) => _isRelevantToTab(e, _completedStatuses));
+    });
+
+/// Fires only when the active (downloading/paused) tab's data may have changed.
+final activeTabStatusChangeProvider =
+    StreamProvider.autoDispose<DownloadStatusChange>((ref) {
+      final manager = ref.watch(downloadManagerProvider);
+      return manager.statusChangeStream
+          .where((e) => _isRelevantToTab(e, _activeStatuses));
+    });
+
+/// Fires only when the queue (pending/failed) tab's data may have changed.
+final queueTabStatusChangeProvider =
+    StreamProvider.autoDispose<DownloadStatusChange>((ref) {
+      final manager = ref.watch(downloadManagerProvider);
+      return manager.statusChangeStream
+          .where((e) => _isRelevantToTab(e, _queueStatuses));
+    });
+
 // ─── Download list providers ─────────────────────────────────────────────────
 
-/// All tasks — used only by the downloads page. Re-reads on any status change.
+/// All tasks — kept for settings page invalidation and backward compat.
+/// The downloads page tabs use the per-tab providers below instead.
 final allDownloadTasksProvider =
     FutureProvider.autoDispose<Result<List<DownloadTask>, KumoriyaError>>((
       ref,
     ) async {
       ref.watch(downloadStatusChangeStreamProvider);
       return ref.watch(downloadStoreProvider).getAllTasks();
+    });
+
+/// Completed tasks — only refreshes when the completed tab stream fires.
+final completedDownloadTasksProvider =
+    FutureProvider.autoDispose<Result<List<DownloadTask>, KumoriyaError>>((
+      ref,
+    ) async {
+      ref.watch(completedTabStatusChangeProvider);
+      return ref
+          .watch(downloadStoreProvider)
+          .getTasksByStatus(DownloadStatus.completed);
+    });
+
+/// Active tasks (downloading + paused) — only refreshes when the active tab
+/// stream fires.
+final activeDownloadTasksProvider =
+    FutureProvider.autoDispose<Result<List<DownloadTask>, KumoriyaError>>((
+      ref,
+    ) async {
+      ref.watch(activeTabStatusChangeProvider);
+      return ref.watch(downloadStoreProvider).getTasksByStatuses(
+        [DownloadStatus.downloading, DownloadStatus.paused],
+      );
+    });
+
+/// Queued tasks (pending + failed) — only refreshes when the queue tab stream
+/// fires.
+final queuedDownloadTasksProvider =
+    FutureProvider.autoDispose<Result<List<DownloadTask>, KumoriyaError>>((
+      ref,
+    ) async {
+      ref.watch(queueTabStatusChangeProvider);
+      return ref.watch(downloadStoreProvider).getTasksByStatuses(
+        [DownloadStatus.pending, DownloadStatus.failed],
+      );
     });
 
 /// Per-anime task list — only refreshes when the specific anime's downloads
@@ -132,7 +209,7 @@ final downloadTasksByAnimeProvider = FutureProvider.autoDispose
 final activeDownloadCountProvider = FutureProvider.autoDispose<int>((
   ref,
 ) async {
-  ref.watch(downloadStatusChangeStreamProvider);
+  ref.watch(activeTabStatusChangeProvider);
   final result = await ref
       .watch(downloadStoreProvider)
       .getTasksByStatus(DownloadStatus.downloading);

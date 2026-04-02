@@ -484,6 +484,9 @@
   "downloadPaused": "Paused",
   "downloadPending": "Pending",
   "downloadCancel": "Cancel",
+  "downloadClearQueue": "Clear queue",
+  "downloadClearQueueConfirmTitle": "Clear queue?",
+  "downloadClearQueueConfirmMessage": "This will remove all pending and failed downloads from the queue. This action cannot be undone.",
   "downloadRetry": "Retry",
   "downloadDelete": "Delete",
   "downloadPause": "Pause",
@@ -627,9 +630,6 @@
   "playerSkipCredits": "Skip credits",
   "clearSearch": "Clear search",
   "sourceServerLinksEmpty": "No server links available for this episode.",
-  "downloadClearQueue": "Clear queue",
-  "downloadClearQueueConfirmTitle": "Clear queue?",
-  "downloadClearQueueConfirmMessage": "All pending and failed downloads will be removed.",
   "downloadDeleteConfirmTitle": "Delete download?",
   "downloadDeleteConfirmMessage": "This downloaded episode will be permanently removed from your device.",
   "cancelAction": "Cancel",
@@ -713,5 +713,8 @@
   "formatMovie": "Movie",
   "formatOva": "OVA",
   "formatOna": "ONA",
-  "formatSpecial": "Special"
+  "formatSpecial": "Special",
+  "downloadRetryAllFailed": "Retry all",
+  "downloadPauseAll": "Pause all",
+  "downloadResumeAll": "Resume all"
 }

@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:http/http.dart' as http;
 import 'package:kumoriya_core/kumoriya_core.dart';
+import 'package:kumoriya_resolver_common/kumoriya_resolver_common.dart';
 import 'package:kumoriya_plugins/kumoriya_plugins.dart';
 
 import 'errors/hqq_resolver_error.dart';
@@ -71,7 +72,7 @@ final class HqqResolverPlugin implements ResolverPlugin {
         );
       }
 
-      final pageConfig = _extractPageConfig(pageResponse.body);
+      final pageConfig = _extractPageConfig(safeResponseBody(pageResponse));
       final md5Result = await _resolveViaMd5Handshake(
         embedUrl,
         pageConfig: pageConfig,
@@ -85,11 +86,11 @@ final class HqqResolverPlugin implements ResolverPlugin {
       }
 
       final streams = _extractTrustedStreams(
-        pageResponse.body,
+        safeResponseBody(pageResponse),
         baseUrl: embedUrl,
       );
       if (streams.isEmpty) {
-        if (_requiresChallenge(pageResponse.body)) {
+        if (_requiresChallenge(safeResponseBody(pageResponse))) {
           return const Failure(
             HqqChallengeRequiredError(
               message:
@@ -98,7 +99,7 @@ final class HqqResolverPlugin implements ResolverPlugin {
           );
         }
 
-        if (_hasHints(pageResponse.body)) {
+        if (_hasHints(safeResponseBody(pageResponse))) {
           return const Failure(
             HqqInconsistentPayloadError(
               message: 'HQQ payload had player hints but no playable streams.',
@@ -149,7 +150,7 @@ final class HqqResolverPlugin implements ResolverPlugin {
         .post(md5Url, headers: _md5Headers(embedUrl), body: jsonEncode(payload))
         .timeout(const Duration(seconds: 8));
 
-    final body = response.body.trim();
+    final body = safeResponseBody(response).trim();
     if (body.isEmpty) {
       return null;
     }

@@ -1,5 +1,6 @@
 import 'package:http/http.dart' as http;
 import 'package:kumoriya_core/kumoriya_core.dart';
+import 'package:kumoriya_resolver_common/kumoriya_resolver_common.dart';
 import 'package:kumoriya_plugins/kumoriya_plugins.dart';
 
 import 'errors/zilla_resolver_error.dart';
@@ -67,7 +68,7 @@ final class ZillaResolverPlugin implements ResolverPlugin {
         );
       }
 
-      if (!response.body.contains('#EXTM3U')) {
+      if (!safeResponseBody(response).contains('#EXTM3U')) {
         return const Failure(
           ZillaParseError(
             message: 'Zilla playlist payload did not contain an HLS manifest.',

@@ -22,8 +22,6 @@ class DownloadsPage extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final tasksState = ref.watch(allDownloadTasksProvider);
-
     return DefaultTabController(
       length: 3,
       child: Scaffold(
@@ -78,27 +76,13 @@ class DownloadsPage extends ConsumerWidget {
                   Tab(text: context.l10n.downloadsTabQueue),
                 ],
               ),
-              Expanded(
-                child: StateTransitionSwitcher(
-                  stateKey: tasksState.isLoading
-                      ? 'loading'
-                      : tasksState.hasError
-                      ? 'error'
-                      : 'content',
-                  child: tasksState.when(
-                    loading: () => const LoadingStateView(),
-                    error: (_, _) => ErrorStateView(
-                      message: context.l10n.genericLoadFailure,
-                      onRetry: () => _refreshDownloads(ref),
-                    ),
-                    data: (result) => result.fold(
-                      onFailure: (error) => ErrorStateView(
-                        message: mapErrorMessage(context, error),
-                        onRetry: () => _refreshDownloads(ref),
-                      ),
-                      onSuccess: (tasks) => _DownloadsBody(tasks: tasks),
-                    ),
-                  ),
+              const Expanded(
+                child: TabBarView(
+                  children: <Widget>[
+                    _CompletedTab(),
+                    _ActiveTab(),
+                    _QueueTab(),
+                  ],
                 ),
               ),
             ],
@@ -109,38 +93,100 @@ class DownloadsPage extends ConsumerWidget {
   }
 }
 
-class _DownloadsBody extends ConsumerWidget {
-  const _DownloadsBody({required this.tasks});
+// ─── Per-tab ConsumerWidgets (each watches only its own provider) ────────────
 
-  final List<DownloadTask> tasks;
+class _CompletedTab extends ConsumerWidget {
+  const _CompletedTab();
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final downloading = tasks
-        .where(
-          (t) =>
-              t.status == DownloadStatus.downloading ||
-              t.status == DownloadStatus.paused,
-        )
-        .toList(growable: false);
-    final queued = tasks
-        .where(
-          (t) =>
-              t.status == DownloadStatus.pending ||
-              t.status == DownloadStatus.failed,
-        )
-        .toList(growable: false);
-    final completed = tasks
-        .where((t) => t.status == DownloadStatus.completed)
-        .toList(growable: false);
-    final groupedCompleted = _groupCompletedTasks(completed);
+    final state = ref.watch(completedDownloadTasksProvider);
 
-    return TabBarView(
-      children: <Widget>[
-        _CompletedTabContent(grouped: groupedCompleted, ref: ref),
-        _ActiveTabContent(tasks: downloading, ref: ref),
-        _QueueTabContent(tasks: queued, ref: ref),
-      ],
+    return StateTransitionSwitcher(
+      stateKey: state.isLoading
+          ? 'loading'
+          : state.hasError
+              ? 'error'
+              : 'content',
+      child: state.when(
+        loading: () => const LoadingStateView(),
+        error: (_, _) => ErrorStateView(
+          message: context.l10n.genericLoadFailure,
+          onRetry: () => _refreshDownloads(ref),
+        ),
+        data: (result) => result.fold(
+          onFailure: (error) => ErrorStateView(
+            message: mapErrorMessage(context, error),
+            onRetry: () => _refreshDownloads(ref),
+          ),
+          onSuccess: (tasks) {
+            final grouped = _groupCompletedTasks(tasks);
+            return _CompletedTabContent(grouped: grouped, ref: ref);
+          },
+        ),
+      ),
+    );
+  }
+}
+
+class _ActiveTab extends ConsumerWidget {
+  const _ActiveTab();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final state = ref.watch(activeDownloadTasksProvider);
+
+    return StateTransitionSwitcher(
+      stateKey: state.isLoading
+          ? 'loading'
+          : state.hasError
+              ? 'error'
+              : 'content',
+      child: state.when(
+        loading: () => const LoadingStateView(),
+        error: (_, _) => ErrorStateView(
+          message: context.l10n.genericLoadFailure,
+          onRetry: () => _refreshDownloads(ref),
+        ),
+        data: (result) => result.fold(
+          onFailure: (error) => ErrorStateView(
+            message: mapErrorMessage(context, error),
+            onRetry: () => _refreshDownloads(ref),
+          ),
+          onSuccess: (tasks) => _ActiveTabContent(tasks: tasks, ref: ref),
+        ),
+      ),
+    );
+  }
+}
+
+class _QueueTab extends ConsumerWidget {
+  const _QueueTab();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final state = ref.watch(queuedDownloadTasksProvider);
+
+    return StateTransitionSwitcher(
+      stateKey: state.isLoading
+          ? 'loading'
+          : state.hasError
+              ? 'error'
+              : 'content',
+      child: state.when(
+        loading: () => const LoadingStateView(),
+        error: (_, _) => ErrorStateView(
+          message: context.l10n.genericLoadFailure,
+          onRetry: () => _refreshDownloads(ref),
+        ),
+        data: (result) => result.fold(
+          onFailure: (error) => ErrorStateView(
+            message: mapErrorMessage(context, error),
+            onRetry: () => _refreshDownloads(ref),
+          ),
+          onSuccess: (tasks) => _QueueTabContent(tasks: tasks, ref: ref),
+        ),
+      ),
     );
   }
 }
@@ -180,8 +226,8 @@ class _ActiveTabContent extends StatelessWidget {
       child: ListView(
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
         children: <Widget>[
-          const Padding(
-            padding: EdgeInsets.only(bottom: 8),
+          Padding(
+            padding: const EdgeInsets.only(bottom: 8),
             child: _ActiveDownloadsHeader(),
           ),
           ...tasks.map(
@@ -232,7 +278,70 @@ class _QueueTabContent extends StatelessWidget {
         children: <Widget>[
           Padding(
             padding: const EdgeInsets.only(bottom: 8),
-            child: _QueueHeader(ref: ref),
+            child: Row(
+              children: <Widget>[
+                Expanded(
+                  child: Text(
+                    context.l10n.downloadsTabQueue,
+                    style: Theme.of(context).textTheme.labelLarge,
+                  ),
+                ),
+                if (tasks.any((t) => t.status == DownloadStatus.failed))
+                  TextButton.icon(
+                    onPressed: () async {
+                      await ref.read(downloadManagerProvider).retryAllFailed();
+                      _invalidateTabProviders(ref);
+                    },
+                    icon: const Icon(KumoriyaIcons.sync, size: 16),
+                    label: Text(context.l10n.downloadRetryAllFailed),
+                    style: TextButton.styleFrom(
+                      foregroundColor: KumoriyaColors.primary,
+                      textStyle: const TextStyle(fontSize: 12),
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                    ),
+                  ),
+                TextButton.icon(
+                  onPressed: () async {
+                    final confirmed = await showDialog<bool>(
+                      context: context,
+                      builder: (ctx) => AlertDialog(
+                        backgroundColor: KumoriyaColors.surfaceElevated,
+                        title: Text(
+                          context.l10n.downloadClearQueueConfirmTitle,
+                        ),
+                        content: Text(
+                          context.l10n.downloadClearQueueConfirmMessage,
+                        ),
+                        actions: <Widget>[
+                          TextButton(
+                            onPressed: () => Navigator.of(ctx).pop(false),
+                            child: Text(context.l10n.cancelAction),
+                          ),
+                          TextButton(
+                            onPressed: () => Navigator.of(ctx).pop(true),
+                            style: TextButton.styleFrom(
+                              foregroundColor: KumoriyaColors.statusDanger,
+                            ),
+                            child: Text(context.l10n.downloadClearQueue),
+                          ),
+                        ],
+                      ),
+                    );
+                    if (confirmed == true) {
+                      await ref.read(downloadManagerProvider).clearQueue();
+                      _invalidateTabProviders(ref);
+                    }
+                  },
+                  icon: const Icon(KumoriyaIcons.close, size: 16),
+                  label: Text(context.l10n.downloadClearQueue),
+                  style: TextButton.styleFrom(
+                    foregroundColor: KumoriyaColors.statusDanger,
+                    textStyle: const TextStyle(fontSize: 12),
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                  ),
+                ),
+              ],
+            ),
           ),
           ...tasks.map(
             (task) => Padding(
@@ -334,64 +443,6 @@ class _ActiveDownloadsHeader extends ConsumerWidget {
           onPressed: () => ref.read(downloadManagerProvider).cancelAll(),
           icon: const Icon(KumoriyaIcons.close, size: 16),
           label: Text(context.l10n.downloadCancel),
-          style: TextButton.styleFrom(
-            foregroundColor: KumoriyaColors.statusDanger,
-            textStyle: const TextStyle(fontSize: 12),
-            padding: const EdgeInsets.symmetric(horizontal: 8),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-// ─── Queue header ─────────────────────────────────────────────────────────────
-
-class _QueueHeader extends StatelessWidget {
-  const _QueueHeader({required this.ref});
-
-  final WidgetRef ref;
-
-  Future<void> _confirmClearQueue(BuildContext context) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(ctx.l10n.downloadClearQueueConfirmTitle),
-        content: Text(ctx.l10n.downloadClearQueueConfirmMessage),
-        actions: <Widget>[
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(false),
-            child: Text(ctx.l10n.cancelAction),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(true),
-            style: TextButton.styleFrom(
-              foregroundColor: KumoriyaColors.statusDanger,
-            ),
-            child: Text(ctx.l10n.downloadClearQueue),
-          ),
-        ],
-      ),
-    );
-    if (confirmed ?? false) {
-      await ref.read(downloadManagerProvider).clearQueue();
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: <Widget>[
-        Expanded(
-          child: Text(
-            context.l10n.downloadsTabQueue,
-            style: Theme.of(context).textTheme.labelLarge,
-          ),
-        ),
-        TextButton.icon(
-          onPressed: () => _confirmClearQueue(context),
-          icon: const Icon(Icons.delete_sweep_rounded, size: 16),
-          label: Text(context.l10n.downloadClearQueue),
           style: TextButton.styleFrom(
             foregroundColor: KumoriyaColors.statusDanger,
             textStyle: const TextStyle(fontSize: 12),
@@ -981,11 +1032,18 @@ class _CompletedEpisodeTile extends ConsumerWidget {
 // ─── Download helpers ─────────────────────────────────────────────────────────
 
 Future<void> _refreshDownloads(WidgetRef ref) async {
-  await ref.read(downloadManagerProvider).syncDownloadedLibrary();
+  final manager = ref.read(downloadManagerProvider);
+  await manager.syncDownloadedLibrary();
+  _invalidateTabProviders(ref);
+}
+
+void _invalidateTabProviders(WidgetRef ref) {
   try {
-    ref.invalidate(allDownloadTasksProvider);
-  } on StateError {
-    // Widget was unmounted before invalidate could run — safe to ignore.
+    ref.invalidate(completedDownloadTasksProvider);
+    ref.invalidate(activeDownloadTasksProvider);
+    ref.invalidate(queuedDownloadTasksProvider);
+  } catch (_) {
+    // Widget may have been unmounted during the async operation.
   }
 }
 

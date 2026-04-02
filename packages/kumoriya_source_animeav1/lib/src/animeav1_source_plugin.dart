@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:html/parser.dart' as html_parser;
 import 'package:http/http.dart' as http;
 import 'package:kumoriya_core/kumoriya_core.dart';
@@ -267,7 +269,7 @@ final class AnimeAv1SourcePlugin implements SourcePlugin {
           ),
         );
       }
-      return Success(response.body);
+      return Success(utf8.decode(response.bodyBytes, allowMalformed: true));
     } catch (error) {
       return Failure(
         AnimeAv1TransportError(message: 'AnimeAV1 request failed: $error'),

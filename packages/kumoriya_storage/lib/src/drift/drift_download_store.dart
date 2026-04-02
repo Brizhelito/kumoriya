@@ -118,6 +118,28 @@ final class DriftDownloadStore implements DownloadStore {
   }
 
   @override
+  Future<Result<List<DownloadTask>, KumoriyaError>> getTasksByStatuses(
+    List<DownloadStatus> statuses, {
+    int? limit,
+  }) async {
+    try {
+      final rows = await _dao.getTasksByStatuses(
+        statuses.map((s) => s.name).toList(),
+        limit: limit,
+      );
+      return Success(rows.map(_rowToTask).toList());
+    } catch (e) {
+      return Failure(
+        SimpleError(
+          code: 'storage.download_read_failed',
+          message: 'Failed to read download tasks by statuses: $e',
+          kind: KumoriyaErrorKind.unexpected,
+        ),
+      );
+    }
+  }
+
+  @override
   Future<Result<List<DownloadTask>, KumoriyaError>> getAllTasks({
     int? limit,
   }) async {
@@ -189,11 +211,20 @@ final class DriftDownloadStore implements DownloadStore {
       }
     }
 
+    Uri sourceUrl;
+    try {
+      sourceUrl = Uri.parse(row.sourceUrl);
+    } catch (e) {
+      throw FormatException(
+        'Bad sourceUrl in DB for task "${row.id}": "${row.sourceUrl}" — $e',
+      );
+    }
+
     return DownloadTask(
       id: row.id,
       anilistId: row.anilistId,
       episodeNumber: row.episodeNumber,
-      sourceUrl: Uri.parse(row.sourceUrl),
+      sourceUrl: sourceUrl,
       status: DownloadStatus.values.firstWhere(
         (s) => s.name == row.status,
         orElse: () => DownloadStatus.pending,

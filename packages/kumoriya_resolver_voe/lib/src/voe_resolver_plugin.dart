@@ -1,5 +1,6 @@
 import 'package:http/http.dart' as http;
 import 'package:kumoriya_core/kumoriya_core.dart';
+import 'package:kumoriya_resolver_common/kumoriya_resolver_common.dart';
 import 'package:kumoriya_plugins/kumoriya_plugins.dart';
 
 import 'errors/voe_resolver_error.dart';
@@ -104,7 +105,9 @@ final class VoeResolverPlugin implements ResolverPlugin {
           );
         }
 
-        final extractionPayload = _buildExtractionPayload(response.body);
+        final extractionPayload = _buildExtractionPayload(
+          safeResponseBody(response),
+        );
         payloads.add(_FetchedPayload(url: currentUrl, body: extractionPayload));
 
         final redirectUrl = _extractJavascriptRedirect(

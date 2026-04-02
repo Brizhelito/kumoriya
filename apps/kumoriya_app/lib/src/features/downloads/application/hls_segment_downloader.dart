@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:developer' as developer;
 import 'dart:io';
 import 'dart:isolate';
@@ -7,6 +8,7 @@ import 'package:http/http.dart' as http;
 import 'package:kumoriya_storage/kumoriya_storage.dart';
 import 'package:path/path.dart' as p;
 
+import 'download_debug_logger.dart';
 import 'hls_download_engine.dart';
 
 typedef HlsRequestSender =
@@ -22,6 +24,7 @@ const _browserUserAgent =
 
 final _bandwidthRe = RegExp(r'BANDWIDTH=(\d+)');
 final _mapUriRe = RegExp(r'URI="([^"]+)"');
+final _targetDurationRe = RegExp(r'#EXT-X-TARGETDURATION:(\d+)');
 
 /// Orchestrates HLS downloads with per-segment persistence and Isolate-based
 /// I/O for zero UI jank.
@@ -55,6 +58,10 @@ class HlsSegmentDownloader {
     HlsRequestSender? sendRequest,
     this.parallelSegments = 32,
     this.maxRetries = 3,
+    this.playlistRequestTimeout = const Duration(seconds: 15),
+    this.playlistBodyTimeout = const Duration(seconds: 15),
+    this.segmentRequestTimeout = const Duration(seconds: 30),
+    this.segmentBodyTimeout = const Duration(seconds: 30),
     HlsSegmentStore? segmentStore,
   }) : _httpClient = httpClient ?? http.Client(),
        _usesInjectedTransport = sendRequest != null {
@@ -74,6 +81,10 @@ class HlsSegmentDownloader {
   /// Number of segments to download in parallel (pool size).
   final int parallelSegments;
   final int maxRetries;
+  final Duration playlistRequestTimeout;
+  final Duration playlistBodyTimeout;
+  final Duration segmentRequestTimeout;
+  final Duration segmentBodyTimeout;
 
   /// Downloads the HLS stream at [masterUrl] to [outputPath].
   ///
@@ -99,10 +110,20 @@ class HlsSegmentDownloader {
     Completer<void>? cancelCompleter,
   }) async {
     _log('Starting HLS download: $masterUrl');
+    await dlLog.log('HLS', 'fetchPlaylist master=$masterUrl headers=$headers');
 
     // ── 1. Fetch and parse the m3u8 playlist ───────────────────────────
     final masterContent = await _fetchPlaylistWithRetry(masterUrl, headers);
     final variants = _parseVariants(masterContent, masterUrl);
+    await dlLog.log(
+      'HLS',
+      _summarizePlaylistForLog(
+        label: 'master playlist',
+        content: masterContent,
+        variantCount: variants.length,
+      ),
+    );
+    await dlLog.log('HLS', 'parsed ${variants.length} variants: $variants');
 
     if (variants.isEmpty) {
       return _downloadResolvedPlaylist(
@@ -123,7 +144,16 @@ class HlsSegmentDownloader {
       }
       try {
         _log('Trying variant: $variant');
+        await dlLog.log('HLS', 'fetching variant: $variant');
         final mediaContent = await _fetchPlaylistWithRetry(variant, headers);
+        await dlLog.log(
+          'HLS',
+          _summarizePlaylistForLog(
+            label: 'media playlist',
+            content: mediaContent,
+            segmentCount: _countPlaylistSegments(mediaContent),
+          ),
+        );
         return await _downloadResolvedPlaylist(
           mediaContent: mediaContent,
           mediaBaseUrl: variant,
@@ -133,9 +163,16 @@ class HlsSegmentDownloader {
           onProgress: onProgress,
           cancelCompleter: cancelCompleter,
         );
-      } catch (e) {
+      } catch (e, stack) {
+        if (cancelCompleter?.isCompleted == true) {
+          throw const HttpException('HLS download cancelled');
+        }
         lastError = e;
         _log('Variant failed: $variant error=$e');
+        await dlLog.error('HLS', 'variant FAILED: $variant', e, stack);
+        if (_shouldAbortRemainingVariantsAfterFailure(variant, e)) {
+          rethrow;
+        }
       }
     }
 
@@ -647,20 +684,48 @@ class HlsSegmentDownloader {
   /// Fetches a playlist text file with a connection timeout.
   Future<String> _fetchPlaylist(Uri url, Map<String, String> headers) async {
     final request = http.Request('GET', url)
+      ..persistentConnection = !_shouldDisableHlsConnectionReuse(url)
       ..headers.addAll(headers)
       ..headers.putIfAbsent('User-Agent', () => _browserUserAgent)
-      // Disable compression: the download HTTP client has autoUncompress=false.
-      // Without this, CDNs may return gzip-compressed M3U8 data, which would
-      // cause bytesToString() to throw FormatException on the binary payload.
-      ..headers['Accept-Encoding'] = 'identity';
+      ..headers.putIfAbsent('Accept-Encoding', () => 'identity');
+    if (!request.persistentConnection) {
+      request.headers['Connection'] = 'close';
+    }
     final response = await _sendRequest(
       request,
-      timeout: const Duration(seconds: 15),
+      timeout: playlistRequestTimeout,
     );
     if (response.statusCode != 200) {
       throw HttpException('HTTP ${response.statusCode} fetching HLS playlist');
     }
-    return response.stream.bytesToString();
+    await dlLog.log(
+      'HLS',
+      'playlist response status=${response.statusCode} url=$url',
+    );
+    List<int> bytes;
+    final bodyTimeout = _effectivePlaylistBodyTimeout(url);
+    try {
+      bytes = await response.stream.toBytes().timeout(bodyTimeout);
+    } on TimeoutException {
+      throw TimeoutException(
+        'Timed out reading HLS playlist body from $url',
+        bodyTimeout,
+      );
+    }
+    await dlLog.dumpBytes('HLS', 'playlist raw bytes from $url', bytes);
+
+    // StreamWish CDN (and others) may return gzip-compressed m3u8 even when
+    // the client didn't ask for it. Detect via the gzip magic number and
+    // decompress before decoding to text.
+    if (bytes.length >= 2 && bytes[0] == 0x1f && bytes[1] == 0x8b) {
+      await dlLog.log(
+        'HLS',
+        'detected gzip-compressed playlist, decompressing',
+      );
+      bytes = gzip.decode(bytes);
+    }
+
+    return utf8.decode(bytes, allowMalformed: true);
   }
 
   Future<String> _fetchPlaylistWithRetry(
@@ -670,7 +735,10 @@ class HlsSegmentDownloader {
     for (var attempt = 1; attempt <= maxRetries; attempt++) {
       try {
         return await _fetchPlaylist(url, headers);
-      } catch (_) {
+      } catch (error) {
+        if (_shouldFailFastPlaylistError(error)) {
+          rethrow;
+        }
         if (attempt == maxRetries) rethrow;
       }
       await Future<void>.delayed(Duration(milliseconds: 250 * attempt));
@@ -681,16 +749,28 @@ class HlsSegmentDownloader {
 
   Future<List<int>> _fetchBinary(Uri url, Map<String, String> headers) async {
     final request = http.Request('GET', url)
+      ..persistentConnection = !_shouldDisableHlsConnectionReuse(url)
       ..headers.addAll(headers)
-      ..headers.putIfAbsent('User-Agent', () => _browserUserAgent);
+      ..headers.putIfAbsent('User-Agent', () => _browserUserAgent)
+      ..headers.putIfAbsent('Accept-Encoding', () => 'identity');
+    if (!request.persistentConnection) {
+      request.headers['Connection'] = 'close';
+    }
     final response = await _sendRequest(
       request,
-      timeout: const Duration(seconds: 30),
+      timeout: segmentRequestTimeout,
     );
     if (response.statusCode != 200) {
       throw HttpException('HTTP ${response.statusCode} fetching HLS segment');
     }
-    return response.stream.toBytes();
+    try {
+      return await response.stream.toBytes().timeout(segmentBodyTimeout);
+    } on TimeoutException {
+      throw TimeoutException(
+        'Timed out reading HLS segment body from $url',
+        segmentBodyTimeout,
+      );
+    }
   }
 
   Future<List<int>> _fetchBinaryWithRetry(
@@ -700,7 +780,10 @@ class HlsSegmentDownloader {
     for (var attempt = 1; attempt <= maxRetries; attempt++) {
       try {
         return await _fetchBinary(url, headers);
-      } catch (_) {
+      } catch (error) {
+        if (_shouldFailFastSegmentError(error)) {
+          rethrow;
+        }
         if (attempt == maxRetries) rethrow;
       }
       await Future<void>.delayed(Duration(milliseconds: 250 * attempt));
@@ -775,10 +858,92 @@ class HlsSegmentDownloader {
 
   /// Resolves a possibly-relative URL against a base URL.
   Uri _resolveUrl(String url, Uri baseUrl) {
-    if (url.startsWith('http://') || url.startsWith('https://')) {
-      return Uri.parse(url);
+    try {
+      if (url.startsWith('http://') || url.startsWith('https://')) {
+        return Uri.parse(url);
+      }
+      return baseUrl.resolve(url);
+    } catch (e, stack) {
+      dlLog.error(
+        'HLS',
+        'Uri.parse FAILED for line="$url" base=$baseUrl',
+        e,
+        stack,
+      );
+      rethrow;
     }
-    return baseUrl.resolve(url);
+  }
+
+  bool _shouldDisableHlsConnectionReuse(Uri url) {
+    final host = url.host.toLowerCase();
+    return Platform.isAndroid && _isProblematicPremilkywayHost(host);
+  }
+
+  Duration _effectivePlaylistBodyTimeout(Uri url) {
+    if (_isProblematicPremilkywayHost(url.host)) {
+      const aggressivePremilkywayTimeout = Duration(seconds: 6);
+      if (playlistBodyTimeout > aggressivePremilkywayTimeout) {
+        return aggressivePremilkywayTimeout;
+      }
+    }
+    return playlistBodyTimeout;
+  }
+
+  bool _shouldAbortRemainingVariantsAfterFailure(Uri variant, Object error) {
+    return error is TimeoutException &&
+        _isProblematicPremilkywayHost(variant.host);
+  }
+
+  String _summarizePlaylistForLog({
+    required String label,
+    required String content,
+    int? variantCount,
+    int? segmentCount,
+  }) {
+    final lineCount = content.split('\n').length;
+    final targetDuration = _targetDurationRe.firstMatch(content)?.group(1);
+    final previewLines = content
+        .split('\n')
+        .map((line) => line.trim())
+        .where((line) => line.isNotEmpty)
+        .take(6)
+        .join(' | ');
+
+    final metrics = <String>[
+      '$label (${content.length} chars, $lineCount lines)',
+      if (variantCount != null) 'variants=$variantCount',
+      if (segmentCount != null) 'segments=$segmentCount',
+      if (targetDuration != null) 'targetDuration=${targetDuration}s',
+      'preview=$previewLines',
+    ];
+
+    return metrics.join(' ');
+  }
+
+  int _countPlaylistSegments(String content) {
+    var count = 0;
+    for (final line in content.split('\n')) {
+      final trimmed = line.trim();
+      if (trimmed.isEmpty || trimmed.startsWith('#')) {
+        continue;
+      }
+      count++;
+    }
+    return count;
+  }
+
+  bool _isProblematicPremilkywayHost(String host) {
+    final normalizedHost = host.toLowerCase();
+    return normalizedHost == 'premilkyway.com' ||
+        normalizedHost.endsWith('.premilkyway.com');
+  }
+
+  bool _shouldFailFastPlaylistError(Object error) {
+    return error is TimeoutException;
+  }
+
+  bool _shouldFailFastSegmentError(Object error) {
+    return error is TimeoutException;
   }
 
   void _log(String message) {

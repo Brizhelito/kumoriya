@@ -110,9 +110,9 @@ final class StreamtapeResolverPlugin implements ResolverPlugin {
         );
       }
 
-      final streams = _extractStreams(response.body, baseUrl: url);
+      final streams = _extractStreams(safeResponseBody(response), baseUrl: url);
       if (streams.isEmpty) {
-        if (_hasHints(response.body)) {
+        if (_hasHints(safeResponseBody(response))) {
           return const Failure(
             StreamtapeInconsistentPayloadError(
               message:

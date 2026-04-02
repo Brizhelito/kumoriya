@@ -257,7 +257,7 @@ final class AnimeFlvSourcePlugin implements SourcePlugin {
           ),
         );
       }
-      return Success(response.body);
+      return Success(utf8.decode(response.bodyBytes, allowMalformed: true));
     } catch (error) {
       return Failure(
         AnimeFlvTransportError(message: 'AnimeFLV request failed: $error'),

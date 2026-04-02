@@ -80,6 +80,11 @@ abstract interface class DownloadStore {
     int? limit,
   });
 
+  Future<Result<List<DownloadTask>, KumoriyaError>> getTasksByStatuses(
+    List<DownloadStatus> statuses, {
+    int? limit,
+  });
+
   Future<Result<List<DownloadTask>, KumoriyaError>> getAllTasks({int? limit});
 
   Future<Result<void, KumoriyaError>> deleteTask(String id);

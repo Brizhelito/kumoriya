@@ -1,5 +1,6 @@
 import 'package:http/http.dart' as http;
 import 'package:kumoriya_core/kumoriya_core.dart';
+import 'package:kumoriya_resolver_common/kumoriya_resolver_common.dart';
 import 'package:kumoriya_plugins/kumoriya_plugins.dart';
 
 import 'errors/jkplayer_resolver_error.dart';
@@ -76,11 +77,11 @@ final class JkPlayerResolverPlugin implements ResolverPlugin {
       }
 
       final streamUrls = _extractStreamUrls(
-        response.body,
+        safeResponseBody(response),
         allowUnknownExtension: false,
       );
       if (streamUrls.isEmpty) {
-        final hasUrlHints = _jkUrlHintsRe.hasMatch(response.body);
+        final hasUrlHints = _jkUrlHintsRe.hasMatch(safeResponseBody(response));
 
         if (hasUrlHints) {
           return const Failure(
@@ -177,7 +178,7 @@ final class JkPlayerJkResolverPlugin implements ResolverPlugin {
       }
 
       final streamUrls = _extractStreamUrls(
-        response.body,
+        safeResponseBody(response),
         allowUnknownExtension: true,
       );
 

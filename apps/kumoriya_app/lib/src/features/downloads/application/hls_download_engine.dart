@@ -332,9 +332,17 @@ Future<void> _runDownloadPipeline({
   if (config.initSegmentUrl != null && config.initSegmentPath != null) {
     final initFile = File(config.initSegmentPath!);
     if (!initFile.existsSync()) {
+      final Uri initUri;
+      try {
+        initUri = Uri.parse(config.initSegmentUrl!);
+      } catch (e) {
+        throw FormatException(
+          'Bad init segment URL: "${config.initSegmentUrl}" — $e',
+        );
+      }
       final data = await _fetchWithRetry(
         httpClient: httpClient,
-        url: Uri.parse(config.initSegmentUrl!),
+        url: initUri,
         headers: config.headers,
         maxRetries: config.maxRetries,
       );
@@ -440,9 +448,18 @@ Future<void> _runDownloadPipeline({
     try {
       if (isCancelled()) return;
 
+      final Uri segUrl;
+      try {
+        segUrl = Uri.parse(seg.url);
+      } catch (e) {
+        throw FormatException(
+          'Bad segment URL at index ${seg.index}: "${seg.url}" — $e',
+        );
+      }
+
       final byteCount = await _fetchSegmentToFile(
         httpClient: httpClient,
-        url: Uri.parse(seg.url),
+        url: segUrl,
         headers: config.headers,
         filePath: seg.localPath,
         maxRetries: config.maxRetries,
@@ -575,9 +592,13 @@ Future<List<int>> _fetchWithRetry({
   for (var attempt = 1; attempt <= maxRetries; attempt++) {
     try {
       final request = http.Request('GET', url)
+        ..persistentConnection = !_shouldDisableHlsConnectionReuse(url)
         ..headers.addAll(headers)
         ..headers.putIfAbsent('User-Agent', () => _browserUserAgent)
         ..headers.putIfAbsent('Accept-Encoding', () => 'identity');
+      if (!request.persistentConnection) {
+        request.headers['Connection'] = 'close';
+      }
 
       final response = await httpClient
           .send(request)
@@ -588,8 +609,17 @@ Future<List<int>> _fetchWithRetry({
           'HTTP ${response.statusCode} fetching segment $url',
         );
       }
-      return await response.stream.toBytes();
-    } catch (_) {
+      final bytes = <int>[];
+      await for (final chunk in response.stream.timeout(
+        const Duration(seconds: 30),
+      )) {
+        bytes.addAll(chunk);
+      }
+      return bytes;
+    } catch (error) {
+      if (_shouldFailFastHlsTransportError(error)) {
+        rethrow;
+      }
       if (attempt == maxRetries) rethrow;
     }
     await Future<void>.delayed(Duration(milliseconds: 200 * attempt));
@@ -611,9 +641,13 @@ Future<int> _fetchSegmentToFile({
   for (var attempt = 1; attempt <= maxRetries; attempt++) {
     try {
       final request = http.Request('GET', url)
+        ..persistentConnection = !_shouldDisableHlsConnectionReuse(url)
         ..headers.addAll(headers)
         ..headers.putIfAbsent('User-Agent', () => _browserUserAgent)
         ..headers.putIfAbsent('Accept-Encoding', () => 'identity');
+      if (!request.persistentConnection) {
+        request.headers['Connection'] = 'close';
+      }
 
       final response = await httpClient
           .send(request)
@@ -630,7 +664,9 @@ Future<int> _fetchSegmentToFile({
       final sink = file.openWrite();
       var byteCount = 0;
       try {
-        await for (final chunk in response.stream) {
+        await for (final chunk in response.stream.timeout(
+          const Duration(seconds: 30),
+        )) {
           sink.add(chunk);
           byteCount += chunk.length;
         }
@@ -641,10 +677,26 @@ Future<int> _fetchSegmentToFile({
         rethrow;
       }
       return byteCount;
-    } catch (_) {
+    } catch (error) {
+      if (_shouldFailFastHlsTransportError(error)) {
+        rethrow;
+      }
       if (attempt == maxRetries) rethrow;
     }
     await Future<void>.delayed(Duration(milliseconds: 200 * attempt));
   }
   throw const HttpException('Segment fetch failed after all retries');
+}
+
+bool _shouldDisableHlsConnectionReuse(Uri url) {
+  if (!Platform.isAndroid) {
+    return false;
+  }
+
+  final host = url.host.toLowerCase();
+  return host == 'premilkyway.com' || host.endsWith('.premilkyway.com');
+}
+
+bool _shouldFailFastHlsTransportError(Object error) {
+  return error is TimeoutException;
 }

@@ -1,5 +1,6 @@
 import 'package:http/http.dart' as http;
 import 'package:kumoriya_core/kumoriya_core.dart';
+import 'package:kumoriya_resolver_common/kumoriya_resolver_common.dart';
 import 'package:kumoriya_plugins/kumoriya_plugins.dart';
 
 import 'errors/mp4upload_resolver_error.dart';
@@ -72,9 +73,9 @@ final class Mp4uploadResolverPlugin implements ResolverPlugin {
         );
       }
 
-      final streams = _extractStreams(response.body, baseUrl: url);
+      final streams = _extractStreams(safeResponseBody(response), baseUrl: url);
       if (streams.isEmpty) {
-        if (_hasHints(response.body)) {
+        if (_hasHints(safeResponseBody(response))) {
           return const Failure(
             Mp4uploadInconsistentPayloadError(
               message: 'Mp4Upload payload has hints but no valid stream URLs.',

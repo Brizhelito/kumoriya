@@ -1,3 +1,5 @@
+import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:http/http.dart' as http;
@@ -126,6 +128,182 @@ seg-2.ts
           'https://media.example/stream/seg-2.ts',
         ]);
         expect(await File(output).readAsBytes(), <int>[9, 9, 8, 8]);
+      },
+    );
+
+    test('times out when a playlist body never finishes streaming', () async {
+      final tempDir = await Directory.systemTemp.createTemp(
+        'kumoriya-hls-timeout',
+      );
+      final hangingController = StreamController<List<int>>();
+
+      addTearDown(() async {
+        await hangingController.close();
+        if (await tempDir.exists()) {
+          await tempDir.delete(recursive: true);
+        }
+      });
+
+      final downloader = HlsSegmentDownloader(
+        parallelSegments: 1,
+        maxRetries: 1,
+        playlistBodyTimeout: const Duration(milliseconds: 50),
+        sendRequest: (request, {required timeout}) async {
+          return switch (request.url.toString()) {
+            'https://media.example/stream/playlist.m3u8' =>
+              http.StreamedResponse(hangingController.stream, 200),
+            _ => http.StreamedResponse(Stream<List<int>>.empty(), 404),
+          };
+        },
+      );
+
+      final output = p.join(tempDir.path, 'media.ts');
+
+      await expectLater(
+        downloader.download(
+          masterUrl: Uri.parse('https://media.example/stream/playlist.m3u8'),
+          outputPath: output,
+        ),
+        throwsA(isA<TimeoutException>()),
+      );
+    });
+
+    test(
+      'falls through quickly to the next variant after playlist timeout',
+      () async {
+        final tempDir = await Directory.systemTemp.createTemp(
+          'kumoriya-hls-variant-timeout',
+        );
+        final hangingController = StreamController<List<int>>();
+        var timedOutVariantAttempts = 0;
+
+        addTearDown(() async {
+          await hangingController.close();
+          if (await tempDir.exists()) {
+            await tempDir.delete(recursive: true);
+          }
+        });
+
+        final downloader = HlsSegmentDownloader(
+          parallelSegments: 1,
+          maxRetries: 3,
+          playlistBodyTimeout: const Duration(milliseconds: 50),
+          sendRequest: (request, {required timeout}) async {
+            return switch (request.url.toString()) {
+              'https://cdn.example/master.m3u8' => http.StreamedResponse(
+                Stream<List<int>>.fromIterable([
+                  utf8.encode('''
+#EXTM3U
+#EXT-X-STREAM-INF:BANDWIDTH=2000000
+high.m3u8
+#EXT-X-STREAM-INF:BANDWIDTH=1000000
+low.m3u8
+'''),
+                ]),
+                200,
+              ),
+              'https://cdn.example/high.m3u8' => () {
+                timedOutVariantAttempts++;
+                return http.StreamedResponse(hangingController.stream, 200);
+              }(),
+              'https://cdn.example/low.m3u8' => http.StreamedResponse(
+                Stream<List<int>>.fromIterable([
+                  utf8.encode('''
+#EXTM3U
+#EXTINF:4.0,
+seg-low-1.ts
+'''),
+                ]),
+                200,
+              ),
+              'https://cdn.example/seg-low-1.ts' => http.StreamedResponse(
+                Stream<List<int>>.fromIterable([
+                  <int>[7, 8, 9],
+                ]),
+                200,
+              ),
+              _ => http.StreamedResponse(Stream<List<int>>.empty(), 404),
+            };
+          },
+        );
+
+        final output = p.join(tempDir.path, 'episode.ts');
+        final result = await downloader.download(
+          masterUrl: Uri.parse('https://cdn.example/master.m3u8'),
+          outputPath: output,
+        );
+
+        expect(timedOutVariantAttempts, 1);
+        expect(result.totalBytes, 3);
+        expect(await File(output).readAsBytes(), <int>[7, 8, 9]);
+      },
+    );
+
+    test(
+      'aborts sibling variants early for premilkyway playlist timeouts',
+      () async {
+        final tempDir = await Directory.systemTemp.createTemp(
+          'kumoriya-hls-premilkyway-timeout',
+        );
+        final hangingController = StreamController<List<int>>();
+        var lowVariantRequested = false;
+
+        addTearDown(() async {
+          await hangingController.close();
+          if (await tempDir.exists()) {
+            await tempDir.delete(recursive: true);
+          }
+        });
+
+        final downloader = HlsSegmentDownloader(
+          parallelSegments: 1,
+          maxRetries: 3,
+          playlistBodyTimeout: const Duration(milliseconds: 50),
+          sendRequest: (request, {required timeout}) async {
+            return switch (request.url.toString()) {
+              'https://edge1.premilkyway.com/master.m3u8' =>
+                http.StreamedResponse(
+                  Stream<List<int>>.fromIterable([
+                    utf8.encode('''
+#EXTM3U
+#EXT-X-STREAM-INF:BANDWIDTH=2000000
+high.m3u8
+#EXT-X-STREAM-INF:BANDWIDTH=1000000
+low.m3u8
+'''),
+                  ]),
+                  200,
+                ),
+              'https://edge1.premilkyway.com/high.m3u8' =>
+                http.StreamedResponse(hangingController.stream, 200),
+              'https://edge1.premilkyway.com/low.m3u8' => () {
+                lowVariantRequested = true;
+                return http.StreamedResponse(
+                  Stream<List<int>>.fromIterable([
+                    utf8.encode('''
+#EXTM3U
+#EXTINF:4.0,
+seg-low-1.ts
+'''),
+                  ]),
+                  200,
+                );
+              }(),
+              _ => http.StreamedResponse(Stream<List<int>>.empty(), 404),
+            };
+          },
+        );
+
+        final output = p.join(tempDir.path, 'episode.ts');
+
+        await expectLater(
+          downloader.download(
+            masterUrl: Uri.parse('https://edge1.premilkyway.com/master.m3u8'),
+            outputPath: output,
+          ),
+          throwsA(isA<TimeoutException>()),
+        );
+        expect(lowVariantRequested, isFalse);
       },
     );
   });

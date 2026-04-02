@@ -1,5 +1,6 @@
 import 'package:http/http.dart' as http;
 import 'package:kumoriya_core/kumoriya_core.dart';
+import 'package:kumoriya_resolver_common/kumoriya_resolver_common.dart';
 import 'package:kumoriya_plugins/kumoriya_plugins.dart';
 
 import 'errors/pixeldrain_resolver_error.dart';
@@ -70,9 +71,9 @@ final class PixeldrainResolverPlugin implements ResolverPlugin {
         );
       }
 
-      final directUrl = _extractApiUrlFromPayload(response.body);
+      final directUrl = _extractApiUrlFromPayload(safeResponseBody(response));
       if (directUrl == null) {
-        if (_hasHints(response.body)) {
+        if (_hasHints(safeResponseBody(response))) {
           return const Failure(
             PixeldrainInconsistentPayloadError(
               message:

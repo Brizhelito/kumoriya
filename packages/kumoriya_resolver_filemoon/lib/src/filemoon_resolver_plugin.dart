@@ -105,13 +105,17 @@ final class FilemoonResolverPlugin implements ResolverPlugin {
         );
       }
 
-      final streams = _extractStreams(response.body, resolverUrl: url);
+      final streams = _extractStreams(
+        safeResponseBody(response),
+        resolverUrl: url,
+      );
       if (streams.isEmpty) {
         // Only attempt the expensive dynamic API flow if the page is from a
         // known dynamic host AND the payload actually contains stream hints
         // (player init, HLS references, etc). This avoids a wasted 8s round-
         // trip when the page is genuinely empty or unavailable.
-        if (_isDynamicHost(url.host) && _hasStreamHints(response.body)) {
+        if (_isDynamicHost(url.host) &&
+            _hasStreamHints(safeResponseBody(response))) {
           final dynamicResult = await _resolveDynamicByseFlow(
             url,
             httpClient: _httpClient,
@@ -124,7 +128,7 @@ final class FilemoonResolverPlugin implements ResolverPlugin {
           }
         }
 
-        if (_isUnavailablePayload(response.body)) {
+        if (_isUnavailablePayload(safeResponseBody(response))) {
           return Failure(
             FilemoonTransportError(
               message:
@@ -133,7 +137,7 @@ final class FilemoonResolverPlugin implements ResolverPlugin {
           );
         }
 
-        if (_hasStreamHints(response.body)) {
+        if (_hasStreamHints(safeResponseBody(response))) {
           return const Failure(
             FilemoonInconsistentPayloadError(
               message:
@@ -189,7 +193,7 @@ Future<Result<List<ResolvedStream>, KumoriyaError>?> _resolveDynamicByseFlow(
       return null;
     }
 
-    final decoded = _decodeDetails(detailsResponse.body);
+    final decoded = _decodeDetails(safeResponseBody(detailsResponse));
     if (decoded == null) {
       return null;
     }
@@ -243,12 +247,15 @@ Future<Result<List<ResolvedStream>, KumoriyaError>?> _resolveFromEmbedFrame({
       return null;
     }
 
-    final streams = _extractStreams(response.body, resolverUrl: targetUrl);
+    final streams = _extractStreams(
+      safeResponseBody(response),
+      resolverUrl: targetUrl,
+    );
     if (streams.isNotEmpty) {
       return Success(streams);
     }
 
-    if (_isUnavailablePayload(response.body)) {
+    if (_isUnavailablePayload(safeResponseBody(response))) {
       return Failure(
         FilemoonTransportError(
           message:

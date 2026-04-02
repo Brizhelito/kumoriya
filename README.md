@@ -18,6 +18,15 @@ Kumoriya is now bootstrapped as a real Flutter monorepo with plugin-first archit
 2. `dart format .`
 3. `dart analyze`
 
+## Manual Debug Flags
+
+- `KUMORIYA_DOWNLOAD_DEBUG_LOGS`
+	Enables verbose download diagnostics on demand. Default: `false`.
+	Example run: `flutter run --dart-define=KUMORIYA_DOWNLOAD_DEBUG_LOGS=true`
+	Example build: `flutter build apk --dart-define=KUMORIYA_DOWNLOAD_DEBUG_LOGS=true`
+	When enabled on Android, download logs are written to app storage and can be
+	collected with the existing capture script.
+
 ## Scope of this bootstrap
 
 - Includes architecture contracts and package boundaries.

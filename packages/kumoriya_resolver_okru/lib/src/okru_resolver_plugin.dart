@@ -76,9 +76,9 @@ final class OkruResolverPlugin implements ResolverPlugin {
         );
       }
 
-      final streams = _extractStreams(response.body, baseUrl: url);
+      final streams = _extractStreams(safeResponseBody(response), baseUrl: url);
       if (streams.isEmpty) {
-        if (_hasHints(response.body)) {
+        if (_hasHints(safeResponseBody(response))) {
           return const Failure(
             OkruInconsistentPayloadError(
               message: 'Okru payload had player hints but no playable streams.',
@@ -102,26 +102,18 @@ final class OkruResolverPlugin implements ResolverPlugin {
 
 Map<String, String> _headers(Uri url) {
   final origin = '${url.scheme}://${url.host}';
-  return <String, String>{
-    'Referer': '$origin/',
-    'Origin': origin,
-    // Disable gzip: Dart's http.Client auto-decompresses, but being explicit
-    // prevents intermediate proxies from re-encoding responses.
-    'Accept-Encoding': 'identity',
-  };
+  return <String, String>{'Referer': '$origin/', 'Origin': origin};
 }
 
 final _dataOptionsRe = RegExp(
-  // Match both double-quoted and single-quoted attribute values.
-  r'''data-options\s*=\s*(?:"([^"]+)"|'([^']+)')''',
+  r'data-options="([^"]+)"',
   caseSensitive: false,
   multiLine: true,
 );
 
 List<ResolvedStream> _extractStreams(String payload, {required Uri baseUrl}) {
   final dataOptionsMatch = _dataOptionsRe.firstMatch(payload);
-  // group(1) = double-quoted value, group(2) = single-quoted value
-  final dataOptionsRaw = dataOptionsMatch?.group(1) ?? dataOptionsMatch?.group(2);
+  final dataOptionsRaw = dataOptionsMatch?.group(1);
   if (dataOptionsRaw == null || dataOptionsRaw.isEmpty) {
     return const <ResolvedStream>[];
   }

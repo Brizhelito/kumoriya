@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:http/http.dart' as http;
 import 'package:kumoriya_core/kumoriya_core.dart';
 import 'package:kumoriya_plugins/kumoriya_plugins.dart';
@@ -114,7 +116,8 @@ final class VidhideResolverPlugin implements ResolverPlugin {
         );
       }
 
-      final payload = await response.stream.bytesToString();
+      final payloadBytes = await response.stream.toBytes();
+      final payload = utf8.decode(payloadBytes, allowMalformed: true);
       final extractionPayload = common.buildExtractionPayload(payload);
       final streams = _extractStreams(extractionPayload, effectiveUrl);
       if (streams.isEmpty) {

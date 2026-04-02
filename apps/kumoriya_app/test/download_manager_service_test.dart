@@ -202,25 +202,127 @@ seg-2.ts
         ]);
       },
     );
+
+    test(
+      'allows StreamWish HLS downloads to start concurrently on Android',
+      () async {
+        final client = _GateableHlsClient();
+        final harness = await _DownloadHarness.createWithClient(
+          client: client,
+          maxConcurrent: 2,
+        );
+        addTearDown(harness.dispose);
+
+        final firstTask = _task(
+          id: 'download-task-sw-1',
+          episodeNumber: 1,
+          sourceUrl: Uri.parse('https://cdn.example/sw-1/master.m3u8'),
+          fileName: 'EP 01 - SW.ts',
+          isHls: true,
+          serverName: 'SW',
+          detectedHost: 'premilkyway.com',
+          headers: const <String, String>{
+            'Referer': 'https://sfastwish.com/',
+            'Origin': 'https://sfastwish.com',
+          },
+        );
+        final secondTask = _task(
+          id: 'download-task-sw-2',
+          episodeNumber: 2,
+          sourceUrl: Uri.parse('https://cdn.example/sw-2/master.m3u8'),
+          fileName: 'EP 02 - SW.ts',
+          isHls: true,
+          serverName: 'SW',
+          detectedHost: 'premilkyway.com',
+          headers: const <String, String>{
+            'Referer': 'https://sfastwish.com/',
+            'Origin': 'https://sfastwish.com',
+          },
+        );
+
+        await harness.manager.enqueue(firstTask);
+        await harness.manager.enqueue(secondTask);
+
+        await Future<void>.delayed(const Duration(milliseconds: 150));
+
+        final firstStatus = await harness.storeTask(firstTask.id);
+        final secondStatus = await harness.storeTask(secondTask.id);
+
+        expect(firstStatus?.status, DownloadStatus.downloading);
+        expect(secondStatus?.status, DownloadStatus.downloading);
+
+        client.release();
+        await Future<void>.delayed(const Duration(milliseconds: 50));
+      },
+    );
+
+    test('keeps non-StreamWish HLS downloads concurrent on Android', () async {
+      final client = _GateableHlsClient();
+      final harness = await _DownloadHarness.createWithClient(
+        client: client,
+        maxConcurrent: 2,
+      );
+      addTearDown(harness.dispose);
+
+      final firstTask = _task(
+        id: 'download-task-filemoon-1',
+        episodeNumber: 1,
+        sourceUrl: Uri.parse('https://cdn.example/filemoon-1/master.m3u8'),
+        fileName: 'EP 01 - Filemoon.ts',
+        isHls: true,
+        serverName: 'Filemoon',
+        detectedHost: 'filemoon.sx',
+      );
+      final secondTask = _task(
+        id: 'download-task-filemoon-2',
+        episodeNumber: 2,
+        sourceUrl: Uri.parse('https://cdn.example/filemoon-2/master.m3u8'),
+        fileName: 'EP 02 - Filemoon.ts',
+        isHls: true,
+        serverName: 'Filemoon',
+        detectedHost: 'filemoon.sx',
+      );
+
+      await harness.manager.enqueue(firstTask);
+      await harness.manager.enqueue(secondTask);
+
+      await Future<void>.delayed(const Duration(milliseconds: 150));
+
+      final firstStatus = await harness.storeTask(firstTask.id);
+      final secondStatus = await harness.storeTask(secondTask.id);
+
+      expect(firstStatus?.status, DownloadStatus.downloading);
+      expect(secondStatus?.status, DownloadStatus.downloading);
+
+      client.release();
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+    });
   });
 }
 
 DownloadTask _task({
   String id = 'download-task-1',
+  double episodeNumber = 1,
   Uri? sourceUrl,
   String fileName = 'EP 01 - Test.mp4',
   bool isHls = false,
+  String? serverName,
+  String? detectedHost,
+  Map<String, String> headers = const <String, String>{},
 }) {
   return DownloadTask(
     id: id,
     anilistId: 1,
-    episodeNumber: 1,
+    episodeNumber: episodeNumber,
     sourceUrl: sourceUrl ?? Uri.parse('https://cdn.example/video.mp4'),
     status: DownloadStatus.pending,
     createdAt: DateTime(2026),
     animeTitle: 'Test Anime',
     fileName: fileName,
     isHls: isHls,
+    serverName: serverName,
+    detectedHost: detectedHost,
+    headers: headers,
   );
 }
 
@@ -259,6 +361,7 @@ final class _DownloadHarness {
   static Future<_DownloadHarness> createWithClient({
     required http.Client client,
     http.Client Function()? insecureHttpClientFactory,
+    int maxConcurrent = 1,
   }) async {
     final tempDir = await Directory.systemTemp.createTemp(
       'kumoriya-download-manager',
@@ -275,7 +378,7 @@ final class _DownloadHarness {
         store: store,
         directoryService: directoryService,
       ),
-      maxConcurrent: 1,
+      maxConcurrent: maxConcurrent,
       httpClient: client,
       insecureHttpClientFactory: insecureHttpClientFactory,
       maxRetryAttempts: 2,
@@ -289,6 +392,12 @@ final class _DownloadHarness {
   }
 
   _SequenceClient get sequenceClient => client as _SequenceClient;
+
+  Future<DownloadTask?> storeTask(String taskId) async {
+    return (await store.getTask(
+      taskId,
+    )).fold(onSuccess: (value) => value, onFailure: (_) => null);
+  }
 
   Future<DownloadTask?> waitForTask(String taskId) async {
     final deadline = DateTime.now().add(const Duration(seconds: 5));
@@ -339,6 +448,50 @@ final class _SequenceClient extends http.BaseClient {
   }
 }
 
+final class _GateableHlsClient extends http.BaseClient {
+  final Completer<void> _gate = Completer<void>();
+
+  void release() {
+    if (!_gate.isCompleted) {
+      _gate.complete();
+    }
+  }
+
+  @override
+  Future<http.StreamedResponse> send(http.BaseRequest request) async {
+    await _gate.future;
+
+    if (request.method == 'HEAD') {
+      return _streamedResponse(
+        bytes: const <int>[],
+        statusCode: 200,
+        headers: const <String, String>{'content-length': '3'},
+      );
+    }
+
+    if (request.url.path.toLowerCase().endsWith('.m3u8')) {
+      return _streamedResponse(
+        bytes:
+            '''
+#EXTM3U
+#EXTINF:4.0,
+seg.ts
+#EXT-X-ENDLIST
+'''
+                .codeUnits,
+        statusCode: 200,
+        headers: const <String, String>{'content-length': '38'},
+      );
+    }
+
+    return _streamedResponse(
+      bytes: const <int>[1, 2, 3],
+      statusCode: 200,
+      headers: const <String, String>{'content-length': '3'},
+    );
+  }
+}
+
 final class _ThrowingClient extends http.BaseClient {
   _ThrowingClient({required this.error});
 
@@ -364,8 +517,9 @@ final class _InMemoryDownloadStore implements DownloadStore {
     int? limit,
   }) async {
     final all = _tasks.values.toList(growable: false);
-    if (limit != null && all.length > limit)
+    if (limit != null && all.length > limit) {
       return Success(all.sublist(0, limit));
+    }
     return Success(all);
   }
 
@@ -406,6 +560,18 @@ final class _InMemoryDownloadStore implements DownloadStore {
   }) async {
     final all = _tasks.values
         .where((task) => task.status == status)
+        .toList(growable: false);
+    return Success(limit != null ? all.take(limit).toList() : all);
+  }
+
+  @override
+  Future<Result<List<DownloadTask>, KumoriyaError>> getTasksByStatuses(
+    List<DownloadStatus> statuses, {
+    int? limit,
+  }) async {
+    final statusSet = statuses.toSet();
+    final all = _tasks.values
+        .where((task) => statusSet.contains(task.status))
         .toList(growable: false);
     return Success(limit != null ? all.take(limit).toList() : all);
   }

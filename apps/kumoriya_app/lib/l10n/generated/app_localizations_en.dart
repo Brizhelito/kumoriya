@@ -797,6 +797,16 @@ class AppLocalizationsEn extends AppLocalizations {
   String get downloadCancel => 'Cancel';
 
   @override
+  String get downloadClearQueue => 'Clear queue';
+
+  @override
+  String get downloadClearQueueConfirmTitle => 'Clear queue?';
+
+  @override
+  String get downloadClearQueueConfirmMessage =>
+      'This will remove all pending and failed downloads from the queue. This action cannot be undone.';
+
+  @override
   String get downloadRetry => 'Retry';
 
   @override
@@ -1175,16 +1185,6 @@ class AppLocalizationsEn extends AppLocalizations {
       'No server links available for this episode.';
 
   @override
-  String get downloadClearQueue => 'Clear queue';
-
-  @override
-  String get downloadClearQueueConfirmTitle => 'Clear queue?';
-
-  @override
-  String get downloadClearQueueConfirmMessage =>
-      'All pending and failed downloads will be removed.';
-
-  @override
   String get downloadDeleteConfirmTitle => 'Delete download?';
 
   @override
@@ -1400,4 +1400,13 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get formatSpecial => 'Special';
+
+  @override
+  String get downloadRetryAllFailed => 'Retry all';
+
+  @override
+  String get downloadPauseAll => 'Pause all';
+
+  @override
+  String get downloadResumeAll => 'Resume all';
 }
