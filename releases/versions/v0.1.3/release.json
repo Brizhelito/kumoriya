@@ -1,4 +1,5 @@
 {
+  "tag": "v0.1.3",
   "artifacts": {
     "android": {
       "public_url": "https://pub-8159019abe1741a097538b976c19722c.r2.dev/artifacts/android/v0.1.3/kumoriya-0.1.3.apk",
@@ -14,9 +15,8 @@
   "channels": [
     "alpha"
   ],
-  "tag": "v0.1.3",
-  "date": "2026-04-01",
   "version": "0.1.3",
+  "date": "2026-04-01",
   "changelog_paths": {
     "en": "docs/releases/en/v0.1.3.md",
     "es": "docs/releases/es/v0.1.3.md"

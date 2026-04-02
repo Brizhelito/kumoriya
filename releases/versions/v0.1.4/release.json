@@ -1,24 +1,24 @@
 {
-  "tag": "v0.1.4",
-  "artifacts": {
-    "android": {
-      "public_url": "https://pub-8159019abe1741a097538b976c19722c.r2.dev/artifacts/android/v0.1.4/kumoriya-0.1.4.apk",
-      "file_name": "kumoriya-0.1.4.apk",
-      "r2_key": "artifacts/android/v0.1.4/kumoriya-0.1.4.apk"
-    },
-    "windows": {
-      "public_url": "https://pub-8159019abe1741a097538b976c19722c.r2.dev/artifacts/windows/v0.1.4/Kumoriya-0.1.4-windows-x64-setup.exe",
-      "file_name": "Kumoriya-0.1.4-windows-x64-setup.exe",
-      "r2_key": "artifacts/windows/v0.1.4/Kumoriya-0.1.4-windows-x64-setup.exe"
-    }
-  },
   "channels": [
     "alpha"
   ],
-  "version": "0.1.4",
+  "tag": "v0.1.4",
+  "artifacts": {
+    "windows": {
+      "public_url": "https://pub-8159019abe1741a097538b976c19722c.r2.dev/artifacts/windows/v0.1.4/Kumoriya-0.1.4-windows-x64-setup.exe",
+      "r2_key": "artifacts/windows/v0.1.4/Kumoriya-0.1.4-windows-x64-setup.exe",
+      "file_name": "Kumoriya-0.1.4-windows-x64-setup.exe"
+    },
+    "android": {
+      "public_url": "https://pub-8159019abe1741a097538b976c19722c.r2.dev/artifacts/android/v0.1.4/kumoriya-0.1.4.apk",
+      "r2_key": "artifacts/android/v0.1.4/kumoriya-0.1.4.apk",
+      "file_name": "kumoriya-0.1.4.apk"
+    }
+  },
   "date": "2026-04-02",
   "changelog_paths": {
     "en": "docs/releases/en/v0.1.4.md",
     "es": "docs/releases/es/v0.1.4.md"
-  }
+  },
+  "version": "0.1.4"
 }

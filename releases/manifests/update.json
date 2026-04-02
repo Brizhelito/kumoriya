@@ -1,12 +1,12 @@
 {
-  "android": {
-    "latest_version": "0.1.4",
-    "release_notes": "v0.1.4: cancelacion inmediata de descargas, limpieza de huerfanos y mayor robustez HLS | immediate download cancellation, orphan cleanup, and stronger HLS reliability",
-    "url": "https://pub-8159019abe1741a097538b976c19722c.r2.dev/artifacts/android/v0.1.4/kumoriya-0.1.4.apk"
-  },
   "windows": {
+    "release_notes": "v0.1.4: immediate download cancellation, orphan cleanup, enhanced HLS reliability, post-update dialog",
     "latest_version": "0.1.4",
-    "release_notes": "v0.1.4: cancelacion inmediata de descargas, limpieza de huerfanos y mayor robustez HLS | immediate download cancellation, orphan cleanup, and stronger HLS reliability",
     "url": "https://pub-8159019abe1741a097538b976c19722c.r2.dev/artifacts/windows/v0.1.4/Kumoriya-0.1.4-windows-x64-setup.exe"
+  },
+  "android": {
+    "release_notes": "v0.1.4: immediate download cancellation, orphan cleanup, enhanced HLS reliability, post-update dialog",
+    "latest_version": "0.1.4",
+    "url": "https://pub-8159019abe1741a097538b976c19722c.r2.dev/artifacts/android/v0.1.4/kumoriya-0.1.4.apk"
   }
 }
