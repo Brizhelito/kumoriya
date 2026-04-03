@@ -20,16 +20,39 @@ import '../features/app_update/presentation/app_update_providers.dart';
 import '../features/downloads/application/download_directory_service.dart';
 import '../features/downloads/presentation/download_providers.dart';
 import '../features/downloads/presentation/widgets/download_path_dialog.dart';
+import '../shared/auth/deep_link_handler.dart';
 import '../shared/navigation/app_navigation_shell.dart';
 import '../shared/theme/kumoriya_theme.dart';
 import 'l10n.dart';
 
-class KumoriyaApp extends StatelessWidget {
+class KumoriyaApp extends StatefulWidget {
   const KumoriyaApp({super.key});
+
+  @override
+  State<KumoriyaApp> createState() => _KumoriyaAppState();
+}
+
+class _KumoriyaAppState extends State<KumoriyaApp> {
+  final GlobalKey<NavigatorState> _navigatorKey = GlobalKey<NavigatorState>();
+  late final DeepLinkHandler _deepLinkHandler;
+
+  @override
+  void initState() {
+    super.initState();
+    _deepLinkHandler = DeepLinkHandler(navigatorKey: _navigatorKey);
+    _deepLinkHandler.init();
+  }
+
+  @override
+  void dispose() {
+    _deepLinkHandler.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      navigatorKey: _navigatorKey,
       onGenerateTitle: (context) => context.l10n.appTitle,
       debugShowCheckedModeBanner: false,
       localizationsDelegates: const <LocalizationsDelegate<dynamic>>[

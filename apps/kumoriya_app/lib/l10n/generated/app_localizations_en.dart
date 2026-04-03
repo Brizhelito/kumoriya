@@ -775,6 +775,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get downloadAllQueued => 'All episodes queued for download';
 
   @override
+  String get downloadSourceUnavailable =>
+      'No downloads available from this source. Choose another source.';
+
+  @override
   String get downloadInProgress => 'Downloading...';
 
   @override

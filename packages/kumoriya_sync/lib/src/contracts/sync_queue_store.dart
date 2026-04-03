@@ -1,0 +1,21 @@
+import 'package:kumoriya_core/kumoriya_core.dart';
+
+import '../models/sync_queue_entry.dart';
+import '../models/sync_status.dart';
+
+abstract interface class SyncQueueStore {
+  Future<Result<SyncQueueEntry, KumoriyaError>> enqueue(SyncQueueEntry entry);
+
+  Future<Result<List<SyncQueueEntry>, KumoriyaError>> getPendingEntries();
+
+  Future<Result<void, KumoriyaError>> updateStatus({
+    required int id,
+    required SyncQueueEntryStatus status,
+    int? retryCount,
+    String? lastError,
+  });
+
+  Future<Result<void, KumoriyaError>> deleteEntry(int id);
+
+  Future<Result<void, KumoriyaError>> clearSyncedEntries();
+}

@@ -1,0 +1,19 @@
+name: kumoriya_sync
+description: Sync-facing contracts and offline queue models for Kumoriya clients.
+version: 0.1.0
+publish_to: none
+
+resolution: workspace
+
+environment:
+  sdk: ^3.11.1
+
+dependencies:
+  drift:
+  kumoriya_core:
+  kumoriya_storage:
+  http: any
+
+dev_dependencies:
+  lints: ^6.0.0
+  test: ^1.25.6

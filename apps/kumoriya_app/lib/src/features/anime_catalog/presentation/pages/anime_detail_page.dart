@@ -1398,7 +1398,7 @@ class _DetailEpisodeCardState extends ConsumerState<_DetailEpisodeCard> {
 
         linksResult.fold(
           onSuccess: (links) {
-            for (final link in links) {
+            for (final link in _filterDetailDownloadLinks(links)) {
               final opt = _DownloadServerOption(
                 link: link,
                 sourcePluginId: entry.key,
@@ -1418,7 +1418,9 @@ class _DetailEpisodeCardState extends ConsumerState<_DetailEpisodeCard> {
 
       if (allOptions.isEmpty) {
         setState(() => _isEnqueuing = false);
-        messenger.showSnackBar(SnackBar(content: Text(l10n.downloadFailed)));
+        messenger.showSnackBar(
+          SnackBar(content: Text(l10n.downloadSourceUnavailable)),
+        );
         return;
       }
 
@@ -1975,6 +1977,45 @@ String _debugPreferenceSummary(PlaybackPreference preference) {
 /// Source plugin excluded from downloads.
 const _excludedDetailDownloadSource = 'kumoriya.source.anime_nexus';
 
+const Set<String> _excludedDetailDownloadHosts = <String>{
+  'streamwish.to',
+  'sfastwish.com',
+  'wishfast.top',
+  'awish.pro',
+  'strwish.com',
+  'playnixes.com',
+  'medixiru.com',
+  'hgplaycdn.com',
+};
+
+bool _isExcludedDetailDownloadLink(SourceServerLink link) {
+  final serverName = link.serverName.trim().toLowerCase();
+  final detectedHost = link.detectedHost?.trim().toLowerCase();
+  final initialHost = link.initialUrl.host.trim().toLowerCase();
+
+  if (serverName.contains('streamwish')) {
+    return true;
+  }
+
+  bool matchesExcludedHost(String? host) {
+    if (host == null || host.isEmpty) {
+      return false;
+    }
+
+    return _excludedDetailDownloadHosts.any(
+      (excluded) => host == excluded || host.endsWith('.$excluded'),
+    );
+  }
+
+  return matchesExcludedHost(detectedHost) || matchesExcludedHost(initialHost);
+}
+
+List<SourceServerLink> _filterDetailDownloadLinks(
+  Iterable<SourceServerLink> links,
+) {
+  return links.where((link) => !_isExcludedDetailDownloadLink(link)).toList();
+}
+
 /// Resolves server links for [sourceEpisode] via [sourcePluginId], picks the
 /// best stream, and enqueues a download task. Returns true on success.
 Future<bool> _enqueueDetailEpisodeDownload({
@@ -1996,7 +2037,7 @@ Future<bool> _enqueueDetailEpisodeDownload({
     ).call(sourceEpisode);
 
     var links = linksResult.fold(
-      onSuccess: (l) => l,
+      onSuccess: _filterDetailDownloadLinks,
       onFailure: (_) => <SourceServerLink>[],
     );
     if (links.isEmpty) return false;
@@ -2221,6 +2262,10 @@ class _DetailDownloadAllButtonState
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text(context.l10n.downloadAllQueued)));
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(context.l10n.downloadSourceUnavailable)),
+      );
     }
   }
 

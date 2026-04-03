@@ -31,6 +31,8 @@ workspace:
   - packages/kumoriya_source_anime_nexus
   - packages/kumoriya_resolver_anime_nexus
   - packages/kumoriya_storage
+  - packages/kumoriya_auth
+  - packages/kumoriya_sync
   - packages/kumoriya_testing
   - packages/kumoriya_matching
   - packages/kumoriya_resolver_common

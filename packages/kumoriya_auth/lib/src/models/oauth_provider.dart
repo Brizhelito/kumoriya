@@ -1,0 +1,1 @@
+enum OAuthProvider { discord, google }

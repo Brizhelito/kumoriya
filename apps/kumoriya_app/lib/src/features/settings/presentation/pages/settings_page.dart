@@ -7,6 +7,7 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 import '../../../../app/l10n.dart';
+import '../../../../shared/auth/auth_providers.dart';
 import '../../../../shared/icons/kumoriya_icons.dart';
 import '../../../../shared/theme/kumoriya_theme.dart';
 import '../../../../shared/widgets/bug_report_button.dart';
@@ -15,6 +16,8 @@ import '../../../app_update/application/app_update_service.dart';
 import '../../../app_update/presentation/app_update_providers.dart';
 import '../../../app_update/presentation/widgets/update_available_dialog.dart';
 import '../../../anime_catalog/presentation/providers/storage_providers.dart';
+import '../../../auth/presentation/pages/login_page.dart';
+import '../../../auth/presentation/pages/profile_page.dart';
 import '../../../downloads/presentation/download_providers.dart';
 import '../../../player/application/models/subtitle_settings.dart';
 import '../../../../workers/check_new_episodes_worker.dart';
@@ -323,6 +326,58 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
     );
   }
 
+  Widget _buildAccountSection(BuildContext context) {
+    final user = ref.watch(currentUserProvider);
+    final isAuth = user != null;
+
+    return _SettingsSectionCard(
+      child: ListTile(
+        contentPadding: EdgeInsets.zero,
+        leading: CircleAvatar(
+          radius: 22,
+          backgroundColor: KumoriyaColors.primary,
+          child: isAuth
+              ? Text(
+                  user.displayName[0].toUpperCase(),
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 18,
+                  ),
+                )
+              : const Icon(Icons.person_outline, color: Colors.white),
+        ),
+        title: Text(
+          isAuth ? user.displayName : 'Sign in',
+          style: TextStyle(
+            color: KumoriyaColors.textPrimary,
+            fontWeight: isAuth ? FontWeight.w600 : FontWeight.w700,
+          ),
+        ),
+        subtitle: Text(
+          isAuth
+              ? 'Sync enabled — tap to manage'
+              : 'Sync your progress across devices',
+          style: const TextStyle(
+            color: KumoriyaColors.textTertiary,
+            fontSize: 12,
+          ),
+        ),
+        trailing: const Icon(
+          Icons.chevron_right_rounded,
+          color: KumoriyaColors.textTertiary,
+        ),
+        onTap: () {
+          Navigator.of(context, rootNavigator: true).push(
+            MaterialPageRoute<void>(
+              builder: (_) => isAuth ? const ProfilePage() : const LoginPage(),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final locale = Localizations.localeOf(context);
@@ -350,6 +405,8 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
               height: 1.4,
             ),
           ),
+          const SizedBox(height: 16),
+          _buildAccountSection(context),
           const SizedBox(height: 16),
           _SettingsSectionCard(
             child: Column(

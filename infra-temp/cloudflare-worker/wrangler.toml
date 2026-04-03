@@ -1,0 +1,14 @@
+name = "kumoriya-api-edge-temp"
+main = "src/index.js"
+compatibility_date = "2026-04-02"
+
+# ORIGIN_BASE_URL is stored as a Cloudflare secret.
+# Set it with:  npx wrangler secret put ORIGIN_BASE_URL
+# Value:        https://<your-space-subdomain>.hf.space
+
+[[routes]]
+pattern = "api.kumoriya.online/*"
+zone_name = "kumoriya.online"
+
+[triggers]
+crons = ["0 */12 * * *"]

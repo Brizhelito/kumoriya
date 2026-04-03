@@ -1327,6 +1327,12 @@ abstract class AppLocalizations {
   /// **'All episodes queued for download'**
   String get downloadAllQueued;
 
+  /// No description provided for @downloadSourceUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'No downloads available from this source. Choose another source.'**
+  String get downloadSourceUnavailable;
+
   /// No description provided for @downloadInProgress.
   ///
   /// In en, this message translates to:

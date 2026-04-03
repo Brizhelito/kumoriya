@@ -40,6 +40,7 @@ auth.json
 *.db
 *.sqlite
 *.sqlite3
+apps/kumoriya_app/.sentry-native/
 
 # Generated audit outputs
 audit*.json
@@ -56,6 +57,9 @@ visual_reference/
 easyappicon-icons-*/
 windows.ico
 
+# HF Spaces clone (embedded git repo)
+infra-temp/hf-space-kumoriya-api/
+
 # Local investigation / runtime artifacts
 anime.nexus.har
 files/
@@ -63,6 +67,7 @@ proxy_long*.out
 proxy_long*.err
 smoke*.out
 smoke*.err
+tools/go/
 
 # User downloads and cache data
 downloads/

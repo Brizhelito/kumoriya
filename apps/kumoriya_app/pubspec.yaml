@@ -44,6 +44,8 @@ dependencies:
   kumoriya_resolver_upnshare:
   kumoriya_resolver_anime_nexus:
   kumoriya_storage:
+  kumoriya_sync:
+  kumoriya_auth:
   drift:
   sqlite3_flutter_libs:
   path_provider:
@@ -52,6 +54,9 @@ dependencies:
   flutter_cache_manager: ^3.4.1
   http: any
   cronet_http: any
+  url_launcher: ^6.3.1
+  flutter_secure_storage: ^9.2.4
+  app_links: ^6.4.0
   workmanager: ^0.9.0+3
   flutter_local_notifications: ^21.0.0
   permission_handler: ^12.0.1

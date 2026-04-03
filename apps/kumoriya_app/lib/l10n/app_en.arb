@@ -477,6 +477,7 @@
   "downloadAll": "Download All",
   "downloadQueued": "Download queued",
   "downloadAllQueued": "All episodes queued for download",
+  "downloadSourceUnavailable": "No downloads available from this source. Choose another source.",
   "downloadInProgress": "Downloading...",
   "downloadComplete": "Downloaded",
   "downloadFailed": "Download failed",

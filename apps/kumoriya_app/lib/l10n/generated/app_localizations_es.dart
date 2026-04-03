@@ -784,6 +784,10 @@ class AppLocalizationsEs extends AppLocalizations {
   String get downloadAllQueued => 'Todos los episodios en cola de descarga';
 
   @override
+  String get downloadSourceUnavailable =>
+      'No hay descargas disponibles de esta fuente. Elige otra fuente.';
+
+  @override
   String get downloadInProgress => 'Descargando...';
 
   @override

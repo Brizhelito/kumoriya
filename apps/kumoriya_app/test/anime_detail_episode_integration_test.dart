@@ -133,6 +133,145 @@ void main() {
   });
 
   testWidgets(
+    'episode download shows fallback message when source only exposes StreamWish',
+    (tester) async {
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            animeDetailProvider.overrideWith(
+              (ref, anilistId) async => Success(_detail(anilistId)),
+            ),
+            sourceAvailabilitySummaryProvider.overrideWith(
+              (ref, anilistId) async => Success(_streamWishOnlySummary),
+            ),
+            latestEpisodeProgressProvider.overrideWith(
+              (ref, anilistId) async =>
+                  const Success<EpisodeProgress?, KumoriyaError>(null),
+            ),
+            animeEpisodeProgressListProvider.overrideWith(
+              (ref, anilistId) async =>
+                  const Success<List<EpisodeProgress>, KumoriyaError>(
+                    <EpisodeProgress>[],
+                  ),
+            ),
+            playbackPreferenceProvider.overrideWith(
+              (ref, anilistId) async =>
+                  const Success<PlaybackPreference?, KumoriyaError>(null),
+            ),
+            sourcePluginsProvider.overrideWithValue(const <SourcePlugin>[
+              _FakeStreamWishOnlySourcePlugin(),
+            ]),
+          ],
+          child: const MaterialApp(
+            localizationsDelegates: <LocalizationsDelegate<dynamic>>[
+              AppLocalizations.delegate,
+              GlobalMaterialLocalizations.delegate,
+              GlobalWidgetsLocalizations.delegate,
+              GlobalCupertinoLocalizations.delegate,
+            ],
+            supportedLocales: AppLocalizations.supportedLocales,
+            home: AnimeDetailPage(anilistId: 404),
+          ),
+        ),
+      );
+
+      await tester.pumpAndSettle();
+      final verticalScrollable = find.byWidgetPredicate(
+        (widget) =>
+            widget is Scrollable && widget.axisDirection == AxisDirection.down,
+      );
+      await tester.scrollUntilVisible(
+        find.byKey(const Key('anime-detail-episode-1')),
+        400,
+        scrollable: verticalScrollable,
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(
+        find.descendant(
+          of: find.byKey(const Key('anime-detail-episode-1')),
+          matching: find.byTooltip('Download'),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(
+        find.text(
+          'No downloads available from this source. Choose another source.',
+        ),
+        findsOneWidget,
+      );
+    },
+  );
+
+  testWidgets(
+    'download all shows fallback message when source only exposes StreamWish',
+    (tester) async {
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            animeDetailProvider.overrideWith(
+              (ref, anilistId) async => Success(_detail(anilistId)),
+            ),
+            sourceAvailabilitySummaryProvider.overrideWith(
+              (ref, anilistId) async => Success(_streamWishOnlySummary),
+            ),
+            latestEpisodeProgressProvider.overrideWith(
+              (ref, anilistId) async =>
+                  const Success<EpisodeProgress?, KumoriyaError>(null),
+            ),
+            animeEpisodeProgressListProvider.overrideWith(
+              (ref, anilistId) async =>
+                  const Success<List<EpisodeProgress>, KumoriyaError>(
+                    <EpisodeProgress>[],
+                  ),
+            ),
+            playbackPreferenceProvider.overrideWith(
+              (ref, anilistId) async =>
+                  const Success<PlaybackPreference?, KumoriyaError>(null),
+            ),
+            sourcePluginsProvider.overrideWithValue(const <SourcePlugin>[
+              _FakeStreamWishOnlySourcePlugin(),
+            ]),
+          ],
+          child: const MaterialApp(
+            localizationsDelegates: <LocalizationsDelegate<dynamic>>[
+              AppLocalizations.delegate,
+              GlobalMaterialLocalizations.delegate,
+              GlobalWidgetsLocalizations.delegate,
+              GlobalCupertinoLocalizations.delegate,
+            ],
+            supportedLocales: AppLocalizations.supportedLocales,
+            home: AnimeDetailPage(anilistId: 404),
+          ),
+        ),
+      );
+
+      await tester.pumpAndSettle();
+      final verticalScrollable = find.byWidgetPredicate(
+        (widget) =>
+            widget is Scrollable && widget.axisDirection == AxisDirection.down,
+      );
+      await tester.scrollUntilVisible(
+        find.text('Download All'),
+        400,
+        scrollable: verticalScrollable,
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Download All'));
+      await tester.pumpAndSettle();
+
+      expect(
+        find.text(
+          'No downloads available from this source. Choose another source.',
+        ),
+        findsOneWidget,
+      );
+    },
+  );
+
+  testWidgets(
     'episode tap opens the minimal selector when autoplay is ambiguous',
     (tester) async {
       await tester.pumpWidget(
@@ -300,6 +439,43 @@ final SourceAvailabilitySummary _summary = SourceAvailabilitySummary(
   ],
 );
 
+final SourceAvailabilitySummary _streamWishOnlySummary =
+    SourceAvailabilitySummary(
+      sources: <SourceAvailability>[
+        SourceAvailability(
+          manifest: PluginManifest(
+            id: 'kumoriya.source.fake',
+            displayName: 'Fake Source',
+            type: PluginType.source,
+            capabilities: <PluginCapability>{PluginCapability.search},
+          ),
+          status: SourceAvailabilityStatus.available,
+          decision: const SourceMatchDecision(
+            verdict: true,
+            confidence: MatchConfidence.high,
+            reason: 'Exact title',
+            acceptanceSignals: <String>['exact-title'],
+            rejectionSignals: <String>[],
+          ),
+          episodes: <SourceEpisode>[
+            SourceEpisode(
+              sourceEpisodeId: 'sw-ep1',
+              number: 1,
+              title: 'Arrival',
+              episodeUrl: Uri.parse('https://example.com/sw-1'),
+            ),
+            SourceEpisode(
+              sourceEpisodeId: 'sw-ep2',
+              number: 2,
+              title: 'Festival of Steel',
+              episodeUrl: Uri.parse('https://example.com/sw-2'),
+            ),
+          ],
+          availableAudioKinds: const <SourceAudioKind>{SourceAudioKind.sub},
+        ),
+      ],
+    );
+
 final List<EpisodeProgress> _progress = <EpisodeProgress>[
   EpisodeProgress(
     anilistId: 404,
@@ -398,6 +574,62 @@ final class _FakeResolverPlugin implements ResolverPlugin {
 
   @override
   bool supports(Uri url) => url.host == 'video.example';
+}
+
+final class _FakeStreamWishOnlySourcePlugin implements SourcePlugin {
+  const _FakeStreamWishOnlySourcePlugin();
+
+  @override
+  PluginManifest get manifest => PluginManifest(
+    id: 'kumoriya.source.fake',
+    displayName: 'Fake Source',
+    type: PluginType.source,
+    capabilities: const <PluginCapability>{
+      PluginCapability.search,
+      PluginCapability.episodeList,
+      PluginCapability.linkExtraction,
+    },
+  );
+
+  @override
+  Future<Result<SourceAnimeDetail, KumoriyaError>> getAnimeDetail(
+    String sourceId,
+  ) async {
+    return const Success(
+      SourceAnimeDetail(sourceId: 'inline', title: 'Inline Episodes Anime'),
+    );
+  }
+
+  @override
+  Future<Result<List<SourceEpisode>, KumoriyaError>> getEpisodes(
+    String sourceId,
+  ) async {
+    return Success(_streamWishOnlySummary.sources.single.episodes);
+  }
+
+  @override
+  Future<Result<List<SourceServerLink>, KumoriyaError>> getEpisodeServerLinks(
+    SourceEpisode episode,
+  ) async {
+    return Success(<SourceServerLink>[
+      SourceServerLink(
+        serverId: 'streamwish',
+        serverName: 'StreamWish',
+        initialUrl: Uri.parse('https://streamwish.to/e/abc123'),
+        detectedHost: 'streamwish.to',
+        language: 'sub',
+      ),
+    ]);
+  }
+
+  @override
+  Future<Result<List<SourceAnimeMatch>, KumoriyaError>> search(
+    SourceSearchQuery query,
+  ) async {
+    return const Success(<SourceAnimeMatch>[
+      SourceAnimeMatch(sourceId: 'inline', title: 'Inline Episodes Anime'),
+    ]);
+  }
 }
 
 final class _FakeAnimeProgressStore implements AnimeProgressStore {

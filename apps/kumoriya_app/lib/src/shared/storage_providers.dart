@@ -3,9 +3,13 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kumoriya_core/kumoriya_core.dart';
 import 'package:kumoriya_storage/kumoriya_storage.dart';
+import 'package:kumoriya_sync/kumoriya_sync.dart';
 
 import '../features/downloads/application/download_aniskip_file_store.dart';
 import '../features/downloads/application/download_directory_service.dart';
+import 'auth/auth_providers.dart';
+import 'sync/sync_aware_library_store.dart';
+import 'sync/sync_aware_progress_store.dart';
 
 final appDatabaseProvider = Provider<AppDatabase>((ref) {
   throw UnimplementedError(
@@ -15,7 +19,13 @@ final appDatabaseProvider = Provider<AppDatabase>((ref) {
 
 final animeProgressStoreProvider = Provider<AnimeProgressStore>((ref) {
   final db = ref.watch(appDatabaseProvider);
-  return DriftAnimeProgressStore(db);
+  final inner = DriftAnimeProgressStore(db);
+  final syncQueue = ref.watch(syncQueueStoreProvider);
+  return SyncAwareProgressStore(
+    inner: inner,
+    syncQueue: syncQueue,
+    isAuthenticated: () => ref.read(isAuthenticatedProvider),
+  );
 });
 
 final aniSkipCacheStoreProvider = Provider<AniSkipCacheStore>((ref) {
@@ -45,7 +55,18 @@ final hlsSegmentStoreProvider = Provider<HlsSegmentStore>((ref) {
 
 final libraryStoreProvider = Provider<LibraryStore>((ref) {
   final db = ref.watch(appDatabaseProvider);
-  return DriftLibraryStore(db);
+  final inner = DriftLibraryStore(db);
+  final syncQueue = ref.watch(syncQueueStoreProvider);
+  return SyncAwareLibraryStore(
+    inner: inner,
+    syncQueue: syncQueue,
+    isAuthenticated: () => ref.read(isAuthenticatedProvider),
+  );
+});
+
+final syncQueueStoreProvider = Provider<SyncQueueStore>((ref) {
+  final db = ref.watch(appDatabaseProvider);
+  return DriftSyncQueueStore(db);
 });
 
 final anilistCacheStoreProvider = Provider<AnilistCacheStore>((ref) {

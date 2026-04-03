@@ -477,6 +477,7 @@
   "downloadAll": "Descargar Todo",
   "downloadQueued": "Descarga en cola",
   "downloadAllQueued": "Todos los episodios en cola de descarga",
+  "downloadSourceUnavailable": "No hay descargas disponibles de esta fuente. Elige otra fuente.",
   "downloadInProgress": "Descargando...",
   "downloadComplete": "Descargado",
   "downloadFailed": "Descarga fallida",

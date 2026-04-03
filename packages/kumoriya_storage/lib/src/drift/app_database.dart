@@ -57,7 +57,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase(super.e);
 
   @override
-  int get schemaVersion => 17;
+  int get schemaVersion => 18;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -182,12 +182,19 @@ class AppDatabase extends _$AppDatabase {
           sqlDefinition: 'INTEGER',
         );
       }
+      if (from < 18) {
+        await _ensureSyncQueueTable();
+      }
     },
     beforeOpen: (details) async {
       if (details.wasCreated) {
         // For fresh databases, create all indices immediately.
         await _createIndices();
       }
+
+      // sync_queue is managed via custom SQL to keep storage decoupled from
+      // sync package contracts and generated drift table code.
+      await _ensureSyncQueueTable();
     },
   );
 
@@ -344,6 +351,29 @@ class AppDatabase extends _$AppDatabase {
     await customStatement(
       'CREATE INDEX IF NOT EXISTS idx_episode_catalog_cache_updated '
       'ON episode_catalog_cache (updated_at)',
+    );
+  }
+
+  Future<void> _ensureSyncQueueTable() async {
+    await customStatement('''
+      CREATE TABLE IF NOT EXISTS sync_queue (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        entity_type TEXT NOT NULL,
+        entity_key TEXT NOT NULL,
+        payload TEXT NOT NULL,
+        created_at INTEGER NOT NULL,
+        status TEXT NOT NULL,
+        retry_count INTEGER NOT NULL DEFAULT 0,
+        last_error TEXT
+      )
+    ''');
+    await customStatement(
+      'CREATE INDEX IF NOT EXISTS idx_sync_queue_status_created '
+      'ON sync_queue (status, created_at)',
+    );
+    await customStatement(
+      'CREATE INDEX IF NOT EXISTS idx_sync_queue_entity '
+      'ON sync_queue (entity_type, entity_key)',
     );
   }
 }
