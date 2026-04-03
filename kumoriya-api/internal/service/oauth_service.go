@@ -5,12 +5,38 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
+	"time"
 
 	"golang.org/x/oauth2"
 
 	"go-fiber-microservice/internal/model"
 )
+
+// httpClient uses public DNS (Google + Cloudflare) so token exchange
+// works inside containers whose internal resolver cannot reach
+// external domains (common in HF Spaces).
+var httpClient = &http.Client{
+	Timeout: 15 * time.Second,
+	Transport: &http.Transport{
+		DialContext: (&net.Dialer{
+			Timeout:  5 * time.Second,
+			Resolver: &net.Resolver{
+				PreferGo: true,
+				Dial: func(ctx context.Context, network, address string) (net.Conn, error) {
+					d := net.Dialer{Timeout: 3 * time.Second}
+					// Try Google DNS first, then Cloudflare
+					conn, err := d.DialContext(ctx, "udp", "8.8.8.8:53")
+					if err != nil {
+						conn, err = d.DialContext(ctx, "udp", "1.1.1.1:53")
+					}
+					return conn, err
+				},
+			},
+		}).DialContext,
+	},
+}
 
 type OAuthService struct {
 	discordCfg *oauth2.Config
@@ -59,6 +85,8 @@ func (s *OAuthService) ExchangeCode(ctx context.Context, provider, code string) 
 		return nil, err
 	}
 
+	// Use our custom httpClient with public DNS.
+	ctx = context.WithValue(ctx, oauth2.HTTPClient, httpClient)
 	token, err := cfg.Exchange(ctx, code)
 	if err != nil {
 		return nil, fmt.Errorf("oauth exchange: %w", err)
@@ -92,7 +120,7 @@ func (s *OAuthService) fetchDiscordProfile(ctx context.Context, accessToken stri
 	}
 	req.Header.Set("Authorization", "Bearer "+accessToken)
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := httpClient.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("discord api: %w", err)
 	}
@@ -141,7 +169,7 @@ func (s *OAuthService) fetchGoogleProfile(ctx context.Context, accessToken strin
 	}
 	req.Header.Set("Authorization", "Bearer "+accessToken)
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := httpClient.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("google api: %w", err)
 	}
