@@ -69,6 +69,16 @@ smoke*.out
 smoke*.err
 tools/go/
 
+# Playwright MCP logs
+.playwright-mcp/
+
+# HF Spaces embedded repos
+infra-temp/hf-space-deploy/space/
+
+# Release binaries (use GitHub Releases instead)
+releases/*.apk
+releases/*.exe
+
 # User downloads and cache data
 downloads/
 
