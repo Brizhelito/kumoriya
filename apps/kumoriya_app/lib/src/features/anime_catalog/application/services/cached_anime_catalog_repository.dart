@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/foundation.dart';
 import 'package:kumoriya_core/kumoriya_core.dart';
 import 'package:kumoriya_domain/kumoriya_domain.dart';
@@ -18,6 +20,11 @@ final class CachedAnimeCatalogRepository implements AnimeCatalogRepository {
   final AnilistCacheStore _cacheStore;
   final EpisodeCacheStore _episodeCacheStore;
 
+  /// Tracks the last successful network fetch per catalog query key so we
+  /// can serve cached results within the freshness window without re-hitting
+  /// AniList.
+  final _catalogLastFetched = <String, DateTime>{};
+
   /// Indicates why the most recent catalog fetch fell back to locally-cached
   /// data, or [FallbackReason.none] when operating normally.
   final ValueNotifier<FallbackReason> fallbackReason = ValueNotifier(
@@ -29,6 +36,14 @@ final class CachedAnimeCatalogRepository implements AnimeCatalogRepository {
     int page = 1,
     int perPage = 20,
   }) async {
+    final key = 'home:$page:$perPage';
+    final fresh = await _tryServeFreshCatalog(
+      key,
+      const Duration(hours: 4),
+      () => _cacheStore.getRecent(limit: perPage, offset: (page - 1) * perPage),
+    );
+    if (fresh != null) return fresh;
+
     final result = await _delegate.fetchHomeCatalog(
       page: page,
       perPage: perPage,
@@ -36,6 +51,7 @@ final class CachedAnimeCatalogRepository implements AnimeCatalogRepository {
     if (result.isSuccess) {
       fallbackReason.value = FallbackReason.none;
       await _persistAnimeList(result);
+      _catalogLastFetched[key] = DateTime.now();
       return result;
     }
     return _fallbackFromCache(
@@ -48,61 +64,85 @@ final class CachedAnimeCatalogRepository implements AnimeCatalogRepository {
   Future<Result<List<Anime>, KumoriyaError>> fetchSeasonCatalog(
     SeasonalCatalogRequest request,
   ) async {
+    final key = 'season:${request.year}:${request.page}:${request.perPage}';
+    Future<Result<List<AnilistCacheEntry>, KumoriyaError>> cacheQuery() =>
+        _cacheStore.getByYearAndStatus(
+      request.year,
+      status: 'RELEASING',
+      limit: request.perPage,
+      offset: (request.page - 1) * request.perPage,
+    );
+    final fresh = await _tryServeFreshCatalog(
+      key,
+      const Duration(hours: 8),
+      cacheQuery,
+    );
+    if (fresh != null) return fresh;
+
     final result = await _delegate.fetchSeasonCatalog(request);
     if (result.isSuccess) {
       fallbackReason.value = FallbackReason.none;
       await _persistAnimeList(result);
+      _catalogLastFetched[key] = DateTime.now();
       return result;
     }
-    return _fallbackFromCache(
-      result,
-      () => _cacheStore.getByYearAndStatus(
-        request.year,
-        status: 'RELEASING',
-        limit: request.perPage,
-        offset: (request.page - 1) * request.perPage,
-      ),
-    );
+    return _fallbackFromCache(result, cacheQuery);
   }
 
   @override
   Future<Result<List<Anime>, KumoriyaError>> fetchUpcomingSeasonCatalog(
     SeasonalCatalogRequest request,
   ) async {
+    final key = 'upcoming:${request.year}:${request.page}:${request.perPage}';
+    Future<Result<List<AnilistCacheEntry>, KumoriyaError>> cacheQuery() =>
+        _cacheStore.getByStatus(
+      'NOT_YET_RELEASED',
+      limit: request.perPage,
+      offset: (request.page - 1) * request.perPage,
+    );
+    final fresh = await _tryServeFreshCatalog(
+      key,
+      const Duration(hours: 8),
+      cacheQuery,
+    );
+    if (fresh != null) return fresh;
+
     final result = await _delegate.fetchUpcomingSeasonCatalog(request);
     if (result.isSuccess) {
       fallbackReason.value = FallbackReason.none;
       await _persistAnimeList(result);
+      _catalogLastFetched[key] = DateTime.now();
       return result;
     }
-    return _fallbackFromCache(
-      result,
-      () => _cacheStore.getByStatus(
-        'NOT_YET_RELEASED',
-        limit: request.perPage,
-        offset: (request.page - 1) * request.perPage,
-      ),
-    );
+    return _fallbackFromCache(result, cacheQuery);
   }
 
   @override
   Future<Result<List<Anime>, KumoriyaError>> fetchSeasonRecommendations(
     SeasonalCatalogRequest request,
   ) async {
+    final key = 'recommendations:${request.year}:${request.page}:${request.perPage}';
+    Future<Result<List<AnilistCacheEntry>, KumoriyaError>> cacheQuery() =>
+        _cacheStore.getByYearAndStatus(
+      request.year,
+      limit: request.perPage,
+      offset: (request.page - 1) * request.perPage,
+    );
+    final fresh = await _tryServeFreshCatalog(
+      key,
+      const Duration(hours: 12),
+      cacheQuery,
+    );
+    if (fresh != null) return fresh;
+
     final result = await _delegate.fetchSeasonRecommendations(request);
     if (result.isSuccess) {
       fallbackReason.value = FallbackReason.none;
       await _persistAnimeList(result);
+      _catalogLastFetched[key] = DateTime.now();
       return result;
     }
-    return _fallbackFromCache(
-      result,
-      () => _cacheStore.getByYearAndStatus(
-        request.year,
-        limit: request.perPage,
-        offset: (request.page - 1) * request.perPage,
-      ),
-    );
+    return _fallbackFromCache(result, cacheQuery);
   }
 
   @override
@@ -112,6 +152,20 @@ final class CachedAnimeCatalogRepository implements AnimeCatalogRepository {
     int page = 1,
     int perPage = 50,
   }) async {
+    final key = 'calendar:${from?.millisecondsSinceEpoch}:${to?.millisecondsSinceEpoch}:$page:$perPage';
+    Future<Result<List<AnilistCacheEntry>, KumoriyaError>> cacheQuery() =>
+        _cacheStore.getByStatus(
+      'RELEASING',
+      limit: perPage,
+      offset: (page - 1) * perPage,
+    );
+    final fresh = await _tryServeFreshCatalog(
+      key,
+      const Duration(hours: 6),
+      cacheQuery,
+    );
+    if (fresh != null) return fresh;
+
     final result = await _delegate.fetchAiringCalendar(
       from: from,
       to: to,
@@ -121,16 +175,10 @@ final class CachedAnimeCatalogRepository implements AnimeCatalogRepository {
     if (result.isSuccess) {
       fallbackReason.value = FallbackReason.none;
       await _persistAnimeList(result);
+      _catalogLastFetched[key] = DateTime.now();
       return result;
     }
-    return _fallbackFromCache(
-      result,
-      () => _cacheStore.getByStatus(
-        'RELEASING',
-        limit: perPage,
-        offset: (page - 1) * perPage,
-      ),
-    );
+    return _fallbackFromCache(result, cacheQuery);
   }
 
   @override
@@ -140,6 +188,20 @@ final class CachedAnimeCatalogRepository implements AnimeCatalogRepository {
     int page = 1,
     int perPage = 50,
   }) async {
+    final key = 'calendarSlots:${from?.millisecondsSinceEpoch}:${to?.millisecondsSinceEpoch}:$page:$perPage';
+    Future<Result<List<AnilistCacheEntry>, KumoriyaError>> cacheQuery() =>
+        _cacheStore.getByStatus(
+      'RELEASING',
+      limit: perPage,
+      offset: (page - 1) * perPage,
+    );
+    final fresh = await _tryServeFreshCatalog(
+      key,
+      const Duration(hours: 6),
+      cacheQuery,
+    );
+    if (fresh != null) return fresh;
+
     final result = await _delegate.fetchAiringCalendarSlots(
       from: from,
       to: to,
@@ -149,16 +211,10 @@ final class CachedAnimeCatalogRepository implements AnimeCatalogRepository {
     if (result.isSuccess) {
       fallbackReason.value = FallbackReason.none;
       await _persistAnimeList(result);
+      _catalogLastFetched[key] = DateTime.now();
       return result;
     }
-    return _fallbackFromCache(
-      result,
-      () => _cacheStore.getByStatus(
-        'RELEASING',
-        limit: perPage,
-        offset: (page - 1) * perPage,
-      ),
-    );
+    return _fallbackFromCache(result, cacheQuery);
   }
 
   @override
@@ -223,7 +279,13 @@ final class CachedAnimeCatalogRepository implements AnimeCatalogRepository {
           onSuccess: (list) => list,
         );
 
-        return Success(AnimeDetail(anime: anime, episodes: episodes));
+        return Success(
+          AnimeDetail(
+            anime: anime,
+            episodes: episodes,
+            relations: await _restoreRelations(entry.relationsJson),
+          ),
+        );
       },
     );
   }
@@ -262,6 +324,51 @@ final class CachedAnimeCatalogRepository implements AnimeCatalogRepository {
   Future<Result<SeasonDiscoveryResult, KumoriyaError>> fetchSeasonDiscovery(
     SeasonalCatalogRequest request,
   ) async {
+    final key = 'discovery:${request.year}:${request.page}:${request.perPage}';
+    final lastFetch = _catalogLastFetched[key];
+    if (lastFetch != null &&
+        DateTime.now().difference(lastFetch) < const Duration(hours: 8)) {
+      // Attempt to serve a complete discovery result from cache.
+      final cachedCurrent = await _cacheStore.getByYearAndStatus(
+        request.year,
+        status: 'RELEASING',
+        limit: request.perPage,
+      );
+      final currentAnime = cachedCurrent.fold(
+        onSuccess: (entries) =>
+            entries.map(_entryToAnime).toList(growable: false),
+        onFailure: (_) => const <Anime>[],
+      );
+      if (currentAnime.isNotEmpty) {
+        final cachedUpcoming = await _cacheStore.getByStatus(
+          'NOT_YET_RELEASED',
+          limit: request.perPage,
+        );
+        final upcomingAnime = cachedUpcoming.fold(
+          onSuccess: (entries) =>
+              entries.map(_entryToAnime).toList(growable: false),
+          onFailure: (_) => const <Anime>[],
+        );
+        final cachedRecommended = await _cacheStore.getByYearAndStatus(
+          request.year,
+          limit: request.perPage,
+        );
+        final recommendedAnime = cachedRecommended.fold(
+          onSuccess: (entries) =>
+              entries.map(_entryToAnime).toList(growable: false),
+          onFailure: (_) => const <Anime>[],
+        );
+        fallbackReason.value = FallbackReason.none;
+        return Success(
+          SeasonDiscoveryResult(
+            inSeason: currentAnime,
+            upcoming: upcomingAnime,
+            recommended: recommendedAnime,
+          ),
+        );
+      }
+    }
+
     final result = await _delegate.fetchSeasonDiscovery(request);
 
     if (result.isSuccess) {
@@ -272,6 +379,7 @@ final class CachedAnimeCatalogRepository implements AnimeCatalogRepository {
       await _persistAnimeList(Success(discovery.inSeason));
       await _persistAnimeList(Success(discovery.upcoming));
       await _persistAnimeList(Success(discovery.recommended));
+      _catalogLastFetched[key] = DateTime.now();
       return result;
     }
 
@@ -377,6 +485,30 @@ final class CachedAnimeCatalogRepository implements AnimeCatalogRepository {
     };
   }
 
+  /// Serves a catalog list from cache if the last successful network fetch
+  /// for [key] is within [ttl].  Returns `null` when a fresh network fetch
+  /// is needed.
+  Future<Result<List<Anime>, KumoriyaError>?> _tryServeFreshCatalog(
+    String key,
+    Duration ttl,
+    Future<Result<List<AnilistCacheEntry>, KumoriyaError>> Function()
+        cacheQuery,
+  ) async {
+    final lastFetch = _catalogLastFetched[key];
+    if (lastFetch == null) return null;
+    if (DateTime.now().difference(lastFetch) >= ttl) return null;
+
+    final cached = await cacheQuery();
+    return cached.fold<Result<List<Anime>, KumoriyaError>?>(
+      onSuccess: (entries) {
+        if (entries.isEmpty) return null;
+        fallbackReason.value = FallbackReason.none;
+        return Success(entries.map(_entryToAnime).toList(growable: false));
+      },
+      onFailure: (_) => null,
+    );
+  }
+
   /// Returns a complete [AnimeDetail] from cache if the entry has synopsis
   /// and is within its freshness TTL.  Returns `null` when a network fetch
   /// is needed.
@@ -404,7 +536,11 @@ final class CachedAnimeCatalogRepository implements AnimeCatalogRepository {
         entry.totalEpisodes != null && entry.totalEpisodes! > 0;
     if (expectsEpisodes && episodes.isEmpty) return null;
 
-    return AnimeDetail(anime: _entryToAnime(entry), episodes: episodes);
+    return AnimeDetail(
+      anime: _entryToAnime(entry),
+      episodes: episodes,
+      relations: await _restoreRelations(entry.relationsJson),
+    );
   }
 
   /// Returns the maximum cache age before a re-fetch is needed, based on
@@ -480,6 +616,60 @@ final class CachedAnimeCatalogRepository implements AnimeCatalogRepository {
     );
   }
 
+  /// Deserializes the cached relations JSON and loads the related anime
+  /// entries from the cache store.  Returns an empty list on any error.
+  Future<List<AnimeRelation>> _restoreRelations(String? json) async {
+    if (json == null || json.isEmpty) return const <AnimeRelation>[];
+
+    try {
+      final decoded = jsonDecode(json) as List<dynamic>;
+      if (decoded.isEmpty) return const <AnimeRelation>[];
+
+      final ids = <int>[];
+      final typeByIds = <int, AnimeRelationType>{};
+      for (final item in decoded) {
+        if (item is! Map<String, dynamic>) continue;
+        final id = item['id'] as int?;
+        final typeName = item['type'] as String?;
+        if (id == null || typeName == null) continue;
+        ids.add(id);
+        typeByIds[id] = _toRelationType(typeName);
+      }
+
+      if (ids.isEmpty) return const <AnimeRelation>[];
+
+      final result = await _cacheStore.getByIds(ids);
+      return result.fold(
+        onSuccess: (entries) {
+          final relations = <AnimeRelation>[];
+          for (final entry in entries) {
+            final type = typeByIds[entry.anilistId];
+            if (type == null) continue;
+            relations.add(AnimeRelation(
+              type: type,
+              anime: _entryToAnime(entry),
+            ));
+          }
+          return relations;
+        },
+        onFailure: (_) => const <AnimeRelation>[],
+      );
+    } catch (_) {
+      return const <AnimeRelation>[];
+    }
+  }
+
+  static AnimeRelationType _toRelationType(String name) {
+    return switch (name) {
+      'prequel' => AnimeRelationType.prequel,
+      'sequel' => AnimeRelationType.sequel,
+      'sideStory' => AnimeRelationType.sideStory,
+      'adaptation' => AnimeRelationType.adaptation,
+      'spinOff' => AnimeRelationType.spinOff,
+      _ => AnimeRelationType.other,
+    };
+  }
+
   Future<void> _persistAnimeList(
     Result<List<Anime>, KumoriyaError> result,
   ) async {
@@ -517,35 +707,76 @@ final class CachedAnimeCatalogRepository implements AnimeCatalogRepository {
     }
   }
 
-  Future<void> _persistAnimeDetail(AnimeDetail detail) {
+  Future<void> _persistAnimeDetail(AnimeDetail detail) async {
     final anime = detail.anime;
-    return _cacheStore
-        .upsert(
-          AnilistCacheEntry(
-            anilistId: anime.anilistId,
-            titleRomaji: anime.title.romaji,
-            titleEnglish: anime.title.english,
-            titleNative: anime.title.native,
-            synonyms: anime.title.synonyms.isNotEmpty
-                ? anime.title.synonyms
-                : null,
-            coverImageUrl: anime.coverImageUrl,
-            bannerImageUrl: anime.bannerImageUrl,
-            status: _statusCode(anime.status),
-            season: anime.season,
-            averageScore: anime.averageScore,
-            popularity: anime.popularity,
-            genres: anime.genres.isNotEmpty ? anime.genres : null,
-            synopsis: anime.synopsis,
-            format: _formatCode(anime.format),
-            releaseYear: anime.releaseYear,
-            totalEpisodes: anime.totalEpisodes,
-            nextAiringEpisode: anime.nextAiringEpisodeNumber,
-            nextAiringAt: anime.nextAiringAt,
-            updatedAt: DateTime.now(),
-          ),
-        )
-        .then((_) {});
+    final updatedAt = DateTime.now();
+
+    // Persist each related anime so it is available from cache.
+    for (final relation in detail.relations) {
+      final rel = relation.anime;
+      await _cacheStore.upsert(
+        AnilistCacheEntry(
+          anilistId: rel.anilistId,
+          titleRomaji: rel.title.romaji,
+          titleEnglish: rel.title.english,
+          titleNative: rel.title.native,
+          synonyms: rel.title.synonyms.isNotEmpty
+              ? rel.title.synonyms
+              : null,
+          coverImageUrl: rel.coverImageUrl,
+          bannerImageUrl: rel.bannerImageUrl,
+          status: _statusCode(rel.status),
+          season: rel.season,
+          averageScore: rel.averageScore,
+          popularity: rel.popularity,
+          genres: rel.genres.isNotEmpty ? rel.genres : null,
+          synopsis: rel.synopsis,
+          format: _formatCode(rel.format),
+          releaseYear: rel.releaseYear,
+          totalEpisodes: rel.totalEpisodes,
+          nextAiringEpisode: rel.nextAiringEpisodeNumber,
+          nextAiringAt: rel.nextAiringAt,
+          updatedAt: updatedAt,
+        ),
+      );
+    }
+
+    // Serialize relations mapping (anilistId + type).
+    final relationsJson = detail.relations.isNotEmpty
+        ? jsonEncode(
+            detail.relations.map((r) => {
+              'id': r.anime.anilistId,
+              'type': r.type.name,
+            }).toList(growable: false),
+          )
+        : null;
+
+    await _cacheStore.upsert(
+      AnilistCacheEntry(
+        anilistId: anime.anilistId,
+        titleRomaji: anime.title.romaji,
+        titleEnglish: anime.title.english,
+        titleNative: anime.title.native,
+        synonyms: anime.title.synonyms.isNotEmpty
+            ? anime.title.synonyms
+            : null,
+        coverImageUrl: anime.coverImageUrl,
+        bannerImageUrl: anime.bannerImageUrl,
+        status: _statusCode(anime.status),
+        season: anime.season,
+        averageScore: anime.averageScore,
+        popularity: anime.popularity,
+        genres: anime.genres.isNotEmpty ? anime.genres : null,
+        synopsis: anime.synopsis,
+        format: _formatCode(anime.format),
+        releaseYear: anime.releaseYear,
+        totalEpisodes: anime.totalEpisodes,
+        nextAiringEpisode: anime.nextAiringEpisodeNumber,
+        nextAiringAt: anime.nextAiringAt,
+        relationsJson: relationsJson,
+        updatedAt: updatedAt,
+      ),
+    );
   }
 
   String _formatCode(AnimeFormat format) {

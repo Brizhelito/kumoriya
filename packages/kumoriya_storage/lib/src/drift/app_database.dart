@@ -57,7 +57,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase(super.e);
 
   @override
-  int get schemaVersion => 18;
+  int get schemaVersion => 19;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -184,6 +184,13 @@ class AppDatabase extends _$AppDatabase {
       }
       if (from < 18) {
         await _ensureSyncQueueTable();
+      }
+      if (from < 19) {
+        await _ensureColumn(
+          tableName: 'anilist_cache',
+          columnName: 'relations',
+          sqlDefinition: 'TEXT',
+        );
       }
     },
     beforeOpen: (details) async {

@@ -4664,6 +4664,17 @@ class $AnilistCacheTableTable extends AnilistCacheTable
     type: DriftSqlType.int,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _relationsMeta = const VerificationMeta(
+    'relations',
+  );
+  @override
+  late final GeneratedColumn<String> relations = GeneratedColumn<String>(
+    'relations',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _updatedAtMeta = const VerificationMeta(
     'updatedAt',
   );
@@ -4695,6 +4706,7 @@ class $AnilistCacheTableTable extends AnilistCacheTable
     totalEpisodes,
     nextAiringEpisode,
     nextAiringAt,
+    relations,
     updatedAt,
   ];
   @override
@@ -4849,6 +4861,12 @@ class $AnilistCacheTableTable extends AnilistCacheTable
         ),
       );
     }
+    if (data.containsKey('relations')) {
+      context.handle(
+        _relationsMeta,
+        relations.isAcceptableOrUnknown(data['relations']!, _relationsMeta),
+      );
+    }
     if (data.containsKey('updated_at')) {
       context.handle(
         _updatedAtMeta,
@@ -4938,6 +4956,10 @@ class $AnilistCacheTableTable extends AnilistCacheTable
         DriftSqlType.int,
         data['${effectivePrefix}next_airing_at'],
       ),
+      relations: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}relations'],
+      ),
       updatedAt: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}updated_at'],
@@ -4971,6 +4993,7 @@ class AnilistCacheTableData extends DataClass
   final int? totalEpisodes;
   final int? nextAiringEpisode;
   final int? nextAiringAt;
+  final String? relations;
   final int updatedAt;
   const AnilistCacheTableData({
     required this.anilistId,
@@ -4991,6 +5014,7 @@ class AnilistCacheTableData extends DataClass
     this.totalEpisodes,
     this.nextAiringEpisode,
     this.nextAiringAt,
+    this.relations,
     required this.updatedAt,
   });
   @override
@@ -5045,6 +5069,9 @@ class AnilistCacheTableData extends DataClass
     }
     if (!nullToAbsent || nextAiringAt != null) {
       map['next_airing_at'] = Variable<int>(nextAiringAt);
+    }
+    if (!nullToAbsent || relations != null) {
+      map['relations'] = Variable<String>(relations);
     }
     map['updated_at'] = Variable<int>(updatedAt);
     return map;
@@ -5102,6 +5129,9 @@ class AnilistCacheTableData extends DataClass
       nextAiringAt: nextAiringAt == null && nullToAbsent
           ? const Value.absent()
           : Value(nextAiringAt),
+      relations: relations == null && nullToAbsent
+          ? const Value.absent()
+          : Value(relations),
       updatedAt: Value(updatedAt),
     );
   }
@@ -5130,6 +5160,7 @@ class AnilistCacheTableData extends DataClass
       totalEpisodes: serializer.fromJson<int?>(json['totalEpisodes']),
       nextAiringEpisode: serializer.fromJson<int?>(json['nextAiringEpisode']),
       nextAiringAt: serializer.fromJson<int?>(json['nextAiringAt']),
+      relations: serializer.fromJson<String?>(json['relations']),
       updatedAt: serializer.fromJson<int>(json['updatedAt']),
     );
   }
@@ -5155,6 +5186,7 @@ class AnilistCacheTableData extends DataClass
       'totalEpisodes': serializer.toJson<int?>(totalEpisodes),
       'nextAiringEpisode': serializer.toJson<int?>(nextAiringEpisode),
       'nextAiringAt': serializer.toJson<int?>(nextAiringAt),
+      'relations': serializer.toJson<String?>(relations),
       'updatedAt': serializer.toJson<int>(updatedAt),
     };
   }
@@ -5178,6 +5210,7 @@ class AnilistCacheTableData extends DataClass
     Value<int?> totalEpisodes = const Value.absent(),
     Value<int?> nextAiringEpisode = const Value.absent(),
     Value<int?> nextAiringAt = const Value.absent(),
+    Value<String?> relations = const Value.absent(),
     int? updatedAt,
   }) => AnilistCacheTableData(
     anilistId: anilistId ?? this.anilistId,
@@ -5206,6 +5239,7 @@ class AnilistCacheTableData extends DataClass
         ? nextAiringEpisode.value
         : this.nextAiringEpisode,
     nextAiringAt: nextAiringAt.present ? nextAiringAt.value : this.nextAiringAt,
+    relations: relations.present ? relations.value : this.relations,
     updatedAt: updatedAt ?? this.updatedAt,
   );
   AnilistCacheTableData copyWithCompanion(AnilistCacheTableCompanion data) {
@@ -5250,6 +5284,7 @@ class AnilistCacheTableData extends DataClass
       nextAiringAt: data.nextAiringAt.present
           ? data.nextAiringAt.value
           : this.nextAiringAt,
+      relations: data.relations.present ? data.relations.value : this.relations,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
     );
   }
@@ -5275,6 +5310,7 @@ class AnilistCacheTableData extends DataClass
           ..write('totalEpisodes: $totalEpisodes, ')
           ..write('nextAiringEpisode: $nextAiringEpisode, ')
           ..write('nextAiringAt: $nextAiringAt, ')
+          ..write('relations: $relations, ')
           ..write('updatedAt: $updatedAt')
           ..write(')'))
         .toString();
@@ -5300,6 +5336,7 @@ class AnilistCacheTableData extends DataClass
     totalEpisodes,
     nextAiringEpisode,
     nextAiringAt,
+    relations,
     updatedAt,
   );
   @override
@@ -5324,6 +5361,7 @@ class AnilistCacheTableData extends DataClass
           other.totalEpisodes == this.totalEpisodes &&
           other.nextAiringEpisode == this.nextAiringEpisode &&
           other.nextAiringAt == this.nextAiringAt &&
+          other.relations == this.relations &&
           other.updatedAt == this.updatedAt);
 }
 
@@ -5347,6 +5385,7 @@ class AnilistCacheTableCompanion
   final Value<int?> totalEpisodes;
   final Value<int?> nextAiringEpisode;
   final Value<int?> nextAiringAt;
+  final Value<String?> relations;
   final Value<int> updatedAt;
   const AnilistCacheTableCompanion({
     this.anilistId = const Value.absent(),
@@ -5367,6 +5406,7 @@ class AnilistCacheTableCompanion
     this.totalEpisodes = const Value.absent(),
     this.nextAiringEpisode = const Value.absent(),
     this.nextAiringAt = const Value.absent(),
+    this.relations = const Value.absent(),
     this.updatedAt = const Value.absent(),
   });
   AnilistCacheTableCompanion.insert({
@@ -5388,6 +5428,7 @@ class AnilistCacheTableCompanion
     this.totalEpisodes = const Value.absent(),
     this.nextAiringEpisode = const Value.absent(),
     this.nextAiringAt = const Value.absent(),
+    this.relations = const Value.absent(),
     required int updatedAt,
   }) : titleRomaji = Value(titleRomaji),
        updatedAt = Value(updatedAt);
@@ -5410,6 +5451,7 @@ class AnilistCacheTableCompanion
     Expression<int>? totalEpisodes,
     Expression<int>? nextAiringEpisode,
     Expression<int>? nextAiringAt,
+    Expression<String>? relations,
     Expression<int>? updatedAt,
   }) {
     return RawValuesInsertable({
@@ -5431,6 +5473,7 @@ class AnilistCacheTableCompanion
       if (totalEpisodes != null) 'total_episodes': totalEpisodes,
       if (nextAiringEpisode != null) 'next_airing_episode': nextAiringEpisode,
       if (nextAiringAt != null) 'next_airing_at': nextAiringAt,
+      if (relations != null) 'relations': relations,
       if (updatedAt != null) 'updated_at': updatedAt,
     });
   }
@@ -5454,6 +5497,7 @@ class AnilistCacheTableCompanion
     Value<int?>? totalEpisodes,
     Value<int?>? nextAiringEpisode,
     Value<int?>? nextAiringAt,
+    Value<String?>? relations,
     Value<int>? updatedAt,
   }) {
     return AnilistCacheTableCompanion(
@@ -5475,6 +5519,7 @@ class AnilistCacheTableCompanion
       totalEpisodes: totalEpisodes ?? this.totalEpisodes,
       nextAiringEpisode: nextAiringEpisode ?? this.nextAiringEpisode,
       nextAiringAt: nextAiringAt ?? this.nextAiringAt,
+      relations: relations ?? this.relations,
       updatedAt: updatedAt ?? this.updatedAt,
     );
   }
@@ -5536,6 +5581,9 @@ class AnilistCacheTableCompanion
     if (nextAiringAt.present) {
       map['next_airing_at'] = Variable<int>(nextAiringAt.value);
     }
+    if (relations.present) {
+      map['relations'] = Variable<String>(relations.value);
+    }
     if (updatedAt.present) {
       map['updated_at'] = Variable<int>(updatedAt.value);
     }
@@ -5563,6 +5611,7 @@ class AnilistCacheTableCompanion
           ..write('totalEpisodes: $totalEpisodes, ')
           ..write('nextAiringEpisode: $nextAiringEpisode, ')
           ..write('nextAiringAt: $nextAiringAt, ')
+          ..write('relations: $relations, ')
           ..write('updatedAt: $updatedAt')
           ..write(')'))
         .toString();
@@ -8721,6 +8770,7 @@ typedef $$AnilistCacheTableTableCreateCompanionBuilder =
       Value<int?> totalEpisodes,
       Value<int?> nextAiringEpisode,
       Value<int?> nextAiringAt,
+      Value<String?> relations,
       required int updatedAt,
     });
 typedef $$AnilistCacheTableTableUpdateCompanionBuilder =
@@ -8743,6 +8793,7 @@ typedef $$AnilistCacheTableTableUpdateCompanionBuilder =
       Value<int?> totalEpisodes,
       Value<int?> nextAiringEpisode,
       Value<int?> nextAiringAt,
+      Value<String?> relations,
       Value<int> updatedAt,
     });
 
@@ -8842,6 +8893,11 @@ class $$AnilistCacheTableTableFilterComposer
 
   ColumnFilters<int> get nextAiringAt => $composableBuilder(
     column: $table.nextAiringAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get relations => $composableBuilder(
+    column: $table.relations,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -8950,6 +9006,11 @@ class $$AnilistCacheTableTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get relations => $composableBuilder(
+    column: $table.relations,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<int> get updatedAt => $composableBuilder(
     column: $table.updatedAt,
     builder: (column) => ColumnOrderings(column),
@@ -9041,6 +9102,9 @@ class $$AnilistCacheTableTableAnnotationComposer
     builder: (column) => column,
   );
 
+  GeneratedColumn<String> get relations =>
+      $composableBuilder(column: $table.relations, builder: (column) => column);
+
   GeneratedColumn<int> get updatedAt =>
       $composableBuilder(column: $table.updatedAt, builder: (column) => column);
 }
@@ -9103,6 +9167,7 @@ class $$AnilistCacheTableTableTableManager
                 Value<int?> totalEpisodes = const Value.absent(),
                 Value<int?> nextAiringEpisode = const Value.absent(),
                 Value<int?> nextAiringAt = const Value.absent(),
+                Value<String?> relations = const Value.absent(),
                 Value<int> updatedAt = const Value.absent(),
               }) => AnilistCacheTableCompanion(
                 anilistId: anilistId,
@@ -9123,6 +9188,7 @@ class $$AnilistCacheTableTableTableManager
                 totalEpisodes: totalEpisodes,
                 nextAiringEpisode: nextAiringEpisode,
                 nextAiringAt: nextAiringAt,
+                relations: relations,
                 updatedAt: updatedAt,
               ),
           createCompanionCallback:
@@ -9145,6 +9211,7 @@ class $$AnilistCacheTableTableTableManager
                 Value<int?> totalEpisodes = const Value.absent(),
                 Value<int?> nextAiringEpisode = const Value.absent(),
                 Value<int?> nextAiringAt = const Value.absent(),
+                Value<String?> relations = const Value.absent(),
                 required int updatedAt,
               }) => AnilistCacheTableCompanion.insert(
                 anilistId: anilistId,
@@ -9165,6 +9232,7 @@ class $$AnilistCacheTableTableTableManager
                 totalEpisodes: totalEpisodes,
                 nextAiringEpisode: nextAiringEpisode,
                 nextAiringAt: nextAiringAt,
+                relations: relations,
                 updatedAt: updatedAt,
               ),
           withReferenceMapper: (p0) => p0

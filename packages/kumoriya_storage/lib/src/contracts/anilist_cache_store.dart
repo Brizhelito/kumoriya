@@ -21,6 +21,7 @@ final class AnilistCacheEntry {
     this.totalEpisodes,
     this.nextAiringEpisode,
     this.nextAiringAt,
+    this.relationsJson,
   });
 
   final int anilistId;
@@ -41,6 +42,9 @@ final class AnilistCacheEntry {
   final int? totalEpisodes;
   final int? nextAiringEpisode;
   final DateTime? nextAiringAt;
+  /// JSON-encoded list of `{"id": <int>, "type": <string>}` objects
+  /// representing anime relations (prequel, sequel, etc.).
+  final String? relationsJson;
   final DateTime updatedAt;
 }
 

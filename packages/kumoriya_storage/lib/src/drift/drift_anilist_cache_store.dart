@@ -37,6 +37,7 @@ final class DriftAnilistCacheStore implements AnilistCacheStore {
           totalEpisodes: Value(entry.totalEpisodes),
           nextAiringEpisode: Value(entry.nextAiringEpisode),
           nextAiringAt: Value(entry.nextAiringAt?.millisecondsSinceEpoch),
+          relations: Value(entry.relationsJson),
           updatedAt: Value(entry.updatedAt.millisecondsSinceEpoch),
         ),
       );
@@ -253,6 +254,7 @@ final class DriftAnilistCacheStore implements AnilistCacheStore {
       nextAiringAt: row.nextAiringAt != null
           ? DateTime.fromMillisecondsSinceEpoch(row.nextAiringAt!)
           : null,
+      relationsJson: row.relations,
       updatedAt: DateTime.fromMillisecondsSinceEpoch(row.updatedAt),
     );
   }

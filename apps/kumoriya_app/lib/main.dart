@@ -157,9 +157,15 @@ Future<void> _initWorkmanager() async {
 Future<void> _purgeExpiredCaches(ProviderContainer container) async {
   try {
     final sourceStore = container.read(sourceAvailabilityStoreProvider);
+    final anilistStore = container.read(anilistCacheStoreProvider);
+    final aniskipStore = container.read(aniSkipCacheStoreProvider);
+    final translationStore = container.read(translationCacheStoreProvider);
 
     await Future.wait(<Future<void>>[
       sourceStore.deleteOlderThan(const Duration(days: 7)),
+      anilistStore.deleteOlderThan(const Duration(days: 30)),
+      aniskipStore.deleteOlderThan(const Duration(days: 14)),
+      translationStore.deleteOlderThan(const Duration(days: 30)),
     ]);
   } catch (_) {
     // Best-effort cleanup; failures are non-critical.

@@ -22,6 +22,7 @@ class AnilistCacheTable extends Table {
   IntColumn get totalEpisodes => integer().nullable()();
   IntColumn get nextAiringEpisode => integer().nullable()();
   IntColumn get nextAiringAt => integer().nullable()();
+  TextColumn get relations => text().nullable()();
   IntColumn get updatedAt => integer()();
 
   @override
