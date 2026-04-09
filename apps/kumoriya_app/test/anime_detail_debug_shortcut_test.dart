@@ -156,6 +156,7 @@ final class _FakeAnimeProgressStore implements AnimeProgressStore {
     required int positionSeconds,
     int? totalDurationSeconds,
     String? lastSourcePluginId,
+    DateTime? lastAccessedAt,
   }) async {
     return const Success(null);
   }

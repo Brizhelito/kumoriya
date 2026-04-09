@@ -55,6 +55,7 @@ final class SyncAwareProgressStore implements AnimeProgressStore {
     required int positionSeconds,
     int? totalDurationSeconds,
     String? lastSourcePluginId,
+    DateTime? lastAccessedAt,
   }) async {
     final result = await _inner.upsertWatchHistory(
       anilistId: anilistId,
@@ -62,6 +63,7 @@ final class SyncAwareProgressStore implements AnimeProgressStore {
       positionSeconds: positionSeconds,
       totalDurationSeconds: totalDurationSeconds,
       lastSourcePluginId: lastSourcePluginId,
+      lastAccessedAt: lastAccessedAt,
     );
     if (result.isSuccess && _isAuthenticated()) {
       final now = DateTime.now().millisecondsSinceEpoch;

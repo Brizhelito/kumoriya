@@ -13,12 +13,14 @@ final class DriftLibraryStore implements LibraryStore {
   Future<Result<void, KumoriyaError>> setFavorite(
     int anilistId, {
     required bool isFavorite,
+    DateTime? addedAt,
   }) async {
     try {
       if (isFavorite) {
+        final ts = (addedAt ?? DateTime.now()).millisecondsSinceEpoch;
         await _dao.addFavorite(
           anilistId,
-          DateTime.now().millisecondsSinceEpoch,
+          ts,
         );
       } else {
         await _dao.removeFavorite(anilistId);

@@ -23,8 +23,13 @@ final class SyncAwareLibraryStore implements LibraryStore {
   Future<Result<void, KumoriyaError>> setFavorite(
     int anilistId, {
     required bool isFavorite,
+    DateTime? addedAt,
   }) async {
-    final result = await _inner.setFavorite(anilistId, isFavorite: isFavorite);
+    final result = await _inner.setFavorite(
+      anilistId,
+      isFavorite: isFavorite,
+      addedAt: addedAt,
+    );
     if (result.isSuccess && _isAuthenticated()) {
       await _enqueueLibraryChange(anilistId);
     }

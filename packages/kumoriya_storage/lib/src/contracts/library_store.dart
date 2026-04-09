@@ -4,6 +4,7 @@ abstract interface class LibraryStore {
   Future<Result<void, KumoriyaError>> setFavorite(
     int anilistId, {
     required bool isFavorite,
+    DateTime? addedAt,
   });
 
   Future<Result<Set<int>, KumoriyaError>> getFavoriteAnimeIds();

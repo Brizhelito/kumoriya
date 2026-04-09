@@ -910,11 +910,12 @@ final class _FakeAnimeProgressStore implements AnimeProgressStore {
     required int positionSeconds,
     int? totalDurationSeconds,
     String? lastSourcePluginId,
+    DateTime? lastAccessedAt,
   }) async {
     _historyByAnime[anilistId] = AnimeWatchHistory(
       anilistId: anilistId,
       lastEpisodeNumber: episodeNumber,
-      lastAccessedAt: DateTime.now(),
+      lastAccessedAt: lastAccessedAt ?? DateTime.now(),
       lastSourcePluginId: lastSourcePluginId,
       lastPositionSeconds: positionSeconds,
       lastTotalDurationSeconds: totalDurationSeconds,

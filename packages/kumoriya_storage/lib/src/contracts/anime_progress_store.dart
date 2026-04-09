@@ -79,6 +79,7 @@ abstract interface class AnimeProgressStore {
     required int positionSeconds,
     int? totalDurationSeconds,
     String? lastSourcePluginId,
+    DateTime? lastAccessedAt,
   });
 
   Future<Result<EpisodeProgress?, KumoriyaError>> getProgress(

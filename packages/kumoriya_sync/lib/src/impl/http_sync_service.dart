@@ -328,7 +328,16 @@ final class HttpSyncService implements SyncService {
           data['auto_download_new_episodes'] as bool? ?? false,
       autoDownloadAudioPreference:
           data['auto_download_audio_preference'] as String?,
+      addedAt: _tryParseTimestamp(data['added_at']),
     );
+  }
+
+  /// Parses a nullable milliseconds-since-epoch value into a [DateTime],
+  /// returning `null` when the value is absent or zero.
+  DateTime? _tryParseTimestamp(Object? raw) {
+    final ms = (raw as num?)?.toInt();
+    if (ms == null || ms == 0) return null;
+    return DateTime.fromMillisecondsSinceEpoch(ms);
   }
 
   WatchState _parseWatchState(String? value) {
@@ -358,13 +367,18 @@ final class HttpSyncService implements SyncService {
         positionSeconds: wh.lastPositionSeconds,
         totalDurationSeconds: wh.lastTotalDurationSeconds,
         lastSourcePluginId: wh.lastSourcePluginId,
+        lastAccessedAt: wh.lastAccessedAt,
       );
     }
     for (final pref in pull.playbackPreferences) {
       await progressStore.upsertPlaybackPreference(pref);
     }
     for (final lib in pull.libraryEntries) {
-      await libraryStore.setFavorite(lib.anilistId, isFavorite: lib.isFavorite);
+      await libraryStore.setFavorite(
+        lib.anilistId,
+        isFavorite: lib.isFavorite,
+        addedAt: lib.addedAt,
+      );
       await libraryStore.setSubscription(lib.anilistId, notify: lib.notify);
       await libraryStore.setAutoDownload(
         lib.anilistId,
