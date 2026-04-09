@@ -80,7 +80,7 @@ releases/*.apk
 releases/*.exe
 
 # User downloads and cache data
-downloads/
+/downloads/
 
 # Benchmark and test output artifacts
 bench_*.json

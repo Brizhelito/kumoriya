@@ -1,7 +1,10 @@
 import 'dart:async';
+import 'dart:io';
 
+import 'package:cronet_http/cronet_http.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:http/http.dart' as http;
 import 'package:kumoriya_anilist/kumoriya_anilist.dart';
 import 'package:kumoriya_core/kumoriya_core.dart';
 import 'package:kumoriya_domain/kumoriya_domain.dart';
@@ -90,8 +93,25 @@ final sourcePluginProvider = Provider<SourcePlugin>((ref) {
   return ref.watch(sourcePluginsProvider).first;
 });
 
+/// Shared HTTP client for resolver plugins. On Android, uses Chromium's Cronet
+/// engine (HTTP/2, better TLS, lower latency). Falls back to the standard Dart
+/// HttpClient on other platforms.
+final resolverHttpClientProvider = Provider<http.Client>((ref) {
+  if (!Platform.isAndroid) return http.Client();
+  try {
+    return CronetClient.fromCronetEngine(
+      CronetEngine.build(cacheMode: CacheMode.disabled),
+      closeEngine: true,
+    );
+  } catch (_) {
+    return http.Client();
+  }
+});
+
 final resolverPluginsProvider = Provider<List<ResolverPlugin>>((ref) {
-  return buildDefaultResolverPlugins();
+  return buildDefaultResolverPlugins(
+    httpClient: ref.watch(resolverHttpClientProvider),
+  );
 });
 
 final resolverRegistryProvider = Provider<ResolverRegistry>((ref) {

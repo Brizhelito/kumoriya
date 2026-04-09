@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:developer' as developer;
 import 'dart:io';
 
+import 'package:cronet_http/cronet_http.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:http/http.dart' as http;
@@ -146,7 +147,20 @@ Future<void> _runCheckNewEpisodes() async {
   final locale = Platform.localeName;
 
   final sourcePlugins = buildDefaultSourcePlugins();
-  final resolverPlugins = buildDefaultResolverPlugins();
+  http.Client? resolverClient;
+  if (Platform.isAndroid) {
+    try {
+      resolverClient = CronetClient.fromCronetEngine(
+        CronetEngine.build(cacheMode: CacheMode.disabled),
+        closeEngine: true,
+      );
+    } catch (_) {
+      // Fall through to default http.Client in buildDefaultResolverPlugins.
+    }
+  }
+  final resolverPlugins = buildDefaultResolverPlugins(
+    httpClient: resolverClient,
+  );
   final selectionPolicy = const SourceSelectionPolicy();
   final resolverRegistry = ResolverRegistry(resolvers: resolverPlugins);
   final sourceAvailabilityStore = DriftSourceAvailabilityStore(db);

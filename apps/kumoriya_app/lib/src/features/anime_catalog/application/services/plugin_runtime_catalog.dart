@@ -1,3 +1,4 @@
+import 'package:http/http.dart' as http;
 import 'package:kumoriya_plugins/kumoriya_plugins.dart';
 import 'package:kumoriya_resolver_anime_nexus/kumoriya_resolver_anime_nexus.dart';
 import 'package:kumoriya_resolver_doodstream/kumoriya_resolver_doodstream.dart';
@@ -29,28 +30,28 @@ List<SourcePlugin> buildDefaultSourcePlugins() {
   ];
 }
 
-List<ResolverPlugin> buildDefaultResolverPlugins() {
+List<ResolverPlugin> buildDefaultResolverPlugins({http.Client? httpClient}) {
   return <ResolverPlugin>[
     AnimeNexusResolverPlugin(),
-    JkPlayerJkResolverPlugin(),
-    JkPlayerResolverPlugin(),
-    StreamwishResolverPlugin(),
+    JkPlayerJkResolverPlugin(httpClient: httpClient),
+    JkPlayerResolverPlugin(httpClient: httpClient),
+    StreamwishResolverPlugin(httpClient: httpClient),
     // MP4Upload disabled: CDN too slow for acceptable user experience.
     // Mp4uploadResolverPlugin(),
-    PixeldrainResolverPlugin(),
-    StreamtapeResolverPlugin(),
-    DoodstreamResolverPlugin(),
-    YouruploadResolverPlugin(),
-    OkruResolverPlugin(),
+    PixeldrainResolverPlugin(httpClient: httpClient),
+    StreamtapeResolverPlugin(httpClient: httpClient),
+    DoodstreamResolverPlugin(httpClient: httpClient),
+    YouruploadResolverPlugin(httpClient: httpClient),
+    OkruResolverPlugin(httpClient: httpClient),
     // HQQ disabled: 0/12 success — requires visual captcha challenge.
     // HqqResolverPlugin(),
-    UpnshareResolverPlugin(),
-    ZillaResolverPlugin(),
+    UpnshareResolverPlugin(httpClient: httpClient),
+    ZillaResolverPlugin(httpClient: httpClient),
     // VOE disabled: 0/12 success — requires runtime JS session token.
     // VoeResolverPlugin(),
     // MixDrop disabled: CDN rejects playback despite valid resolution.
     // MixdropResolverPlugin(),
-    FilemoonResolverPlugin(),
-    VidhideResolverPlugin(),
+    FilemoonResolverPlugin(httpClient: httpClient),
+    VidhideResolverPlugin(httpClient: httpClient),
   ];
 }

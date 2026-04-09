@@ -61,12 +61,13 @@ final _contentRangeTotalRe = RegExp(r'/([0-9]+)$');
 /// - Connection pool sized for parallel HLS segments.
 /// - Disabled auto-decompression (segments are already compressed/binary).
 /// - 15 s connection timeout to fail fast instead of hanging.
-/// - 60 s idle timeout for connection reuse between segments.
+/// - 5 s idle timeout — release connections quickly after completion
+///   to avoid holding CDN slots open unnecessarily.
 http.Client _createDownloadHttpClient({int maxConnectionsPerHost = 16}) {
   final inner = HttpClient()
     ..autoUncompress = false
     ..connectionTimeout = const Duration(seconds: 15)
-    ..idleTimeout = const Duration(seconds: 60)
+    ..idleTimeout = const Duration(seconds: 5)
     ..maxConnectionsPerHost = maxConnectionsPerHost;
   return ioc.IOClient(inner);
 }
@@ -78,7 +79,7 @@ http.Client _createInsecureDownloadHttpClient({
   final inner = HttpClient()
     ..autoUncompress = false
     ..connectionTimeout = const Duration(seconds: 15)
-    ..idleTimeout = const Duration(seconds: 60)
+    ..idleTimeout = const Duration(seconds: 5)
     ..maxConnectionsPerHost = maxConnectionsPerHost
     ..badCertificateCallback = (certificate, host, port) =>
         approvedHosts?.contains(host) ?? false;
@@ -87,7 +88,7 @@ http.Client _createInsecureDownloadHttpClient({
 
 int _defaultMaxConcurrentDownloads() {
   if (Platform.isAndroid) {
-    return 3;
+    return 2;
   }
   if (Platform.isWindows) {
     return 4;
@@ -114,7 +115,7 @@ class DownloadManagerService {
     int? maxConcurrent,
     http.Client? httpClient,
     http.Client Function()? insecureHttpClientFactory,
-    int maxRetryAttempts = 3,
+    int maxRetryAttempts = 2,
     DownloadLinkRefresher? linkRefresher,
     int maxReResolveAttempts = 2,
     DownloadForegroundService? foregroundService,
@@ -153,6 +154,10 @@ class DownloadManagerService {
   /// Tracks how many re-resolution attempts each task has consumed.
   /// Cleared when the task completes or is cancelled.
   final _reResolveAttempts = <String, int>{};
+
+  /// Tracks which server names have already been tried per task to prevent
+  /// ping-pong cycling between the same two failing servers.
+  final _triedServersPerTask = <String, Set<String>>{};
   final _insecureTlsHostsByTask = <String, Set<String>>{};
 
   /// Hosts that have been explicitly approved for insecure TLS after a
@@ -261,6 +266,7 @@ class DownloadManagerService {
   Future<void> resume(String taskId) async {
     await clearTaskError(taskId);
     _reResolveAttempts.remove(taskId);
+    _triedServersPerTask.remove(taskId);
     _insecureTlsHostsByTask.remove(taskId);
     await _updateStatus(taskId, DownloadStatus.pending, errorMessage: null);
     await _processQueue();
@@ -271,6 +277,7 @@ class DownloadManagerService {
     active?.cancel();
     _removeProgress(taskId);
     _reResolveAttempts.remove(taskId);
+    _triedServersPerTask.remove(taskId);
     _insecureTlsHostsByTask.remove(taskId);
     _clearScheduledProgressPersistence(taskId);
     await _drainTaskWrites(taskId);
@@ -306,6 +313,7 @@ class DownloadManagerService {
     _activeDownloads.clear();
     _latestProgressByTask.clear();
     _reResolveAttempts.clear();
+    _triedServersPerTask.clear();
     _insecureTlsHostsByTask.clear();
     _emitAggregateProgress();
 
@@ -342,6 +350,7 @@ class DownloadManagerService {
       );
       for (final task in tasks) {
         _reResolveAttempts.remove(task.id);
+        _triedServersPerTask.remove(task.id);
         _insecureTlsHostsByTask.remove(task.id);
         _clearScheduledProgressPersistence(task.id);
         await _drainTaskWrites(task.id);
@@ -372,6 +381,7 @@ class DownloadManagerService {
     for (final task in tasks) {
       await clearTaskError(task.id);
       _reResolveAttempts.remove(task.id);
+      _triedServersPerTask.remove(task.id);
       _insecureTlsHostsByTask.remove(task.id);
       await _updateStatus(task.id, DownloadStatus.pending, errorMessage: null);
     }
@@ -395,6 +405,7 @@ class DownloadManagerService {
     );
     for (final task in tasks) {
       _reResolveAttempts.remove(task.id);
+      _triedServersPerTask.remove(task.id);
       _insecureTlsHostsByTask.remove(task.id);
       await _updateStatus(task.id, DownloadStatus.pending, errorMessage: null);
     }
@@ -403,6 +414,7 @@ class DownloadManagerService {
 
   Future<void> deleteCompleted(String taskId) async {
     _reResolveAttempts.remove(taskId);
+    _triedServersPerTask.remove(taskId);
     _insecureTlsHostsByTask.remove(taskId);
     _clearScheduledProgressPersistence(taskId);
     await _drainTaskWrites(taskId);
@@ -564,6 +576,7 @@ class DownloadManagerService {
       );
       _removeProgress(task.id);
       _reResolveAttempts.remove(task.id);
+      _triedServersPerTask.remove(task.id);
       _insecureTlsHostsByTask.remove(task.id);
       _emitStatusChange(
         taskId: task.id,
@@ -642,6 +655,16 @@ class DownloadManagerService {
 
     _reResolveAttempts[task.id] = attempts + 1;
 
+    // Record the current server so we don't cycle back to it.
+    final triedServers = _triedServersPerTask.putIfAbsent(
+      task.id,
+      () => <String>{},
+    );
+    final currentServer = task.serverName;
+    if (currentServer != null) {
+      triedServers.add(currentServer);
+    }
+
     // First attempt: re-resolve same server (fresh CDN token).
     // Subsequent attempts or 404: try an alternative server.
     // For network/certificate errors the current host itself is unreachable,
@@ -670,6 +693,17 @@ class DownloadManagerService {
 
       if (refreshed == null) {
         _log('Recovery returned null for ${task.id}');
+        return false;
+      }
+
+      // Anti-ping-pong: reject if the refresher selected a server we already
+      // tried and failed on.  This prevents A→B→A→B cycling.
+      final refreshedServer = refreshed.serverName;
+      if (refreshedServer != null && triedServers.contains(refreshedServer)) {
+        _log(
+          'Recovery ping-pong detected for ${task.id}: '
+          'server "$refreshedServer" was already tried. Aborting recovery.',
+        );
         return false;
       }
 
@@ -864,13 +898,34 @@ class DownloadManagerService {
       }
 
       knownTotalBytes = _resolveExpectedTotalBytes(response, downloadedBytes);
+
+      // Defensive gzip handling: some servers send gzip despite our
+      // `Accept-Encoding: identity` header.  With `autoUncompress = false`
+      // the raw bytes would corrupt the video file.  Detect and decompress.
+      final contentEncoding =
+          response.headers['content-encoding']?.toLowerCase().trim() ?? '';
+      final isGzipped =
+          contentEncoding == 'gzip' || contentEncoding == 'x-gzip';
+      Stream<List<int>> bodyStream = response.stream;
+      if (isGzipped) {
+        _log(
+          'Server sent gzip despite identity request for ${task.id}; '
+          'decompressing on the fly',
+        );
+        bodyStream = bodyStream.transform(gzip.decoder);
+        // Content-Length from the response refers to the compressed size,
+        // so total-bytes tracking becomes unreliable.  Reset to unknown so
+        // the progress UI shows an indeterminate bar instead of a wrong %.
+        knownTotalBytes = 0;
+      }
+
       final sink = tempFile.openWrite(
         mode: append ? FileMode.append : FileMode.write,
       );
       Object? interruptionError;
 
       try {
-        await for (final chunk in response.stream) {
+        await for (final chunk in bodyStream) {
           if (cancelCompleter.isCompleted) break;
 
           sink.add(chunk);
@@ -1733,6 +1788,7 @@ class DownloadManagerService {
     _activeDownloads.clear();
     _latestProgressByTask.clear();
     _reResolveAttempts.clear();
+    _triedServersPerTask.clear();
     _insecureTlsHostsByTask.clear();
     _pendingProgressSnapshots.clear();
     _taskWriteChains.clear();
