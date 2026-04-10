@@ -2054,6 +2054,10 @@ Future<bool> _enqueueDetailEpisodeDownload({
       if (filtered.isNotEmpty) links = filtered;
     }
 
+    // Rank servers by historical success rate — best first.
+    final scorer = ref.read(downloadServerScorerProvider);
+    links = scorer.rankByScore(links, (l) => l.serverName);
+
     final enqueueUseCase = ref.read(enqueueDownloadUseCaseProvider);
     for (final link in links) {
       final result = await enqueueUseCase.call(

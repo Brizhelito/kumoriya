@@ -14,7 +14,14 @@ import '../application/download_directory_service.dart';
 import '../application/download_foreground_service.dart';
 import '../application/download_library_index_service.dart';
 import '../application/download_manager_service.dart';
+import '../application/download_server_scorer.dart';
 import '../application/enqueue_download_use_case.dart';
+
+// ─── Server Scorer (session-scoped singleton) ───────────────────────────────
+
+final downloadServerScorerProvider = Provider<DownloadServerScorer>((ref) {
+  return DownloadServerScorer();
+});
 
 // ─── Download Manager (singleton) ────────────────────────────────────────────
 
@@ -56,6 +63,7 @@ final downloadManagerProvider = Provider<DownloadManagerService>((ref) {
   final resolveUseCase = ref.watch(resolveSourceServerLinkUseCaseProvider);
   final sourceAvailabilityStore = ref.watch(sourceAvailabilityStoreProvider);
   final cacheCodec = ref.watch(sourceAvailabilityCacheCodecProvider);
+  final scorer = ref.watch(downloadServerScorerProvider);
 
   final manager = DownloadManagerService(
     store: store,
@@ -69,7 +77,15 @@ final downloadManagerProvider = Provider<DownloadManagerService>((ref) {
       resolveUseCase: resolveUseCase,
       sourceAvailabilityStore: sourceAvailabilityStore,
       cacheCodec: cacheCodec,
+      scorer: scorer,
     ),
+    onServerOutcome: (serverName, {required success}) {
+      if (success) {
+        scorer.recordSuccess(serverName);
+      } else {
+        scorer.recordFailure(serverName);
+      }
+    },
   );
   ref.onDispose(manager.dispose);
   return manager;
@@ -274,6 +290,7 @@ DownloadLinkRefresher _buildLinkRefresher({
   required ResolveSourceServerLinkUseCase resolveUseCase,
   required SourceAvailabilityStore sourceAvailabilityStore,
   required SourceAvailabilityCacheCodec cacheCodec,
+  required DownloadServerScorer scorer,
 }) {
   return ({
     required int anilistId,
@@ -281,6 +298,7 @@ DownloadLinkRefresher _buildLinkRefresher({
     required String? sourcePluginId,
     required String? serverName,
     required bool tryAlternativeServer,
+    Set<String> triedServers = const <String>{},
   }) async {
     // 1. Look up the source plugin.
     final plugin = sourcePluginId != null
@@ -322,8 +340,22 @@ DownloadLinkRefresher _buildLinkRefresher({
     // 4. Pick the right server link.
     SourceServerLink? targetLink;
     if (tryAlternativeServer) {
-      // Skip the original server, pick the first alternative.
-      targetLink = links.where((l) => l.serverName != serverName).firstOrNull;
+      // Skip ALL servers already tried for this task (not just the original).
+      // This prevents A→B→A cycling when multiple servers fail.
+      // Pick the best-scored untried server.
+      final untried = scorer.rankByScore(
+        links.where((l) => !triedServers.contains(l.serverName)).toList(),
+        (l) => l.serverName,
+      );
+      targetLink = untried.firstOrNull;
+      // Fall back to skipping only the current server if all were tried.
+      if (targetLink == null) {
+        final fallback = scorer.rankByScore(
+          links.where((l) => l.serverName != serverName).toList(),
+          (l) => l.serverName,
+        );
+        targetLink = fallback.firstOrNull;
+      }
     }
     // Fall back to the same server (fresh URL) or first available.
     targetLink ??= links.where((l) => l.serverName == serverName).firstOrNull;

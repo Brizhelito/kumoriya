@@ -37,7 +37,9 @@ final class DownloadRefreshResult {
 /// Callback that obtains a fresh stream URL for a failed download.
 ///
 /// When [tryAlternativeServer] is true the implementation should skip the
-/// original server and pick the next best one.
+/// original server and pick the next best one.  [triedServers] contains all
+/// server names already attempted for this task — the refresher should skip
+/// all of them when picking an alternative.
 typedef DownloadLinkRefresher =
     Future<DownloadRefreshResult?> Function({
       required int anilistId,
@@ -45,6 +47,7 @@ typedef DownloadLinkRefresher =
       required String? sourcePluginId,
       required String? serverName,
       required bool tryAlternativeServer,
+      Set<String> triedServers,
     });
 
 const _defaultUserAgent =
@@ -106,6 +109,13 @@ int _defaultMaxConnectionsPerHost() {
   return 8;
 }
 
+/// Callback invoked when a download finishes with a definitive outcome.
+///
+/// [serverName] is the server that was used, [success] indicates whether
+/// the download completed or failed permanently.
+typedef DownloadServerOutcomeCallback =
+    void Function(String serverName, {required bool success});
+
 class DownloadManagerService {
   DownloadManagerService({
     required DownloadStore store,
@@ -117,8 +127,9 @@ class DownloadManagerService {
     http.Client Function()? insecureHttpClientFactory,
     int maxRetryAttempts = 2,
     DownloadLinkRefresher? linkRefresher,
-    int maxReResolveAttempts = 2,
+    int maxReResolveAttempts = 4,
     DownloadForegroundService? foregroundService,
+    DownloadServerOutcomeCallback? onServerOutcome,
   }) : _store = store,
        _foregroundService = foregroundService,
        _directoryService = directoryService,
@@ -133,7 +144,8 @@ class DownloadManagerService {
        _insecureHttpClientFactory = insecureHttpClientFactory,
        _maxRetryAttempts = maxRetryAttempts.clamp(1, 5),
        _linkRefresher = linkRefresher,
-       _maxReResolveAttempts = maxReResolveAttempts.clamp(0, 5) {
+       _maxReResolveAttempts = maxReResolveAttempts.clamp(0, 5),
+       _onServerOutcome = onServerOutcome {
     unawaited(_cleanupOrphanedSegmentDirectoriesOnStartup());
   }
 
@@ -147,6 +159,7 @@ class DownloadManagerService {
   final int _maxRetryAttempts;
   final DownloadLinkRefresher? _linkRefresher;
   final int _maxReResolveAttempts;
+  final DownloadServerOutcomeCallback? _onServerOutcome;
   int _maxConcurrent;
   http.Client? _insecureHttpClient;
   bool _disposed = false;
@@ -585,6 +598,9 @@ class DownloadManagerService {
         newStatus: DownloadStatus.completed,
       );
       _log('Download complete: ${task.id} (${completedTask.totalBytes} bytes)');
+      if (task.serverName != null) {
+        _onServerOutcome?.call(task.serverName!, success: true);
+      }
       await dlLog.log(
         'Manager',
         'COMPLETE: ${task.id} bytes=${completedTask.totalBytes} path=${completedTask.filePath}',
@@ -619,6 +635,9 @@ class DownloadManagerService {
 
       final message = humanReadableDownloadError(errorKind, error);
       if (!_disposed) {
+        if (task.serverName != null) {
+          _onServerOutcome?.call(task.serverName!, success: false);
+        }
         await _updateStatus(
           task.id,
           DownloadStatus.failed,
@@ -655,6 +674,17 @@ class DownloadManagerService {
 
     _reResolveAttempts[task.id] = attempts + 1;
 
+    // Exponential cooldown between re-resolve attempts to avoid hammering
+    // the source plugin when multiple servers are failing in quick succession.
+    if (attempts > 0) {
+      final cooldownMs = 1000 * attempts; // 1s, 2s, 3s, ...
+      _log(
+        'Re-resolve cooldown ${cooldownMs}ms before attempt ${attempts + 1} '
+        'for ${task.id}',
+      );
+      await Future<void>.delayed(Duration(milliseconds: cooldownMs));
+    }
+
     // Record the current server so we don't cycle back to it.
     final triedServers = _triedServersPerTask.putIfAbsent(
       task.id,
@@ -689,6 +719,7 @@ class DownloadManagerService {
         sourcePluginId: task.sourcePluginId,
         serverName: task.serverName,
         tryAlternativeServer: tryAlternative,
+        triedServers: triedServers,
       );
 
       if (refreshed == null) {
