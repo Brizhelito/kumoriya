@@ -1,7 +1,10 @@
+import 'dart:convert';
 import 'dart:developer' as developer;
 import 'dart:io';
 
 import 'package:kumoriya_storage/kumoriya_storage.dart';
+import 'package:path/path.dart' as p;
+import 'package:path_provider/path_provider.dart';
 
 import 'download_manager_service.dart';
 
@@ -19,6 +22,53 @@ enum AutoDeleteDelay {
 
   /// Number of days to wait after episode completion. `null` means disabled.
   final int? days;
+
+  /// Serialize to a string key for persistence.
+  String get key => name;
+
+  /// Deserialize from a string key. Returns [never] for unknown values.
+  static AutoDeleteDelay fromKey(String? key) {
+    if (key == null) return AutoDeleteDelay.never;
+    for (final value in AutoDeleteDelay.values) {
+      if (value.name == key) return value;
+    }
+    return AutoDeleteDelay.never;
+  }
+}
+
+/// Persists the auto-delete delay preference in a JSON file under the
+/// application support directory.
+class AutoDeleteDelayStore {
+  AutoDeleteDelayStore({Future<File> Function()? fileProvider})
+    : _fileProvider = fileProvider ?? _defaultFile;
+
+  final Future<File> Function() _fileProvider;
+
+  Future<AutoDeleteDelay> read() async {
+    try {
+      final file = await _fileProvider();
+      if (!file.existsSync()) return AutoDeleteDelay.never;
+      final json = jsonDecode(await file.readAsString());
+      if (json is! Map<String, dynamic>) return AutoDeleteDelay.never;
+      return AutoDeleteDelay.fromKey(json['auto_delete_delay'] as String?);
+    } catch (_) {
+      return AutoDeleteDelay.never;
+    }
+  }
+
+  Future<void> write(AutoDeleteDelay delay) async {
+    final file = await _fileProvider();
+    await file.parent.create(recursive: true);
+    await file.writeAsString(
+      jsonEncode({'auto_delete_delay': delay.key}),
+      flush: true,
+    );
+  }
+
+  static Future<File> _defaultFile() async {
+    final dir = await getApplicationSupportDirectory();
+    return File(p.join(dir.path, 'kumoriya', 'auto_delete_settings.json'));
+  }
 }
 
 /// Scans completed downloads and deletes those whose episodes have been

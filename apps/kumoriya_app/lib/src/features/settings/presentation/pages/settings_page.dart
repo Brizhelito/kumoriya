@@ -1184,7 +1184,8 @@ class _AutoDeleteWatchedSection extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final current = ref.watch(autoDeleteDelayProvider);
+    final asyncDelay = ref.watch(autoDeleteDelayProvider);
+    final current = asyncDelay.value ?? AutoDeleteDelay.never;
 
     return _SettingsSection(
       title: context.l10n.settingsAutoDeleteWatched,

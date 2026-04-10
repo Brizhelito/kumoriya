@@ -80,11 +80,11 @@ Future<void> _appMain() async {
   // Open DB and platform-specific init in parallel — both are independent.
   late final AppDatabase db;
   if (Platform.isAndroid) {
-    DownloadForegroundService.initialize();
     final results = await (
       openAppDatabase(),
       _initNotifications(),
       _initWorkmanager(),
+      DownloadForegroundService.initialize(),
     ).wait;
     db = results.$1;
   } else {
@@ -107,7 +107,8 @@ Future<void> _appMain() async {
   // Run auto-delete cleanup for watched downloads (fire-and-forget).
   unawaited(
     Future.microtask(() async {
-      final delay = container.read(autoDeleteDelayProvider);
+      final store = container.read(autoDeleteDelayStoreProvider);
+      final delay = await store.read();
       if (delay != AutoDeleteDelay.never) {
         await container.read(autoDeleteWatchedServiceProvider).run(delay);
       }

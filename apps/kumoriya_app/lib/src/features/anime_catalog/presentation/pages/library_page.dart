@@ -11,11 +11,18 @@ import '../providers/anime_catalog_providers.dart';
 import '../providers/storage_providers.dart';
 import 'anime_detail_page.dart';
 
-class LibraryPage extends ConsumerWidget {
+class LibraryPage extends ConsumerStatefulWidget {
   const LibraryPage({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<LibraryPage> createState() => _LibraryPageState();
+}
+
+class _LibraryPageState extends ConsumerState<LibraryPage> {
+  bool _listView = false;
+
+  @override
+  Widget build(BuildContext context) {
     return DefaultTabController(
       length: 3,
       child: Scaffold(
@@ -26,9 +33,26 @@ class LibraryPage extends ConsumerWidget {
             children: <Widget>[
               Padding(
                 padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
-                child: Text(
-                  context.l10n.libraryTitle,
-                  style: Theme.of(context).textTheme.headlineMedium,
+                child: Row(
+                  children: <Widget>[
+                    Expanded(
+                      child: Text(
+                        context.l10n.libraryTitle,
+                        style: Theme.of(context).textTheme.headlineMedium,
+                      ),
+                    ),
+                    IconButton(
+                      icon: Icon(
+                        _listView
+                            ? Icons.grid_view_rounded
+                            : Icons.view_list_rounded,
+                        color: KumoriyaColors.textSecondary,
+                        size: 22,
+                      ),
+                      tooltip: _listView ? 'Grid view' : 'List view',
+                      onPressed: () => setState(() => _listView = !_listView),
+                    ),
+                  ],
                 ),
               ),
               TabBar(
@@ -48,12 +72,12 @@ class LibraryPage extends ConsumerWidget {
                   Tab(text: context.l10n.myListSubscribed),
                 ],
               ),
-              const Expanded(
+              Expanded(
                 child: TabBarView(
                   children: <Widget>[
-                    _HistoryTab(),
-                    _FavoritesTab(),
-                    _SubscribedTab(),
+                    const _HistoryTab(),
+                    _FavoritesTab(listView: _listView),
+                    _SubscribedTab(listView: _listView),
                   ],
                 ),
               ),
@@ -287,7 +311,9 @@ class _HistoryTab extends ConsumerWidget {
 }
 
 class _FavoritesTab extends ConsumerWidget {
-  const _FavoritesTab();
+  const _FavoritesTab({required this.listView});
+
+  final bool listView;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -315,6 +341,9 @@ class _FavoritesTab extends ConsumerWidget {
           }
 
           final sortedIds = ids.toList();
+          if (listView) {
+            return _AnimeList(ids: sortedIds);
+          }
           return _AnimeGrid(ids: sortedIds);
         },
       ),
@@ -323,7 +352,9 @@ class _FavoritesTab extends ConsumerWidget {
 }
 
 class _SubscribedTab extends ConsumerWidget {
-  const _SubscribedTab();
+  const _SubscribedTab({required this.listView});
+
+  final bool listView;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -351,6 +382,9 @@ class _SubscribedTab extends ConsumerWidget {
           }
 
           final sortedIds = ids.toList();
+          if (listView) {
+            return _AnimeList(ids: sortedIds, showNotificationBadge: true);
+          }
           return _AnimeGrid(ids: sortedIds, showNotificationBadge: true);
         },
       ),
@@ -390,6 +424,140 @@ class _AnimeGrid extends StatelessWidget {
           ),
         );
       },
+    );
+  }
+}
+
+/// Compact list view for Favorites / Subscribed tabs.
+class _AnimeList extends StatelessWidget {
+  const _AnimeList({required this.ids, this.showNotificationBadge = false});
+
+  final List<int> ids;
+  final bool showNotificationBadge;
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView.separated(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
+      itemCount: ids.length,
+      separatorBuilder: (_, _) => const SizedBox(height: 6),
+      itemBuilder: (context, index) {
+        return _AnimeListRow(
+          anilistId: ids[index],
+          showNotificationBadge: showNotificationBadge,
+          onTap: () => Navigator.of(context).push(
+            MaterialPageRoute<void>(
+              builder: (_) => AnimeDetailPage(anilistId: ids[index]),
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _AnimeListRow extends ConsumerWidget {
+  const _AnimeListRow({
+    required this.anilistId,
+    required this.onTap,
+    this.showNotificationBadge = false,
+  });
+
+  final int anilistId;
+  final VoidCallback onTap;
+  final bool showNotificationBadge;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final detailState = ref.watch(animeDetailProvider(anilistId));
+
+    final title = detailState.maybeWhen(
+      data: (result) => result.fold(
+        onFailure: (_) => '',
+        onSuccess: (detail) => detail.anime.title.romaji,
+      ),
+      orElse: () => '',
+    );
+
+    final imageUrl = detailState.maybeWhen(
+      data: (result) => result.fold(
+        onFailure: (_) => null,
+        onSuccess: (detail) =>
+            detail.anime.coverImageUrl ?? detail.bannerImageUrl,
+      ),
+      orElse: () => null,
+    );
+
+    final status = detailState.maybeWhen(
+      data: (result) => result.fold(
+        onFailure: (_) => null,
+        onSuccess: (detail) => detail.anime.status.name,
+      ),
+      orElse: () => null,
+    );
+
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(KumoriyaRadius.xxl),
+      splashColor: KumoriyaColors.primary.withValues(alpha: 0.08),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
+        child: Row(
+          children: <Widget>[
+            ClipRRect(
+              borderRadius: BorderRadius.circular(KumoriyaRadius.md),
+              child: KumoriyaCachedImage(
+                url: imageUrl,
+                bucket: KumoriyaImageCacheBucket.artwork,
+                width: 48,
+                height: 64,
+                fit: BoxFit.cover,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: <Widget>[
+                  Text(
+                    title,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  if (status != null) ...<Widget>[
+                    const SizedBox(height: 2),
+                    Text(
+                      status,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: KumoriyaColors.textMuted,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            if (showNotificationBadge) ...<Widget>[
+              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.all(4),
+                decoration: BoxDecoration(
+                  color: KumoriyaColors.primary,
+                  borderRadius: BorderRadius.circular(KumoriyaRadius.full),
+                ),
+                child: const Icon(
+                  KumoriyaIcons.notificationsActive,
+                  size: 12,
+                  color: Colors.white,
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
     );
   }
 }
@@ -520,7 +688,8 @@ class _HistoryRowState extends ConsumerState<_HistoryRow> {
       orElse: () => null,
     );
 
-    final progress = widget.entry.lastEpisodeNumber.toInt();
+    final epNum = widget.entry.lastEpisodeNumber;
+    final progress = epNum.isFinite ? epNum.toInt() : 0;
     final total = detailState.maybeWhen(
       data: (result) => result.fold(
         onFailure: (_) => null,
@@ -585,7 +754,7 @@ class _HistoryRowState extends ConsumerState<_HistoryRow> {
                         ),
                       ),
                       child: Text(
-                        'EP ${widget.entry.lastEpisodeNumber.toInt()}',
+                        'EP ${widget.entry.lastEpisodeNumber.isFinite ? widget.entry.lastEpisodeNumber.toInt() : "?"}',
                         style: const TextStyle(
                           fontSize: 8,
                           fontWeight: FontWeight.w800,

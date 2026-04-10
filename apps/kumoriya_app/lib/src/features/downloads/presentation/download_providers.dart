@@ -104,16 +104,27 @@ final enqueueDownloadUseCaseProvider = Provider<EnqueueDownloadUseCase>((ref) {
 
 // ─── Auto-delete watched downloads ──────────────────────────────────────────
 
-/// Current auto-delete delay preference. Defaults to [AutoDeleteDelay.never].
-class AutoDeleteDelayNotifier extends Notifier<AutoDeleteDelay> {
-  @override
-  AutoDeleteDelay build() => AutoDeleteDelay.never;
+final autoDeleteDelayStoreProvider = Provider<AutoDeleteDelayStore>((ref) {
+  return AutoDeleteDelayStore();
+});
 
-  void set(AutoDeleteDelay value) => state = value;
+/// Current auto-delete delay preference. Loaded from disk on first read,
+/// persisted on every change.
+class AutoDeleteDelayNotifier extends AsyncNotifier<AutoDeleteDelay> {
+  @override
+  Future<AutoDeleteDelay> build() async {
+    final store = ref.watch(autoDeleteDelayStoreProvider);
+    return store.read();
+  }
+
+  Future<void> set(AutoDeleteDelay value) async {
+    state = AsyncData(value);
+    await ref.read(autoDeleteDelayStoreProvider).write(value);
+  }
 }
 
 final autoDeleteDelayProvider =
-    NotifierProvider<AutoDeleteDelayNotifier, AutoDeleteDelay>(
+    AsyncNotifierProvider<AutoDeleteDelayNotifier, AutoDeleteDelay>(
       AutoDeleteDelayNotifier.new,
     );
 

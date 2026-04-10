@@ -193,6 +193,7 @@ class DownloadManagerService {
   /// Counters for notification progress display.
   int _sessionCompletedCount = 0;
   int _sessionTotalEnqueued = 0;
+  int _sessionFailedCount = 0;
 
   /// Aggregate progress is expensive (iterates all tasks). Throttle to ~1 Hz.
   final _aggregateThrottleSw = Stopwatch()..start();
@@ -641,6 +642,7 @@ class DownloadManagerService {
 
       final message = humanReadableDownloadError(errorKind, error);
       if (!_disposed) {
+        _sessionFailedCount++;
         if (task.serverName != null) {
           _onServerOutcome?.call(task.serverName!, success: false);
         }
@@ -1746,9 +1748,19 @@ class DownloadManagerService {
         ),
       );
     } else {
+      // Show completion notification before resetting counters.
+      final completed = _sessionCompletedCount;
+      final failed = _sessionFailedCount;
+      unawaited(
+        _foregroundService?.showCompletionNotification(
+          completedCount: completed,
+          failedCount: failed,
+        ),
+      );
       // Reset session counters when all downloads finish.
       _sessionCompletedCount = 0;
       _sessionTotalEnqueued = 0;
+      _sessionFailedCount = 0;
       unawaited(_foregroundService?.stop());
     }
   }

@@ -1,6 +1,13 @@
 import 'dart:io';
 
 import 'package:flutter_foreground_task/flutter_foreground_task.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+
+/// Notification channel / ID for completion notifications.
+const _completionChannelId = 'kumoriya_download_complete';
+const _completionChannelName = 'Download Complete';
+const _completionChannelDescription = 'Notifies when episode downloads finish';
+const _completionNotificationId = 9001;
 
 /// Manages an Android foreground service that keeps the app alive and shows a
 /// persistent notification while downloads are active.
@@ -17,7 +24,7 @@ class DownloadForegroundService {
 
   /// One-time initialization. Call from `main()` on Android before any
   /// download can start. Safe to call on other platforms (no-op).
-  static void initialize() {
+  static Future<void> initialize() async {
     if (!Platform.isAndroid) return;
 
     FlutterForegroundTask.init(
@@ -34,6 +41,21 @@ class DownloadForegroundService {
         eventAction: ForegroundTaskEventAction.nothing(),
         allowWakeLock: true,
         allowWifiLock: true,
+      ),
+    );
+
+    // Create a separate high-importance channel for completion notifications.
+    final plugin = FlutterLocalNotificationsPlugin();
+    final androidPlugin = plugin
+        .resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin
+        >();
+    await androidPlugin?.createNotificationChannel(
+      const AndroidNotificationChannel(
+        _completionChannelId,
+        _completionChannelName,
+        description: _completionChannelDescription,
+        importance: Importance.high,
       ),
     );
   }
@@ -72,6 +94,52 @@ class DownloadForegroundService {
     await FlutterForegroundTask.updateService(
       notificationTitle: 'Kumoriya',
       notificationText: text,
+    );
+  }
+
+  /// Show a completion notification after the foreground service stops.
+  /// [completedCount] is how many episodes finished in this session.
+  /// [failedCount] is how many failed.
+  Future<void> showCompletionNotification({
+    required int completedCount,
+    int failedCount = 0,
+  }) async {
+    if (!Platform.isAndroid) return;
+    if (completedCount <= 0 && failedCount <= 0) return;
+
+    final plugin = FlutterLocalNotificationsPlugin();
+
+    String title;
+    String body;
+
+    if (failedCount > 0 && completedCount > 0) {
+      title = 'Downloads finished';
+      body = '$completedCount episodes downloaded, $failedCount failed';
+    } else if (failedCount > 0) {
+      title = 'Downloads failed';
+      body = '$failedCount episode downloads failed';
+    } else if (completedCount == 1) {
+      title = 'Download complete';
+      body = '1 episode downloaded';
+    } else {
+      title = 'Downloads complete';
+      body = '$completedCount episodes downloaded';
+    }
+
+    await plugin.show(
+      id: _completionNotificationId,
+      title: title,
+      body: body,
+      notificationDetails: const NotificationDetails(
+        android: AndroidNotificationDetails(
+          _completionChannelId,
+          _completionChannelName,
+          channelDescription: _completionChannelDescription,
+          importance: Importance.high,
+          priority: Priority.high,
+          autoCancel: true,
+        ),
+      ),
     );
   }
 
