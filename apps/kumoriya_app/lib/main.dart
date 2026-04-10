@@ -134,7 +134,7 @@ Future<void> _appMain() async {
 
 Future<void> _initNotifications() async {
   final plugin = FlutterLocalNotificationsPlugin();
-  const android = AndroidInitializationSettings('@mipmap/ic_launcher');
+  const android = AndroidInitializationSettings('@drawable/ic_stat_download');
   await plugin.initialize(
     settings: const InitializationSettings(android: android),
   );

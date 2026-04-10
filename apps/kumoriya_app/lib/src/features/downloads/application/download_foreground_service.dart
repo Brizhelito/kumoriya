@@ -61,17 +61,34 @@ class DownloadForegroundService {
     );
   }
 
+  static const _downloadIconMetaData = 'dev.kumoriya.app.DOWNLOAD_ICON';
+
   /// Start the foreground service with a "Downloading…" notification.
   /// Idempotent — calling while already running is a no-op.
+  /// Requests POST_NOTIFICATIONS permission (Android 13+) before starting.
   /// Retries once on failure to handle transient Android service errors.
   Future<void> start() async {
     if (!Platform.isAndroid || _running) return;
+
+    // Android 13+ requires the POST_NOTIFICATIONS permission to be granted at
+    // runtime. Request it before attempting to start the service so the
+    // notification actually appears.
+    final permission =
+        await FlutterForegroundTask.requestNotificationPermission();
+    if (permission == NotificationPermission.permanently_denied) {
+      _log(
+        'Notification permission permanently denied — service will run silently',
+      );
+    }
+
+    const notifIcon = NotificationIcon(metaDataName: _downloadIconMetaData);
 
     for (var attempt = 1; attempt <= 2; attempt++) {
       try {
         final result = await FlutterForegroundTask.startService(
           notificationTitle: 'Kumoriya',
           notificationText: 'Preparing downloads…',
+          notificationIcon: notifIcon,
         );
         _running = result is ServiceRequestSuccess;
         if (_running) return;
@@ -110,6 +127,9 @@ class DownloadForegroundService {
     await FlutterForegroundTask.updateService(
       notificationTitle: 'Kumoriya',
       notificationText: text,
+      notificationIcon: const NotificationIcon(
+        metaDataName: _downloadIconMetaData,
+      ),
     );
   }
 
@@ -154,6 +174,7 @@ class DownloadForegroundService {
           importance: Importance.high,
           priority: Priority.high,
           autoCancel: true,
+          icon: 'ic_stat_download',
         ),
       ),
     );

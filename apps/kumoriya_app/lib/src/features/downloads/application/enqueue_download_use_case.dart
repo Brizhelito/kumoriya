@@ -72,81 +72,110 @@ class EnqueueDownloadUseCase {
       'resolving server=${serverLink.serverName} url=${serverLink.initialUrl}',
     );
     final resolveResult = await _resolveUseCase.call(serverLink);
-    return resolveResult.fold(
-      onFailure: (error) {
-        _log('resolve failed: ${error.message}');
-        dlLog.error(
-          'Enqueue',
-          'resolve FAILED server=${serverLink.serverName}',
-          error,
-        );
-        return Failure(error);
-      },
-      onSuccess: (resolved) {
-        if (resolved.streams.isEmpty) {
-          return const Failure(
-            SimpleError(
-              code: 'download.no_streams',
-              message: 'No streams available for download.',
-              kind: KumoriyaErrorKind.notFound,
-            ),
+
+    // Propagate resolution failure immediately.
+    if (resolveResult.isFailure) {
+      return resolveResult.fold(
+        onSuccess: (_) => throw StateError('unreachable'),
+        onFailure: (error) {
+          _log('resolve failed: ${error.message}');
+          dlLog.error(
+            'Enqueue',
+            'resolve FAILED server=${serverLink.serverName}',
+            error,
           );
-        }
+          return Failure(error);
+        },
+      );
+    }
 
-        final stream = _pickStream(resolved.streams, preferredQuality);
+    final resolved = resolveResult.fold(
+      onSuccess: (v) => v,
+      onFailure: (_) => null,
+    )!;
 
-        final taskId = buildDownloadTaskId(
-          anilistId: anilistId,
-          episodeNumber: episodeNumber,
-        );
-        final quality = stream.qualityLabel;
-        final server = serverLink.serverName;
-        final ext = stream.isHls ? '.ts' : _guessExtension(stream);
-        // Pretty file name: "EP 01 - StreamWish [1080p].mp4"
-        final epNum = episodeNumber.toInt().toString().padLeft(2, '0');
-        final qualitySuffix = quality != null ? ' [$quality]' : '';
-        final fileName = 'EP $epNum - $server$qualitySuffix$ext';
+    if (resolved.streams.isEmpty) {
+      return const Failure(
+        SimpleError(
+          code: 'download.no_streams',
+          message: 'No streams available for download.',
+          kind: KumoriyaErrorKind.notFound,
+        ),
+      );
+    }
 
-        dlLog.log(
-          'Enqueue',
-          'resolved: url=${stream.url} isHls=${stream.isHls} '
-              'quality=${stream.qualityLabel} headers=${stream.headers}',
-        );
-
-        final task = DownloadTask(
-          id: taskId,
-          anilistId: anilistId,
-          episodeNumber: episodeNumber,
-          sourceUrl: stream.url,
-          status: DownloadStatus.pending,
-          createdAt: createdAt ?? DateTime.now(),
-          fileName: _sanitizeFileName(fileName),
-          sourcePluginId: sourcePluginId,
-          serverName: server,
-          detectedHost: stream.url.host,
-          headers: stream.headers,
-          isHls: stream.isHls,
-          animeTitle: animeTitle,
-          qualityLabel: quality,
-          episodeTitle: episodeTitle,
-        );
-
-        _downloadManager.enqueue(task);
-        _log(
-          'enqueued taskId=$taskId quality=${stream.qualityLabel} '
-          'isHls=${stream.isHls} headers=${stream.headers.keys.join(",")}',
-        );
-        return const Success(null);
-      },
+    final stream = _pickStream(
+      resolved.streams,
+      preferredQuality,
+      sourcePluginId,
     );
+
+    final taskId = buildDownloadTaskId(
+      anilistId: anilistId,
+      episodeNumber: episodeNumber,
+    );
+    final quality = stream.qualityLabel;
+    final server = serverLink.serverName;
+    final ext = stream.isHls ? '.ts' : _guessExtension(stream);
+    // Pretty file name: "EP 01 - StreamWish [1080p].mp4"
+    final epNum = episodeNumber.toInt().toString().padLeft(2, '0');
+    final qualitySuffix = quality != null ? ' [$quality]' : '';
+    final fileName = 'EP $epNum - $server$qualitySuffix$ext';
+
+    dlLog.log(
+      'Enqueue',
+      'resolved: url=${stream.url} isHls=${stream.isHls} '
+          'quality=${stream.qualityLabel} headers=${stream.headers}',
+    );
+
+    final task = DownloadTask(
+      id: taskId,
+      anilistId: anilistId,
+      episodeNumber: episodeNumber,
+      sourceUrl: stream.url,
+      status: DownloadStatus.pending,
+      createdAt: createdAt ?? DateTime.now(),
+      fileName: _sanitizeFileName(fileName),
+      sourcePluginId: sourcePluginId,
+      serverName: server,
+      detectedHost: stream.url.host,
+      headers: stream.headers,
+      isHls: stream.isHls,
+      animeTitle: animeTitle,
+      qualityLabel: quality,
+      episodeTitle: episodeTitle,
+    );
+
+    // Await enqueue so the task is persisted before we return success.
+    // This ensures the download list updates before the caller's snackbar fires.
+    await _downloadManager.enqueue(task);
+    _log(
+      'enqueued taskId=$taskId quality=${stream.qualityLabel} '
+      'isHls=${stream.isHls} headers=${stream.headers.keys.join(",")}',
+    );
+    return const Success(null);
   }
 
-  ResolvedStream _pickStream(List<ResolvedStream> streams, String? preferred) {
-    if (preferred != null) {
+  /// Picks the best stream from [streams] for download.
+  ///
+  /// - Respects [preferredQuality] when set.
+  /// - For AnimeAV1, HLS (Zilla Networks) is the primary server — prefer it.
+  /// - Otherwise prefers non-HLS (direct download) over HLS.
+  ResolvedStream _pickStream(
+    List<ResolvedStream> streams,
+    String? preferredQuality,
+    String? sourcePluginId,
+  ) {
+    if (preferredQuality != null) {
       final match = streams.where(
-        (s) => s.qualityLabel?.toLowerCase() == preferred.toLowerCase(),
+        (s) => s.qualityLabel?.toLowerCase() == preferredQuality.toLowerCase(),
       );
       if (match.isNotEmpty) return match.first;
+    }
+    // AnimeAV1 distributes via Zilla Networks (HLS) — always prefer HLS.
+    if (sourcePluginId == 'kumoriya.source.animeav1') {
+      final hls = streams.where((s) => s.isHls).toList();
+      if (hls.isNotEmpty) return hls.first;
     }
     // Prefer non-HLS streams for direct download, fall back to HLS.
     final nonHls = streams.where((s) => !s.isHls).toList();

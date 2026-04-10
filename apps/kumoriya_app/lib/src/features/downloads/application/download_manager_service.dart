@@ -490,6 +490,9 @@ class DownloadManagerService {
         if (slotsAvailable <= 0) break;
         final pendingResult = await _store.getTasksByStatus(
           DownloadStatus.pending,
+          // Fetch only as many tasks as we have open slots — no point loading
+          // the full backlog when we can only start a few downloads right now.
+          limit: slotsAvailable,
         );
         final pending = pendingResult.fold(
           onSuccess: (tasks) => tasks,
@@ -790,7 +793,10 @@ class DownloadManagerService {
       );
       _clearScheduledProgressPersistence(task.id);
       await _persistTaskSnapshot(updatedTask);
-      _emitStatusChange(taskId: task.id, anilistId: task.anilistId);
+      // Do NOT emit a status change here. The task immediately goes back to
+      // pending→downloading via _processQueue, so emitting would cause a
+      // visible flicker between the "Active" and "Queue" tabs. The UI will
+      // refresh when _startDownload emits the next downloading status change.
 
       _log(
         'Recovery succeeded for ${task.id}: '

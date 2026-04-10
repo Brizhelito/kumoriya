@@ -52,6 +52,10 @@
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />
+        <!-- Notification small icon for flutter_foreground_task (white-on-transparent vector) -->
+        <meta-data
+            android:name="dev.kumoriya.app.DOWNLOAD_ICON"
+            android:resource="@drawable/ic_stat_download" />
     </application>
     <!-- Required to query activities that can process text, see:
          https://developer.android.com/training/package-visibility and

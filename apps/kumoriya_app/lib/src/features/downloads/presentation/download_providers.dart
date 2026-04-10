@@ -406,9 +406,17 @@ DownloadLinkRefresher _buildLinkRefresher({
     );
     if (resolved == null || resolved.streams.isEmpty) return null;
 
-    // Pick best stream (prefer non-HLS for downloads).
-    final nonHls = resolved.streams.where((s) => !s.isHls).toList();
-    final stream = nonHls.isNotEmpty ? nonHls.first : resolved.streams.first;
+    // Pick best stream.
+    // AnimeAV1 distributes via Zilla Networks (HLS) — always prefer HLS.
+    // For all other sources prefer non-HLS (direct download).
+    final ResolvedStream stream;
+    if (sourcePluginId == 'kumoriya.source.animeav1') {
+      final hls = resolved.streams.where((s) => s.isHls).toList();
+      stream = hls.isNotEmpty ? hls.first : resolved.streams.first;
+    } else {
+      final nonHls = resolved.streams.where((s) => !s.isHls).toList();
+      stream = nonHls.isNotEmpty ? nonHls.first : resolved.streams.first;
+    }
 
     return DownloadRefreshResult(
       sourceUrl: stream.url,
