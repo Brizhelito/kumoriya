@@ -568,29 +568,42 @@ class _EpisodeListHeader extends ConsumerWidget {
       if (audioPreference == null || !context.mounted) return;
     }
 
-    // Resolve-and-enqueue sequentially to avoid parallel resolver pressure.
-    // The queue itself is intentionally left unbounded from the UI side.
+    // Enqueue in parallel batches of 4 with deterministic timestamps
+    // so episode ordering is preserved.
+    final baseTime = DateTime.now();
     var queued = 0;
-    for (final row in downloadable) {
-      final entry = row.sourceEpisodes.entries
-          .where((e) => e.key == sourceId)
-          .firstOrNull;
-      if (entry == null) continue;
-      if (!context.mounted) {
-        return;
-      }
 
-      final result = await _enqueueEpisodeDownload(
-        context: context,
-        ref: ref,
-        anilistId: anilistId,
-        sourcePluginId: entry.key,
-        sourceEpisode: entry.value,
-        audioPreference: audioPreference,
-        animeTitle: animeTitle,
-        coverImageUrl: _resolveCoverUrl(ref, anilistId),
+    for (var i = 0; i < downloadable.length; i += 4) {
+      final batch = downloadable.sublist(
+        i,
+        (i + 4).clamp(0, downloadable.length),
       );
-      if (result) queued++;
+      if (!context.mounted) return;
+
+      final futures = <Future<bool>>[];
+      for (var j = 0; j < batch.length; j++) {
+        final row = batch[j];
+        final entry = row.sourceEpisodes.entries
+            .where((e) => e.key == sourceId)
+            .firstOrNull;
+        if (entry == null) continue;
+
+        futures.add(
+          _enqueueEpisodeDownload(
+            context: context,
+            ref: ref,
+            anilistId: anilistId,
+            sourcePluginId: entry.key,
+            sourceEpisode: entry.value,
+            audioPreference: audioPreference,
+            animeTitle: animeTitle,
+            coverImageUrl: _resolveCoverUrl(ref, anilistId),
+            createdAt: baseTime.add(Duration(milliseconds: i + j)),
+          ),
+        );
+      }
+      final results = await Future.wait(futures);
+      queued += results.where((r) => r).length;
     }
 
     if (context.mounted && queued > 0) {
@@ -1230,6 +1243,7 @@ Future<bool> _enqueueEpisodeDownload({
   SourceAudioKind? audioPreference,
   String? animeTitle,
   String? coverImageUrl,
+  DateTime? createdAt,
 }) async {
   try {
     final configured = await _ensureDownloadDirectoryConfigured(
@@ -1285,6 +1299,7 @@ Future<bool> _enqueueEpisodeDownload({
         animeTitle: animeTitle,
         coverImageUrl: coverImageUrl,
         episodeTitle: sourceEpisode.title,
+        createdAt: createdAt,
       );
       final enqueued = result.fold(
         onSuccess: (_) => true,

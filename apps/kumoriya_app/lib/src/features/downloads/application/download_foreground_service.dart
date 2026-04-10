@@ -54,13 +54,20 @@ class DownloadForegroundService {
   Future<void> updateProgress({
     required int activeTasks,
     required int bytesPerSecond,
+    int completedTasks = 0,
+    int totalTasks = 0,
   }) async {
     if (!Platform.isAndroid || !_running) return;
 
     final speedMb = (bytesPerSecond / (1024 * 1024)).toStringAsFixed(1);
+
+    final progressLabel = totalTasks > 0
+        ? ' ($completedTasks/$totalTasks)'
+        : '';
+
     final text = activeTasks == 1
-        ? 'Downloading — $speedMb MB/s'
-        : 'Downloading $activeTasks episodes — $speedMb MB/s';
+        ? 'Downloading$progressLabel — $speedMb MB/s'
+        : 'Downloading $activeTasks episodes$progressLabel — $speedMb MB/s';
 
     await FlutterForegroundTask.updateService(
       notificationTitle: 'Kumoriya',

@@ -190,6 +190,10 @@ class DownloadManagerService {
   final _pendingProgressSnapshots = <String, DownloadTask>{};
   final _progressWriteInFlight = <String>{};
 
+  /// Counters for notification progress display.
+  int _sessionCompletedCount = 0;
+  int _sessionTotalEnqueued = 0;
+
   /// Aggregate progress is expensive (iterates all tasks). Throttle to ~1 Hz.
   final _aggregateThrottleSw = Stopwatch()..start();
   static const _aggregateThrottleMs = 1000;
@@ -260,6 +264,7 @@ class DownloadManagerService {
       return;
     }
     await _store.insertTask(task);
+    _sessionTotalEnqueued++;
     _emitStatusChange(
       taskId: task.id,
       anilistId: task.anilistId,
@@ -591,6 +596,7 @@ class DownloadManagerService {
       _reResolveAttempts.remove(task.id);
       _triedServersPerTask.remove(task.id);
       _insecureTlsHostsByTask.remove(task.id);
+      _sessionCompletedCount++;
       _emitStatusChange(
         taskId: task.id,
         anilistId: task.anilistId,
@@ -1735,9 +1741,14 @@ class DownloadManagerService {
         _foregroundService?.updateProgress(
           activeTasks: activeTasks,
           bytesPerSecond: bytesPerSecond,
+          completedTasks: _sessionCompletedCount,
+          totalTasks: _sessionTotalEnqueued,
         ),
       );
     } else {
+      // Reset session counters when all downloads finish.
+      _sessionCompletedCount = 0;
+      _sessionTotalEnqueued = 0;
       unawaited(_foregroundService?.stop());
     }
   }

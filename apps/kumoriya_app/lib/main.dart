@@ -13,6 +13,7 @@ import 'package:window_manager/window_manager.dart';
 
 import 'src/app/kumoriya_app.dart';
 import 'src/config/app_config.dart';
+import 'src/features/downloads/application/auto_delete_watched_service.dart';
 import 'src/features/downloads/application/download_foreground_service.dart';
 import 'src/features/downloads/presentation/download_providers.dart';
 import 'src/shared/storage_providers.dart';
@@ -101,6 +102,16 @@ Future<void> _appMain() async {
   // Restore pending downloads after the first frame to avoid blocking paint.
   Future.microtask(
     () => container.read(downloadManagerProvider).restoreQueue(),
+  );
+
+  // Run auto-delete cleanup for watched downloads (fire-and-forget).
+  unawaited(
+    Future.microtask(() async {
+      final delay = container.read(autoDeleteDelayProvider);
+      if (delay != AutoDeleteDelay.never) {
+        await container.read(autoDeleteWatchedServiceProvider).run(delay);
+      }
+    }),
   );
 
   // Purge stale cache entries (fire-and-forget, non-blocking).

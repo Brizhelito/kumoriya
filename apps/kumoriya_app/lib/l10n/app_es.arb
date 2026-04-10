@@ -717,5 +717,45 @@
   "formatSpecial": "Especial",
   "downloadRetryAllFailed": "Reintentar todas",
   "downloadPauseAll": "Pausar todas",
-  "downloadResumeAll": "Reanudar todas"
+  "downloadResumeAll": "Reanudar todas",
+
+  "profileTitle": "Perfil",
+  "profileNotSignedIn": "No has iniciado sesión",
+  "profileSignIn": "Iniciar sesión",
+  "profileLinkedAccounts": "Cuentas vinculadas",
+  "profileNoLinkedAccounts": "Sin cuentas vinculadas",
+  "profileCouldNotLoadAccounts": "No se pudieron cargar las cuentas",
+  "profileActiveSessions": "Sesiones activas",
+  "profileNoActiveSessions": "Sin sesiones activas",
+  "profileCouldNotLoadSessions": "No se pudieron cargar las sesiones",
+  "profilePasskeys": "Passkeys",
+  "profileNoPasskeys": "No hay passkeys registradas",
+  "profileCouldNotLoadPasskeys": "No se pudieron cargar las passkeys",
+  "profileSync": "Sincronización",
+  "profileSyncStatus": "Estado",
+  "profileLastSynced": "Última sincronización",
+  "profileLastSyncedNever": "Nunca",
+  "profileSyncNow": "Sincronizar ahora",
+  "profileDeleteAccount": "Eliminar cuenta",
+  "profileLogOut": "Cerrar sesión",
+  "profileLogOutBody": "Tus datos locales se conservarán.",
+  "profileCancel": "Cancelar",
+  "profileDeleteAccountWarning": "Esto eliminará permanentemente tu cuenta y todos los datos sincronizados. No se puede deshacer.",
+  "profileDelete": "Eliminar",
+  "profileUnknownDevice": "Dispositivo desconocido",
+  "profileUnnamedPasskey": "Passkey sin nombre",
+  "profileUnknownProvider": "Desconocido",
+  "profileNoEmail": "Sin email",
+
+  "settingsAutoDeleteWatched": "Borrar automáticamente descargas vistas",
+  "settingsAutoDeleteNever": "Nunca",
+  "settingsAutoDeleteAfterDays": "Después de {days} días",
+  "@settingsAutoDeleteAfterDays": {
+    "placeholders": {
+      "days": {
+        "type": "int"
+      }
+    }
+  },
+  "settingsAutoDeleteImmediately": "Inmediatamente"
 }

@@ -19,6 +19,7 @@ import '../../../anime_catalog/presentation/providers/storage_providers.dart';
 import '../../../auth/presentation/pages/login_page.dart';
 import '../../../auth/presentation/pages/profile_page.dart';
 import '../../../downloads/presentation/download_providers.dart';
+import '../../../downloads/application/auto_delete_watched_service.dart';
 import '../../../player/application/models/subtitle_settings.dart';
 import '../../../../workers/check_new_episodes_worker.dart';
 
@@ -578,6 +579,8 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                     ),
                   ),
                 ),
+                const _SectionDivider(),
+                _AutoDeleteWatchedSection(),
                 const _SectionDivider(),
                 _SettingsSection(
                   title: context.l10n.settingsPlaybackPreferencesTitle,
@@ -1162,6 +1165,61 @@ class _SettingsActionRow extends StatelessWidget {
         ),
         if (trailing != null) ...<Widget>[const SizedBox(width: 12), trailing!],
       ],
+    );
+  }
+}
+
+// ─── Auto-delete watched downloads section ──────────────────────────────────
+
+class _AutoDeleteWatchedSection extends ConsumerWidget {
+  const _AutoDeleteWatchedSection();
+
+  String _delayLabel(BuildContext context, AutoDeleteDelay delay) {
+    return switch (delay) {
+      AutoDeleteDelay.never => context.l10n.settingsAutoDeleteNever,
+      AutoDeleteDelay.immediately => context.l10n.settingsAutoDeleteImmediately,
+      _ => context.l10n.settingsAutoDeleteAfterDays(delay.days!),
+    };
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final current = ref.watch(autoDeleteDelayProvider);
+
+    return _SettingsSection(
+      title: context.l10n.settingsAutoDeleteWatched,
+      child: Column(
+        children: <Widget>[
+          _SettingsActionRow(
+            leading: Icons.auto_delete_rounded,
+            title: context.l10n.settingsAutoDeleteWatched,
+            subtitle: _delayLabel(context, current),
+          ),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: AutoDeleteDelay.values.map((delay) {
+              final selected = current == delay;
+              return ChoiceChip(
+                label: Text(_delayLabel(context, delay)),
+                selected: selected,
+                onSelected: (_) {
+                  ref.read(autoDeleteDelayProvider.notifier).set(delay);
+                },
+                selectedColor: KumoriyaColors.primary.withValues(alpha: 0.2),
+                labelStyle: TextStyle(
+                  fontSize: 12,
+                  fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                  color: selected
+                      ? KumoriyaColors.primary
+                      : KumoriyaColors.textSecondary,
+                ),
+              );
+            }).toList(),
+          ),
+        ],
+      ),
     );
   }
 }

@@ -9,6 +9,7 @@ import '../../anime_catalog/application/use_cases/resolve_source_server_link_use
 import '../../anime_catalog/application/services/resolver_registry.dart';
 import '../../anime_catalog/presentation/providers/anime_catalog_providers.dart';
 import '../../anime_catalog/presentation/providers/storage_providers.dart';
+import '../application/auto_delete_watched_service.dart';
 import '../application/download_cover_service.dart';
 import '../application/download_directory_service.dart';
 import '../application/download_foreground_service.dart';
@@ -98,6 +99,31 @@ final enqueueDownloadUseCaseProvider = Provider<EnqueueDownloadUseCase>((ref) {
     downloadManager: ref.watch(downloadManagerProvider),
     resolveUseCase: ref.watch(resolveSourceServerLinkUseCaseProvider),
     coverService: ref.watch(downloadCoverServiceProvider),
+  );
+});
+
+// ─── Auto-delete watched downloads ──────────────────────────────────────────
+
+/// Current auto-delete delay preference. Defaults to [AutoDeleteDelay.never].
+class AutoDeleteDelayNotifier extends Notifier<AutoDeleteDelay> {
+  @override
+  AutoDeleteDelay build() => AutoDeleteDelay.never;
+
+  void set(AutoDeleteDelay value) => state = value;
+}
+
+final autoDeleteDelayProvider =
+    NotifierProvider<AutoDeleteDelayNotifier, AutoDeleteDelay>(
+      AutoDeleteDelayNotifier.new,
+    );
+
+final autoDeleteWatchedServiceProvider = Provider<AutoDeleteWatchedService>((
+  ref,
+) {
+  return AutoDeleteWatchedService(
+    downloadStore: ref.watch(downloadStoreProvider),
+    progressStore: ref.watch(animeProgressStoreProvider),
+    downloadManager: ref.watch(downloadManagerProvider),
   );
 });
 

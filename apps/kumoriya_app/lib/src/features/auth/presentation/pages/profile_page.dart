@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kumoriya_sync/kumoriya_sync.dart';
 
+import '../../../../app/l10n.dart';
 import '../../../../shared/auth/auth_providers.dart';
 import '../../../../shared/sync/sync_providers.dart';
 import '../../../../shared/theme/kumoriya_theme.dart';
@@ -38,7 +39,7 @@ class ProfilePage extends ConsumerWidget {
       return Scaffold(
         backgroundColor: KumoriyaColors.background,
         appBar: AppBar(
-          title: const Text('Profile'),
+          title: Text(context.l10n.profileTitle),
           backgroundColor: KumoriyaColors.surface,
         ),
         body: Center(
@@ -52,7 +53,7 @@ class ProfilePage extends ConsumerWidget {
               ),
               const SizedBox(height: 16),
               Text(
-                'Not signed in',
+                context.l10n.profileNotSignedIn,
                 style: TextStyle(color: KumoriyaColors.textSecondary),
               ),
               const SizedBox(height: 24),
@@ -68,7 +69,7 @@ class ProfilePage extends ConsumerWidget {
                   backgroundColor: KumoriyaColors.primary,
                   foregroundColor: KumoriyaColors.textPrimary,
                 ),
-                child: const Text('Sign In'),
+                child: Text(context.l10n.profileSignIn),
               ),
             ],
           ),
@@ -81,7 +82,7 @@ class ProfilePage extends ConsumerWidget {
     return Scaffold(
       backgroundColor: KumoriyaColors.background,
       appBar: AppBar(
-        title: const Text('Profile'),
+        title: Text(context.l10n.profileTitle),
         backgroundColor: KumoriyaColors.surface,
         actions: [
           IconButton(
@@ -136,7 +137,7 @@ class ProfilePage extends ConsumerWidget {
           const SizedBox(height: 32),
 
           // Linked accounts section
-          _SectionHeader('Linked Accounts'),
+          _SectionHeader(context.l10n.profileLinkedAccounts),
           profileAsync.when(
             data: (profile) {
               final accounts =
@@ -144,7 +145,7 @@ class ProfilePage extends ConsumerWidget {
                       ?.cast<Map<String, dynamic>>() ??
                   [];
               if (accounts.isEmpty) {
-                return const _EmptyCard('No linked accounts');
+                return _EmptyCard(context.l10n.profileNoLinkedAccounts);
               }
               return Column(
                 children: accounts.map((a) {
@@ -153,19 +154,22 @@ class ProfilePage extends ConsumerWidget {
                         ? Icons.discord
                         : Icons.account_circle,
                     title:
-                        (a['provider'] as String?)?.toUpperCase() ?? 'Unknown',
-                    subtitle: a['email'] as String? ?? 'No email',
+                        (a['provider'] as String?)?.toUpperCase() ??
+                        context.l10n.profileUnknownProvider,
+                    subtitle:
+                        a['email'] as String? ?? context.l10n.profileNoEmail,
                   );
                 }).toList(),
               );
             },
             loading: () => const _LoadingCard(),
-            error: (_, _) => const _EmptyCard('Could not load accounts'),
+            error: (_, _) =>
+                _EmptyCard(context.l10n.profileCouldNotLoadAccounts),
           ),
           const SizedBox(height: 24),
 
           // Active sessions
-          _SectionHeader('Active Sessions'),
+          _SectionHeader(context.l10n.profileActiveSessions),
           profileAsync.when(
             data: (profile) {
               final sessions =
@@ -173,25 +177,28 @@ class ProfilePage extends ConsumerWidget {
                       ?.cast<Map<String, dynamic>>() ??
                   [];
               if (sessions.isEmpty) {
-                return const _EmptyCard('No active sessions');
+                return _EmptyCard(context.l10n.profileNoActiveSessions);
               }
               return Column(
                 children: sessions.map((s) {
                   return _InfoTile(
                     icon: Icons.devices,
-                    title: s['device_name'] as String? ?? 'Unknown device',
+                    title:
+                        s['device_name'] as String? ??
+                        context.l10n.profileUnknownDevice,
                     subtitle: s['ip_address'] as String? ?? '',
                   );
                 }).toList(),
               );
             },
             loading: () => const _LoadingCard(),
-            error: (_, _) => const _EmptyCard('Could not load sessions'),
+            error: (_, _) =>
+                _EmptyCard(context.l10n.profileCouldNotLoadSessions),
           ),
           const SizedBox(height: 24),
 
           // Registered passkeys
-          _SectionHeader('Passkeys'),
+          _SectionHeader(context.l10n.profilePasskeys),
           profileAsync.when(
             data: (profile) {
               final passkeys =
@@ -199,34 +206,39 @@ class ProfilePage extends ConsumerWidget {
                       ?.cast<Map<String, dynamic>>() ??
                   [];
               if (passkeys.isEmpty) {
-                return const _EmptyCard('No passkeys registered');
+                return _EmptyCard(context.l10n.profileNoPasskeys);
               }
               return Column(
                 children: passkeys.map((p) {
                   return _InfoTile(
                     icon: Icons.key,
-                    title: p['friendly_name'] as String? ?? 'Unnamed passkey',
+                    title:
+                        p['friendly_name'] as String? ??
+                        context.l10n.profileUnnamedPasskey,
                     subtitle: p['created_at'] as String? ?? '',
                   );
                 }).toList(),
               );
             },
             loading: () => const _LoadingCard(),
-            error: (_, _) => const _EmptyCard('Could not load passkeys'),
+            error: (_, _) =>
+                _EmptyCard(context.l10n.profileCouldNotLoadPasskeys),
           ),
           const SizedBox(height: 24),
 
           // Sync status
-          _SectionHeader('Sync'),
+          _SectionHeader(context.l10n.profileSync),
           _InfoTile(
             icon: Icons.sync,
-            title: 'Status',
+            title: context.l10n.profileSyncStatus,
             subtitle: syncStatus.name,
           ),
           _InfoTile(
             icon: Icons.schedule,
-            title: 'Last synced',
-            subtitle: lastSyncAsync.value?.toIso8601String() ?? 'Never',
+            title: context.l10n.profileLastSynced,
+            subtitle:
+                lastSyncAsync.value?.toIso8601String() ??
+                context.l10n.profileLastSyncedNever,
           ),
           const SizedBox(height: 12),
           ElevatedButton.icon(
@@ -236,7 +248,7 @@ class ProfilePage extends ConsumerWidget {
                 ? null
                 : () => ref.read(syncTriggerProvider).fullSync(),
             icon: const Icon(Icons.sync, size: 18),
-            label: const Text('Sync now'),
+            label: Text(context.l10n.profileSyncNow),
             style: ElevatedButton.styleFrom(
               backgroundColor: KumoriyaColors.primary,
               foregroundColor: KumoriyaColors.textPrimary,
@@ -249,9 +261,9 @@ class ProfilePage extends ConsumerWidget {
           Center(
             child: TextButton(
               onPressed: () => _confirmDeleteAccount(context, ref),
-              child: const Text(
-                'Delete Account',
-                style: TextStyle(color: KumoriyaColors.statusDanger),
+              child: Text(
+                context.l10n.profileDeleteAccount,
+                style: const TextStyle(color: KumoriyaColors.statusDanger),
               ),
             ),
           ),
@@ -265,18 +277,18 @@ class ProfilePage extends ConsumerWidget {
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: KumoriyaColors.surface,
-        title: const Text(
-          'Log out',
-          style: TextStyle(color: KumoriyaColors.textPrimary),
+        title: Text(
+          context.l10n.profileLogOut,
+          style: const TextStyle(color: KumoriyaColors.textPrimary),
         ),
-        content: const Text(
-          'Your local data will be kept.',
-          style: TextStyle(color: KumoriyaColors.textSecondary),
+        content: Text(
+          context.l10n.profileLogOutBody,
+          style: const TextStyle(color: KumoriyaColors.textSecondary),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel'),
+            child: Text(context.l10n.profileCancel),
           ),
           TextButton(
             onPressed: () {
@@ -284,9 +296,9 @@ class ProfilePage extends ConsumerWidget {
               ref.read(authStateProvider.notifier).logout();
               Navigator.of(context).pop();
             },
-            child: const Text(
-              'Log out',
-              style: TextStyle(color: KumoriyaColors.statusDanger),
+            child: Text(
+              context.l10n.profileLogOut,
+              style: const TextStyle(color: KumoriyaColors.statusDanger),
             ),
           ),
         ],
@@ -299,18 +311,18 @@ class ProfilePage extends ConsumerWidget {
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: KumoriyaColors.surface,
-        title: const Text(
-          'Delete Account',
-          style: TextStyle(color: KumoriyaColors.statusDanger),
+        title: Text(
+          context.l10n.profileDeleteAccount,
+          style: const TextStyle(color: KumoriyaColors.statusDanger),
         ),
-        content: const Text(
-          'This will permanently delete your account and all synced data. This cannot be undone.',
-          style: TextStyle(color: KumoriyaColors.textSecondary),
+        content: Text(
+          context.l10n.profileDeleteAccountWarning,
+          style: const TextStyle(color: KumoriyaColors.textSecondary),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel'),
+            child: Text(context.l10n.profileCancel),
           ),
           TextButton(
             onPressed: () async {
@@ -320,9 +332,9 @@ class ProfilePage extends ConsumerWidget {
               await ref.read(authStateProvider.notifier).logout();
               if (context.mounted) Navigator.of(context).pop();
             },
-            child: const Text(
-              'Delete',
-              style: TextStyle(color: KumoriyaColors.statusDanger),
+            child: Text(
+              context.l10n.profileDelete,
+              style: const TextStyle(color: KumoriyaColors.statusDanger),
             ),
           ),
         ],

@@ -2027,6 +2027,7 @@ Future<bool> _enqueueDetailEpisodeDownload({
   SourceAudioKind? audioPreference,
   String? animeTitle,
   String? coverImageUrl,
+  DateTime? createdAt,
 }) async {
   try {
     final sourcePlugin = ref.read(sourcePluginByIdProvider(sourcePluginId));
@@ -2068,6 +2069,7 @@ Future<bool> _enqueueDetailEpisodeDownload({
         animeTitle: animeTitle,
         coverImageUrl: coverImageUrl,
         episodeTitle: sourceEpisode.title,
+        createdAt: createdAt,
       );
       final enqueued = result.fold(
         onSuccess: (_) => true,
@@ -2242,22 +2244,39 @@ class _DetailDownloadAllButtonState
     setState(() => _isEnqueuing = true);
     var queued = 0;
 
-    for (final row in downloadable) {
-      final entry = row.sourceEpisodes.entries
-          .where((e) => e.key == sourceId)
-          .firstOrNull;
-      if (entry == null) continue;
+    // Use a deterministic base timestamp so episode ordering is preserved
+    // even when enqueuing in parallel batches.
+    final baseTime = DateTime.now();
 
-      final result = await _enqueueDetailEpisodeDownload(
-        ref: ref,
-        anilistId: widget.anilistId,
-        sourcePluginId: entry.key,
-        sourceEpisode: entry.value,
-        audioPreference: audioPreference,
-        animeTitle: widget.animeTitle,
-        coverImageUrl: widget.coverImageUrl,
+    // Process in parallel batches of 4 to speed up enqueue.
+    for (var i = 0; i < downloadable.length; i += 4) {
+      final batch = downloadable.sublist(
+        i,
+        (i + 4).clamp(0, downloadable.length),
       );
-      if (result) queued++;
+      final futures = <Future<bool>>[];
+      for (var j = 0; j < batch.length; j++) {
+        final row = batch[j];
+        final entry = row.sourceEpisodes.entries
+            .where((e) => e.key == sourceId)
+            .firstOrNull;
+        if (entry == null) continue;
+
+        futures.add(
+          _enqueueDetailEpisodeDownload(
+            ref: ref,
+            anilistId: widget.anilistId,
+            sourcePluginId: entry.key,
+            sourceEpisode: entry.value,
+            audioPreference: audioPreference,
+            animeTitle: widget.animeTitle,
+            coverImageUrl: widget.coverImageUrl,
+            createdAt: baseTime.add(Duration(milliseconds: i + j)),
+          ),
+        );
+      }
+      final results = await Future.wait(futures);
+      queued += results.where((r) => r).length;
     }
 
     if (!context.mounted) return;

@@ -717,5 +717,45 @@
   "formatSpecial": "Special",
   "downloadRetryAllFailed": "Retry all",
   "downloadPauseAll": "Pause all",
-  "downloadResumeAll": "Resume all"
+  "downloadResumeAll": "Resume all",
+
+  "profileTitle": "Profile",
+  "profileNotSignedIn": "Not signed in",
+  "profileSignIn": "Sign In",
+  "profileLinkedAccounts": "Linked Accounts",
+  "profileNoLinkedAccounts": "No linked accounts",
+  "profileCouldNotLoadAccounts": "Could not load accounts",
+  "profileActiveSessions": "Active Sessions",
+  "profileNoActiveSessions": "No active sessions",
+  "profileCouldNotLoadSessions": "Could not load sessions",
+  "profilePasskeys": "Passkeys",
+  "profileNoPasskeys": "No passkeys registered",
+  "profileCouldNotLoadPasskeys": "Could not load passkeys",
+  "profileSync": "Sync",
+  "profileSyncStatus": "Status",
+  "profileLastSynced": "Last synced",
+  "profileLastSyncedNever": "Never",
+  "profileSyncNow": "Sync now",
+  "profileDeleteAccount": "Delete Account",
+  "profileLogOut": "Log out",
+  "profileLogOutBody": "Your local data will be kept.",
+  "profileCancel": "Cancel",
+  "profileDeleteAccountWarning": "This will permanently delete your account and all synced data. This cannot be undone.",
+  "profileDelete": "Delete",
+  "profileUnknownDevice": "Unknown device",
+  "profileUnnamedPasskey": "Unnamed passkey",
+  "profileUnknownProvider": "Unknown",
+  "profileNoEmail": "No email",
+
+  "settingsAutoDeleteWatched": "Auto-delete watched downloads",
+  "settingsAutoDeleteNever": "Never",
+  "settingsAutoDeleteAfterDays": "After {days} days",
+  "@settingsAutoDeleteAfterDays": {
+    "placeholders": {
+      "days": {
+        "type": "int"
+      }
+    }
+  },
+  "settingsAutoDeleteImmediately": "Immediately"
 }

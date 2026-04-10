@@ -2550,6 +2550,192 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Resume all'**
   String get downloadResumeAll;
+
+  /// No description provided for @profileTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Profile'**
+  String get profileTitle;
+
+  /// No description provided for @profileNotSignedIn.
+  ///
+  /// In en, this message translates to:
+  /// **'Not signed in'**
+  String get profileNotSignedIn;
+
+  /// No description provided for @profileSignIn.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign In'**
+  String get profileSignIn;
+
+  /// No description provided for @profileLinkedAccounts.
+  ///
+  /// In en, this message translates to:
+  /// **'Linked Accounts'**
+  String get profileLinkedAccounts;
+
+  /// No description provided for @profileNoLinkedAccounts.
+  ///
+  /// In en, this message translates to:
+  /// **'No linked accounts'**
+  String get profileNoLinkedAccounts;
+
+  /// No description provided for @profileCouldNotLoadAccounts.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not load accounts'**
+  String get profileCouldNotLoadAccounts;
+
+  /// No description provided for @profileActiveSessions.
+  ///
+  /// In en, this message translates to:
+  /// **'Active Sessions'**
+  String get profileActiveSessions;
+
+  /// No description provided for @profileNoActiveSessions.
+  ///
+  /// In en, this message translates to:
+  /// **'No active sessions'**
+  String get profileNoActiveSessions;
+
+  /// No description provided for @profileCouldNotLoadSessions.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not load sessions'**
+  String get profileCouldNotLoadSessions;
+
+  /// No description provided for @profilePasskeys.
+  ///
+  /// In en, this message translates to:
+  /// **'Passkeys'**
+  String get profilePasskeys;
+
+  /// No description provided for @profileNoPasskeys.
+  ///
+  /// In en, this message translates to:
+  /// **'No passkeys registered'**
+  String get profileNoPasskeys;
+
+  /// No description provided for @profileCouldNotLoadPasskeys.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not load passkeys'**
+  String get profileCouldNotLoadPasskeys;
+
+  /// No description provided for @profileSync.
+  ///
+  /// In en, this message translates to:
+  /// **'Sync'**
+  String get profileSync;
+
+  /// No description provided for @profileSyncStatus.
+  ///
+  /// In en, this message translates to:
+  /// **'Status'**
+  String get profileSyncStatus;
+
+  /// No description provided for @profileLastSynced.
+  ///
+  /// In en, this message translates to:
+  /// **'Last synced'**
+  String get profileLastSynced;
+
+  /// No description provided for @profileLastSyncedNever.
+  ///
+  /// In en, this message translates to:
+  /// **'Never'**
+  String get profileLastSyncedNever;
+
+  /// No description provided for @profileSyncNow.
+  ///
+  /// In en, this message translates to:
+  /// **'Sync now'**
+  String get profileSyncNow;
+
+  /// No description provided for @profileDeleteAccount.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete Account'**
+  String get profileDeleteAccount;
+
+  /// No description provided for @profileLogOut.
+  ///
+  /// In en, this message translates to:
+  /// **'Log out'**
+  String get profileLogOut;
+
+  /// No description provided for @profileLogOutBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Your local data will be kept.'**
+  String get profileLogOutBody;
+
+  /// No description provided for @profileCancel.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel'**
+  String get profileCancel;
+
+  /// No description provided for @profileDeleteAccountWarning.
+  ///
+  /// In en, this message translates to:
+  /// **'This will permanently delete your account and all synced data. This cannot be undone.'**
+  String get profileDeleteAccountWarning;
+
+  /// No description provided for @profileDelete.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete'**
+  String get profileDelete;
+
+  /// No description provided for @profileUnknownDevice.
+  ///
+  /// In en, this message translates to:
+  /// **'Unknown device'**
+  String get profileUnknownDevice;
+
+  /// No description provided for @profileUnnamedPasskey.
+  ///
+  /// In en, this message translates to:
+  /// **'Unnamed passkey'**
+  String get profileUnnamedPasskey;
+
+  /// No description provided for @profileUnknownProvider.
+  ///
+  /// In en, this message translates to:
+  /// **'Unknown'**
+  String get profileUnknownProvider;
+
+  /// No description provided for @profileNoEmail.
+  ///
+  /// In en, this message translates to:
+  /// **'No email'**
+  String get profileNoEmail;
+
+  /// No description provided for @settingsAutoDeleteWatched.
+  ///
+  /// In en, this message translates to:
+  /// **'Auto-delete watched downloads'**
+  String get settingsAutoDeleteWatched;
+
+  /// No description provided for @settingsAutoDeleteNever.
+  ///
+  /// In en, this message translates to:
+  /// **'Never'**
+  String get settingsAutoDeleteNever;
+
+  /// No description provided for @settingsAutoDeleteAfterDays.
+  ///
+  /// In en, this message translates to:
+  /// **'After {days} days'**
+  String settingsAutoDeleteAfterDays(int days);
+
+  /// No description provided for @settingsAutoDeleteImmediately.
+  ///
+  /// In en, this message translates to:
+  /// **'Immediately'**
+  String get settingsAutoDeleteImmediately;
 }
 
 class _AppLocalizationsDelegate

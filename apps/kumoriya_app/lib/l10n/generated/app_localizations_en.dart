@@ -1413,4 +1413,100 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get downloadResumeAll => 'Resume all';
+
+  @override
+  String get profileTitle => 'Profile';
+
+  @override
+  String get profileNotSignedIn => 'Not signed in';
+
+  @override
+  String get profileSignIn => 'Sign In';
+
+  @override
+  String get profileLinkedAccounts => 'Linked Accounts';
+
+  @override
+  String get profileNoLinkedAccounts => 'No linked accounts';
+
+  @override
+  String get profileCouldNotLoadAccounts => 'Could not load accounts';
+
+  @override
+  String get profileActiveSessions => 'Active Sessions';
+
+  @override
+  String get profileNoActiveSessions => 'No active sessions';
+
+  @override
+  String get profileCouldNotLoadSessions => 'Could not load sessions';
+
+  @override
+  String get profilePasskeys => 'Passkeys';
+
+  @override
+  String get profileNoPasskeys => 'No passkeys registered';
+
+  @override
+  String get profileCouldNotLoadPasskeys => 'Could not load passkeys';
+
+  @override
+  String get profileSync => 'Sync';
+
+  @override
+  String get profileSyncStatus => 'Status';
+
+  @override
+  String get profileLastSynced => 'Last synced';
+
+  @override
+  String get profileLastSyncedNever => 'Never';
+
+  @override
+  String get profileSyncNow => 'Sync now';
+
+  @override
+  String get profileDeleteAccount => 'Delete Account';
+
+  @override
+  String get profileLogOut => 'Log out';
+
+  @override
+  String get profileLogOutBody => 'Your local data will be kept.';
+
+  @override
+  String get profileCancel => 'Cancel';
+
+  @override
+  String get profileDeleteAccountWarning =>
+      'This will permanently delete your account and all synced data. This cannot be undone.';
+
+  @override
+  String get profileDelete => 'Delete';
+
+  @override
+  String get profileUnknownDevice => 'Unknown device';
+
+  @override
+  String get profileUnnamedPasskey => 'Unnamed passkey';
+
+  @override
+  String get profileUnknownProvider => 'Unknown';
+
+  @override
+  String get profileNoEmail => 'No email';
+
+  @override
+  String get settingsAutoDeleteWatched => 'Auto-delete watched downloads';
+
+  @override
+  String get settingsAutoDeleteNever => 'Never';
+
+  @override
+  String settingsAutoDeleteAfterDays(int days) {
+    return 'After $days days';
+  }
+
+  @override
+  String get settingsAutoDeleteImmediately => 'Immediately';
 }

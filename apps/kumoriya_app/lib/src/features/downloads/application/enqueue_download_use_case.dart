@@ -38,6 +38,7 @@ class EnqueueDownloadUseCase {
     String? animeTitle,
     String? coverImageUrl,
     String? episodeTitle,
+    DateTime? createdAt,
   }) async {
     // Persist cover image for offline display (best-effort, non-blocking).
     unawaited(_coverService?.ensureCover(anilistId, coverImageUrl));
@@ -118,7 +119,7 @@ class EnqueueDownloadUseCase {
           episodeNumber: episodeNumber,
           sourceUrl: stream.url,
           status: DownloadStatus.pending,
-          createdAt: DateTime.now(),
+          createdAt: createdAt ?? DateTime.now(),
           fileName: _sanitizeFileName(fileName),
           sourcePluginId: sourcePluginId,
           serverName: server,

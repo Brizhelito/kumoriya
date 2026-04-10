@@ -1428,4 +1428,103 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get downloadResumeAll => 'Reanudar todas';
+
+  @override
+  String get profileTitle => 'Perfil';
+
+  @override
+  String get profileNotSignedIn => 'No has iniciado sesión';
+
+  @override
+  String get profileSignIn => 'Iniciar sesión';
+
+  @override
+  String get profileLinkedAccounts => 'Cuentas vinculadas';
+
+  @override
+  String get profileNoLinkedAccounts => 'Sin cuentas vinculadas';
+
+  @override
+  String get profileCouldNotLoadAccounts => 'No se pudieron cargar las cuentas';
+
+  @override
+  String get profileActiveSessions => 'Sesiones activas';
+
+  @override
+  String get profileNoActiveSessions => 'Sin sesiones activas';
+
+  @override
+  String get profileCouldNotLoadSessions =>
+      'No se pudieron cargar las sesiones';
+
+  @override
+  String get profilePasskeys => 'Passkeys';
+
+  @override
+  String get profileNoPasskeys => 'No hay passkeys registradas';
+
+  @override
+  String get profileCouldNotLoadPasskeys =>
+      'No se pudieron cargar las passkeys';
+
+  @override
+  String get profileSync => 'Sincronización';
+
+  @override
+  String get profileSyncStatus => 'Estado';
+
+  @override
+  String get profileLastSynced => 'Última sincronización';
+
+  @override
+  String get profileLastSyncedNever => 'Nunca';
+
+  @override
+  String get profileSyncNow => 'Sincronizar ahora';
+
+  @override
+  String get profileDeleteAccount => 'Eliminar cuenta';
+
+  @override
+  String get profileLogOut => 'Cerrar sesión';
+
+  @override
+  String get profileLogOutBody => 'Tus datos locales se conservarán.';
+
+  @override
+  String get profileCancel => 'Cancelar';
+
+  @override
+  String get profileDeleteAccountWarning =>
+      'Esto eliminará permanentemente tu cuenta y todos los datos sincronizados. No se puede deshacer.';
+
+  @override
+  String get profileDelete => 'Eliminar';
+
+  @override
+  String get profileUnknownDevice => 'Dispositivo desconocido';
+
+  @override
+  String get profileUnnamedPasskey => 'Passkey sin nombre';
+
+  @override
+  String get profileUnknownProvider => 'Desconocido';
+
+  @override
+  String get profileNoEmail => 'Sin email';
+
+  @override
+  String get settingsAutoDeleteWatched =>
+      'Borrar automáticamente descargas vistas';
+
+  @override
+  String get settingsAutoDeleteNever => 'Nunca';
+
+  @override
+  String settingsAutoDeleteAfterDays(int days) {
+    return 'Después de $days días';
+  }
+
+  @override
+  String get settingsAutoDeleteImmediately => 'Inmediatamente';
 }
