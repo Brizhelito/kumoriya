@@ -2,15 +2,9 @@
 /// Full resolver flow with NexusPageScraper (to get initial cookies)
 library;
 
-import 'dart:async';
-import 'dart:convert';
-import 'dart:io';
-
-import 'package:dio/dio.dart';
 import 'package:test/test.dart';
 
 import 'package:kumoriya_resolver_anime_nexus/src/anime_nexus_resolver_plugin.dart';
-import 'package:kumoriya_resolver_anime_nexus/src/utils/nexus_constants.dart';
 
 void main() {
   test(

@@ -1,4 +1,5 @@
 /// Common URL helpers used across resolver plugins.
+library;
 
 /// Convert a potentially relative URL to absolute using [baseUrl] as context.
 ///

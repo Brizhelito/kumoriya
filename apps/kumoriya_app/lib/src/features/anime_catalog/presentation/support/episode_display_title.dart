@@ -78,7 +78,7 @@ bool _isGenericEpisodeTitle(
 
   // Common placeholder style: "{Anime Title} Episode N".
   final suffixPattern = RegExp(
-    '(episode|ep|episodio|capitulo|capítulo|chapter|chap|cap)\s*0*$episodeInt\$',
+    '(episode|ep|episodio|capitulo|capítulo|chapter|chap|cap)s*0*$episodeInt\$',
   );
   if (suffixPattern.hasMatch(withoutBrackets)) {
     return true;

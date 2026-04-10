@@ -330,8 +330,9 @@ final class _InMemoryDownloadStore implements DownloadStore {
     int? limit,
   }) async {
     final all = _tasks.values.toList(growable: false);
-    if (limit != null && all.length > limit)
+    if (limit != null && all.length > limit) {
       return Success(all.sublist(0, limit));
+    }
     return Success(all);
   }
 

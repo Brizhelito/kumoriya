@@ -147,16 +147,16 @@ final class _FakeGateway implements AnilistMetadataGateway {
   _FakeGateway({
     this.homeCatalog = const Success(<Map<String, dynamic>>[]),
     this.seasonCatalog = const Success(<Map<String, dynamic>>[]),
-    this.upcomingSeasonCatalog = const Success(<Map<String, dynamic>>[]),
-    this.seasonRecommendations = const Success(<Map<String, dynamic>>[]),
     this.airingCalendar = const Success(<Map<String, dynamic>>[]),
     this.detail = const Failure(AnilistNotFoundError(message: 'not found')),
   });
 
   final Result<List<Map<String, dynamic>>, KumoriyaError> homeCatalog;
   final Result<List<Map<String, dynamic>>, KumoriyaError> seasonCatalog;
-  final Result<List<Map<String, dynamic>>, KumoriyaError> upcomingSeasonCatalog;
-  final Result<List<Map<String, dynamic>>, KumoriyaError> seasonRecommendations;
+  final Result<List<Map<String, dynamic>>, KumoriyaError>
+  upcomingSeasonCatalog = const Success(<Map<String, dynamic>>[]);
+  final Result<List<Map<String, dynamic>>, KumoriyaError>
+  seasonRecommendations = const Success(<Map<String, dynamic>>[]);
   final Result<List<Map<String, dynamic>>, KumoriyaError> airingCalendar;
   final Result<Map<String, dynamic>, KumoriyaError> detail;
 

@@ -29,7 +29,9 @@ class _OAuthCallbackPageState extends ConsumerState<OAuthCallbackPage> {
     if (_processed) return;
     _processed = true;
 
-    await ref.read(authStateProvider.notifier).onOAuthCallback(widget.callbackUri);
+    await ref
+        .read(authStateProvider.notifier)
+        .onOAuthCallback(widget.callbackUri);
 
     if (!mounted) return;
 

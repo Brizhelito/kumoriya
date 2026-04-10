@@ -1,6 +1,7 @@
 /// Common payload normalization for resolver embed HTML/JS responses.
 ///
 /// Nearly every resolver applies the same escaping cleanup before extraction.
+library;
 
 final _normalizeRe = RegExp(r'\\/|&amp;|\\u0026|\\x2F');
 

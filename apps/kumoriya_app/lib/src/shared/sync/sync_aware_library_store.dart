@@ -11,9 +11,9 @@ final class SyncAwareLibraryStore implements LibraryStore {
     required LibraryStore inner,
     required SyncQueueStore syncQueue,
     required bool Function() isAuthenticated,
-  })  : _inner = inner,
-        _syncQueue = syncQueue,
-        _isAuthenticated = isAuthenticated;
+  }) : _inner = inner,
+       _syncQueue = syncQueue,
+       _isAuthenticated = isAuthenticated;
 
   final LibraryStore _inner;
   final SyncQueueStore _syncQueue;
@@ -53,8 +53,10 @@ final class SyncAwareLibraryStore implements LibraryStore {
     int anilistId, {
     required bool autoDownload,
   }) async {
-    final result =
-        await _inner.setAutoDownload(anilistId, autoDownload: autoDownload);
+    final result = await _inner.setAutoDownload(
+      anilistId,
+      autoDownload: autoDownload,
+    );
     if (result.isSuccess && _isAuthenticated()) {
       await _enqueueLibraryChange(anilistId);
     }
@@ -79,29 +81,37 @@ final class SyncAwareLibraryStore implements LibraryStore {
     final autoResult = await _inner.getAutoDownloadAnimeIds();
     final audioPref = await _inner.getAutoDownloadAudioPreference(anilistId);
 
-    final isFav =
-        favResult.fold(onSuccess: (s) => s.contains(anilistId), onFailure: (_) => false);
-    final isSub =
-        subResult.fold(onSuccess: (s) => s.contains(anilistId), onFailure: (_) => false);
-    final isAuto =
-        autoResult.fold(onSuccess: (s) => s.contains(anilistId), onFailure: (_) => false);
+    final isFav = favResult.fold(
+      onSuccess: (s) => s.contains(anilistId),
+      onFailure: (_) => false,
+    );
+    final isSub = subResult.fold(
+      onSuccess: (s) => s.contains(anilistId),
+      onFailure: (_) => false,
+    );
+    final isAuto = autoResult.fold(
+      onSuccess: (s) => s.contains(anilistId),
+      onFailure: (_) => false,
+    );
 
     final now = DateTime.now().millisecondsSinceEpoch;
-    await _syncQueue.enqueue(SyncQueueEntry(
-      id: 0,
-      entityType: SyncEntityType.libraryEntry,
-      entityKey: jsonEncode({'anilistId': anilistId}),
-      payload: jsonEncode({
-        'anilist_id': anilistId,
-        'is_favorite': isFav,
-        'added_at': now,
-        'notify_new_episodes': isSub,
-        'auto_download_new_episodes': isAuto,
-        'auto_download_audio_preference': audioPref ?? 'none',
-      }),
-      createdAt: DateTime.now(),
-      status: SyncQueueEntryStatus.pending,
-    ));
+    await _syncQueue.enqueue(
+      SyncQueueEntry(
+        id: 0,
+        entityType: SyncEntityType.libraryEntry,
+        entityKey: jsonEncode({'anilistId': anilistId}),
+        payload: jsonEncode({
+          'anilist_id': anilistId,
+          'is_favorite': isFav,
+          'added_at': now,
+          'notify_new_episodes': isSub,
+          'auto_download_new_episodes': isAuto,
+          'auto_download_audio_preference': audioPref ?? 'none',
+        }),
+        createdAt: DateTime.now(),
+        status: SyncQueueEntryStatus.pending,
+      ),
+    );
   }
 
   // Pass-through reads.
@@ -115,12 +125,11 @@ final class SyncAwareLibraryStore implements LibraryStore {
 
   @override
   Future<Result<Map<int, int?>, KumoriyaError>>
-      getSubscribedWithLastEpisode() => _inner.getSubscribedWithLastEpisode();
+  getSubscribedWithLastEpisode() => _inner.getSubscribedWithLastEpisode();
 
   @override
   Future<Result<Map<int, int?>, KumoriyaError>>
-      getTrackedAnimeWithLastEpisode() =>
-          _inner.getTrackedAnimeWithLastEpisode();
+  getTrackedAnimeWithLastEpisode() => _inner.getTrackedAnimeWithLastEpisode();
 
   @override
   Future<Result<void, KumoriyaError>> updateLastNotifiedEpisode(

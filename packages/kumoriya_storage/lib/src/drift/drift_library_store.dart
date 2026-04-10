@@ -18,10 +18,7 @@ final class DriftLibraryStore implements LibraryStore {
     try {
       if (isFavorite) {
         final ts = (addedAt ?? DateTime.now()).millisecondsSinceEpoch;
-        await _dao.addFavorite(
-          anilistId,
-          ts,
-        );
+        await _dao.addFavorite(anilistId, ts);
       } else {
         await _dao.removeFavorite(anilistId);
       }

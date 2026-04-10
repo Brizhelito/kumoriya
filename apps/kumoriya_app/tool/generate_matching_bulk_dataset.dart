@@ -192,16 +192,6 @@ CanonicalSeries _canonicalFromAnime(Anime anime) {
   );
 }
 
-String _preferredQuery(CanonicalSeries canonical) {
-  final preferred = _buildSearchQueries(canonical);
-  for (final candidate in preferred) {
-    if (_isPreferredLatinQuery(candidate)) {
-      return candidate;
-    }
-  }
-  return preferred.first;
-}
-
 Future<_SearchOutcome> _searchAcrossQueries({
   required _SourceHarness source,
   required CanonicalSeries canonical,

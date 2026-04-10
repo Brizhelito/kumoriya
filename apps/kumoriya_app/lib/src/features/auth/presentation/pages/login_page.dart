@@ -120,14 +120,18 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                 label: 'Continue with Discord',
                 icon: Icons.discord,
                 backgroundColor: const Color(0xFF5865F2),
-                onPressed: _loading ? null : () => _loginWith(OAuthProvider.discord),
+                onPressed: _loading
+                    ? null
+                    : () => _loginWith(OAuthProvider.discord),
               ),
               const SizedBox(height: 12),
               _OAuthButton(
                 label: 'Continue with Google',
                 icon: Icons.account_circle,
                 backgroundColor: KumoriyaColors.surface,
-                onPressed: _loading ? null : () => _loginWith(OAuthProvider.google),
+                onPressed: _loading
+                    ? null
+                    : () => _loginWith(OAuthProvider.google),
               ),
               const SizedBox(height: 24),
               if (_loading)
@@ -142,9 +146,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                 onPressed: _loading ? null : () => Navigator.of(context).pop(),
                 child: Text(
                   'Skip for now',
-                  style: TextStyle(
-                    color: KumoriyaColors.textMuted,
-                  ),
+                  style: TextStyle(color: KumoriyaColors.textMuted),
                 ),
               ),
               const Spacer(flex: 2),
@@ -184,10 +186,7 @@ class _OAuthButton extends StatelessWidget {
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
           ),
-          textStyle: const TextStyle(
-            fontSize: 15,
-            fontWeight: FontWeight.w600,
-          ),
+          textStyle: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
         ),
       ),
     );

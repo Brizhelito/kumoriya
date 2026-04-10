@@ -776,6 +776,7 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
       DeviceOrientation.landscapeLeft,
       DeviceOrientation.landscapeRight,
     ]);
+    if (!mounted) return true;
     await Navigator.of(context).pushReplacement(
       MaterialPageRoute<void>(
         builder: (_) => PlayerPage(
@@ -828,6 +829,7 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
           DeviceOrientation.landscapeLeft,
           DeviceOrientation.landscapeRight,
         ]);
+        if (!mounted) return;
         await Navigator.of(context).pushReplacement(
           MaterialPageRoute<void>(
             builder: (_) => PlayerPage(

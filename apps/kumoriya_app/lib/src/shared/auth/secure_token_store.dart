@@ -4,7 +4,7 @@ import 'package:kumoriya_auth/kumoriya_auth.dart';
 /// Persists [TokenPair] and user ID in platform-secure storage.
 final class SecureTokenStore {
   SecureTokenStore([FlutterSecureStorage? storage])
-      : _storage = storage ?? const FlutterSecureStorage();
+    : _storage = storage ?? const FlutterSecureStorage();
 
   final FlutterSecureStorage _storage;
 
@@ -43,7 +43,10 @@ final class SecureTokenStore {
     await _storage.write(key: _keyUserId, value: user.id);
     await _storage.write(key: _keyDisplayName, value: user.displayName);
     if (user.avatarUrl != null) {
-      await _storage.write(key: _keyAvatarUrl, value: user.avatarUrl.toString());
+      await _storage.write(
+        key: _keyAvatarUrl,
+        value: user.avatarUrl.toString(),
+      );
     }
   }
 

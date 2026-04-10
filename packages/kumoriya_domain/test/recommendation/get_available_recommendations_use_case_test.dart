@@ -18,7 +18,8 @@ void main() {
     'GetAvailableRecommendationsUseCase filtra por playableSources',
     () async {
       final provider = FakeRecommendationProvider();
-      final getAvailability = (int id) async => id % 2 == 0
+      Future<SourceAvailabilitySummary> getAvailability(int id) async =>
+          id % 2 == 0
           ? SourceAvailabilitySummary(
               playableSources: ['ok'],
               status: SourceAvailabilityStatus.available,

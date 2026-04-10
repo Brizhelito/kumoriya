@@ -54,3 +54,6 @@ dependencies:
     path: ../../packages/kumoriya_source_animeav1
   kumoriya_source_anime_nexus:
     path: ../../packages/kumoriya_source_anime_nexus
+  kumoriya_anilist: any
+  kumoriya_domain: any
+  kumoriya_matching: any

@@ -1,6 +1,8 @@
 /// Smoke test that proves HLS downloads survive non-UTF-8 bytes in playlist
 /// responses — the exact scenario that was causing FormatException in
 /// production when downloading from StreamWish via AnimeFLV.
+library;
+
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';

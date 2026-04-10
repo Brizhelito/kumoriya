@@ -4,6 +4,7 @@
 /// stream URLs. This utility extracts and decodes those payloads.
 ///
 /// Used by: StreamWish, MixDrop, VidHide, VOE resolvers.
+library;
 
 final _deanEdwardsRe = RegExp(
   r"""eval\(function\(p,a,c,k,e,d\)\{[\s\S]*?return p\}\('([\s\S]*?)',\s*(\d+),\s*(\d+),\s*'([\s\S]*?)'\.split\('\|'\)""",

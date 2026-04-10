@@ -106,9 +106,7 @@ void main() {
       ctrl.probe(0);
 
       // Keep ramping with increasing throughput.
-      var total = 0;
       for (var t = 2000; t <= 20000; t += 2000) {
-        total += 50 * 1024 * 1024; // 50 MB every 2s → 25 MB/s, increasing
         ctrl.recordBytes(50 * 1024 * 1024);
         ctrl.probe(t);
       }

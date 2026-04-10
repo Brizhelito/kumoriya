@@ -71,12 +71,15 @@ final class HttpSyncService implements SyncService {
             if (response.statusCode == 200) {
               final data = jsonDecode(response.body) as Map<String, dynamic>;
               final applied = (data['applied'] as num?)?.toInt() ?? 0;
-              final conflictsList = (data['conflicts'] as List?)
-                      ?.map((c) => SyncConflict(
-                            entityType: SyncEntityType.episodeProgress,
-                            entityKey: '',
-                            reason: c.toString(),
-                          ))
+              final conflictsList =
+                  (data['conflicts'] as List?)
+                      ?.map(
+                        (c) => SyncConflict(
+                          entityType: SyncEntityType.episodeProgress,
+                          entityKey: '',
+                          reason: c.toString(),
+                        ),
+                      )
                       .toList() ??
                   [];
 
@@ -90,10 +93,9 @@ final class HttpSyncService implements SyncService {
               await queueStore.clearSyncedEntries();
 
               _currentStatus = SyncStatus.success;
-              return Success(SyncPushResult(
-                applied: applied,
-                conflicts: conflictsList,
-              ));
+              return Success(
+                SyncPushResult(applied: applied, conflicts: conflictsList),
+              );
             }
 
             // Push failed — mark entries as failed.
@@ -107,11 +109,13 @@ final class HttpSyncService implements SyncService {
             }
 
             _currentStatus = SyncStatus.failed;
-            return Failure(SimpleError(
-              code: 'sync.push.http_error',
-              message: 'Push failed: ${response.statusCode}',
-              kind: KumoriyaErrorKind.transport,
-            ));
+            return Failure(
+              SimpleError(
+                code: 'sync.push.http_error',
+                message: 'Push failed: ${response.statusCode}',
+                kind: KumoriyaErrorKind.transport,
+              ),
+            );
           } catch (e) {
             for (final entry in entries) {
               await queueStore.updateStatus(
@@ -123,21 +127,25 @@ final class HttpSyncService implements SyncService {
             }
 
             _currentStatus = SyncStatus.failed;
-            return Failure(SimpleError(
-              code: 'sync.push.transport',
-              message: 'Network error during push: $e',
-              kind: KumoriyaErrorKind.transport,
-            ));
+            return Failure(
+              SimpleError(
+                code: 'sync.push.transport',
+                message: 'Network error during push: $e',
+                kind: KumoriyaErrorKind.transport,
+              ),
+            );
           }
         },
       );
     } catch (e) {
       _currentStatus = SyncStatus.failed;
-      return Failure(SimpleError(
-        code: 'sync.push.unexpected',
-        message: 'Unexpected error during push: $e',
-        kind: KumoriyaErrorKind.unexpected,
-      ));
+      return Failure(
+        SimpleError(
+          code: 'sync.push.unexpected',
+          message: 'Unexpected error during push: $e',
+          kind: KumoriyaErrorKind.unexpected,
+        ),
+      );
     }
   }
 
@@ -155,11 +163,13 @@ final class HttpSyncService implements SyncService {
 
       if (response.statusCode != 200) {
         _currentStatus = SyncStatus.failed;
-        return Failure(SimpleError(
-          code: 'sync.pull.http_error',
-          message: 'Pull failed: ${response.statusCode}',
-          kind: KumoriyaErrorKind.transport,
-        ));
+        return Failure(
+          SimpleError(
+            code: 'sync.pull.http_error',
+            message: 'Pull failed: ${response.statusCode}',
+            kind: KumoriyaErrorKind.transport,
+          ),
+        );
       }
 
       final data = jsonDecode(response.body) as Map<String, dynamic>;
@@ -173,11 +183,13 @@ final class HttpSyncService implements SyncService {
       return Success(pullResponse);
     } catch (e) {
       _currentStatus = SyncStatus.failed;
-      return Failure(SimpleError(
-        code: 'sync.pull.transport',
-        message: 'Network error during pull: $e',
-        kind: KumoriyaErrorKind.transport,
-      ));
+      return Failure(
+        SimpleError(
+          code: 'sync.pull.transport',
+          message: 'Network error during pull: $e',
+          kind: KumoriyaErrorKind.transport,
+        ),
+      );
     }
   }
 
@@ -294,8 +306,8 @@ final class HttpSyncService implements SyncService {
       lastSourcePluginId: data['last_source_plugin_id'] as String?,
       lastPositionSeconds:
           (data['last_position_seconds'] as num?)?.toInt() ?? 0,
-      lastTotalDurationSeconds:
-          (data['last_total_duration_seconds'] as num?)?.toInt(),
+      lastTotalDurationSeconds: (data['last_total_duration_seconds'] as num?)
+          ?.toInt(),
       lastAccessedAt: DateTime.fromMillisecondsSinceEpoch(
         (data['last_accessed_at'] as num?)?.toInt() ?? 0,
       ),

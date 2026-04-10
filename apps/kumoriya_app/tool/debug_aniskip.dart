@@ -68,10 +68,17 @@ query($id: Int) {
 }
 ''';
   try {
-    final request = await client.postUrl(Uri.parse('https://graphql.anilist.co'));
+    final request = await client.postUrl(
+      Uri.parse('https://graphql.anilist.co'),
+    );
     request.headers.set('Content-Type', 'application/json');
     request.headers.set('Accept', 'application/json');
-    request.write(jsonEncode({'query': query, 'variables': {'id': anilistId}}));
+    request.write(
+      jsonEncode({
+        'query': query,
+        'variables': {'id': anilistId},
+      }),
+    );
     final response = await request.close();
     if (response.statusCode != 200) {
       print('  AniList HTTP ${response.statusCode}');

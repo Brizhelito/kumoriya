@@ -1170,7 +1170,7 @@ class _PageSelectorState extends State<_PageSelector> {
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: 16),
         itemCount: widget.pageCount,
-        separatorBuilder: (_, __) => const SizedBox(width: 8),
+        separatorBuilder: (_, _) => const SizedBox(width: 8),
         itemBuilder: (context, index) {
           final start = index * widget.pageSize + 1;
           final end = ((index + 1) * widget.pageSize).clamp(

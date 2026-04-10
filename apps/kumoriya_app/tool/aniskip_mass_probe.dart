@@ -4,6 +4,8 @@
 ///
 /// Run from user home dir (outside package context):
 ///   copy to ~\aniskip_mass_probe.dart && dart run aniskip_mass_probe.dart
+library;
+
 import 'dart:convert';
 import 'dart:io';
 
@@ -53,7 +55,18 @@ final _testAnime = <(String, int, List<int>)>[
 
 // ── Episode lengths to probe ────────────────────────────────────────────────
 // 0 = special "no episodeLength param" test
-final _probeLengths = <int>[1440, 1430, 1420, 1410, 1400, 1380, 1350, 1320, 1500, 0];
+final _probeLengths = <int>[
+  1440,
+  1430,
+  1420,
+  1410,
+  1400,
+  1380,
+  1350,
+  1320,
+  1500,
+  0,
+];
 
 // ── Result accumulators ─────────────────────────────────────────────────────
 var _totalQueries = 0;
@@ -62,7 +75,8 @@ var _totalOpHits = 0;
 var _totalEdHits = 0;
 final _hitsByLength = <int, int>{};
 final _opHitsByLength = <int, int>{};
-final _firstHitLength = <String, int>{};  // "anilistId:ep" → first length that hit
+final _firstHitLength =
+    <String, int>{}; // "anilistId:ep" → first length that hit
 
 Future<void> main() async {
   final client = HttpClient();
@@ -137,8 +151,10 @@ Future<void> main() async {
     final hits = _hitsByLength[len] ?? 0;
     final opHits = _opHitsByLength[len] ?? 0;
     final bar = '█' * (hits ~/ 2) + (hits.isOdd ? '▌' : '');
-    print('  len=${len.toString().padLeft(4)}: ${hits.toString().padLeft(3)} hits '
-        '(${opHits.toString().padLeft(3)} OP) $bar');
+    print(
+      '  len=${len.toString().padLeft(4)}: ${hits.toString().padLeft(3)} hits '
+      '(${opHits.toString().padLeft(3)} OP) $bar',
+    );
   }
   print('');
 
@@ -161,8 +177,10 @@ Future<void> main() async {
       }).toList();
 
       if (bestLen.isNotEmpty) {
-        print('  EP ${ep.episode}: OP at lengths=$bestLen, '
-            'any at lengths=$anyLen');
+        print(
+          '  EP ${ep.episode}: OP at lengths=$bestLen, '
+          'any at lengths=$anyLen',
+        );
       } else if (anyLen.isNotEmpty) {
         print('  EP ${ep.episode}: ED-only at lengths=$anyLen');
       } else {
@@ -180,8 +198,10 @@ Future<void> main() async {
   // Find which single length covers the most
   final sortedLengths = _hitsByLength.entries.toList()
     ..sort((a, b) => b.value.compareTo(a.value));
-  print('Best single length: ${sortedLengths.first.key} '
-      '(${sortedLengths.first.value} hits)');
+  print(
+    'Best single length: ${sortedLengths.first.key} '
+    '(${sortedLengths.first.value} hits)',
+  );
 
   // Find minimum set of lengths for max coverage
   final allKeys = _firstHitLength.keys.toSet();
@@ -222,10 +242,17 @@ Future<int?> _getMalId(HttpClient client, int anilistId) async {
 query($id: Int) { Media(id: $id, type: ANIME) { idMal } }
 ''';
   try {
-    final request = await client.postUrl(Uri.parse('https://graphql.anilist.co'));
+    final request = await client.postUrl(
+      Uri.parse('https://graphql.anilist.co'),
+    );
     request.headers.set('Content-Type', 'application/json');
     request.headers.set('Accept', 'application/json');
-    request.write(jsonEncode({'query': query, 'variables': {'id': anilistId}}));
+    request.write(
+      jsonEncode({
+        'query': query,
+        'variables': {'id': anilistId},
+      }),
+    );
     final response = await request.close();
     final body = await _readResponse(response);
     if (response.statusCode != 200) return null;
@@ -259,7 +286,9 @@ Future<List<_SegmentInfo>> _fetchAniSkip(
     if (results is! List || results.isEmpty) return [];
 
     return results.whereType<Map<String, dynamic>>().map((entry) {
-      final skipType = (entry['skip_type'] ?? entry['skipType'] ?? '').toString().toLowerCase();
+      final skipType = (entry['skip_type'] ?? entry['skipType'] ?? '')
+          .toString()
+          .toLowerCase();
       final interval = entry['interval'] as Map<String, dynamic>?;
       final start = interval?['start_time'] ?? interval?['startTime'];
       final end = interval?['end_time'] ?? interval?['endTime'];
@@ -284,7 +313,8 @@ class _SegmentInfo {
   final double start;
   final double end;
   @override
-  String toString() => '$kind(${start.toStringAsFixed(1)}-${end.toStringAsFixed(1)})';
+  String toString() =>
+      '$kind(${start.toStringAsFixed(1)}-${end.toStringAsFixed(1)})';
 }
 
 class _EpisodeProbeResult {

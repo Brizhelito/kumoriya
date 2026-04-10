@@ -59,8 +59,7 @@ final class DriftAnimeProgressStore implements AnimeProgressStore {
     DateTime? lastAccessedAt,
   }) async {
     try {
-      final ts =
-          (lastAccessedAt ?? DateTime.now()).millisecondsSinceEpoch;
+      final ts = (lastAccessedAt ?? DateTime.now()).millisecondsSinceEpoch;
       await _historyDao.upsertHistory(
         WatchHistoryTableCompanion(
           anilistId: Value(anilistId),

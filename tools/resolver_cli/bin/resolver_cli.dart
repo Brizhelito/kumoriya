@@ -2,10 +2,9 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:args/args.dart';
-import 'package:kumoriya_core/kumoriya_core.dart';
 import 'package:kumoriya_plugins/kumoriya_plugins.dart';
 
-import '../lib/resolver_catalog.dart';
+import 'package:resolver_cli/resolver_catalog.dart';
 
 // ──────────────────────────────────────────────────────────────────────────────
 // ANSI colors
@@ -29,15 +28,23 @@ void main(List<String> arguments) async {
   final testParser = ArgParser()
     ..addOption('url', abbr: 'u', help: 'URL to resolve')
     ..addOption('resolver', abbr: 'r', help: 'Resolver name (optional)')
-    ..addOption('iterations',
-        abbr: 'n', defaultsTo: '1', help: 'Number of iterations')
+    ..addOption(
+      'iterations',
+      abbr: 'n',
+      defaultsTo: '1',
+      help: 'Number of iterations',
+    )
     ..addFlag('verbose', abbr: 'v', negatable: false, help: 'Verbose output');
 
   final benchmarkParser = ArgParser()
     ..addOption('url', abbr: 'u', help: 'URL to benchmark')
     ..addOption('resolver', abbr: 'r', help: 'Resolver name (optional)')
-    ..addOption('iterations',
-        abbr: 'n', defaultsTo: '5', help: 'Number of iterations')
+    ..addOption(
+      'iterations',
+      abbr: 'n',
+      defaultsTo: '5',
+      help: 'Number of iterations',
+    )
     ..addFlag('json', negatable: false, help: 'Output JSON');
 
   final validateParser = ArgParser()
@@ -98,8 +105,7 @@ ${_cyan}Examples:$_reset
 void _runList() {
   final resolvers = buildAllResolvers();
   print('');
-  print(
-      '${_bold}#   Priority  Resolver                     Hosts$_reset');
+  print('$_bold#   Priority  Resolver                     Hosts$_reset');
   print('$_dim${'─' * 80}$_reset');
 
   for (var i = 0; i < resolvers.length; i++) {
@@ -108,10 +114,9 @@ void _runList() {
     final pri = '${r.priority}'.padLeft(3);
     final name = r.manifest.displayName.padRight(28);
     final hosts = r.manifest.supportedHosts.take(4).join(', ');
-    final extra =
-        r.manifest.supportedHosts.length > 4
-            ? ' (+${r.manifest.supportedHosts.length - 4} more)'
-            : '';
+    final extra = r.manifest.supportedHosts.length > 4
+        ? ' (+${r.manifest.supportedHosts.length - 4} more)'
+        : '';
     print('$num   $_cyan$pri$_reset    $name $_dim$hosts$extra$_reset');
   }
   print('');
@@ -151,7 +156,8 @@ Future<void> _runTest(ArgResults args) async {
 
   print('');
   print(
-      '${_bold}Testing: ${resolver.manifest.displayName}$_reset ${_dim}(priority: ${resolver.priority})$_reset');
+    '${_bold}Testing: ${resolver.manifest.displayName}$_reset $_dim(priority: ${resolver.priority})$_reset',
+  );
   print('${_dim}URL: $url$_reset');
   print('${_dim}Iterations: $iterations$_reset');
   print('$_dim${'─' * 60}$_reset');
@@ -174,32 +180,36 @@ Future<void> _runTest(ArgResults args) async {
         if (verbose || i == 0) {
           print('');
           print(
-              '${_green}✓ Iteration ${i + 1}$_reset ${_dim}(${sw.elapsedMilliseconds}ms)$_reset');
-          print(
-              '  Streams: ${streams.length}  |  Subtitles: ${subs.length}');
+            '$_green✓ Iteration ${i + 1}$_reset $_dim(${sw.elapsedMilliseconds}ms)$_reset',
+          );
+          print('  Streams: ${streams.length}  |  Subtitles: ${subs.length}');
           for (final s in streams) {
             final hlsTag = s.isHls ? ' [HLS]' : '';
             print(
-                '    ${_cyan}${s.qualityLabel ?? "?"}$_reset  ${s.url.toString().substring(0, (s.url.toString().length).clamp(0, 80))}$hlsTag');
+              '    $_cyan${s.qualityLabel ?? "?"}$_reset  ${s.url.toString().substring(0, (s.url.toString().length).clamp(0, 80))}$hlsTag',
+            );
             if (verbose) {
               print('    ${_dim}mime: ${s.mimeType ?? "null"}$_reset');
               if (s.headers.isNotEmpty) {
                 print(
-                    '    ${_dim}headers: ${s.headers.keys.join(", ")}$_reset');
+                  '    ${_dim}headers: ${s.headers.keys.join(", ")}$_reset',
+                );
               }
             }
           }
           for (final sub in subs) {
             print(
-                '    ${_yellow}SUB$_reset ${sub.label} [${sub.language}]${sub.isDefault ? " (default)" : ""}');
+              '    ${_yellow}SUB$_reset ${sub.label} [${sub.language}]${sub.isDefault ? " (default)" : ""}',
+            );
           }
         }
       },
       onFailure: (error) {
         failures++;
         print(
-            '${_red}✗ Iteration ${i + 1}$_reset ${_dim}(${sw.elapsedMilliseconds}ms)$_reset');
-        print('  ${_red}${error.code}: ${error.message}$_reset');
+          '$_red✗ Iteration ${i + 1}$_reset $_dim(${sw.elapsedMilliseconds}ms)$_reset',
+        );
+        print('  $_red${error.code}: ${error.message}$_reset');
       },
     );
   }
@@ -239,8 +249,7 @@ Future<void> _runBenchmark(ArgResults args) async {
 
   if (!jsonOutput) {
     print('');
-    print(
-        '${_bold}Benchmarking: ${resolver.manifest.displayName}$_reset');
+    print('${_bold}Benchmarking: ${resolver.manifest.displayName}$_reset');
     print('${_dim}URL: $url$_reset');
     print('${_dim}Iterations: $iterations$_reset');
     print('$_dim${'─' * 60}$_reset');
@@ -261,8 +270,7 @@ Future<void> _runBenchmark(ArgResults args) async {
       onSuccess: (_) {
         successes++;
         if (!jsonOutput) {
-          print(
-              '  ${_green}✓$_reset Iter ${i + 1}: ${sw.elapsedMilliseconds}ms');
+          print('  $_green✓$_reset Iter ${i + 1}: ${sw.elapsedMilliseconds}ms');
         }
       },
       onFailure: (error) {
@@ -270,7 +278,8 @@ Future<void> _runBenchmark(ArgResults args) async {
         errors.add(error.message);
         if (!jsonOutput) {
           print(
-              '  ${_red}✗$_reset Iter ${i + 1}: ${sw.elapsedMilliseconds}ms — ${error.code}');
+            '  $_red✗$_reset Iter ${i + 1}: ${sw.elapsedMilliseconds}ms — ${error.code}',
+          );
         }
       },
     );
@@ -294,7 +303,8 @@ Future<void> _runBenchmark(ArgResults args) async {
         'max': sorted.last,
         'avg': (sorted.reduce((a, b) => a + b) / sorted.length).round(),
         'median': sorted[sorted.length ~/ 2],
-        'p95': sorted[(sorted.length * 0.95).floor().clamp(0, sorted.length - 1)],
+        'p95':
+            sorted[(sorted.length * 0.95).floor().clamp(0, sorted.length - 1)],
         'all': sorted,
       },
       if (errors.isNotEmpty) 'errors': errors,
@@ -309,7 +319,9 @@ Future<void> _runBenchmark(ArgResults args) async {
         sorted[(sorted.length * 0.95).floor().clamp(0, sorted.length - 1)];
 
     print('${_bold}Results:$_reset');
-    print('  Success rate: ${_successColor(successes, iterations)}$successes/$iterations$_reset');
+    print(
+      '  Success rate: ${_successColor(successes, iterations)}$successes/$iterations$_reset',
+    );
     print('  Min:    ${sorted.first}ms');
     print('  Max:    ${sorted.last}ms');
     print('  Avg:    ${avg}ms');
@@ -346,18 +358,17 @@ Future<void> _runValidate(ArgResults args) async {
   }
 
   if (supporting.isEmpty) {
-    print('${_red}✗ No resolver supports this URL$_reset');
+    print('$_red✗ No resolver supports this URL$_reset');
     if (verbose) {
-      print('${_dim}  Host: ${url.host}$_reset');
-      print('${_dim}  Path: ${url.path}$_reset');
+      print('$_dim  Host: ${url.host}$_reset');
+      print('$_dim  Path: ${url.path}$_reset');
     }
     exit(1);
   }
 
-  print('${_green}✓ ${supporting.length} resolver(s) support this URL:$_reset');
+  print('$_green✓ ${supporting.length} resolver(s) support this URL:$_reset');
   for (final r in supporting) {
-    print(
-        '  ${_cyan}${r.manifest.displayName}$_reset (priority: ${r.priority})');
+    print('  $_cyan${r.manifest.displayName}$_reset (priority: ${r.priority})');
   }
 
   // Phase 2: pick highest priority and resolve
@@ -366,8 +377,7 @@ Future<void> _runValidate(ArgResults args) async {
       : supporting.first;
 
   print('');
-  print(
-      '${_bold}Resolving with: ${resolver.manifest.displayName}$_reset');
+  print('${_bold}Resolving with: ${resolver.manifest.displayName}$_reset');
 
   final sw = Stopwatch()..start();
   final result = await resolver.resolve(url);
@@ -376,19 +386,19 @@ Future<void> _runValidate(ArgResults args) async {
   result.fold(
     onSuccess: (resolveResult) {
       print(
-          '${_green}✓ Resolution successful$_reset ${_dim}(${sw.elapsedMilliseconds}ms)$_reset');
+        '$_green✓ Resolution successful$_reset $_dim(${sw.elapsedMilliseconds}ms)$_reset',
+      );
       print('');
       print('${_bold}Streams:$_reset');
       for (final s in resolveResult.streams) {
         final hlsTag = s.isHls ? ' [HLS]' : ' [MP4]';
-        print(
-            '  ${_cyan}${s.qualityLabel ?? "unknown"}$_reset$hlsTag');
+        print('  $_cyan${s.qualityLabel ?? "unknown"}$_reset$hlsTag');
         print('    URL: ${s.url}');
         if (verbose) {
           print('    ${_dim}mime: ${s.mimeType ?? "null"}$_reset');
           if (s.headers.isNotEmpty) {
             for (final e in s.headers.entries) {
-              print('    ${_dim}$_dim${e.key}: ${e.value}$_reset');
+              print('    $_dim$_dim${e.key}: ${e.value}$_reset');
             }
           }
         }
@@ -398,7 +408,8 @@ Future<void> _runValidate(ArgResults args) async {
         print('${_bold}Subtitles:$_reset');
         for (final sub in resolveResult.externalSubtitles) {
           print(
-              '  ${_yellow}${sub.label}$_reset [${sub.language}]${sub.isDefault ? " (default)" : ""}');
+            '  $_yellow${sub.label}$_reset [${sub.language}]${sub.isDefault ? " (default)" : ""}',
+          );
           if (sub.uri != null) {
             print('    URI: ${sub.uri}');
           }
@@ -410,7 +421,8 @@ Future<void> _runValidate(ArgResults args) async {
     },
     onFailure: (error) {
       print(
-          '${_red}✗ Resolution failed$_reset ${_dim}(${sw.elapsedMilliseconds}ms)$_reset');
+        '$_red✗ Resolution failed$_reset $_dim(${sw.elapsedMilliseconds}ms)$_reset',
+      );
       print('  ${_red}Code: ${error.code}$_reset');
       print('  ${_red}Message: ${error.message}$_reset');
       print('  ${_red}Kind: ${error.kind}$_reset');
@@ -435,8 +447,12 @@ void _printTimingSummary(
   print('');
   print('$_dim${'─' * 60}$_reset');
   print('${_bold}Summary:$_reset');
-  print('  Success: ${_successColor(successes, successes + failures)}$successes/${successes + failures}$_reset');
-  print('  Min: ${ms.first}ms  Max: ${ms.last}ms  Avg: ${avg}ms  Median: ${median}ms');
+  print(
+    '  Success: ${_successColor(successes, successes + failures)}$successes/${successes + failures}$_reset',
+  );
+  print(
+    '  Min: ${ms.first}ms  Max: ${ms.last}ms  Avg: ${avg}ms  Median: ${median}ms',
+  );
   print('');
 }
 

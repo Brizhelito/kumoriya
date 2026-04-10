@@ -20,7 +20,7 @@ class DownloadTaskTable extends Table {
   IntColumn get createdAt => integer()();
   IntColumn get updatedAt => integer().nullable()();
 
-  /// JSON-encoded Map<String, String> of HTTP headers (referer, origin, etc.)
+  /// JSON-encoded `Map<String, String>` of HTTP headers (referer, origin, etc.)
   TextColumn get headers => text().nullable()();
 
   /// Whether this download is an HLS stream requiring segment download.

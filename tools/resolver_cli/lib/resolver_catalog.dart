@@ -41,9 +41,7 @@ List<ResolverPlugin> buildAllResolvers() {
 
 /// Find the resolver that supports a given URL.
 ResolverPlugin? findResolverFor(Uri url, List<ResolverPlugin> resolvers) {
-  final candidates = resolvers
-      .where((r) => r.supports(url))
-      .toList()
+  final candidates = resolvers.where((r) => r.supports(url)).toList()
     ..sort((a, b) {
       final cmp = b.priority.compareTo(a.priority);
       if (cmp != 0) return cmp;

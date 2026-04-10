@@ -89,7 +89,7 @@ void main() {
           expect(request.headers['cookie'], contains('sid='));
           expect(request.headers['cookie'], contains('watch_boot=omega'));
           expect(request.headers['cookie'], contains('auth_token=alpha'));
-          expect((request as http.Request).bodyFields['id'], 'episode-uuid-1');
+          expect((request).bodyFields['id'], 'episode-uuid-1');
           return http.Response(
             '',
             200,

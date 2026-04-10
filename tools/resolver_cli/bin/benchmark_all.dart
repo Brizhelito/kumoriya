@@ -6,17 +6,17 @@
 ///   dart run bin/benchmark_all.dart "naruto"
 ///   dart run bin/benchmark_all.dart "one piece" --episode=5
 ///   dart run bin/benchmark_all.dart "jujutsu kaisen" --json
+library;
 
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:kumoriya_core/kumoriya_core.dart';
 import 'package:kumoriya_plugins/kumoriya_plugins.dart';
 import 'package:kumoriya_source_animeflv/kumoriya_source_animeflv.dart';
 import 'package:kumoriya_source_animeav1/kumoriya_source_animeav1.dart';
 import 'package:kumoriya_source_jkanime/kumoriya_source_jkanime.dart';
 
-import '../lib/resolver_catalog.dart';
+import 'package:resolver_cli/resolver_catalog.dart';
 
 // ANSI
 const _green = '\x1B[32m';
@@ -54,7 +54,7 @@ void main(List<String> arguments) async {
 
   if (!jsonOutput) {
     print('');
-    print('${_bold}═══ Kumoriya Resolver Benchmark ═══$_reset');
+    print('$_bold═══ Kumoriya Resolver Benchmark ═══$_reset');
     print('${_dim}Query: "$query"  |  Episode: $targetEpisode$_reset');
     print('');
   }
@@ -74,15 +74,12 @@ void main(List<String> arguments) async {
     final plugin = entry.value;
 
     if (!jsonOutput) {
-      stdout.write(
-          '${_cyan}[$sourceName]$_reset Searching "$query"...');
+      stdout.write('$_cyan[$sourceName]$_reset Searching "$query"...');
     }
 
     final sw = Stopwatch()..start();
     try {
-      final searchResult = await plugin.search(
-        SourceSearchQuery(query: query),
-      );
+      final searchResult = await plugin.search(SourceSearchQuery(query: query));
 
       final matches = searchResult.fold(
         onSuccess: (m) => m,
@@ -98,8 +95,7 @@ void main(List<String> arguments) async {
 
       final firstMatch = matches.first;
       if (!jsonOutput) {
-        stdout.write(
-            ' found "${firstMatch.title}" → episodes...');
+        stdout.write(' found "${firstMatch.title}" → episodes...');
       }
 
       final episodesResult = await plugin.getEpisodes(firstMatch.sourceId);
@@ -110,9 +106,9 @@ void main(List<String> arguments) async {
 
       // Find target episode
       final episode = episodes.cast<SourceEpisode?>().firstWhere(
-            (e) => e!.number == targetEpisode,
-            orElse: () => episodes.isNotEmpty ? episodes.first : null,
-          );
+        (e) => e!.number == targetEpisode,
+        orElse: () => episodes.isNotEmpty ? episodes.first : null,
+      );
 
       if (episode == null) {
         sw.stop();
@@ -135,18 +131,21 @@ void main(List<String> arguments) async {
       sourceTimings[sourceName] = sw.elapsedMilliseconds;
 
       for (final link in links) {
-        collectedLinks.add(_CollectedLink(
-          source: sourceName,
-          serverName: link.serverName,
-          url: link.initialUrl,
-          language: link.language,
-          detectedHost: link.detectedHost,
-        ));
+        collectedLinks.add(
+          _CollectedLink(
+            source: sourceName,
+            serverName: link.serverName,
+            url: link.initialUrl,
+            language: link.language,
+            detectedHost: link.detectedHost,
+          ),
+        );
       }
 
       if (!jsonOutput) {
         print(
-            ' ${_green}${links.length} links$_reset ${_dim}(${sw.elapsedMilliseconds}ms)$_reset');
+          ' $_green${links.length} links$_reset $_dim(${sw.elapsedMilliseconds}ms)$_reset',
+        );
       }
     } catch (e) {
       sw.stop();
@@ -172,23 +171,23 @@ void main(List<String> arguments) async {
   for (final link in collectedLinks) {
     final resolver = findResolverFor(link.url, resolvers);
     if (resolver != null) {
-      benchTargets.add(_BenchTarget(
-        link: link,
-        resolver: resolver,
-      ));
+      benchTargets.add(_BenchTarget(link: link, resolver: resolver));
     }
   }
 
   if (!jsonOutput) {
     print('');
     print(
-        '${_bold}Collected ${collectedLinks.length} links → ${benchTargets.length} have resolvers$_reset');
+      '${_bold}Collected ${collectedLinks.length} links → ${benchTargets.length} have resolvers$_reset',
+    );
 
     final unresolvable = collectedLinks
         .where((l) => findResolverFor(l.url, resolvers) == null)
         .toList();
     if (unresolvable.isNotEmpty) {
-      print('${_dim}Unresolvable hosts: ${unresolvable.map((l) => l.url.host).toSet().join(', ')}$_reset');
+      print(
+        '${_dim}Unresolvable hosts: ${unresolvable.map((l) => l.url.host).toSet().join(', ')}$_reset',
+      );
     }
     print('');
   }
@@ -209,7 +208,8 @@ void main(List<String> arguments) async {
 
   if (!jsonOutput) {
     print(
-        '${_bold}#   Resolver                      Source       Time      Status$_reset');
+      '$_bold#   Resolver                      Source       Time      Status$_reset',
+    );
     print('$_dim${'─' * 90}$_reset');
   }
 
@@ -317,17 +317,14 @@ void main(List<String> arguments) async {
     final failed = results.where((r) => !r.success).toList();
 
     print('');
-    print('${_bold}═══ Summary ═══$_reset');
+    print('$_bold═══ Summary ═══$_reset');
     print(
-        '  Sources scraped:    ${sources.length} ${_dim}(${sourceTimings.entries.map((e) => '${e.key}: ${e.value}ms').join(', ')})$_reset');
-    print(
-        '  Total embed links:  ${collectedLinks.length}');
-    print(
-        '  Resolvers tested:   ${results.length}');
-    print(
-        '  ${_green}Succeeded:          ${succeeded.length}$_reset');
-    print(
-        '  ${_red}Failed:             ${failed.length}$_reset');
+      '  Sources scraped:    ${sources.length} $_dim(${sourceTimings.entries.map((e) => '${e.key}: ${e.value}ms').join(', ')})$_reset',
+    );
+    print('  Total embed links:  ${collectedLinks.length}');
+    print('  Resolvers tested:   ${results.length}');
+    print('  ${_green}Succeeded:          ${succeeded.length}$_reset');
+    print('  ${_red}Failed:             ${failed.length}$_reset');
 
     if (succeeded.isNotEmpty) {
       final times = succeeded.map((r) => r.timeMs).toList()..sort();
@@ -337,8 +334,12 @@ void main(List<String> arguments) async {
 
       print('');
       print('${_bold}Timing (successful resolvers):$_reset');
-      print('  Fastest:  ${_green}${fastest}ms$_reset  (${succeeded.firstWhere((r) => r.timeMs == fastest).resolverName})');
-      print('  Slowest:  ${_yellow}${slowest}ms$_reset  (${succeeded.firstWhere((r) => r.timeMs == slowest).resolverName})');
+      print(
+        '  Fastest:  $_green${fastest}ms$_reset  (${succeeded.firstWhere((r) => r.timeMs == fastest).resolverName})',
+      );
+      print(
+        '  Slowest:  $_yellow${slowest}ms$_reset  (${succeeded.firstWhere((r) => r.timeMs == slowest).resolverName})',
+      );
       print('  Average:  ${avg}ms');
 
       if (times.length > 1) {
@@ -351,9 +352,11 @@ void main(List<String> arguments) async {
       final under3s = succeeded.where((r) => r.timeMs < 3000).length;
       print('');
       print(
-          '  ${under1s < succeeded.length ? _yellow : _green}< 1 second:  $under1s/${succeeded.length}$_reset');
+        '  ${under1s < succeeded.length ? _yellow : _green}< 1 second:  $under1s/${succeeded.length}$_reset',
+      );
       print(
-          '  ${under3s < succeeded.length ? _yellow : _green}< 3 seconds: $under3s/${succeeded.length}$_reset');
+        '  ${under3s < succeeded.length ? _yellow : _green}< 3 seconds: $under3s/${succeeded.length}$_reset',
+      );
     }
 
     if (failed.isNotEmpty) {
@@ -361,7 +364,8 @@ void main(List<String> arguments) async {
       print('${_bold}Failed resolvers:$_reset');
       for (final f in failed) {
         print(
-            '  ${_red}✗$_reset ${f.resolverName} (${f.host}) — ${_truncate(f.error ?? 'unknown', 60)}');
+          '  $_red✗$_reset ${f.resolverName} (${f.host}) — ${_truncate(f.error ?? 'unknown', 60)}',
+        );
       }
     }
 
@@ -422,18 +426,18 @@ class _BenchResult {
   final String? error;
 
   Map<String, dynamic> toJson() => {
-        'resolver': resolverId,
-        'resolverName': resolverName,
-        'priority': priority,
-        'source': source,
-        'serverName': serverName,
-        'host': host,
-        'url': url,
-        'timeMs': timeMs,
-        'success': success,
-        'streamCount': streamCount,
-        if (error != null) 'error': error,
-      };
+    'resolver': resolverId,
+    'resolverName': resolverName,
+    'priority': priority,
+    'source': source,
+    'serverName': serverName,
+    'host': host,
+    'url': url,
+    'timeMs': timeMs,
+    'success': success,
+    'streamCount': streamCount,
+    if (error != null) 'error': error,
+  };
 }
 
 Map<String, dynamic> _buildSummary(List<_BenchResult> results) {

@@ -67,11 +67,11 @@ final class CachedAnimeCatalogRepository implements AnimeCatalogRepository {
     final key = 'season:${request.year}:${request.page}:${request.perPage}';
     Future<Result<List<AnilistCacheEntry>, KumoriyaError>> cacheQuery() =>
         _cacheStore.getByYearAndStatus(
-      request.year,
-      status: 'RELEASING',
-      limit: request.perPage,
-      offset: (request.page - 1) * request.perPage,
-    );
+          request.year,
+          status: 'RELEASING',
+          limit: request.perPage,
+          offset: (request.page - 1) * request.perPage,
+        );
     final fresh = await _tryServeFreshCatalog(
       key,
       const Duration(hours: 8),
@@ -96,10 +96,10 @@ final class CachedAnimeCatalogRepository implements AnimeCatalogRepository {
     final key = 'upcoming:${request.year}:${request.page}:${request.perPage}';
     Future<Result<List<AnilistCacheEntry>, KumoriyaError>> cacheQuery() =>
         _cacheStore.getByStatus(
-      'NOT_YET_RELEASED',
-      limit: request.perPage,
-      offset: (request.page - 1) * request.perPage,
-    );
+          'NOT_YET_RELEASED',
+          limit: request.perPage,
+          offset: (request.page - 1) * request.perPage,
+        );
     final fresh = await _tryServeFreshCatalog(
       key,
       const Duration(hours: 8),
@@ -121,13 +121,14 @@ final class CachedAnimeCatalogRepository implements AnimeCatalogRepository {
   Future<Result<List<Anime>, KumoriyaError>> fetchSeasonRecommendations(
     SeasonalCatalogRequest request,
   ) async {
-    final key = 'recommendations:${request.year}:${request.page}:${request.perPage}';
+    final key =
+        'recommendations:${request.year}:${request.page}:${request.perPage}';
     Future<Result<List<AnilistCacheEntry>, KumoriyaError>> cacheQuery() =>
         _cacheStore.getByYearAndStatus(
-      request.year,
-      limit: request.perPage,
-      offset: (request.page - 1) * request.perPage,
-    );
+          request.year,
+          limit: request.perPage,
+          offset: (request.page - 1) * request.perPage,
+        );
     final fresh = await _tryServeFreshCatalog(
       key,
       const Duration(hours: 12),
@@ -152,13 +153,14 @@ final class CachedAnimeCatalogRepository implements AnimeCatalogRepository {
     int page = 1,
     int perPage = 50,
   }) async {
-    final key = 'calendar:${from?.millisecondsSinceEpoch}:${to?.millisecondsSinceEpoch}:$page:$perPage';
+    final key =
+        'calendar:${from?.millisecondsSinceEpoch}:${to?.millisecondsSinceEpoch}:$page:$perPage';
     Future<Result<List<AnilistCacheEntry>, KumoriyaError>> cacheQuery() =>
         _cacheStore.getByStatus(
-      'RELEASING',
-      limit: perPage,
-      offset: (page - 1) * perPage,
-    );
+          'RELEASING',
+          limit: perPage,
+          offset: (page - 1) * perPage,
+        );
     final fresh = await _tryServeFreshCatalog(
       key,
       const Duration(hours: 6),
@@ -188,13 +190,14 @@ final class CachedAnimeCatalogRepository implements AnimeCatalogRepository {
     int page = 1,
     int perPage = 50,
   }) async {
-    final key = 'calendarSlots:${from?.millisecondsSinceEpoch}:${to?.millisecondsSinceEpoch}:$page:$perPage';
+    final key =
+        'calendarSlots:${from?.millisecondsSinceEpoch}:${to?.millisecondsSinceEpoch}:$page:$perPage';
     Future<Result<List<AnilistCacheEntry>, KumoriyaError>> cacheQuery() =>
         _cacheStore.getByStatus(
-      'RELEASING',
-      limit: perPage,
-      offset: (page - 1) * perPage,
-    );
+          'RELEASING',
+          limit: perPage,
+          offset: (page - 1) * perPage,
+        );
     final fresh = await _tryServeFreshCatalog(
       key,
       const Duration(hours: 6),
@@ -492,7 +495,7 @@ final class CachedAnimeCatalogRepository implements AnimeCatalogRepository {
     String key,
     Duration ttl,
     Future<Result<List<AnilistCacheEntry>, KumoriyaError>> Function()
-        cacheQuery,
+    cacheQuery,
   ) async {
     final lastFetch = _catalogLastFetched[key];
     if (lastFetch == null) return null;
@@ -645,10 +648,9 @@ final class CachedAnimeCatalogRepository implements AnimeCatalogRepository {
           for (final entry in entries) {
             final type = typeByIds[entry.anilistId];
             if (type == null) continue;
-            relations.add(AnimeRelation(
-              type: type,
-              anime: _entryToAnime(entry),
-            ));
+            relations.add(
+              AnimeRelation(type: type, anime: _entryToAnime(entry)),
+            );
           }
           return relations;
         },
@@ -720,9 +722,7 @@ final class CachedAnimeCatalogRepository implements AnimeCatalogRepository {
           titleRomaji: rel.title.romaji,
           titleEnglish: rel.title.english,
           titleNative: rel.title.native,
-          synonyms: rel.title.synonyms.isNotEmpty
-              ? rel.title.synonyms
-              : null,
+          synonyms: rel.title.synonyms.isNotEmpty ? rel.title.synonyms : null,
           coverImageUrl: rel.coverImageUrl,
           bannerImageUrl: rel.bannerImageUrl,
           status: _statusCode(rel.status),
@@ -744,10 +744,9 @@ final class CachedAnimeCatalogRepository implements AnimeCatalogRepository {
     // Serialize relations mapping (anilistId + type).
     final relationsJson = detail.relations.isNotEmpty
         ? jsonEncode(
-            detail.relations.map((r) => {
-              'id': r.anime.anilistId,
-              'type': r.type.name,
-            }).toList(growable: false),
+            detail.relations
+                .map((r) => {'id': r.anime.anilistId, 'type': r.type.name})
+                .toList(growable: false),
           )
         : null;
 
@@ -757,9 +756,7 @@ final class CachedAnimeCatalogRepository implements AnimeCatalogRepository {
         titleRomaji: anime.title.romaji,
         titleEnglish: anime.title.english,
         titleNative: anime.title.native,
-        synonyms: anime.title.synonyms.isNotEmpty
-            ? anime.title.synonyms
-            : null,
+        synonyms: anime.title.synonyms.isNotEmpty ? anime.title.synonyms : null,
         coverImageUrl: anime.coverImageUrl,
         bannerImageUrl: anime.bannerImageUrl,
         status: _statusCode(anime.status),

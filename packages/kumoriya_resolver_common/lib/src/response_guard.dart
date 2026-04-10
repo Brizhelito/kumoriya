@@ -1,4 +1,5 @@
 /// Response guards for resolver HTTP calls.
+library;
 
 import 'dart:convert';
 

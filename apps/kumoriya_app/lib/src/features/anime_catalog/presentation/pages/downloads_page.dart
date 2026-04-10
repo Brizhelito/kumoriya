@@ -106,8 +106,8 @@ class _CompletedTab extends ConsumerWidget {
       stateKey: state.isLoading
           ? 'loading'
           : state.hasError
-              ? 'error'
-              : 'content',
+          ? 'error'
+          : 'content',
       child: state.when(
         loading: () => const LoadingStateView(),
         error: (_, _) => ErrorStateView(
@@ -140,8 +140,8 @@ class _ActiveTab extends ConsumerWidget {
       stateKey: state.isLoading
           ? 'loading'
           : state.hasError
-              ? 'error'
-              : 'content',
+          ? 'error'
+          : 'content',
       child: state.when(
         loading: () => const LoadingStateView(),
         error: (_, _) => ErrorStateView(
@@ -171,8 +171,8 @@ class _QueueTab extends ConsumerWidget {
       stateKey: state.isLoading
           ? 'loading'
           : state.hasError
-              ? 'error'
-              : 'content',
+          ? 'error'
+          : 'content',
       child: state.when(
         loading: () => const LoadingStateView(),
         error: (_, _) => ErrorStateView(

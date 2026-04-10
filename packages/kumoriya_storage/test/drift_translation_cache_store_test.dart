@@ -1,5 +1,4 @@
 import 'package:drift/native.dart';
-import 'package:kumoriya_core/kumoriya_core.dart';
 import 'package:kumoriya_storage/kumoriya_storage.dart';
 import 'package:sqlite3/sqlite3.dart' as sqlite;
 import 'package:test/test.dart';
@@ -7,7 +6,7 @@ import 'package:test/test.dart';
 bool _isSqliteRuntimeAvailable() {
   try {
     final db = sqlite.sqlite3.openInMemory();
-    db.dispose();
+    db.close();
     return true;
   } catch (_) {
     return false;

@@ -29,50 +29,53 @@ final class AnonymousToAuthMigration {
               .value;
       for (final wh in history) {
         final now = DateTime.now().millisecondsSinceEpoch;
-        await syncQueue.enqueue(SyncQueueEntry(
-          id: 0,
-          entityType: SyncEntityType.watchHistory,
-          entityKey: jsonEncode({'anilistId': wh.anilistId}),
-          payload: jsonEncode({
-            'anilist_id': wh.anilistId,
-            'last_episode_number': wh.lastEpisodeNumber,
-            'last_source_plugin_id': wh.lastSourcePluginId,
-            'last_position_seconds': wh.lastPositionSeconds,
-            'last_total_duration_seconds': wh.lastTotalDurationSeconds,
-            'last_accessed_at': now,
-          }),
-          createdAt: DateTime.now(),
-          status: SyncQueueEntryStatus.pending,
-        ));
+        await syncQueue.enqueue(
+          SyncQueueEntry(
+            id: 0,
+            entityType: SyncEntityType.watchHistory,
+            entityKey: jsonEncode({'anilistId': wh.anilistId}),
+            payload: jsonEncode({
+              'anilist_id': wh.anilistId,
+              'last_episode_number': wh.lastEpisodeNumber,
+              'last_source_plugin_id': wh.lastSourcePluginId,
+              'last_position_seconds': wh.lastPositionSeconds,
+              'last_total_duration_seconds': wh.lastTotalDurationSeconds,
+              'last_accessed_at': now,
+            }),
+            createdAt: DateTime.now(),
+            status: SyncQueueEntryStatus.pending,
+          ),
+        );
 
         // Also enqueue any per-episode progress for this anime.
-        final epResult =
-            await progressStore.getAllProgress(wh.anilistId);
+        final epResult = await progressStore.getAllProgress(wh.anilistId);
         if (epResult.isSuccess) {
           final episodes =
               (epResult as Success<List<EpisodeProgress>, KumoriyaError>).value;
           for (final ep in episodes) {
-            await syncQueue.enqueue(SyncQueueEntry(
-              id: 0,
-              entityType: SyncEntityType.episodeProgress,
-              entityKey: jsonEncode({
-                'anilistId': ep.anilistId,
-                'episodeNumber': ep.episodeNumber,
-              }),
-              payload: jsonEncode({
-                'anilist_id': ep.anilistId,
-                'episode_number': ep.episodeNumber,
-                'position_seconds': ep.position.inSeconds,
-                'total_duration_seconds': ep.totalDuration?.inSeconds,
-                'watch_state': ep.watchState.name,
-                'last_source_plugin_id': ep.lastSourcePluginId,
-                'last_server_name': ep.lastServerName,
-                'last_resolver_plugin_id': ep.lastResolverPluginId,
-                'updated_at': ep.updatedAt.millisecondsSinceEpoch,
-              }),
-              createdAt: DateTime.now(),
-              status: SyncQueueEntryStatus.pending,
-            ));
+            await syncQueue.enqueue(
+              SyncQueueEntry(
+                id: 0,
+                entityType: SyncEntityType.episodeProgress,
+                entityKey: jsonEncode({
+                  'anilistId': ep.anilistId,
+                  'episodeNumber': ep.episodeNumber,
+                }),
+                payload: jsonEncode({
+                  'anilist_id': ep.anilistId,
+                  'episode_number': ep.episodeNumber,
+                  'position_seconds': ep.position.inSeconds,
+                  'total_duration_seconds': ep.totalDuration?.inSeconds,
+                  'watch_state': ep.watchState.name,
+                  'last_source_plugin_id': ep.lastSourcePluginId,
+                  'last_server_name': ep.lastServerName,
+                  'last_resolver_plugin_id': ep.lastResolverPluginId,
+                  'updated_at': ep.updatedAt.millisecondsSinceEpoch,
+                }),
+                createdAt: DateTime.now(),
+                status: SyncQueueEntryStatus.pending,
+              ),
+            );
           }
         }
       }
@@ -88,32 +91,39 @@ final class AnonymousToAuthMigration {
     subResult.fold(onSuccess: allIds.addAll, onFailure: (_) {});
     autoResult.fold(onSuccess: allIds.addAll, onFailure: (_) {});
 
-    final favSet =
-        favResult.fold(onSuccess: (s) => s, onFailure: (_) => <int>{});
-    final subSet =
-        subResult.fold(onSuccess: (s) => s, onFailure: (_) => <int>{});
-    final autoSet =
-        autoResult.fold(onSuccess: (s) => s, onFailure: (_) => <int>{});
+    final favSet = favResult.fold(
+      onSuccess: (s) => s,
+      onFailure: (_) => <int>{},
+    );
+    final subSet = subResult.fold(
+      onSuccess: (s) => s,
+      onFailure: (_) => <int>{},
+    );
+    final autoSet = autoResult.fold(
+      onSuccess: (s) => s,
+      onFailure: (_) => <int>{},
+    );
 
     for (final id in allIds) {
-      final audioPref =
-          await libraryStore.getAutoDownloadAudioPreference(id);
+      final audioPref = await libraryStore.getAutoDownloadAudioPreference(id);
       final now = DateTime.now().millisecondsSinceEpoch;
-      await syncQueue.enqueue(SyncQueueEntry(
-        id: 0,
-        entityType: SyncEntityType.libraryEntry,
-        entityKey: jsonEncode({'anilistId': id}),
-        payload: jsonEncode({
-          'anilist_id': id,
-          'is_favorite': favSet.contains(id),
-          'added_at': now,
-          'notify_new_episodes': subSet.contains(id),
-          'auto_download_new_episodes': autoSet.contains(id),
-          'auto_download_audio_preference': audioPref ?? 'none',
-        }),
-        createdAt: DateTime.now(),
-        status: SyncQueueEntryStatus.pending,
-      ));
+      await syncQueue.enqueue(
+        SyncQueueEntry(
+          id: 0,
+          entityType: SyncEntityType.libraryEntry,
+          entityKey: jsonEncode({'anilistId': id}),
+          payload: jsonEncode({
+            'anilist_id': id,
+            'is_favorite': favSet.contains(id),
+            'added_at': now,
+            'notify_new_episodes': subSet.contains(id),
+            'auto_download_new_episodes': autoSet.contains(id),
+            'auto_download_audio_preference': audioPref ?? 'none',
+          }),
+          createdAt: DateTime.now(),
+          status: SyncQueueEntryStatus.pending,
+        ),
+      );
     }
 
     // 3. Enqueue all playback preferences.
@@ -130,28 +140,29 @@ final class AnonymousToAuthMigration {
     knownAnimeIds.addAll(allIds);
 
     for (final anilistId in knownAnimeIds) {
-      final prefResult =
-          await progressStore.getPlaybackPreference(anilistId);
+      final prefResult = await progressStore.getPlaybackPreference(anilistId);
       prefResult.fold(
         onSuccess: (pref) async {
           if (pref != null) {
-            await syncQueue.enqueue(SyncQueueEntry(
-              id: 0,
-              entityType: SyncEntityType.playbackPreference,
-              entityKey: jsonEncode({'anilistId': anilistId}),
-              payload: jsonEncode({
-                'anilist_id': anilistId,
-                'preferred_source_plugin_id': pref.preferredSourcePluginId,
-                'preferred_server_name': pref.preferredServerName,
-                'preferred_resolver_plugin_id':
-                    pref.preferredResolverPluginId,
-                'preferred_audio_preference':
-                    pref.preferredAudioPreference?.name,
-                'updated_at': pref.updatedAt.millisecondsSinceEpoch,
-              }),
-              createdAt: DateTime.now(),
-              status: SyncQueueEntryStatus.pending,
-            ));
+            await syncQueue.enqueue(
+              SyncQueueEntry(
+                id: 0,
+                entityType: SyncEntityType.playbackPreference,
+                entityKey: jsonEncode({'anilistId': anilistId}),
+                payload: jsonEncode({
+                  'anilist_id': anilistId,
+                  'preferred_source_plugin_id': pref.preferredSourcePluginId,
+                  'preferred_server_name': pref.preferredServerName,
+                  'preferred_resolver_plugin_id':
+                      pref.preferredResolverPluginId,
+                  'preferred_audio_preference':
+                      pref.preferredAudioPreference?.name,
+                  'updated_at': pref.updatedAt.millisecondsSinceEpoch,
+                }),
+                createdAt: DateTime.now(),
+                status: SyncQueueEntryStatus.pending,
+              ),
+            );
           }
         },
         onFailure: (_) {},

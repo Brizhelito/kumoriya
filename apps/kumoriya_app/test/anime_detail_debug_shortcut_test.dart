@@ -74,8 +74,8 @@ AnimeDetail _detail(int anilistId) {
       format: AnimeFormat.tv,
       status: AnimeStatus.releasing,
       totalEpisodes: 12,
+      synopsis: 'Debug synopsis',
     ),
-    synopsis: 'Debug synopsis',
     episodes: const <AnimeEpisode>[AnimeEpisode(number: 1, title: 'Episode 1')],
   );
 }

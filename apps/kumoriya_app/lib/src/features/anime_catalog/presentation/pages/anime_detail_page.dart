@@ -503,6 +503,7 @@ class _PlayResumeCtaState extends ConsumerState<_PlayResumeCta> {
       );
     }
 
+    if (!mounted) return;
     setState(() => _isLaunching = true);
     showBlockingLoader(context, context.l10n.playbackPreparing);
 
@@ -1695,7 +1696,7 @@ class _DetailPageSelector extends StatelessWidget {
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         itemCount: pageCount,
-        separatorBuilder: (_, __) => const SizedBox(width: 6),
+        separatorBuilder: (_, _) => const SizedBox(width: 6),
         itemBuilder: (context, index) {
           final start = index * pageSize + 1;
           final end = ((index + 1) * pageSize).clamp(0, totalRows);

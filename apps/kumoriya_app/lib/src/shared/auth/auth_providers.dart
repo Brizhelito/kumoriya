@@ -19,7 +19,9 @@ final authServiceProvider = Provider<AuthService>((_) {
   return HttpAuthService(baseUrl: _apiBaseUrl);
 });
 
-final authenticatedHttpClientProvider = Provider<AuthenticatedHttpClient>((ref) {
+final authenticatedHttpClientProvider = Provider<AuthenticatedHttpClient>((
+  ref,
+) {
   final tokenStore = ref.watch(secureTokenStoreProvider);
   final client = AuthenticatedHttpClient(
     tokenStore: tokenStore,
@@ -51,8 +53,9 @@ final authenticatedHttpClientProvider = Provider<AuthenticatedHttpClient>((ref) 
   return client;
 });
 
-final authStateProvider =
-    AsyncNotifierProvider<AuthStateNotifier, AuthState>(AuthStateNotifier.new);
+final authStateProvider = AsyncNotifierProvider<AuthStateNotifier, AuthState>(
+  AuthStateNotifier.new,
+);
 
 class AuthStateNotifier extends AsyncNotifier<AuthState> {
   @override
@@ -120,9 +123,7 @@ class AuthStateNotifier extends AsyncNotifier<AuthState> {
     final currentState = state.value;
     if (currentState is AuthenticatedAuthState) {
       final authService = ref.read(authServiceProvider);
-      await authService.logout(
-        refreshToken: currentState.tokens.refreshToken,
-      );
+      await authService.logout(refreshToken: currentState.tokens.refreshToken);
     }
 
     final store = ref.read(secureTokenStoreProvider);

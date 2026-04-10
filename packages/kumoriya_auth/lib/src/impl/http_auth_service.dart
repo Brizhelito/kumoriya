@@ -12,8 +12,8 @@ import '../models/user.dart';
 /// Concrete [AuthService] that talks to the Kumoriya Go backend over HTTP.
 final class HttpAuthService implements AuthService {
   HttpAuthService({required String baseUrl, http.Client? client})
-      : _baseUrl = baseUrl,
-        _client = client ?? http.Client();
+    : _baseUrl = baseUrl,
+      _client = client ?? http.Client();
 
   final String _baseUrl;
   final http.Client _client;
@@ -25,13 +25,16 @@ final class HttpAuthService implements AuthService {
     String? deviceName,
   }) async {
     try {
-      final providerName = provider == OAuthProvider.discord ? 'discord' : 'google';
+      final providerName = provider == OAuthProvider.discord
+          ? 'discord'
+          : 'google';
       final queryParams = <String, String>{
         'redirect_uri': callbackUri.toString(),
         if (deviceName != null) 'device_name': deviceName,
       };
-      final uri = Uri.parse('$_baseUrl/auth/oauth/$providerName')
-          .replace(queryParameters: queryParams);
+      final uri = Uri.parse(
+        '$_baseUrl/auth/oauth/$providerName',
+      ).replace(queryParameters: queryParams);
 
       // We need to get the redirect URL without following it.
       final request = http.Request('GET', uri)..followRedirects = false;
@@ -45,17 +48,21 @@ final class HttpAuthService implements AuthService {
         }
       }
 
-      return const Failure(SimpleError(
-        code: 'auth.oauth.no_redirect',
-        message: 'Server did not return a redirect URL',
-        kind: KumoriyaErrorKind.unexpected,
-      ));
+      return const Failure(
+        SimpleError(
+          code: 'auth.oauth.no_redirect',
+          message: 'Server did not return a redirect URL',
+          kind: KumoriyaErrorKind.unexpected,
+        ),
+      );
     } catch (e) {
-      return Failure(SimpleError(
-        code: 'auth.oauth.begin_failed',
-        message: 'Failed to begin OAuth: $e',
-        kind: KumoriyaErrorKind.transport,
-      ));
+      return Failure(
+        SimpleError(
+          code: 'auth.oauth.begin_failed',
+          message: 'Failed to begin OAuth: $e',
+          kind: KumoriyaErrorKind.transport,
+        ),
+      );
     }
   }
 
@@ -71,11 +78,13 @@ final class HttpAuthService implements AuthService {
 
       if (accessToken == null || refreshToken == null || userId == null) {
         final error = callbackUri.queryParameters['error'];
-        return Failure(SimpleError(
-          code: 'auth.oauth.incomplete',
-          message: error ?? 'Missing tokens in callback',
-          kind: KumoriyaErrorKind.unexpected,
-        ));
+        return Failure(
+          SimpleError(
+            code: 'auth.oauth.incomplete',
+            message: error ?? 'Missing tokens in callback',
+            kind: KumoriyaErrorKind.unexpected,
+          ),
+        );
       }
 
       final expiresSeconds = int.tryParse(expiresIn ?? '900') ?? 900;
@@ -88,18 +97,18 @@ final class HttpAuthService implements AuthService {
       // Fetch user profile with the new token.
       final userResult = await _fetchProfile(accessToken);
       return userResult.fold(
-        onSuccess: (user) => Success(AuthenticatedAuthState(
-          user: user,
-          tokens: tokens,
-        )),
+        onSuccess: (user) =>
+            Success(AuthenticatedAuthState(user: user, tokens: tokens)),
         onFailure: (error) => Failure(error),
       );
     } catch (e) {
-      return Failure(SimpleError(
-        code: 'auth.oauth.complete_failed',
-        message: 'Failed to complete OAuth: $e',
-        kind: KumoriyaErrorKind.transport,
-      ));
+      return Failure(
+        SimpleError(
+          code: 'auth.oauth.complete_failed',
+          message: 'Failed to complete OAuth: $e',
+          kind: KumoriyaErrorKind.transport,
+        ),
+      );
     }
   }
 
@@ -112,42 +121,47 @@ final class HttpAuthService implements AuthService {
       final response = await _client.post(
         Uri.parse('$_baseUrl/auth/refresh'),
         headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          'refresh_token': refreshToken,
-          'user_id': userId,
-        }),
+        body: jsonEncode({'refresh_token': refreshToken, 'user_id': userId}),
       );
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body) as Map<String, dynamic>;
-        return Success(TokenPair(
-          accessToken: data['access_token'] as String,
-          refreshToken: data['refresh_token'] as String,
-          expiresAt: DateTime.now().add(
-            Duration(seconds: (data['expires_in'] as num?)?.toInt() ?? 900),
+        return Success(
+          TokenPair(
+            accessToken: data['access_token'] as String,
+            refreshToken: data['refresh_token'] as String,
+            expiresAt: DateTime.now().add(
+              Duration(seconds: (data['expires_in'] as num?)?.toInt() ?? 900),
+            ),
           ),
-        ));
+        );
       }
 
       if (response.statusCode == 401) {
-        return const Failure(SimpleError(
-          code: 'auth.refresh.expired',
-          message: 'Session expired, please log in again',
-          kind: KumoriyaErrorKind.cancelled,
-        ));
+        return const Failure(
+          SimpleError(
+            code: 'auth.refresh.expired',
+            message: 'Session expired, please log in again',
+            kind: KumoriyaErrorKind.cancelled,
+          ),
+        );
       }
 
-      return Failure(SimpleError(
-        code: 'auth.refresh.failed',
-        message: 'Refresh failed: ${response.statusCode}',
-        kind: KumoriyaErrorKind.transport,
-      ));
+      return Failure(
+        SimpleError(
+          code: 'auth.refresh.failed',
+          message: 'Refresh failed: ${response.statusCode}',
+          kind: KumoriyaErrorKind.transport,
+        ),
+      );
     } catch (e) {
-      return Failure(SimpleError(
-        code: 'auth.refresh.transport',
-        message: 'Network error during refresh: $e',
-        kind: KumoriyaErrorKind.transport,
-      ));
+      return Failure(
+        SimpleError(
+          code: 'auth.refresh.transport',
+          message: 'Network error during refresh: $e',
+          kind: KumoriyaErrorKind.transport,
+        ),
+      );
     }
   }
 
@@ -155,33 +169,39 @@ final class HttpAuthService implements AuthService {
   Future<Result<void, KumoriyaError>> beginPasskeyRegistration() async {
     // Passkey registration requires platform authenticator APIs.
     // This is a stub — full implementation needs webauthn client library.
-    return const Failure(SimpleError(
-      code: 'auth.passkey.not_implemented',
-      message: 'Passkey registration not yet implemented on client',
-      kind: KumoriyaErrorKind.unexpected,
-    ));
+    return const Failure(
+      SimpleError(
+        code: 'auth.passkey.not_implemented',
+        message: 'Passkey registration not yet implemented on client',
+        kind: KumoriyaErrorKind.unexpected,
+      ),
+    );
   }
 
   @override
   Future<Result<void, KumoriyaError>> finishPasskeyRegistration(
     Object payload,
   ) async {
-    return const Failure(SimpleError(
-      code: 'auth.passkey.not_implemented',
-      message: 'Passkey registration not yet implemented on client',
-      kind: KumoriyaErrorKind.unexpected,
-    ));
+    return const Failure(
+      SimpleError(
+        code: 'auth.passkey.not_implemented',
+        message: 'Passkey registration not yet implemented on client',
+        kind: KumoriyaErrorKind.unexpected,
+      ),
+    );
   }
 
   @override
   Future<Result<void, KumoriyaError>> beginPasskeyAuthentication({
     required String userId,
   }) async {
-    return const Failure(SimpleError(
-      code: 'auth.passkey.not_implemented',
-      message: 'Passkey authentication not yet implemented on client',
-      kind: KumoriyaErrorKind.unexpected,
-    ));
+    return const Failure(
+      SimpleError(
+        code: 'auth.passkey.not_implemented',
+        message: 'Passkey authentication not yet implemented on client',
+        kind: KumoriyaErrorKind.unexpected,
+      ),
+    );
   }
 
   @override
@@ -190,11 +210,13 @@ final class HttpAuthService implements AuthService {
     required Object payload,
     String? deviceName,
   }) async {
-    return const Failure(SimpleError(
-      code: 'auth.passkey.not_implemented',
-      message: 'Passkey authentication not yet implemented on client',
-      kind: KumoriyaErrorKind.unexpected,
-    ));
+    return const Failure(
+      SimpleError(
+        code: 'auth.passkey.not_implemented',
+        message: 'Passkey authentication not yet implemented on client',
+        kind: KumoriyaErrorKind.unexpected,
+      ),
+    );
   }
 
   @override
@@ -237,26 +259,32 @@ final class HttpAuthService implements AuthService {
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body) as Map<String, dynamic>;
         final userData = data['user'] as Map<String, dynamic>;
-        return Success(AuthUser(
-          id: userData['id'] as String,
-          displayName: userData['display_name'] as String,
-          avatarUrl: userData['avatar_url'] != null
-              ? Uri.tryParse(userData['avatar_url'] as String)
-              : null,
-        ));
+        return Success(
+          AuthUser(
+            id: userData['id'] as String,
+            displayName: userData['display_name'] as String,
+            avatarUrl: userData['avatar_url'] != null
+                ? Uri.tryParse(userData['avatar_url'] as String)
+                : null,
+          ),
+        );
       }
 
-      return Failure(SimpleError(
-        code: 'auth.profile.fetch_failed',
-        message: 'Failed to fetch profile: ${response.statusCode}',
-        kind: KumoriyaErrorKind.transport,
-      ));
+      return Failure(
+        SimpleError(
+          code: 'auth.profile.fetch_failed',
+          message: 'Failed to fetch profile: ${response.statusCode}',
+          kind: KumoriyaErrorKind.transport,
+        ),
+      );
     } catch (e) {
-      return Failure(SimpleError(
-        code: 'auth.profile.transport',
-        message: 'Network error fetching profile: $e',
-        kind: KumoriyaErrorKind.transport,
-      ));
+      return Failure(
+        SimpleError(
+          code: 'auth.profile.transport',
+          message: 'Network error fetching profile: $e',
+          kind: KumoriyaErrorKind.transport,
+        ),
+      );
     }
   }
 }

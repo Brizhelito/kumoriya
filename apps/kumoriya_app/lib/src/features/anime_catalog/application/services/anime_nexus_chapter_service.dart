@@ -425,7 +425,7 @@ final class AnimeNexusChapterService {
     return <String, String>{
       ..._apiHeaders(),
       'sec-fetch-site': 'same-origin',
-      if (cookieHeader != null) 'Cookie': cookieHeader,
+      'Cookie': ?cookieHeader,
     };
   }
 
@@ -440,7 +440,7 @@ final class AnimeNexusChapterService {
       'sec-fetch-site': 'none',
       'User-Agent': _apiHeaders()['User-Agent']!,
       'Accept-Language': _apiHeaders()['Accept-Language']!,
-      if (cookieHeader != null) 'Cookie': cookieHeader,
+      'Cookie': ?cookieHeader,
     };
   }
 
@@ -452,7 +452,7 @@ final class AnimeNexusChapterService {
       ..._apiHeaders(),
       'x-client-fingerprint': fingerprint,
       'x-fingerprint': fingerprint,
-      if (cookieHeader != null) 'Cookie': cookieHeader,
+      'Cookie': ?cookieHeader,
     };
   }
 
@@ -464,7 +464,7 @@ final class AnimeNexusChapterService {
       ..._apiHeaders(),
       'x-client-fingerprint': fingerprint,
       'x-fingerprint': fingerprint,
-      if (cookieHeader != null) 'Cookie': cookieHeader,
+      'Cookie': ?cookieHeader,
     };
   }
 

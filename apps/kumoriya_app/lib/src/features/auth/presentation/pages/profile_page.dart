@@ -12,18 +12,18 @@ import '../../../../shared/theme/kumoriya_theme.dart';
 /// Profile details fetched from the backend.
 final _profileDetailsProvider =
     FutureProvider.autoDispose<Map<String, dynamic>?>((ref) async {
-  final isAuth = ref.watch(isAuthenticatedProvider);
-  if (!isAuth) return null;
+      final isAuth = ref.watch(isAuthenticatedProvider);
+      if (!isAuth) return null;
 
-  final client = ref.read(authenticatedHttpClientProvider);
-  try {
-    final response = await client.getJson('/api/v1/profile');
-    if (response.statusCode == 200) {
-      return jsonDecode(response.body) as Map<String, dynamic>;
-    }
-  } catch (_) {}
-  return null;
-});
+      final client = ref.read(authenticatedHttpClientProvider);
+      try {
+        final response = await client.getJson('/api/v1/profile');
+        if (response.statusCode == 200) {
+          return jsonDecode(response.body) as Map<String, dynamic>;
+        }
+      } catch (_) {}
+      return null;
+    });
 
 class ProfilePage extends ConsumerWidget {
   const ProfilePage({super.key});
@@ -45,15 +45,24 @@ class ProfilePage extends ConsumerWidget {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(Icons.person_outline, size: 64, color: KumoriyaColors.textMuted),
+              const Icon(
+                Icons.person_outline,
+                size: 64,
+                color: KumoriyaColors.textMuted,
+              ),
               const SizedBox(height: 16),
-              Text('Not signed in', style: TextStyle(color: KumoriyaColors.textSecondary)),
+              Text(
+                'Not signed in',
+                style: TextStyle(color: KumoriyaColors.textSecondary),
+              ),
               const SizedBox(height: 24),
               ElevatedButton(
                 onPressed: () {
-                  Navigator.of(context).push(MaterialPageRoute<void>(
-                    builder: (_) => const _LoginRedirectPage(),
-                  ));
+                  Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => const _LoginRedirectPage(),
+                    ),
+                  );
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: KumoriyaColors.primary,
@@ -131,22 +140,27 @@ class ProfilePage extends ConsumerWidget {
           profileAsync.when(
             data: (profile) {
               final accounts =
-                  (profile?['linked_accounts'] as List?)?.cast<Map<String, dynamic>>() ?? [];
+                  (profile?['linked_accounts'] as List?)
+                      ?.cast<Map<String, dynamic>>() ??
+                  [];
               if (accounts.isEmpty) {
                 return const _EmptyCard('No linked accounts');
               }
               return Column(
                 children: accounts.map((a) {
                   return _InfoTile(
-                    icon: a['provider'] == 'discord' ? Icons.discord : Icons.account_circle,
-                    title: (a['provider'] as String?)?.toUpperCase() ?? 'Unknown',
+                    icon: a['provider'] == 'discord'
+                        ? Icons.discord
+                        : Icons.account_circle,
+                    title:
+                        (a['provider'] as String?)?.toUpperCase() ?? 'Unknown',
                     subtitle: a['email'] as String? ?? 'No email',
                   );
                 }).toList(),
               );
             },
             loading: () => const _LoadingCard(),
-            error: (_, __) => const _EmptyCard('Could not load accounts'),
+            error: (_, _) => const _EmptyCard('Could not load accounts'),
           ),
           const SizedBox(height: 24),
 
@@ -155,7 +169,9 @@ class ProfilePage extends ConsumerWidget {
           profileAsync.when(
             data: (profile) {
               final sessions =
-                  (profile?['active_sessions'] as List?)?.cast<Map<String, dynamic>>() ?? [];
+                  (profile?['active_sessions'] as List?)
+                      ?.cast<Map<String, dynamic>>() ??
+                  [];
               if (sessions.isEmpty) {
                 return const _EmptyCard('No active sessions');
               }
@@ -170,7 +186,7 @@ class ProfilePage extends ConsumerWidget {
               );
             },
             loading: () => const _LoadingCard(),
-            error: (_, __) => const _EmptyCard('Could not load sessions'),
+            error: (_, _) => const _EmptyCard('Could not load sessions'),
           ),
           const SizedBox(height: 24),
 
@@ -179,7 +195,9 @@ class ProfilePage extends ConsumerWidget {
           profileAsync.when(
             data: (profile) {
               final passkeys =
-                  (profile?['registered_passkeys'] as List?)?.cast<Map<String, dynamic>>() ?? [];
+                  (profile?['registered_passkeys'] as List?)
+                      ?.cast<Map<String, dynamic>>() ??
+                  [];
               if (passkeys.isEmpty) {
                 return const _EmptyCard('No passkeys registered');
               }
@@ -194,7 +212,7 @@ class ProfilePage extends ConsumerWidget {
               );
             },
             loading: () => const _LoadingCard(),
-            error: (_, __) => const _EmptyCard('Could not load passkeys'),
+            error: (_, _) => const _EmptyCard('Could not load passkeys'),
           ),
           const SizedBox(height: 24),
 
@@ -212,7 +230,9 @@ class ProfilePage extends ConsumerWidget {
           ),
           const SizedBox(height: 12),
           ElevatedButton.icon(
-            onPressed: syncStatus == SyncStatus.pushing || syncStatus == SyncStatus.pulling
+            onPressed:
+                syncStatus == SyncStatus.pushing ||
+                    syncStatus == SyncStatus.pulling
                 ? null
                 : () => ref.read(syncTriggerProvider).fullSync(),
             icon: const Icon(Icons.sync, size: 18),
@@ -245,7 +265,10 @@ class ProfilePage extends ConsumerWidget {
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: KumoriyaColors.surface,
-        title: const Text('Log out', style: TextStyle(color: KumoriyaColors.textPrimary)),
+        title: const Text(
+          'Log out',
+          style: TextStyle(color: KumoriyaColors.textPrimary),
+        ),
         content: const Text(
           'Your local data will be kept.',
           style: TextStyle(color: KumoriyaColors.textSecondary),
@@ -261,7 +284,10 @@ class ProfilePage extends ConsumerWidget {
               ref.read(authStateProvider.notifier).logout();
               Navigator.of(context).pop();
             },
-            child: const Text('Log out', style: TextStyle(color: KumoriyaColors.statusDanger)),
+            child: const Text(
+              'Log out',
+              style: TextStyle(color: KumoriyaColors.statusDanger),
+            ),
           ),
         ],
       ),
@@ -273,7 +299,10 @@ class ProfilePage extends ConsumerWidget {
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: KumoriyaColors.surface,
-        title: const Text('Delete Account', style: TextStyle(color: KumoriyaColors.statusDanger)),
+        title: const Text(
+          'Delete Account',
+          style: TextStyle(color: KumoriyaColors.statusDanger),
+        ),
         content: const Text(
           'This will permanently delete your account and all synced data. This cannot be undone.',
           style: TextStyle(color: KumoriyaColors.textSecondary),
@@ -291,7 +320,10 @@ class ProfilePage extends ConsumerWidget {
               await ref.read(authStateProvider.notifier).logout();
               if (context.mounted) Navigator.of(context).pop();
             },
-            child: const Text('Delete', style: TextStyle(color: KumoriyaColors.statusDanger)),
+            child: const Text(
+              'Delete',
+              style: TextStyle(color: KumoriyaColors.statusDanger),
+            ),
           ),
         ],
       ),
@@ -356,10 +388,22 @@ class _InfoTile extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(title, style: const TextStyle(color: KumoriyaColors.textPrimary, fontWeight: FontWeight.w600)),
+                Text(
+                  title,
+                  style: const TextStyle(
+                    color: KumoriyaColors.textPrimary,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
                 if (subtitle.isNotEmpty) ...[
                   const SizedBox(height: 2),
-                  Text(subtitle, style: const TextStyle(color: KumoriyaColors.textMuted, fontSize: 12)),
+                  Text(
+                    subtitle,
+                    style: const TextStyle(
+                      color: KumoriyaColors.textMuted,
+                      fontSize: 12,
+                    ),
+                  ),
                 ],
               ],
             ),
@@ -384,7 +428,10 @@ class _EmptyCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(12),
       ),
       child: Center(
-        child: Text(message, style: const TextStyle(color: KumoriyaColors.textMuted)),
+        child: Text(
+          message,
+          style: const TextStyle(color: KumoriyaColors.textMuted),
+        ),
       ),
     );
   }
@@ -406,7 +453,10 @@ class _LoadingCard extends StatelessWidget {
         child: SizedBox(
           width: 20,
           height: 20,
-          child: CircularProgressIndicator(strokeWidth: 2, color: KumoriyaColors.primary),
+          child: CircularProgressIndicator(
+            strokeWidth: 2,
+            color: KumoriyaColors.primary,
+          ),
         ),
       ),
     );

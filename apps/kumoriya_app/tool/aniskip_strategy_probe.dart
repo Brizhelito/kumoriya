@@ -110,7 +110,7 @@ Future<void> main() async {
     var totalApiCalls = 0;
     var testedPairs = 0;
 
-    for (final (name, anilistId) in validAnime) {
+    for (final (_, anilistId) in validAnime) {
       final malId = malIds[anilistId]!;
       // Test episodes 1-3
       for (var ep = 1; ep <= 3; ep++) {
@@ -136,16 +136,12 @@ Future<void> main() async {
             }
 
             totalApiCalls++;
-            final segments = await _fetchAniSkip(
-              client,
-              malId,
-              ep,
-              length,
-            );
+            final segments = await _fetchAniSkip(client, malId, ep, length);
 
             for (final s in segments) {
-              final skipType =
-                  (s['skip_type'] ?? s['skipType'] ?? '').toString().toLowerCase();
+              final skipType = (s['skip_type'] ?? s['skipType'] ?? '')
+                  .toString()
+                  .toLowerCase();
               if (skipType == 'op') gotOp = true;
               if (skipType == 'ed') gotEd = true;
             }
@@ -155,7 +151,9 @@ Future<void> main() async {
 
           // For fixed/no_length strategies, only try once (no baseLen variation)
           if (offsets.length == 1 &&
-              (offsets[0] == -9999 || offsets[0] == -8888 || offsets[0] == -7777)) {
+              (offsets[0] == -9999 ||
+                  offsets[0] == -8888 ||
+                  offsets[0] == -7777)) {
             break;
           }
         }
@@ -179,9 +177,11 @@ Future<void> main() async {
       totalApiCalls: totalApiCalls,
     );
 
-    print('Strategy "$stratName" done: '
-        'OP=$totalOp ED=$totalEd BOTH=$totalBoth ANY=$totalAny '
-        'of $testedPairs pairs ($totalApiCalls API calls)');
+    print(
+      'Strategy "$stratName" done: '
+      'OP=$totalOp ED=$totalEd BOTH=$totalBoth ANY=$totalAny '
+      'of $testedPairs pairs ($totalApiCalls API calls)',
+    );
   }
 
   // Final summary
@@ -189,15 +189,17 @@ Future<void> main() async {
   print('═══════════════════════════════════════════════════════════════');
   print('STRATEGY COMPARISON (${validAnime.length} anime × 3 episodes)');
   print('═══════════════════════════════════════════════════════════════');
-  print('${'Strategy'.padRight(28)} '
-      '${'OP'.padLeft(4)} '
-      '${'ED'.padLeft(4)} '
-      '${'Both'.padLeft(5)} '
-      '${'Any'.padLeft(4)} '
-      '${'API'.padLeft(5)} '
-      '${'OP%'.padLeft(6)} '
-      '${'ED%'.padLeft(6)} '
-      '${'Any%'.padLeft(6)}');
+  print(
+    '${'Strategy'.padRight(28)} '
+    '${'OP'.padLeft(4)} '
+    '${'ED'.padLeft(4)} '
+    '${'Both'.padLeft(5)} '
+    '${'Any'.padLeft(4)} '
+    '${'API'.padLeft(5)} '
+    '${'OP%'.padLeft(6)} '
+    '${'ED%'.padLeft(6)} '
+    '${'Any%'.padLeft(6)}',
+  );
   print('-' * 78);
 
   for (final entry in strategyResults.entries) {
@@ -206,15 +208,17 @@ Future<void> main() async {
     final opPct = (100.0 * r.totalOp / r.testedPairs).toStringAsFixed(1);
     final edPct = (100.0 * r.totalEd / r.testedPairs).toStringAsFixed(1);
     final anyPct = (100.0 * r.totalAny / r.testedPairs).toStringAsFixed(1);
-    print('$n '
-        '${r.totalOp.toString().padLeft(4)} '
-        '${r.totalEd.toString().padLeft(4)} '
-        '${r.totalBoth.toString().padLeft(5)} '
-        '${r.totalAny.toString().padLeft(4)} '
-        '${r.totalApiCalls.toString().padLeft(5)} '
-        '${opPct.padLeft(6)} '
-        '${edPct.padLeft(6)} '
-        '${anyPct.padLeft(6)}');
+    print(
+      '$n '
+      '${r.totalOp.toString().padLeft(4)} '
+      '${r.totalEd.toString().padLeft(4)} '
+      '${r.totalBoth.toString().padLeft(5)} '
+      '${r.totalAny.toString().padLeft(4)} '
+      '${r.totalApiCalls.toString().padLeft(5)} '
+      '${opPct.padLeft(6)} '
+      '${edPct.padLeft(6)} '
+      '${anyPct.padLeft(6)}',
+    );
   }
 
   client.close();
@@ -242,12 +246,17 @@ query($id: Int) {
 }
 ''';
   try {
-    final request =
-        await client.postUrl(Uri.parse('https://graphql.anilist.co'));
+    final request = await client.postUrl(
+      Uri.parse('https://graphql.anilist.co'),
+    );
     request.headers.set('Content-Type', 'application/json');
     request.headers.set('Accept', 'application/json');
-    request
-        .write(jsonEncode({'query': query, 'variables': {'id': anilistId}}));
+    request.write(
+      jsonEncode({
+        'query': query,
+        'variables': {'id': anilistId},
+      }),
+    );
     final response = await request.close();
     final body = await response.transform(utf8.decoder).join();
     if (response.statusCode != 200) return null;
@@ -265,8 +274,9 @@ Future<List<Map<String, dynamic>>> _fetchAniSkip(
   int episodeNumber,
   int? episodeLengthSeconds,
 ) async {
-  final lengthParam =
-      episodeLengthSeconds != null ? '&episodeLength=$episodeLengthSeconds' : '';
+  final lengthParam = episodeLengthSeconds != null
+      ? '&episodeLength=$episodeLengthSeconds'
+      : '';
   final uri = Uri.parse(
     'https://api.aniskip.com/v2/skip-times/$malId/$episodeNumber?types[]=op&types[]=ed$lengthParam',
   );

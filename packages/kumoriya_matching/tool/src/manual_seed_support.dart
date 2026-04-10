@@ -88,7 +88,7 @@ final class ManualSeedRow {
       return null;
     }
     return SourceSeriesRecord(
-      recordId: '$source:${_sourceSeriesId}',
+      recordId: '$source:$_sourceSeriesId',
       sourceId: source,
       sourceSeriesId: _sourceSeriesId,
       primaryTitle: candidateTitle!,
@@ -454,9 +454,7 @@ ManualSeedRowEvaluation _evaluateRow(
 }) {
   final decision = _resolveAgainstCandidates(
     canonical: row.toCanonicalSeries(),
-    candidates: [
-      if (row.toSourceSeriesRecord() case final candidate?) candidate,
-    ],
+    candidates: [?row.toSourceSeriesRecord()],
     config: config,
   );
 

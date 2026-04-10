@@ -28,9 +28,9 @@ void main() async {
     // Step 1: Create browser session
     final rng = Random.secure();
     String hex(int bytes) => List<String>.generate(
-          bytes,
-          (_) => rng.nextInt(256).toRadixString(16).padLeft(2, '0'),
-        ).join();
+      bytes,
+      (_) => rng.nextInt(256).toRadixString(16).padLeft(2, '0'),
+    ).join();
 
     final fingerprint = _uuidV4(rng, hex);
     var cookieHeader = 'sid=${hex(16)}';
@@ -44,8 +44,7 @@ void main() async {
     final pageResult = await _scrapeWatchPage(client, watchUrl, cookieHeader);
     final episodeId = pageResult['episodeId']!;
     final attestRef = pageResult['attestRef']!;
-    cookieHeader =
-        _mergeCookies(cookieHeader, pageResult['setCookies'] ?? '');
+    cookieHeader = _mergeCookies(cookieHeader, pageResult['setCookies'] ?? '');
     print('  episodeId: $episodeId');
     print('  attestRef: ${attestRef.substring(0, 16)}...');
     print('  cookieHeader: $cookieHeader');
@@ -60,17 +59,27 @@ void main() async {
 
     // 3b: Episode view bootstrap
     final viewCookies = await _bootstrapEpisodeView(
-        client, episodeId, cookieHeader, fingerprint);
+      client,
+      episodeId,
+      cookieHeader,
+      fingerprint,
+    );
     cookieHeader = _mergeCookies(cookieHeader, viewCookies);
     print('  after episode view: $cookieHeader');
 
     // 3c: Stream data request
-    final streamResult =
-        await _fetchStreamData(client, episodeId, cookieHeader, fingerprint);
+    final streamResult = await _fetchStreamData(
+      client,
+      episodeId,
+      cookieHeader,
+      fingerprint,
+    );
     final hlsUrl = streamResult['hlsUrl']!;
     final videoId = streamResult['videoId']!;
-    cookieHeader =
-        _mergeCookies(cookieHeader, streamResult['setCookies'] ?? '');
+    cookieHeader = _mergeCookies(
+      cookieHeader,
+      streamResult['setCookies'] ?? '',
+    );
     print('  hlsUrl: $hlsUrl');
     print('  videoId: $videoId');
     print('  cookieHeader: $cookieHeader');
@@ -121,14 +130,16 @@ void main() async {
         if (msg == '3') return;
         if (msg.startsWith('40/video,')) {
           print(
-              '  <- Namespace connect ACK: ${msg.substring(0, _min(80, msg.length))}');
+            '  <- Namespace connect ACK: ${msg.substring(0, _min(80, msg.length))}',
+          );
           if (!namespaceReady.isCompleted) namespaceReady.complete();
           return;
         }
         if (msg.startsWith('42/video,')) {
           final payload = msg.substring('42/video,'.length);
           print(
-              '  <- EVENT: ${payload.substring(0, _min(120, payload.length))}');
+            '  <- EVENT: ${payload.substring(0, _min(120, payload.length))}',
+          );
           try {
             final list = jsonDecode(payload) as List;
             final event = list[0] as String;
@@ -157,7 +168,8 @@ void main() async {
           return;
         }
         print(
-            '  <- UNKNOWN: ${msg.toString().substring(0, _min(80, msg.toString().length))}');
+          '  <- UNKNOWN: ${msg.toString().substring(0, _min(80, msg.toString().length))}',
+        );
       },
       onError: (Object e) {
         print('  !! Socket error: $e');
@@ -180,7 +192,7 @@ void main() async {
 
     final authPayload = jsonEncode([
       'auth',
-      {'ref': attestRef, 'fingerprint': fingerprint}
+      {'ref': attestRef, 'fingerprint': fingerprint},
     ]);
     print('  -> Sending auth: 42/video,$authPayload');
     ws.add('42/video,$authPayload');
@@ -212,10 +224,15 @@ String _uuidV4(Random rng, String Function(int) hex) {
 int _min(int a, int b) => a < b ? a : b;
 
 Future<Map<String, String>> _scrapeWatchPage(
-    HttpClient client, String url, String cookie) async {
+  HttpClient client,
+  String url,
+  String cookie,
+) async {
   final req = await client.getUrl(Uri.parse(url));
-  req.headers.set('Accept',
-      'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8');
+  req.headers.set(
+    'Accept',
+    'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+  );
   req.headers.set('Origin', mainBase);
   req.headers.set('Referer', '$mainBase/');
   req.headers.set('sec-fetch-dest', 'document');
@@ -227,8 +244,7 @@ Future<Map<String, String>> _scrapeWatchPage(
   final html = await resp.transform(utf8.decoder).join();
   final setCookies = _extractSetCookies(resp);
 
-  final attestMatch =
-      RegExp(r'attestRef:"([0-9a-f]{64})"').firstMatch(html);
+  final attestMatch = RegExp(r'attestRef:"([0-9a-f]{64})"').firstMatch(html);
   if (attestMatch == null) throw Exception('No attestRef found in HTML');
 
   final uri = Uri.parse(url);
@@ -243,8 +259,7 @@ Future<Map<String, String>> _scrapeWatchPage(
   };
 }
 
-Future<String> _bootstrapAuthSession(
-    HttpClient client, String cookie) async {
+Future<String> _bootstrapAuthSession(HttpClient client, String cookie) async {
   final req = await client.getUrl(Uri.parse('$mainBase/api/auth/session'));
   req.headers.set('Accept', 'application/json, text/plain, */*');
   req.headers.set('Referer', '$mainBase/');
@@ -258,10 +273,15 @@ Future<String> _bootstrapAuthSession(
   return _extractSetCookies(resp);
 }
 
-Future<String> _bootstrapEpisodeView(HttpClient client, String episodeId,
-    String cookie, String fingerprint) async {
-  final req = await client
-      .postUrl(Uri.parse('$apiBase/api/anime/details/episode/view'));
+Future<String> _bootstrapEpisodeView(
+  HttpClient client,
+  String episodeId,
+  String cookie,
+  String fingerprint,
+) async {
+  final req = await client.postUrl(
+    Uri.parse('$apiBase/api/anime/details/episode/view'),
+  );
   req.headers.set('Accept', 'application/json, text/plain, */*');
   req.headers.set('Content-Type', 'application/json');
   req.headers.set('Referer', '$mainBase/');
@@ -279,8 +299,12 @@ Future<String> _bootstrapEpisodeView(HttpClient client, String episodeId,
   return _extractSetCookies(resp);
 }
 
-Future<Map<String, String>> _fetchStreamData(HttpClient client,
-    String episodeId, String cookie, String fingerprint) async {
+Future<Map<String, String>> _fetchStreamData(
+  HttpClient client,
+  String episodeId,
+  String cookie,
+  String fingerprint,
+) async {
   final url =
       '$apiBase/api/anime/details/episode/stream?id=${Uri.encodeComponent(episodeId)}&fillers=true&recaps=true';
 

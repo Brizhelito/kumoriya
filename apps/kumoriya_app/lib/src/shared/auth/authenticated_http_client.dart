@@ -12,9 +12,9 @@ final class AuthenticatedHttpClient extends http.BaseClient {
     required SecureTokenStore tokenStore,
     required String baseUrl,
     http.Client? inner,
-  })  : _tokenStore = tokenStore,
-        _baseUrl = baseUrl,
-        _inner = inner ?? http.Client();
+  }) : _tokenStore = tokenStore,
+       _baseUrl = baseUrl,
+       _inner = inner ?? http.Client();
 
   final SecureTokenStore _tokenStore;
   final String _baseUrl;
@@ -57,7 +57,9 @@ final class AuthenticatedHttpClient extends http.BaseClient {
     String path, {
     Map<String, String>? queryParams,
   }) async {
-    final uri = Uri.parse('$_baseUrl$path').replace(queryParameters: queryParams);
+    final uri = Uri.parse(
+      '$_baseUrl$path',
+    ).replace(queryParameters: queryParams);
     return http.Response.fromStream(await send(http.Request('GET', uri)));
   }
 

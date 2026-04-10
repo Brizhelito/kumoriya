@@ -127,24 +127,27 @@ bool _isRelevantToTab(DownloadStatusChange e, Set<DownloadStatus> tabStatuses) {
 final completedTabStatusChangeProvider =
     StreamProvider.autoDispose<DownloadStatusChange>((ref) {
       final manager = ref.watch(downloadManagerProvider);
-      return manager.statusChangeStream
-          .where((e) => _isRelevantToTab(e, _completedStatuses));
+      return manager.statusChangeStream.where(
+        (e) => _isRelevantToTab(e, _completedStatuses),
+      );
     });
 
 /// Fires only when the active (downloading/paused) tab's data may have changed.
 final activeTabStatusChangeProvider =
     StreamProvider.autoDispose<DownloadStatusChange>((ref) {
       final manager = ref.watch(downloadManagerProvider);
-      return manager.statusChangeStream
-          .where((e) => _isRelevantToTab(e, _activeStatuses));
+      return manager.statusChangeStream.where(
+        (e) => _isRelevantToTab(e, _activeStatuses),
+      );
     });
 
 /// Fires only when the queue (pending/failed) tab's data may have changed.
 final queueTabStatusChangeProvider =
     StreamProvider.autoDispose<DownloadStatusChange>((ref) {
       final manager = ref.watch(downloadManagerProvider);
-      return manager.statusChangeStream
-          .where((e) => _isRelevantToTab(e, _queueStatuses));
+      return manager.statusChangeStream.where(
+        (e) => _isRelevantToTab(e, _queueStatuses),
+      );
     });
 
 // ─── Download list providers ─────────────────────────────────────────────────
@@ -177,9 +180,10 @@ final activeDownloadTasksProvider =
       ref,
     ) async {
       ref.watch(activeTabStatusChangeProvider);
-      return ref.watch(downloadStoreProvider).getTasksByStatuses(
-        [DownloadStatus.downloading, DownloadStatus.paused],
-      );
+      return ref.watch(downloadStoreProvider).getTasksByStatuses([
+        DownloadStatus.downloading,
+        DownloadStatus.paused,
+      ]);
     });
 
 /// Queued tasks (pending + failed) — only refreshes when the queue tab stream
@@ -189,9 +193,10 @@ final queuedDownloadTasksProvider =
       ref,
     ) async {
       ref.watch(queueTabStatusChangeProvider);
-      return ref.watch(downloadStoreProvider).getTasksByStatuses(
-        [DownloadStatus.pending, DownloadStatus.failed],
-      );
+      return ref.watch(downloadStoreProvider).getTasksByStatuses([
+        DownloadStatus.pending,
+        DownloadStatus.failed,
+      ]);
     });
 
 /// Per-anime task list — only refreshes when the specific anime's downloads

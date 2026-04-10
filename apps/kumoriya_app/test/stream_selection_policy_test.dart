@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kumoriya_app/src/features/player/application/services/stream_selection_policy.dart';
 import 'package:kumoriya_plugins/kumoriya_plugins.dart';
@@ -58,9 +57,7 @@ void main() {
   });
 
   test('R2: no longer penalises high Anime Nexus quality on Android', () {
-    const androidPolicy = StreamSelectionPolicy(
-      platform: TargetPlatform.android,
-    );
+    const androidPolicy = StreamSelectionPolicy();
 
     final selected = androidPolicy.selectBest(<ResolvedStream>[
       ResolvedStream(

@@ -738,14 +738,14 @@ final class GraphqlAnilistMetadataGateway implements AnilistMetadataGateway {
     final variables = <String, dynamic>{
       'page': page,
       'perPage': perPage,
-      if (search != null) 'search': search,
-      if (genres != null) 'genres': genres,
-      if (tags != null) 'tags': tags,
-      if (formats != null) 'formatIn': formats,
-      if (season != null) 'season': season,
-      if (seasonYear != null) 'seasonYear': seasonYear,
-      if (statuses != null) 'statusIn': statuses,
-      if (sort != null) 'sort': sort,
+      'search': ?search,
+      'genres': ?genres,
+      'tags': ?tags,
+      'formatIn': ?formats,
+      'season': ?season,
+      'seasonYear': ?seasonYear,
+      'statusIn': ?statuses,
+      'sort': ?sort,
     };
 
     final result = await _client.execute(

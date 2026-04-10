@@ -21,8 +21,7 @@ final syncServiceProvider = Provider<SyncService>((ref) {
   );
 });
 
-final lastSyncAtProvider =
-    AsyncNotifierProvider<LastSyncAtNotifier, DateTime?>(
+final lastSyncAtProvider = AsyncNotifierProvider<LastSyncAtNotifier, DateTime?>(
   LastSyncAtNotifier.new,
 );
 
@@ -79,7 +78,9 @@ class SyncTrigger {
         final statusResult = await syncService.getStatus();
         statusResult.fold(
           onSuccess: (_) {
-            _ref.read(lastSyncAtProvider.notifier).setLastSyncAt(DateTime.now());
+            _ref
+                .read(lastSyncAtProvider.notifier)
+                .setLastSyncAt(DateTime.now());
           },
           onFailure: (_) {},
         );

@@ -22,6 +22,7 @@
 ///   --json               Output JSON report
 ///   --output=FILE        Write report to file instead of stdout
 ///   --verbose            Show extra debug info
+library;
 
 import 'dart:async';
 import 'dart:convert';
@@ -37,7 +38,7 @@ import 'package:kumoriya_source_animeav1/kumoriya_source_animeav1.dart';
 import 'package:kumoriya_source_anime_nexus/kumoriya_source_anime_nexus.dart';
 import 'package:kumoriya_source_jkanime/kumoriya_source_jkanime.dart';
 
-import '../lib/resolver_catalog.dart';
+import 'package:resolver_cli/resolver_catalog.dart';
 
 // ─── ANSI ────────────────────────────────────────────────────────────────────
 const _green = '\x1B[32m';
@@ -83,7 +84,7 @@ class _SourceResult {
   String? matchedTitle;
   String? matchedSourceId;
   // Matching diagnostics
-  String? matchVerdict;        // autoMatch | reviewNeeded | fallback
+  String? matchVerdict; // autoMatch | reviewNeeded | fallback
   double? matchScore;
   List<String> matchReasons = [];
   int matchCandidateCount = 0;
@@ -95,10 +96,7 @@ class _SourceResult {
 }
 
 class _ServerLinkResult {
-  _ServerLinkResult({
-    required this.sourceName,
-    required this.serverLink,
-  });
+  _ServerLinkResult({required this.sourceName, required this.serverLink});
 
   final String sourceName;
   final SourceServerLink serverLink;
@@ -136,48 +134,48 @@ class _ServerLinkResult {
   String? downloadPath;
 
   Map<String, dynamic> toJson() => {
-        'source': sourceName,
-        'server': serverLink.serverName,
-        'initialUrl': serverLink.initialUrl.toString(),
-        'detectedHost': serverLink.detectedHost,
-        'language': serverLink.language,
-        'linkType': serverLink.linkType.name,
-        // resolver
-        'resolver': {
-          'name': resolverName,
-          'id': resolverId,
-          'priority': resolverPriority,
-          'timeMs': resolveTimeMs,
-          'success': resolveSuccess,
-          'error': resolveError,
-          'errorCode': resolveErrorCode,
-          'streamCount': streamCount,
-          'subtitleCount': subtitleCount,
-          'streams': resolvedStreams.map((s) => s.toJson()).toList(),
-        },
-        // probe
-        'probe': {
-          'tested': downloadProbed,
-          'timeMs': probeTimeMs,
-          'success': probeSuccess,
-          'error': probeError,
-          'bytesReceived': probeBytesReceived,
-          'totalBytes': probeTotalBytes,
-          'supportsRanges': probeSupportsRanges,
-          'contentType': probeContentType,
-          'statusCode': probeStatusCode,
-          'responseHeaders': probeResponseHeaders,
-        },
-        // full download
-        if (fullDownloaded)
-          'download': {
-            'timeMs': downloadTimeMs,
-            'success': downloadSuccess,
-            'error': downloadError,
-            'bytesReceived': downloadBytesReceived,
-            'path': downloadPath,
-          },
-      };
+    'source': sourceName,
+    'server': serverLink.serverName,
+    'initialUrl': serverLink.initialUrl.toString(),
+    'detectedHost': serverLink.detectedHost,
+    'language': serverLink.language,
+    'linkType': serverLink.linkType.name,
+    // resolver
+    'resolver': {
+      'name': resolverName,
+      'id': resolverId,
+      'priority': resolverPriority,
+      'timeMs': resolveTimeMs,
+      'success': resolveSuccess,
+      'error': resolveError,
+      'errorCode': resolveErrorCode,
+      'streamCount': streamCount,
+      'subtitleCount': subtitleCount,
+      'streams': resolvedStreams.map((s) => s.toJson()).toList(),
+    },
+    // probe
+    'probe': {
+      'tested': downloadProbed,
+      'timeMs': probeTimeMs,
+      'success': probeSuccess,
+      'error': probeError,
+      'bytesReceived': probeBytesReceived,
+      'totalBytes': probeTotalBytes,
+      'supportsRanges': probeSupportsRanges,
+      'contentType': probeContentType,
+      'statusCode': probeStatusCode,
+      'responseHeaders': probeResponseHeaders,
+    },
+    // full download
+    if (fullDownloaded)
+      'download': {
+        'timeMs': downloadTimeMs,
+        'success': downloadSuccess,
+        'error': downloadError,
+        'bytesReceived': downloadBytesReceived,
+        'path': downloadPath,
+      },
+  };
 }
 
 class _StreamInfo {
@@ -196,12 +194,12 @@ class _StreamInfo {
   final Map<String, String> headers;
 
   Map<String, dynamic> toJson() => {
-        'url': url,
-        'quality': qualityLabel,
-        'mime': mimeType,
-        'isHls': isHls,
-        'headers': headers,
-      };
+    'url': url,
+    'quality': qualityLabel,
+    'mime': mimeType,
+    'isHls': isHls,
+    'headers': headers,
+  };
 }
 
 // ─── Main ────────────────────────────────────────────────────────────────────
@@ -223,7 +221,7 @@ void main(List<String> arguments) async {
     if (config.anilistId != null) {
       print(
         '${_cyan}AniList canonical:$_reset "${canonical.primaryTitle}" '
-        '${_dim}(${canonical.format.name}, '
+        '$_dim(${canonical.format.name}, '
         '${canonical.releaseYear ?? "?"} yr, '
         '${canonical.episodeCount ?? "?"} eps)$_reset',
       );
@@ -241,17 +239,18 @@ void main(List<String> arguments) async {
     sourceResults.add(sourceResult);
 
     for (final link in sourceResult.serverLinks) {
-      allResults.add(_ServerLinkResult(
-        sourceName: sourceResult.sourceName,
-        serverLink: link,
-      ));
+      allResults.add(
+        _ServerLinkResult(
+          sourceName: sourceResult.sourceName,
+          serverLink: link,
+        ),
+      );
     }
   }
 
   if (!config.jsonOutput) {
     print('');
-    print(
-        '${_bold}Total server links collected: ${allResults.length}$_reset');
+    print('${_bold}Total server links collected: ${allResults.length}$_reset');
     print('');
   }
 
@@ -278,7 +277,9 @@ void main(List<String> arguments) async {
   // ── Phase 3: Download probe / full download ────────────────────────────
   if (!config.jsonOutput) {
     print('');
-    print('$_bold═══ Phase 3: Download ${config.fullDownload ? "(Full)" : "(Probe)"} ═══$_reset');
+    print(
+      '$_bold═══ Phase 3: Download ${config.fullDownload ? "(Full)" : "(Probe)"} ═══$_reset',
+    );
     print('');
   }
 
@@ -325,8 +326,7 @@ _Config? _parseArgs(List<String> arguments) {
       config.downloadDir = arg.substring('--download-dir='.length);
     } else if (arg.startsWith('--probe-bytes=')) {
       config.probeBytes =
-          int.tryParse(arg.substring('--probe-bytes='.length)) ??
-              (512 * 1024);
+          int.tryParse(arg.substring('--probe-bytes='.length)) ?? (512 * 1024);
     } else if (arg.startsWith('--timeout=')) {
       config.timeoutSeconds =
           int.tryParse(arg.substring('--timeout='.length)) ?? 25;
@@ -341,8 +341,9 @@ _Config? _parseArgs(List<String> arguments) {
     } else if (arg.startsWith('--format=')) {
       config.matchingFormat = arg.substring('--format='.length);
     } else if (arg.startsWith('--episodes=')) {
-      config.matchingEpisodes =
-          int.tryParse(arg.substring('--episodes='.length));
+      config.matchingEpisodes = int.tryParse(
+        arg.substring('--episodes='.length),
+      );
     } else if (arg.startsWith('--aliases=')) {
       config.matchingAliases = arg
           .substring('--aliases='.length)
@@ -351,8 +352,7 @@ _Config? _parseArgs(List<String> arguments) {
           .where((s) => s.isNotEmpty)
           .toList();
     } else if (arg.startsWith('--anilist-id=')) {
-      config.anilistId =
-          int.tryParse(arg.substring('--anilist-id='.length));
+      config.anilistId = int.tryParse(arg.substring('--anilist-id='.length));
     } else {
       positional.add(arg);
     }
@@ -472,7 +472,8 @@ Map<String, SourcePlugin> _buildSources(_Config config) {
     );
     if (key.isEmpty) {
       print(
-          '${_red}Unknown source "${config.sourceFilter}". Available: ${all.keys.join(", ")}$_reset');
+        '${_red}Unknown source "${config.sourceFilter}". Available: ${all.keys.join(", ")}$_reset',
+      );
       exit(1);
     }
     return {key: all[key]!};
@@ -522,7 +523,9 @@ Future<_SourceResult> _collectFromSource(
     if (matches.isEmpty) {
       result.error ??= 'No search results';
       if (!config.jsonOutput) {
-        print(' ${_yellow}no results$_reset ${_dim}(${sw.elapsedMilliseconds}ms)$_reset');
+        print(
+          ' ${_yellow}no results$_reset $_dim(${sw.elapsedMilliseconds}ms)$_reset',
+        );
       }
       return result;
     }
@@ -583,11 +586,11 @@ Future<_SourceResult> _collectFromSource(
           ? ' ${_dim}score=${result.matchScore!.toStringAsFixed(1)}$_reset'
           : '';
       final candidatesStr =
-          ' ${_dim}(${matches.length} candidate${matches.length == 1 ? "" : "s"})$_reset';
+          ' $_dim(${matches.length} candidate${matches.length == 1 ? "" : "s"})$_reset';
       print(
         ' ${_green}found "$_reset${match.title}$_green"$_reset '
         '$verdictColor${result.matchVerdict}$_reset$scoreStr$candidatesStr '
-        '${_dim}(${sw.elapsedMilliseconds}ms)$_reset',
+        '$_dim(${sw.elapsedMilliseconds}ms)$_reset',
       );
     }
   } catch (e, stack) {
@@ -624,16 +627,18 @@ Future<_SourceResult> _collectFromSource(
     if (episodes.isEmpty) {
       result.error ??= 'No episodes found';
       if (!config.jsonOutput) {
-        print(' ${_yellow}none found$_reset ${_dim}(${sw.elapsedMilliseconds}ms)$_reset');
+        print(
+          ' ${_yellow}none found$_reset $_dim(${sw.elapsedMilliseconds}ms)$_reset',
+        );
       }
       return result;
     }
 
     // Find target episode
     final target = episodes.cast<SourceEpisode?>().firstWhere(
-          (e) => e!.number == config.targetEpisode,
-          orElse: () => episodes.first,
-        );
+      (e) => e!.number == config.targetEpisode,
+      orElse: () => episodes.first,
+    );
 
     if (target == null) {
       result.error = 'Episode ${config.targetEpisode} not found';
@@ -645,7 +650,8 @@ Future<_SourceResult> _collectFromSource(
 
     if (!config.jsonOutput) {
       print(
-          ' ${_green}${episodes.length} episodes$_reset, using ep ${target.number} ${_dim}(${sw.elapsedMilliseconds}ms)$_reset');
+        ' $_green${episodes.length} episodes$_reset, using ep ${target.number} $_dim(${sw.elapsedMilliseconds}ms)$_reset',
+      );
     }
 
     // Server links
@@ -671,12 +677,14 @@ Future<_SourceResult> _collectFromSource(
 
     if (!config.jsonOutput) {
       print(
-          ' ${_green}${links.length} links$_reset ${_dim}(${sw2.elapsedMilliseconds}ms)$_reset');
+        ' $_green${links.length} links$_reset $_dim(${sw2.elapsedMilliseconds}ms)$_reset',
+      );
       if (config.verbose) {
         for (final link in links) {
           print(
-              '    ${_dim}• ${link.serverName} [${link.detectedHost ?? link.initialUrl.host}] ${link.language ?? ""} ${link.linkType.name}$_reset');
-          print('      ${_dim}${link.initialUrl}$_reset');
+            '    $_dim• ${link.serverName} [${link.detectedHost ?? link.initialUrl.host}] ${link.language ?? ""} ${link.linkType.name}$_reset',
+          );
+          print('      $_dim${link.initialUrl}$_reset');
         }
       }
     }
@@ -707,21 +715,22 @@ Future<void> _resolveServerLink(
   ResolverPlugin? resolver;
   if (config.resolverFilter != null) {
     resolver = resolvers.cast<ResolverPlugin?>().firstWhere(
-          (r) =>
-              r!.manifest.displayName
-                  .toLowerCase()
-                  .contains(config.resolverFilter!.toLowerCase()) ||
-              r.manifest.id
-                  .toLowerCase()
-                  .contains(config.resolverFilter!.toLowerCase()),
-          orElse: () => null,
-        );
+      (r) =>
+          r!.manifest.displayName.toLowerCase().contains(
+            config.resolverFilter!.toLowerCase(),
+          ) ||
+          r.manifest.id.toLowerCase().contains(
+            config.resolverFilter!.toLowerCase(),
+          ),
+      orElse: () => null,
+    );
     if (resolver != null && !resolver.supports(url)) {
       result.resolveError = 'Filtered resolver does not support this URL';
       result.resolveErrorCode = 'filter.mismatch';
       if (!config.jsonOutput) {
         print(
-            '  ${_dim}[$_reset${result.sourceName}${_dim}]$_reset $serverName ($host) → ${_yellow}filtered resolver mismatch$_reset');
+          '  $_dim[$_reset${result.sourceName}$_dim]$_reset $serverName ($host) → ${_yellow}filtered resolver mismatch$_reset',
+        );
       }
       return;
     }
@@ -734,7 +743,8 @@ Future<void> _resolveServerLink(
     result.resolveErrorCode = 'resolver.not_found';
     if (!config.jsonOutput) {
       print(
-          '  ${_dim}[$_reset${result.sourceName}${_dim}]$_reset $serverName ($host) → ${_yellow}NO RESOLVER$_reset');
+        '  $_dim[$_reset${result.sourceName}$_dim]$_reset $serverName ($host) → ${_yellow}NO RESOLVER$_reset',
+      );
     }
     return;
   }
@@ -745,7 +755,8 @@ Future<void> _resolveServerLink(
 
   if (!config.jsonOutput) {
     stdout.write(
-        '  ${_dim}[$_reset${result.sourceName}${_dim}]$_reset $serverName → ${resolver.manifest.displayName}...');
+      '  $_dim[$_reset${result.sourceName}$_dim]$_reset $serverName → ${resolver.manifest.displayName}...',
+    );
   }
 
   final sw = Stopwatch()..start();
@@ -763,28 +774,31 @@ Future<void> _resolveServerLink(
         result.subtitleCount = resolved.externalSubtitles.length;
 
         for (final s in resolved.streams) {
-          result.resolvedStreams.add(_StreamInfo(
-            url: s.url.toString(),
-            qualityLabel: s.qualityLabel,
-            mimeType: s.mimeType,
-            isHls: s.isHls,
-            headers: s.headers,
-          ));
+          result.resolvedStreams.add(
+            _StreamInfo(
+              url: s.url.toString(),
+              qualityLabel: s.qualityLabel,
+              mimeType: s.mimeType,
+              isHls: s.isHls,
+              headers: s.headers,
+            ),
+          );
         }
 
         if (!config.jsonOutput) {
           final streamDesc = resolved.streams
-              .map((s) =>
-                  '${s.qualityLabel ?? "?"}${s.isHls ? " [HLS]" : ""}')
+              .map((s) => '${s.qualityLabel ?? "?"}${s.isHls ? " [HLS]" : ""}')
               .join(', ');
           print(
-              ' ${_green}✓$_reset ${resolved.streams.length} streams ($streamDesc) ${_dim}${sw.elapsedMilliseconds}ms$_reset');
+            ' $_green✓$_reset ${resolved.streams.length} streams ($streamDesc) $_dim${sw.elapsedMilliseconds}ms$_reset',
+          );
           if (config.verbose) {
             for (final s in resolved.streams) {
-              print('      ${_dim}${s.url}$_reset');
+              print('      $_dim${s.url}$_reset');
               if (s.headers.isNotEmpty) {
                 print(
-                    '      ${_dim}headers: ${s.headers.entries.map((e) => '${e.key}: ${e.value.substring(0, e.value.length.clamp(0, 60))}').join(', ')}$_reset');
+                  '      ${_dim}headers: ${s.headers.entries.map((e) => '${e.key}: ${e.value.substring(0, e.value.length.clamp(0, 60))}').join(', ')}$_reset',
+                );
               }
             }
           }
@@ -796,7 +810,8 @@ Future<void> _resolveServerLink(
 
         if (!config.jsonOutput) {
           print(
-              ' ${_red}✗ [${error.code}] ${error.message}$_reset ${_dim}${sw.elapsedMilliseconds}ms$_reset');
+            ' $_red✗ [${error.code}] ${error.message}$_reset $_dim${sw.elapsedMilliseconds}ms$_reset',
+          );
         }
       },
     );
@@ -808,7 +823,8 @@ Future<void> _resolveServerLink(
 
     if (!config.jsonOutput) {
       print(
-          ' ${_red}✗ TIMEOUT (${config.timeoutSeconds}s)$_reset ${_dim}${sw.elapsedMilliseconds}ms$_reset');
+        ' $_red✗ TIMEOUT (${config.timeoutSeconds}s)$_reset $_dim${sw.elapsedMilliseconds}ms$_reset',
+      );
     }
   } catch (e, stack) {
     sw.stop();
@@ -818,7 +834,8 @@ Future<void> _resolveServerLink(
 
     if (!config.jsonOutput) {
       print(
-          ' ${_red}✗ EXCEPTION: $e$_reset ${_dim}${sw.elapsedMilliseconds}ms$_reset');
+        ' $_red✗ EXCEPTION: $e$_reset $_dim${sw.elapsedMilliseconds}ms$_reset',
+      );
       if (config.verbose) print('$_dim$stack$_reset');
     }
   }
@@ -841,7 +858,8 @@ Future<void> _probeOrDownload(
 
   if (!config.jsonOutput) {
     stdout.write(
-        '  ${_dim}[$_reset${result.sourceName}${_dim}]$_reset $serverName ${_dim}(${stream.qualityLabel ?? "?"}${stream.isHls ? " HLS" : ""})$_reset → ');
+      '  $_dim[$_reset${result.sourceName}$_dim]$_reset $serverName $_dim(${stream.qualityLabel ?? "?"}${stream.isHls ? " HLS" : ""})$_reset → ',
+    );
   }
 
   if (stream.isHls) {
@@ -870,12 +888,12 @@ Future<void> _probeHls(
     final request = http.Request('GET', url);
     request.headers.addAll(headers);
 
-    final response = await httpClient.send(request).timeout(
-          const Duration(seconds: 15),
-        );
+    final response = await httpClient
+        .send(request)
+        .timeout(const Duration(seconds: 15));
     final body = await response.stream.bytesToString().timeout(
-          const Duration(seconds: 15),
-        );
+      const Duration(seconds: 15),
+    );
     sw.stop();
     result.probeTimeMs = sw.elapsedMilliseconds;
     result.probeStatusCode = response.statusCode;
@@ -897,7 +915,8 @@ Future<void> _probeHls(
         // Try to estimate total size from bandwidth/duration
         if (!config.jsonOutput) {
           print(
-              '${_green}✓ HLS playlist OK$_reset ($segmentLines segments, ${body.length} bytes) ${_dim}${sw.elapsedMilliseconds}ms$_reset');
+            '$_green✓ HLS playlist OK$_reset ($segmentLines segments, ${body.length} bytes) $_dim${sw.elapsedMilliseconds}ms$_reset',
+          );
         }
 
         // If full download, try to download first segment
@@ -910,7 +929,8 @@ Future<void> _probeHls(
         if (!config.jsonOutput) {
           final preview = body.substring(0, body.length.clamp(0, 200));
           print(
-              '${_red}✗ Invalid M3U8$_reset ${_dim}${sw.elapsedMilliseconds}ms$_reset');
+            '$_red✗ Invalid M3U8$_reset $_dim${sw.elapsedMilliseconds}ms$_reset',
+          );
           if (config.verbose) {
             print('      ${_dim}Response preview: $preview$_reset');
           }
@@ -921,7 +941,8 @@ Future<void> _probeHls(
       result.probeError = 'HTTP ${response.statusCode}';
       if (!config.jsonOutput) {
         print(
-            '${_red}✗ HTTP ${response.statusCode}$_reset ${_dim}${sw.elapsedMilliseconds}ms$_reset');
+          '$_red✗ HTTP ${response.statusCode}$_reset $_dim${sw.elapsedMilliseconds}ms$_reset',
+        );
         if (config.verbose && body.isNotEmpty) {
           final preview = body.substring(0, body.length.clamp(0, 200));
           print('      ${_dim}Body: $preview$_reset');
@@ -934,8 +955,7 @@ Future<void> _probeHls(
     result.probeSuccess = false;
     result.probeError = e.toString();
     if (!config.jsonOutput) {
-      print(
-          '${_red}✗ $e$_reset ${_dim}${sw.elapsedMilliseconds}ms$_reset');
+      print('$_red✗ $e$_reset $_dim${sw.elapsedMilliseconds}ms$_reset');
       if (config.verbose) print('$_dim$stack$_reset');
     }
   }
@@ -961,17 +981,18 @@ Future<void> _probeDirect(
     final headRequest = http.Request('HEAD', url);
     headRequest.headers.addAll(headers);
 
-    final headResponse = await httpClient.send(headRequest).timeout(
-          const Duration(seconds: 10),
-        );
+    final headResponse = await httpClient
+        .send(headRequest)
+        .timeout(const Duration(seconds: 10));
     await headResponse.stream.drain<void>();
 
     result.probeStatusCode = headResponse.statusCode;
     result.probeContentType = headResponse.headers['content-type'];
     result.probeResponseHeaders = Map.from(headResponse.headers);
 
-    final contentLength =
-        int.tryParse(headResponse.headers['content-length'] ?? '');
+    final contentLength = int.tryParse(
+      headResponse.headers['content-length'] ?? '',
+    );
     result.probeTotalBytes = contentLength;
 
     final acceptRanges = headResponse.headers['accept-ranges'];
@@ -980,7 +1001,10 @@ Future<void> _probeDirect(
 
     if (headResponse.statusCode >= 200 && headResponse.statusCode < 400) {
       // Now do a partial GET to verify data flows
-      final rangeEnd = (config.probeBytes - 1).clamp(0, (contentLength ?? config.probeBytes) - 1);
+      final rangeEnd = (config.probeBytes - 1).clamp(
+        0,
+        (contentLength ?? config.probeBytes) - 1,
+      );
 
       final getRequest = http.Request('GET', url);
       getRequest.headers.addAll(headers);
@@ -988,9 +1012,9 @@ Future<void> _probeDirect(
         getRequest.headers['Range'] = 'bytes=0-$rangeEnd';
       }
 
-      final getResponse = await httpClient.send(getRequest).timeout(
-            const Duration(seconds: 15),
-          );
+      final getResponse = await httpClient
+          .send(getRequest)
+          .timeout(const Duration(seconds: 15));
 
       int received = 0;
       await for (final chunk in getResponse.stream.timeout(
@@ -1011,10 +1035,12 @@ Future<void> _probeDirect(
         final totalStr = contentLength != null
             ? '/${_formatBytes(contentLength)}'
             : '';
-        final rangeStr =
-            result.probeSupportsRanges ? ' [ranges ✓]' : ' [no ranges]';
+        final rangeStr = result.probeSupportsRanges
+            ? ' [ranges ✓]'
+            : ' [no ranges]';
         print(
-            '${_green}✓ $sizeStr$totalStr$_reset$rangeStr ${_dim}${sw.elapsedMilliseconds}ms$_reset');
+          '$_green✓ $sizeStr$totalStr$_reset$rangeStr $_dim${sw.elapsedMilliseconds}ms$_reset',
+        );
       }
 
       // Full download if requested
@@ -1029,10 +1055,10 @@ Future<void> _probeDirect(
 
       if (!config.jsonOutput) {
         print(
-            '${_red}✗ HTTP ${headResponse.statusCode}$_reset ${_dim}${sw.elapsedMilliseconds}ms$_reset');
+          '$_red✗ HTTP ${headResponse.statusCode}$_reset $_dim${sw.elapsedMilliseconds}ms$_reset',
+        );
         if (config.verbose) {
-          print(
-              '      ${_dim}Headers: ${headResponse.headers}$_reset');
+          print('      ${_dim}Headers: ${headResponse.headers}$_reset');
         }
       }
     }
@@ -1043,8 +1069,7 @@ Future<void> _probeDirect(
     result.probeError = e.toString();
 
     if (!config.jsonOutput) {
-      print(
-          '${_red}✗ $e$_reset ${_dim}${sw.elapsedMilliseconds}ms$_reset');
+      print('$_red✗ $e$_reset $_dim${sw.elapsedMilliseconds}ms$_reset');
       if (config.verbose) print('$_dim$stack$_reset');
     }
   }
@@ -1069,14 +1094,17 @@ Future<void> _downloadHlsFull(
   final dir = Directory(config.downloadDir);
   if (!dir.existsSync()) dir.createSync(recursive: true);
 
-  final safeName = result.serverLink.serverName
-      .replaceAll(RegExp(r'[<>:"/\\|?*]'), '_');
+  final safeName = result.serverLink.serverName.replaceAll(
+    RegExp(r'[<>:"/\\|?*]'),
+    '_',
+  );
   final outPath =
       '${config.downloadDir}/${result.sourceName}_${safeName}_hls.ts';
 
   if (!config.jsonOutput) {
     stdout.write(
-        '    ${_magenta}Downloading HLS$_reset to ${_dim}$outPath$_reset...');
+      '    ${_magenta}Downloading HLS$_reset to $_dim$outPath$_reset...',
+    );
   }
 
   final sw = Stopwatch()..start();
@@ -1101,9 +1129,9 @@ Future<void> _downloadHlsFull(
       final req = http.Request('GET', segUrl);
       req.headers.addAll(headers);
 
-      final resp = await httpClient.send(req).timeout(
-            const Duration(seconds: 30),
-          );
+      final resp = await httpClient
+          .send(req)
+          .timeout(const Duration(seconds: 30));
 
       if (resp.statusCode >= 200 && resp.statusCode < 400) {
         await for (final chunk in resp.stream) {
@@ -1115,7 +1143,8 @@ Future<void> _downloadHlsFull(
         // Log segment failure but continue
         if (config.verbose && !config.jsonOutput) {
           print(
-              '\n      ${_yellow}Segment ${segsDone + 1} HTTP ${resp.statusCode}$_reset');
+            '\n      ${_yellow}Segment ${segsDone + 1} HTTP ${resp.statusCode}$_reset',
+          );
         }
         await resp.stream.drain<void>();
         segsDone++;
@@ -1133,7 +1162,8 @@ Future<void> _downloadHlsFull(
 
     if (!config.jsonOutput) {
       print(
-          ' ${_green}✓ ${_formatBytes(totalBytes)}$_reset ($segsDone/${segmentUrls.length} segs) ${_dim}${sw.elapsedMilliseconds}ms$_reset');
+        ' $_green✓ ${_formatBytes(totalBytes)}$_reset ($segsDone/${segmentUrls.length} segs) $_dim${sw.elapsedMilliseconds}ms$_reset',
+      );
     }
   } catch (e, stack) {
     sw.stop();
@@ -1142,7 +1172,7 @@ Future<void> _downloadHlsFull(
     result.downloadError = e.toString();
 
     if (!config.jsonOutput) {
-      print(' ${_red}✗ $e$_reset');
+      print(' $_red✗ $e$_reset');
       if (config.verbose) print('$_dim$stack$_reset');
     }
   }
@@ -1164,15 +1194,17 @@ Future<void> _downloadDirectFull(
   final dir = Directory(config.downloadDir);
   if (!dir.existsSync()) dir.createSync(recursive: true);
 
-  final safeName = result.serverLink.serverName
-      .replaceAll(RegExp(r'[<>:"/\\|?*]'), '_');
+  final safeName = result.serverLink.serverName.replaceAll(
+    RegExp(r'[<>:"/\\|?*]'),
+    '_',
+  );
   final ext = stream.isHls ? '.ts' : '.mp4';
-  final outPath =
-      '${config.downloadDir}/${result.sourceName}_${safeName}$ext';
+  final outPath = '${config.downloadDir}/${result.sourceName}_$safeName$ext';
 
   if (!config.jsonOutput) {
     stdout.write(
-        '    ${_magenta}Downloading$_reset to ${_dim}$outPath$_reset...');
+      '    ${_magenta}Downloading$_reset to $_dim$outPath$_reset...',
+    );
   }
 
   final sw = Stopwatch()..start();
@@ -1180,9 +1212,9 @@ Future<void> _downloadDirectFull(
     final req = http.Request('GET', url);
     req.headers.addAll(headers);
 
-    final resp = await httpClient.send(req).timeout(
-          const Duration(seconds: 15),
-        );
+    final resp = await httpClient
+        .send(req)
+        .timeout(const Duration(seconds: 15));
 
     if (resp.statusCode >= 200 && resp.statusCode < 400) {
       final outFile = File(outPath);
@@ -1207,7 +1239,8 @@ Future<void> _downloadDirectFull(
 
       if (!config.jsonOutput) {
         print(
-            ' ${_green}✓ ${_formatBytes(totalBytes)}$_reset ${_dim}${sw.elapsedMilliseconds}ms$_reset');
+          ' $_green✓ ${_formatBytes(totalBytes)}$_reset $_dim${sw.elapsedMilliseconds}ms$_reset',
+        );
       }
     } else {
       sw.stop();
@@ -1218,7 +1251,8 @@ Future<void> _downloadDirectFull(
 
       if (!config.jsonOutput) {
         print(
-            ' ${_red}✗ HTTP ${resp.statusCode}$_reset ${_dim}${sw.elapsedMilliseconds}ms$_reset');
+          ' $_red✗ HTTP ${resp.statusCode}$_reset $_dim${sw.elapsedMilliseconds}ms$_reset',
+        );
       }
     }
   } catch (e, stack) {
@@ -1228,7 +1262,7 @@ Future<void> _downloadDirectFull(
     result.downloadError = e.toString();
 
     if (!config.jsonOutput) {
-      print(' ${_red}✗ $e$_reset');
+      print(' $_red✗ $e$_reset');
       if (config.verbose) print('$_dim$stack$_reset');
     }
   }
@@ -1250,9 +1284,9 @@ void _printHeader(_Config config) {
     print('${_dim}Resolver: ${config.resolverFilter}$_reset');
   }
   print(
-      '${_dim}Mode:     ${config.fullDownload ? "Full download" : "Probe (${_formatBytes(config.probeBytes)})"}$_reset');
-  print(
-      '${_dim}Timeout:  ${config.timeoutSeconds}s$_reset');
+    '${_dim}Mode:     ${config.fullDownload ? "Full download" : "Probe (${_formatBytes(config.probeBytes)})"}$_reset',
+  );
+  print('${_dim}Timeout:  ${config.timeoutSeconds}s$_reset');
   print('');
   print('$_bold═══ Phase 1: Source Collection ═══$_reset');
   print('');
@@ -1264,11 +1298,9 @@ void _printSummary(
   Stopwatch globalSw,
 ) {
   print('');
-  print(
-      '$_bold═══════════════════════════════════════════════════════$_reset');
+  print('$_bold═══════════════════════════════════════════════════════$_reset');
   print('$_bold  Pipeline Summary$_reset');
-  print(
-      '$_bold═══════════════════════════════════════════════════════$_reset');
+  print('$_bold═══════════════════════════════════════════════════════$_reset');
   print('');
 
   // Source summary
@@ -1276,10 +1308,11 @@ void _printSummary(
   for (final s in sourceResults) {
     final status = s.error != null ? '$_red✗' : '$_green✓';
     print(
-        '  $status ${s.sourceName}$_reset: ${s.serverLinkCount} links '
-        '${_dim}(search: ${s.searchTimeMs}ms, eps: ${s.episodeTimeMs}ms, links: ${s.serverLinksTimeMs}ms)$_reset');
+      '  $status ${s.sourceName}$_reset: ${s.serverLinkCount} links '
+      '$_dim(search: ${s.searchTimeMs}ms, eps: ${s.episodeTimeMs}ms, links: ${s.serverLinksTimeMs}ms)$_reset',
+    );
     if (s.error != null) {
-      print('    ${_red}${s.error}$_reset');
+      print('    $_red${s.error}$_reset');
     }
   }
 
@@ -1294,14 +1327,10 @@ void _printSummary(
       .where((r) => r.resolveErrorCode == 'resolver.not_found')
       .toList();
 
-  print(
-      '  Total server links:  ${allResults.length}');
-  print(
-      '  ${_green}Resolved OK:         ${resolved.length}$_reset');
-  print(
-      '  ${_red}Resolve failed:      ${resolveFailed.length}$_reset');
-  print(
-      '  ${_yellow}No resolver:         ${noResolver.length}$_reset');
+  print('  Total server links:  ${allResults.length}');
+  print('  ${_green}Resolved OK:         ${resolved.length}$_reset');
+  print('  ${_red}Resolve failed:      ${resolveFailed.length}$_reset');
+  print('  ${_yellow}No resolver:         ${noResolver.length}$_reset');
 
   if (noResolver.isNotEmpty) {
     final hosts = noResolver
@@ -1315,7 +1344,8 @@ void _printSummary(
     print('  ${_bold}Failed resolvers:$_reset');
     for (final f in resolveFailed) {
       print(
-          '    ${_red}✗$_reset ${f.resolverName} ← ${f.serverLink.serverName} [${f.resolveErrorCode}] ${f.resolveError}');
+        '    $_red✗$_reset ${f.resolverName} ← ${f.serverLink.serverName} [${f.resolveErrorCode}] ${f.resolveError}',
+      );
     }
   }
 
@@ -1326,19 +1356,17 @@ void _printSummary(
   final probeOk = probed.where((r) => r.probeSuccess).toList();
   final probeFail = probed.where((r) => !r.probeSuccess).toList();
 
-  print(
-      '  Streams probed:     ${probed.length}');
-  print(
-      '  ${_green}Probe success:       ${probeOk.length}$_reset');
-  print(
-      '  ${_red}Probe failed:        ${probeFail.length}$_reset');
+  print('  Streams probed:     ${probed.length}');
+  print('  ${_green}Probe success:       ${probeOk.length}$_reset');
+  print('  ${_red}Probe failed:        ${probeFail.length}$_reset');
 
   if (probeFail.isNotEmpty) {
     print('');
     print('  ${_bold}Failed probes:$_reset');
     for (final f in probeFail) {
       print(
-          '    ${_red}✗$_reset ${f.serverLink.serverName} (${f.resolverName}) HTTP ${f.probeStatusCode ?? "?"}: ${f.probeError}');
+        '    $_red✗$_reset ${f.serverLink.serverName} (${f.resolverName}) HTTP ${f.probeStatusCode ?? "?"}: ${f.probeError}',
+      );
     }
   }
 
@@ -1352,22 +1380,23 @@ void _printSummary(
   }
 
   print(
-      '  ${'Resolver'.padRight(25)} ${'Resolve'.padRight(10)} ${'Probe'.padRight(10)} ${'Avg Time'.padRight(10)}');
-  print('  ${_dim}${'─' * 60}$_reset');
+    '  ${'Resolver'.padRight(25)} ${'Resolve'.padRight(10)} ${'Probe'.padRight(10)} ${'Avg Time'.padRight(10)}',
+  );
+  print('  $_dim${'─' * 60}$_reset');
 
   for (final entry in byResolver.entries) {
     final name = entry.key.padRight(25);
     final items = entry.value;
     final resolveOkCount = items.where((r) => r.resolveSuccess).length;
     final probeOkCount = items.where((r) => r.probeSuccess).length;
-    final resolveTimes =
-        items.where((r) => r.resolveTimeMs > 0).map((r) => r.resolveTimeMs);
+    final resolveTimes = items
+        .where((r) => r.resolveTimeMs > 0)
+        .map((r) => r.resolveTimeMs);
     final avgTime = resolveTimes.isNotEmpty
         ? '${(resolveTimes.reduce((a, b) => a + b) / resolveTimes.length).round()}ms'
         : '-';
 
-    final resolveStr =
-        '$resolveOkCount/${items.length}'.padRight(10);
+    final resolveStr = '$resolveOkCount/${items.length}'.padRight(10);
     final probeStr = '$probeOkCount/${items.length}'.padRight(10);
 
     final color = resolveOkCount == items.length && probeOkCount > 0
@@ -1377,8 +1406,7 @@ void _printSummary(
   }
 
   print('');
-  print(
-      '${_dim}Total time: ${globalSw.elapsedMilliseconds}ms$_reset');
+  print('${_dim}Total time: ${globalSw.elapsedMilliseconds}ms$_reset');
   print('');
 }
 
@@ -1406,22 +1434,24 @@ void _writeReport(
       'anilistId': config.anilistId,
     },
     'sources': sourceResults
-        .map((s) => {
-              'name': s.sourceName,
-              'pluginId': s.pluginId,
-              'matchedTitle': s.matchedTitle,
-              'matchedSourceId': s.matchedSourceId,
-              'matchVerdict': s.matchVerdict,
-              'matchScore': s.matchScore,
-              'matchReasons': s.matchReasons,
-              'matchCandidateCount': s.matchCandidateCount,
-              'searchTimeMs': s.searchTimeMs,
-              'episodeTimeMs': s.episodeTimeMs,
-              'serverLinksTimeMs': s.serverLinksTimeMs,
-              'episodeCount': s.episodeCount,
-              'serverLinkCount': s.serverLinkCount,
-              'error': s.error,
-            })
+        .map(
+          (s) => {
+            'name': s.sourceName,
+            'pluginId': s.pluginId,
+            'matchedTitle': s.matchedTitle,
+            'matchedSourceId': s.matchedSourceId,
+            'matchVerdict': s.matchVerdict,
+            'matchScore': s.matchScore,
+            'matchReasons': s.matchReasons,
+            'matchCandidateCount': s.matchCandidateCount,
+            'searchTimeMs': s.searchTimeMs,
+            'episodeTimeMs': s.episodeTimeMs,
+            'serverLinksTimeMs': s.serverLinksTimeMs,
+            'episodeCount': s.episodeCount,
+            'serverLinkCount': s.serverLinkCount,
+            'error': s.error,
+          },
+        )
         .toList(),
     'serverLinks': allResults.map((r) => r.toJson()).toList(),
     'summary': {
@@ -1434,12 +1464,12 @@ void _writeReport(
           .where((r) => r.resolveErrorCode == 'resolver.not_found')
           .length,
       'probeOk': allResults.where((r) => r.probeSuccess).length,
-      'probeFailed':
-          allResults.where((r) => r.downloadProbed && !r.probeSuccess).length,
+      'probeFailed': allResults
+          .where((r) => r.downloadProbed && !r.probeSuccess)
+          .length,
       'unhandledHosts': allResults
           .where((r) => r.resolveErrorCode == 'resolver.not_found')
-          .map((r) =>
-              r.serverLink.detectedHost ?? r.serverLink.initialUrl.host)
+          .map((r) => r.serverLink.detectedHost ?? r.serverLink.initialUrl.host)
           .toSet()
           .toList(),
     },

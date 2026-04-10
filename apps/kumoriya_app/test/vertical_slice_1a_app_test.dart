@@ -291,7 +291,6 @@ final class _FakeAnimeCatalogRepository implements AnimeCatalogRepository {
     return Success(
       AnimeDetail(
         anime: _anime,
-        synopsis: 'A fantasy story.',
         episodes: const <AnimeEpisode>[
           AnimeEpisode(number: 1, title: 'Episode 1', isAired: true),
           AnimeEpisode(number: 2, title: 'Episode 2', isAired: false),

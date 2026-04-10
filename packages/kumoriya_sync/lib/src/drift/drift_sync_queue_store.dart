@@ -54,7 +54,8 @@ final class DriftSyncQueueStore implements SyncQueueStore {
   }
 
   @override
-  Future<Result<List<SyncQueueEntry>, KumoriyaError>> getPendingEntries() async {
+  Future<Result<List<SyncQueueEntry>, KumoriyaError>>
+  getPendingEntries() async {
     try {
       final rows = await _db
           .customSelect(
@@ -160,7 +161,9 @@ final class DriftSyncQueueStore implements SyncQueueStore {
       entityType: _entityTypeFromDb(row.read<String>('entity_type')),
       entityKey: row.read<String>('entity_key'),
       payload: row.read<String>('payload'),
-      createdAt: DateTime.fromMillisecondsSinceEpoch(row.read<int>('created_at')),
+      createdAt: DateTime.fromMillisecondsSinceEpoch(
+        row.read<int>('created_at'),
+      ),
       status: _statusFromDb(row.read<String>('status')),
       retryCount: row.read<int>('retry_count'),
       lastError: row.readNullable<String>('last_error'),

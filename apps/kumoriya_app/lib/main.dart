@@ -54,7 +54,7 @@ Future<void> main() async {
           return null; // drop — known media_kit race, not actionable
         }
         if (value.contains('Resolver failure: resolver.') ||
-          value.contains('Download resolve failure: resolver.') ||
+            value.contains('Download resolve failure: resolver.') ||
             value.contains('resolver.no_resolver') ||
             value.contains('resolver.empty') ||
             value.contains('download.no_streams')) {
