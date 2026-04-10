@@ -698,5 +698,6 @@ bool _shouldDisableHlsConnectionReuse(Uri url) {
 }
 
 bool _shouldFailFastHlsTransportError(Object error) {
-  return error is TimeoutException;
+  // TimeoutException is retryable — don't fail-fast on transient timeouts.
+  return false;
 }

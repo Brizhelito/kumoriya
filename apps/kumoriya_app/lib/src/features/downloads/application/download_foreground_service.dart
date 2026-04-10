@@ -1,3 +1,4 @@
+import 'dart:developer' as developer;
 import 'dart:io';
 
 import 'package:flutter_foreground_task/flutter_foreground_task.dart';
@@ -62,14 +63,29 @@ class DownloadForegroundService {
 
   /// Start the foreground service with a "Downloading…" notification.
   /// Idempotent — calling while already running is a no-op.
+  /// Retries once on failure to handle transient Android service errors.
   Future<void> start() async {
     if (!Platform.isAndroid || _running) return;
 
-    final result = await FlutterForegroundTask.startService(
-      notificationTitle: 'Kumoriya',
-      notificationText: 'Preparing downloads…',
-    );
-    _running = result is ServiceRequestSuccess;
+    for (var attempt = 1; attempt <= 2; attempt++) {
+      try {
+        final result = await FlutterForegroundTask.startService(
+          notificationTitle: 'Kumoriya',
+          notificationText: 'Preparing downloads…',
+        );
+        _running = result is ServiceRequestSuccess;
+        if (_running) return;
+        _log(
+          'Foreground service start returned ${result.runtimeType}'
+          ' (attempt $attempt/2)',
+        );
+      } catch (e) {
+        _log('Foreground service start error (attempt $attempt/2): $e');
+      }
+      if (attempt < 2) {
+        await Future<void>.delayed(const Duration(milliseconds: 500));
+      }
+    }
   }
 
   /// Update the notification text with current progress.
@@ -149,5 +165,9 @@ class DownloadForegroundService {
     if (!Platform.isAndroid || !_running) return;
     _running = false;
     await FlutterForegroundTask.stopService();
+  }
+
+  void _log(String message) {
+    developer.log(message, name: 'DownloadForegroundService');
   }
 }

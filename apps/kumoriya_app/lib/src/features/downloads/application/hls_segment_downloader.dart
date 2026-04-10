@@ -939,11 +939,13 @@ class HlsSegmentDownloader {
   }
 
   bool _shouldFailFastPlaylistError(Object error) {
-    return error is TimeoutException;
+    // TimeoutException is retryable — don't fail-fast on transient timeouts.
+    return false;
   }
 
   bool _shouldFailFastSegmentError(Object error) {
-    return error is TimeoutException;
+    // TimeoutException is retryable — don't fail-fast on transient timeouts.
+    return false;
   }
 
   void _log(String message) {

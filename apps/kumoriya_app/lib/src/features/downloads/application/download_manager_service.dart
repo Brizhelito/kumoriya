@@ -125,7 +125,7 @@ class DownloadManagerService {
     int? maxConcurrent,
     http.Client? httpClient,
     http.Client Function()? insecureHttpClientFactory,
-    int maxRetryAttempts = 2,
+    int maxRetryAttempts = 3,
     DownloadLinkRefresher? linkRefresher,
     int maxReResolveAttempts = 4,
     DownloadForegroundService? foregroundService,
@@ -527,7 +527,7 @@ class DownloadManagerService {
 
     // Start foreground service on the first active download.
     if (_activeDownloads.length == 1) {
-      unawaited(_foregroundService?.start());
+      await _foregroundService?.start();
     }
 
     try {

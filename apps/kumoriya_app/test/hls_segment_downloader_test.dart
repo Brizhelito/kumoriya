@@ -174,11 +174,9 @@ seg-2.ts
         final tempDir = await Directory.systemTemp.createTemp(
           'kumoriya-hls-variant-timeout',
         );
-        final hangingController = StreamController<List<int>>();
         var timedOutVariantAttempts = 0;
 
         addTearDown(() async {
-          await hangingController.close();
           if (await tempDir.exists()) {
             await tempDir.delete(recursive: true);
           }
@@ -204,7 +202,11 @@ low.m3u8
               ),
               'https://cdn.example/high.m3u8' => () {
                 timedOutVariantAttempts++;
-                return http.StreamedResponse(hangingController.stream, 200);
+                // Fresh never-completing stream each time so retries work.
+                return http.StreamedResponse(
+                  StreamController<List<int>>().stream,
+                  200,
+                );
               }(),
               'https://cdn.example/low.m3u8' => http.StreamedResponse(
                 Stream<List<int>>.fromIterable([
@@ -233,7 +235,8 @@ seg-low-1.ts
           outputPath: output,
         );
 
-        expect(timedOutVariantAttempts, 1);
+        // Playlist fetch retries maxRetries times before falling through.
+        expect(timedOutVariantAttempts, 3);
         expect(result.totalBytes, 3);
         expect(await File(output).readAsBytes(), <int>[7, 8, 9]);
       },
@@ -245,11 +248,9 @@ seg-low-1.ts
         final tempDir = await Directory.systemTemp.createTemp(
           'kumoriya-hls-premilkyway-timeout',
         );
-        final hangingController = StreamController<List<int>>();
         var lowVariantRequested = false;
 
         addTearDown(() async {
-          await hangingController.close();
           if (await tempDir.exists()) {
             await tempDir.delete(recursive: true);
           }
@@ -275,7 +276,11 @@ low.m3u8
                   200,
                 ),
               'https://edge1.premilkyway.com/high.m3u8' =>
-                http.StreamedResponse(hangingController.stream, 200),
+                // Fresh never-completing stream each time so retries work.
+                http.StreamedResponse(
+                  StreamController<List<int>>().stream,
+                  200,
+                ),
               'https://edge1.premilkyway.com/low.m3u8' => () {
                 lowVariantRequested = true;
                 return http.StreamedResponse(
