@@ -42,7 +42,7 @@ void main() {
   test('resolves play url into hls playlist', () async {
     final plugin = ZillaResolverPlugin(
       httpClient: MockClient((request) async {
-        expect(request.url.path, '/m3u8/6918779582b6c03ddb61dfd86129d3cd/');
+        expect(request.url.path, '/m3u8/6918779582b6c03ddb61dfd86129d3cd');
         return http.Response(playlistFixture, 200);
       }),
     );
@@ -62,7 +62,7 @@ void main() {
         expect(streams.single.isHls, isTrue);
         expect(
           streams.single.url.path,
-          '/m3u8/6918779582b6c03ddb61dfd86129d3cd/',
+          '/m3u8/6918779582b6c03ddb61dfd86129d3cd',
         );
       },
     );

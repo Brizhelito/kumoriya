@@ -862,7 +862,19 @@ class HlsSegmentDownloader {
       if (url.startsWith('http://') || url.startsWith('https://')) {
         return Uri.parse(url);
       }
-      return baseUrl.resolve(url);
+      // RFC 3986: relative resolution strips the last path component of the
+      // base URL unless the base ends with '/'.  When the last segment has no
+      // file extension (e.g. a CDN hash like "6918779582b6c03ddb61dfd86129d3cd")
+      // it represents a directory, not a filename, so we must append '/' before
+      // resolving to avoid the hash being replaced by the relative URL.
+      final effectiveBase = () {
+        if (baseUrl.path.endsWith('/')) return baseUrl;
+        final segs = baseUrl.pathSegments;
+        final last = segs.isEmpty ? '' : segs.last;
+        if (last.contains('.')) return baseUrl;
+        return baseUrl.replace(path: '${baseUrl.path}/');
+      }();
+      return effectiveBase.resolve(url);
     } catch (e, stack) {
       dlLog.error(
         'HLS',
