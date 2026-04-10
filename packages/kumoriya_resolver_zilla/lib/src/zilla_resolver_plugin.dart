@@ -105,12 +105,21 @@ Uri? _toPlaylistUrl(Uri url) {
     return null;
   }
   if (segments[0] == 'm3u8') {
-    return url;
+    // Ensure trailing slash so relative segment/variant URLs in the m3u8
+    // resolve correctly (e.g. "index-v1-a1.m3u8" → /m3u8/<hash>/index-v1-a1.m3u8).
+    final path = url.path.endsWith('/') ? url.path : '${url.path}/';
+    return url.replace(path: path);
   }
   if (segments[0] != 'play') {
     return null;
   }
-  return url.replace(path: '/m3u8/${segments[1]}', query: null, fragment: null);
+  // Trailing slash ensures relative URL resolution treats the hash as a
+  // directory, not a file name to be replaced.
+  return url.replace(
+    path: '/m3u8/${segments[1]}/',
+    query: null,
+    fragment: null,
+  );
 }
 
 Map<String, String> _headers(Uri url) {

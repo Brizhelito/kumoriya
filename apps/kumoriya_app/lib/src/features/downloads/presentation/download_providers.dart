@@ -223,7 +223,7 @@ final completedDownloadTasksProvider =
       ref.watch(completedTabStatusChangeProvider);
       return ref
           .watch(downloadStoreProvider)
-          .getTasksByStatus(DownloadStatus.completed);
+          .getTasksByStatus(DownloadStatus.completed, ascending: false);
     });
 
 /// Active tasks (downloading + paused) — only refreshes when the active tab
@@ -236,7 +236,7 @@ final activeDownloadTasksProvider =
       return ref.watch(downloadStoreProvider).getTasksByStatuses([
         DownloadStatus.downloading,
         DownloadStatus.paused,
-      ]);
+      ], ascending: false);
     });
 
 /// Queued tasks (pending + failed) — only refreshes when the queue tab stream
@@ -249,7 +249,7 @@ final queuedDownloadTasksProvider =
       return ref.watch(downloadStoreProvider).getTasksByStatuses([
         DownloadStatus.pending,
         DownloadStatus.failed,
-      ]);
+      ], ascending: false);
     });
 
 /// Per-anime task list — only refreshes when the specific anime's downloads

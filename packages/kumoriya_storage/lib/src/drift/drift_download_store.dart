@@ -102,9 +102,14 @@ final class DriftDownloadStore implements DownloadStore {
   Future<Result<List<DownloadTask>, KumoriyaError>> getTasksByStatus(
     DownloadStatus status, {
     int? limit,
+    bool ascending = true,
   }) async {
     try {
-      final rows = await _dao.getTasksByStatus(status.name, limit: limit);
+      final rows = await _dao.getTasksByStatus(
+        status.name,
+        limit: limit,
+        ascending: ascending,
+      );
       return Success(rows.map(_rowToTask).toList());
     } catch (e) {
       return Failure(
@@ -121,11 +126,13 @@ final class DriftDownloadStore implements DownloadStore {
   Future<Result<List<DownloadTask>, KumoriyaError>> getTasksByStatuses(
     List<DownloadStatus> statuses, {
     int? limit,
+    bool ascending = true,
   }) async {
     try {
       final rows = await _dao.getTasksByStatuses(
         statuses.map((s) => s.name).toList(),
         limit: limit,
+        ascending: ascending,
       );
       return Success(rows.map(_rowToTask).toList());
     } catch (e) {

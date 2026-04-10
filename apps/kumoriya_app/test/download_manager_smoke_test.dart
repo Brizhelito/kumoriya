@@ -372,6 +372,7 @@ final class _InMemoryDownloadStore implements DownloadStore {
   Future<Result<List<DownloadTask>, KumoriyaError>> getTasksByStatus(
     DownloadStatus status, {
     int? limit,
+    bool ascending = true,
   }) async {
     final all = _tasks.values
         .where((task) => task.status == status)
@@ -383,6 +384,7 @@ final class _InMemoryDownloadStore implements DownloadStore {
   Future<Result<List<DownloadTask>, KumoriyaError>> getTasksByStatuses(
     List<DownloadStatus> statuses, {
     int? limit,
+    bool ascending = true,
   }) async {
     final statusSet = statuses.toSet();
     final all = _tasks.values

@@ -78,11 +78,13 @@ abstract interface class DownloadStore {
   Future<Result<List<DownloadTask>, KumoriyaError>> getTasksByStatus(
     DownloadStatus status, {
     int? limit,
+    bool ascending = true,
   });
 
   Future<Result<List<DownloadTask>, KumoriyaError>> getTasksByStatuses(
     List<DownloadStatus> statuses, {
     int? limit,
+    bool ascending = true,
   });
 
   Future<Result<List<DownloadTask>, KumoriyaError>> getAllTasks({int? limit});

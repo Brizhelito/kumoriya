@@ -56,10 +56,15 @@ class DownloadTaskDao extends DatabaseAccessor<AppDatabase>
   Future<List<DownloadTaskTableData>> getTasksByStatus(
     String status, {
     int? limit,
+    bool ascending = true,
   }) {
     final query = select(downloadTaskTable)
       ..where((t) => t.status.equals(status))
-      ..orderBy([(t) => OrderingTerm.asc(t.createdAt)]);
+      ..orderBy([
+        (t) => ascending
+            ? OrderingTerm.asc(t.createdAt)
+            : OrderingTerm.desc(t.createdAt),
+      ]);
     if (limit != null) {
       query.limit(limit);
     }
@@ -69,10 +74,15 @@ class DownloadTaskDao extends DatabaseAccessor<AppDatabase>
   Future<List<DownloadTaskTableData>> getTasksByStatuses(
     List<String> statuses, {
     int? limit,
+    bool ascending = true,
   }) {
     final query = select(downloadTaskTable)
       ..where((t) => t.status.isIn(statuses))
-      ..orderBy([(t) => OrderingTerm.asc(t.createdAt)]);
+      ..orderBy([
+        (t) => ascending
+            ? OrderingTerm.asc(t.createdAt)
+            : OrderingTerm.desc(t.createdAt),
+      ]);
     if (limit != null) {
       query.limit(limit);
     }
