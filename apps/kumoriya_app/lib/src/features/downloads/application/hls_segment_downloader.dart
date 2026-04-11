@@ -961,7 +961,7 @@ class HlsSegmentDownloader {
   }
 
   void _log(String message) {
-    developer.log(message, name: 'HlsSegmentDownloader');
+    developer.log(message, name: 'kumoriya.download.HLS');
   }
 }
 

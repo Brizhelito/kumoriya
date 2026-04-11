@@ -59,6 +59,10 @@ class DownloadForegroundService {
         importance: Importance.high,
       ),
     );
+    developer.log(
+      'completion channel created (id=$_completionChannelId)',
+      name: 'kumoriya.download.Notif',
+    );
   }
 
   static const _downloadIconMetaData = 'dev.kumoriya.app.DOWNLOAD_ICON';
@@ -75,10 +79,9 @@ class DownloadForegroundService {
     // notification actually appears.
     final permission =
         await FlutterForegroundTask.requestNotificationPermission();
+    _log('notification permission=${permission.name}');
     if (permission == NotificationPermission.permanently_denied) {
-      _log(
-        'Notification permission permanently denied — service will run silently',
-      );
+      _log('permission permanently denied — notifications will be silent');
     }
 
     const notifIcon = NotificationIcon(metaDataName: _downloadIconMetaData);
@@ -91,13 +94,10 @@ class DownloadForegroundService {
           notificationIcon: notifIcon,
         );
         _running = result is ServiceRequestSuccess;
+        _log('service start result=${result.runtimeType} running=$_running (attempt $attempt/2)');
         if (_running) return;
-        _log(
-          'Foreground service start returned ${result.runtimeType}'
-          ' (attempt $attempt/2)',
-        );
       } catch (e) {
-        _log('Foreground service start error (attempt $attempt/2): $e');
+        _log('service start error (attempt $attempt/2): $e');
       }
       if (attempt < 2) {
         await Future<void>.delayed(const Duration(milliseconds: 500));
@@ -162,6 +162,7 @@ class DownloadForegroundService {
       body = '$completedCount episodes downloaded';
     }
 
+    _log('showCompletion: "$title" — "$body" (done=$completedCount failed=$failedCount)');
     await plugin.show(
       id: _completionNotificationId,
       title: title,
@@ -184,11 +185,12 @@ class DownloadForegroundService {
   /// Idempotent — calling while not running is a no-op.
   Future<void> stop() async {
     if (!Platform.isAndroid || !_running) return;
+    _log('stopping foreground service');
     _running = false;
     await FlutterForegroundTask.stopService();
   }
 
   void _log(String message) {
-    developer.log(message, name: 'DownloadForegroundService');
+    developer.log(message, name: 'kumoriya.download.Notif');
   }
 }

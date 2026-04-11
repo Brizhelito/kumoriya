@@ -499,6 +499,13 @@ class DownloadManagerService {
           onFailure: (_) => <DownloadTask>[],
         );
 
+        if (pending.isNotEmpty) {
+          _log(
+            'Queue: slots=$slotsAvailable active=${_activeDownloads.length} '
+            'max=$_maxConcurrent pending=${pending.length}',
+          );
+        }
+
         for (final task in pending) {
           if (_disposed) {
             return;
@@ -557,7 +564,9 @@ class DownloadManagerService {
       if (task.isHls) {
         await dlLog.log(
           'Manager',
-          'HLS download start: ${task.id} url=${task.sourceUrl} headers=${task.headers}',
+          '[start] HLS task=${task.id} server=${task.serverName} '
+              'host=${task.detectedHost} quality=${task.qualityLabel} '
+              'url=${task.sourceUrl}',
         );
         final hlsResult = await _downloadHls(
           runningTask,
@@ -571,7 +580,9 @@ class DownloadManagerService {
       } else {
         await dlLog.log(
           'Manager',
-          'Direct download start: ${task.id} url=${task.sourceUrl} headers=${task.headers}',
+          '[start] direct task=${task.id} server=${task.serverName} '
+              'host=${task.detectedHost} quality=${task.qualityLabel} '
+              'url=${task.sourceUrl}',
         );
         await _downloadDirect(runningTask, target.tempPath, cancelCompleter);
       }
@@ -1772,7 +1783,7 @@ class DownloadManagerService {
   }
 
   void _log(String message) {
-    developer.log(message, name: 'DownloadManagerService');
+    developer.log(message, name: 'kumoriya.download.Manager');
   }
 
   int _resolveParallelSegmentsPerDownload() {

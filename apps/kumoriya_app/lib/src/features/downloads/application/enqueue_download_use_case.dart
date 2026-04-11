@@ -170,17 +170,31 @@ class EnqueueDownloadUseCase {
       final match = streams.where(
         (s) => s.qualityLabel?.toLowerCase() == preferredQuality.toLowerCase(),
       );
-      if (match.isNotEmpty) return match.first;
+      if (match.isNotEmpty) {
+        final s = match.first;
+        _log('[pick] quality match: "${s.qualityLabel}" isHls=${s.isHls} host=${s.url.host}');
+        return s;
+      }
     }
     // AnimeAV1 distributes via Zilla Networks (HLS) — always prefer HLS.
     if (sourcePluginId == 'kumoriya.source.animeav1') {
       final hls = streams.where((s) => s.isHls).toList();
-      if (hls.isNotEmpty) return hls.first;
+      if (hls.isNotEmpty) {
+        final s = hls.first;
+        _log('[pick] animeav1→HLS preferred: "${s.qualityLabel}" host=${s.url.host}');
+        return s;
+      }
     }
     // Prefer non-HLS streams for direct download, fall back to HLS.
     final nonHls = streams.where((s) => !s.isHls).toList();
-    if (nonHls.isNotEmpty) return nonHls.first;
-    return streams.first;
+    if (nonHls.isNotEmpty) {
+      final s = nonHls.first;
+      _log('[pick] non-HLS direct: "${s.qualityLabel}" host=${s.url.host}');
+      return s;
+    }
+    final s = streams.first;
+    _log('[pick] fallback HLS: "${s.qualityLabel}" host=${s.url.host} (no non-HLS available)');
+    return s;
   }
 
   String _guessExtension(ResolvedStream stream) {
@@ -194,7 +208,7 @@ class EnqueueDownloadUseCase {
   }
 
   void _log(String message) {
-    developer.log(message, name: 'EnqueueDownloadUseCase');
+    developer.log(message, name: 'kumoriya.download.Enqueue');
   }
 
   /// Removes characters not allowed in file names on Windows/Android.
