@@ -56,6 +56,14 @@
         <meta-data
             android:name="dev.kumoriya.app.DOWNLOAD_ICON"
             android:resource="@drawable/ic_stat_download" />
+        <!-- flutter_foreground_task v9.x requires manual service declaration.
+             The plugin does NOT auto-register this in its own manifest.
+             Warning: Do not change service name. -->
+        <service
+            android:name="com.pravera.flutter_foreground_task.service.ForegroundService"
+            android:foregroundServiceType="dataSync"
+            android:exported="false"
+            android:stopWithTask="false" />
     </application>
     <!-- Required to query activities that can process text, see:
          https://developer.android.com/training/package-visibility and
