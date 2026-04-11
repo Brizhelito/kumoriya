@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:developer' as developer;
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/io_client.dart' as ioc;
 import 'package:kumoriya_storage/kumoriya_storage.dart';
@@ -1784,6 +1785,7 @@ class DownloadManagerService {
 
   void _log(String message) {
     developer.log(message, name: 'kumoriya.download.Manager');
+    debugPrint('[kumoriya.download.Manager] $message');
   }
 
   int _resolveParallelSegmentsPerDownload() {

@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:developer' as developer;
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:kumoriya_core/kumoriya_core.dart';
 import 'package:kumoriya_plugins/kumoriya_plugins.dart';
 import 'package:kumoriya_storage/kumoriya_storage.dart';
@@ -209,6 +210,7 @@ class EnqueueDownloadUseCase {
 
   void _log(String message) {
     developer.log(message, name: 'kumoriya.download.Enqueue');
+    debugPrint('[kumoriya.download.Enqueue] $message');
   }
 
   /// Removes characters not allowed in file names on Windows/Android.
