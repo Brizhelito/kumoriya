@@ -62,8 +62,8 @@ func main() {
 	app.Get("/releases/latest", releaseHandler.GetManifest)
 
 	// ── Digital Asset Links for Android passkeys ──
-	if cfg.AndroidAPKFingerprint != "" {
-		assetLinksJSON := buildAssetLinks(cfg.AndroidAPKFingerprint)
+	if len(cfg.AndroidAPKFingerprints) > 0 {
+		assetLinksJSON := buildAssetLinks(cfg.AndroidAPKFingerprints)
 		app.Get("/.well-known/assetlinks.json", func(c fiber.Ctx) error {
 			c.Set("Content-Type", "application/json")
 			c.Set("Cache-Control", "public, max-age=86400")
@@ -184,13 +184,20 @@ func registerProtectedRoutes(app *fiber.App, cfg config.Config) (cleanup func())
 }
 
 // buildAssetLinks returns the Digital Asset Links JSON for Android passkey association.
-func buildAssetLinks(fingerprint string) string {
+func buildAssetLinks(fingerprints []string) string {
+	var fps string
+	for i, fp := range fingerprints {
+		if i > 0 {
+			fps += ", "
+		}
+		fps += `"` + fp + `"`
+	}
 	return `[{
   "relation": ["delegate_permission/common.handle_all_urls", "delegate_permission/common.get_login_creds"],
   "target": {
     "namespace": "android_app",
     "package_name": "dev.kumoriya.app",
-    "sha256_cert_fingerprints": ["` + fingerprint + `"]
+    "sha256_cert_fingerprints": [` + fps + `]
   }
 }]`
 }
