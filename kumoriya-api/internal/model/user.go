@@ -31,6 +31,7 @@ type Session struct {
 	UserID      uuid.UUID `json:"user_id"`
 	RefreshHash string    `json:"-"`
 	DeviceName  *string   `json:"device_name,omitempty"`
+	DeviceID    *string   `json:"device_id,omitempty"`
 	IPAddress   *string   `json:"ip_address,omitempty"`
 	ExpiresAt   time.Time `json:"expires_at"`
 	CreatedAt   time.Time `json:"created_at"`

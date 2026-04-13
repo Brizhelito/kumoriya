@@ -24,6 +24,7 @@ type authUserRepository interface {
 	DeleteUser(ctx context.Context, id uuid.UUID) error
 	CountActiveSessions(ctx context.Context, userID uuid.UUID) (int, error)
 	RevokeOldestSession(ctx context.Context, userID uuid.UUID) error
+	RevokeSessionsByDeviceID(ctx context.Context, userID uuid.UUID, deviceID string) error
 	CreateSession(ctx context.Context, s *model.Session) error
 }
 
@@ -47,7 +48,7 @@ func PasskeyLoginInfo(userID uuid.UUID) model.OAuthUserInfo {
 }
 
 // LoginOrRegisterPasskey issues a token pair for an existing user after passkey verification.
-func (s *AuthService) LoginOrRegisterPasskey(ctx context.Context, userID uuid.UUID, deviceName, ipAddress string) (*model.User, *model.TokenPair, error) {
+func (s *AuthService) LoginOrRegisterPasskey(ctx context.Context, userID uuid.UUID, deviceName, deviceID, ipAddress string) (*model.User, *model.TokenPair, error) {
 	user, err := s.userRepo.GetUserByID(ctx, userID)
 	if err != nil {
 		return nil, nil, fmt.Errorf("get user: %w", err)
@@ -56,7 +57,7 @@ func (s *AuthService) LoginOrRegisterPasskey(ctx context.Context, userID uuid.UU
 		return nil, nil, fmt.Errorf("user not found")
 	}
 
-	pair, err := s.issueTokenPair(ctx, user, deviceName, ipAddress)
+	pair, err := s.issueTokenPair(ctx, user, deviceName, deviceID, ipAddress)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -68,6 +69,7 @@ func (s *AuthService) LoginOrRegisterOAuth(
 	ctx context.Context,
 	info model.OAuthUserInfo,
 	deviceName string,
+	deviceID string,
 	ipAddress string,
 ) (*model.User, *model.TokenPair, error) {
 	// 1. Check if this OAuth account already exists
@@ -122,7 +124,7 @@ func (s *AuthService) LoginOrRegisterOAuth(
 	}
 
 	// Issue tokens
-	pair, err := s.issueTokenPair(ctx, user, deviceName, ipAddress)
+	pair, err := s.issueTokenPair(ctx, user, deviceName, deviceID, ipAddress)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -202,7 +204,15 @@ func (s *AuthService) DeleteAccount(ctx context.Context, userID uuid.UUID) error
 	return s.userRepo.DeleteUser(ctx, userID)
 }
 
-func (s *AuthService) issueTokenPair(ctx context.Context, user *model.User, deviceName, ipAddress string) (*model.TokenPair, error) {
+func (s *AuthService) issueTokenPair(ctx context.Context, user *model.User, deviceName, deviceID, ipAddress string) (*model.TokenPair, error) {
+	// If the same physical device is logging in again, revoke its previous
+	// session so the device list stays clean (no duplicates after reinstall).
+	if deviceID != "" {
+		if err := s.userRepo.RevokeSessionsByDeviceID(ctx, user.ID, deviceID); err != nil {
+			log.Warn().Err(err).Str("device_id", deviceID).Msg("failed to revoke previous device session")
+		}
+	}
+
 	// Enforce max sessions
 	count, err := s.userRepo.CountActiveSessions(ctx, user.ID)
 	if err != nil {
@@ -228,6 +238,10 @@ func (s *AuthService) issueTokenPair(ctx context.Context, user *model.User, devi
 	if deviceName != "" {
 		devName = &deviceName
 	}
+	var devID *string
+	if deviceID != "" {
+		devID = &deviceID
+	}
 	var ip *string
 	if ipAddress != "" {
 		ip = &ipAddress
@@ -238,6 +252,7 @@ func (s *AuthService) issueTokenPair(ctx context.Context, user *model.User, devi
 		UserID:      user.ID,
 		RefreshHash: hashRefresh,
 		DeviceName:  devName,
+		DeviceID:    devID,
 		IPAddress:   ip,
 		ExpiresAt:   time.Now().UTC().Add(RefreshTokenDuration),
 		CreatedAt:   time.Now().UTC(),

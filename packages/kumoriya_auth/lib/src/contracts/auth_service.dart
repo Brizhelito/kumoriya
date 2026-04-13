@@ -10,6 +10,7 @@ abstract interface class AuthService {
     required OAuthProvider provider,
     required Uri callbackUri,
     String? deviceName,
+    String? deviceId,
   });
 
   Future<Result<AuthState, KumoriyaError>> completeOAuthLogin(Uri callbackUri);
@@ -31,6 +32,7 @@ abstract interface class AuthService {
     required String userId,
     required Object payload,
     String? deviceName,
+    String? deviceId,
   });
 
   Future<Result<AuthUser?, KumoriyaError>> getCurrentUser();

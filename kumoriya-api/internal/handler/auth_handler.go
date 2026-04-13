@@ -23,6 +23,7 @@ import (
 type oauthStateEntry struct {
 	redirectURI string
 	deviceName  string
+	deviceID    string
 	expiresAt   time.Time
 }
 
@@ -50,12 +51,13 @@ func newOAuthStateCache() *oauthStateCache {
 	return c
 }
 
-func (c *oauthStateCache) put(state, redirectURI, deviceName string) {
+func (c *oauthStateCache) put(state, redirectURI, deviceName, deviceID string) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	c.entries[state] = oauthStateEntry{
 		redirectURI: redirectURI,
 		deviceName:  deviceName,
+		deviceID:    deviceID,
 		expiresAt:   time.Now().Add(10 * time.Minute),
 	}
 }
@@ -107,6 +109,7 @@ func (h *AuthHandler) OAuthStart(c fiber.Ctx) error {
 	}
 
 	deviceName := c.Query("device_name", "unknown")
+	deviceID := c.Query("device_id")
 
 	// Generate CSRF state
 	stateBuf := make([]byte, 32)
@@ -115,7 +118,7 @@ func (h *AuthHandler) OAuthStart(c fiber.Ctx) error {
 	}
 	state := hex.EncodeToString(stateBuf)
 
-	h.stateCache.put(state, redirectURI, deviceName)
+	h.stateCache.put(state, redirectURI, deviceName, deviceID)
 
 	authURL, err := h.oauthSvc.GetAuthURL(provider, state)
 	if err != nil {
@@ -147,7 +150,7 @@ func (h *AuthHandler) OAuthCallback(c fiber.Ctx) error {
 		return redirectWithError(c, entry.redirectURI, "oauth_exchange_failed")
 	}
 
-	user, pair, err := h.authSvc.LoginOrRegisterOAuth(c.Context(), *info, entry.deviceName, c.IP())
+	user, pair, err := h.authSvc.LoginOrRegisterOAuth(c.Context(), *info, entry.deviceName, entry.deviceID, c.IP())
 	if err != nil {
 		log.Error().Err(err).Msg("login or register failed")
 		return redirectWithError(c, entry.redirectURI, "auth_failed")
@@ -244,6 +247,9 @@ func (h *AuthHandler) PasskeyRegisterBegin(c fiber.Ctx) error {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "not authenticated"})
 	}
 	userName, _ := c.Locals(middleware.LocalsUserName).(string)
+	if userName == "" {
+		userName = userID.String()
+	}
 
 	type beginReq struct {
 		FriendlyName string `json:"friendly_name"`
@@ -268,6 +274,9 @@ func (h *AuthHandler) PasskeyRegisterFinish(c fiber.Ctx) error {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "not authenticated"})
 	}
 	userName, _ := c.Locals(middleware.LocalsUserName).(string)
+	if userName == "" {
+		userName = userID.String()
+	}
 
 	body := c.Body()
 	if len(body) == 0 {
@@ -315,6 +324,7 @@ func (h *AuthHandler) PasskeyAuthFinish(c fiber.Ctx) error {
 	// Read user_id from query or separate header since body is the attestation
 	userIDStr := c.Query("user_id")
 	deviceName := c.Query("device_name", "unknown")
+	deviceID := c.Query("device_id")
 	if userIDStr == "" {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "missing user_id query param"})
 	}
@@ -334,7 +344,7 @@ func (h *AuthHandler) PasskeyAuthFinish(c fiber.Ctx) error {
 	}
 
 	// Issue new token pair after passkey auth
-	_, pair, err := h.authSvc.LoginOrRegisterPasskey(c.Context(), userID, deviceName, c.IP())
+	_, pair, err := h.authSvc.LoginOrRegisterPasskey(c.Context(), userID, deviceName, deviceID, c.IP())
 	if err != nil {
 		log.Error().Err(err).Msg("token issuance after passkey failed")
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "token issuance failed"})

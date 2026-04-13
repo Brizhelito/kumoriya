@@ -4,6 +4,8 @@ import 'package:kumoriya_auth/kumoriya_auth.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../shared/auth/auth_providers.dart';
+import '../../../../shared/auth/device_id_provider.dart';
+import '../../../../shared/auth/device_name_provider.dart';
 import '../../../../shared/theme/kumoriya_theme.dart';
 
 class LoginPage extends ConsumerStatefulWidget {
@@ -24,9 +26,13 @@ class _LoginPageState extends ConsumerState<LoginPage> {
     });
 
     final authService = ref.read(authServiceProvider);
+    final deviceName = await ref.read(deviceNameProvider.future);
+    final deviceId = await ref.read(deviceIdProvider.future);
     final result = await authService.beginOAuthLogin(
       provider: provider,
       callbackUri: Uri.parse('kumoriya://auth/callback'),
+      deviceName: deviceName,
+      deviceId: deviceId,
     );
 
     result.fold(

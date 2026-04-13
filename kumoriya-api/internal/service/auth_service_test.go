@@ -108,6 +108,10 @@ func (f *fakeAuthUserRepo) RevokeOldestSession(_ context.Context, userID uuid.UU
 	return nil
 }
 
+func (f *fakeAuthUserRepo) RevokeSessionsByDeviceID(_ context.Context, _ uuid.UUID, _ string) error {
+	return nil
+}
+
 func (f *fakeAuthUserRepo) CreateSession(_ context.Context, s *model.Session) error {
 	clone := *s
 	f.createdSession = &clone
@@ -196,7 +200,7 @@ func TestAuthServiceIssueTokenPairRevokesOldestWhenAtSessionLimit(t *testing.T) 
 	}
 	svc := NewAuthService(repo, newTestJWTService(t))
 
-	_, pair, err := svc.LoginOrRegisterPasskey(context.Background(), userID, "Desktop", "127.0.0.1")
+	_, pair, err := svc.LoginOrRegisterPasskey(context.Background(), userID, "Desktop", "", "127.0.0.1")
 	if err != nil {
 		t.Fatalf("LoginOrRegisterPasskey returned error: %v", err)
 	}

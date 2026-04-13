@@ -134,16 +134,16 @@ func (r *UserRepo) ListOAuthAccountsByUser(ctx context.Context, userID uuid.UUID
 
 func (r *UserRepo) CreateSession(ctx context.Context, s *model.Session) error {
 	_, err := r.pool.Exec(ctx,
-		`INSERT INTO sessions (id, user_id, refresh_hash, device_name, ip_address, expires_at, created_at)
-		 VALUES ($1, $2, $3, $4, $5::inet, $6, $7)`,
-		s.ID, s.UserID, s.RefreshHash, s.DeviceName, s.IPAddress, s.ExpiresAt, s.CreatedAt,
+		`INSERT INTO sessions (id, user_id, refresh_hash, device_name, device_id, ip_address, expires_at, created_at)
+		 VALUES ($1, $2, $3, $4, $5, $6::inet, $7, $8)`,
+		s.ID, s.UserID, s.RefreshHash, s.DeviceName, s.DeviceID, s.IPAddress, s.ExpiresAt, s.CreatedAt,
 	)
 	return err
 }
 
 func (r *UserRepo) GetActiveSessionsByUser(ctx context.Context, userID uuid.UUID) ([]model.Session, error) {
 	rows, err := r.pool.Query(ctx,
-		`SELECT id, user_id, refresh_hash, device_name, host(ip_address), expires_at, created_at, revoked
+		`SELECT id, user_id, refresh_hash, device_name, device_id, host(ip_address), expires_at, created_at, revoked
 		 FROM sessions
 		 WHERE user_id = $1 AND NOT revoked AND expires_at > now()
 		 ORDER BY created_at DESC`,
@@ -157,7 +157,7 @@ func (r *UserRepo) GetActiveSessionsByUser(ctx context.Context, userID uuid.UUID
 	var sessions []model.Session
 	for rows.Next() {
 		var s model.Session
-		if err := rows.Scan(&s.ID, &s.UserID, &s.RefreshHash, &s.DeviceName, &s.IPAddress, &s.ExpiresAt, &s.CreatedAt, &s.Revoked); err != nil {
+		if err := rows.Scan(&s.ID, &s.UserID, &s.RefreshHash, &s.DeviceName, &s.DeviceID, &s.IPAddress, &s.ExpiresAt, &s.CreatedAt, &s.Revoked); err != nil {
 			return nil, err
 		}
 		sessions = append(sessions, s)
@@ -205,6 +205,15 @@ func (r *UserRepo) RevokeOldestSession(ctx context.Context, userID uuid.UUID) er
 		   ORDER BY created_at ASC
 		   LIMIT 1
 		 )`, userID,
+	)
+	return err
+}
+
+func (r *UserRepo) RevokeSessionsByDeviceID(ctx context.Context, userID uuid.UUID, deviceID string) error {
+	_, err := r.pool.Exec(ctx,
+		`UPDATE sessions SET revoked = TRUE
+		 WHERE user_id = $1 AND device_id = $2 AND NOT revoked`,
+		userID, deviceID,
 	)
 	return err
 }

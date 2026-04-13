@@ -23,6 +23,7 @@ final class HttpAuthService implements AuthService {
     required OAuthProvider provider,
     required Uri callbackUri,
     String? deviceName,
+    String? deviceId,
   }) async {
     try {
       final providerName = provider == OAuthProvider.discord
@@ -31,6 +32,7 @@ final class HttpAuthService implements AuthService {
       final queryParams = <String, String>{
         'redirect_uri': callbackUri.toString(),
         if (deviceName != null) 'device_name': deviceName,
+        if (deviceId != null) 'device_id': deviceId,
       };
       final uri = Uri.parse(
         '$_baseUrl/auth/oauth/$providerName',
@@ -209,6 +211,7 @@ final class HttpAuthService implements AuthService {
     required String userId,
     required Object payload,
     String? deviceName,
+    String? deviceId,
   }) async {
     return const Failure(
       SimpleError(
