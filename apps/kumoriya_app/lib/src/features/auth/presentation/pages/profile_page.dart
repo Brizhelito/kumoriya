@@ -1,14 +1,18 @@
 import 'dart:convert';
+import 'dart:developer' as developer;
 
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kumoriya_sync/kumoriya_sync.dart';
 
 import '../../../../app/l10n.dart';
 import '../../../../shared/auth/auth_providers.dart';
+import '../../../../shared/auth/passkey_authenticator.dart';
 import '../../../../shared/sync/sync_providers.dart';
 import '../../../../shared/theme/kumoriya_theme.dart';
+import 'login_page.dart';
 
 /// Profile details fetched from the backend.
 final _profileDetailsProvider =
@@ -205,19 +209,40 @@ class ProfilePage extends ConsumerWidget {
                   (profile?['registered_passkeys'] as List?)
                       ?.cast<Map<String, dynamic>>() ??
                   [];
-              if (passkeys.isEmpty) {
-                return _EmptyCard(context.l10n.profileNoPasskeys);
-              }
               return Column(
-                children: passkeys.map((p) {
-                  return _InfoTile(
-                    icon: Icons.key,
-                    title:
-                        p['friendly_name'] as String? ??
-                        context.l10n.profileUnnamedPasskey,
-                    subtitle: p['created_at'] as String? ?? '',
-                  );
-                }).toList(),
+                children: [
+                  if (passkeys.isEmpty)
+                    _EmptyCard(context.l10n.profileNoPasskeys)
+                  else
+                    ...passkeys.map((p) {
+                      final id = p['id'] as String? ?? '';
+                      return _PasskeyTile(
+                        name:
+                            p['friendly_name'] as String? ??
+                            context.l10n.profileUnnamedPasskey,
+                        subtitle: p['created_at'] as String? ?? '',
+                        onDelete: id.isEmpty
+                            ? null
+                            : () => _confirmDeletePasskey(context, ref, id),
+                      );
+                    }),
+                  const SizedBox(height: 8),
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      onPressed: () => _registerPasskey(context, ref),
+                      icon: const Icon(Icons.add, size: 18),
+                      label: Text(context.l10n.profileRegisterPasskey),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: KumoriyaColors.primary,
+                        side: const BorderSide(color: KumoriyaColors.primary),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               );
             },
             loading: () => const _LoadingCard(),
@@ -341,6 +366,165 @@ class ProfilePage extends ConsumerWidget {
       ),
     );
   }
+
+  Future<void> _registerPasskey(BuildContext context, WidgetRef ref) async {
+    if (!PasskeyAuthenticator.isSupported) {
+      _showSnackbar(context, context.l10n.profilePasskeyRegisterFailed);
+      return;
+    }
+
+    // 1) Ask for a friendly name.
+    final nameController = TextEditingController();
+    final name = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: KumoriyaColors.surface,
+        title: Text(
+          context.l10n.profilePasskeyNameTitle,
+          style: const TextStyle(color: KumoriyaColors.textPrimary),
+        ),
+        content: TextField(
+          controller: nameController,
+          autofocus: true,
+          style: const TextStyle(color: KumoriyaColors.textPrimary),
+          decoration: InputDecoration(
+            hintText: context.l10n.profilePasskeyNameHint,
+            hintStyle: const TextStyle(color: KumoriyaColors.textMuted),
+          ),
+          onSubmitted: (v) => Navigator.pop(ctx, v.trim()),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text(context.l10n.profileCancel),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, nameController.text.trim()),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: KumoriyaColors.primary,
+              foregroundColor: KumoriyaColors.textPrimary,
+            ),
+            child: Text(context.l10n.profilePasskeyNameContinue),
+          ),
+        ],
+      ),
+    );
+    nameController.dispose();
+
+    if (name == null || name.isEmpty || !context.mounted) return;
+
+    // 2) Begin registration on server — get CredentialCreation options.
+    final client = ref.read(authenticatedHttpClientProvider);
+    try {
+      final beginResp = await client.postJson(
+        '/auth/passkeys/register/begin',
+        body: {'friendly_name': name},
+      );
+      if (beginResp.statusCode != 200) {
+        _showSnackbar(context, context.l10n.profilePasskeyRegisterFailed);
+        return;
+      }
+
+      // 3) Call platform authenticator with the server options.
+      final attestationJson = await PasskeyAuthenticator.create(beginResp.body);
+
+      // 4) Send attestation response to server to complete registration.
+      final finishResp = await client.postJson(
+        '/auth/passkeys/register/finish',
+        body: jsonDecode(attestationJson),
+      );
+
+      if (!context.mounted) return;
+      if (finishResp.statusCode == 200) {
+        ref.invalidate(_profileDetailsProvider);
+        _showSnackbar(context, context.l10n.profilePasskeyRegistered);
+      } else {
+        developer.log(
+          'passkey register finish ${finishResp.statusCode}: ${finishResp.body}',
+          name: 'kumoriya.profile',
+        );
+        _showSnackbar(context, context.l10n.profilePasskeyRegisterFailed);
+      }
+    } on PlatformException catch (e) {
+      developer.log(
+        'passkey platform error: ${e.code} - ${e.message}',
+        name: 'kumoriya.profile',
+      );
+      if (context.mounted && e.code != 'CANCELLED') {
+        _showSnackbar(context, context.l10n.profilePasskeyRegisterFailed);
+      }
+    } catch (e) {
+      developer.log('passkey register error: $e', name: 'kumoriya.profile');
+      if (context.mounted) {
+        _showSnackbar(context, context.l10n.profilePasskeyRegisterFailed);
+      }
+    }
+  }
+
+  void _confirmDeletePasskey(
+    BuildContext context,
+    WidgetRef ref,
+    String passkeyId,
+  ) {
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: KumoriyaColors.surface,
+        title: Text(
+          context.l10n.profilePasskeyDeleteTitle,
+          style: const TextStyle(color: KumoriyaColors.textPrimary),
+        ),
+        content: Text(
+          context.l10n.profilePasskeyDeleteBody,
+          style: const TextStyle(color: KumoriyaColors.textSecondary),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text(context.l10n.profileCancel),
+          ),
+          TextButton(
+            onPressed: () async {
+              Navigator.pop(ctx);
+              await _deletePasskey(context, ref, passkeyId);
+            },
+            child: Text(
+              context.l10n.profileDelete,
+              style: const TextStyle(color: KumoriyaColors.statusDanger),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _deletePasskey(
+    BuildContext context,
+    WidgetRef ref,
+    String passkeyId,
+  ) async {
+    final client = ref.read(authenticatedHttpClientProvider);
+    try {
+      final resp = await client.deleteRequest('/auth/passkeys/$passkeyId');
+      if (!context.mounted) return;
+      if (resp.statusCode == 200 || resp.statusCode == 204) {
+        ref.invalidate(_profileDetailsProvider);
+        _showSnackbar(context, context.l10n.profilePasskeyDeleted);
+      } else {
+        _showSnackbar(context, context.l10n.profilePasskeyDeleteFailed);
+      }
+    } catch (_) {
+      if (context.mounted) {
+        _showSnackbar(context, context.l10n.profilePasskeyDeleteFailed);
+      }
+    }
+  }
+
+  void _showSnackbar(BuildContext context, String message) {
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
+  }
 }
 
 class _LoginRedirectPage extends StatelessWidget {
@@ -348,8 +532,7 @@ class _LoginRedirectPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Lazy import to avoid circular.
-    return const Placeholder(); // Will be replaced with actual LoginPage push.
+    return const LoginPage();
   }
 }
 
@@ -420,6 +603,69 @@ class _InfoTile extends StatelessWidget {
               ],
             ),
           ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PasskeyTile extends StatelessWidget {
+  const _PasskeyTile({
+    required this.name,
+    required this.subtitle,
+    this.onDelete,
+  });
+  final String name;
+  final String subtitle;
+  final VoidCallback? onDelete;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: KumoriyaColors.surface,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.key, color: KumoriyaColors.primary, size: 22),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  name,
+                  style: const TextStyle(
+                    color: KumoriyaColors.textPrimary,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                if (subtitle.isNotEmpty) ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    subtitle,
+                    style: const TextStyle(
+                      color: KumoriyaColors.textMuted,
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+          if (onDelete != null)
+            IconButton(
+              icon: const Icon(
+                Icons.delete_outline,
+                color: KumoriyaColors.statusDanger,
+                size: 20,
+              ),
+              onPressed: onDelete,
+              tooltip: context.l10n.profileDelete,
+            ),
         ],
       ),
     );

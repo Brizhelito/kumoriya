@@ -203,6 +203,7 @@ Future<void> _runCheckNewEpisodes() async {
   final downloadManager = DownloadManagerService(
     store: downloadStore,
     directoryService: downloadDirectoryService,
+    httpClient: resolverClient,
     libraryIndexService: DownloadLibraryIndexService(
       store: downloadStore,
       directoryService: downloadDirectoryService,

@@ -215,9 +215,10 @@ final class AnimeNexusResolverPlugin implements ResolverPlugin {
         headers: <String, String>{
           'User-Agent': NexusConstants.userAgent,
           'Accept-Language': 'es-419,es;q=0.9,en;q=0.8',
-          // Let dart:io negotiate encodings it can actually decode.
-          // Anime Nexus serves `zstd` if we advertise it, which breaks
-          // downstream HTML parsing before attestRef extraction.
+          // Explicitly restrict to encodings dart:io can decode.
+          // Android's dart:io accepts zstd/br when left implicit, but
+          // cannot decompress them — the response body arrives garbled.
+          'Accept-Encoding': 'gzip, deflate',
         },
       ),
     );

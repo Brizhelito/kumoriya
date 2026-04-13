@@ -84,6 +84,11 @@ class SyncTrigger {
           },
           onFailure: (_) {},
         );
+        // Reload data providers so the UI reflects the freshly synced DB.
+        _ref.invalidate(continueWatchingProvider);
+        _ref.invalidate(allWatchHistoryProvider);
+        _ref.invalidate(favoriteAnimeIdsProvider);
+        _ref.invalidate(subscribedAnimeIdsProvider);
       },
       onFailure: (_) {
         _ref.read(syncStatusProvider.notifier).set(SyncStatus.failed);

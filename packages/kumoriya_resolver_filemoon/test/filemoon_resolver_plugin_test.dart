@@ -62,24 +62,17 @@ void main() {
     );
   });
 
-  test('uses dynamic details flow for bysekoze aliases', () async {
-    const detailsPayload = '''
-{"embed_frame_url":"https://bysekoze.com/embed/xyz123"}
-''';
-    const embedPayload = '''
-<html><body><script>var cfg={file:"https://cdn.filemoon.sx/hls/xyz123/master.m3u8"};</script></body></html>
-''';
+  test('uses dynamic playback flow for bysekoze aliases', () async {
+    const playbackPayload =
+        '{"playback":{"algorithm":"AES-256-GCM","iv":"ZGVmZ2hpamtsbW5v","payload":"G30AI-Tw3xyLdZXDYw6JSZXzcb-GxM0jyPDO3RWAixYTouJnvifbdyg4rRQvf4I6npT4r9pFnrj2iuMRcIeCUWHDO5qUMX5n5H-qTz6uAyRLrtWX5v8DQiqe-uCYuck6nNY7nfKqQ0rV_A4C-BI_JrbsgPJyNRZy5Z16X4G0Vd6m2GsktdNMO5nVr3-t5kadqc0ZrnGZUlh0H7T-gjrRsSt51z4mYPYF_jHzIGe5vP7ywI9P4z2a","key_parts":["AQIDBAUGBwgJCgsMDQ4PEA","ERITFBUWFxgZGhscHR4fIA"]}}';
 
     final plugin = FilemoonResolverPlugin(
       httpClient: MockClient((request) async {
         if (request.url.path == '/e/xyz123') {
           return http.Response(inconsistentFixture, 200);
         }
-        if (request.url.path == '/api/videos/xyz123/embed/details') {
-          return http.Response(detailsPayload, 200);
-        }
-        if (request.url.path == '/embed/xyz123') {
-          return http.Response(embedPayload, 200);
+        if (request.url.path == '/api/videos/xyz123/embed/playback') {
+          return http.Response(playbackPayload, 200);
         }
         return http.Response('not found', 404);
       }),
@@ -97,6 +90,7 @@ void main() {
         expect(streams, hasLength(1));
         expect(streams.single.url.host, 'cdn.filemoon.sx');
         expect(streams.single.isHls, isTrue);
+        expect(streams.single.qualityLabel, '720p');
       },
     );
   });

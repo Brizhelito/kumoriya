@@ -7,6 +7,7 @@ import 'package:kumoriya_storage/kumoriya_storage.dart';
 
 import '../../../../app/l10n.dart';
 import '../../application/models/episode_playback.dart';
+import '../../application/models/server_quality_registry.dart';
 import '../../application/models/source_availability.dart';
 import '../providers/anime_catalog_providers.dart';
 import '../providers/storage_providers.dart';
@@ -619,6 +620,12 @@ class _ServerOptionTile extends StatelessWidget {
                       spacing: 8,
                       runSpacing: 8,
                       children: <Widget>[
+                        _QualityTierBadge(
+                          tier: ServerQualityRegistry.tierFor(
+                            detectedHost: option.serverLink.detectedHost,
+                            serverName: option.serverLink.serverName,
+                          ),
+                        ),
                         if (option.audioKind != null)
                           _MetaPill(
                             label: option.audioKind!.name.toUpperCase(),
@@ -685,4 +692,45 @@ class _ContextChip extends StatelessWidget {
       ),
     );
   }
+}
+
+class _QualityTierBadge extends StatelessWidget {
+  const _QualityTierBadge({required this.tier});
+
+  final ServerQualityTier tier;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: tier.color.withValues(alpha: 0.13),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: tier.color.withValues(alpha: 0.35)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          Icon(_iconForTier(tier), size: 13, color: tier.color),
+          const SizedBox(width: 4),
+          Text(
+            tier.label,
+            style: Theme.of(context).textTheme.labelSmall?.copyWith(
+              color: tier.color,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  static IconData _iconForTier(ServerQualityTier tier) => switch (tier) {
+    ServerQualityTier.premium => Icons.verified_rounded,
+    ServerQualityTier.good => Icons.thumb_up_alt_outlined,
+    ServerQualityTier.average => Icons.dns_outlined,
+    ServerQualityTier.low => Icons.warning_amber_rounded,
+    ServerQualityTier.unknown => Icons.help_outline_rounded,
+    ServerQualityTier.unavailable => Icons.block_rounded,
+  };
 }

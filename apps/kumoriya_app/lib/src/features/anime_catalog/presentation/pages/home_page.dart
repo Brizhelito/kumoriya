@@ -67,6 +67,9 @@ class HomePage extends ConsumerWidget {
               onRefresh: () {
                 ref.invalidate(homeCatalogProvider);
                 ref.invalidate(continueWatchingProvider);
+                ref.invalidate(allWatchHistoryProvider);
+                ref.invalidate(favoriteAnimeIdsProvider);
+                ref.invalidate(subscribedAnimeIdsProvider);
                 ref.invalidate(calendarCatalogProvider);
               },
             ),

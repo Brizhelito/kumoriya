@@ -26,6 +26,7 @@ import '../../application/services/mal_metadata_bridge_service.dart';
 import '../providers/anime_catalog_providers.dart';
 import '../providers/storage_providers.dart';
 import '../../application/models/resolved_server_link_result.dart';
+import '../../application/models/server_quality_registry.dart';
 import '../../../downloads/presentation/download_providers.dart';
 import '../../../player/presentation/pages/player_page.dart';
 import 'episode_list_page.dart';
@@ -33,6 +34,7 @@ import '../support/episode_display_title.dart';
 import '../support/playback_launch_flow.dart';
 import '../support/plugin_icon_helpers.dart';
 import '../widgets/source_badge.dart';
+import '../widgets/source_quality_picker_sheet.dart';
 
 class AnimeDetailPage extends ConsumerStatefulWidget {
   const AnimeDetailPage({super.key, required this.anilistId});
@@ -1389,21 +1391,33 @@ class _DetailEpisodeCardState extends ConsumerState<_DetailEpisodeCard> {
       final allOptions = <_DownloadServerOption>[];
       final optionSourceMap =
           <_DownloadServerOption, MapEntry<String, SourceEpisode>>{};
+      final scorer = ref.read(downloadServerScorerProvider);
 
       for (final entry in entries) {
         final sourcePlugin = ref.read(sourcePluginByIdProvider(entry.key));
         final linksResult = await GetSourceEpisodeServerLinksUseCase(
           sourcePlugin: sourcePlugin,
           registry: registry,
+          includeDownloadLinks: true,
         ).call(entry.value);
 
         linksResult.fold(
           onSuccess: (links) {
             for (final link in _filterDetailDownloadLinks(links)) {
+              final tier = ServerQualityRegistry.tierFor(
+                detectedHost: link.detectedHost,
+                serverName: link.serverName,
+              );
+              final rankingScore = ServerQualityRegistry.combinedScore(
+                tier: tier,
+                sessionScore: scorer.score(link.serverName),
+              );
               final opt = _DownloadServerOption(
                 link: link,
                 sourcePluginId: entry.key,
                 sourceName: sourcePlugin.manifest.displayName,
+                qualityTier: tier,
+                rankingScore: rankingScore,
                 sourceIconUrl: sourcePlugin.manifest.iconUrl,
                 sourceEpisode: entry.value,
               );
@@ -1424,6 +1438,8 @@ class _DetailEpisodeCardState extends ConsumerState<_DetailEpisodeCard> {
         );
         return;
       }
+
+      allOptions.sort((a, b) => b.rankingScore.compareTo(a.rankingScore));
 
       // If multiple servers, let user choose.
       _DownloadServerOption chosenOption;
@@ -1979,24 +1995,12 @@ String _debugPreferenceSummary(PlaybackPreference preference) {
 const _excludedDetailDownloadSource = 'kumoriya.source.anime_nexus';
 
 const Set<String> _excludedDetailDownloadHosts = <String>{
-  'streamwish.to',
-  'sfastwish.com',
-  'wishfast.top',
-  'awish.pro',
-  'strwish.com',
-  'playnixes.com',
-  'medixiru.com',
   'hgplaycdn.com',
 };
 
 bool _isExcludedDetailDownloadLink(SourceServerLink link) {
-  final serverName = link.serverName.trim().toLowerCase();
   final detectedHost = link.detectedHost?.trim().toLowerCase();
   final initialHost = link.initialUrl.host.trim().toLowerCase();
-
-  if (serverName.contains('streamwish')) {
-    return true;
-  }
 
   bool matchesExcludedHost(String? host) {
     if (host == null || host.isEmpty) {
@@ -2036,6 +2040,7 @@ Future<bool> _enqueueDetailEpisodeDownload({
     final linksResult = await GetSourceEpisodeServerLinksUseCase(
       sourcePlugin: sourcePlugin,
       registry: registry,
+      includeDownloadLinks: true,
     ).call(sourceEpisode);
 
     var links = linksResult.fold(
@@ -2055,9 +2060,29 @@ Future<bool> _enqueueDetailEpisodeDownload({
       if (filtered.isNotEmpty) links = filtered;
     }
 
-    // Rank servers by historical success rate — best first.
+    // Rank servers by static quality + historical success rate.
     final scorer = ref.read(downloadServerScorerProvider);
-    links = scorer.rankByScore(links, (l) => l.serverName);
+    final rankedLinks = List<SourceServerLink>.of(links);
+    rankedLinks.sort((a, b) {
+      final aTier = ServerQualityRegistry.tierFor(
+        detectedHost: a.detectedHost,
+        serverName: a.serverName,
+      );
+      final bTier = ServerQualityRegistry.tierFor(
+        detectedHost: b.detectedHost,
+        serverName: b.serverName,
+      );
+      final aScore = ServerQualityRegistry.combinedScore(
+        tier: aTier,
+        sessionScore: scorer.score(a.serverName),
+      );
+      final bScore = ServerQualityRegistry.combinedScore(
+        tier: bTier,
+        sessionScore: scorer.score(b.serverName),
+      );
+      return bScore.compareTo(aScore);
+    });
+    links = rankedLinks;
 
     final enqueueUseCase = ref.read(enqueueDownloadUseCaseProvider);
     for (final link in links) {
@@ -2345,39 +2370,27 @@ class _DetailDownloadAllButtonState
       return availableSources.first.manifest.id;
     }
 
-    return showModalBottomSheet<String>(
+    // Build a sample-episode map so the sheet can probe each source.
+    final sampleEpisodes = <String, SourceEpisode>{
+      for (final source in availableSources)
+        if (widget.rows
+                .where(
+                  (row) => row.sourceEpisodes.containsKey(source.manifest.id),
+                )
+                .firstOrNull
+                ?.sourceEpisodes[source.manifest.id]
+            case final ep?)
+          source.manifest.id: ep,
+    };
+
+    if (!context.mounted) return null;
+
+    // Show the sheet immediately — quality probes run inside the widget.
+    return showSourceQualityPickerSheet(
       context: context,
-      showDragHandle: true,
-      builder: (context) {
-        return SafeArea(
-          child: ListView(
-            shrinkWrap: true,
-            children: <Widget>[
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
-                child: Text(
-                  context.l10n.downloadAllFromSource,
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ),
-              ...availableSources.map(
-                (source) => ListTile(
-                  leading: SourceBadge(
-                    name: source.manifest.displayName,
-                    iconUrl: effectiveSourceIconUrl(source.manifest),
-                    compact: true,
-                    iconOnly: true,
-                  ),
-                  title: Text(source.manifest.displayName),
-                  onTap: () => Navigator.of(context).pop(source.manifest.id),
-                ),
-              ),
-            ],
-          ),
-        );
-      },
+      sources: availableSources,
+      sampleEpisodes: sampleEpisodes,
+      filterLinks: _filterDetailDownloadLinks,
     );
   }
 }
@@ -2391,6 +2404,8 @@ final class _DownloadServerOption {
     required this.link,
     required this.sourcePluginId,
     required this.sourceName,
+    required this.qualityTier,
+    required this.rankingScore,
     this.sourceIconUrl,
     this.sourceEpisode,
   });
@@ -2398,6 +2413,8 @@ final class _DownloadServerOption {
   final SourceServerLink link;
   final String sourcePluginId;
   final String sourceName;
+  final ServerQualityTier qualityTier;
+  final double rankingScore;
   final String? sourceIconUrl;
   final SourceEpisode? sourceEpisode;
 }
@@ -2428,6 +2445,15 @@ class _DownloadServerPickerSheetState
     extends State<_DownloadServerPickerSheet> {
   static const String _allSources = '__all__';
   String _selectedSourceId = _allSources;
+
+  IconData _iconForQuality(ServerQualityTier tier) => switch (tier) {
+    ServerQualityTier.premium => Icons.verified_rounded,
+    ServerQualityTier.good => Icons.thumb_up_alt_outlined,
+    ServerQualityTier.average => Icons.dns_outlined,
+    ServerQualityTier.low => Icons.warning_amber_rounded,
+    ServerQualityTier.unknown => Icons.help_outline_rounded,
+    ServerQualityTier.unavailable => Icons.block_rounded,
+  };
 
   @override
   Widget build(BuildContext context) {
@@ -2559,9 +2585,10 @@ class _DownloadServerPickerSheetState
                                     padding: const EdgeInsets.all(14),
                                     child: Row(
                                       children: <Widget>[
-                                        const Icon(
-                                          Icons.cloud_download_rounded,
+                                        Icon(
+                                          _iconForQuality(opt.qualityTier),
                                           size: 22,
+                                          color: opt.qualityTier.color,
                                         ),
                                         const SizedBox(width: 12),
                                         Expanded(
@@ -2569,15 +2596,36 @@ class _DownloadServerPickerSheetState
                                             crossAxisAlignment:
                                                 CrossAxisAlignment.start,
                                             children: <Widget>[
-                                              Text(
-                                                opt.link.serverName,
-                                                style: Theme.of(context)
-                                                    .textTheme
-                                                    .titleMedium
-                                                    ?.copyWith(
-                                                      fontWeight:
-                                                          FontWeight.w700,
+                                              Row(
+                                                children: <Widget>[
+                                                  Flexible(
+                                                    child: Text(
+                                                      opt.link.serverName,
+                                                      style: Theme.of(context)
+                                                          .textTheme
+                                                          .titleMedium
+                                                          ?.copyWith(
+                                                            fontWeight:
+                                                                FontWeight.w700,
+                                                          ),
                                                     ),
+                                                  ),
+                                                  const SizedBox(width: 6),
+                                                  _QualityTierChip(
+                                                    tier: opt.qualityTier,
+                                                  ),
+                                                  if (opt.link.language != null)
+                                                    Padding(
+                                                      padding:
+                                                          const EdgeInsets.only(
+                                                            left: 6,
+                                                          ),
+                                                      child: _AudioCodeChip(
+                                                        code:
+                                                            opt.link.language!,
+                                                      ),
+                                                    ),
+                                                ],
                                               ),
                                               if (opt.link.detectedHost !=
                                                   null) ...<Widget>[
@@ -2609,6 +2657,56 @@ class _DownloadServerPickerSheetState
               ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class _QualityTierChip extends StatelessWidget {
+  const _QualityTierChip({required this.tier});
+
+  final ServerQualityTier tier;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        color: tier.color.withValues(alpha: 0.13),
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: tier.color.withValues(alpha: 0.35)),
+      ),
+      child: Text(
+        tier.label,
+        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+          color: tier.color,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+    );
+  }
+}
+
+class _AudioCodeChip extends StatelessWidget {
+  const _AudioCodeChip({required this.code});
+
+  final String code;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        color: Colors.blueAccent.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: Colors.blueAccent.withValues(alpha: 0.35)),
+      ),
+      child: Text(
+        code.trim().toUpperCase(),
+        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+          color: Colors.blueAccent,
+          fontWeight: FontWeight.w700,
         ),
       ),
     );

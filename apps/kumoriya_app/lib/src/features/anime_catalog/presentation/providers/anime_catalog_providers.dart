@@ -337,6 +337,7 @@ final resolveSourceServerLinkUseCaseProvider =
     Provider<ResolveSourceServerLinkUseCase>((ref) {
       return ResolveSourceServerLinkUseCase(
         registry: ref.watch(resolverRegistryProvider),
+        streamVerifyClient: http.Client(),
       );
     });
 

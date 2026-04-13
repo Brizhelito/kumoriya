@@ -5,6 +5,8 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kumoriya_app/l10n/generated/app_localizations.dart';
 import 'package:package_info_plus/package_info_plus.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 import '../features/anime_catalog/presentation/pages/calendar_page.dart';
 import '../features/anime_catalog/presentation/pages/downloads_page.dart';
@@ -17,9 +19,11 @@ import '../features/app_update/application/seen_app_version_store.dart';
 import '../features/app_update/presentation/widgets/update_available_dialog.dart';
 import '../features/app_update/presentation/widgets/post_update_release_notes_dialog.dart';
 import '../features/app_update/presentation/app_update_providers.dart';
+import '../features/auth/presentation/pages/login_page.dart';
 import '../features/downloads/application/download_directory_service.dart';
 import '../features/downloads/presentation/download_providers.dart';
 import '../features/downloads/presentation/widgets/download_path_dialog.dart';
+import '../shared/auth/auth_providers.dart';
 import '../shared/auth/deep_link_handler.dart';
 import '../shared/navigation/app_navigation_shell.dart';
 import '../shared/theme/kumoriya_theme.dart';
@@ -87,9 +91,83 @@ class _FirstLaunchGateState extends ConsumerState<_FirstLaunchGate> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       await _checkDownloadPath();
+      await _requestNotificationPermission();
       await _showReleaseNotesIfNeeded();
       await _checkForStartupUpdate();
+      await _showLoginPromptIfNeeded();
     });
+  }
+
+  /// On Android 13+ request POST_NOTIFICATIONS permission once. The flag
+  /// file prevents re-showing the rationale dialog on every launch.
+  Future<void> _requestNotificationPermission() async {
+    if (!Platform.isAndroid || !mounted) return;
+
+    final flagFile = await _onboardingFlagFile('notification_permission_asked');
+    if (await flagFile.exists()) return;
+
+    // Show a rationale dialog before the system prompt.
+    if (!mounted) return;
+    final proceed = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: KumoriyaColors.surface,
+        title: Text(
+          context.l10n.onboardingNotificationTitle,
+          style: const TextStyle(color: KumoriyaColors.textPrimary),
+        ),
+        content: Text(
+          context.l10n.onboardingNotificationBody,
+          style: const TextStyle(color: KumoriyaColors.textSecondary),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(context.l10n.onboardingNotificationSkip),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: KumoriyaColors.primary,
+              foregroundColor: KumoriyaColors.textPrimary,
+            ),
+            child: Text(context.l10n.onboardingNotificationAllow),
+          ),
+        ],
+      ),
+    );
+
+    if (proceed == true) {
+      await Permission.notification.request();
+    }
+    // Mark asked regardless of outcome.
+    await flagFile.parent.create(recursive: true);
+    await flagFile.writeAsString('1', flush: true);
+  }
+
+  /// If user is not authenticated and hasn't dismissed the prompt yet, show it.
+  Future<void> _showLoginPromptIfNeeded() async {
+    if (!mounted) return;
+    final isAuth = ref.read(isAuthenticatedProvider);
+    if (isAuth) return;
+
+    final flagFile = await _onboardingFlagFile('login_prompt_dismissed');
+    if (await flagFile.exists()) return;
+    if (!mounted) return;
+
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute<void>(builder: (_) => const LoginPage()),
+    );
+
+    // Mark shown after the user returns (either logged in or pressed skip).
+    await flagFile.parent.create(recursive: true);
+    await flagFile.writeAsString('1', flush: true);
+  }
+
+  static Future<File> _onboardingFlagFile(String key) async {
+    final dir = await getApplicationSupportDirectory();
+    return File('${dir.path}${Platform.pathSeparator}onboarding_$key');
   }
 
   Future<void> _showReleaseNotesIfNeeded() async {

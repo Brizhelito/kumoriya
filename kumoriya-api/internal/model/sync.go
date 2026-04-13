@@ -60,10 +60,16 @@ type SyncPullResponse struct {
 
 // SyncPushRequest is the body for POST /api/v1/sync/push
 type SyncPushRequest struct {
-	EpisodeProgress     []EpisodeProgress    `json:"episode_progress"`
-	WatchHistory        []WatchHistory       `json:"watch_history"`
-	PlaybackPreferences []PlaybackPreference `json:"playback_preferences"`
-	LibraryEntries      []LibraryEntry       `json:"library_entries"`
+	EpisodeProgress       []EpisodeProgress       `json:"episode_progress"`
+	WatchHistory          []WatchHistory           `json:"watch_history"`
+	PlaybackPreferences   []PlaybackPreference     `json:"playback_preferences"`
+	LibraryEntries        []LibraryEntry           `json:"library_entries"`
+	WatchHistoryDeletions []WatchHistoryDeletion   `json:"watch_history_deletions"`
+}
+
+// WatchHistoryDeletion requests deletion of a watch history entry.
+type WatchHistoryDeletion struct {
+	AnilistID int `json:"anilist_id"`
 }
 
 type SyncPushResponse struct {
@@ -79,7 +85,7 @@ const (
 // Validate performs defensive payload validation for sync push requests.
 // It rejects malformed records early to avoid persisting invalid state.
 func (r *SyncPushRequest) Validate() error {
-	total := len(r.EpisodeProgress) + len(r.WatchHistory) + len(r.PlaybackPreferences) + len(r.LibraryEntries)
+	total := len(r.EpisodeProgress) + len(r.WatchHistory) + len(r.PlaybackPreferences) + len(r.LibraryEntries) + len(r.WatchHistoryDeletions)
 	if total == 0 {
 		return fmt.Errorf("sync payload is empty")
 	}
@@ -89,18 +95,19 @@ func (r *SyncPushRequest) Validate() error {
 	if len(r.EpisodeProgress) > maxSyncBatchPerEntity ||
 		len(r.WatchHistory) > maxSyncBatchPerEntity ||
 		len(r.PlaybackPreferences) > maxSyncBatchPerEntity ||
-		len(r.LibraryEntries) > maxSyncBatchPerEntity {
+		len(r.LibraryEntries) > maxSyncBatchPerEntity ||
+		len(r.WatchHistoryDeletions) > maxSyncBatchPerEntity {
 		return fmt.Errorf("sync payload exceeds per-entity limit")
 	}
 
 	for _, ep := range r.EpisodeProgress {
-		if ep.AnilistID <= 0 || ep.EpisodeNumber <= 0 || ep.UpdatedAt <= 0 {
+		if ep.AnilistID <= 0 || ep.EpisodeNumber < 0 || ep.UpdatedAt <= 0 {
 			return fmt.Errorf("invalid episode_progress identity or timestamp")
 		}
 		if ep.PositionSeconds < 0 {
 			return fmt.Errorf("invalid episode_progress position_seconds")
 		}
-		if ep.TotalDuration != nil && *ep.TotalDuration <= 0 {
+		if ep.TotalDuration != nil && *ep.TotalDuration < 0 {
 			return fmt.Errorf("invalid episode_progress total_duration_seconds")
 		}
 		switch ep.WatchState {
@@ -111,13 +118,13 @@ func (r *SyncPushRequest) Validate() error {
 	}
 
 	for _, wh := range r.WatchHistory {
-		if wh.AnilistID <= 0 || wh.LastEpisodeNumber <= 0 || wh.LastAccessedAt <= 0 {
+		if wh.AnilistID <= 0 || wh.LastEpisodeNumber < 0 || wh.LastAccessedAt <= 0 {
 			return fmt.Errorf("invalid watch_history identity or timestamp")
 		}
 		if wh.LastPositionSecs < 0 {
 			return fmt.Errorf("invalid watch_history last_position_seconds")
 		}
-		if wh.LastTotalDuration != nil && *wh.LastTotalDuration <= 0 {
+		if wh.LastTotalDuration != nil && *wh.LastTotalDuration < 0 {
 			return fmt.Errorf("invalid watch_history last_total_duration_seconds")
 		}
 	}
@@ -146,6 +153,12 @@ func (r *SyncPushRequest) Validate() error {
 		case "", "none", "sub", "dub":
 		default:
 			return fmt.Errorf("invalid library_entries auto_download_audio_preference")
+		}
+	}
+
+	for _, d := range r.WatchHistoryDeletions {
+		if d.AnilistID <= 0 {
+			return fmt.Errorf("invalid watch_history_deletions anilist_id")
 		}
 	}
 

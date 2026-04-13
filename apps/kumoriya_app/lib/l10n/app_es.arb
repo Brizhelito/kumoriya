@@ -757,5 +757,21 @@
       }
     }
   },
-  "settingsAutoDeleteImmediately": "Inmediatamente"
+  "settingsAutoDeleteImmediately": "Inmediatamente",
+
+  "onboardingNotificationTitle": "¿Activar notificaciones?",
+  "onboardingNotificationBody": "Kumoriya puede notificarte cuando haya nuevos episodios disponibles de tus anime suscritos.",
+  "onboardingNotificationAllow": "Permitir",
+  "onboardingNotificationSkip": "Ahora no",
+
+  "profileRegisterPasskey": "Registrar nueva passkey",
+  "profilePasskeyNameTitle": "Nombre de la passkey",
+  "profilePasskeyNameHint": "ej. Mi teléfono",
+  "profilePasskeyNameContinue": "Continuar",
+  "profilePasskeyRegistered": "Passkey registrada",
+  "profilePasskeyRegisterFailed": "No se pudo registrar la passkey",
+  "profilePasskeyDeleteTitle": "¿Eliminar passkey?",
+  "profilePasskeyDeleteBody": "Esta passkey será eliminada y ya no podrá usarse para iniciar sesión.",
+  "profilePasskeyDeleted": "Passkey eliminada",
+  "profilePasskeyDeleteFailed": "No se pudo eliminar la passkey"
 }

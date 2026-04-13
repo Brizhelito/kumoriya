@@ -51,17 +51,32 @@ func main() {
 		AllowOrigins: []string{"https://api.kumoriya.online"},
 		AllowMethods: []string{"GET", "POST", "PATCH", "DELETE", "OPTIONS"},
 		AllowHeaders: []string{"Authorization", "Content-Type"},
-		MaxAge:        3600,
+		MaxAge:       3600,
 	}))
 
 	// ── Health (no DB) ──
 	app.Get("/health", handler.Health)
 
+	// ── Release manifest (no DB needed) ──
+	releaseHandler := handler.NewReleaseHandler(cfg.ReleaseManifestURL)
+	app.Get("/releases/latest", releaseHandler.GetManifest)
+
+	// ── Digital Asset Links for Android passkeys ──
+	if cfg.AndroidAPKFingerprint != "" {
+		assetLinksJSON := buildAssetLinks(cfg.AndroidAPKFingerprint)
+		app.Get("/.well-known/assetlinks.json", func(c fiber.Ctx) error {
+			c.Set("Content-Type", "application/json")
+			c.Set("Cache-Control", "public, max-age=86400")
+			return c.SendString(assetLinksJSON)
+		})
+	}
+
 	// ── Database-dependent routes ──
+	var cleanup func()
 	if cfg.NeonDSN == "" {
 		log.Warn().Msg("NEON_DSN not set; only /health is available")
 	} else {
-		registerProtectedRoutes(app, cfg)
+		cleanup = registerProtectedRoutes(app, cfg)
 	}
 
 	// ── Graceful Shutdown ──
@@ -79,17 +94,19 @@ func main() {
 	<-quit
 
 	log.Info().Msg("shutting down...")
+	if cleanup != nil {
+		cleanup()
+	}
 	if err := app.Shutdown(); err != nil {
 		log.Error().Err(err).Msg("shutdown error")
 	}
 }
 
-func registerProtectedRoutes(app *fiber.App, cfg config.Config) {
+func registerProtectedRoutes(app *fiber.App, cfg config.Config) (cleanup func()) {
 	pool, err := repository.NewPool(context.Background(), cfg.NeonDSN)
 	if err != nil {
 		log.Fatal().Err(err).Msg("failed to connect to database")
 	}
-	// Note: pool.Close() is not deferred here; it lives until process exit.
 
 	userRepo := repository.NewUserRepo(pool)
 	syncRepo := repository.NewSyncRepo(pool)
@@ -102,14 +119,23 @@ func registerProtectedRoutes(app *fiber.App, cfg config.Config) {
 	)
 	syncSvc := service.NewSyncService(syncRepo)
 
+	// Start write-behind flush loop (flushes buffered pushes to Neon every 15 min).
+	flushCtx, flushCancel := context.WithCancel(context.Background())
+	flushDone := make(chan struct{})
+	go func() {
+		// 2-hour interval keeps Neon awake ~4% of the time (5 min wake / 120 min cycle).
+		syncSvc.FlushLoop(flushCtx, 2*time.Hour)
+		close(flushDone)
+	}()
+
 	var passkeySvc *service.PasskeyService
-	passkeySvc, err = service.NewPasskeyService(cfg.WebAuthnRPID, cfg.WebAuthnRPOrigin, cfg.WebAuthnRPName, userRepo)
+	passkeySvc, err = service.NewPasskeyService(cfg.WebAuthnRPID, cfg.WebAuthnRPOrigins, cfg.WebAuthnRPName, userRepo)
 	if err != nil {
 		log.Warn().Err(err).Msg("passkey service init failed; passkey endpoints disabled")
 	}
 
 	authHandler := handler.NewAuthHandler(authSvc, oauthSvc, passkeySvc)
-	syncHandler := handler.NewSyncHandler(syncSvc)
+	syncHandler := handler.NewSyncHandler(syncSvc, cfg.SyncDebugLog)
 	profileHandler := handler.NewProfileHandler(userRepo)
 	authIPRateLimit := middleware.PerIPRateLimit(10, time.Minute)
 	oauthCallbackRateLimit := middleware.PerIPRateLimit(5, time.Minute)
@@ -132,6 +158,7 @@ func registerProtectedRoutes(app *fiber.App, cfg config.Config) {
 	if passkeySvc != nil {
 		auth.Post("/passkeys/register/begin", authIPRateLimit, requireAuth, authHandler.PasskeyRegisterBegin)
 		auth.Post("/passkeys/register/finish", authIPRateLimit, requireAuth, authHandler.PasskeyRegisterFinish)
+		auth.Delete("/passkeys/:id", authIPRateLimit, requireAuth, authHandler.PasskeyDelete)
 	}
 
 	// ── API v1 Routes (all protected) ──
@@ -146,4 +173,24 @@ func registerProtectedRoutes(app *fiber.App, cfg config.Config) {
 	v1.Post("/sync/push", syncRateLimit, syncHandler.Push)
 
 	v1.Delete("/account", authHandler.DeleteAccount)
+
+	return func() {
+		log.Info().Msg("flushing write-behind buffer before shutdown...")
+		flushCancel()
+		<-flushDone
+		pool.Close()
+		log.Info().Msg("write-behind flush complete, pool closed")
+	}
+}
+
+// buildAssetLinks returns the Digital Asset Links JSON for Android passkey association.
+func buildAssetLinks(fingerprint string) string {
+	return `[{
+  "relation": ["delegate_permission/common.handle_all_urls", "delegate_permission/common.get_login_creds"],
+  "target": {
+    "namespace": "android_app",
+    "package_name": "dev.kumoriya.app",
+    "sha256_cert_fingerprints": ["` + fingerprint + `"]
+  }
+}]`
 }

@@ -517,7 +517,8 @@ final class NexusWsClient {
       ..set('Sec-WebSocket-Version', '13')
       ..set('Sec-WebSocket-Key', key)
       ..set('Origin', NexusConstants.mainBase)
-      ..set(HttpHeaders.userAgentHeader, NexusConstants.userAgent);
+      ..set(HttpHeaders.userAgentHeader, NexusConstants.userAgent)
+      ..set(HttpHeaders.acceptEncodingHeader, 'gzip, deflate');
 
     final cookieHeader = _cookieHeader?.trim() ?? '';
     if (cookieHeader.isNotEmpty) {

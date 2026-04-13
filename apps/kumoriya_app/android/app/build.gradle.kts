@@ -71,4 +71,7 @@ flutter {
 
 dependencies {
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
+    implementation("androidx.credentials:credentials:1.5.0-rc01")
+    implementation("androidx.credentials:credentials-play-services-auth:1.5.0-rc01")
+    implementation("com.google.android.gms:play-services-fido:21.1.0")
 }

@@ -26,6 +26,7 @@ workspace:
   - packages/kumoriya_resolver_vidhide
   - packages/kumoriya_resolver_zilla
   - packages/kumoriya_resolver_upnshare
+  - packages/kumoriya_resolver_mediafire
   - packages/kumoriya_source_animeflv
   - packages/kumoriya_source_animeav1
   - packages/kumoriya_source_anime_nexus

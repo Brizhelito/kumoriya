@@ -22,6 +22,7 @@ import '../../../downloads/presentation/download_providers.dart';
 import '../../../downloads/application/auto_delete_watched_service.dart';
 import '../../../player/application/models/subtitle_settings.dart';
 import '../../../../workers/check_new_episodes_worker.dart';
+import 'resolver_playground_page.dart';
 
 class SettingsPage extends ConsumerStatefulWidget {
   const SettingsPage({super.key});
@@ -519,6 +520,22 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                                 label: const Text(
                                   'Forzar dialogo update (debug)',
                                 ),
+                              ),
+                            if (kDebugMode)
+                              FilledButton.tonalIcon(
+                                onPressed: () {
+                                  Navigator.of(
+                                    context,
+                                    rootNavigator: true,
+                                  ).push(
+                                    MaterialPageRoute<void>(
+                                      builder: (_) =>
+                                          const ResolverPlaygroundPage(),
+                                    ),
+                                  );
+                                },
+                                icon: const Icon(Icons.science_rounded),
+                                label: const Text('Resolver Playground'),
                               ),
                           ],
                         ),

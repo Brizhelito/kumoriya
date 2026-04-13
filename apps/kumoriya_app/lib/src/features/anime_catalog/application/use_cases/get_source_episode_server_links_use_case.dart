@@ -9,6 +9,7 @@ final class GetSourceEpisodeServerLinksUseCase {
     required SourcePlugin sourcePlugin,
     required ResolverRegistry registry,
     Duration fetchTimeout = const Duration(seconds: 20),
+    this.includeDownloadLinks = false,
   }) : _sourcePlugin = sourcePlugin,
        _registry = registry,
        _fetchTimeout = fetchTimeout;
@@ -16,6 +17,11 @@ final class GetSourceEpisodeServerLinksUseCase {
   final SourcePlugin _sourcePlugin;
   final ResolverRegistry _registry;
   final Duration _fetchTimeout;
+
+  /// When true, both [SourceServerLinkType.stream] and
+  /// [SourceServerLinkType.download] links are returned (useful for download
+  /// flows where direct-download hosts like Mediafire are valid targets).
+  final bool includeDownloadLinks;
 
   Future<Result<List<SourceServerLink>, KumoriyaError>> call(
     SourceEpisode episode,
@@ -40,7 +46,12 @@ final class GetSourceEpisodeServerLinksUseCase {
       onFailure: Failure.new,
       onSuccess: (links) {
         final filtered = links
-            .where((link) => link.linkType == SourceServerLinkType.stream)
+            .where(
+              (link) =>
+                  link.linkType == SourceServerLinkType.stream ||
+                  (includeDownloadLinks &&
+                      link.linkType == SourceServerLinkType.download),
+            )
             .where(
               (link) =>
                   _registry.selectFor(link.initialUrl) is ResolverSelected,

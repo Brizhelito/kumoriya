@@ -126,7 +126,7 @@ class DownloadManagerService {
     int? maxConcurrent,
     http.Client? httpClient,
     http.Client Function()? insecureHttpClientFactory,
-    int maxRetryAttempts = 3,
+    int maxRetryAttempts = 2,
     DownloadLinkRefresher? linkRefresher,
     int maxReResolveAttempts = 4,
     DownloadForegroundService? foregroundService,

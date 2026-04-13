@@ -20,8 +20,9 @@ import (
 // ───── ceremony cache (in-memory, TTL-based) ─────
 
 type ceremonyEntry struct {
-	session   *webauthn.SessionData
-	expiresAt time.Time
+	session      *webauthn.SessionData
+	friendlyName string
+	expiresAt    time.Time
 }
 
 type ceremonyCache struct {
@@ -35,22 +36,22 @@ func newCeremonyCache() *ceremonyCache {
 	return c
 }
 
-func (c *ceremonyCache) put(key string, s *webauthn.SessionData, ttl time.Duration) {
+func (c *ceremonyCache) put(key string, s *webauthn.SessionData, friendlyName string, ttl time.Duration) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	c.entries[key] = ceremonyEntry{session: s, expiresAt: time.Now().Add(ttl)}
+	c.entries[key] = ceremonyEntry{session: s, friendlyName: friendlyName, expiresAt: time.Now().Add(ttl)}
 }
 
-func (c *ceremonyCache) pop(key string) (*webauthn.SessionData, bool) {
+func (c *ceremonyCache) pop(key string) (ceremonyEntry, bool) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	e, ok := c.entries[key]
 	if !ok || time.Now().After(e.expiresAt) {
 		delete(c.entries, key)
-		return nil, false
+		return ceremonyEntry{}, false
 	}
 	delete(c.entries, key)
-	return e.session, true
+	return e, true
 }
 
 func (c *ceremonyCache) cleanup() {
@@ -81,8 +82,8 @@ func (u *webauthnUser) WebAuthnID() []byte {
 	b, _ := u.id.MarshalBinary()
 	return b
 }
-func (u *webauthnUser) WebAuthnName() string        { return u.name }
-func (u *webauthnUser) WebAuthnDisplayName() string  { return u.displayName }
+func (u *webauthnUser) WebAuthnName() string                       { return u.name }
+func (u *webauthnUser) WebAuthnDisplayName() string                { return u.displayName }
 func (u *webauthnUser) WebAuthnCredentials() []webauthn.Credential { return u.credentials }
 
 // ───── PasskeyService ─────
@@ -95,11 +96,11 @@ type PasskeyService struct {
 	cache    *ceremonyCache
 }
 
-func NewPasskeyService(rpID, rpOrigin, rpName string, ur *repository.UserRepo) (*PasskeyService, error) {
+func NewPasskeyService(rpID string, rpOrigins []string, rpName string, ur *repository.UserRepo) (*PasskeyService, error) {
 	cfg := &webauthn.Config{
 		RPID:                  rpID,
 		RPDisplayName:         rpName,
-		RPOrigins:             []string{rpOrigin},
+		RPOrigins:             rpOrigins,
 		AttestationPreference: protocol.PreferNoAttestation,
 	}
 	wan, err := webauthn.New(cfg)
@@ -110,7 +111,7 @@ func NewPasskeyService(rpID, rpOrigin, rpName string, ur *repository.UserRepo) (
 }
 
 // BeginRegistration starts passkey registration for an authenticated user.
-func (s *PasskeyService) BeginRegistration(ctx context.Context, userID uuid.UUID, displayName string) (*protocol.CredentialCreation, error) {
+func (s *PasskeyService) BeginRegistration(ctx context.Context, userID uuid.UUID, displayName, friendlyName string) (*protocol.CredentialCreation, error) {
 	existingCreds, err := s.userRepo.GetPasskeysByUser(ctx, userID)
 	if err != nil {
 		return nil, fmt.Errorf("get passkeys: %w", err)
@@ -129,7 +130,7 @@ func (s *PasskeyService) BeginRegistration(ctx context.Context, userID uuid.UUID
 	}
 
 	cacheKey := cacheKeyForUser(userID, "register")
-	s.cache.put(cacheKey, session, ceremonyCacheTTL)
+	s.cache.put(cacheKey, session, friendlyName, ceremonyCacheTTL)
 
 	return options, nil
 }
@@ -138,7 +139,7 @@ func (s *PasskeyService) BeginRegistration(ctx context.Context, userID uuid.UUID
 // attestation response body.
 func (s *PasskeyService) FinishRegistration(ctx context.Context, userID uuid.UUID, displayName string, body []byte) error {
 	cacheKey := cacheKeyForUser(userID, "register")
-	session, ok := s.cache.pop(cacheKey)
+	entry, ok := s.cache.pop(cacheKey)
 	if !ok {
 		return fmt.Errorf("no pending registration ceremony")
 	}
@@ -160,7 +161,7 @@ func (s *PasskeyService) FinishRegistration(ctx context.Context, userID uuid.UUI
 		return fmt.Errorf("parse attestation: %w", err)
 	}
 
-	cred, err := s.wan.CreateCredential(u, *session, parsed)
+	cred, err := s.wan.CreateCredential(u, *entry.session, parsed)
 	if err != nil {
 		return fmt.Errorf("create credential: %w", err)
 	}
@@ -170,6 +171,11 @@ func (s *PasskeyService) FinishRegistration(ctx context.Context, userID uuid.UUI
 		transports[i] = string(t)
 	}
 
+	var fname *string
+	if entry.friendlyName != "" {
+		fname = &entry.friendlyName
+	}
+
 	dbCred := &model.PasskeyCredential{
 		ID:              protocol.URLEncodedBase64(cred.ID).String(),
 		UserID:          userID,
@@ -177,6 +183,7 @@ func (s *PasskeyService) FinishRegistration(ctx context.Context, userID uuid.UUI
 		AttestationType: cred.AttestationType,
 		Transport:       transports,
 		SignCount:       cred.Authenticator.SignCount,
+		FriendlyName:    fname,
 	}
 
 	if err := s.userRepo.CreatePasskeyCredential(ctx, dbCred); err != nil {
@@ -210,7 +217,7 @@ func (s *PasskeyService) BeginLogin(ctx context.Context, userID uuid.UUID, displ
 	}
 
 	cacheKey := cacheKeyForUser(userID, "login")
-	s.cache.put(cacheKey, session, ceremonyCacheTTL)
+	s.cache.put(cacheKey, session, "", ceremonyCacheTTL)
 
 	return options, nil
 }
@@ -219,7 +226,7 @@ func (s *PasskeyService) BeginLogin(ctx context.Context, userID uuid.UUID, displ
 // and updates the sign count.
 func (s *PasskeyService) FinishLogin(ctx context.Context, userID uuid.UUID, displayName string, body []byte) error {
 	cacheKey := cacheKeyForUser(userID, "login")
-	session, ok := s.cache.pop(cacheKey)
+	entry, ok := s.cache.pop(cacheKey)
 	if !ok {
 		return fmt.Errorf("no pending login ceremony")
 	}
@@ -241,7 +248,7 @@ func (s *PasskeyService) FinishLogin(ctx context.Context, userID uuid.UUID, disp
 		return fmt.Errorf("parse assertion: %w", err)
 	}
 
-	updatedCred, err := s.wan.ValidateLogin(u, *session, parsed)
+	updatedCred, err := s.wan.ValidateLogin(u, *entry.session, parsed)
 	if err != nil {
 		return fmt.Errorf("validate login: %w", err)
 	}
@@ -252,6 +259,14 @@ func (s *PasskeyService) FinishLogin(ctx context.Context, userID uuid.UUID, disp
 	}
 
 	return nil
+}
+
+// DeletePasskey removes a passkey credential owned by the given user.
+func (s *PasskeyService) DeletePasskey(ctx context.Context, userID uuid.UUID, credID string) error {
+	if credID == "" {
+		return fmt.Errorf("empty credential id")
+	}
+	return s.userRepo.DeletePasskey(ctx, credID, userID)
 }
 
 // ───── helpers ─────

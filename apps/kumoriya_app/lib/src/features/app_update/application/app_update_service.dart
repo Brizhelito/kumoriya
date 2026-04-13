@@ -8,8 +8,7 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
-const _manifestUrl =
-    'https://pub-8159019abe1741a097538b976c19722c.r2.dev/update.json';
+const _manifestUrl = 'https://api.kumoriya.online/releases/latest';
 
 const _parallelDownloadPartCount = 4;
 const _parallelDownloadMinSizeBytes = 16 * 1024 * 1024; // 16 MB

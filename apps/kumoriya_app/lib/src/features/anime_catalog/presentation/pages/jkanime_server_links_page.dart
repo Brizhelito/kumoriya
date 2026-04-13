@@ -4,6 +4,7 @@ import 'package:kumoriya_plugins/kumoriya_plugins.dart';
 
 import '../../../../app/l10n.dart';
 import '../../../../shared/widgets/state_views.dart';
+import '../../application/models/server_quality_registry.dart';
 import '../providers/anime_catalog_providers.dart';
 import 'resolve_server_link_page.dart';
 
@@ -55,15 +56,23 @@ class JkAnimeServerLinksPage extends ConsumerWidget {
               );
             }
 
+            final sorted = _sortByQuality(serverLinks);
             return ListView.separated(
-              itemCount: serverLinks.length,
+              itemCount: sorted.length,
               separatorBuilder: (_, _) => const Divider(height: 1),
               itemBuilder: (context, index) {
-                final link = serverLinks[index];
+                final link = sorted[index];
                 final language = link.language;
                 final isStream = link.linkType == SourceServerLinkType.stream;
+                final tier = ServerQualityRegistry.tierFor(
+                  detectedHost: link.detectedHost,
+                  serverName: link.serverName,
+                );
                 return ListTile(
-                  leading: const Icon(Icons.dns_outlined),
+                  leading: Icon(
+                    _iconForTier(tier),
+                    color: tier.color,
+                  ),
                   title: Text(link.serverName),
                   subtitle: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -119,4 +128,29 @@ class JkAnimeServerLinksPage extends ConsumerWidget {
       ),
     );
   }
+
+  static List<SourceServerLink> _sortByQuality(List<SourceServerLink> links) {
+    final sorted = List<SourceServerLink>.of(links);
+    sorted.sort((a, b) {
+      final ta = ServerQualityRegistry.tierFor(
+        detectedHost: a.detectedHost,
+        serverName: a.serverName,
+      );
+      final tb = ServerQualityRegistry.tierFor(
+        detectedHost: b.detectedHost,
+        serverName: b.serverName,
+      );
+      return tb.weight.compareTo(ta.weight);
+    });
+    return sorted;
+  }
+
+  static IconData _iconForTier(ServerQualityTier tier) => switch (tier) {
+    ServerQualityTier.premium => Icons.verified_rounded,
+    ServerQualityTier.good => Icons.thumb_up_alt_outlined,
+    ServerQualityTier.average => Icons.dns_outlined,
+    ServerQualityTier.low => Icons.warning_amber_rounded,
+    ServerQualityTier.unknown => Icons.help_outline,
+    ServerQualityTier.unavailable => Icons.block_outlined,
+  };
 }

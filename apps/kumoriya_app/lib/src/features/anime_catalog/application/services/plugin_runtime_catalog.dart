@@ -5,6 +5,7 @@ import 'package:kumoriya_resolver_doodstream/kumoriya_resolver_doodstream.dart';
 import 'package:kumoriya_resolver_filemoon/kumoriya_resolver_filemoon.dart';
 // import 'package:kumoriya_resolver_hqq/kumoriya_resolver_hqq.dart';
 import 'package:kumoriya_resolver_jkplayer/kumoriya_resolver_jkplayer.dart';
+import 'package:kumoriya_resolver_mediafire/kumoriya_resolver_mediafire.dart';
 // import 'package:kumoriya_resolver_mixdrop/kumoriya_resolver_mixdrop.dart';
 // import 'package:kumoriya_resolver_mp4upload/kumoriya_resolver_mp4upload.dart';
 import 'package:kumoriya_resolver_okru/kumoriya_resolver_okru.dart';
@@ -53,5 +54,6 @@ List<ResolverPlugin> buildDefaultResolverPlugins({http.Client? httpClient}) {
     // MixdropResolverPlugin(),
     FilemoonResolverPlugin(httpClient: httpClient),
     VidhideResolverPlugin(httpClient: httpClient),
+    MediafireResolverPlugin(httpClient: httpClient),
   ];
 }

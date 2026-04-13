@@ -1527,4 +1527,48 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get settingsAutoDeleteImmediately => 'Inmediatamente';
+
+  @override
+  String get onboardingNotificationTitle => '¿Activar notificaciones?';
+
+  @override
+  String get onboardingNotificationBody =>
+      'Kumoriya puede notificarte cuando haya nuevos episodios disponibles de tus anime suscritos.';
+
+  @override
+  String get onboardingNotificationAllow => 'Permitir';
+
+  @override
+  String get onboardingNotificationSkip => 'Ahora no';
+
+  @override
+  String get profileRegisterPasskey => 'Registrar nueva passkey';
+
+  @override
+  String get profilePasskeyNameTitle => 'Nombre de la passkey';
+
+  @override
+  String get profilePasskeyNameHint => 'ej. Mi teléfono';
+
+  @override
+  String get profilePasskeyNameContinue => 'Continuar';
+
+  @override
+  String get profilePasskeyRegistered => 'Passkey registrada';
+
+  @override
+  String get profilePasskeyRegisterFailed => 'No se pudo registrar la passkey';
+
+  @override
+  String get profilePasskeyDeleteTitle => '¿Eliminar passkey?';
+
+  @override
+  String get profilePasskeyDeleteBody =>
+      'Esta passkey será eliminada y ya no podrá usarse para iniciar sesión.';
+
+  @override
+  String get profilePasskeyDeleted => 'Passkey eliminada';
+
+  @override
+  String get profilePasskeyDeleteFailed => 'No se pudo eliminar la passkey';
 }

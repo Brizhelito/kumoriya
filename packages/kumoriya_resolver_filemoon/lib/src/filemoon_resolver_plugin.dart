@@ -1,9 +1,11 @@
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:http/http.dart' as http;
 import 'package:kumoriya_core/kumoriya_core.dart';
 import 'package:kumoriya_plugins/kumoriya_plugins.dart';
 import 'package:kumoriya_resolver_common/kumoriya_resolver_common.dart';
+import 'package:pointycastle/export.dart';
 
 import 'errors/filemoon_resolver_error.dart';
 
@@ -178,22 +180,25 @@ Future<Result<List<ResolvedStream>, KumoriyaError>?> _resolveDynamicByseFlow(
     return null;
   }
 
-  final detailsUri = sourceUrl.replace(
-    path: '/api/videos/$code/embed/details',
+  // Use the /embed/playback endpoint which returns AES-256-GCM encrypted
+  // source data, instead of /embed/details which only returns an embed frame
+  // URL pointing to another SPA shell.
+  final playbackUri = sourceUrl.replace(
+    path: '/api/videos/$code/embed/playback',
     query: null,
     fragment: null,
   );
 
   try {
-    final detailsResponse = await client
-        .get(detailsUri, headers: _requestHeaders(sourceUrl))
+    final response = await client
+        .get(playbackUri, headers: _requestHeaders(sourceUrl))
         .timeout(const Duration(seconds: 8));
 
-    if (detailsResponse.statusCode != 200) {
+    if (response.statusCode != 200) {
       return null;
     }
 
-    final decoded = _decodeDetails(safeResponseBody(detailsResponse));
+    final decoded = _decodeDetails(safeResponseBody(response));
     if (decoded == null) {
       return null;
     }
@@ -202,95 +207,123 @@ Future<Result<List<ResolvedStream>, KumoriyaError>?> _resolveDynamicByseFlow(
     if (errorMessage is String && errorMessage.trim().isNotEmpty) {
       return Failure(
         FilemoonTransportError(
-          message: 'Filemoon details endpoint rejected request: $errorMessage',
+          message: 'Filemoon playback endpoint rejected request: $errorMessage',
         ),
       );
     }
 
-    final embedFrameRaw = decoded['embed_frame_url'];
-    if (embedFrameRaw is! String || embedFrameRaw.trim().isEmpty) {
+    final playback = decoded['playback'];
+    if (playback is! Map<String, dynamic>) {
       return null;
     }
 
-    final embedFrameUrl = Uri.tryParse(embedFrameRaw.trim());
-    if (embedFrameUrl == null) {
+    final sources = _decryptPlaybackSources(playback);
+    if (sources == null || sources.isEmpty) {
       return null;
     }
 
-    return await _resolveFromEmbedFrame(
-      client: client,
-      sourceUrl: sourceUrl,
-      embedFrameUrl: embedFrameUrl,
-    );
+    final streams = <ResolvedStream>[];
+    for (final source in sources) {
+      if (source is! Map<String, dynamic>) continue;
+      final urlRaw = source['url'];
+      if (urlRaw is! String || urlRaw.trim().isEmpty) continue;
+
+      final uri = Uri.tryParse(urlRaw.trim());
+      if (uri == null || !uri.hasScheme || uri.host.isEmpty) continue;
+
+      final label = source['label'];
+      final mimeType = source['mime_type'];
+      final lower = uri.toString().toLowerCase();
+      final isHls = lower.contains('.m3u8') ||
+          lower.contains('/hls/') ||
+          lower.contains('/hls2/') ||
+          (mimeType is String &&
+              mimeType.toLowerCase().contains('mpegurl'));
+
+      streams.add(
+        ResolvedStream(
+          url: uri,
+          qualityLabel: label is String && label.isNotEmpty
+              ? label
+              : _inferQuality(uri),
+          mimeType: mimeType is String ? mimeType : null,
+          isHls: isHls,
+          headers: _requestHeaders(sourceUrl),
+        ),
+      );
+    }
+
+    if (streams.isEmpty) {
+      return null;
+    }
+
+    return Success(streams);
   } catch (_) {
     return null;
   }
 }
 
-Future<Result<List<ResolvedStream>, KumoriyaError>?> _resolveFromEmbedFrame({
-  required http.Client client,
-  required Uri sourceUrl,
-  required Uri embedFrameUrl,
-}) async {
-  Future<Result<List<ResolvedStream>, KumoriyaError>?> fetchAndExtract(
-    Uri targetUrl, {
-    required Uri refererUrl,
-  }) async {
-    final response = await client
-        .get(
-          targetUrl,
-          headers: _requestHeaders(targetUrl, referer: refererUrl),
-        )
-        .timeout(const Duration(seconds: 8));
+/// Decrypts AES-256-GCM encrypted playback data from the bysekoze/f75s
+/// `/api/videos/{code}/embed/playback` endpoint.
+///
+/// The [playback] map contains:
+/// - `key_parts`: list of base64url-encoded key fragments (concatenated = 32-byte key)
+/// - `iv`: base64url-encoded 12-byte nonce
+/// - `payload`: base64url-encoded ciphertext + GCM auth tag
+///
+/// Returns the list of source objects on success, or `null` on any failure.
+List<dynamic>? _decryptPlaybackSources(Map<String, dynamic> playback) {
+  try {
+    final keyParts = playback['key_parts'];
+    if (keyParts is! List || keyParts.isEmpty) return null;
 
-    if (response.statusCode != 200) {
-      return null;
+    final ivRaw = playback['iv'];
+    final payloadRaw = playback['payload'];
+    if (ivRaw is! String || payloadRaw is! String) return null;
+
+    // Concatenate key parts (each is base64url).
+    final keyBytes = <int>[];
+    for (final part in keyParts) {
+      if (part is! String) return null;
+      keyBytes.addAll(_base64UrlDecodeUnpadded(part));
     }
+    if (keyBytes.length != 32) return null; // AES-256
 
-    final streams = _extractStreams(
-      safeResponseBody(response),
-      resolverUrl: targetUrl,
+    final iv = _base64UrlDecodeUnpadded(ivRaw);
+    if (iv.length != 12) return null; // GCM standard nonce
+
+    final ciphertext = _base64UrlDecodeUnpadded(payloadRaw);
+    if (ciphertext.length < 16) return null; // at least the auth tag
+
+    final cipher = GCMBlockCipher(AESEngine())..init(
+      false, // decrypt
+      AEADParameters(
+        KeyParameter(Uint8List.fromList(keyBytes)),
+        128, // tag length in bits
+        Uint8List.fromList(iv),
+        Uint8List(0), // no additional authenticated data
+      ),
     );
-    if (streams.isNotEmpty) {
-      return Success(streams);
-    }
 
-    if (_isUnavailablePayload(safeResponseBody(response))) {
-      return Failure(
-        FilemoonTransportError(
-          message:
-              'Filemoon embed host responded with an unavailable/source-blocked payload.',
-        ),
-      );
-    }
+    final plaintext = cipher.process(Uint8List.fromList(ciphertext));
 
+    final decoded = jsonDecode(utf8.decode(plaintext));
+    if (decoded is! Map<String, dynamic>) return null;
+
+    final sources = decoded['sources'];
+    return sources is List ? sources : null;
+  } catch (_) {
     return null;
   }
+}
 
-  final directResult = await fetchAndExtract(
-    embedFrameUrl,
-    refererUrl: sourceUrl,
-  );
-  if (directResult != null) {
-    return directResult;
+Uint8List _base64UrlDecodeUnpadded(String input) {
+  var normalized = input.replaceAll('-', '+').replaceAll('_', '/');
+  final remainder = normalized.length % 4;
+  if (remainder != 0) {
+    normalized = normalized.padRight(normalized.length + (4 - remainder), '=');
   }
-
-  final code = _extractVideoCode(embedFrameUrl);
-  if (code == null) {
-    return null;
-  }
-
-  final canonicalEmbedUrl = embedFrameUrl.replace(
-    path: '/e/$code',
-    query: null,
-    fragment: null,
-  );
-
-  if (canonicalEmbedUrl.toString() == embedFrameUrl.toString()) {
-    return null;
-  }
-
-  return fetchAndExtract(canonicalEmbedUrl, refererUrl: embedFrameUrl);
+  return base64Decode(normalized);
 }
 
 Map<String, dynamic>? _decodeDetails(String payload) {
@@ -342,7 +375,7 @@ final _fmDirectRe = RegExp(
 );
 
 final _fmStreamHintsRe = RegExp(
-  r'''(sources|file\s*:|hls|master\.m3u8|\.mp4)''',
+  r'''(sources|file\s*:\s*['"h]|hls|master\.m3u8|\.mp4)''',
   caseSensitive: false,
   multiLine: true,
 );

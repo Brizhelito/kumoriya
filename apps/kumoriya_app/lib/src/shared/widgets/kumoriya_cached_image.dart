@@ -68,15 +68,18 @@ class KumoriyaCachedImage extends StatelessWidget {
     final trimmed = url?.trim();
     final fallback = errorFallback ?? _localFileOrFallback();
     final dpr = MediaQuery.devicePixelRatioOf(context);
-    final memW = width != null ? (width! * dpr).round() : null;
-    final memH = height != null ? (height! * dpr).round() : null;
+    // Guard against infinite/NaN dimensions that would crash layout.
+    final safeW = (width != null && width!.isFinite) ? width : null;
+    final safeH = (height != null && height!.isFinite) ? height : null;
+    final memW = safeW != null ? (safeW * dpr).round() : null;
+    final memH = safeH != null ? (safeH * dpr).round() : null;
     final child = trimmed == null || trimmed.isEmpty
         ? fallback
         : CachedNetworkImage(
             imageUrl: trimmed,
             cacheManager: KumoriyaVisualCacheManager.forBucket(bucket),
-            width: width,
-            height: height,
+            width: safeW,
+            height: safeH,
             memCacheWidth: memW,
             memCacheHeight: memH,
             fit: fit,

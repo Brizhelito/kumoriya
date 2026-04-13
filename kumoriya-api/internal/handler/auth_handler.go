@@ -3,6 +3,7 @@ package handler
 import (
 	"crypto/rand"
 	"encoding/hex"
+	"html/template"
 	"net/url"
 	"strconv"
 	"strings"
@@ -159,7 +160,13 @@ func (h *AuthHandler) OAuthCallback(c fiber.Ctx) error {
 	params.Set("expires_in", strconv.Itoa(pair.ExpiresIn))
 	params.Set("user_id", user.ID.String())
 	redirectURL := entry.redirectURI + "?" + params.Encode()
-	return c.Redirect().To(redirectURL)
+
+	// Serve an interstitial HTML page that opens the deep link and tells
+	// the user they can close the browser tab. A bare 302 to a custom
+	// scheme leaves the browser on a blank/loading page forever.
+	return c.Status(fiber.StatusOK).Type("html").SendString(
+		buildDeepLinkPage(redirectURL),
+	)
 }
 
 // Refresh handles POST /auth/refresh { "refresh_token": "...", "user_id": "..." }
@@ -238,7 +245,14 @@ func (h *AuthHandler) PasskeyRegisterBegin(c fiber.Ctx) error {
 	}
 	userName, _ := c.Locals(middleware.LocalsUserName).(string)
 
-	options, err := h.passkeySvc.BeginRegistration(c.Context(), userID, userName)
+	type beginReq struct {
+		FriendlyName string `json:"friendly_name"`
+	}
+	var req beginReq
+	// Body is optional — ignore parse errors so callers without a body still work.
+	_ = c.Bind().JSON(&req)
+
+	options, err := h.passkeySvc.BeginRegistration(c.Context(), userID, userName, req.FriendlyName)
 	if err != nil {
 		log.Error().Err(err).Msg("passkey register begin failed")
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "registration failed"})
@@ -334,6 +348,26 @@ func (h *AuthHandler) PasskeyAuthFinish(c fiber.Ctx) error {
 	})
 }
 
+// PasskeyDelete handles DELETE /auth/passkeys/:id (authenticated)
+func (h *AuthHandler) PasskeyDelete(c fiber.Ctx) error {
+	userID, ok := middleware.UserIDFromCtx(c)
+	if !ok {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "not authenticated"})
+	}
+
+	credID := c.Params("id")
+	if credID == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "missing passkey id"})
+	}
+
+	if err := h.passkeySvc.DeletePasskey(c.Context(), userID, credID); err != nil {
+		log.Error().Err(err).Str("cred_id", credID).Msg("passkey delete failed")
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to delete passkey"})
+	}
+
+	return c.JSON(fiber.Map{"ok": true})
+}
+
 // ───── helpers ─────
 
 func isAllowedRedirect(uri string) bool {
@@ -356,5 +390,52 @@ func redirectWithError(c fiber.Ctx, baseRedirect, errCode string) error {
 	query := parsed.Query()
 	query.Set("error", errCode)
 	parsed.RawQuery = query.Encode()
-	return c.Redirect().To(parsed.String())
+	return c.Status(fiber.StatusOK).Type("html").SendString(
+		buildDeepLinkPage(parsed.String()),
+	)
+}
+
+// deepLinkPageTpl is the pre-parsed HTML template for the OAuth callback landing page.
+var deepLinkPageTpl = template.Must(template.New("deeplink").Parse(`<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Kumoriya</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+       background:#0f0f13;color:#e1e1e6;display:flex;align-items:center;
+       justify-content:center;min-height:100vh;text-align:center}
+  .card{max-width:380px;padding:40px 32px;border-radius:16px;
+        background:#1a1a24;box-shadow:0 8px 32px rgba(0,0,0,.4)}
+  .icon{font-size:48px;margin-bottom:16px}
+  h1{font-size:20px;font-weight:600;margin-bottom:8px;color:#a78bfa}
+  p{font-size:14px;color:#9ca3af;line-height:1.5;margin-bottom:16px}
+  .btn{display:inline-block;padding:10px 24px;border-radius:8px;
+       background:#a78bfa;color:#0f0f13;font-weight:600;text-decoration:none;
+       font-size:14px;transition:background .2s}
+  .btn:hover{background:#8b5cf6}
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="icon">✅</div>
+  <h1>Login exitoso</h1>
+  <p>Regresando a Kumoriya...<br>Si no se abre automáticamente:</p>
+  <a class="btn" id="open" href="{{.URL}}">Abrir Kumoriya</a>
+  <p style="margin-top:16px;font-size:12px;color:#6b7280">
+    Ya puedes cerrar esta pestaña.
+  </p>
+</div>
+<script>window.location.href={{.URL}};</script>
+</body>
+</html>`))
+
+// buildDeepLinkPage returns an HTML page that opens the custom-scheme deep link
+// and shows a user-friendly message to close the browser tab.
+func buildDeepLinkPage(deepLinkURL string) string {
+	var buf strings.Builder
+	_ = deepLinkPageTpl.Execute(&buf, struct{ URL string }{deepLinkURL})
+	return buf.String()
 }

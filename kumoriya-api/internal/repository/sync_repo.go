@@ -146,6 +146,15 @@ func (r *SyncRepo) UpsertWatchHistory(ctx context.Context, userID uuid.UUID, wh 
 	return tag.RowsAffected() > 0, nil
 }
 
+// DeleteWatchHistory removes a watch history entry for a given user and anilist ID.
+func (r *SyncRepo) DeleteWatchHistory(ctx context.Context, userID uuid.UUID, anilistID int) error {
+	_, err := r.pool.Exec(ctx,
+		`DELETE FROM sync_watch_history WHERE user_id = $1 AND anilist_id = $2`,
+		userID, anilistID,
+	)
+	return err
+}
+
 // --- Playback Preferences ---
 
 func (r *SyncRepo) PullPlaybackPreferences(ctx context.Context, userID uuid.UUID, since int64) ([]model.PlaybackPreference, error) {
@@ -199,12 +208,15 @@ func (r *SyncRepo) UpsertPlaybackPreference(ctx context.Context, userID uuid.UUI
 // --- Library Entries ---
 
 func (r *SyncRepo) PullLibraryEntries(ctx context.Context, userID uuid.UUID, since int64) ([]model.LibraryEntry, error) {
+	// Library entries use added_at = LEAST(old, new) in the upsert, so added_at
+	// can go backward.  Pull all entries for the user to avoid missed updates.
+	// Library set is small/bounded per user.
 	rows, err := r.pool.Query(ctx,
 		`SELECT user_id, anilist_id, added_at, notify_new_episodes, last_notified_episode,
 		        auto_download_new_episodes, auto_download_audio_preference
 		 FROM sync_library_entry
-		 WHERE user_id = $1 AND added_at > $2`,
-		userID, since,
+		 WHERE user_id = $1`,
+		userID,
 	)
 	if err != nil {
 		return nil, err

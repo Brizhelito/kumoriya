@@ -23,6 +23,7 @@ import '../support/episode_display_title.dart';
 import '../support/playback_launch_flow.dart';
 import '../support/plugin_icon_helpers.dart';
 import '../widgets/source_badge.dart';
+import '../widgets/source_quality_picker_sheet.dart';
 import '../../../../shared/theme/kumoriya_theme.dart';
 
 class EpisodeListPage extends ConsumerStatefulWidget {
@@ -549,7 +550,7 @@ class _EpisodeListHeader extends ConsumerWidget {
         .toList();
     if (downloadable.isEmpty) return;
 
-    final sourceId = await _pickSourceForBulkDownload(context);
+    final sourceId = await _pickSourceForBulkDownload(context, ref);
     if (sourceId == null) {
       return;
     }
@@ -648,7 +649,10 @@ class _EpisodeListHeader extends ConsumerWidget {
     );
   }
 
-  Future<String?> _pickSourceForBulkDownload(BuildContext context) async {
+  Future<String?> _pickSourceForBulkDownload(
+    BuildContext context,
+    WidgetRef ref,
+  ) async {
     final playableSources =
         summary?.playableSources
             .where((source) => source.manifest.id != _excludedDownloadSource)
@@ -661,49 +665,26 @@ class _EpisodeListHeader extends ConsumerWidget {
       return playableSources.first.manifest.id;
     }
 
-    return showModalBottomSheet<String>(
+    // Build a sample-episode map so the sheet can probe each source.
+    final sampleEpisodes = <String, SourceEpisode>{
+      for (final source in playableSources)
+        if (rows
+                .where(
+                  (row) => row.sourceEpisodes.containsKey(source.manifest.id),
+                )
+                .firstOrNull
+                ?.sourceEpisodes[source.manifest.id]
+            case final ep?)
+          source.manifest.id: ep,
+    };
+
+    if (!context.mounted) return null;
+
+    // Show the sheet immediately — quality probes run inside the widget.
+    return showSourceQualityPickerSheet(
       context: context,
-      showDragHandle: true,
-      isScrollControlled: true,
-      builder: (context) {
-        return SafeArea(
-          child: ConstrainedBox(
-            constraints: BoxConstraints(
-              maxHeight: MediaQuery.of(context).size.height * 0.5,
-            ),
-            child: ListView(
-              shrinkWrap: true,
-              children: <Widget>[
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
-                  child: Text(
-                    context.l10n.downloadAllFromSource,
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ),
-                ...playableSources.map(
-                  (source) => ListTile(
-                    leading: SourceBadge(
-                      name: source.manifest.displayName,
-                      iconUrl: effectiveSourceIconUrl(source.manifest),
-                      compact: true,
-                      iconOnly: true,
-                    ),
-                    title: Text(
-                      source.manifest.displayName,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    onTap: () => Navigator.of(context).pop(source.manifest.id),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
+      sources: playableSources,
+      sampleEpisodes: sampleEpisodes,
     );
   }
 }
@@ -1266,6 +1247,7 @@ Future<bool> _enqueueEpisodeDownload({
     final linksResult = await GetSourceEpisodeServerLinksUseCase(
       sourcePlugin: sourcePlugin,
       registry: registry,
+      includeDownloadLinks: true,
     ).call(sourceEpisode);
 
     var links = linksResult.fold(

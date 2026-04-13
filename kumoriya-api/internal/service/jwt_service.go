@@ -13,7 +13,7 @@ import (
 )
 
 const (
-	AccessTokenDuration  = 15 * time.Minute
+	AccessTokenDuration  = 2 * time.Hour
 	RefreshTokenDuration = 30 * 24 * time.Hour
 	MaxSessionsPerUser   = 5
 )

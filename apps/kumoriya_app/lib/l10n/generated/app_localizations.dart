@@ -2736,6 +2736,90 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Immediately'**
   String get settingsAutoDeleteImmediately;
+
+  /// No description provided for @onboardingNotificationTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Enable notifications?'**
+  String get onboardingNotificationTitle;
+
+  /// No description provided for @onboardingNotificationBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Kumoriya can notify you when new episodes are available for your subscribed anime.'**
+  String get onboardingNotificationBody;
+
+  /// No description provided for @onboardingNotificationAllow.
+  ///
+  /// In en, this message translates to:
+  /// **'Allow'**
+  String get onboardingNotificationAllow;
+
+  /// No description provided for @onboardingNotificationSkip.
+  ///
+  /// In en, this message translates to:
+  /// **'Not now'**
+  String get onboardingNotificationSkip;
+
+  /// No description provided for @profileRegisterPasskey.
+  ///
+  /// In en, this message translates to:
+  /// **'Register new passkey'**
+  String get profileRegisterPasskey;
+
+  /// No description provided for @profilePasskeyNameTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Passkey name'**
+  String get profilePasskeyNameTitle;
+
+  /// No description provided for @profilePasskeyNameHint.
+  ///
+  /// In en, this message translates to:
+  /// **'e.g. My phone'**
+  String get profilePasskeyNameHint;
+
+  /// No description provided for @profilePasskeyNameContinue.
+  ///
+  /// In en, this message translates to:
+  /// **'Continue'**
+  String get profilePasskeyNameContinue;
+
+  /// No description provided for @profilePasskeyRegistered.
+  ///
+  /// In en, this message translates to:
+  /// **'Passkey registered'**
+  String get profilePasskeyRegistered;
+
+  /// No description provided for @profilePasskeyRegisterFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not register passkey'**
+  String get profilePasskeyRegisterFailed;
+
+  /// No description provided for @profilePasskeyDeleteTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete passkey?'**
+  String get profilePasskeyDeleteTitle;
+
+  /// No description provided for @profilePasskeyDeleteBody.
+  ///
+  /// In en, this message translates to:
+  /// **'This passkey will be removed and can no longer be used to sign in.'**
+  String get profilePasskeyDeleteBody;
+
+  /// No description provided for @profilePasskeyDeleted.
+  ///
+  /// In en, this message translates to:
+  /// **'Passkey deleted'**
+  String get profilePasskeyDeleted;
+
+  /// No description provided for @profilePasskeyDeleteFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not delete passkey'**
+  String get profilePasskeyDeleteFailed;
 }
 
 class _AppLocalizationsDelegate

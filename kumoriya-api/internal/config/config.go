@@ -31,12 +31,21 @@ type Config struct {
 	GoogleRedirectURI  string
 
 	// WebAuthn
-	WebAuthnRPID     string
-	WebAuthnRPOrigin string
-	WebAuthnRPName   string
+	WebAuthnRPID      string
+	WebAuthnRPOrigins []string
+	WebAuthnRPName    string
 
 	// Public base URL (for building redirect URLs)
 	BaseURL string
+
+	// Debug flags
+	SyncDebugLog bool
+
+	// Release manifest URL (R2 or similar)
+	ReleaseManifestURL string
+
+	// Android APK SHA-256 fingerprint for Digital Asset Links (passkeys)
+	AndroidAPKFingerprint string
 }
 
 func Load() Config {
@@ -91,11 +100,17 @@ func Load() Config {
 		GoogleClientSecret: os.Getenv("GOOGLE_CLIENT_SECRET"),
 		GoogleRedirectURI:  baseURL + "/auth/oauth/google/callback",
 
-		WebAuthnRPID:     getEnv("WEBAUTHN_RP_ID", "kumoriya.online"),
-		WebAuthnRPOrigin: getEnv("WEBAUTHN_RP_ORIGIN", baseURL),
-		WebAuthnRPName:   getEnv("WEBAUTHN_RP_NAME", "Kumoriya"),
+		WebAuthnRPID:      getEnv("WEBAUTHN_RP_ID", "kumoriya.online"),
+		WebAuthnRPOrigins: parseOrigins(getEnv("WEBAUTHN_RP_ORIGINS", baseURL)),
+		WebAuthnRPName:    getEnv("WEBAUTHN_RP_NAME", "Kumoriya"),
 
 		BaseURL: baseURL,
+
+		SyncDebugLog: getEnv("SYNC_DEBUG_LOG", "") != "",
+
+		ReleaseManifestURL: getEnv("RELEASE_MANIFEST_URL", "https://pub-8159019abe1741a097538b976c19722c.r2.dev/update.json"),
+
+		AndroidAPKFingerprint: os.Getenv("ANDROID_APK_FINGERPRINT"),
 	}
 }
 
@@ -104,4 +119,16 @@ func getEnv(key, fallback string) string {
 		return v
 	}
 	return fallback
+}
+
+// parseOrigins splits a comma-separated string into a list of origins.
+func parseOrigins(raw string) []string {
+	var origins []string
+	for _, v := range strings.Split(raw, ",") {
+		item := strings.TrimSpace(v)
+		if item != "" {
+			origins = append(origins, item)
+		}
+	}
+	return origins
 }

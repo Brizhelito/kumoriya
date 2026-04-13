@@ -59,16 +59,18 @@ final class SyncAwareProgressStore implements AnimeProgressStore {
     String? lastSourcePluginId,
     DateTime? lastAccessedAt,
   }) async {
+    // Use a single timestamp for both local DB and sync queue.
+    final effectiveAccessedAt = lastAccessedAt ?? DateTime.now();
     final result = await _inner.upsertWatchHistory(
       anilistId: anilistId,
       episodeNumber: episodeNumber,
       positionSeconds: positionSeconds,
       totalDurationSeconds: totalDurationSeconds,
       lastSourcePluginId: lastSourcePluginId,
-      lastAccessedAt: lastAccessedAt,
+      lastAccessedAt: effectiveAccessedAt,
     );
     if (result.isSuccess && _isAuthenticated()) {
-      final now = DateTime.now().millisecondsSinceEpoch;
+      final ts = effectiveAccessedAt.millisecondsSinceEpoch;
       await _syncQueue.enqueue(
         SyncQueueEntry(
           id: 0,
@@ -80,9 +82,9 @@ final class SyncAwareProgressStore implements AnimeProgressStore {
             'last_source_plugin_id': lastSourcePluginId,
             'last_position_seconds': positionSeconds,
             'last_total_duration_seconds': totalDurationSeconds,
-            'last_accessed_at': now,
+            'last_accessed_at': ts,
           }),
-          createdAt: DateTime.now(),
+          createdAt: effectiveAccessedAt,
           status: SyncQueueEntryStatus.pending,
         ),
       );

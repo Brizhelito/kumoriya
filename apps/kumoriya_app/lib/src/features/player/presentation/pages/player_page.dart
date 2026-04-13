@@ -46,6 +46,7 @@ class PlayerPage extends ConsumerStatefulWidget {
     required this.serverName,
     this.persistSelection = true,
     this.preferredAudioPreference,
+    this.totalEpisodes,
     required this.resolved,
   });
 
@@ -57,6 +58,7 @@ class PlayerPage extends ConsumerStatefulWidget {
   final String serverName;
   final bool persistSelection;
   final PlaybackAudioPreference? preferredAudioPreference;
+  final int? totalEpisodes;
   final ResolvedServerLinkResult resolved;
 
   @override
@@ -111,6 +113,15 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
 
   double get _episodeNumberDouble =>
       double.tryParse(widget.episodeNumber) ?? 0.0;
+
+  /// Whether the current episode is known to not be the last one.
+  /// If [totalEpisodes] is unknown, defaults to true (show the button).
+  bool get _hasNextEpisode {
+    final total = widget.totalEpisodes;
+    if (total == null) return true;
+    final current = int.tryParse(widget.episodeNumber) ?? 0;
+    return current < total;
+  }
 
   @override
   void initState() {
@@ -949,7 +960,9 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
             },
             onBack: () => _handleExit(context),
             onRetry: _retryPlayback,
-            onOpenEpisodes: () => unawaited(_openEpisodeSelectorFromPlayer()),
+            onOpenEpisodes: _hasNextEpisode
+                ? () => unawaited(_openEpisodeSelectorFromPlayer())
+                : null,
             onPreviousEpisode: (int.tryParse(widget.episodeNumber) ?? 0) > 1
                 ? () => unawaited(_openPreviousEpisode())
                 : null,
@@ -1546,7 +1559,7 @@ class _ImmersivePlayerView extends StatefulWidget {
     required this.onSeekStart,
     required this.onBack,
     required this.onRetry,
-    required this.onOpenEpisodes,
+    this.onOpenEpisodes,
     this.onPreviousEpisode,
     required this.onQuality,
     required this.onAudio,
@@ -1592,7 +1605,7 @@ class _ImmersivePlayerView extends StatefulWidget {
   final VoidCallback? onSeekStart;
   final VoidCallback onBack;
   final VoidCallback onRetry;
-  final VoidCallback onOpenEpisodes;
+  final VoidCallback? onOpenEpisodes;
   final VoidCallback? onPreviousEpisode;
   final VoidCallback onQuality;
   final VoidCallback? onAudio;
@@ -2664,8 +2677,9 @@ class _ImmersivePlayerViewState extends State<_ImmersivePlayerView>
                                   tooltip: context.l10n.playerPreviousEpisode,
                                 ),
                               // Next episode
-                              IconButton(
-                                onPressed: widget.onOpenEpisodes,
+                              if (widget.onOpenEpisodes != null)
+                                IconButton(
+                                  onPressed: widget.onOpenEpisodes,
                                 icon: Icon(
                                   KumoriyaIcons.playerNextEpisode,
                                   color: KumoriyaColors.textPrimary,

@@ -19,7 +19,7 @@ class LibraryPage extends ConsumerStatefulWidget {
 }
 
 class _LibraryPageState extends ConsumerState<LibraryPage> {
-  bool _listView = false;
+  bool _listView = true;
 
   @override
   Widget build(BuildContext context) {
@@ -608,8 +608,6 @@ class _AnimePosterCard extends ConsumerWidget {
                   child: KumoriyaCachedImage(
                     url: imageUrl,
                     bucket: KumoriyaImageCacheBucket.artwork,
-                    width: double.infinity,
-                    height: double.infinity,
                     fit: BoxFit.cover,
                   ),
                 ),

@@ -1,4 +1,8 @@
+import 'dart:io' show Platform;
+
+import 'package:cronet_http/cronet_http.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:http/http.dart' as http;
 import 'package:kumoriya_core/kumoriya_core.dart';
 import 'package:kumoriya_plugins/kumoriya_plugins.dart';
 import 'package:kumoriya_storage/kumoriya_storage.dart';
@@ -25,6 +29,21 @@ final downloadServerScorerProvider = Provider<DownloadServerScorer>((ref) {
 });
 
 // ─── Download Manager (singleton) ────────────────────────────────────────────
+
+/// Dedicated HTTP client for the download pipeline. On Android, uses a separate
+/// Cronet engine (HTTP/2, native TLS) so download traffic doesn't compete with
+/// resolver requests for the same connection pool.
+final downloadHttpClientProvider = Provider<http.Client>((ref) {
+  if (!Platform.isAndroid) return http.Client();
+  try {
+    return CronetClient.fromCronetEngine(
+      CronetEngine.build(cacheMode: CacheMode.disabled),
+      closeEngine: true,
+    );
+  } catch (_) {
+    return http.Client();
+  }
+});
 
 final downloadDirectoryStoreProvider = Provider<DownloadDirectoryStore>((ref) {
   return FileDownloadDirectoryStore();
@@ -65,6 +84,7 @@ final downloadManagerProvider = Provider<DownloadManagerService>((ref) {
   final sourceAvailabilityStore = ref.watch(sourceAvailabilityStoreProvider);
   final cacheCodec = ref.watch(sourceAvailabilityCacheCodecProvider);
   final scorer = ref.watch(downloadServerScorerProvider);
+  final httpClient = ref.watch(downloadHttpClientProvider);
 
   final manager = DownloadManagerService(
     store: store,
@@ -72,6 +92,7 @@ final downloadManagerProvider = Provider<DownloadManagerService>((ref) {
     libraryIndexService: ref.watch(downloadLibraryIndexServiceProvider),
     hlsSegmentStore: ref.watch(hlsSegmentStoreProvider),
     foregroundService: DownloadForegroundService(),
+    httpClient: httpClient,
     linkRefresher: _buildLinkRefresher(
       sourcePluginMap: sourcePluginMap,
       registry: registry,
