@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:developer' as dev;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kumoriya_auth/kumoriya_auth.dart';
@@ -9,6 +10,8 @@ import '../party_sync_engine.dart';
 import '../../infrastructure/party_api_client.dart';
 import '../../infrastructure/signaling_client.dart';
 import '../../infrastructure/webrtc_peer_manager.dart';
+
+void _partyLog(String msg) => dev.log(msg, name: 'Party');
 
 // ── API base URLs ──
 
@@ -124,6 +127,7 @@ class PartySessionNotifier extends Notifier<PartySessionState> {
   PartySyncEngine? get syncEngine => _syncEngine;
 
   /// External callback for navigation when media changes (set by UI).
+  /// Set this ONCE when navigating to the lobby or player, not on every rebuild.
   OnMediaChangeNavigation? onMediaChangeNavigation;
 
   @override
@@ -238,9 +242,23 @@ class PartySessionNotifier extends Notifier<PartySessionState> {
     required double episodeNumber,
   }) async {
     final room = state.room;
-    if (room == null) return;
+    if (room == null) {
+      _partyLog('changeMedia: no active room');
+      return;
+    }
 
-    // 1. Update server-side room metadata.
+    _partyLog('changeMedia: anilistId=$anilistId episode=$episodeNumber title=$animeTitle');
+
+    // 1. Update local room state IMMEDIATELY (optimistic update).
+    state = state.copyWith(
+      room: room.copyWith(
+        anilistId: anilistId,
+        animeTitle: animeTitle,
+        episodeNumber: episodeNumber,
+      ),
+    );
+
+    // 2. Update server-side room metadata (best-effort).
     try {
       final api = ref.read(partyApiClientProvider);
       final updated = await api.updateRoom(
@@ -250,11 +268,13 @@ class PartySessionNotifier extends Notifier<PartySessionState> {
         episodeNumber: episodeNumber,
       );
       state = state.copyWith(room: updated);
-    } catch (_) {
+      _partyLog('changeMedia: server updated');
+    } catch (e) {
+      _partyLog('changeMedia: server update failed: $e');
       // Best-effort — P2P broadcast is the real source of truth.
     }
 
-    // 2. Broadcast to all peers via P2P.
+    // 3. Broadcast to all peers via P2P.
     _syncEngine?.sendMediaChange(
       anilistId: anilistId,
       animeTitle: animeTitle,
@@ -270,9 +290,11 @@ class PartySessionNotifier extends Notifier<PartySessionState> {
   // ── Internal P2P lifecycle ──
 
   Future<void> _connectP2P(PartyRoom room, {required bool isHost}) async {
+    _partyLog('_connectP2P: room=${room.id} isHost=$isHost members=${room.members.length}');
     final asyncAuth = ref.read(authStateProvider);
     final authState = asyncAuth.value;
     if (authState is! AuthenticatedAuthState) {
+      _partyLog('_connectP2P: not authenticated');
       state = state.copyWith(
         status: PartySessionStatus.error,
         error: 'Not authenticated',
@@ -284,6 +306,7 @@ class PartySessionNotifier extends Notifier<PartySessionState> {
     final tokenStore = ref.read(secureTokenStoreProvider);
     final tokens = await tokenStore.loadTokens();
     if (tokens == null) {
+      _partyLog('_connectP2P: no auth tokens');
       state = state.copyWith(
         status: PartySessionStatus.error,
         error: 'No auth tokens',
@@ -297,6 +320,7 @@ class PartySessionNotifier extends Notifier<PartySessionState> {
           orElse: () => room.members.first,
         )
         .userId;
+    _partyLog('_connectP2P: userId=$userId');
 
     // 1. Create signaling client.
     _signaling = SignalingClient(
@@ -332,12 +356,15 @@ class PartySessionNotifier extends Notifier<PartySessionState> {
     // 4. Connect: signaling → peer manager.
     _peerManager!.connect(_signaling!);
     _signaling!.connect(room.id);
+    _partyLog('_connectP2P: signaling connected, room=$isHost');
 
     if (isHost) {
       _syncEngine!.startHostSync();
+      _partyLog('_connectP2P: host sync started');
     }
 
     state = state.copyWith(status: PartySessionStatus.connected);
+    _partyLog('_connectP2P: status=connected');
   }
 
   Future<void> _disconnect() async {
@@ -410,6 +437,7 @@ class PartySessionNotifier extends Notifier<PartySessionState> {
     String animeTitle,
     double episodeNumber,
   ) {
+    _partyLog('_onMediaChange: anilistId=$anilistId episode=$episodeNumber from=$senderId');
     // Update local room state.
     final room = state.room;
     if (room != null) {
@@ -422,7 +450,13 @@ class PartySessionNotifier extends Notifier<PartySessionState> {
       );
     }
     // Trigger navigation for non-host members.
-    onMediaChangeNavigation?.call(anilistId, animeTitle, episodeNumber);
+    // Only call if set — the UI is responsible for setting this before media changes.
+    if (onMediaChangeNavigation != null) {
+      _partyLog('_onMediaChange: triggering navigation callback');
+      onMediaChangeNavigation!(anilistId, animeTitle, episodeNumber);
+    } else {
+      _partyLog('_onMediaChange: no navigation callback set');
+    }
   }
 
   bool _isLocalUser(String userId) {

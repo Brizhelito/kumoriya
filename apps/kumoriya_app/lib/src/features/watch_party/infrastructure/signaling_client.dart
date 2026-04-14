@@ -1,7 +1,10 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:developer' as dev;
 
 import 'package:web_socket_channel/web_socket_channel.dart';
+
+void _wsLog(String msg) => dev.log(msg, name: 'PartyWS');
 
 /// Ephemeral WebSocket client for WebRTC signaling relay.
 /// Connects to the server only to exchange SDP offers/answers and ICE
@@ -20,6 +23,7 @@ final class SignalingClient {
   WebSocketChannel? _channel;
   final _controller = StreamController<SignalEnvelope>.broadcast();
   StreamSubscription<dynamic>? _sub;
+  Timer? _keepaliveTimer;
 
   /// Stream of incoming signaling messages.
   Stream<SignalEnvelope> get messages => _controller.stream;
@@ -30,6 +34,7 @@ final class SignalingClient {
   void connect(String roomId) {
     if (_channel != null) return;
 
+    _wsLog('connect: roomId=$roomId');
     final parsed = Uri.parse('$_wsUrl/api/v1/party/$roomId/signal');
     // Uri.parse leaves port=0 for wss:// with no explicit port.
     // WebSocketChannel.connect passes that 0 to HttpClient, failing the
@@ -42,22 +47,35 @@ final class SignalingClient {
     final uri = withPort.replace(
       queryParameters: {'token': _accessToken},
     );
+    _wsLog('connect: uri=$uri');
     _channel = WebSocketChannel.connect(uri);
+
+    // Keepalive: send pong every 30s to prevent HF Spaces proxy from
+    // closing the WS (idle timeout ~30-60s on free tier).
+    _keepaliveTimer = Timer.periodic(const Duration(seconds: 30), (_) {
+      if (_channel != null) {
+        _wsLog('keepalive pong');
+        sendPong();
+      }
+    });
 
     _sub = _channel!.stream.listen(
       (dynamic data) {
         if (data is! String) return;
         try {
           final json = jsonDecode(data) as Map<String, dynamic>;
+          _wsLog('recv: type=${json["type"]}');
           _controller.add(SignalEnvelope.fromJson(json));
         } catch (_) {
           // Ignore malformed messages.
         }
       },
       onError: (Object error) {
+        _wsLog('error: $error');
         _controller.addError(error);
       },
       onDone: () {
+        _wsLog('connection closed');
         _cleanup();
       },
     );
@@ -69,6 +87,7 @@ final class SignalingClient {
     required String to,
     required Map<String, dynamic> payload,
   }) {
+    _wsLog('send: type=$type to=$to');
     _channel?.sink.add(jsonEncode({
       'type': type,
       'to': to,
@@ -98,6 +117,9 @@ final class SignalingClient {
 
   /// Close the WebSocket connection.
   void dispose() {
+    _wsLog('dispose');
+    _keepaliveTimer?.cancel();
+    _keepaliveTimer = null;
     _sub?.cancel();
     _channel?.sink.close();
     _cleanup();

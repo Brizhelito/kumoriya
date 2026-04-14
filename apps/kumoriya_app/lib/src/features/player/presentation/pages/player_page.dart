@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:developer' as dev;
 import 'dart:io';
 import 'dart:ui';
 
@@ -155,7 +156,10 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
     ]);
 
     // Wire party sync: listen for remote playback commands.
-    _wirePartySyncCallbacks();
+    // Use addPostFrameCallback to ensure the provider is fully initialized.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _wirePartySyncCallbacks();
+    });
   }
 
   @override
@@ -317,23 +321,32 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
     final notifier = ref.read(partySessionProvider.notifier);
 
     final syncEngine = notifier.syncEngine;
-    if (syncEngine == null) return;
+    if (syncEngine == null) {
+      dev.log('_wirePartySyncCallbacks: syncEngine is null, skipping', name: 'Party');
+      return;
+    }
+
+    dev.log('_wirePartySyncCallbacks: wiring sync engine (host=${syncEngine.isHost})', name: 'Party');
 
     syncEngine.onSyncState = (bool isPlaying, int positionMs) {
       if (!mounted) return;
       final orchestrator = _orchestrator;
       if (orchestrator == null) return;
 
+      dev.log('remote sync: isPlaying=$isPlaying positionMs=$positionMs', name: 'Party');
+
       // Apply remote play/pause.
       final localPlaying =
           _state.status == PlayerSessionStatus.playing;
       if (isPlaying != localPlaying) {
+        dev.log('remote sync: toggling play/pause', name: 'Party');
         orchestrator.togglePlayPause();
       }
 
       // Apply remote seek if delta is significant.
       final localMs = _currentPosition.inMilliseconds;
       if ((positionMs - localMs).abs() > 1500) {
+        dev.log('remote sync: seeking from $localMs to $positionMs', name: 'Party');
         orchestrator.seekTo(Duration(milliseconds: positionMs));
       }
     };
@@ -369,6 +382,7 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
 
     // On explicit play/pause, broadcast immediately.
     if (isPlaying != null) {
+      dev.log('syncNow: play/pause event isPlaying=$isPlaying', name: 'Party');
       notifier.syncNow();
     }
   }

@@ -1,3 +1,5 @@
+import 'dart:developer' as dev;
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -21,18 +23,13 @@ class PartyLobbyPage extends ConsumerStatefulWidget {
 
 class _PartyLobbyPageState extends ConsumerState<PartyLobbyPage> {
   final _inviteController = TextEditingController();
+  bool _navCallbackSet = false;
 
   @override
-  void dispose() {
-    _inviteController.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final session = ref.watch(partySessionProvider);
-
-    // Wire media change navigation for non-host members in the lobby.
+  void initState() {
+    super.initState();
+    // Set the navigation callback ONCE — not on every rebuild.
+    // This handles media change events for non-host members in the lobby.
     ref.read(partySessionProvider.notifier).onMediaChangeNavigation = (
       int anilistId,
       String animeTitle,
@@ -46,6 +43,23 @@ class _PartyLobbyPageState extends ConsumerState<PartyLobbyPage> {
         ),
       );
     };
+    _navCallbackSet = true;
+  }
+
+  @override
+  void dispose() {
+    // Clear the callback when leaving the lobby to prevent stale references.
+    if (_navCallbackSet) {
+      ref.read(partySessionProvider.notifier).onMediaChangeNavigation = null;
+      _navCallbackSet = false;
+    }
+    _inviteController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final session = ref.watch(partySessionProvider);
 
     return Scaffold(
       backgroundColor: KumoriyaColors.background,
@@ -86,10 +100,12 @@ class _PartyLobbyPageState extends ConsumerState<PartyLobbyPage> {
   void _joinParty() {
     final code = _inviteController.text.trim();
     if (code.isEmpty) return;
+    dev.log('_joinParty: code=$code', name: 'Party');
     ref.read(partySessionProvider.notifier).joinRoom(code);
   }
 
   void _createParty() {
+    dev.log('_createParty: anilistId=${widget.anilistId} title=${widget.animeTitle}', name: 'Party');
     ref.read(partySessionProvider.notifier).createRoom(
       anilistId: widget.anilistId!,
       animeTitle: widget.animeTitle!,
@@ -257,6 +273,13 @@ class _ConnectedView extends ConsumerWidget {
     final room = session.room!;
     final localUserId = ref.read(partySessionProvider.notifier).syncEngine?.localUserId;
     final isHost = localUserId == room.hostId;
+
+    dev.log(
+      '_ConnectedView: room=${room.id} isHost=$isHost localUserId=$localUserId '
+      'members=${room.members.length} connected=${session.connectedPeerIds.length} '
+      'ready=${session.readyStates.length}',
+      name: 'Party',
+    );
 
     return Padding(
       padding: const EdgeInsets.all(16),
@@ -566,6 +589,11 @@ class _BottomControls extends ConsumerWidget {
           (m) => session.readyStates[m.userId] == true,
         );
 
+    dev.log(
+      '_BottomControls: localUserId=$localUserId localReady=$localReady allReady=$allReady members=${room.members.length}',
+      name: 'Party',
+    );
+
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -573,6 +601,7 @@ class _BottomControls extends ConsumerWidget {
         // Ready toggle
         FilledButton.icon(
           onPressed: () {
+            dev.log('toggleReady: $localReady -> ${!localReady}', name: 'Party');
             ref.read(partySessionProvider.notifier).toggleReady(!localReady);
           },
           icon: Icon(localReady ? Icons.check_circle : Icons.radio_button_unchecked),

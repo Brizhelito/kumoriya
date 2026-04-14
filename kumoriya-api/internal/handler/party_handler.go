@@ -69,8 +69,11 @@ func (h *PartyHandler) JoinRoom(c fiber.Ctx) error {
 
 	room, err := h.partySvc.JoinRoom(req.InviteCode, userID, userName, nil)
 	if err != nil {
+		log.Warn().Err(err).Str("user", userID.String()).Str("code", req.InviteCode).Msg("join party failed")
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": err.Error()})
 	}
+
+	log.Info().Str("room", room.ID).Str("user", userName).Int("members", len(room.Members)).Msg("user joined party")
 
 	// Notify existing signal-relay peers that a new member joined.
 	payload, _ := json.Marshal(model.SignalPeerPayload{

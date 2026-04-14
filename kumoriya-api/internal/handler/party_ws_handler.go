@@ -18,6 +18,10 @@ import (
 // PartySignalHandler upgrades to WebSocket for ephemeral WebRTC signaling.
 // The WS is only open while peers exchange SDP offers/answers and ICE
 // candidates (~2-5 seconds). All real-time traffic then goes P2P.
+//
+// HF Spaces note: The HF Spaces proxy may close idle WS connections after
+// ~30-60s. Clients send keepalive pongs every 30s. The read deadline is
+// set to 120s to allow for keepalive while still cleaning up dead peers.
 type PartySignalHandler struct {
 	relay    *service.SignalRelay
 	partySvc *service.PartyService
@@ -89,14 +93,17 @@ func (h *PartySignalHandler) signalLoop(ws *websocket.Conn, roomID string, userI
 	}()
 
 	// Tell new peer about existing peers so it can initiate offers.
+	// IMPORTANT: This must be called AFTER Register so the peer sees
+	// everyone who was already connected before it joined.
 	peers := h.relay.PeerList(roomID)
+	log.Debug().Str("room", roomID).Str("user", name).Int("existingPeers", len(peers)).Msg("sending room_state to new peer")
 	roomState, _ := json.Marshal(map[string]any{"peers": peers, "roomId": roomID})
 	h.relay.SendTo(roomID, userID, model.SignalMessage{
 		Type:    model.SignalRoomState,
 		Payload: roomState,
 	})
 
-	// Notify others a new peer connected.
+	// Notify others a new peer connected — they will create offers to the newcomer.
 	joinPayload, _ := json.Marshal(model.SignalPeerPayload{
 		UserID:      userID.String(),
 		DisplayName: name,
@@ -108,9 +115,13 @@ func (h *PartySignalHandler) signalLoop(ws *websocket.Conn, roomID string, userI
 
 	// Read loop — relay signaling messages until disconnect.
 	ws.SetReadLimit(4096)
-	ws.SetReadDeadline(time.Now().Add(90 * time.Second))
+	// 120s deadline — clients send keepalive pongs every 30s.
+	// This accommodates HF Spaces proxy idle timeout (~30-60s)
+	// while still cleaning up truly dead connections.
+	ws.SetReadDeadline(time.Now().Add(120 * time.Second))
 	ws.SetPongHandler(func(string) error {
-		ws.SetReadDeadline(time.Now().Add(90 * time.Second))
+		log.Debug().Str("user", name).Msg("pong received — resetting read deadline")
+		ws.SetReadDeadline(time.Now().Add(120 * time.Second))
 		return nil
 	})
 
@@ -122,7 +133,8 @@ func (h *PartySignalHandler) signalLoop(ws *websocket.Conn, roomID string, userI
 			}
 			return
 		}
-		ws.SetReadDeadline(time.Now().Add(90 * time.Second))
+		// Reset read deadline on any message (client is alive).
+		ws.SetReadDeadline(time.Now().Add(120 * time.Second))
 
 		// Skip client-side keepalive pongs.
 		var probe struct {

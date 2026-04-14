@@ -57,7 +57,7 @@ func (sr *SignalRelay) Register(roomID string, userID uuid.UUID, name string, co
 	sr.rooms[roomID][userID] = c
 	go sr.writePump(c)
 
-	log.Debug().Str("room", roomID).Str("user", name).Msg("signal peer registered")
+	log.Info().Str("room", roomID).Str("user", name).Int("totalPeers", len(sr.rooms[roomID])).Msg("signal peer registered")
 }
 
 // Unregister removes a peer.
@@ -148,12 +148,15 @@ func (sr *SignalRelay) RelaySignal(roomID string, fromUID uuid.UUID, raw []byte)
 	case model.SignalOffer, model.SignalAnswer, model.SignalCandidate:
 		// P2P signaling — relay to specific target.
 		if msg.To == "" {
+			log.Warn().Str("type", string(msg.Type)).Msg("signal: missing target")
 			return // must have a target
 		}
 		targetUID, err := uuid.Parse(msg.To)
 		if err != nil {
+			log.Warn().Str("to", msg.To).Msg("signal: invalid target UUID")
 			return
 		}
+		log.Debug().Str("type", string(msg.Type)).Str("from", fromUID.String()).Str("to", msg.To).Msg("signal: relaying")
 		sr.SendTo(roomID, targetUID, msg)
 
 	default:
