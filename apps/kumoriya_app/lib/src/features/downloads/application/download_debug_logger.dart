@@ -1,15 +1,12 @@
 import 'dart:convert';
 import 'dart:developer' as developer;
 
-import 'package:flutter/foundation.dart';
-
 final dlLog = _DownloadDebugLogger();
 
 final class _DownloadDebugLogger {
   Future<void> log(String category, String message) async {
     final tag = 'kumoriya.download.$category';
     developer.log(message, name: tag);
-    debugPrint('[$tag] $message');
   }
 
   Future<void> error(
@@ -26,9 +23,7 @@ final class _DownloadDebugLogger {
       stackTrace: stackTrace,
       level: 1000,
     );
-    debugPrint('[$tag] ERROR $message'
-        '${error != null ? '\n  error: $error' : ''}'
-        '${stackTrace != null ? '\n  stack: ${stackTrace.toString().split('\n').take(5).join('\n  ')}' : ''}');
+
   }
 
   Future<void> dumpBytes(
@@ -52,7 +47,6 @@ final class _DownloadDebugLogger {
       '$label utf8-preview: ${utf8.decode(preview, allowMalformed: true)}',
       name: tag,
     );
-    debugPrint('[$tag] $summary');
   }
 
   Future<void> flush() async {}

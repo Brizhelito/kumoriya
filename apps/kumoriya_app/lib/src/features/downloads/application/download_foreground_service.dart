@@ -1,7 +1,6 @@
 import 'dart:developer' as developer;
 import 'dart:io';
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter_foreground_task/flutter_foreground_task.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
@@ -193,6 +192,5 @@ class DownloadForegroundService {
 
   void _log(String message) {
     developer.log(message, name: 'kumoriya.download.Notif');
-    debugPrint('[kumoriya.download.Notif] $message');
   }
 }

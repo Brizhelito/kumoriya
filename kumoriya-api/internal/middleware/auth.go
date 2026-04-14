@@ -21,6 +21,15 @@ const (
 func RequireAuth(jwt *service.JWTService) fiber.Handler {
 	return func(c fiber.Ctx) error {
 		auth := c.Get("Authorization")
+
+		// Fallback: accept ?token= for WebSocket upgrades where custom
+		// headers aren't available.
+		if auth == "" {
+			if t := c.Query("token"); t != "" {
+				auth = "Bearer " + t
+			}
+		}
+
 		if auth == "" {
 			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "missing authorization header"})
 		}
@@ -54,4 +63,14 @@ func UserIDFromCtx(c fiber.Ctx) (uuid.UUID, bool) {
 	}
 	id, ok := v.(uuid.UUID)
 	return id, ok
+}
+
+// UserNameFromCtx extracts the authenticated user's display name from Locals.
+func UserNameFromCtx(c fiber.Ctx) (string, bool) {
+	v := c.Locals(LocalsUserName)
+	if v == nil {
+		return "", false
+	}
+	name, ok := v.(string)
+	return name, ok
 }

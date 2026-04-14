@@ -68,6 +68,8 @@ dependencies:
   screen_brightness: ^2.1.7
   volume_controller: ^3.4.4
   flutter_foreground_task: ^9.2.1
+  flutter_webrtc: ^0.12.12+hotfix.1
+  web_socket_channel: ^3.0.3
   open_filex: ^4.7.0
   package_info_plus: ^9.0.1
   device_info_plus: ^11.0.0

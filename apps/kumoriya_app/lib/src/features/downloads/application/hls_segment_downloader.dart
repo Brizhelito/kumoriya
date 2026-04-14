@@ -4,7 +4,6 @@ import 'dart:developer' as developer;
 import 'dart:io';
 import 'dart:isolate';
 
-import 'package:flutter/foundation.dart';
 
 import 'package:http/http.dart' as http;
 import 'package:kumoriya_storage/kumoriya_storage.dart';
@@ -964,7 +963,6 @@ class HlsSegmentDownloader {
 
   void _log(String message) {
     developer.log(message, name: 'kumoriya.download.HLS');
-    debugPrint('[kumoriya.download.HLS] $message');
   }
 }
 

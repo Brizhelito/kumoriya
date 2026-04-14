@@ -2,9 +2,11 @@ import 'dart:convert';
 import 'dart:developer' as developer;
 
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
 import 'package:kumoriya_sync/kumoriya_sync.dart';
 
 import '../../../../app/l10n.dart';
@@ -13,6 +15,34 @@ import '../../../../shared/auth/passkey_authenticator.dart';
 import '../../../../shared/sync/sync_providers.dart';
 import '../../../../shared/theme/kumoriya_theme.dart';
 import 'login_page.dart';
+
+String _formatDate(String? iso) {
+  if (iso == null || iso.isEmpty) return '';
+  try {
+    return DateFormat.yMMMd().format(DateTime.parse(iso).toLocal());
+  } catch (_) {
+    return iso;
+  }
+}
+
+String _formatRelativeTime(DateTime dt, String locale) {
+  final diff = DateTime.now().difference(dt);
+  final isEs = locale.startsWith('es');
+  if (diff.inSeconds < 60) {
+    return isEs ? 'Hace un momento' : 'Just now';
+  } else if (diff.inMinutes < 60) {
+    final m = diff.inMinutes;
+    return isEs ? 'Hace $m ${m == 1 ? 'minuto' : 'minutos'}' : '$m ${m == 1 ? 'minute' : 'minutes'} ago';
+  } else if (diff.inHours < 24) {
+    final h = diff.inHours;
+    return isEs ? 'Hace $h ${h == 1 ? 'hora' : 'horas'}' : '$h ${h == 1 ? 'hour' : 'hours'} ago';
+  } else if (diff.inDays < 7) {
+    final d = diff.inDays;
+    return isEs ? 'Hace $d ${d == 1 ? 'día' : 'días'}' : '$d ${d == 1 ? 'day' : 'days'} ago';
+  } else {
+    return DateFormat.yMMMd(locale).format(dt.toLocal());
+  }
+}
 
 /// Profile details fetched from the backend.
 final _profileDetailsProvider =
@@ -30,11 +60,16 @@ final _profileDetailsProvider =
       return null;
     });
 
-class ProfilePage extends ConsumerWidget {
+class ProfilePage extends ConsumerStatefulWidget {
   const ProfilePage({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<ProfilePage> createState() => _ProfilePageState();
+}
+
+class _ProfilePageState extends ConsumerState<ProfilePage> {
+  @override
+  Widget build(BuildContext context) {
     final user = ref.watch(currentUserProvider);
     final syncStatus = ref.watch(syncStatusProvider);
     final lastSyncAsync = ref.watch(lastSyncAtProvider);
@@ -91,7 +126,7 @@ class ProfilePage extends ConsumerWidget {
         actions: [
           IconButton(
             icon: const Icon(Icons.logout, color: KumoriyaColors.statusDanger),
-            onPressed: () => _confirmLogout(context, ref),
+            onPressed: _confirmLogout,
           ),
         ],
       ),
@@ -190,7 +225,10 @@ class ProfilePage extends ConsumerWidget {
                     title:
                         s['device_name'] as String? ??
                         context.l10n.profileUnknownDevice,
-                    subtitle: s['ip_address'] as String? ?? '',
+                    subtitle: [
+                      s['ip_address'] as String?,
+                      _formatDate(s['created_at'] as String?),
+                    ].where((e) => e != null && e.isNotEmpty).join(' · '),
                   );
                 }).toList(),
               );
@@ -201,54 +239,8 @@ class ProfilePage extends ConsumerWidget {
           ),
           const SizedBox(height: 24),
 
-          // Registered passkeys
-          _SectionHeader(context.l10n.profilePasskeys),
-          profileAsync.when(
-            data: (profile) {
-              final passkeys =
-                  (profile?['registered_passkeys'] as List?)
-                      ?.cast<Map<String, dynamic>>() ??
-                  [];
-              return Column(
-                children: [
-                  if (passkeys.isEmpty)
-                    _EmptyCard(context.l10n.profileNoPasskeys)
-                  else
-                    ...passkeys.map((p) {
-                      final id = p['id'] as String? ?? '';
-                      return _PasskeyTile(
-                        name:
-                            p['friendly_name'] as String? ??
-                            context.l10n.profileUnnamedPasskey,
-                        subtitle: p['created_at'] as String? ?? '',
-                        onDelete: id.isEmpty
-                            ? null
-                            : () => _confirmDeletePasskey(context, ref, id),
-                      );
-                    }),
-                  const SizedBox(height: 8),
-                  SizedBox(
-                    width: double.infinity,
-                    child: OutlinedButton.icon(
-                      onPressed: () => _registerPasskey(context, ref),
-                      icon: const Icon(Icons.add, size: 18),
-                      label: Text(context.l10n.profileRegisterPasskey),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: KumoriyaColors.primary,
-                        side: const BorderSide(color: KumoriyaColors.primary),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              );
-            },
-            loading: () => const _LoadingCard(),
-            error: (_, _) =>
-                _EmptyCard(context.l10n.profileCouldNotLoadPasskeys),
-          ),
+          // TODO(passkey): unhide once the passkey login flow is complete.
+
           const SizedBox(height: 24),
 
           // Sync status
@@ -261,9 +253,12 @@ class ProfilePage extends ConsumerWidget {
           _InfoTile(
             icon: Icons.schedule,
             title: context.l10n.profileLastSynced,
-            subtitle:
-                lastSyncAsync.value?.toIso8601String() ??
-                context.l10n.profileLastSyncedNever,
+            subtitle: lastSyncAsync.value != null
+                ? _formatRelativeTime(
+                    lastSyncAsync.value!,
+                    Localizations.localeOf(context).languageCode,
+                  )
+                : context.l10n.profileLastSyncedNever,
           ),
           const SizedBox(height: 12),
           ElevatedButton.icon(
@@ -285,7 +280,7 @@ class ProfilePage extends ConsumerWidget {
           // Delete account
           Center(
             child: TextButton(
-              onPressed: () => _confirmDeleteAccount(context, ref),
+              onPressed: _confirmDeleteAccount,
               child: Text(
                 context.l10n.profileDeleteAccount,
                 style: const TextStyle(color: KumoriyaColors.statusDanger),
@@ -297,7 +292,7 @@ class ProfilePage extends ConsumerWidget {
     );
   }
 
-  void _confirmLogout(BuildContext context, WidgetRef ref) {
+  void _confirmLogout() {
     showDialog<void>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -317,9 +312,13 @@ class ProfilePage extends ConsumerWidget {
           ),
           TextButton(
             onPressed: () {
-              Navigator.pop(ctx);
-              ref.read(authStateProvider.notifier).logout();
-              Navigator.of(context).pop();
+              // Capture notifier before any navigation changes.
+              final authNotifier = ref.read(authStateProvider.notifier);
+              Navigator.pop(ctx); // close dialog
+              Navigator.of(context).pop(); // pop profile page
+              // Defer logout so the widget tree settles before
+              // provider state changes trigger rebuilds.
+              Future.microtask(() => authNotifier.logout());
             },
             child: Text(
               context.l10n.profileLogOut,
@@ -331,7 +330,7 @@ class ProfilePage extends ConsumerWidget {
     );
   }
 
-  void _confirmDeleteAccount(BuildContext context, WidgetRef ref) {
+  void _confirmDeleteAccount() {
     showDialog<void>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -351,11 +350,15 @@ class ProfilePage extends ConsumerWidget {
           ),
           TextButton(
             onPressed: () async {
-              Navigator.pop(ctx);
+              // Capture refs before closing anything.
               final client = ref.read(authenticatedHttpClientProvider);
+              final authNotifier = ref.read(authStateProvider.notifier);
+              Navigator.pop(ctx); // close dialog
+              // Delete account first, then navigate, then logout.
               await client.deleteRequest('/api/v1/account');
-              await ref.read(authStateProvider.notifier).logout();
-              if (context.mounted) Navigator.of(context).pop();
+              if (mounted) Navigator.of(context).pop();
+              // Defer logout so the widget fully disposes first.
+              Future.microtask(() => authNotifier.logout());
             },
             child: Text(
               context.l10n.profileDelete,
@@ -367,61 +370,30 @@ class ProfilePage extends ConsumerWidget {
     );
   }
 
-  Future<void> _registerPasskey(BuildContext context, WidgetRef ref) async {
+  Future<void> _registerPasskey() async {
     if (!PasskeyAuthenticator.isSupported) {
-      _showSnackbar(context, context.l10n.profilePasskeyRegisterFailed);
+      _showSnackbar(context.l10n.profilePasskeyRegisterFailed);
       return;
     }
 
-    // 1) Ask for a friendly name.
-    final nameController = TextEditingController();
-    final name = await showDialog<String>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: KumoriyaColors.surface,
-        title: Text(
-          context.l10n.profilePasskeyNameTitle,
-          style: const TextStyle(color: KumoriyaColors.textPrimary),
-        ),
-        content: TextField(
-          controller: nameController,
-          autofocus: true,
-          style: const TextStyle(color: KumoriyaColors.textPrimary),
-          decoration: InputDecoration(
-            hintText: context.l10n.profilePasskeyNameHint,
-            hintStyle: const TextStyle(color: KumoriyaColors.textMuted),
-          ),
-          onSubmitted: (v) => Navigator.pop(ctx, v.trim()),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: Text(context.l10n.profileCancel),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(ctx, nameController.text.trim()),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: KumoriyaColors.primary,
-              foregroundColor: KumoriyaColors.textPrimary,
-            ),
-            child: Text(context.l10n.profilePasskeyNameContinue),
-          ),
-        ],
-      ),
-    );
-    nameController.dispose();
+    // Resolve device model name to use as friendly label — no dialog needed.
+    String? deviceName;
+    try {
+      final androidInfo = await DeviceInfoPlugin().androidInfo;
+      deviceName = androidInfo.model;
+    } catch (_) {}
 
-    if (name == null || name.isEmpty || !context.mounted) return;
+    if (!mounted) return;
 
-    // 2) Begin registration on server — get CredentialCreation options.
+    // Begin registration on server — get CredentialCreation options.
     final client = ref.read(authenticatedHttpClientProvider);
     try {
       final beginResp = await client.postJson(
         '/auth/passkeys/register/begin',
-        body: {'friendly_name': name},
+        body: {'friendly_name': deviceName ?? ''},
       );
       if (beginResp.statusCode != 200) {
-        _showSnackbar(context, context.l10n.profilePasskeyRegisterFailed);
+        if (mounted) _showSnackbar(context.l10n.profilePasskeyRegisterFailed);
         return;
       }
 
@@ -434,38 +406,34 @@ class ProfilePage extends ConsumerWidget {
         body: jsonDecode(attestationJson),
       );
 
-      if (!context.mounted) return;
+      if (!mounted) return;
       if (finishResp.statusCode == 200) {
         ref.invalidate(_profileDetailsProvider);
-        _showSnackbar(context, context.l10n.profilePasskeyRegistered);
+        _showSnackbar(context.l10n.profilePasskeyRegistered);
       } else {
         developer.log(
           'passkey register finish ${finishResp.statusCode}: ${finishResp.body}',
           name: 'kumoriya.profile',
         );
-        _showSnackbar(context, context.l10n.profilePasskeyRegisterFailed);
+        _showSnackbar(context.l10n.profilePasskeyRegisterFailed);
       }
     } on PlatformException catch (e) {
       developer.log(
         'passkey platform error: ${e.code} - ${e.message}',
         name: 'kumoriya.profile',
       );
-      if (context.mounted && e.code != 'CANCELLED') {
-        _showSnackbar(context, context.l10n.profilePasskeyRegisterFailed);
+      if (mounted && e.code != 'CANCELLED') {
+        _showSnackbar(context.l10n.profilePasskeyRegisterFailed);
       }
     } catch (e) {
       developer.log('passkey register error: $e', name: 'kumoriya.profile');
-      if (context.mounted) {
-        _showSnackbar(context, context.l10n.profilePasskeyRegisterFailed);
+      if (mounted) {
+        _showSnackbar(context.l10n.profilePasskeyRegisterFailed);
       }
     }
   }
 
-  void _confirmDeletePasskey(
-    BuildContext context,
-    WidgetRef ref,
-    String passkeyId,
-  ) {
+  void _confirmDeletePasskey(String passkeyId) {
     showDialog<void>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -486,7 +454,7 @@ class ProfilePage extends ConsumerWidget {
           TextButton(
             onPressed: () async {
               Navigator.pop(ctx);
-              await _deletePasskey(context, ref, passkeyId);
+              await _deletePasskey(passkeyId);
             },
             child: Text(
               context.l10n.profileDelete,
@@ -498,29 +466,25 @@ class ProfilePage extends ConsumerWidget {
     );
   }
 
-  Future<void> _deletePasskey(
-    BuildContext context,
-    WidgetRef ref,
-    String passkeyId,
-  ) async {
+  Future<void> _deletePasskey(String passkeyId) async {
     final client = ref.read(authenticatedHttpClientProvider);
     try {
       final resp = await client.deleteRequest('/auth/passkeys/$passkeyId');
-      if (!context.mounted) return;
+      if (!mounted) return;
       if (resp.statusCode == 200 || resp.statusCode == 204) {
         ref.invalidate(_profileDetailsProvider);
-        _showSnackbar(context, context.l10n.profilePasskeyDeleted);
+        _showSnackbar(context.l10n.profilePasskeyDeleted);
       } else {
-        _showSnackbar(context, context.l10n.profilePasskeyDeleteFailed);
+        _showSnackbar(context.l10n.profilePasskeyDeleteFailed);
       }
     } catch (_) {
-      if (context.mounted) {
-        _showSnackbar(context, context.l10n.profilePasskeyDeleteFailed);
+      if (mounted) {
+        _showSnackbar(context.l10n.profilePasskeyDeleteFailed);
       }
     }
   }
 
-  void _showSnackbar(BuildContext context, String message) {
+  void _showSnackbar(String message) {
     ScaffoldMessenger.of(
       context,
     ).showSnackBar(SnackBar(content: Text(message)));

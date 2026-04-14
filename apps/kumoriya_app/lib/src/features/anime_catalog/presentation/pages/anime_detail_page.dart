@@ -30,6 +30,8 @@ import '../../application/models/server_quality_registry.dart';
 import '../../../downloads/presentation/download_providers.dart';
 import '../../../player/presentation/pages/player_page.dart';
 import 'episode_list_page.dart';
+import '../../../watch_party/presentation/pages/party_lobby_page.dart';
+import '../../../watch_party/application/providers/party_providers.dart';
 import '../support/episode_display_title.dart';
 import '../support/playback_launch_flow.dart';
 import '../support/plugin_icon_helpers.dart';
@@ -217,6 +219,12 @@ class _AnimeDetailBody extends ConsumerWidget {
             stretch: true,
             backgroundColor: KumoriyaColors.background,
             elevation: 0,
+            actions: [
+              _PartyActionButton(
+                anilistId: detail.anime.anilistId,
+                animeTitle: detail.anime.title.romaji,
+              ),
+            ],
             flexibleSpace: FlexibleSpaceBar(
               background: _DetailHero(detail: detail),
               stretchModes: const <StretchMode>[StretchMode.fadeTitle],
@@ -590,6 +598,101 @@ class _CollapsibleSynopsisState extends State<_CollapsibleSynopsis> {
           duration: const Duration(milliseconds: 250),
         ),
       ],
+    );
+  }
+}
+
+class _PartyActionButton extends ConsumerWidget {
+  const _PartyActionButton({
+    required this.anilistId,
+    required this.animeTitle,
+  });
+
+  final int anilistId;
+  final String animeTitle;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final session = ref.watch(partySessionProvider);
+    final isActive = session.isActive;
+
+    // Check if user is the host of the active room.
+    bool isHost = false;
+    if (isActive && session.room != null) {
+      final localUserId = ref.read(partySessionProvider.notifier).syncEngine?.localUserId;
+      isHost = localUserId == session.room!.hostId;
+    }
+
+    if (isActive && isHost) {
+      // Host is viewing a different anime — offer to change the party's media.
+      final isSameAnime = session.room!.anilistId == anilistId;
+      return IconButton(
+        icon: Icon(
+          isSameAnime ? Icons.group : Icons.swap_horiz,
+          color: isSameAnime ? KumoriyaColors.primary : Colors.orangeAccent,
+        ),
+        tooltip: isSameAnime ? 'Party active' : 'Set for Party',
+        onPressed: isSameAnime
+            ? () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => PartyLobbyPage(
+                      anilistId: anilistId,
+                      animeTitle: animeTitle,
+                    ),
+                  ),
+                )
+            : () async {
+                final confirmed = await showDialog<bool>(
+                  context: context,
+                  builder: (ctx) => AlertDialog(
+                    title: const Text('Change Party Anime'),
+                    content: Text(
+                      'Switch the party to "$animeTitle"?\n'
+                      'All members will be redirected.',
+                    ),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(ctx, false),
+                        child: const Text('Cancel'),
+                      ),
+                      FilledButton(
+                        onPressed: () => Navigator.pop(ctx, true),
+                        child: const Text('Switch'),
+                      ),
+                    ],
+                  ),
+                );
+                if (confirmed == true && context.mounted) {
+                  await ref.read(partySessionProvider.notifier).changeMedia(
+                        anilistId: anilistId,
+                        animeTitle: animeTitle,
+                        episodeNumber: 1,
+                      );
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Party switched to "$animeTitle"')),
+                    );
+                  }
+                }
+              },
+      );
+    }
+
+    // Default: open party lobby.
+    return IconButton(
+      icon: Icon(
+        isActive ? Icons.group : Icons.group_add_outlined,
+        color: isActive ? KumoriyaColors.primary : null,
+      ),
+      tooltip: isActive ? 'Party Lobby' : 'Watch Party',
+      onPressed: () => Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) => PartyLobbyPage(
+            anilistId: anilistId,
+            animeTitle: animeTitle,
+          ),
+        ),
+      ),
     );
   }
 }

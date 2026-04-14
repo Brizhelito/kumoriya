@@ -62,8 +62,8 @@ func main() {
 	app.Get("/releases/latest", releaseHandler.GetManifest)
 
 	// ── Digital Asset Links for Android passkeys ──
-	if len(cfg.AndroidAPKFingerprints) > 0 {
-		assetLinksJSON := buildAssetLinks(cfg.AndroidAPKFingerprints)
+	if len(cfg.AndroidAPKFingerprints) > 0 || len(cfg.AndroidAPKDebugFingerprints) > 0 {
+		assetLinksJSON := buildAssetLinks(cfg.AndroidAPKFingerprints, cfg.AndroidAPKDebugFingerprints)
 		app.Get("/.well-known/assetlinks.json", func(c fiber.Ctx) error {
 			c.Set("Content-Type", "application/json")
 			c.Set("Cache-Control", "public, max-age=86400")
@@ -174,6 +174,24 @@ func registerProtectedRoutes(app *fiber.App, cfg config.Config) (cleanup func())
 
 	v1.Delete("/account", authHandler.DeleteAccount)
 
+	// ── Watch Party (ephemeral rooms + signaling relay) ──
+	partySvc := service.NewPartyService()
+	signalRelay := service.NewSignalRelay()
+	partyHandler := handler.NewPartyHandler(partySvc, signalRelay)
+	signalHandler := handler.NewPartySignalHandler(signalRelay, partySvc)
+
+	partyRateLimit := middleware.PerUserRateLimit(10, time.Minute)
+
+	party := v1.Group("/party")
+	party.Post("/", partyRateLimit, partyHandler.CreateRoom)
+	party.Post("/join", partyRateLimit, partyHandler.JoinRoom)
+	party.Post("/leave", partyHandler.LeaveRoom)
+	party.Get("/me", partyHandler.GetMyRoom)
+	party.Get("/invite/:code", partyHandler.GetRoomByInvite)
+	party.Patch("/:id", partyHandler.UpdateRoom)
+	party.Get("/:id", partyHandler.GetRoom)
+	party.Get("/:id/signal", signalHandler.Upgrade)
+
 	return func() {
 		log.Info().Msg("flushing write-behind buffer before shutdown...")
 		flushCancel()
@@ -184,20 +202,43 @@ func registerProtectedRoutes(app *fiber.App, cfg config.Config) (cleanup func())
 }
 
 // buildAssetLinks returns the Digital Asset Links JSON for Android passkey association.
-func buildAssetLinks(fingerprints []string) string {
-	var fps string
-	for i, fp := range fingerprints {
-		if i > 0 {
-			fps += ", "
+// Emits separate entries for release (dev.kumoriya.app) and debug (dev.kumoriya.app.debug)
+// package names, each with their own signing fingerprints.
+func buildAssetLinks(releaseFingerprints, debugFingerprints []string) string {
+	fmtFps := func(fps []string) string {
+		var s string
+		for i, fp := range fps {
+			if i > 0 {
+				s += ", "
+			}
+			s += `"` + fp + `"`
 		}
-		fps += `"` + fp + `"`
+		return s
 	}
-	return `[{
+	entry := func(pkg string, fps []string) string {
+		return `{
   "relation": ["delegate_permission/common.handle_all_urls", "delegate_permission/common.get_login_creds"],
   "target": {
     "namespace": "android_app",
-    "package_name": "dev.kumoriya.app",
-    "sha256_cert_fingerprints": [` + fps + `]
+    "package_name": "` + pkg + `",
+    "sha256_cert_fingerprints": [` + fmtFps(fps) + `]
   }
-}]`
+}`
+	}
+	var entries []string
+	if len(releaseFingerprints) > 0 {
+		entries = append(entries, entry("dev.kumoriya.app", releaseFingerprints))
+	}
+	if len(debugFingerprints) > 0 {
+		entries = append(entries, entry("dev.kumoriya.app.debug", debugFingerprints))
+	}
+	result := "["
+	for i, e := range entries {
+		if i > 0 {
+			result += ","
+		}
+		result += e
+	}
+	result += "]"
+	return result
 }

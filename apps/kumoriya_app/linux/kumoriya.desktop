@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=Kumoriya
+Comment=Otaku streaming platform
+Exec=kumoriya_app %u
+Icon=kumoriya
+Categories=AudioVideo;Video;
+MimeType=x-scheme-handler/kumoriya;
+StartupWMClass=dev.kumoriya.kumoriya_app
+Terminal=false

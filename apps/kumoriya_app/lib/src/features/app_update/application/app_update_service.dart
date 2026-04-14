@@ -99,6 +99,8 @@ class AppUpdateService {
         platformKey = 'android';
       } else if (Platform.isWindows) {
         platformKey = 'windows';
+      } else if (Platform.isLinux) {
+        platformKey = 'linux';
       } else {
         return const Success(null); // unsupported platform — no update
       }

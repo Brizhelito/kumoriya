@@ -19,6 +19,7 @@ import '../../../../app/l10n.dart';
 import '../../../../shared/icons/kumoriya_icons.dart';
 import '../../../../shared/theme/kumoriya_theme.dart';
 import '../../../../shared/widgets/state_views.dart';
+import '../../../anime_catalog/presentation/pages/anime_detail_page.dart';
 import '../../../anime_catalog/presentation/pages/episode_list_page.dart';
 import '../../../anime_catalog/presentation/providers/anime_catalog_providers.dart';
 import '../../../anime_catalog/presentation/providers/storage_providers.dart';
@@ -34,6 +35,8 @@ import '../../application/use_cases/save_playback_preference_use_case.dart';
 import '../../application/use_cases/save_progress_use_case.dart';
 import '../../infrastructure/media_kit_playback_engine.dart';
 import '../widgets/player_debug_overlay.dart';
+import '../../../watch_party/application/providers/party_providers.dart';
+import '../../../watch_party/presentation/widgets/party_player_overlay.dart';
 
 class PlayerPage extends ConsumerStatefulWidget {
   const PlayerPage({
@@ -150,6 +153,9 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
       DeviceOrientation.landscapeLeft,
       DeviceOrientation.landscapeRight,
     ]);
+
+    // Wire party sync: listen for remote playback commands.
+    _wirePartySyncCallbacks();
   }
 
   @override
@@ -212,6 +218,9 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
         _maybeAutoSkipSegment();
       }
       _maybeAutoNextFromEndingResidual(pos);
+
+      // Feed party sync engine with updated position.
+      _updatePartyPlayback(positionMs: pos.inMilliseconds);
     });
     _durationSub = orchestrator.durationStream.listen((dur) {
       if (dur <= Duration.zero) {
@@ -275,6 +284,10 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
 
   void _onPlayingChanged(bool playing) {
     _log('playing stream playing=$playing position=$_currentPosition');
+
+    // Feed party sync engine.
+    _updatePartyPlayback(isPlaying: playing);
+
     if (!playing) {
       unawaited(_saveCurrentProgress());
       unawaited(_updateWatchHistory());
@@ -291,6 +304,72 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
     } else {
       _periodicSaveTimer?.cancel();
       _periodicSaveTimer = null;
+    }
+  }
+
+  // ── Watch party sync hooks ──
+
+  /// Wire the party sync engine to respond to remote playback commands.
+  void _wirePartySyncCallbacks() {
+    final session = ref.read(partySessionProvider);
+    if (!session.isActive) return;
+
+    final notifier = ref.read(partySessionProvider.notifier);
+
+    final syncEngine = notifier.syncEngine;
+    if (syncEngine == null) return;
+
+    syncEngine.onSyncState = (bool isPlaying, int positionMs) {
+      if (!mounted) return;
+      final orchestrator = _orchestrator;
+      if (orchestrator == null) return;
+
+      // Apply remote play/pause.
+      final localPlaying =
+          _state.status == PlayerSessionStatus.playing;
+      if (isPlaying != localPlaying) {
+        orchestrator.togglePlayPause();
+      }
+
+      // Apply remote seek if delta is significant.
+      final localMs = _currentPosition.inMilliseconds;
+      if ((positionMs - localMs).abs() > 1500) {
+        orchestrator.seekTo(Duration(milliseconds: positionMs));
+      }
+    };
+
+    // Wire media change navigation: when the host switches anime/episode,
+    // pop the player and navigate to the new anime's detail page.
+    notifier.onMediaChangeNavigation = (
+      int anilistId,
+      String animeTitle,
+      double episodeNumber,
+    ) {
+      if (!mounted) return;
+      // Pop back to detail (or root) and push the new anime detail.
+      Navigator.of(context).popUntil((route) => route.isFirst);
+      Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) => AnimeDetailPage(anilistId: anilistId),
+        ),
+      );
+    };
+  }
+
+  /// Feed the party sync engine with local playback state changes.
+  void _updatePartyPlayback({bool? isPlaying, int? positionMs}) {
+    final notifier = ref.read(partySessionProvider.notifier);
+    final session = ref.read(partySessionProvider);
+    if (!session.isActive) return;
+
+    final playing = isPlaying ??
+        (_state.status == PlayerSessionStatus.playing);
+    final position = positionMs ?? _currentPosition.inMilliseconds;
+    notifier.updatePlayback(isPlaying: playing, positionMs: position);
+
+    // On explicit play/pause, broadcast immediately.
+    if (isPlaying != null) {
+      notifier.syncNow();
     }
   }
 
@@ -663,7 +742,7 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
   }
 
   Future<void> _enterWindowsFullscreenIfSupported() async {
-    if (kIsWeb || !Platform.isWindows) {
+    if (kIsWeb || !(Platform.isWindows || Platform.isLinux)) {
       return;
     }
     try {
@@ -682,7 +761,7 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
   }
 
   Future<void> _restoreWindowsFullscreenIfNeeded() async {
-    if (kIsWeb || !Platform.isWindows) {
+    if (kIsWeb || !(Platform.isWindows || Platform.isLinux)) {
       return;
     }
     final before = _windowsFullscreenBeforePlayback;
@@ -698,7 +777,7 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
   }
 
   Future<void> _toggleWindowsFullscreen() async {
-    if (kIsWeb || !Platform.isWindows) {
+    if (kIsWeb || !(Platform.isWindows || Platform.isLinux)) {
       return;
     }
     try {
@@ -918,9 +997,12 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
     return _wrapWithExitGuard(
       Scaffold(
         backgroundColor: Colors.black,
-        body: StateTransitionSwitcher(
-          stateKey: _state.status.name,
-          child: _ImmersivePlayerView(
+        body: Stack(
+          fit: StackFit.expand,
+          children: [
+            StateTransitionSwitcher(
+              stateKey: _state.status.name,
+              child: _ImmersivePlayerView(
             engine: engine,
             isLoading: isLoading,
             isPlaying: _state.status == PlayerSessionStatus.playing,
@@ -1021,21 +1103,30 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
             episodeTitle: widget.episodeTitle,
             onVolumeChanged: (vol) {
               _engine?.player.setVolume(vol * 100);
-              VolumeController.instance.setVolume(vol.clamp(0.0, 1.0));
+              try {
+                VolumeController.instance.setVolume(vol.clamp(0.0, 1.0));
+              } catch (_) {}
               // Activate smart audio boost (dynamic normalization) when
               // volume exceeds 100 % so the boost raises dialogue clarity
               // instead of hard-clipping all frequencies.
               _engine?.setSmartAudioBoost(enabled: vol > 1.0);
             },
             onBrightnessChanged: (brightness) {
-              unawaited(
-                ScreenBrightness().setApplicationScreenBrightness(brightness),
-              );
+              try {
+                unawaited(
+                  ScreenBrightness()
+                      .setApplicationScreenBrightness(brightness),
+                );
+              } catch (_) {}
             },
             onSpeedChanged: (speed) => _engine?.player.setRate(speed),
             diagnosticsStream: engine?.diagnosticsStream,
             seekLatencyMs: _orchestrator?.lastSeekLatencyMs,
           ),
+        ),
+            // Watch party overlay — only visible when a party session is active.
+            const PartyPlayerOverlay(),
+          ],
         ),
       ),
     );
@@ -1773,9 +1864,12 @@ class _ImmersivePlayerViewState extends State<_ImmersivePlayerView>
     _doubleTapTimer?.cancel();
     _rapidSeekTimer?.cancel();
     if (_initialBrightness != null) {
-      unawaited(
-        ScreenBrightness().setApplicationScreenBrightness(_initialBrightness!),
-      );
+      try {
+        unawaited(
+          ScreenBrightness()
+              .setApplicationScreenBrightness(_initialBrightness!),
+        );
+      } catch (_) {}
     }
     super.dispose();
   }

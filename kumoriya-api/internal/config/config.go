@@ -45,8 +45,10 @@ type Config struct {
 	ReleaseManifestURL string
 
 	// Android APK SHA-256 fingerprints for Digital Asset Links (passkeys).
-	// Comma-separated — include both debug and release fingerprints.
+	// Release package: dev.kumoriya.app
 	AndroidAPKFingerprints []string
+	// Debug package: dev.kumoriya.app.debug (separate signing key)
+	AndroidAPKDebugFingerprints []string
 }
 
 func Load() Config {
@@ -111,7 +113,8 @@ func Load() Config {
 
 		ReleaseManifestURL: getEnv("RELEASE_MANIFEST_URL", "https://pub-8159019abe1741a097538b976c19722c.r2.dev/update.json"),
 
-		AndroidAPKFingerprints: parseOrigins(os.Getenv("ANDROID_APK_FINGERPRINTS")),
+		AndroidAPKFingerprints:      parseOrigins(os.Getenv("ANDROID_APK_FINGERPRINTS")),
+		AndroidAPKDebugFingerprints: parseOrigins(os.Getenv("ANDROID_APK_DEBUG_FINGERPRINTS")),
 	}
 }
 

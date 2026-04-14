@@ -42,6 +42,16 @@ export default {
     upstreamHeaders.set("X-Forwarded-Host", url.host);
     upstreamHeaders.set("X-Forwarded-Proto", "https");
 
+    // ── WebSocket upgrade: proxy using Cloudflare's WebSocket API ──
+    const upgradeHeader = request.headers.get("Upgrade") || "";
+    if (upgradeHeader.toLowerCase() === "websocket") {
+      const upstreamReq = new Request(target.toString(), {
+        method: request.method,
+        headers: upstreamHeaders,
+      });
+      return fetch(upstreamReq);
+    }
+
     const upstreamReq = new Request(target.toString(), {
       method: request.method,
       headers: upstreamHeaders,

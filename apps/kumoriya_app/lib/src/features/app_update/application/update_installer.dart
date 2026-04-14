@@ -18,6 +18,8 @@ class UpdateInstaller {
       await _installAndroid(filePath);
     } else if (Platform.isWindows) {
       await _installWindows(filePath);
+    } else if (Platform.isLinux) {
+      await _installLinux(filePath);
     }
   }
 
@@ -45,6 +47,14 @@ class UpdateInstaller {
     // Launch the installer detached so it keeps running after we exit.
     await Process.start(filePath, <String>[], mode: ProcessStartMode.detached);
     // Give a small grace period for the process to start, then exit.
+    await Future<void>.delayed(const Duration(milliseconds: 500));
+    exit(0);
+  }
+
+  static Future<void> _installLinux(String filePath) async {
+    // Make the downloaded file executable, then launch it detached.
+    await Process.run('chmod', ['+x', filePath]);
+    await Process.start(filePath, <String>[], mode: ProcessStartMode.detached);
     await Future<void>.delayed(const Duration(milliseconds: 500));
     exit(0);
   }

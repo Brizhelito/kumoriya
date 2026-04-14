@@ -6,8 +6,6 @@ final class KumoriyaRuntimeConfig {
 
   static AnilistClientConfig get anilistClient => AnilistClientConfig(
     collectDebugMetrics: kDebugMode,
-    debugLogLevel: kDebugMode
-        ? AnilistClientLogLevel.summary
-        : AnilistClientLogLevel.off,
+    debugLogLevel: AnilistClientLogLevel.off,
   );
 }
