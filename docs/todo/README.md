@@ -16,3 +16,5 @@ Reglas:
 | # | Área | Archivo | Estado | Prioridad |
 |---|------|---------|--------|-----------|
 | 1 | Watch Party | [`voice-chat-watch-party.md`](./voice-chat-watch-party.md) | Pospuesto | Media |
+| 2 | AniList cache | [`anilist-calendar-canonical-window.md`](./anilist-calendar-canonical-window.md) | Pospuesto | Media |
+| 3 | AniList cache | [`anilist-decorator-null-window-guard.md`](./anilist-decorator-null-window-guard.md) | Pospuesto | Baja |
