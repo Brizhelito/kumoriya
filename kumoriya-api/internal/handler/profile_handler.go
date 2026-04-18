@@ -3,11 +3,11 @@ package handler
 import (
 	"context"
 
-	"github.com/google/uuid"
 	"github.com/gofiber/fiber/v3"
+	"github.com/google/uuid"
 
-	"go-fiber-microservice/internal/model"
 	"go-fiber-microservice/internal/middleware"
+	"go-fiber-microservice/internal/model"
 )
 
 type profileUserRepository interface {
@@ -19,9 +19,9 @@ type profileUserRepository interface {
 }
 
 type ProfileResponse struct {
-	User          *model.User               `json:"user"`
-	LinkedAccounts []model.OAuthAccount     `json:"linked_accounts"`
-	ActiveSessions []model.Session          `json:"active_sessions"`
+	User               *model.User               `json:"user"`
+	LinkedAccounts     []model.OAuthAccount      `json:"linked_accounts"`
+	ActiveSessions     []model.Session           `json:"active_sessions"`
 	RegisteredPasskeys []model.PasskeyCredential `json:"registered_passkeys"`
 }
 

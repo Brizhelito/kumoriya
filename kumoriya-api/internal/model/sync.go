@@ -30,23 +30,23 @@ type WatchHistory struct {
 }
 
 type PlaybackPreference struct {
-	UserID               uuid.UUID `json:"user_id"`
-	AnilistID            int       `json:"anilist_id"`
-	PreferredSourceID    *string   `json:"preferred_source_plugin_id,omitempty"`
-	PreferredServerName  *string   `json:"preferred_server_name,omitempty"`
-	PreferredResolverID  *string   `json:"preferred_resolver_plugin_id,omitempty"`
-	PreferredAudioPref   *string   `json:"preferred_audio_preference,omitempty"`
-	UpdatedAt            int64     `json:"updated_at"`
+	UserID              uuid.UUID `json:"user_id"`
+	AnilistID           int       `json:"anilist_id"`
+	PreferredSourceID   *string   `json:"preferred_source_plugin_id,omitempty"`
+	PreferredServerName *string   `json:"preferred_server_name,omitempty"`
+	PreferredResolverID *string   `json:"preferred_resolver_plugin_id,omitempty"`
+	PreferredAudioPref  *string   `json:"preferred_audio_preference,omitempty"`
+	UpdatedAt           int64     `json:"updated_at"`
 }
 
 type LibraryEntry struct {
-	UserID                   uuid.UUID `json:"user_id"`
-	AnilistID                int       `json:"anilist_id"`
-	AddedAt                  int64     `json:"added_at"`
-	NotifyNewEpisodes        bool      `json:"notify_new_episodes"`
-	LastNotifiedEpisode      *int      `json:"last_notified_episode,omitempty"`
-	AutoDownloadNewEpisodes  bool      `json:"auto_download_new_episodes"`
-	AutoDownloadAudioPref    string    `json:"auto_download_audio_preference"`
+	UserID                  uuid.UUID `json:"user_id"`
+	AnilistID               int       `json:"anilist_id"`
+	AddedAt                 int64     `json:"added_at"`
+	NotifyNewEpisodes       bool      `json:"notify_new_episodes"`
+	LastNotifiedEpisode     *int      `json:"last_notified_episode,omitempty"`
+	AutoDownloadNewEpisodes bool      `json:"auto_download_new_episodes"`
+	AutoDownloadAudioPref   string    `json:"auto_download_audio_preference"`
 }
 
 // SyncPullResponse is the response for GET /api/v1/sync/pull
@@ -60,11 +60,11 @@ type SyncPullResponse struct {
 
 // SyncPushRequest is the body for POST /api/v1/sync/push
 type SyncPushRequest struct {
-	EpisodeProgress       []EpisodeProgress       `json:"episode_progress"`
-	WatchHistory          []WatchHistory           `json:"watch_history"`
-	PlaybackPreferences   []PlaybackPreference     `json:"playback_preferences"`
-	LibraryEntries        []LibraryEntry           `json:"library_entries"`
-	WatchHistoryDeletions []WatchHistoryDeletion   `json:"watch_history_deletions"`
+	EpisodeProgress       []EpisodeProgress      `json:"episode_progress"`
+	WatchHistory          []WatchHistory         `json:"watch_history"`
+	PlaybackPreferences   []PlaybackPreference   `json:"playback_preferences"`
+	LibraryEntries        []LibraryEntry         `json:"library_entries"`
+	WatchHistoryDeletions []WatchHistoryDeletion `json:"watch_history_deletions"`
 }
 
 // WatchHistoryDeletion requests deletion of a watch history entry.

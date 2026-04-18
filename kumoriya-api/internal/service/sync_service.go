@@ -212,10 +212,10 @@ func (s *SyncService) FlushLoop(ctx context.Context, flushInterval time.Duration
 // for use with cache.merge().
 func bufferedPushToRequest(bp *bufferedPush) *model.SyncPushRequest {
 	req := &model.SyncPushRequest{
-		EpisodeProgress:     make([]model.EpisodeProgress, 0, len(bp.Episodes)),
-		WatchHistory:        make([]model.WatchHistory, 0, len(bp.History)),
-		PlaybackPreferences: make([]model.PlaybackPreference, 0, len(bp.Prefs)),
-		LibraryEntries:      make([]model.LibraryEntry, 0, len(bp.Library)),
+		EpisodeProgress:       make([]model.EpisodeProgress, 0, len(bp.Episodes)),
+		WatchHistory:          make([]model.WatchHistory, 0, len(bp.History)),
+		PlaybackPreferences:   make([]model.PlaybackPreference, 0, len(bp.Prefs)),
+		LibraryEntries:        make([]model.LibraryEntry, 0, len(bp.Library)),
 		WatchHistoryDeletions: make([]model.WatchHistoryDeletion, 0, len(bp.Deletions)),
 	}
 	for _, ep := range bp.Episodes {

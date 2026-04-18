@@ -21,7 +21,7 @@ var httpClient = &http.Client{
 	Timeout: 15 * time.Second,
 	Transport: &http.Transport{
 		DialContext: (&net.Dialer{
-			Timeout:  5 * time.Second,
+			Timeout: 5 * time.Second,
 			Resolver: &net.Resolver{
 				PreferGo: true,
 				Dial: func(ctx context.Context, network, address string) (net.Conn, error) {
