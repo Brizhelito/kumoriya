@@ -57,3 +57,27 @@ Relevant files:
 - [media_kit_playback_engine.dart](C:/Users/Reny/Documents/Kumoriya/apps/kumoriya_app/lib/src/features/player/infrastructure/media_kit_playback_engine.dart)
 - [player_page.dart](C:/Users/Reny/Documents/Kumoriya/apps/kumoriya_app/lib/src/features/player/presentation/pages/player_page.dart)
 - [player_session_orchestrator_test.dart](C:/Users/Reny/Documents/Kumoriya/apps/kumoriya_app/test/player_session_orchestrator_test.dart)
+
+### Retire watch-party P2P stack (`SignalRelay`, `WebRtcPeerManager`, `PartySyncEngine`)
+
+Status: deferred until v2 realtime is proven in production for at least one
+release cycle.
+
+Context:
+- The new broker flow (`WATCH_PARTY_REALTIME_V2`) routes all realtime state
+  through `party.kumoriya.online`. See `docs/watch-party-realtime-rollout.md`.
+- The legacy stack is still wired behind the flag so we can roll back
+  without redeploying the Worker.
+
+What to remove once v2 is stable:
+- `kumoriya-api`: `internal/service/signal_relay.go`, `internal/service/party_service.go`,
+  `internal/handler/party_signal_handler.go`, and the `GET /party/:id/signal` route
+  from `cmd/server/main.go`. Collapse `PartyHandler` back to a single code path.
+- `apps/kumoriya_app`: `infrastructure/signaling_client.dart`,
+  `infrastructure/webrtc_peer_manager.dart`,
+  `application/party_sync_engine.dart`, plus the `flutter_webrtc` dependency
+  if nothing else uses it.
+- `model.SignalMessage` / `SignalType` DTOs and their tests.
+
+Do not rip these out while the flag default is "off"; they are the rollback
+path.
