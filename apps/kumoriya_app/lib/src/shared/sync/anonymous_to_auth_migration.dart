@@ -21,6 +21,13 @@ final class AnonymousToAuthMigration {
   final SyncService syncService;
 
   Future<Result<void, KumoriyaError>> migrate() async {
+    // 0. Defensive clear: the SyncAware wrappers never enqueue while the
+    // user is anonymous, so at this point the queue should be empty. Clear
+    // it anyway to protect against residual entries from a previous session
+    // where logout did not complete cleanly — those belong to a different
+    // user and must not be pushed to this account.
+    await syncQueue.clearAll();
+
     // 1. Enqueue all episode progress.
     final allHistoryResult = await progressStore.getAllHistory();
     if (allHistoryResult.isSuccess) {

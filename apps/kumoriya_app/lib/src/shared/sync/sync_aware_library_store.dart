@@ -144,4 +144,10 @@ final class SyncAwareLibraryStore implements LibraryStore {
   @override
   Future<Result<Set<int>, KumoriyaError>> getAutoDownloadAnimeIds() =>
       _inner.getAutoDownloadAnimeIds();
+
+  // Wipe operations bypass the sync queue intentionally: they are invoked
+  // during logout to leave the local DB in an anonymous state, and must not
+  // leak deletion intents to the server of the account being signed out of.
+  @override
+  Future<Result<void, KumoriyaError>> clearAll() => _inner.clearAll();
 }

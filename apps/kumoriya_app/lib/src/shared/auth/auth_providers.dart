@@ -6,6 +6,7 @@ import 'package:kumoriya_auth/kumoriya_auth.dart';
 import '../auth/authenticated_http_client.dart';
 import '../auth/secure_token_store.dart';
 import '../sync/anonymous_to_auth_migration.dart';
+import '../sync/local_user_data_cleaner.dart';
 import '../sync/sync_providers.dart';
 import '../storage_providers.dart';
 
@@ -102,14 +103,29 @@ class AuthStateNotifier extends AsyncNotifier<AuthState> {
           await store.saveTokens(authState.tokens);
           await store.saveUser(authState.user);
 
-          // Trigger anonymous → authenticated migration (force-push local data).
+          // Flip authenticated state first so SyncAware wrappers begin
+          // routing further writes to the sync queue while migration runs.
+          state = AsyncData(authState);
+
+          // Anonymous → authenticated migration: force-push everything that
+          // was stored locally while the user was signed out, then pull the
+          // server state. Runs in the background so the UI is not blocked.
           final migration = AnonymousToAuthMigration(
             progressStore: ref.read(animeProgressStoreProvider),
             libraryStore: ref.read(libraryStoreProvider),
             syncQueue: ref.read(syncQueueStoreProvider),
             syncService: ref.read(syncServiceProvider),
           );
-          unawaited(migration.migrate());
+          unawaited(
+            migration.migrate().then((_) {
+              // Reload data providers so the UI reflects the freshly synced DB.
+              ref.invalidate(continueWatchingProvider);
+              ref.invalidate(allWatchHistoryProvider);
+              ref.invalidate(favoriteAnimeIdsProvider);
+              ref.invalidate(subscribedAnimeIdsProvider);
+            }),
+          );
+          return;
         }
         state = AsyncData(authState);
       },
@@ -126,9 +142,26 @@ class AuthStateNotifier extends AsyncNotifier<AuthState> {
       await authService.logout(refreshToken: currentState.tokens.refreshToken);
     }
 
+    // Wipe user-scoped local data BEFORE flipping auth state so SyncAware
+    // wrappers do not enqueue deletions against the account being signed
+    // out of. Also prevents leakage to a different account on next login.
+    final cleaner = LocalUserDataCleaner(
+      progressStore: ref.read(animeProgressStoreProvider),
+      libraryStore: ref.read(libraryStoreProvider),
+      syncQueue: ref.read(syncQueueStoreProvider),
+    );
+    await cleaner.wipe();
+
     final store = ref.read(secureTokenStoreProvider);
     await store.clearAll();
     state = const AsyncData(UnauthenticatedAuthState());
+
+    // Invalidate cached data providers so the UI reflects the wiped DB.
+    ref.invalidate(continueWatchingProvider);
+    ref.invalidate(allWatchHistoryProvider);
+    ref.invalidate(favoriteAnimeIdsProvider);
+    ref.invalidate(subscribedAnimeIdsProvider);
+    ref.invalidate(lastSyncAtProvider);
   }
 }
 

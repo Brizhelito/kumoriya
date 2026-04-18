@@ -167,4 +167,11 @@ final class SyncAwareProgressStore implements AnimeProgressStore {
   @override
   Future<Result<void, KumoriyaError>> clearAllPlaybackPreferences() =>
       _inner.clearAllPlaybackPreferences();
+
+  // Wipe operations bypass the sync queue intentionally: they are invoked
+  // during logout to leave the local DB in an anonymous state, and must not
+  // leak deletion intents to the server of the account being signed out of.
+  @override
+  Future<Result<void, KumoriyaError>> clearAllProgress() =>
+      _inner.clearAllProgress();
 }

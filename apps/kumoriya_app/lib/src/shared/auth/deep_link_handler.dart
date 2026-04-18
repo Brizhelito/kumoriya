@@ -67,9 +67,7 @@ class DeepLinkHandler {
         final nav = navigatorKey.currentState;
         if (nav == null) return;
         nav.push(
-          MaterialPageRoute<void>(
-            builder: (_) => const PartyLobbyPage(),
-          ),
+          MaterialPageRoute<void>(builder: (_) => const PartyLobbyPage()),
         );
       }
     }
