@@ -17,6 +17,8 @@ import '../../application/services/mal_metadata_bridge_service.dart';
 import '../../../downloads/presentation/download_providers.dart';
 import '../../../downloads/presentation/widgets/download_path_dialog.dart';
 import '../../../player/presentation/pages/player_page.dart';
+import '../../../watch_party/application/party_session_guard.dart';
+import '../../../watch_party/application/providers/party_providers.dart';
 import '../providers/anime_catalog_providers.dart';
 import '../providers/storage_providers.dart';
 import '../support/episode_display_title.dart';
@@ -93,6 +95,13 @@ class _EpisodeListPageState extends ConsumerState<EpisodeListPage> {
         const <EpisodeProgress>[];
     final preference = _extractSuccessValue<PlaybackPreference?>(
       preferenceState,
+    );
+    final partySession = ref.watch(partySessionProvider);
+    final isLocalHost = ref.read(partySessionProvider.notifier).isLocalHost;
+    final partyLockedEpisode = partyLockedEpisodeNumberForAnime(
+      session: partySession,
+      isLocalHost: isLocalHost,
+      anilistId: widget.anilistId,
     );
     final malEpisodeMetadata = ref
         .watch(malEpisodeMetadataProvider(widget.anilistId))
@@ -200,6 +209,7 @@ class _EpisodeListPageState extends ConsumerState<EpisodeListPage> {
                       anilistId: widget.anilistId,
                       animeTitle: widget.animeTitle,
                       rows: rows,
+                      lockedEpisodeNumber: partyLockedEpisode,
                     ),
                   ),
                 ),
@@ -244,6 +254,16 @@ class _EpisodeListPageState extends ConsumerState<EpisodeListPage> {
                                 sourceSummary == null ||
                                 _isLaunching
                             ? null
+                            : isPartyEpisodeLocked(
+                                session: partySession,
+                                isLocalHost: isLocalHost,
+                                anilistId: widget.anilistId,
+                                episodeNumber: row.number,
+                              )
+                            ? () => _showPartyEpisodeLockedMessage(
+                                context,
+                                partyLockedEpisode ?? row.number,
+                              )
                             : () => _handleEpisodeTap(row, sourceSummary),
                       );
                     },
@@ -303,6 +323,20 @@ class _EpisodeListPageState extends ConsumerState<EpisodeListPage> {
     _EpisodeRowData row,
     SourceAvailabilitySummary summary,
   ) async {
+    final partySession = ref.read(partySessionProvider);
+    final isLocked = isPartyEpisodeLocked(
+      session: partySession,
+      isLocalHost: ref.read(partySessionProvider.notifier).isLocalHost,
+      anilistId: widget.anilistId,
+      episodeNumber: row.number,
+    );
+    if (isLocked) {
+      _showPartyEpisodeLockedMessage(
+        context,
+        partySession.room?.episodeNumber ?? row.number,
+      );
+      return;
+    }
     final playbackPreparingLabel = context.l10n.playbackPreparing;
 
     // Check for completed offline download first.
@@ -392,6 +426,20 @@ class _EpisodeListPageState extends ConsumerState<EpisodeListPage> {
       data: (result) =>
           result.fold(onSuccess: (value) => value, onFailure: (_) => null),
       orElse: () => null,
+    );
+  }
+
+  void _showPartyEpisodeLockedMessage(
+    BuildContext context,
+    double episodeNumber,
+  ) {
+    ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+      SnackBar(
+        content: Text(
+          'The host locked the party to episode ${episodeNumber.toInt()}.',
+        ),
+        duration: const Duration(seconds: 2),
+      ),
     );
   }
 
@@ -490,6 +538,7 @@ class _EpisodeListHeader extends ConsumerWidget {
     required this.anilistId,
     required this.animeTitle,
     required this.rows,
+    required this.lockedEpisodeNumber,
   });
 
   final SourceAvailabilitySummary? summary;
@@ -497,6 +546,7 @@ class _EpisodeListHeader extends ConsumerWidget {
   final int anilistId;
   final String animeTitle;
   final List<_EpisodeRowData> rows;
+  final double? lockedEpisodeNumber;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -506,6 +556,13 @@ class _EpisodeListHeader extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
+        if (lockedEpisodeNumber != null) ...<Widget>[
+          _InfoBanner(
+            message:
+                'Watch party active: only episode ${lockedEpisodeNumber!.toInt()} can be opened until the host changes it.',
+          ),
+          const SizedBox(height: 8),
+        ],
         if (playableSources.isEmpty)
           _InfoBanner(message: context.l10n.detailPlaybackNotReady)
         else
@@ -666,17 +723,17 @@ class _EpisodeListHeader extends ConsumerWidget {
     }
 
     // Build a sample-episode map so the sheet can probe each source.
-    final sampleEpisodes = <String, SourceEpisode>{
-      for (final source in playableSources)
-        if (rows
-                .where(
-                  (row) => row.sourceEpisodes.containsKey(source.manifest.id),
-                )
-                .firstOrNull
-                ?.sourceEpisodes[source.manifest.id]
-            case final ep?)
-          source.manifest.id: ep,
-    };
+    final sampleEpisodes = <String, SourceEpisode>{};
+    for (final source in playableSources) {
+      final sampleRow = rows
+          .where((row) => row.sourceEpisodes.containsKey(source.manifest.id))
+          .firstOrNull;
+      final episode = sampleRow?.sourceEpisodes[source.manifest.id];
+      if (episode == null) {
+        continue;
+      }
+      sampleEpisodes[source.manifest.id] = episode;
+    }
 
     if (!context.mounted) return null;
 

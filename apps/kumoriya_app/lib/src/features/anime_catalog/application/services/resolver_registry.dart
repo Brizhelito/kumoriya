@@ -27,6 +27,15 @@ final class ResolverRegistry {
   final List<ResolverPlugin> _resolvers;
   final _hostCache = <String, ResolverSelection>{};
 
+  ResolverPlugin? resolverById(String resolverId) {
+    for (final resolver in _resolvers) {
+      if (resolver.manifest.id == resolverId) {
+        return resolver;
+      }
+    }
+    return null;
+  }
+
   ResolverSelection selectFor(Uri url) {
     final host = url.host;
     final cached = _hostCache[host];

@@ -525,6 +525,14 @@ final class CachedAnimeCatalogRepository implements AnimeCatalogRepository {
     // Require synopsis to consider the entry "complete" (detail-level data).
     if (entry == null || entry.synopsis == null) return null;
 
+    // Require a non-null relationsJson. Detail-level persistence always emits
+    // at least `"[]"` (see `_persistAnimeDetail`). A NULL value means the
+    // entry was only ever touched by list-level persistence, or was corrupted
+    // by the pre-fix list upsert that wiped the relations column. Forcing a
+    // re-fetch here heals those stale rows immediately instead of waiting
+    // for the TTL to expire.
+    if (entry.relationsJson == null) return null;
+
     final age = DateTime.now().difference(entry.updatedAt);
     if (age > _freshnessTtl(entry.status)) return null;
 
@@ -741,14 +749,16 @@ final class CachedAnimeCatalogRepository implements AnimeCatalogRepository {
       );
     }
 
-    // Serialize relations mapping (anilistId + type).
-    final relationsJson = detail.relations.isNotEmpty
-        ? jsonEncode(
-            detail.relations
-                .map((r) => {'id': r.anime.anilistId, 'type': r.type.name})
-                .toList(growable: false),
-          )
-        : null;
+    // Serialize relations mapping (anilistId + type). Always emit a non-null
+    // JSON (even `"[]"` for empty relations) so detail-level persistence
+    // writes an intentional value the cache store can preserve. The store
+    // uses `Value.absent()` for null relations to avoid list-level persistence
+    // wiping previously-cached relations, so we must opt in here explicitly.
+    final relationsJson = jsonEncode(
+      detail.relations
+          .map((r) => {'id': r.anime.anilistId, 'type': r.type.name})
+          .toList(growable: false),
+    );
 
     await _cacheStore.upsert(
       AnilistCacheEntry(

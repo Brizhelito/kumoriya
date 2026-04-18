@@ -171,30 +171,63 @@ final class CheckSourceAvailabilityUseCase {
       return episodes;
     }
 
-    final airedMetadata =
-        anilistDetail.episodes
-            .where((episode) => episode.isAired)
-            .toList(growable: false)
+    final sortedMetadata =
+        anilistDetail.episodes.toList(growable: false)
           ..sort((a, b) => a.number.compareTo(b.number));
-    if (airedMetadata.isEmpty) {
+    final airedMetadata = sortedMetadata
+        .where((episode) => episode.isAired)
+        .toList(growable: false);
+    if (sortedMetadata.isEmpty) {
       return episodes;
     }
 
-    final sourceSlice = episodes.length <= airedMetadata.length
-        ? episodes
-        : episodes.sublist(episodes.length - airedMetadata.length);
+    final seasonTotal =
+        anilistDetail.anime.totalEpisodes ?? sortedMetadata.length;
+
+    // Prefer the prequel-derived boundary: the source lists S1+S2 cumulatively
+    // under a grouped slug, so the S2 block starts right after all previous
+    // seasons' total episode counts. This is robust when the source uploads
+    // episodes faster than AniList updates `nextAiringEpisode` (otherwise the
+    // legacy heuristic below would slice `airedMetadata.length` items from the
+    // tail and silently shift the alignment by one — clicking S2_ep1 would
+    // open S2_ep2 because source_ep1 would be dropped from the slice).
+    final priorSeasonEpisodes = _sumPrequelEpisodes(anilistDetail);
+
+    List<SourceEpisode> sourceSlice;
+    List<AnimeEpisode> alignmentMetadata;
+
+    if (priorSeasonEpisodes != null &&
+        priorSeasonEpisodes > 0 &&
+        priorSeasonEpisodes < episodes.length) {
+      sourceSlice = episodes.sublist(priorSeasonEpisodes);
+      if (sourceSlice.length > seasonTotal) {
+        sourceSlice = sourceSlice.sublist(0, seasonTotal);
+      }
+      alignmentMetadata = sortedMetadata;
+    } else {
+      // Legacy fallback: best-effort alignment when the prequel total is
+      // unknown. Assumes `source.length == S1_total + aired_in_S2`.
+      if (airedMetadata.isEmpty) {
+        return episodes;
+      }
+      sourceSlice = episodes.length <= airedMetadata.length
+          ? episodes
+          : episodes.sublist(episodes.length - airedMetadata.length);
+      alignmentMetadata = airedMetadata;
+    }
+
     if (sourceSlice.isEmpty) {
       return episodes;
     }
 
-    final maxLength = sourceSlice.length < airedMetadata.length
+    final maxLength = sourceSlice.length < alignmentMetadata.length
         ? sourceSlice.length
-        : airedMetadata.length;
+        : alignmentMetadata.length;
     final aligned = <SourceEpisode>[];
 
     for (var index = 0; index < maxLength; index++) {
       final sourceEpisode = sourceSlice[index];
-      final targetEpisode = airedMetadata[index];
+      final targetEpisode = alignmentMetadata[index];
       aligned.add(
         SourceEpisode(
           sourceEpisodeId: sourceEpisode.sourceEpisodeId,
@@ -209,6 +242,28 @@ final class CheckSourceAvailabilityUseCase {
     }
 
     return aligned.isEmpty ? episodes : aligned;
+  }
+
+  /// Sums the episode counts of all direct prequel relations. Returns `null`
+  /// when no prequel relations are known or when any prequel is missing a
+  /// reliable `totalEpisodes` value — in those cases we cannot infer where
+  /// the current season starts inside a grouped source listing.
+  int? _sumPrequelEpisodes(AnimeDetail anilistDetail) {
+    var total = 0;
+    var found = false;
+    for (final relation in anilistDetail.relations) {
+      if (relation.type != AnimeRelationType.prequel) {
+        continue;
+      }
+      final episodes = relation.anime.totalEpisodes;
+      if (episodes == null || episodes <= 0) {
+        // Unknown prequel size -> cannot compute a safe boundary.
+        return null;
+      }
+      total += episodes;
+      found = true;
+    }
+    return found ? total : null;
   }
 
   Future<List<SourceAnimeMatch>> _probeDirectSlugCandidates(

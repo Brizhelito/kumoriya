@@ -26,8 +26,9 @@ final class ResolveSourceServerLinkUseCase {
   final Duration _verifyTimeout;
 
   Future<Result<ResolvedServerLinkResult, KumoriyaError>> call(
-    SourceServerLink sourceServerLink,
-  ) async {
+    SourceServerLink sourceServerLink, {
+    String? preferredResolverId,
+  }) async {
     final url = sourceServerLink.initialUrl;
     if (!url.hasScheme || url.host.trim().isEmpty) {
       _log('reject malformed server=${sourceServerLink.serverName} url=$url');
@@ -40,8 +41,23 @@ final class ResolveSourceServerLinkUseCase {
       );
     }
 
-    final selection = _registry.selectFor(url);
-    if (selection is ResolverNotFound) {
+    ResolverPlugin? preferredResolver;
+    if (preferredResolverId != null && preferredResolverId.isNotEmpty) {
+      final candidate = _registry.resolverById(preferredResolverId);
+      if (candidate != null && candidate.supports(url)) {
+        preferredResolver = candidate;
+      } else {
+        _log(
+          'preferred resolver ignored server=${sourceServerLink.serverName} '
+          'preferred=$preferredResolverId url=$url',
+        );
+      }
+    }
+
+    final selection = preferredResolver == null
+        ? _registry.selectFor(url)
+        : null;
+    if (preferredResolver == null && selection is ResolverNotFound) {
       _log('reject no-resolver server=${sourceServerLink.serverName} url=$url');
       return Failure(
         SimpleError(
@@ -52,7 +68,7 @@ final class ResolveSourceServerLinkUseCase {
         ),
       );
     }
-    if (selection is ResolverAmbiguous) {
+    if (preferredResolver == null && selection is ResolverAmbiguous) {
       final resolverIds = selection.resolvers
           .map((r) => r.manifest.id)
           .join(', ');
@@ -68,7 +84,8 @@ final class ResolveSourceServerLinkUseCase {
         ),
       );
     }
-    final resolver = (selection as ResolverSelected).resolver;
+    final resolver =
+        preferredResolver ?? ((selection as ResolverSelected).resolver);
     _log(
       'resolve start server=${sourceServerLink.serverName} resolver=${resolver.manifest.id} url=$url',
     );
@@ -184,19 +201,20 @@ final class ResolveSourceServerLinkUseCase {
   }) async {
     final outcomes = await Future.wait(
       streams.map(
-        (s) => verifyStreamUrl(
-          s.url,
-          s.headers,
-          timeout: _verifyTimeout,
-          client: _verifyClient,
-        ).then((outcome) {
-          if (outcome == StreamVerifyOutcome.rejected) {
-            _log(
-              'verify rejected stream server=$serverName resolver=$resolverId url=${s.url}',
-            );
-          }
-          return (stream: s, outcome: outcome);
-        }),
+        (s) =>
+            verifyStreamUrl(
+              s.url,
+              s.headers,
+              timeout: _verifyTimeout,
+              client: _verifyClient,
+            ).then((outcome) {
+              if (outcome == StreamVerifyOutcome.rejected) {
+                _log(
+                  'verify rejected stream server=$serverName resolver=$resolverId url=${s.url}',
+                );
+              }
+              return (stream: s, outcome: outcome);
+            }),
       ),
     );
     return [

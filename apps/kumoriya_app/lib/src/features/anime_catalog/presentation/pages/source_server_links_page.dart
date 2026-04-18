@@ -96,13 +96,9 @@ class SourceServerLinksPage extends ConsumerWidget {
                     detectedHost: link.detectedHost,
                     serverName: link.serverName,
                   );
-                  final isTop = index == 0 &&
-                      tier != ServerQualityTier.unknown;
+                  final isTop = index == 0 && tier != ServerQualityTier.unknown;
                   return ListTile(
-                    leading: Icon(
-                      _iconForTier(tier),
-                      color: tier.color,
-                    ),
+                    leading: Icon(_iconForTier(tier), color: tier.color),
                     title: Row(
                       children: <Widget>[
                         Flexible(child: Text(link.serverName)),
@@ -120,9 +116,7 @@ class SourceServerLinksPage extends ConsumerWidget {
                     ),
                     subtitle: link.detectedHost != null
                         ? Text(
-                            context.l10n.sourceDetectedHost(
-                              link.detectedHost!,
-                            ),
+                            context.l10n.sourceDetectedHost(link.detectedHost!),
                           )
                         : null,
                     trailing: OutlinedButton(
@@ -132,9 +126,7 @@ class SourceServerLinksPage extends ConsumerWidget {
                             builder: (_) => ResolveServerLinkPage(
                               anilistId: anilistId,
                               animeTitle: animeTitle,
-                              episodeNumber: episode.number
-                                  .toInt()
-                                  .toString(),
+                              episodeNumber: episode.number.toInt().toString(),
                               sourcePluginId: sourcePluginId,
                               serverLink: link,
                             ),

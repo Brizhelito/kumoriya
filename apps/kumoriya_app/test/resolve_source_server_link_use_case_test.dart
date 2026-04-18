@@ -106,6 +106,42 @@ void main() {
     );
   });
 
+  test('uses preferred resolver when it supports the URL', () async {
+    final useCase = ResolveSourceServerLinkUseCase(
+      registry: ResolverRegistry(
+        resolvers: const <ResolverPlugin>[
+          _SuccessResolver(
+            host: 'jkanime.net',
+            id: 'resolver.a',
+            priority: 100,
+          ),
+          _SuccessResolver(
+            host: 'jkanime.net',
+            id: 'resolver.b',
+            priority: 100,
+          ),
+        ],
+      ),
+    );
+
+    final result = await useCase.call(
+      SourceServerLink(
+        serverId: 'desu-0',
+        serverName: 'Desu',
+        initialUrl: Uri.parse('https://jkanime.net/jkplayer/um?e=abc'),
+      ),
+      preferredResolverId: 'resolver.b',
+    );
+
+    expect(result.isSuccess, isTrue);
+    result.fold(
+      onFailure: (_) => fail('expected success'),
+      onSuccess: (resolved) {
+        expect(resolved.resolverId, 'resolver.b');
+      },
+    );
+  });
+
   test('returns malformed_link for malformed source URL', () async {
     final useCase = ResolveSourceServerLinkUseCase(
       registry: ResolverRegistry(

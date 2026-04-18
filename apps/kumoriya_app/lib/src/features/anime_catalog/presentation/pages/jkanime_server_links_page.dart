@@ -69,10 +69,7 @@ class JkAnimeServerLinksPage extends ConsumerWidget {
                   serverName: link.serverName,
                 );
                 return ListTile(
-                  leading: Icon(
-                    _iconForTier(tier),
-                    color: tier.color,
-                  ),
+                  leading: Icon(_iconForTier(tier), color: tier.color),
                   title: Text(link.serverName),
                   subtitle: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,

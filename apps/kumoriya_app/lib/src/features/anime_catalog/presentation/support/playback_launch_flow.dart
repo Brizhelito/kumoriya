@@ -1,14 +1,18 @@
 import 'dart:async';
+import 'dart:developer' as dev;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:kumoriya_plugins/kumoriya_plugins.dart';
 import 'package:kumoriya_storage/kumoriya_storage.dart';
 
 import '../../../../app/l10n.dart';
 import '../../application/models/episode_playback.dart';
 import '../../application/models/server_quality_registry.dart';
 import '../../application/models/source_availability.dart';
+import '../../application/services/resolver_registry.dart';
+import '../../application/use_cases/get_source_episode_server_links_use_case.dart';
 import '../providers/anime_catalog_providers.dart';
 import '../providers/storage_providers.dart';
 import '../widgets/source_badge.dart';
@@ -109,6 +113,188 @@ Future<void> handlePlaybackDecision({
   }
 }
 
+/// Result of a party auto-resolve attempt. Used by member clients to
+/// distinguish "happy path launched" from "fall back to the manual
+/// picker" states.
+enum PartyAutoResolveOutcome {
+  /// The host's source + server was found locally, resolved, and the
+  /// player was pushed.
+  launched,
+
+  /// The anime is not currently showing (e.g. detail page closed) —
+  /// caller should drop the event silently.
+  notActive,
+
+  /// The host's source plugin is not installed or unavailable here.
+  sourceUnavailable,
+
+  /// The source exists but does not expose the requested episode.
+  episodeUnavailable,
+
+  /// The source + episode exists but the specific server name is not
+  /// present on this client.
+  serverUnavailable,
+
+  /// The server link existed but the resolver failed to produce a
+  /// playable stream.
+  resolverFailed,
+}
+
+/// Try to auto-launch the player using the source + server the host
+/// just announced via watch-party `source_selected`. Only runs for the
+/// currently-mounted AnimeDetailPage (`anilistId` gate); all failure
+/// paths return the specific [PartyAutoResolveOutcome] so the caller
+/// can decide whether to show a hint or stay silent.
+///
+/// This function never throws — network/resolver failures are folded
+/// into the outcome enum. On [PartyAutoResolveOutcome.launched] the
+/// caller should NOT also push its own player.
+Future<PartyAutoResolveOutcome> openPartySelectedSource({
+  required BuildContext context,
+  required WidgetRef ref,
+  required int anilistId,
+  required String animeTitle,
+  required double episodeNumber,
+  required String sourcePluginId,
+  required String serverName,
+  String? resolverPluginId,
+}) async {
+  void log(String msg) {
+    dev.log('party-auto-resolve: $msg', name: 'Party');
+  }
+
+  // 1. Read the cached availability summary. We purposely do not
+  //    force-refresh — if the detail page has not loaded availability
+  //    yet the auto-resolve is a no-op and the member simply goes
+  //    through the manual flow.
+  final summaryResult = await ref.read(
+    sourceAvailabilitySummaryProvider(anilistId).future,
+  );
+  final summary = summaryResult.fold(
+    onFailure: (_) => null,
+    onSuccess: (value) => value,
+  );
+  if (summary == null) {
+    log('no availability summary');
+    return PartyAutoResolveOutcome.sourceUnavailable;
+  }
+
+  SourceAvailability? availability;
+  for (final candidate in summary.sources) {
+    if (candidate.manifest.id == sourcePluginId && candidate.isAvailable) {
+      availability = candidate;
+      break;
+    }
+  }
+  if (availability == null) {
+    log('source $sourcePluginId not available locally');
+    return PartyAutoResolveOutcome.sourceUnavailable;
+  }
+
+  // 2. Find the matching episode. AniList numbering is authoritative;
+  //    we compare by number (doubles may be fractional).
+  SourceEpisode? episode;
+  for (final candidate in availability.episodes) {
+    if (candidate.number == episodeNumber) {
+      episode = candidate;
+      break;
+    }
+  }
+  if (episode == null) {
+    log('episode $episodeNumber not on source $sourcePluginId');
+    return PartyAutoResolveOutcome.episodeUnavailable;
+  }
+
+  // 3. Fetch server links for this episode and pick the one whose
+  //    server name matches the host's selection (case-insensitive so
+  //    minor casing drift between source versions does not break us).
+  final plugin = ref.read(sourcePluginByIdProvider(sourcePluginId));
+  final registry = ref.read(resolverRegistryProvider);
+  final linksResult = await GetSourceEpisodeServerLinksUseCase(
+    sourcePlugin: plugin,
+    registry: registry,
+  ).call(episode);
+  final links = linksResult.fold(
+    onFailure: (_) => const <SourceServerLink>[],
+    onSuccess: (value) => value,
+  );
+  if (links.isEmpty) {
+    log('no server links for episode $episodeNumber');
+    return PartyAutoResolveOutcome.serverUnavailable;
+  }
+
+  final normalizedTarget = serverName.trim().toLowerCase();
+  SourceServerLink? matchingLink;
+  for (final link in links) {
+    if (link.serverName.trim().toLowerCase() == normalizedTarget) {
+      matchingLink = link;
+      break;
+    }
+  }
+  if (matchingLink == null) {
+    log('server "$serverName" not found for episode $episodeNumber');
+    return PartyAutoResolveOutcome.serverUnavailable;
+  }
+
+  // 4. Resolve via the registry. If the host hinted a specific resolver
+  //    we prefer it, otherwise we fall back to the registry's default
+  //    selection for the link.
+  final selection = registry.selectFor(matchingLink.initialUrl);
+  if (selection is! ResolverSelected) {
+    log('no resolver registered for ${matchingLink.initialUrl}');
+    return PartyAutoResolveOutcome.resolverFailed;
+  }
+
+  final option = EpisodePlaybackOption(
+    sourcePluginId: availability.manifest.id,
+    sourceName: availability.manifest.displayName,
+    sourceIconUrl: availability.manifest.iconUrl,
+    sourceEpisode: episode,
+    serverLink: matchingLink,
+    resolverId: selection.resolver.manifest.id,
+    resolverName: selection.resolver.manifest.displayName,
+    audioKind: sourceAudioKindFromCode(matchingLink.language),
+  );
+
+  final resolveResult = await ref
+      .read(resolveSourceServerLinkUseCaseProvider)
+      .call(matchingLink, preferredResolverId: resolverPluginId);
+  if (!context.mounted) {
+    return PartyAutoResolveOutcome.launched;
+  }
+  final resolved = resolveResult.fold(
+    onFailure: (error) {
+      log(
+        'resolver failed code=${error.code} '
+        'message=${error.message} url=${matchingLink?.initialUrl}',
+      );
+      return null;
+    },
+    onSuccess: (value) => value,
+  );
+  if (resolved == null) {
+    return PartyAutoResolveOutcome.resolverFailed;
+  }
+
+  // 5. Hand off to the normal handler with a synthetic "direct"
+  //    decision so the same PlayerPage lifecycle is exercised. We
+  //    deliberately do NOT persist the selection: the host's choice is
+  //    ephemeral and we do not want a member's durable preference to
+  //    drift because of one party session.
+  await handlePlaybackDecision(
+    context: context,
+    ref: ref,
+    anilistId: anilistId,
+    animeTitle: animeTitle,
+    episodeTitle: episode.title.isEmpty ? null : episode.title,
+    decision: EpisodePlaybackDecision.direct(
+      launch: EpisodePlayerLaunch(option: option, resolved: resolved),
+      autoSelectionFailed: false,
+    ),
+  );
+  return PartyAutoResolveOutcome.launched;
+}
+
 Future<ServerPickerSelection?> showServerPicker(
   BuildContext context, {
   required List<EpisodePlaybackOption> options,
@@ -179,7 +365,10 @@ Future<void> _resolveSelectedOption(
   showBlockingLoader(context, context.l10n.playbackOpeningSelectedServer);
   final result = await ref
       .read(resolveSourceServerLinkUseCaseProvider)
-      .call(selection.option.serverLink);
+      .call(
+        selection.option.serverLink,
+        preferredResolverId: selection.option.resolverId,
+      );
   if (!context.mounted) {
     return;
   }

@@ -31,6 +31,7 @@ import '../../../downloads/presentation/download_providers.dart';
 import '../../../player/presentation/pages/player_page.dart';
 import 'episode_list_page.dart';
 import '../../../watch_party/presentation/pages/party_lobby_page.dart';
+import '../../../watch_party/application/party_session_guard.dart';
 import '../../../watch_party/application/providers/party_providers.dart';
 import '../support/episode_display_title.dart';
 import '../support/playback_launch_flow.dart';
@@ -48,6 +49,140 @@ class AnimeDetailPage extends ConsumerStatefulWidget {
 }
 
 class _AnimeDetailPageState extends ConsumerState<AnimeDetailPage> {
+  bool _partySourceCallbackSet = false;
+  // Swallow duplicate `source_selected` broadcasts (e.g. Worker retry).
+  int? _lastPartyAutoResolveAtMs;
+
+  Future<void> _handlePartySourceSelected({
+    required String sourcePluginId,
+    required String serverName,
+    required String? resolverPluginId,
+    required double episodeNumber,
+  }) async {
+    if (!mounted) return;
+
+    // Only members auto-launch. The host already has the player
+    // open for this selection — re-launching would push a
+    // duplicate route on top of theirs.
+    final current = ref.read(partySessionProvider.notifier);
+    if (current.isLocalHost) return;
+
+    final session = ref.read(partySessionProvider);
+    final room = session.room;
+    // Gate by anilist id so a stale broadcast from a previous
+    // party (same notifier, new room) cannot hijack an unrelated
+    // detail page.
+    if (room == null || room.anilistId != widget.anilistId) return;
+
+    // De-dup: Worker may re-emit on reconnect / snapshot, and we may
+    // also replay the latest cached event after the page mounts.
+    final now = DateTime.now().millisecondsSinceEpoch;
+    if (_lastPartyAutoResolveAtMs != null &&
+        now - _lastPartyAutoResolveAtMs! < 1500) {
+      return;
+    }
+    _lastPartyAutoResolveAtMs = now;
+
+    final outcome = await openPartySelectedSource(
+      context: context,
+      ref: ref,
+      anilistId: widget.anilistId,
+      animeTitle: room.animeTitle,
+      episodeNumber: episodeNumber,
+      sourcePluginId: sourcePluginId,
+      serverName: serverName,
+      resolverPluginId: resolverPluginId,
+    );
+    if (!mounted) return;
+
+    String? hint;
+    switch (outcome) {
+      case PartyAutoResolveOutcome.launched:
+      case PartyAutoResolveOutcome.notActive:
+        break;
+      case PartyAutoResolveOutcome.sourceUnavailable:
+        hint =
+            'Host is using a source you don\'t have. Pick a server to continue.';
+        break;
+      case PartyAutoResolveOutcome.episodeUnavailable:
+        hint = 'Host\'s episode isn\'t available on your sources yet.';
+        break;
+      case PartyAutoResolveOutcome.serverUnavailable:
+        hint = 'Host\'s server isn\'t available locally. Pick another one.';
+        break;
+      case PartyAutoResolveOutcome.resolverFailed:
+        hint =
+            'Couldn\'t resolve the host\'s stream. Pick a server to continue.';
+        break;
+    }
+    if (hint != null) {
+      ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+        SnackBar(content: Text(hint), duration: const Duration(seconds: 3)),
+      );
+    }
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    // When the host picks a source in the lobby's player, members
+    // receive a `source_selected` broadcast. Auto-resolve the matching
+    // provider locally and launch the player so members don't have to
+    // pick manually. If anything goes wrong (host's source unavailable
+    // here, resolver fails), we stay on this page and let the user
+    // proceed through the normal server picker.
+    final notifier = ref.read(partySessionProvider.notifier);
+    notifier.onPartySourceSelected =
+        (
+          String sourcePluginId,
+          String serverName,
+          String? resolverPluginId,
+          double episodeNumber,
+        ) {
+          unawaited(
+            _handlePartySourceSelected(
+              sourcePluginId: sourcePluginId,
+              serverName: serverName,
+              resolverPluginId: resolverPluginId,
+              episodeNumber: episodeNumber,
+            ),
+          );
+        };
+    _partySourceCallbackSet = true;
+
+    final pendingSelection = notifier.latestSourceSelection;
+    if (pendingSelection != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        final room = ref.read(partySessionProvider).room;
+        if (room == null || room.anilistId != widget.anilistId) {
+          return;
+        }
+        if ((room.episodeNumber - pendingSelection.episodeNumber).abs() >=
+            0.001) {
+          return;
+        }
+        unawaited(
+          _handlePartySourceSelected(
+            sourcePluginId: pendingSelection.sourcePluginId,
+            serverName: pendingSelection.serverName,
+            resolverPluginId: pendingSelection.resolverPluginId,
+            episodeNumber: pendingSelection.episodeNumber,
+          ),
+        );
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    if (_partySourceCallbackSet) {
+      ref.read(partySessionProvider.notifier).onPartySourceSelected = null;
+      _partySourceCallbackSet = false;
+    }
+    super.dispose();
+  }
+
   Future<void> _showDebugPlaybackPreferenceTools() async {
     if (!kDebugMode) {
       return;
@@ -389,6 +524,12 @@ class _PlayResumeCtaState extends ConsumerState<_PlayResumeCta> {
 
   @override
   Widget build(BuildContext context) {
+    final partySession = ref.watch(partySessionProvider);
+    final partyLockedEpisode = partyLockedEpisodeNumberForAnime(
+      session: partySession,
+      isLocalHost: ref.read(partySessionProvider.notifier).isLocalHost,
+      anilistId: widget.anilistId,
+    );
     final summary = widget.availabilityState.maybeWhen(
       data: (result) =>
           result.fold(onFailure: (_) => null, onSuccess: (s) => s),
@@ -401,7 +542,15 @@ class _PlayResumeCtaState extends ConsumerState<_PlayResumeCta> {
       orElse: () => null,
     );
 
-    final isAvailable = summary != null && summary.playableSources.isNotEmpty;
+    final targetEpisodeNumber =
+        partyLockedEpisode ?? latestProgress?.episodeNumber ?? 1.0;
+    final isAvailable = summary != null
+        ? summary.playableSources.any(
+            (source) => source.episodes.any(
+              (episode) => (episode.number - targetEpisodeNumber).abs() < 0.001,
+            ),
+          )
+        : false;
     final hasProgress = latestProgress != null;
     final isCheckingSources = widget.availabilityState.isLoading;
     final checkingLabel = summary == null
@@ -410,6 +559,8 @@ class _PlayResumeCtaState extends ConsumerState<_PlayResumeCta> {
 
     final label = isCheckingSources
         ? checkingLabel
+        : partyLockedEpisode != null
+        ? 'Watch Party Ep. ${partyLockedEpisode.toInt()}'
         : hasProgress
         ? context.l10n.detailResumeEpisode(latestProgress.episodeNumber.toInt())
         : context.l10n.detailPlay;
@@ -420,7 +571,7 @@ class _PlayResumeCtaState extends ConsumerState<_PlayResumeCta> {
       child: FilledButton.icon(
         onPressed: isAvailable && !_isLaunching && !isCheckingSources
             // ignore: unnecessary_non_null_assertion
-            ? () => _handleTap(summary!, latestProgress)
+            ? () => _handleTap(summary!, targetEpisodeNumber)
             : null,
         icon: _isLaunching || isCheckingSources
             ? SizedBox(
@@ -459,10 +610,8 @@ class _PlayResumeCtaState extends ConsumerState<_PlayResumeCta> {
 
   Future<void> _handleTap(
     SourceAvailabilitySummary summary,
-    EpisodeProgress? latestProgress,
+    double episodeNumber,
   ) async {
-    final episodeNumber = latestProgress?.episodeNumber ?? 1;
-
     // Check for completed offline download first.
     final dlTasksState = ref.read(
       downloadTasksByAnimeProvider(widget.anilistId),
@@ -603,10 +752,7 @@ class _CollapsibleSynopsisState extends State<_CollapsibleSynopsis> {
 }
 
 class _PartyActionButton extends ConsumerWidget {
-  const _PartyActionButton({
-    required this.anilistId,
-    required this.animeTitle,
-  });
+  const _PartyActionButton({required this.anilistId, required this.animeTitle});
 
   final int anilistId;
   final String animeTitle;
@@ -616,12 +762,11 @@ class _PartyActionButton extends ConsumerWidget {
     final session = ref.watch(partySessionProvider);
     final isActive = session.isActive;
 
-    // Check if user is the host of the active room.
-    bool isHost = false;
-    if (isActive && session.room != null) {
-      final localUserId = ref.read(partySessionProvider.notifier).syncEngine?.localUserId;
-      isHost = localUserId == session.room!.hostId;
-    }
+    // `isLocalHost` works under both v1 (P2P) and v2 (brokered realtime);
+    // the old `syncEngine.localUserId` path returned null in v2 and caused
+    // host UI to never render.
+    final isHost =
+        isActive && ref.read(partySessionProvider.notifier).isLocalHost;
 
     if (isActive && isHost) {
       // Host is viewing a different anime — offer to change the party's media.
@@ -634,13 +779,13 @@ class _PartyActionButton extends ConsumerWidget {
         tooltip: isSameAnime ? 'Party active' : 'Set for Party',
         onPressed: isSameAnime
             ? () => Navigator.of(context).push(
-                  MaterialPageRoute<void>(
-                    builder: (_) => PartyLobbyPage(
-                      anilistId: anilistId,
-                      animeTitle: animeTitle,
-                    ),
+                MaterialPageRoute<void>(
+                  builder: (_) => PartyLobbyPage(
+                    anilistId: anilistId,
+                    animeTitle: animeTitle,
                   ),
-                )
+                ),
+              )
             : () async {
                 final confirmed = await showDialog<bool>(
                   context: context,
@@ -663,14 +808,18 @@ class _PartyActionButton extends ConsumerWidget {
                   ),
                 );
                 if (confirmed == true && context.mounted) {
-                  await ref.read(partySessionProvider.notifier).changeMedia(
+                  await ref
+                      .read(partySessionProvider.notifier)
+                      .changeMedia(
                         anilistId: anilistId,
                         animeTitle: animeTitle,
                         episodeNumber: 1,
                       );
                   if (context.mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('Party switched to "$animeTitle"')),
+                      SnackBar(
+                        content: Text('Party switched to "$animeTitle"'),
+                      ),
                     );
                   }
                 }
@@ -687,10 +836,8 @@ class _PartyActionButton extends ConsumerWidget {
       tooltip: isActive ? 'Party Lobby' : 'Watch Party',
       onPressed: () => Navigator.of(context).push(
         MaterialPageRoute<void>(
-          builder: (_) => PartyLobbyPage(
-            anilistId: anilistId,
-            animeTitle: animeTitle,
-          ),
+          builder: (_) =>
+              PartyLobbyPage(anilistId: anilistId, animeTitle: animeTitle),
         ),
       ),
     );
@@ -985,6 +1132,12 @@ class _EpisodeDetailSectionState extends ConsumerState<_EpisodeDetailSection> {
     final progressList =
         _extractSuccessValue<List<EpisodeProgress>>(progressListState) ??
         const <EpisodeProgress>[];
+    final partySession = ref.watch(partySessionProvider);
+    final partyLockedEpisode = partyLockedEpisodeNumberForAnime(
+      session: partySession,
+      isLocalHost: ref.read(partySessionProvider.notifier).isLocalHost,
+      anilistId: widget.detail.anime.anilistId,
+    );
     final summary = _extractSuccessValue<SourceAvailabilitySummary>(
       widget.availabilityState,
     );
@@ -1144,6 +1297,27 @@ class _EpisodeDetailSectionState extends ConsumerState<_EpisodeDetailSection> {
         )
       else
         Wrap(spacing: 4, runSpacing: 4, children: sourceBadges),
+      if (partyLockedEpisode != null) ...<Widget>[
+        const SizedBox(height: 10),
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: KumoriyaColors.primaryContainer.withValues(alpha: 0.7),
+            borderRadius: BorderRadius.circular(KumoriyaRadius.lg),
+            border: Border.all(
+              color: KumoriyaColors.primary.withValues(alpha: 0.25),
+            ),
+          ),
+          child: Text(
+            'Watch party active: only episode ${partyLockedEpisode.toInt()} is available while the host controls playback.',
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              color: KumoriyaColors.textPrimary,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
+      ],
       const SizedBox(height: 10),
     ];
 
@@ -1200,6 +1374,18 @@ class _EpisodeDetailSectionState extends ConsumerState<_EpisodeDetailSection> {
             onTap:
                 row.playableSources.isEmpty || summary == null || _isLaunching
                 ? null
+                : isPartyEpisodeLocked(
+                    session: partySession,
+                    isLocalHost: ref
+                        .read(partySessionProvider.notifier)
+                        .isLocalHost,
+                    anilistId: widget.detail.anime.anilistId,
+                    episodeNumber: row.number,
+                  )
+                ? () => _showPartyEpisodeLockedMessage(
+                    context,
+                    partyLockedEpisode ?? row.number,
+                  )
                 : () => _handleEpisodeTap(row, summary),
           );
         }),
@@ -1292,6 +1478,20 @@ class _EpisodeDetailSectionState extends ConsumerState<_EpisodeDetailSection> {
     _DetailEpisodeRowData row,
     SourceAvailabilitySummary summary,
   ) async {
+    final partySession = ref.read(partySessionProvider);
+    final isLocked = isPartyEpisodeLocked(
+      session: partySession,
+      isLocalHost: ref.read(partySessionProvider.notifier).isLocalHost,
+      anilistId: widget.detail.anime.anilistId,
+      episodeNumber: row.number,
+    );
+    if (isLocked) {
+      _showPartyEpisodeLockedMessage(
+        context,
+        partySession.room?.episodeNumber ?? row.number,
+      );
+      return;
+    }
     final playbackPreparingLabel = context.l10n.playbackPreparing;
 
     // Check for completed offline download first.
@@ -1847,6 +2047,20 @@ T? _extractSuccessValue<T>(AsyncValue asyncValue) {
   );
 }
 
+void _showPartyEpisodeLockedMessage(
+  BuildContext context,
+  double episodeNumber,
+) {
+  ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+    SnackBar(
+      content: Text(
+        'The host locked the party to episode ${episodeNumber.toInt()}.',
+      ),
+      duration: const Duration(seconds: 2),
+    ),
+  );
+}
+
 _DetailEpisodeRowsResult _buildDetailEpisodeRows({
   required List<AnimeEpisode> animeEpisodes,
   required SourceAvailabilitySummary? availabilitySummary,
@@ -2097,9 +2311,7 @@ String _debugPreferenceSummary(PlaybackPreference preference) {
 /// Source plugin excluded from downloads.
 const _excludedDetailDownloadSource = 'kumoriya.source.anime_nexus';
 
-const Set<String> _excludedDetailDownloadHosts = <String>{
-  'hgplaycdn.com',
-};
+const Set<String> _excludedDetailDownloadHosts = <String>{'hgplaycdn.com'};
 
 bool _isExcludedDetailDownloadLink(SourceServerLink link) {
   final detectedHost = link.detectedHost?.trim().toLowerCase();
@@ -2474,17 +2686,17 @@ class _DetailDownloadAllButtonState
     }
 
     // Build a sample-episode map so the sheet can probe each source.
-    final sampleEpisodes = <String, SourceEpisode>{
-      for (final source in availableSources)
-        if (widget.rows
-                .where(
-                  (row) => row.sourceEpisodes.containsKey(source.manifest.id),
-                )
-                .firstOrNull
-                ?.sourceEpisodes[source.manifest.id]
-            case final ep?)
-          source.manifest.id: ep,
-    };
+    final sampleEpisodes = <String, SourceEpisode>{};
+    for (final source in availableSources) {
+      final sampleRow = widget.rows
+          .where((row) => row.sourceEpisodes.containsKey(source.manifest.id))
+          .firstOrNull;
+      final episode = sampleRow?.sourceEpisodes[source.manifest.id];
+      if (episode == null) {
+        continue;
+      }
+      sampleEpisodes[source.manifest.id] = episode;
+    }
 
     if (!context.mounted) return null;
 

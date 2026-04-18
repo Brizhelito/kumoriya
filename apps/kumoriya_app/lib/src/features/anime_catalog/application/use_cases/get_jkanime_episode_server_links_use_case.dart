@@ -7,9 +7,7 @@ final class GetJkanimeEpisodeServerLinksUseCase {
   }) : _sourcePlugin = sourcePlugin;
 
   final SourcePlugin _sourcePlugin;
-  static const Set<String> _excludedHosts = <String>{
-    'mega.nz',
-  };
+  static const Set<String> _excludedHosts = <String>{'mega.nz'};
 
   Future<Result<List<SourceServerLink>, KumoriyaError>> call(
     SourceEpisode episode,
