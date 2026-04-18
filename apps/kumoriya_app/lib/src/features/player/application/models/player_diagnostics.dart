@@ -9,6 +9,7 @@ final class PlayerDiagnostics {
     this.displayFps,
     this.frameDropCount,
     this.decoderFrameDropCount,
+    this.videoOutput,
     this.hwdecCurrent,
     this.videoFormat,
     this.videoCodec,
@@ -30,6 +31,9 @@ final class PlayerDiagnostics {
 
   /// Cumulative count of frames dropped by the decoder (too slow).
   final int? decoderFrameDropCount;
+
+  /// Active mpv video output backend (e.g. "gpu", "libmpv").
+  final String? videoOutput;
 
   /// Active hardware decoder name (e.g. "mediacodec", "d3d11va") or empty
   /// string when software decoding is in use.

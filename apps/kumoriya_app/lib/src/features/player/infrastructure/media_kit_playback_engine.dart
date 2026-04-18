@@ -11,7 +11,25 @@ import '../application/services/playback_engine.dart';
 import '../application/models/embedded_tracks.dart';
 import '../application/models/player_diagnostics.dart';
 
+const bool _playerVerboseLogs = bool.fromEnvironment(
+  'PLAYER_VERBOSE_LOGS',
+  defaultValue: false,
+);
+
 final class MediaKitPlaybackEngine implements PlaybackEngine {
+  static const bool _verboseNativePlayerLogs = bool.fromEnvironment(
+    'PLAYER_NATIVE_DEBUG_LOGS',
+    defaultValue: false,
+  );
+  static const String _linuxVideoOutput = String.fromEnvironment(
+    'PLAYER_LINUX_VO',
+    defaultValue: '',
+  );
+  static const String _linuxHwdec = String.fromEnvironment(
+    'PLAYER_LINUX_HWDEC',
+    defaultValue: 'auto-safe',
+  );
+
   /// 64 MB on mobile (limited RAM), 128 MB on desktop.
   static int _bufferSizeForPlatform() {
     if (Platform.isAndroid || Platform.isIOS) {
@@ -29,22 +47,34 @@ final class MediaKitPlaybackEngine implements PlaybackEngine {
        _forceSoftwareVideoOutput = forceSoftwareVideoOutput,
        player = Player(
          configuration: PlayerConfiguration(
-           logLevel: kDebugMode ? MPVLogLevel.debug : MPVLogLevel.error,
+           logLevel: kDebugMode
+               ? (_verboseNativePlayerLogs
+                     ? MPVLogLevel.debug
+                     : MPVLogLevel.warn)
+               : MPVLogLevel.error,
            bufferSize: _bufferSizeForPlatform(),
          ),
        ) {
     final useSoftwareVideoOutput = _shouldUseSoftwareVideoOutput();
+    final videoOutput = _preferredVideoOutput();
+    final hwdec = _preferredHardwareDecoder();
     videoController = VideoController(
       player,
       configuration: VideoControllerConfiguration(
+        vo: videoOutput,
+        hwdec: hwdec,
         enableHardwareAcceleration: !useSoftwareVideoOutput,
       ),
     );
     _log(
-      'video-controller-config softwareOutput=$useSoftwareVideoOutput platform=$defaultTargetPlatform',
+      'video-controller-config softwareOutput=$useSoftwareVideoOutput '
+      'platform=$defaultTargetPlatform vo=${videoOutput ?? "default"} '
+      'hwdec=${hwdec ?? "default"}',
     );
-    _attachVideoControllerDebugStreams();
-    _attachNativeDebugStreams();
+    if (_playerVerboseLogs) {
+      _attachVideoControllerDebugStreams();
+      _attachNativeDebugStreams();
+    }
     // P9: Diagnostics polling is now started lazily when the first
     // listener subscribes to diagnosticsStream (onListen callback).
   }
@@ -142,6 +172,7 @@ final class MediaKitPlaybackEngine implements PlaybackEngine {
         platform.getProperty('display-fps').catchError((_) => ''),
         platform.getProperty('frame-drop-count').catchError((_) => ''),
         platform.getProperty('decoder-frame-drop-count').catchError((_) => ''),
+        platform.getProperty('current-vo').catchError((_) => ''),
         platform.getProperty('hwdec-current').catchError((_) => ''),
         platform.getProperty('video-format').catchError((_) => ''),
         platform.getProperty('video-codec').catchError((_) => ''),
@@ -154,7 +185,7 @@ final class MediaKitPlaybackEngine implements PlaybackEngine {
       if (_disposed || _diagnosticsController.isClosed) return;
 
       int? cacheBytes;
-      final cacheStateRaw = results[10];
+      final cacheStateRaw = results[11];
       if (cacheStateRaw.isNotEmpty) {
         // demuxer-cache-state is JSON; extract total-bytes if available.
         try {
@@ -171,12 +202,13 @@ final class MediaKitPlaybackEngine implements PlaybackEngine {
           displayFps: double.tryParse(results[1]),
           frameDropCount: int.tryParse(results[2]),
           decoderFrameDropCount: int.tryParse(results[3]),
-          hwdecCurrent: results[4].isEmpty ? null : results[4],
-          videoFormat: results[5].isEmpty ? null : results[5],
-          videoCodec: results[6].isEmpty ? null : results[6],
-          videoWidth: int.tryParse(results[7]),
-          videoHeight: int.tryParse(results[8]),
-          demuxerCacheDuration: double.tryParse(results[9]),
+          videoOutput: results[4].isEmpty ? null : results[4],
+          hwdecCurrent: results[5].isEmpty ? null : results[5],
+          videoFormat: results[6].isEmpty ? null : results[6],
+          videoCodec: results[7].isEmpty ? null : results[7],
+          videoWidth: int.tryParse(results[8]),
+          videoHeight: int.tryParse(results[9]),
+          demuxerCacheDuration: double.tryParse(results[10]),
           demuxerCacheBytes: cacheBytes,
           lastSeekLatencyMs: _lastSeekLatencyMs,
         ),
@@ -1455,6 +1487,28 @@ final class MediaKitPlaybackEngine implements PlaybackEngine {
     return _forceSoftwareVideoOutput;
   }
 
+  String? _preferredVideoOutput() {
+    if (!Platform.isLinux) {
+      return null;
+    }
+    final candidate = _linuxVideoOutput.trim();
+    if (candidate.isEmpty) {
+      return null;
+    }
+    return candidate;
+  }
+
+  String? _preferredHardwareDecoder() {
+    if (!Platform.isLinux) {
+      return null;
+    }
+    final candidate = _linuxHwdec.trim();
+    if (candidate.isEmpty) {
+      return null;
+    }
+    return candidate;
+  }
+
   void _attachVideoControllerDebugStreams() {
     if (!kDebugMode) {
       return;
@@ -1521,7 +1575,7 @@ final class MediaKitPlaybackEngine implements PlaybackEngine {
   }
 
   void _attachNativeDebugStreams() {
-    if (!kDebugMode) {
+    if (!kDebugMode || !_verboseNativePlayerLogs) {
       return;
     }
 
@@ -1583,7 +1637,7 @@ final class MediaKitPlaybackEngine implements PlaybackEngine {
   }
 
   void _log(String message) {
-    if (!kDebugMode) {
+    if (!kDebugMode || !_playerVerboseLogs) {
       return;
     }
     final formatted =

@@ -1,10 +1,10 @@
 import 'dart:async';
 import 'dart:developer' as dev;
 import 'dart:io';
-import 'dart:ui';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -30,14 +30,21 @@ import '../../application/models/embedded_tracks.dart';
 import '../../application/models/player_diagnostics.dart';
 import '../../../anime_catalog/application/services/mal_metadata_bridge_service.dart';
 import '../../application/models/player_session_state.dart';
+import '../../application/services/player_performance_probe.dart';
 import '../../application/services/player_session_orchestrator.dart';
 import '../../application/use_cases/clear_playback_preference_use_case.dart';
 import '../../application/use_cases/save_playback_preference_use_case.dart';
 import '../../application/use_cases/save_progress_use_case.dart';
 import '../../infrastructure/media_kit_playback_engine.dart';
 import '../widgets/player_debug_overlay.dart';
+import '../../../watch_party/application/party_session_guard.dart';
 import '../../../watch_party/application/providers/party_providers.dart';
 import '../../../watch_party/presentation/widgets/party_player_overlay.dart';
+
+const bool _playerVerboseLogs = bool.fromEnvironment(
+  'PLAYER_VERBOSE_LOGS',
+  defaultValue: false,
+);
 
 class PlayerPage extends ConsumerStatefulWidget {
   const PlayerPage({
@@ -109,6 +116,8 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
   EmbeddedSubtitleTrack? _activeEmbeddedSubtitleTrack;
   ExternalSubtitleTrack? _activeExternalSubtitleTrack;
   late final String _instanceId = identityHashCode(this).toRadixString(16);
+  bool _partyPlayerReadySent = false;
+  bool _partyPauseHoldPending = false;
 
   // Debounces orientation restoration so that pushReplacement to a new
   // PlayerPage can cancel it in initState, preventing a portrait flash.
@@ -156,16 +165,75 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
     ]);
 
     // Wire party sync: listen for remote playback commands.
-    // Use addPostFrameCallback to ensure the provider is fully initialized.
+    // Use addPostFrameCallback to ensure the provider is fully initialized,
+    // but guard with mounted since the widget may be disposed before the frame.
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
       _wirePartySyncCallbacks();
+      _broadcastSourceSelectionIfHost();
     });
+  }
+
+  /// When a party is active and the local user is the host, announce the
+  /// source/server picked for this episode so members can try to
+  /// auto-resolve the same provider instead of going through their
+  /// server picker manually. Non-hosts and idle sessions are no-ops.
+  ///
+  /// If the host just advanced to a different episode of the same anime
+  /// (e.g. via the "next episode" or "previous episode" buttons, or an
+  /// auto-advance residual from the AniSkip ending segment), this also
+  /// emits a `change_episode` intent first so the Worker updates the room
+  /// state and members navigate to the new episode. Without this the
+  /// server still thinks the room is on the previous episode and members
+  /// would stay watching the wrong one.
+  void _broadcastSourceSelectionIfHost() {
+    final session = ref.read(partySessionProvider);
+    if (!session.isActive) return;
+    final notifier = ref.read(partySessionProvider.notifier);
+    if (!notifier.isLocalHost) return;
+    final epNumber = double.tryParse(widget.episodeNumber);
+    if (epNumber == null) return;
+
+    // Propagate the host-local episode advance to the Worker so members
+    // get the `episode_changed` broadcast and follow us. We only fire
+    // this when the anime matches the one the room is already pointing
+    // at; cross-anime changes go through `changeMedia` (initiated from
+    // the lobby), not from the player.
+    final room = session.room;
+    if (room != null &&
+        room.anilistId == widget.anilistId &&
+        (room.episodeNumber - epNumber).abs() >= 0.001) {
+      if (_playerVerboseLogs) {
+        dev.log(
+          'host episode advance roomEp=${room.episodeNumber} newEp=$epNumber '
+          'anilistId=${widget.anilistId}',
+          name: 'Party',
+        );
+      }
+      notifier.changeEpisode(epNumber);
+    }
+
+    if (_playerVerboseLogs) {
+      dev.log(
+        'broadcasting source_selected source=${widget.sourcePluginId} '
+        'server=${widget.serverName} resolver=${widget.resolved.resolverId} '
+        'ep=$epNumber',
+        name: 'Party',
+      );
+    }
+    notifier.broadcastSourceSelected(
+      sourcePluginId: widget.sourcePluginId,
+      serverName: widget.serverName,
+      resolverPluginId: widget.resolved.resolverId,
+      episodeNumber: epNumber,
+    );
   }
 
   @override
   void dispose() {
     _log('dispose');
     _periodicSaveTimer?.cancel();
+    _partyDriftTimer?.cancel();
     unawaited(_saveCurrentProgress());
     unawaited(_disposeRuntime());
     unawaited(_restoreWindowsFullscreenIfNeeded());
@@ -188,6 +256,7 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
     final orchestrator = PlayerSessionOrchestrator(playbackEngine: engine);
 
     _sessionSub = orchestrator.states.listen((next) {
+      PlayerPerformanceProbe.instance.recordSessionStateEvent();
       _log(
         'session status=${next.status} index=${next.currentCandidateIndex}/${next.totalCandidates} info=${next.infoMessage} error=${next.errorMessage}',
       );
@@ -212,7 +281,12 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
         return;
       }
       final now = DateTime.now();
-      if (now.difference(_lastPositionSetState).inMilliseconds >= 500) {
+      final shouldTriggerSetState =
+          now.difference(_lastPositionSetState).inMilliseconds >= 500;
+      PlayerPerformanceProbe.instance.recordPositionEvent(
+        triggeredSetState: shouldTriggerSetState,
+      );
+      if (shouldTriggerSetState) {
         _lastPositionSetState = now;
         setState(() => _currentPosition = pos);
       } else {
@@ -230,6 +304,7 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
       if (dur <= Duration.zero) {
         return;
       }
+      PlayerPerformanceProbe.instance.recordDurationEvent();
       _log('duration stream dur=$dur');
       if (!mounted) {
         _currentDuration = dur;
@@ -242,6 +317,7 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
 
     _playingSub = engine.playingStream.listen(_onPlayingChanged);
     _tracksSub = orchestrator.embeddedTracksStream.listen((tracks) {
+      PlayerPerformanceProbe.instance.recordTrackEvent();
       if (!mounted) {
         _embeddedTracks = tracks;
         return;
@@ -287,10 +363,27 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
   }
 
   void _onPlayingChanged(bool playing) {
+    PlayerPerformanceProbe.instance.recordPlayingEvent();
     _log('playing stream playing=$playing position=$_currentPosition');
 
+    final partySession = ref.read(partySessionProvider);
+    final partyNotifier = ref.read(partySessionProvider.notifier);
+    final shouldPauseForParty =
+        playing &&
+        partySession.isActive &&
+        _shouldHoldPartyPlayback(partySession);
+    if (shouldPauseForParty) {
+      _log(
+        'playing stream hold active -> enforce party pause '
+        'host=${partyNotifier.isLocalHost}',
+      );
+      unawaited(_enforcePartyPauseHold(force: true));
+    }
+
     // Feed party sync engine.
-    _updatePartyPlayback(isPlaying: playing);
+    if (!shouldPauseForParty || !partyNotifier.isLocalHost) {
+      _updatePartyPlayback(isPlaying: playing);
+    }
 
     if (!playing) {
       unawaited(_saveCurrentProgress());
@@ -313,78 +406,393 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
 
   // ── Watch party sync hooks ──
 
+  /// Threshold (ms) above which a position-stream jump is treated as a
+  /// user-driven seek and broadcasted to other members (v2).
+  static const int _partySeekDetectionMs = 2500;
+
+  /// Minimum gap between consecutive host-seek broadcasts. Caps the cost of
+  /// scrub-bar drags, which can emit dozens of detections per second.
+  /// 500 ms pairs well with the Worker's `playback_intent` bucket (6/10s).
+  static const Duration _partySeekThrottle = Duration(milliseconds: 500);
+
+  /// How often the drift detector evaluates member-side playback against
+  /// the projected host timeline. 30 s is long enough to keep DO request
+  /// volume negligible (≤4 per 8 h party) while catching any drift big
+  /// enough to matter (>2 s) well before a human notices it.
+  static const Duration _partyDriftInterval = Duration(seconds: 30);
+
+  /// Tolerance band for member drift. Below this the detector stays quiet;
+  /// at or above it fires a single `resync_request` to the Worker.
+  static const int _partyDriftToleranceMs = 2000;
+
+  /// Minimum gap between consecutive `resync_request` emissions so a
+  /// persistently-drifting device cannot hammer the DO.
+  static const Duration _partyDriftResyncCooldown = Duration(seconds: 20);
+
+  /// Last position seen by the host's seek detector (ms). `null` until the
+  /// first position update after the player is ready.
+  int? _lastHostPositionMs;
+
+  /// Monotonic time of the last seek broadcast (host side), used to throttle
+  /// scrub-bar drags into at most one intent per [_partySeekThrottle].
+  DateTime? _lastPartySeekSentAt;
+
+  /// Wall-clock reference captured from the most recent authoritative
+  /// `playback_state_changed` we applied. Used by [_checkPartyDrift] to
+  /// extrapolate where playback *should* be right now.
+  DateTime? _partyLastAppliedAt;
+  int? _partyLastAppliedPositionMs;
+  bool _partyLastAppliedIsPlaying = false;
+
+  /// Timer + cooldown for the member-side drift detector.
+  Timer? _partyDriftTimer;
+  DateTime? _lastResyncRequestAt;
+
   /// Wire the party sync engine to respond to remote playback commands.
+  ///
+  /// Supports both v1 (P2P via [PartySyncEngine]) and v2 (brokered realtime
+  /// via [PartySessionNotifier.onSyncState]). The v2 path was previously
+  /// unwired — playback events from the Worker reached the notifier but had
+  /// no handler to apply them to the local player.
   void _wirePartySyncCallbacks() {
     final session = ref.read(partySessionProvider);
     if (!session.isActive) return;
 
     final notifier = ref.read(partySessionProvider.notifier);
-
-    final syncEngine = notifier.syncEngine;
-    if (syncEngine == null) {
-      dev.log('_wirePartySyncCallbacks: syncEngine is null, skipping', name: 'Party');
-      return;
+    if (notifier.isLocalHost) {
+      notifier.onSyncState = null;
+      final syncEngine = notifier.syncEngine;
+      if (syncEngine != null) {
+        syncEngine.onSyncState = null;
+      }
     }
 
-    dev.log('_wirePartySyncCallbacks: wiring sync engine (host=${syncEngine.isHost})', name: 'Party');
-
-    syncEngine.onSyncState = (bool isPlaying, int positionMs) {
+    void applyRemote(bool isPlaying, int positionMs) {
       if (!mounted) return;
       final orchestrator = _orchestrator;
       if (orchestrator == null) return;
 
-      dev.log('remote sync: isPlaying=$isPlaying positionMs=$positionMs', name: 'Party');
+      if (_playerVerboseLogs) {
+        dev.log(
+          'remote sync: isPlaying=$isPlaying positionMs=$positionMs',
+          name: 'Party',
+        );
+      }
 
-      // Apply remote play/pause.
-      final localPlaying =
-          _state.status == PlayerSessionStatus.playing;
+      // Suppress local seek detection while we apply remote intent so we
+      // don't echo it back to the party.
+      _lastHostPositionMs = positionMs;
+
+      // Snapshot the authoritative state so the member-side drift detector
+      // can extrapolate "where should I be now?" between broadcasts.
+      _partyLastAppliedAt = DateTime.now();
+      _partyLastAppliedPositionMs = positionMs;
+      _partyLastAppliedIsPlaying = isPlaying;
+
+      final localPlaying = _state.status == PlayerSessionStatus.playing;
       if (isPlaying != localPlaying) {
-        dev.log('remote sync: toggling play/pause', name: 'Party');
+        if (_playerVerboseLogs) {
+          dev.log('remote sync: toggling play/pause', name: 'Party');
+        }
         orchestrator.togglePlayPause();
       }
 
-      // Apply remote seek if delta is significant.
       final localMs = _currentPosition.inMilliseconds;
       if ((positionMs - localMs).abs() > 1500) {
-        dev.log('remote sync: seeking from $localMs to $positionMs', name: 'Party');
+        if (_playerVerboseLogs) {
+          dev.log(
+            'remote sync: seeking from $localMs to $positionMs',
+            name: 'Party',
+          );
+        }
         orchestrator.seekTo(Duration(milliseconds: positionMs));
       }
-    };
+    }
+
+    // Member-side drift detector: arm the periodic check only when we are
+    // NOT the host. Hosts are authoritative; they never ask for resync.
+    if (!notifier.isLocalHost) {
+      _partyDriftTimer?.cancel();
+      _partyDriftTimer = Timer.periodic(
+        _partyDriftInterval,
+        (_) => _checkPartyDrift(),
+      );
+    }
+
+    // v1: legacy P2P sync engine.
+    final syncEngine = notifier.syncEngine;
+    if (syncEngine != null && !notifier.isLocalHost) {
+      if (_playerVerboseLogs) {
+        dev.log(
+          '_wirePartySyncCallbacks: wiring v1 sync engine (host=${syncEngine.isHost})',
+          name: 'Party',
+        );
+      }
+      syncEngine.onSyncState = applyRemote;
+    } else if (!notifier.isLocalHost) {
+      // v2: brokered realtime callback.
+      if (_playerVerboseLogs) {
+        dev.log(
+          '_wirePartySyncCallbacks: wiring v2 onSyncState (host=${notifier.isLocalHost})',
+          name: 'Party',
+        );
+      }
+      notifier.onSyncState = applyRemote;
+    }
 
     // Wire media change navigation: when the host switches anime/episode,
     // pop the player and navigate to the new anime's detail page.
-    notifier.onMediaChangeNavigation = (
-      int anilistId,
-      String animeTitle,
-      double episodeNumber,
-    ) {
+    //
+    // Skip the pop+push when the current player is already on the target
+    // (anilistId, episode). This is the normal case for the host who just
+    // pushReplacement'd into this new player page and then broadcast
+    // `change_episode`: the server-side echo of `episode_changed` would
+    // otherwise pop the host's own brand-new player. Members whose
+    // player is on a different (older) episode still navigate normally.
+    notifier.onMediaChangeNavigation =
+        (int anilistId, String animeTitle, double episodeNumber) {
+          if (!mounted) return;
+          final localEp = double.tryParse(widget.episodeNumber);
+          if (anilistId == widget.anilistId &&
+              localEp != null &&
+              (localEp - episodeNumber).abs() < 0.001) {
+            if (_playerVerboseLogs) {
+              dev.log(
+                'onMediaChangeNavigation: already on target '
+                'anilistId=$anilistId ep=$episodeNumber — skipping nav',
+                name: 'Party',
+              );
+            }
+            return;
+          }
+          final navigator = Navigator.of(context, rootNavigator: true);
+          navigator.popUntil((route) => route.isFirst);
+          navigator.push(
+            MaterialPageRoute<void>(
+              builder: (_) => AnimeDetailPage(anilistId: anilistId),
+            ),
+          );
+        };
+  }
+
+  bool _isCurrentPlayerBoundToPartyRoom(PartySessionState session) {
+    final room = session.room;
+    if (!session.isActive || room == null) {
+      return false;
+    }
+    final episodeNumber = int.tryParse(widget.episodeNumber)?.toDouble();
+    if (episodeNumber == null) {
+      return false;
+    }
+    if (room.anilistId != widget.anilistId) {
+      return false;
+    }
+    return (room.episodeNumber - episodeNumber).abs() < 0.001;
+  }
+
+  bool _shouldHoldPartyPlayback(PartySessionState session) {
+    final notifier = ref.read(partySessionProvider.notifier);
+    return shouldHoldPartyPlayback(
+      session: session,
+      isLocallyBoundToRoom: _isCurrentPlayerBoundToPartyRoom(session),
+      isLocalHost: notifier.isLocalHost,
+    );
+  }
+
+  Future<void> _enforcePartyPauseHold({bool force = false}) async {
+    final session = ref.read(partySessionProvider);
+    if (!_shouldHoldPartyPlayback(session)) {
+      return;
+    }
+    final isPlaying = _state.status == PlayerSessionStatus.playing;
+    if (!force && !isPlaying) {
+      return;
+    }
+    // Pause directly at the engine level. The orchestrator's emitted
+    // PlayerSessionStatus lags the engine's `playingStream` by one
+    // microtask (state hop through `_sessionSub` + `setState`), so a
+    // member whose engine just started auto-playing would otherwise
+    // miss the hold when `_onPlayingChanged(true)` fires here before
+    // `_state.status` transitions to `playing`. `engine.pause()` is
+    // idempotent, so calling it on an already-paused player is safe.
+    await _engine?.pause();
+  }
+
+  void _schedulePartyPauseHoldIfNeeded(PartySessionState session) {
+    if (!_shouldHoldPartyPlayback(session) ||
+        _state.status != PlayerSessionStatus.playing ||
+        _partyPauseHoldPending) {
+      return;
+    }
+    _partyPauseHoldPending = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _partyPauseHoldPending = false;
       if (!mounted) return;
-      // Pop back to detail (or root) and push the new anime detail.
-      Navigator.of(context).popUntil((route) => route.isFirst);
-      Navigator.of(context).push(
-        MaterialPageRoute<void>(
-          builder: (_) => AnimeDetailPage(anilistId: anilistId),
-        ),
+      unawaited(_enforcePartyPauseHold());
+    });
+  }
+
+  void _markPartyPlayerReadyIfNeeded() {
+    if (_partyPlayerReadySent) {
+      return;
+    }
+    final session = ref.read(partySessionProvider);
+    if (!_isCurrentPlayerBoundToPartyRoom(session)) {
+      return;
+    }
+    _partyPlayerReadySent = true;
+    ref.read(partySessionProvider.notifier).toggleReady(true);
+  }
+
+  Future<void> _togglePartyAwarePlayPause() async {
+    final session = ref.read(partySessionProvider);
+    if (_shouldHoldPartyPlayback(session)) {
+      final notifier = ref.read(partySessionProvider.notifier);
+      // Two distinct hold reasons deserve distinct user-facing messages:
+      // (a) everyone is waiting for all members to finish loading, or
+      // (b) only the host can control playback and they haven't resumed yet.
+      final waitingForReady = !partyHasAllMembersReady(session);
+      final message = waitingForReady
+          ? 'Waiting for everyone to load the episode.'
+          : notifier.isLocalHost
+          ? 'Waiting for everyone to load the episode.'
+          : 'Only the host can control playback.';
+      ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+        SnackBar(content: Text(message), duration: const Duration(seconds: 2)),
       );
-    };
+      await _enforcePartyPauseHold(force: true);
+      return;
+    }
+    await _orchestrator?.togglePlayPause();
   }
 
   /// Feed the party sync engine with local playback state changes.
+  ///
+  /// v1: keeps [PartySyncEngine]'s in-memory position current so its 2-second
+  /// broadcast carries the host's real progress.
+  ///
+  /// v2: emits `play`/`pause` with the current position on explicit state
+  /// changes, and uses [_detectHostSeek] on every position update to catch
+  /// scrubs that happen without a play/pause transition.
   void _updatePartyPlayback({bool? isPlaying, int? positionMs}) {
     final notifier = ref.read(partySessionProvider.notifier);
     final session = ref.read(partySessionProvider);
     if (!session.isActive) return;
+    if (!notifier.isLocalHost) return;
 
-    final playing = isPlaying ??
-        (_state.status == PlayerSessionStatus.playing);
+    final playing = isPlaying ?? (_state.status == PlayerSessionStatus.playing);
     final position = positionMs ?? _currentPosition.inMilliseconds;
     notifier.updatePlayback(isPlaying: playing, positionMs: position);
 
-    // On explicit play/pause, broadcast immediately.
     if (isPlaying != null) {
-      dev.log('syncNow: play/pause event isPlaying=$isPlaying', name: 'Party');
-      notifier.syncNow();
+      if (_playerVerboseLogs) {
+        dev.log(
+          'syncNow: play/pause event isPlaying=$playing positionMs=$position',
+          name: 'Party',
+        );
+      }
+      notifier.syncNow(isPlaying: playing, positionMs: position);
+      _lastHostPositionMs = position;
+      return;
     }
+
+    _detectHostSeek(position);
+  }
+
+  /// Detect scrubs on the host's position stream and broadcast them as a
+  /// `seek` intent so members realign. No-op for non-host users and during
+  /// the natural "position advances smoothly" case.
+  void _detectHostSeek(int positionMs) {
+    final notifier = ref.read(partySessionProvider.notifier);
+    if (!notifier.isLocalHost) return;
+
+    final last = _lastHostPositionMs;
+    if (last == null) {
+      _lastHostPositionMs = positionMs;
+      return;
+    }
+
+    final delta = positionMs - last;
+    // Normal playback advances the position by up to a few hundred ms per
+    // event; anything significantly bigger (forward or backward) is a seek.
+    if (delta.abs() >= _partySeekDetectionMs) {
+      final now = DateTime.now();
+      final lastSent = _lastPartySeekSentAt;
+      // Throttle scrub-bar drags: the position stream emits many
+      // above-threshold deltas in rapid succession while the user drags.
+      // Clamp to at most one seek intent per `_partySeekThrottle` and let
+      // the final settle-position arrive when the user releases the bar.
+      if (lastSent != null && now.difference(lastSent) < _partySeekThrottle) {
+        if (_playerVerboseLogs) {
+          dev.log(
+            'host seek throttled: $last -> $positionMs (delta=${delta}ms)',
+            name: 'Party',
+          );
+        }
+      } else {
+        if (_playerVerboseLogs) {
+          dev.log(
+            'host seek detected: $last -> $positionMs (delta=${delta}ms)',
+            name: 'Party',
+          );
+        }
+        notifier.seekTo(positionMs);
+        _lastPartySeekSentAt = now;
+      }
+    }
+    _lastHostPositionMs = positionMs;
+  }
+
+  /// Member-side drift detection. Compares the player's current position
+  /// against the position extrapolated from the last authoritative
+  /// `playback_state_changed` snapshot. When the gap exceeds the tolerance
+  /// band, sends one `resync_request` — the Worker re-broadcasts the current
+  /// playback, which feeds through [applyRemote] to realign us.
+  ///
+  /// This replaces the server-side periodic resync alarm (removed for cost):
+  /// resync work is now paid only when drift actually happens, not every
+  /// 10 s unconditionally.
+  void _checkPartyDrift() {
+    if (!mounted) return;
+
+    final session = ref.read(partySessionProvider);
+    if (!session.isActive) return;
+
+    final notifier = ref.read(partySessionProvider.notifier);
+    if (notifier.isLocalHost) return;
+
+    // Only evaluate while the host-authoritative timeline is supposed to be
+    // advancing. Paused timelines cannot drift.
+    if (!_partyLastAppliedIsPlaying) return;
+
+    final lastAt = _partyLastAppliedAt;
+    final lastPos = _partyLastAppliedPositionMs;
+    if (lastAt == null || lastPos == null) return;
+
+    final elapsedMs = DateTime.now().difference(lastAt).inMilliseconds;
+    final expectedMs = lastPos + elapsedMs;
+    final actualMs = _currentPosition.inMilliseconds;
+    final diff = (expectedMs - actualMs).abs();
+
+    if (diff < _partyDriftToleranceMs) return;
+
+    // Cooldown guard: one pending request at a time. Prevents a chronically
+    // slow device from issuing 2 resyncs per minute forever.
+    final now = DateTime.now();
+    final lastReq = _lastResyncRequestAt;
+    if (lastReq != null &&
+        now.difference(lastReq) < _partyDriftResyncCooldown) {
+      return;
+    }
+
+    if (_playerVerboseLogs) {
+      dev.log(
+        'member drift: expected=${expectedMs}ms actual=${actualMs}ms diff=${diff}ms → resync_request',
+        name: 'Party',
+      );
+    }
+    _lastResyncRequestAt = now;
+    notifier.requestResync();
   }
 
   void _onNaturalCompletion() {
@@ -487,6 +895,8 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
       onFailure: (error) =>
           setState(() => _startError = mapErrorMessage(context, error)),
       onSuccess: (_) {
+        _markPartyPlayerReadyIfNeeded();
+        unawaited(_enforcePartyPauseHold(force: true));
         unawaited(_persistSuccessfulSelection());
       },
     );
@@ -505,6 +915,8 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
       onFailure: (error) =>
           setState(() => _startError = mapErrorMessage(context, error)),
       onSuccess: (_) {
+        _markPartyPlayerReadyIfNeeded();
+        unawaited(_enforcePartyPauseHold(force: true));
         unawaited(_persistSuccessfulSelection());
       },
     );
@@ -525,6 +937,13 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
   }
 
   Future<Duration?> _loadResumePosition() async {
+    final partySession = ref.read(partySessionProvider);
+    if (partySession.isActive) {
+      if (_isCurrentPlayerBoundToPartyRoom(partySession)) {
+        return Duration(milliseconds: partySession.playback.basePositionMs);
+      }
+      return null;
+    }
     final store = ref.read(animeProgressStoreProvider);
     final result = await store.getProgress(
       widget.anilistId,
@@ -969,6 +1388,7 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
 
   @override
   Widget build(BuildContext context) {
+    PlayerPerformanceProbe.instance.recordBuild();
     final engine = _engine;
     if (_startError != null) {
       return _wrapWithExitGuard(
@@ -1007,6 +1427,48 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
     final subtitleConfig = ref.watch(
       subtitleSettingsProvider.select((s) => s.value),
     );
+    final localPartyUserId = ref
+        .read(partySessionProvider.notifier)
+        .localUserId;
+    final partyMemberLocked = ref.watch(
+      partySessionProvider.select((session) {
+        final room = session.room;
+        final isLocalHost =
+            localPartyUserId != null &&
+            room != null &&
+            room.hostId == localPartyUserId;
+        return session.isActive && !isLocalHost;
+      }),
+    );
+    final partyHostWaitingForReady = ref.watch(
+      partySessionProvider.select((session) {
+        final room = session.room;
+        final isLocalHost =
+            localPartyUserId != null &&
+            room != null &&
+            room.hostId == localPartyUserId;
+        if (!session.isActive || !isLocalHost) return false;
+        // Call the pure guard directly: `_shouldHoldPartyPlayback` reads
+        // `ref` internally, which is forbidden inside a `.select` selector.
+        return shouldHoldPartyPlayback(
+          session: session,
+          isLocallyBoundToRoom: _isCurrentPlayerBoundToPartyRoom(session),
+          isLocalHost: isLocalHost,
+        );
+      }),
+    );
+
+    // ── Watch-party member lockout (Sync Prop-1) ──────────────────────────
+    // When a user is in a party but NOT the host, the timeline is owned
+    // by the host. Local play/pause/seek actions would only cause
+    // silent desync (the Worker rejects them and re-broadcasts the
+    // authoritative state seconds later). Null out the callbacks so the
+    // existing widgets render the controls as disabled / non-interactive
+    // without any visual restructuring. Keep non-timeline actions
+    // (audio, subtitles, quality, back) alive — those are local.
+    if (partyHostWaitingForReady) {
+      _schedulePartyPauseHoldIfNeeded(ref.read(partySessionProvider));
+    }
 
     return _wrapWithExitGuard(
       Scaffold(
@@ -1017,127 +1479,156 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
             StateTransitionSwitcher(
               stateKey: _state.status.name,
               child: _ImmersivePlayerView(
-            engine: engine,
-            isLoading: isLoading,
-            isPlaying: _state.status == PlayerSessionStatus.playing,
-            isError: _state.status == PlayerSessionStatus.error,
-            animeTitle: widget.animeTitle,
-            episodeNumber: widget.episodeNumber,
-            currentPosition: _effectiveSliderPosition,
-            totalDuration: _currentDuration,
-            sliderValue: _sliderValueMs,
-            sliderMax: _sliderMaxMs,
-            hasMultipleAudio: _embeddedTracks.hasMultipleAudio,
-            hasSubtitles:
-                _embeddedTracks.hasSubtitles ||
-                widget.resolved.externalSubtitles.isNotEmpty,
-            onTogglePlayPause: () => _orchestrator?.togglePlayPause(),
-            onSeekChanged: _currentDuration > Duration.zero
-                ? (value) {
-                    setState(() {
-                      _isScrubbing = true;
-                      _scrubPositionMs = value;
-                    });
-                  }
-                : null,
-            onSeekEnd: _currentDuration > Duration.zero
-                ? (value) {
-                    final target = Duration(milliseconds: value.round());
-                    setState(() {
-                      _currentPosition = target;
-                      _isScrubbing = false;
-                      _scrubPositionMs = null;
-                    });
-                    unawaited(_seekTo(target));
-                  }
-                : null,
-            onSeekStart: () {
-              setState(() => _isScrubbing = true);
-            },
-            onBack: () => _handleExit(context),
-            onRetry: _retryPlayback,
-            onOpenEpisodes: _hasNextEpisode
-                ? () => unawaited(_openEpisodeSelectorFromPlayer())
-                : null,
-            onPreviousEpisode: (int.tryParse(widget.episodeNumber) ?? 0) > 1
-                ? () => unawaited(_openPreviousEpisode())
-                : null,
-            onQuality: () => unawaited(_showQualityPicker(context)),
-            onAudio: _embeddedTracks.hasMultipleAudio
-                ? () => unawaited(_showAudioTrackPicker(context))
-                : null,
-            onSubtitle:
-                _embeddedTracks.hasSubtitles ||
-                    widget.resolved.externalSubtitles.isNotEmpty
-                ? () => unawaited(_showSubtitleTrackPicker(context))
-                : null,
-            onSkipBackward: () {
-              final target = _currentPosition - const Duration(seconds: 10);
-              unawaited(
-                _seekTo(target < Duration.zero ? Duration.zero : target),
-              );
-            },
-            onSkipForward: () {
-              final maxPos = _currentDuration - const Duration(seconds: 1);
-              final target = _currentPosition + const Duration(seconds: 10);
-              unawaited(
-                _seekTo(
-                  target > maxPos && maxPos > Duration.zero ? maxPos : target,
-                ),
-              );
-            },
-            onSeekByDelta: (target) => unawaited(_seekTo(target)),
-            activeSkipLabel: _autoSkipEnabled ? null : _activeAniSkipLabel,
-            onSkipSegment: () => unawaited(_skipActiveSegment()),
-            autoSkipEnabled: _autoSkipEnabled,
-            showFallbackSkip:
-                _aniSkipSegments.isEmpty ||
-                !_aniSkipSegments.any(
-                  (s) => s.kind == AniSkipSegmentKind.opening,
-                ),
-            onFallbackSkip: () {
-              final fallback = _currentPosition + const Duration(seconds: 90);
-              final maxPos = _currentDuration > const Duration(seconds: 1)
-                  ? _currentDuration - const Duration(seconds: 1)
-                  : _currentDuration;
-              final target = fallback > maxPos ? maxPos : fallback;
-              unawaited(_seekTo(target));
-            },
-            onAutoSkipToggled: () {
-              setState(() => _autoSkipEnabled = !_autoSkipEnabled);
-            },
-            isWindowsFullscreen: _isWindowsFullscreen,
-            onToggleWindowsFullscreen: () =>
-                unawaited(_toggleWindowsFullscreen()),
-            errorMessage: _state.status == PlayerSessionStatus.error
-                ? context.l10n.playerAllCandidatesFailed
-                : null,
-            formatDuration: _formatDuration,
-            subtitleViewConfiguration: subtitleConfig?.toViewConfiguration(),
-            episodeTitle: widget.episodeTitle,
-            onVolumeChanged: (vol) {
-              _engine?.player.setVolume(vol * 100);
-              try {
-                VolumeController.instance.setVolume(vol.clamp(0.0, 1.0));
-              } catch (_) {}
-              // Activate smart audio boost (dynamic normalization) when
-              // volume exceeds 100 % so the boost raises dialogue clarity
-              // instead of hard-clipping all frequencies.
-              _engine?.setSmartAudioBoost(enabled: vol > 1.0);
-            },
-            onBrightnessChanged: (brightness) {
-              try {
-                unawaited(
-                  ScreenBrightness()
-                      .setApplicationScreenBrightness(brightness),
-                );
-              } catch (_) {}
-            },
-            onSpeedChanged: (speed) => _engine?.player.setRate(speed),
-            diagnosticsStream: engine?.diagnosticsStream,
-            seekLatencyMs: _orchestrator?.lastSeekLatencyMs,
-          ),
-        ),
+                engine: engine,
+                isLoading: isLoading,
+                isPlaying: _state.status == PlayerSessionStatus.playing,
+                isError: _state.status == PlayerSessionStatus.error,
+                animeTitle: widget.animeTitle,
+                episodeNumber: widget.episodeNumber,
+                currentPosition: _effectiveSliderPosition,
+                totalDuration: _currentDuration,
+                sliderValue: _sliderValueMs,
+                sliderMax: _sliderMaxMs,
+                hasMultipleAudio: _embeddedTracks.hasMultipleAudio,
+                hasSubtitles:
+                    _embeddedTracks.hasSubtitles ||
+                    widget.resolved.externalSubtitles.isNotEmpty,
+                onTogglePlayPause: partyMemberLocked || partyHostWaitingForReady
+                    ? null
+                    : () => unawaited(_togglePartyAwarePlayPause()),
+                onSeekChanged:
+                    !partyMemberLocked && _currentDuration > Duration.zero
+                    ? (value) {
+                        setState(() {
+                          _isScrubbing = true;
+                          _scrubPositionMs = value;
+                        });
+                      }
+                    : null,
+                onSeekEnd:
+                    !partyMemberLocked && _currentDuration > Duration.zero
+                    ? (value) {
+                        final target = Duration(milliseconds: value.round());
+                        setState(() {
+                          _currentPosition = target;
+                          _isScrubbing = false;
+                          _scrubPositionMs = null;
+                        });
+                        unawaited(_seekTo(target));
+                      }
+                    : null,
+                onSeekStart: partyMemberLocked
+                    ? null
+                    : () {
+                        setState(() => _isScrubbing = true);
+                      },
+                onBack: () => _handleExit(context),
+                onRetry: _retryPlayback,
+                onOpenEpisodes: !partyMemberLocked && _hasNextEpisode
+                    ? () => unawaited(_openEpisodeSelectorFromPlayer())
+                    : null,
+                onPreviousEpisode:
+                    !partyMemberLocked &&
+                        (int.tryParse(widget.episodeNumber) ?? 0) > 1
+                    ? () => unawaited(_openPreviousEpisode())
+                    : null,
+                onQuality: () => unawaited(_showQualityPicker(context)),
+                onAudio: _embeddedTracks.hasMultipleAudio
+                    ? () => unawaited(_showAudioTrackPicker(context))
+                    : null,
+                onSubtitle:
+                    _embeddedTracks.hasSubtitles ||
+                        widget.resolved.externalSubtitles.isNotEmpty
+                    ? () => unawaited(_showSubtitleTrackPicker(context))
+                    : null,
+                onSkipBackward: partyMemberLocked
+                    ? null
+                    : () {
+                        final target =
+                            _currentPosition - const Duration(seconds: 10);
+                        unawaited(
+                          _seekTo(
+                            target < Duration.zero ? Duration.zero : target,
+                          ),
+                        );
+                      },
+                onSkipForward: partyMemberLocked
+                    ? null
+                    : () {
+                        final maxPos =
+                            _currentDuration - const Duration(seconds: 1);
+                        final target =
+                            _currentPosition + const Duration(seconds: 10);
+                        unawaited(
+                          _seekTo(
+                            target > maxPos && maxPos > Duration.zero
+                                ? maxPos
+                                : target,
+                          ),
+                        );
+                      },
+                onSeekByDelta: partyMemberLocked
+                    ? null
+                    : (target) => unawaited(_seekTo(target)),
+                activeSkipLabel: _autoSkipEnabled ? null : _activeAniSkipLabel,
+                onSkipSegment: partyMemberLocked
+                    ? null
+                    : () => unawaited(_skipActiveSegment()),
+                autoSkipEnabled: _autoSkipEnabled,
+                showFallbackSkip:
+                    _aniSkipSegments.isEmpty ||
+                    !_aniSkipSegments.any(
+                      (s) => s.kind == AniSkipSegmentKind.opening,
+                    ),
+                onFallbackSkip: partyMemberLocked
+                    ? null
+                    : () {
+                        final fallback =
+                            _currentPosition + const Duration(seconds: 90);
+                        final maxPos =
+                            _currentDuration > const Duration(seconds: 1)
+                            ? _currentDuration - const Duration(seconds: 1)
+                            : _currentDuration;
+                        final target = fallback > maxPos ? maxPos : fallback;
+                        unawaited(_seekTo(target));
+                      },
+                onAutoSkipToggled: () {
+                  setState(() => _autoSkipEnabled = !_autoSkipEnabled);
+                },
+                isWindowsFullscreen: _isWindowsFullscreen,
+                onToggleWindowsFullscreen: () =>
+                    unawaited(_toggleWindowsFullscreen()),
+                errorMessage: _state.status == PlayerSessionStatus.error
+                    ? context.l10n.playerAllCandidatesFailed
+                    : null,
+                formatDuration: _formatDuration,
+                subtitleViewConfiguration: subtitleConfig
+                    ?.toViewConfiguration(),
+                episodeTitle: widget.episodeTitle,
+                onVolumeChanged: (vol) {
+                  _engine?.player.setVolume(vol * 100);
+                  try {
+                    VolumeController.instance.setVolume(vol.clamp(0.0, 1.0));
+                  } catch (_) {}
+                  // Activate smart audio boost (dynamic normalization) when
+                  // volume exceeds 100 % so the boost raises dialogue clarity
+                  // instead of hard-clipping all frequencies.
+                  _engine?.setSmartAudioBoost(enabled: vol > 1.0);
+                },
+                onBrightnessChanged: (brightness) {
+                  try {
+                    unawaited(
+                      ScreenBrightness().setApplicationScreenBrightness(
+                        brightness,
+                      ),
+                    );
+                  } catch (_) {}
+                },
+                onSpeedChanged: (speed) => _engine?.player.setRate(speed),
+                diagnosticsStream: engine?.diagnosticsStream,
+                seekLatencyMs: _orchestrator?.lastSeekLatencyMs,
+              ),
+            ),
             // Watch party overlay — only visible when a party session is active.
             const PartyPlayerOverlay(),
           ],
@@ -1635,7 +2126,7 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
   }
 
   void _log(String message) {
-    if (!kDebugMode) {
+    if (!kDebugMode || !_playerVerboseLogs) {
       return;
     }
     debugPrint(
@@ -1740,7 +2231,7 @@ class _ImmersivePlayerView extends StatefulWidget {
 }
 
 class _ImmersivePlayerViewState extends State<_ImmersivePlayerView>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
   bool _controlsVisible = true;
   Timer? _hideTimer;
   bool _seekIndicatorVisible = false;
@@ -1761,6 +2252,14 @@ class _ImmersivePlayerViewState extends State<_ImmersivePlayerView>
   Timer? _skipButtonHideTimer;
   late final AnimationController _skipProgressController;
   String? _lastSkipLabel;
+
+  // Continuous vsync pump: forces Flutter to schedule a frame every vsync
+  // while the video is playing. On Linux the media_kit Video widget renders
+  // through a Flutter Texture; the compositor only resamples that texture
+  // when Flutter produces a frame. Without this ticker, Flutter enters idle
+  // between sparse setStates (position ~2 Hz) and the video appears to stutter
+  // at that same rate even though mpv decodes 24 fps cleanly.
+  late final Ticker _vsyncPump;
 
   // Double-tap seek state
   Timer? _doubleTapTimer;
@@ -1803,6 +2302,13 @@ class _ImmersivePlayerViewState extends State<_ImmersivePlayerView>
       duration: const Duration(seconds: 5),
       value: 1.0,
     );
+    // Empty-callback ticker: its only job is to keep Flutter scheduling
+    // frames every vsync so the media_kit texture gets composited at the
+    // display refresh rate, not at the setState rate.
+    _vsyncPump = createTicker((_) {});
+    if (widget.isPlaying) {
+      _vsyncPump.start();
+    }
     unawaited(_initBrightness());
     unawaited(_initVolume());
     _startClockTicker();
@@ -1821,6 +2327,14 @@ class _ImmersivePlayerViewState extends State<_ImmersivePlayerView>
   @override
   void didUpdateWidget(covariant _ImmersivePlayerView oldWidget) {
     super.didUpdateWidget(oldWidget);
+    // Start/stop the vsync pump to match playback state. Pausing stops
+    // scheduling work so the app doesn't burn CPU/GPU when the user isn't
+    // actively watching.
+    if (widget.isPlaying && !_vsyncPump.isActive) {
+      _vsyncPump.start();
+    } else if (!widget.isPlaying && _vsyncPump.isActive) {
+      _vsyncPump.stop();
+    }
     // Track skip label changes for auto-hide behavior.
     if (widget.activeSkipLabel != null &&
         widget.activeSkipLabel != _lastSkipLabel) {
@@ -1875,13 +2389,15 @@ class _ImmersivePlayerViewState extends State<_ImmersivePlayerView>
     _skipButtonHideTimer?.cancel();
     _clockTimer?.cancel();
     _skipProgressController.dispose();
+    _vsyncPump.dispose();
     _doubleTapTimer?.cancel();
     _rapidSeekTimer?.cancel();
     if (_initialBrightness != null) {
       try {
         unawaited(
-          ScreenBrightness()
-              .setApplicationScreenBrightness(_initialBrightness!),
+          ScreenBrightness().setApplicationScreenBrightness(
+            _initialBrightness!,
+          ),
         );
       } catch (_) {}
     }
@@ -2354,17 +2870,19 @@ class _ImmersivePlayerViewState extends State<_ImmersivePlayerView>
             children: <Widget>[
               // Video layer
               if (widget.engine != null)
-                IgnorePointer(
-                  // media_kit can render through a native surface on some platforms.
-                  // Keep pointer handling in the Flutter overlay so playback controls
-                  // remain tappable/clickable for every stream type.
-                  child: Video(
-                    controller: widget.engine!.videoController,
-                    controls: NoVideoControls,
-                    fit: BoxFit.contain,
-                    subtitleViewConfiguration:
-                        widget.subtitleViewConfiguration ??
-                        const SubtitleViewConfiguration(),
+                RepaintBoundary(
+                  child: IgnorePointer(
+                    // media_kit can render through a native surface on some platforms.
+                    // Keep pointer handling in the Flutter overlay so playback controls
+                    // remain tappable/clickable for every stream type.
+                    child: Video(
+                      controller: widget.engine!.videoController,
+                      controls: NoVideoControls,
+                      fit: BoxFit.contain,
+                      subtitleViewConfiguration:
+                          widget.subtitleViewConfiguration ??
+                          const SubtitleViewConfiguration(),
+                    ),
                   ),
                 )
               else
@@ -2452,52 +2970,43 @@ class _ImmersivePlayerViewState extends State<_ImmersivePlayerView>
                   ),
                 ),
 
-              // 2× Speed badge
+              // 2× Speed badge (plain tint — no BackdropFilter: blur via
+              // saveLayer collapses compositor FPS on Linux).
               if (_speedMultiplier > 1.0)
                 Align(
                   alignment: Alignment.topCenter,
                   child: SafeArea(
                     child: Padding(
                       padding: const EdgeInsets.only(top: 56),
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(
-                          KumoriyaRadius.full,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 6,
                         ),
-                        child: BackdropFilter(
-                          filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 16,
-                              vertical: 6,
-                            ),
-                            decoration: BoxDecoration(
-                              color: const Color(0x731E1629),
-                              borderRadius: BorderRadius.circular(
-                                KumoriyaRadius.full,
-                              ),
-                              border: Border.all(
-                                color: Colors.white.withValues(alpha: 0.10),
-                              ),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: <Widget>[
-                                Icon(
-                                  Icons.fast_forward_rounded,
-                                  color: KumoriyaColors.textPrimary,
-                                  size: 16,
-                                ),
-                                const SizedBox(width: 4),
-                                Text(
-                                  '${_speedMultiplier.toStringAsFixed(0)}×',
-                                  style: Theme.of(context).textTheme.labelLarge!
-                                      .copyWith(
-                                        color: KumoriyaColors.textPrimary,
-                                      ),
-                                ),
-                              ],
-                            ),
+                        decoration: BoxDecoration(
+                          color: const Color(0xCC1E1629),
+                          borderRadius: BorderRadius.circular(
+                            KumoriyaRadius.full,
                           ),
+                          border: Border.all(
+                            color: Colors.white.withValues(alpha: 0.10),
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: <Widget>[
+                            Icon(
+                              Icons.fast_forward_rounded,
+                              color: KumoriyaColors.textPrimary,
+                              size: 16,
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              '${_speedMultiplier.toStringAsFixed(0)}×',
+                              style: Theme.of(context).textTheme.labelLarge!
+                                  .copyWith(color: KumoriyaColors.textPrimary),
+                            ),
+                          ],
                         ),
                       ),
                     ),
@@ -2788,21 +3297,21 @@ class _ImmersivePlayerViewState extends State<_ImmersivePlayerView>
                               if (widget.onOpenEpisodes != null)
                                 IconButton(
                                   onPressed: widget.onOpenEpisodes,
-                                icon: Icon(
-                                  KumoriyaIcons.playerNextEpisode,
-                                  color: KumoriyaColors.textPrimary,
-                                  size: 28,
-                                  shadows: const <Shadow>[
-                                    Shadow(
-                                      color: Colors.black54,
-                                      blurRadius: 6,
-                                    ),
-                                  ],
+                                  icon: Icon(
+                                    KumoriyaIcons.playerNextEpisode,
+                                    color: KumoriyaColors.textPrimary,
+                                    size: 28,
+                                    shadows: const <Shadow>[
+                                      Shadow(
+                                        color: Colors.black54,
+                                        blurRadius: 6,
+                                      ),
+                                    ],
+                                  ),
+                                  iconSize: 28,
+                                  padding: const EdgeInsets.all(10),
+                                  tooltip: context.l10n.playerNextEpisode,
                                 ),
-                                iconSize: 28,
-                                padding: const EdgeInsets.all(10),
-                                tooltip: context.l10n.playerNextEpisode,
-                              ),
                               const SizedBox(width: KumoriyaSpacing.md),
                               // Fullscreen / Orientation lock
                               if (Platform.isWindows)
@@ -2909,44 +3418,34 @@ class _ImmersivePlayerViewState extends State<_ImmersivePlayerView>
                                   ),
                                 ),
                                 const SizedBox(width: KumoriyaSpacing.xxxl),
-                                // Frosted glass play/pause
-                                ClipOval(
-                                  child: BackdropFilter(
-                                    filter: ImageFilter.blur(
-                                      sigmaX: 12,
-                                      sigmaY: 12,
-                                    ),
-                                    child: Material(
-                                      color: Colors.transparent,
-                                      shape: const CircleBorder(),
-                                      child: InkWell(
-                                        customBorder: const CircleBorder(),
-                                        onTap: widget.onTogglePlayPause,
-                                        splashColor: KumoriyaColors.primaryLight
-                                            .withValues(alpha: 0.20),
-                                        child: Container(
-                                          width: 80,
-                                          height: 80,
-                                          decoration: BoxDecoration(
-                                            shape: BoxShape.circle,
-                                            color: const Color(
-                                              0x731E1629,
-                                            ), // surface @ 45%
-                                            border: Border.all(
-                                              color: Colors.white.withValues(
-                                                alpha: 0.10,
-                                              ),
-                                            ),
+                                // Play/pause (plain tint — no BackdropFilter).
+                                Material(
+                                  color: Colors.transparent,
+                                  shape: const CircleBorder(),
+                                  child: InkWell(
+                                    customBorder: const CircleBorder(),
+                                    onTap: widget.onTogglePlayPause,
+                                    splashColor: KumoriyaColors.primaryLight
+                                        .withValues(alpha: 0.20),
+                                    child: Container(
+                                      width: 80,
+                                      height: 80,
+                                      decoration: BoxDecoration(
+                                        shape: BoxShape.circle,
+                                        color: const Color(0xCC1E1629),
+                                        border: Border.all(
+                                          color: Colors.white.withValues(
+                                            alpha: 0.10,
                                           ),
-                                          child: Center(
-                                            child: Icon(
-                                              widget.isPlaying
-                                                  ? KumoriyaIcons.playerPause
-                                                  : KumoriyaIcons.playerPlay,
-                                              color: KumoriyaColors.textPrimary,
-                                              size: 48,
-                                            ),
-                                          ),
+                                        ),
+                                      ),
+                                      child: Center(
+                                        child: Icon(
+                                          widget.isPlaying
+                                              ? KumoriyaIcons.playerPause
+                                              : KumoriyaIcons.playerPlay,
+                                          color: KumoriyaColors.textPrimary,
+                                          size: 48,
                                         ),
                                       ),
                                     ),
@@ -3209,94 +3708,87 @@ class _ImmersivePlayerViewState extends State<_ImmersivePlayerView>
                           child: AnimatedOpacity(
                             opacity: _skipButtonVisible ? 1.0 : 0.0,
                             duration: const Duration(milliseconds: 200),
-                            child: ClipRRect(
+                            child: Material(
+                              color: Colors.transparent,
                               borderRadius: BorderRadius.circular(
                                 KumoriyaRadius.full,
                               ),
-                              child: BackdropFilter(
-                                filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
-                                child: Material(
-                                  color: Colors.transparent,
-                                  child: InkWell(
-                                    onTap: widget.onSkipSegment,
+                              child: InkWell(
+                                onTap: widget.onSkipSegment,
+                                borderRadius: BorderRadius.circular(
+                                  KumoriyaRadius.full,
+                                ),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 20,
+                                    vertical: 12,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xD91E1629),
                                     borderRadius: BorderRadius.circular(
                                       KumoriyaRadius.full,
                                     ),
-                                    child: Container(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 20,
-                                        vertical: 12,
-                                      ),
-                                      decoration: BoxDecoration(
-                                        color: const Color(0xB31E1629),
-                                        borderRadius: BorderRadius.circular(
-                                          KumoriyaRadius.full,
-                                        ),
-                                        border: Border.all(
-                                          color: Colors.white.withValues(
-                                            alpha: 0.10,
-                                          ),
-                                        ),
-                                      ),
-                                      child: Row(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: <Widget>[
-                                          SizedBox(
-                                            width: 20,
-                                            height: 20,
-                                            child: Stack(
-                                              alignment: Alignment.center,
-                                              children: <Widget>[
-                                                SizedBox(
-                                                  width: 20,
-                                                  height: 20,
-                                                  child: AnimatedBuilder(
-                                                    animation:
-                                                        _skipProgressController,
-                                                    builder: (_, _) =>
-                                                        CircularProgressIndicator(
-                                                          value:
-                                                              _skipProgressController
-                                                                  .value,
-                                                          strokeWidth: 2,
-                                                          color: KumoriyaColors
-                                                              .textPrimary
-                                                              .withValues(
-                                                                alpha: 0.7,
-                                                              ),
-                                                          backgroundColor:
-                                                              KumoriyaColors
-                                                                  .textPrimary
-                                                                  .withValues(
-                                                                    alpha: 0.15,
-                                                                  ),
-                                                        ),
-                                                  ),
-                                                ),
-                                                const Icon(
-                                                  Icons.skip_next_rounded,
-                                                  color: KumoriyaColors
-                                                      .textPrimary,
-                                                  size: 14,
-                                                ),
-                                              ],
-                                            ),
-                                          ),
-                                          const SizedBox(width: 8),
-                                          Text(
-                                            widget.activeSkipLabel!,
-                                            style: Theme.of(context)
-                                                .textTheme
-                                                .labelLarge!
-                                                .copyWith(
-                                                  color: KumoriyaColors
-                                                      .textPrimary,
-                                                  fontWeight: FontWeight.w700,
-                                                ),
-                                          ),
-                                        ],
+                                    border: Border.all(
+                                      color: Colors.white.withValues(
+                                        alpha: 0.10,
                                       ),
                                     ),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: <Widget>[
+                                      SizedBox(
+                                        width: 20,
+                                        height: 20,
+                                        child: Stack(
+                                          alignment: Alignment.center,
+                                          children: <Widget>[
+                                            SizedBox(
+                                              width: 20,
+                                              height: 20,
+                                              child: AnimatedBuilder(
+                                                animation:
+                                                    _skipProgressController,
+                                                builder: (_, _) =>
+                                                    CircularProgressIndicator(
+                                                      value:
+                                                          _skipProgressController
+                                                              .value,
+                                                      strokeWidth: 2,
+                                                      color: KumoriyaColors
+                                                          .textPrimary
+                                                          .withValues(
+                                                            alpha: 0.7,
+                                                          ),
+                                                      backgroundColor:
+                                                          KumoriyaColors
+                                                              .textPrimary
+                                                              .withValues(
+                                                                alpha: 0.15,
+                                                              ),
+                                                    ),
+                                              ),
+                                            ),
+                                            const Icon(
+                                              Icons.skip_next_rounded,
+                                              color: KumoriyaColors.textPrimary,
+                                              size: 14,
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Text(
+                                        widget.activeSkipLabel!,
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .labelLarge!
+                                            .copyWith(
+                                              color: KumoriyaColors.textPrimary,
+                                              fontWeight: FontWeight.w700,
+                                            ),
+                                      ),
+                                    ],
                                   ),
                                 ),
                               ),

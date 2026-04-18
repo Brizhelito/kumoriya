@@ -87,12 +87,22 @@ static void my_application_activate(GApplication* application) {
 }
 
 // Implements GApplication::local_command_line.
+//
+// Scans argv for URI-looking entries (e.g. `kumoriya://party/join?code=XXXX`
+// delivered by xdg-open via the desktop file's `Exec=... %u`). When any are
+// found, they are dispatched through `g_application_open` so the GApplication
+// "open" signal fires and `app_links`'s Linux plugin can forward them to
+// Dart. Otherwise we fall back to the standard activation path that keeps
+// non-URI args available as Dart entrypoint arguments.
 static gboolean my_application_local_command_line(GApplication* application,
                                                   gchar*** arguments,
                                                   int* exit_status) {
   MyApplication* self = MY_APPLICATION(application);
+  gchar** argv = *arguments;
+  int argc = argv ? g_strv_length(argv) : 0;
+
   // Strip out the first argument as it is the binary name.
-  self->dart_entrypoint_arguments = g_strdupv(*arguments + 1);
+  self->dart_entrypoint_arguments = g_strdupv(argv + 1);
 
   g_autoptr(GError) error = nullptr;
   if (!g_application_register(application, nullptr, &error)) {
@@ -101,9 +111,25 @@ static gboolean my_application_local_command_line(GApplication* application,
     return TRUE;
   }
 
-  g_application_activate(application);
-  *exit_status = 0;
+  // Collect anything that parses as a URI with a scheme. `g_uri_parse_scheme`
+  // returns NULL for plain paths, so this safely ignores normal CLI flags.
+  GPtrArray* files = g_ptr_array_new_with_free_func(g_object_unref);
+  for (int i = 1; i < argc; i++) {
+    const gchar* arg = argv[i];
+    if (arg == nullptr || *arg == '\0') continue;
+    g_autofree gchar* scheme = g_uri_parse_scheme(arg);
+    if (scheme == nullptr) continue;
+    g_ptr_array_add(files, g_file_new_for_uri(arg));
+  }
 
+  if (files->len > 0) {
+    g_application_open(application, (GFile**)files->pdata, files->len, "");
+  } else {
+    g_application_activate(application);
+  }
+  g_ptr_array_free(files, TRUE);
+
+  *exit_status = 0;
   return FALSE;
 }
 

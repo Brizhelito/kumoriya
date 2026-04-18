@@ -11,6 +11,11 @@ import '../models/player_session_state.dart';
 import 'playback_engine.dart';
 import 'stream_selection_policy.dart';
 
+const bool _playerVerboseLogs = bool.fromEnvironment(
+  'PLAYER_VERBOSE_LOGS',
+  defaultValue: false,
+);
+
 /// Represents an active seek operation with a sticky target that survives
 /// candidate fallbacks, recovery attempts, and engine reopens.
 class _SeekSession {
@@ -2900,7 +2905,7 @@ final class PlayerSessionOrchestrator {
   }
 
   void _log(String message) {
-    if (!kDebugMode) {
+    if (!kDebugMode || !_playerVerboseLogs) {
       return;
     }
     final formatted =
