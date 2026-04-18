@@ -99,21 +99,10 @@ Future<void> _appMain() async {
     db = results.$1;
     fcmService = results.$5;
 
-    // When FCM is up, the airing-episode pushes come from the API's
-    // FCM worker. Cancel the legacy Workmanager poller to avoid
-    // double-notifications. The worker file itself is removed in
-    // Slice 6 once FCM is proven stable on device.
-    if (fcmService != null) {
-      unawaited(
-        Workmanager().cancelByUniqueName(kCheckNewEpisodesTask).catchError((
-          Object err,
-        ) {
-          if (kDebugMode) {
-            debugPrint('[Startup] cancel legacy worker failed: $err');
-          }
-        }),
-      );
-    }
+    // FCM handles user-facing push notifications; the Workmanager
+    // poller stays alive to drive auto-download of new episodes. Its
+    // cadence was reduced to 4h in Slice 6 so the total scraping
+    // traffic per device is low.
   } else {
     db = await openAppDatabase();
     fcmService = null;
@@ -227,10 +216,15 @@ Future<void> _initNotifications() async {
 Future<void> _initWorkmanager() async {
   await Workmanager().initialize(checkNewEpisodesCallbackDispatcher);
 
+  // Cadence reduced from 1h → 4h in Slice 6: user-facing notifications
+  // now come from FCM, so the worker only drives auto-download of new
+  // episodes. Source sites typically take 30min–24h after airing to
+  // publish the episode, so a 4h window is the right trade-off between
+  // freshness and scraping budget.
   await Workmanager().registerPeriodicTask(
     kCheckNewEpisodesTask,
     kCheckNewEpisodesTask,
-    frequency: const Duration(hours: 1),
+    frequency: const Duration(hours: 4),
     constraints: Constraints(networkType: NetworkType.connected),
     existingWorkPolicy: ExistingPeriodicWorkPolicy.update,
   );

@@ -2,6 +2,20 @@
 
 All notable changes to Kumoriya will be documented in this file.
 
+## [Unreleased]
+
+### Added
+- **Server-side AniList home cache (Go backend)** — trending, seasonal discovery, and airing calendar are now served from `api.kumoriya.online/v1/anilist/home/*` with in-memory SWR caching, prewarm scheduler, and conservative TTLs (trending 10m, season 30m, calendar 5m). Clients hit the backend first and transparently fall back to direct AniList on any backend failure. Reduces AniList rate-limit pressure across the fleet.
+- **Firebase Cloud Messaging push notifications for airing episodes** — `media_{anilistId}` topic subscriptions mirror the `notify_new_episodes` library toggle; topics are reconciled after login (post-migration) and on every app boot with an active session. Server-side `AiringWorker` polls the cached airing calendar, dedupes via Upstash Redis `SETNX`, and fans out via Firebase topics.
+- **Backend-first AniList metadata gateway decorator** — `BackendFirstAnilistMetadataGateway` intercepts `fetchHomeCatalog` and `fetchSeasonDiscovery`; feature-flag `KUMORIYA_GO_ANILIST_HOME` (default on) allows rollback without redeploy.
+
+### Changed
+- **Legacy new-episodes background worker reduced to auto-download only** — local-notification path removed (redundant with FCM push). Worker cadence dropped from 1h to 4h to reduce scraping traffic. Only anime with `auto_download_new_episodes=true` produce network activity.
+- **FCM notification channel aligned** between Go server (`AiringWorker`) and Android client: both use `kumoriya_new_episodes`.
+
+### Removed
+- Debug-only "Test notificacion" button in Settings (targeted the removed local-notification path).
+
 ## [v0.1.4] - 2026-04-02
 
 ### Added

@@ -21,7 +21,6 @@ import '../../../auth/presentation/pages/profile_page.dart';
 import '../../../downloads/presentation/download_providers.dart';
 import '../../../downloads/application/auto_delete_watched_service.dart';
 import '../../../player/application/models/subtitle_settings.dart';
-import '../../../../workers/check_new_episodes_worker.dart';
 import 'resolver_playground_page.dart';
 
 class SettingsPage extends ConsumerStatefulWidget {
@@ -40,7 +39,6 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
   PermissionStatus? _notificationStatus;
   bool _loadingNotificationStatus = true;
   bool _requestingNotifications = false;
-  bool _runningDebugNotificationProbe = false;
   bool _runningDebugUpdateProbe = false;
   bool _runningForcedDebugUpdateProbe = false;
   bool _clearingPlaybackPreferences = false;
@@ -106,42 +104,6 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
     }
 
     await _refreshNotificationStatus();
-  }
-
-  Future<void> _runDebugNotificationProbe() async {
-    if (_runningDebugNotificationProbe || !Platform.isAndroid) {
-      return;
-    }
-
-    setState(() => _runningDebugNotificationProbe = true);
-    try {
-      await scheduleDebugBackgroundNotificationProbe();
-      if (!mounted) {
-        return;
-      }
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Prueba de notificacion en background programada (aprox. 5s).',
-          ),
-        ),
-      );
-    } catch (_) {
-      if (!mounted) {
-        return;
-      }
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'No se pudo programar la prueba del worker en background.',
-          ),
-        ),
-      );
-    } finally {
-      if (mounted) {
-        setState(() => _runningDebugNotificationProbe = false);
-      }
-    }
   }
 
   Future<void> _runDebugUpdateProbe() async {
@@ -469,22 +431,6 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                                 context.l10n.settingsOpenSystemSettings,
                               ),
                             ),
-                            if (kDebugMode && Platform.isAndroid)
-                              FilledButton.tonalIcon(
-                                onPressed: _runningDebugNotificationProbe
-                                    ? null
-                                    : _runDebugNotificationProbe,
-                                icon: _runningDebugNotificationProbe
-                                    ? const SizedBox(
-                                        width: 18,
-                                        height: 18,
-                                        child: CircularProgressIndicator(
-                                          strokeWidth: 2,
-                                        ),
-                                      )
-                                    : const Icon(KumoriyaIcons.bugReport),
-                                label: const Text('Test notificacion (debug)'),
-                              ),
                             if (kDebugMode &&
                                 (Platform.isAndroid || Platform.isWindows))
                               FilledButton.tonalIcon(

@@ -83,7 +83,7 @@ func (s *FCMSender) SendToTopic(ctx context.Context, topic string, m TopicMessag
 		Android: &messaging.AndroidConfig{
 			Priority: "high",
 			Notification: &messaging.AndroidNotification{
-				ChannelID: "airing_episodes",
+				ChannelID: "kumoriya_new_episodes",
 			},
 		},
 	})

@@ -4,7 +4,6 @@ import 'dart:io';
 
 import 'package:cronet_http/cronet_http.dart';
 import 'package:flutter/widgets.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:http/http.dart' as http;
 import 'package:kumoriya_anilist/kumoriya_anilist.dart';
 import 'package:kumoriya_core/kumoriya_core.dart';
@@ -32,16 +31,31 @@ import '../features/downloads/application/download_manager_service.dart';
 import '../features/downloads/application/enqueue_download_use_case.dart';
 import '../app/runtime_config.dart';
 
-/// Workmanager task name for periodic new-episode checks.
+/// Workmanager task name for the periodic auto-download-of-new-episodes
+/// worker.
+///
+/// **Scope (post-FCM migration, Slice 6):**
+///
+/// User-facing episode notifications now come from the Kumoriya Go
+/// backend via Firebase Cloud Messaging (see `AiringWorker` +
+/// `FcmSender`), so this worker no longer shows local notifications.
+///
+/// What it still does: for each anime with
+/// `auto_download_new_episodes=true`, detect newly-aired episodes by
+/// comparing `nextAiringEpisode.episode - 1` to `lastNotifiedEpisode`,
+/// warm up source-availability cache, and enqueue downloads via
+/// [AutoDownloadNewEpisodesService].
+///
+/// It runs on a **4-hour cadence** (down from 1h) because the source
+/// sites typically upload episodes 30 min – 24 h after the AniList
+/// airing timestamp; a tighter cadence wastes scraping budget and
+/// hits rate limits. FCM push gives the user near-instant
+/// notification; auto-download tolerates the 0–4 h latency.
+///
+/// Only anime that have `auto_download_new_episodes=true` are fetched
+/// from AniList and scraped from sources, so idle users produce zero
+/// traffic to third-party sites.
 const kCheckNewEpisodesTask = 'kumoriya.check_new_episodes';
-const kCheckNewEpisodesDebugProbeTask =
-    'kumoriya.check_new_episodes.debug_probe';
-
-/// Notification channel configuration.
-const _channelId = 'kumoriya_new_episodes';
-const _channelName = 'New Episodes';
-const _channelDescription =
-    'Notifies when a subscribed anime has a new episode';
 
 const _batchAiringStatusQuery = r'''
 query BatchAiringStatus($ids: [Int]) {
@@ -68,19 +82,14 @@ query BatchAiringStatus($ids: [Int]) {
 @pragma('vm:entry-point')
 void checkNewEpisodesCallbackDispatcher() {
   Workmanager().executeTask((task, inputData) async {
-    if (task != kCheckNewEpisodesTask &&
-        task != kCheckNewEpisodesDebugProbeTask) {
+    if (task != kCheckNewEpisodesTask) {
       return true;
     }
 
     WidgetsFlutterBinding.ensureInitialized();
 
     try {
-      if (task == kCheckNewEpisodesDebugProbeTask) {
-        await _runDebugProbe();
-      } else {
-        await _runCheckNewEpisodes();
-      }
+      await _runCheckNewEpisodes();
     } catch (e, st) {
       developer.log(
         'CheckNewEpisodesWorker unhandled error: $e',
@@ -94,15 +103,6 @@ void checkNewEpisodesCallbackDispatcher() {
   });
 }
 
-Future<void> scheduleDebugBackgroundNotificationProbe() async {
-  await Workmanager().registerOneOffTask(
-    kCheckNewEpisodesDebugProbeTask,
-    kCheckNewEpisodesDebugProbeTask,
-    initialDelay: const Duration(seconds: 5),
-    existingWorkPolicy: ExistingWorkPolicy.replace,
-  );
-}
-
 // ---------------------------------------------------------------------------
 // Core worker logic
 // ---------------------------------------------------------------------------
@@ -110,6 +110,19 @@ Future<void> scheduleDebugBackgroundNotificationProbe() async {
 Future<void> _runCheckNewEpisodes() async {
   final db = await openAppDatabase();
   final store = DriftLibraryStore(db);
+
+  // Only series the user asked to auto-download. Everything else
+  // produces zero network traffic — including zero AniList calls
+  // and zero source-site scraping.
+  final autoDownloadResult = await store.getAutoDownloadAnimeIds();
+  final autoDownloadIds = autoDownloadResult.fold<Set<int>>(
+    onSuccess: (ids) => ids,
+    onFailure: (_) => const <int>{},
+  );
+  if (autoDownloadIds.isEmpty) {
+    await db.close();
+    return;
+  }
 
   final trackedResult = await store.getTrackedAnimeWithLastEpisode();
   if (trackedResult is! Success) {
@@ -120,31 +133,22 @@ Future<void> _runCheckNewEpisodes() async {
     await db.close();
     return;
   }
-
   final tracked = (trackedResult as Success<Map<int, int?>, dynamic>).value;
-  final subscribedIds = await store.getSubscribedAnimeIds().then(
-    (result) =>
-        result.fold(onSuccess: (value) => value, onFailure: (_) => <int>{}),
-  );
 
-  if (tracked.isEmpty) {
+  // Intersect: only anime that are both tracked and auto-download enabled.
+  final ids = tracked.keys.where(autoDownloadIds.contains).toList();
+  if (ids.isEmpty) {
     await db.close();
     return;
   }
 
-  final ids = tracked.keys.toList();
   final airingData = await _fetchAiringStatus(ids);
-
   if (airingData == null) {
     await db.close();
     return;
   }
 
-  final notifications = FlutterLocalNotificationsPlugin();
-  await _initNotifications(notifications);
   final warmupIds = <int>{};
-  final pendingNotifications = <({int anilistId, String title, int episode})>[];
-  final locale = Platform.localeName;
 
   final sourcePlugins = buildDefaultSourcePlugins();
   http.Client? resolverClient;
@@ -276,22 +280,15 @@ Future<void> _runCheckNewEpisodes() async {
     final lastNotified = tracked[anilistId];
 
     if (lastNotified == null) {
+      // First run for this series: mark current episode as baseline
+      // so we never retro-download past episodes.
       warmupIds.add(anilistId);
-      // First run: initialize silently — don't notify past episodes.
       await store.updateLastNotifiedEpisode(anilistId, latestAired);
       continue;
     }
 
-    // Notify for any newly discovered aired episode. nextAiringEpisode points
-    // to the future episode, so gating by its timestamp suppresses valid
-    // notifications for the latest already-aired episode.
     if (latestAired > lastNotified) {
       warmupIds.add(anilistId);
-      pendingNotifications.add((
-        anilistId: anilistId,
-        title: title,
-        episode: latestAired,
-      ));
       autoDownloadEntries.add((
         anilistId: anilistId,
         title: title,
@@ -319,32 +316,14 @@ Future<void> _runCheckNewEpisodes() async {
         name: 'CheckNewEpisodesWorker',
       );
     }
-  }
-
-  for (final notification in pendingNotifications) {
-    if (!subscribedIds.contains(notification.anilistId)) {
-      await store.updateLastNotifiedEpisode(
-        notification.anilistId,
-        notification.episode,
-      );
-      continue;
+    // Mark as processed regardless of enqueue outcome: if the source
+    // isn't available yet, the next 4-hour pass will retry naturally
+    // only if latestAired advances further; otherwise we skip so we
+    // don't hammer the source. `updateLastNotifiedEpisode` is updated
+    // only on successful enqueue to allow retries on source lag.
+    if (report.enqueuedEpisodes > 0) {
+      await store.updateLastNotifiedEpisode(ad.anilistId, ad.to);
     }
-    await _sendNotification(
-      notifications,
-      id: notification.anilistId,
-      animeTitle: notification.title,
-      episodeNumber: notification.episode,
-      locale: locale,
-    );
-    await store.updateLastNotifiedEpisode(
-      notification.anilistId,
-      notification.episode,
-    );
-
-    developer.log(
-      'Notified episode ${notification.episode} for "${notification.title}" (id=${notification.anilistId})',
-      name: 'CheckNewEpisodesWorker',
-    );
   }
 
   downloadManager.dispose();
@@ -424,92 +403,4 @@ Future<Map<int, Map<String, dynamic>>?> _fetchAiringStatus(
     );
     return null;
   }
-}
-
-// ---------------------------------------------------------------------------
-// Notification helpers
-// ---------------------------------------------------------------------------
-
-Future<void> _initNotifications(FlutterLocalNotificationsPlugin plugin) async {
-  const android = AndroidInitializationSettings('@mipmap/ic_launcher');
-  await plugin.initialize(
-    settings: const InitializationSettings(android: android),
-  );
-
-  final androidPlugin = plugin
-      .resolvePlatformSpecificImplementation<
-        AndroidFlutterLocalNotificationsPlugin
-      >();
-  await androidPlugin?.createNotificationChannel(
-    const AndroidNotificationChannel(
-      _channelId,
-      _channelName,
-      description: _channelDescription,
-      importance: Importance.defaultImportance,
-    ),
-  );
-}
-
-Future<void> _runDebugProbe() async {
-  final notifications = FlutterLocalNotificationsPlugin();
-  await _initNotifications(notifications);
-  await _sendNotification(
-    notifications,
-    id: DateTime.now().millisecondsSinceEpoch ~/ 1000,
-    animeTitle: 'Kumoriya Debug',
-    episodeNumber: 0,
-    bodyOverride:
-        'Background worker activo: la notificacion de prueba se envio correctamente.',
-  );
-}
-
-Future<void> _sendNotification(
-  FlutterLocalNotificationsPlugin plugin, {
-  required int id,
-  required String animeTitle,
-  required int episodeNumber,
-  String? episodeTitle,
-  String? bodyOverride,
-  String? locale,
-}) async {
-  final body =
-      bodyOverride ??
-      _formatNotificationBody(
-        episodeNumber: episodeNumber,
-        episodeTitle: episodeTitle,
-        locale: locale,
-      );
-
-  const androidDetails = AndroidNotificationDetails(
-    _channelId,
-    _channelName,
-    channelDescription: _channelDescription,
-    importance: Importance.defaultImportance,
-    priority: Priority.defaultPriority,
-    icon: '@mipmap/ic_launcher',
-  );
-
-  await plugin.show(
-    id: id,
-    title: animeTitle,
-    body: body,
-    notificationDetails: const NotificationDetails(android: androidDetails),
-  );
-}
-
-String _formatNotificationBody({
-  required int episodeNumber,
-  String? episodeTitle,
-  String? locale,
-}) {
-  final isSpanish = locale?.startsWith('es') ?? false;
-
-  if (episodeTitle != null && episodeTitle.isNotEmpty) {
-    return isSpanish
-        ? 'Episodio $episodeNumber - $episodeTitle ya esta disponible'
-        : 'Episode $episodeNumber - $episodeTitle is now available';
-  }
-  return isSpanish
-      ? 'Episodio $episodeNumber ya esta disponible'
-      : 'Episode $episodeNumber is now available';
 }
