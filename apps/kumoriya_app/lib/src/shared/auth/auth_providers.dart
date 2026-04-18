@@ -99,8 +99,15 @@ class AuthStateNotifier extends AsyncNotifier<AuthState> {
   /// for already-authenticated sessions so topics survive app data
   /// wipes, Firebase token rotations, or reinstalls on the same device.
   /// Best-effort; failures are swallowed.
+  ///
+  /// Deferred to a microtask so this runs AFTER [build] has returned and
+  /// Riverpod has fully propagated the AsyncNotifier's future resolution
+  /// to every listener. Reading providers synchronously from within
+  /// [build] would trigger `libraryStoreProvider` initialization in the
+  /// same frame the AsyncNotifier is settling, which can interleave with
+  /// listener notification and surface unrelated defunct-element races.
   void _scheduleTopicSync() {
-    unawaited(() async {
+    Future.microtask(() async {
       try {
         final topicSync = FcmTopicSyncService(
           libraryStore: ref.read(libraryStoreProvider),
@@ -110,7 +117,7 @@ class AuthStateNotifier extends AsyncNotifier<AuthState> {
       } catch (_) {
         // Next boot or login will retry.
       }
-    }());
+    });
   }
 
   Future<void> onOAuthCallback(Uri callbackUri) async {

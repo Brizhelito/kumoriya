@@ -11,11 +11,37 @@ import '../../../../shared/widgets/state_views.dart';
 import '../providers/anime_catalog_providers.dart';
 import 'anime_detail_page.dart';
 
-class CalendarPage extends ConsumerWidget {
+class CalendarPage extends ConsumerStatefulWidget {
   const CalendarPage({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<CalendarPage> createState() => _CalendarPageState();
+}
+
+class _CalendarPageState extends ConsumerState<CalendarPage> {
+  @override
+  void initState() {
+    super.initState();
+    // Prefetch prev + next month in the background so swiping left/right
+    // through the month navigator is instant. The currently-focused month
+    // is already driven by [calendarFocusedMonthSlotsProvider] in build().
+    //
+    // Deferred to a post-frame callback so Riverpod has finished wiring
+    // this widget's subscriptions before we trigger additional providers.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final focus = ref.read(calendarFocusMonthProvider);
+      final prev = DateTime(focus.year, focus.month - 1);
+      final next = DateTime(focus.year, focus.month + 1);
+      // Fire-and-forget: the FutureProviders keep themselves alive for
+      // 10 min, which is longer than a typical calendar browsing session.
+      ref.read(calendarMonthSlotsProvider(prev).future).ignore();
+      ref.read(calendarMonthSlotsProvider(next).future).ignore();
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final slotsAsync = ref.watch(calendarFocusedMonthSlotsProvider);
     // Fast-path: reuse the home-page week data (already cached) so today's
     // schedule is visible immediately while the full month loads.
