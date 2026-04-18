@@ -25,9 +25,15 @@ __pycache__/
 # Environment / secrets
 .env
 .env.*
+*.env
 secrets/
 *.secret
 auth.json
+
+# Firebase / Google service account credentials (never commit)
+google-services*.json
+*firebase-adminsdk*.json
+*firebase-service-account*.json
 
 # Codex local state (do not commit user-local secrets)
 .codex/auth.json
