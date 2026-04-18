@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
@@ -17,6 +19,8 @@ import 'src/features/downloads/application/auto_delete_watched_service.dart';
 import 'src/features/downloads/application/download_foreground_service.dart';
 import 'src/features/downloads/presentation/download_providers.dart';
 import 'src/features/watch_party/infrastructure/party_debug_logger.dart';
+import 'src/shared/notifications/fcm_providers.dart';
+import 'src/shared/notifications/fcm_service.dart';
 import 'src/shared/storage_providers.dart';
 import 'src/workers/check_new_episodes_worker.dart';
 
@@ -79,17 +83,24 @@ Future<void> _appMain() async {
   MediaKit.ensureInitialized();
 
   // Open DB and platform-specific init in parallel — both are independent.
+  // Firebase must initialise BEFORE we register the background FCM handler;
+  // kept sequential (fast: single native call reading google-services.json).
   late final AppDatabase db;
+  late final FcmService? fcmService;
   if (Platform.isAndroid) {
+    await _initFirebase();
     final results = await (
       openAppDatabase(),
       _initNotifications(),
       _initWorkmanager(),
       DownloadForegroundService.initialize(),
+      _initFcm(),
     ).wait;
     db = results.$1;
+    fcmService = results.$5;
   } else {
     db = await openAppDatabase();
+    fcmService = null;
   }
 
   if (kDebugMode) {
@@ -97,7 +108,10 @@ Future<void> _appMain() async {
   }
 
   final container = ProviderContainer(
-    overrides: [appDatabaseProvider.overrideWithValue(db)],
+    overrides: [
+      appDatabaseProvider.overrideWithValue(db),
+      if (fcmService != null) fcmServiceProvider.overrideWithValue(fcmService),
+    ],
   );
 
   // Restore pending downloads after the first frame to avoid blocking paint.
@@ -133,6 +147,42 @@ Future<void> _appMain() async {
 
   if (kDebugMode) {
     debugPrint('[Startup] runApp in ${startupWatch.elapsedMilliseconds}ms');
+  }
+}
+
+/// Boots Firebase on Android before any Firebase API is used. On Android
+/// `Firebase.initializeApp()` with no options picks up the configuration
+/// from `android/app/google-services.json` via the google-services
+/// Gradle plugin — no generated `firebase_options.dart` is required.
+///
+/// Registers the background FCM handler while the main isolate is still
+/// active; this is safe even though the actual handler runs on a
+/// separate isolate when a push is delivered with the app backgrounded.
+Future<void> _initFirebase() async {
+  try {
+    await Firebase.initializeApp();
+    FirebaseMessaging.onBackgroundMessage(kumoriyaFcmBackgroundHandler);
+  } catch (err, st) {
+    // Never block app boot on a Firebase failure. The app continues to
+    // work without notifications; Sentry captures the failure for
+    // diagnosis.
+    debugPrint('[Startup] Firebase init failed: $err');
+    unawaited(Sentry.captureException(err, stackTrace: st));
+  }
+}
+
+/// Boots the domain-level FCM wrapper. Must run after `_initFirebase`.
+/// Returns `null` if initialisation fails so downstream code can treat
+/// notifications as an optional capability instead of a hard dependency.
+Future<FcmService?> _initFcm() async {
+  try {
+    final service = FcmService();
+    await service.initialize();
+    return service;
+  } catch (err, st) {
+    debugPrint('[Startup] FCM init failed: $err');
+    unawaited(Sentry.captureException(err, stackTrace: st));
+    return null;
   }
 }
 
