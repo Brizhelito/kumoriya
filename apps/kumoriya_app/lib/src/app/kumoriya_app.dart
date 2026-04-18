@@ -23,6 +23,7 @@ import '../features/auth/presentation/pages/login_page.dart';
 import '../features/downloads/application/download_directory_service.dart';
 import '../features/downloads/presentation/download_providers.dart';
 import '../features/downloads/presentation/widgets/download_path_dialog.dart';
+import '../features/player/presentation/pages/player_performance_benchmark_page.dart';
 import '../shared/auth/auth_providers.dart';
 import '../shared/auth/deep_link_handler.dart';
 import '../shared/navigation/app_navigation_shell.dart';
@@ -69,7 +70,9 @@ class _KumoriyaAppState extends State<KumoriyaApp> {
       theme: KumoriyaTheme.dark,
       darkTheme: KumoriyaTheme.dark,
       themeMode: ThemeMode.dark,
-      home: const _FirstLaunchGate(),
+      home: kPlayerPerfBenchmarkMode
+          ? const PlayerPerformanceBenchmarkPage()
+          : const _FirstLaunchGate(),
     );
   }
 }
@@ -156,9 +159,9 @@ class _FirstLaunchGateState extends ConsumerState<_FirstLaunchGate> {
     if (await flagFile.exists()) return;
     if (!mounted) return;
 
-    await Navigator.of(context).push<void>(
-      MaterialPageRoute<void>(builder: (_) => const LoginPage()),
-    );
+    await Navigator.of(
+      context,
+    ).push<void>(MaterialPageRoute<void>(builder: (_) => const LoginPage()));
 
     // Mark shown after the user returns (either logged in or pressed skip).
     await flagFile.parent.create(recursive: true);

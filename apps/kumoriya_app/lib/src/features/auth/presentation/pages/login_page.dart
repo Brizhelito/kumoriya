@@ -19,6 +19,20 @@ class _LoginPageState extends ConsumerState<LoginPage> {
   bool _loading = false;
   String? _error;
 
+  void _cancelLogin() {
+    // Resets the local waiting state so the user is not trapped when the
+    // browser is closed without completing OAuth, the deep-link never fires,
+    // or the provider page silently fails. We intentionally do not try to
+    // cancel the already-issued /auth/oauth/begin HTTP request: it has
+    // already completed by the time we reach the waiting state (we are only
+    // waiting for the deep-link callback from the external browser).
+    if (!mounted) return;
+    setState(() {
+      _loading = false;
+      _error = null;
+    });
+  }
+
   Future<void> _loginWith(OAuthProvider provider) async {
     setState(() {
       _loading = true;
@@ -140,16 +154,35 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                     : () => _loginWith(OAuthProvider.google),
               ),
               const SizedBox(height: 24),
-              if (_loading)
+              if (_loading) ...[
                 const Padding(
-                  padding: EdgeInsets.only(bottom: 16),
+                  padding: EdgeInsets.only(bottom: 12),
                   child: CircularProgressIndicator(
                     color: KumoriyaColors.primary,
                     strokeWidth: 2,
                   ),
                 ),
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 4),
+                  child: Text(
+                    'Waiting for browser to return…',
+                    style: TextStyle(
+                      color: KumoriyaColors.textMuted,
+                      fontSize: 13,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+                TextButton(
+                  onPressed: _cancelLogin,
+                  child: const Text(
+                    'Cancel login',
+                    style: TextStyle(color: KumoriyaColors.statusDanger),
+                  ),
+                ),
+              ],
               TextButton(
-                onPressed: _loading ? null : () => Navigator.of(context).pop(),
+                onPressed: () => Navigator.of(context).pop(),
                 child: Text(
                   'Skip for now',
                   style: TextStyle(color: KumoriyaColors.textMuted),

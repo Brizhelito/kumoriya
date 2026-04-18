@@ -100,6 +100,24 @@ class _OAuthCallbackPageState extends ConsumerState<OAuthCallbackPage> {
                 'This may take a few seconds',
                 style: TextStyle(color: KumoriyaColors.textMuted),
               ),
+              const SizedBox(height: 24),
+              // Escape hatch: if the server hangs or the network is slow we
+              // let the user back out to the login page. The in-flight
+              // `completeOAuthLogin` request is not aborted (the auth
+              // notifier keeps running in the background); if it eventually
+              // succeeds the app will reflect the authenticated state on the
+              // next build. The user is not trapped in a loading screen.
+              TextButton(
+                onPressed: () {
+                  if (Navigator.of(context).canPop()) {
+                    Navigator.of(context).pop();
+                  }
+                },
+                child: const Text(
+                  'Cancel',
+                  style: TextStyle(color: KumoriyaColors.statusDanger),
+                ),
+              ),
             ],
           ],
         ),

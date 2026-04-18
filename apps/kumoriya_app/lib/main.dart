@@ -16,6 +16,7 @@ import 'src/config/app_config.dart';
 import 'src/features/downloads/application/auto_delete_watched_service.dart';
 import 'src/features/downloads/application/download_foreground_service.dart';
 import 'src/features/downloads/presentation/download_providers.dart';
+import 'src/features/watch_party/infrastructure/party_debug_logger.dart';
 import 'src/shared/storage_providers.dart';
 import 'src/workers/check_new_episodes_worker.dart';
 
@@ -117,6 +118,9 @@ Future<void> _appMain() async {
 
   // Purge stale cache entries (fire-and-forget, non-blocking).
   unawaited(_purgeExpiredCaches(container));
+
+  // Initialize party debug logger (non-blocking).
+  unawaited(PartyDebugLogger.initialize());
 
   runApp(
     SentryWidget(

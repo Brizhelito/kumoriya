@@ -32,13 +32,19 @@ String _formatRelativeTime(DateTime dt, String locale) {
     return isEs ? 'Hace un momento' : 'Just now';
   } else if (diff.inMinutes < 60) {
     final m = diff.inMinutes;
-    return isEs ? 'Hace $m ${m == 1 ? 'minuto' : 'minutos'}' : '$m ${m == 1 ? 'minute' : 'minutes'} ago';
+    return isEs
+        ? 'Hace $m ${m == 1 ? 'minuto' : 'minutos'}'
+        : '$m ${m == 1 ? 'minute' : 'minutes'} ago';
   } else if (diff.inHours < 24) {
     final h = diff.inHours;
-    return isEs ? 'Hace $h ${h == 1 ? 'hora' : 'horas'}' : '$h ${h == 1 ? 'hour' : 'hours'} ago';
+    return isEs
+        ? 'Hace $h ${h == 1 ? 'hora' : 'horas'}'
+        : '$h ${h == 1 ? 'hour' : 'hours'} ago';
   } else if (diff.inDays < 7) {
     final d = diff.inDays;
-    return isEs ? 'Hace $d ${d == 1 ? 'día' : 'días'}' : '$d ${d == 1 ? 'day' : 'days'} ago';
+    return isEs
+        ? 'Hace $d ${d == 1 ? 'día' : 'días'}'
+        : '$d ${d == 1 ? 'day' : 'days'} ago';
   } else {
     return DateFormat.yMMMd(locale).format(dt.toLocal());
   }
@@ -240,7 +246,6 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
           const SizedBox(height: 24),
 
           // TODO(passkey): unhide once the passkey login flow is complete.
-
           const SizedBox(height: 24),
 
           // Sync status
