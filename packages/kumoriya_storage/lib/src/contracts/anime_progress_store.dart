@@ -116,4 +116,9 @@ abstract interface class AnimeProgressStore {
   Future<Result<void, KumoriyaError>> clearPlaybackPreference(int anilistId);
 
   Future<Result<void, KumoriyaError>> clearAllPlaybackPreferences();
+
+  /// Wipes every stored `EpisodeProgress` row. Meant to be invoked when
+  /// the user signs out so another account cannot inherit the previous
+  /// user's per-episode watch state.
+  Future<Result<void, KumoriyaError>> clearAllProgress();
 }

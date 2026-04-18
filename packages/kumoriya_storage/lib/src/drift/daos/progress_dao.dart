@@ -40,4 +40,8 @@ class ProgressDao extends DatabaseAccessor<AppDatabase>
           ..orderBy([(t) => OrderingTerm.asc(t.episodeNumber)]))
         .get();
   }
+
+  Future<int> clearAll() {
+    return delete(episodeProgressTable).go();
+  }
 }

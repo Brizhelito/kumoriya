@@ -21,15 +21,15 @@ final class DriftSyncQueueStore implements SyncQueueStore {
           'INSERT INTO sync_queue ('
           'entity_type, entity_key, payload, created_at, status, retry_count, last_error'
           ') VALUES (?, ?, ?, ?, ?, ?, NULLIF(?, ?))',
-          <Variable<Object>>[
-            Variable.withString(_entityTypeToDb(entry.entityType)),
-            Variable.withString(entry.entityKey),
-            Variable.withString(entry.payload),
-            Variable.withInt(entry.createdAt.millisecondsSinceEpoch),
-            Variable.withString(_statusToDb(entry.status)),
-            Variable.withInt(entry.retryCount),
-            Variable.withString(entry.lastError ?? ''),
-            Variable.withString(''),
+          <Object?>[
+            _entityTypeToDb(entry.entityType),
+            entry.entityKey,
+            entry.payload,
+            entry.createdAt.millisecondsSinceEpoch,
+            _statusToDb(entry.status),
+            entry.retryCount,
+            entry.lastError ?? '',
+            '',
           ],
         );
 
@@ -94,13 +94,13 @@ final class DriftSyncQueueStore implements SyncQueueStore {
         'retry_count = COALESCE(NULLIF(?, ?), retry_count), '
         'last_error = NULLIF(?, ?) '
         'WHERE id = ?',
-        <Variable<Object>>[
-          Variable.withString(_statusToDb(status)),
-          Variable.withInt(retryCount ?? -1),
-          Variable.withInt(-1),
-          Variable.withString(lastError ?? ''),
-          Variable.withString(''),
-          Variable.withInt(id),
+        <Object?>[
+          _statusToDb(status),
+          retryCount ?? -1,
+          -1,
+          lastError ?? '',
+          '',
+          id,
         ],
       );
       return const Success(null);
@@ -120,7 +120,7 @@ final class DriftSyncQueueStore implements SyncQueueStore {
     try {
       await _db.customStatement(
         'DELETE FROM sync_queue WHERE id = ?',
-        <Variable<Object>>[Variable.withInt(id)],
+        <Object?>[id],
       );
       return const Success(null);
     } catch (e) {
@@ -139,9 +139,7 @@ final class DriftSyncQueueStore implements SyncQueueStore {
     try {
       await _db.customStatement(
         'DELETE FROM sync_queue WHERE status = ?',
-        <Variable<Object>>[
-          Variable.withString(_statusToDb(SyncQueueEntryStatus.synced)),
-        ],
+        <Object?>[_statusToDb(SyncQueueEntryStatus.synced)],
       );
       return const Success(null);
     } catch (e) {
@@ -149,6 +147,22 @@ final class DriftSyncQueueStore implements SyncQueueStore {
         SimpleError(
           code: 'sync.queue.clear_synced_failed',
           message: 'Failed to clear synced queue entries: $e',
+          kind: KumoriyaErrorKind.unexpected,
+        ),
+      );
+    }
+  }
+
+  @override
+  Future<Result<void, KumoriyaError>> clearAll() async {
+    try {
+      await _db.customStatement('DELETE FROM sync_queue');
+      return const Success(null);
+    } catch (e) {
+      return Failure(
+        SimpleError(
+          code: 'sync.queue.clear_all_failed',
+          message: 'Failed to clear sync queue: $e',
           kind: KumoriyaErrorKind.unexpected,
         ),
       );

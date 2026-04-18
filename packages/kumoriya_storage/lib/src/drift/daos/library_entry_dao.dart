@@ -166,4 +166,8 @@ class LibraryEntryDao extends DatabaseAccessor<AppDatabase>
       ..where(libraryEntryTable.autoDownloadNewEpisodes.equals(true));
     return query.map((row) => row.read(libraryEntryTable.anilistId)!).get();
   }
+
+  Future<int> clearAll() {
+    return delete(libraryEntryTable).go();
+  }
 }

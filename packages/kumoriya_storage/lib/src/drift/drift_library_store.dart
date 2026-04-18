@@ -189,4 +189,20 @@ final class DriftLibraryStore implements LibraryStore {
       );
     }
   }
+
+  @override
+  Future<Result<void, KumoriyaError>> clearAll() async {
+    try {
+      await _dao.clearAll();
+      return const Success(null);
+    } catch (e) {
+      return Failure(
+        SimpleError(
+          code: 'storage.library_clear_all_failed',
+          message: 'Failed to clear library: $e',
+          kind: KumoriyaErrorKind.unexpected,
+        ),
+      );
+    }
+  }
 }

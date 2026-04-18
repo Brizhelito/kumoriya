@@ -37,7 +37,15 @@ final class DriftAnilistCacheStore implements AnilistCacheStore {
           totalEpisodes: Value(entry.totalEpisodes),
           nextAiringEpisode: Value(entry.nextAiringEpisode),
           nextAiringAt: Value(entry.nextAiringAt?.millisecondsSinceEpoch),
-          relations: Value(entry.relationsJson),
+          // List-level persistence does not know about relations (the
+          // AniList list queries don't request them). Passing `Value(null)`
+          // here would overwrite any previously-cached relations JSON with
+          // NULL on every list refresh. Use `Value.absent()` so callers that
+          // don't provide relations leave the column untouched; detail-level
+          // persistence always supplies a non-null JSON (`[]` when empty).
+          relations: entry.relationsJson == null
+              ? const Value.absent()
+              : Value(entry.relationsJson),
           updatedAt: Value(entry.updatedAt.millisecondsSinceEpoch),
         ),
       );

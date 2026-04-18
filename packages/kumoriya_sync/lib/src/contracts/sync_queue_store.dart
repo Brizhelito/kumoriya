@@ -18,4 +18,9 @@ abstract interface class SyncQueueStore {
   Future<Result<void, KumoriyaError>> deleteEntry(int id);
 
   Future<Result<void, KumoriyaError>> clearSyncedEntries();
+
+  /// Wipes every entry in the sync queue regardless of status. Meant to be
+  /// invoked at logout so pending writes from the previous user cannot be
+  /// pushed to a different account on the next login.
+  Future<Result<void, KumoriyaError>> clearAll();
 }

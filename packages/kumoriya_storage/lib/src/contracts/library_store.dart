@@ -40,4 +40,9 @@ abstract interface class LibraryStore {
   Future<void> setAutoDownloadAudioPreference(int anilistId, String preference);
 
   Future<Result<Set<int>, KumoriyaError>> getAutoDownloadAnimeIds();
+
+  /// Wipes every user-scoped row in the library (favorites, subscriptions,
+  /// auto-download preferences). Meant to be invoked when the user signs out
+  /// so another account cannot inherit the previous user's library.
+  Future<Result<void, KumoriyaError>> clearAll();
 }

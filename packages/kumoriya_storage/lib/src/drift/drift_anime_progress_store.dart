@@ -313,6 +313,22 @@ final class DriftAnimeProgressStore implements AnimeProgressStore {
     }
   }
 
+  @override
+  Future<Result<void, KumoriyaError>> clearAllProgress() async {
+    try {
+      await _progressDao.clearAll();
+      return const Success(null);
+    } catch (e) {
+      return Failure(
+        SimpleError(
+          code: 'storage.progress_clear_all_failed',
+          message: 'Failed to clear episode progress: $e',
+          kind: KumoriyaErrorKind.unexpected,
+        ),
+      );
+    }
+  }
+
   EpisodeProgress _rowToProgress(EpisodeProgressTableData row) {
     return EpisodeProgress(
       anilistId: row.anilistId,
