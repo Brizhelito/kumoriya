@@ -11,6 +11,8 @@ import 'package:kumoriya_domain/kumoriya_domain.dart';
 import 'package:kumoriya_plugins/kumoriya_plugins.dart';
 
 import '../../../../app/runtime_config.dart';
+import '../../../../shared/anilist_backend/anilist_home_backend_client.dart';
+import '../../../../shared/anilist_backend/backend_first_anilist_gateway.dart';
 import '../../application/use_cases/anime_catalog_use_cases.dart';
 import '../../application/matching/anilist_source_matcher.dart';
 import '../../application/models/resolved_server_link_result.dart';
@@ -38,9 +40,37 @@ final anilistGraphqlClientProvider = Provider<AnilistGraphqlClient>((ref) {
   return HttpAnilistGraphqlClient(config: KumoriyaRuntimeConfig.anilistClient);
 });
 
+/// Feature flag: when true, AniList home surfaces (trending + season
+/// discovery) are fetched from the Kumoriya Go backend cache. On any
+/// backend failure we transparently fall back to direct AniList.
+///
+/// Toggle at build time:
+///   `flutter build ... --dart-define=KUMORIYA_GO_ANILIST_HOME=false`
+const bool _kUseGoAnilistHome = bool.fromEnvironment(
+  'KUMORIYA_GO_ANILIST_HOME',
+  defaultValue: true,
+);
+
+final anilistHomeBackendClientProvider = Provider<AnilistHomeBackendClient>((
+  ref,
+) {
+  final client = AnilistHomeBackendClient(
+    baseUrl: KumoriyaRuntimeConfig.apiBaseUrl,
+  );
+  ref.onDispose(client.close);
+  return client;
+});
+
 final anilistMetadataGatewayProvider = Provider<AnilistMetadataGateway>((ref) {
-  return GraphqlAnilistMetadataGateway(
+  final graphqlGateway = GraphqlAnilistMetadataGateway(
     client: ref.watch(anilistGraphqlClientProvider),
+  );
+  if (!_kUseGoAnilistHome) {
+    return graphqlGateway;
+  }
+  return BackendFirstAnilistMetadataGateway(
+    inner: graphqlGateway,
+    backend: ref.watch(anilistHomeBackendClientProvider),
   );
 });
 
