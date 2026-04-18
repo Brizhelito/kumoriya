@@ -104,12 +104,21 @@ final class BackendFirstAnilistMetadataGateway
     DateTime? to,
     int page = 1,
     int perPage = 50,
-  }) => _inner.fetchAiringCalendar(
-    from: from,
-    to: to,
-    page: page,
-    perPage: perPage,
-  );
+  }) {
+    return _backendAiringLoop(
+      from: from,
+      to: to,
+      page: page,
+      perPage: perPage,
+      dedupe: true,
+      innerFallback: () => _inner.fetchAiringCalendar(
+        from: from,
+        to: to,
+        page: page,
+        perPage: perPage,
+      ),
+    );
+  }
 
   @override
   Future<Result<List<Map<String, dynamic>>, KumoriyaError>>
@@ -118,12 +127,95 @@ final class BackendFirstAnilistMetadataGateway
     DateTime? to,
     int page = 1,
     int perPage = 50,
-  }) => _inner.fetchAiringCalendarSlots(
-    from: from,
-    to: to,
-    page: page,
-    perPage: perPage,
-  );
+  }) {
+    return _backendAiringLoop(
+      from: from,
+      to: to,
+      page: page,
+      perPage: perPage,
+      dedupe: false,
+      innerFallback: () => _inner.fetchAiringCalendarSlots(
+        from: from,
+        to: to,
+        page: page,
+        perPage: perPage,
+      ),
+    );
+  }
+
+  /// Paginates the backend airing-calendar endpoint with the same window
+  /// logic as the direct AniList gateway, optionally deduplicating by
+  /// anime id. On ANY per-page failure (transport, non-2xx, malformed
+  /// payload), the whole call is delegated to [innerFallback] so the
+  /// user sees the direct-AniList result rather than a partial / broken
+  /// page.
+  Future<Result<List<Map<String, dynamic>>, KumoriyaError>> _backendAiringLoop({
+    required DateTime? from,
+    required DateTime? to,
+    required int page,
+    required int perPage,
+    required bool dedupe,
+    required Future<Result<List<Map<String, dynamic>>, KumoriyaError>>
+        Function()
+    innerFallback,
+  }) async {
+    final fromDate = (from ?? DateTime.now()).toUtc();
+    final toDate = (to ?? fromDate.add(const Duration(days: 7))).toUtc();
+    final greater = fromDate.millisecondsSinceEpoch ~/ 1000;
+    final lesser = toDate.millisecondsSinceEpoch ~/ 1000;
+
+    // Refuse invalid windows up front so we don't burn a backend round-trip
+    // on a request that the inner gateway would also reject.
+    if (lesser <= greater) {
+      return innerFallback();
+    }
+
+    final deduped = <int, Map<String, dynamic>>{};
+    final entries = <Map<String, dynamic>>[];
+    var currentPage = page;
+    var hasNextPage = true;
+
+    while (hasNextPage) {
+      final result = await _backend.fetchAiringCalendar(
+        airingAtGreater: greater,
+        airingAtLesser: lesser,
+        page: currentPage,
+        perPage: perPage,
+      );
+
+      final pageDataOrNull = result.fold<_AiringPage?>(
+        onSuccess: (data) {
+          if (dedupe) {
+            final added = _mergeDedupedSchedules(data, into: deduped);
+            if (!added) return null;
+          } else {
+            final ok = _appendScheduleEntries(data, into: entries);
+            if (!ok) return null;
+          }
+          return _AiringPage(hasNext: _extractHasNextPage(data) ?? false);
+        },
+        onFailure: (_) => null,
+      );
+
+      if (pageDataOrNull == null) {
+        _log('airing-calendar', 'backend page failure, falling back to inner');
+        return innerFallback();
+      }
+
+      hasNextPage = pageDataOrNull.hasNext;
+      currentPage += 1;
+    }
+
+    if (dedupe) {
+      final merged = deduped.values.toList(growable: false)
+        ..sort(
+          (left, right) =>
+              _nextAiringTimestamp(left).compareTo(_nextAiringTimestamp(right)),
+        );
+      return Success(merged);
+    }
+    return Success(entries);
+  }
 
   @override
   Future<Result<List<Map<String, dynamic>>, KumoriyaError>> searchAnime({
@@ -228,4 +320,97 @@ final class BackendFirstAnilistMetadataGateway
       name: 'BackendFirstAnilistMetadataGateway',
     );
   }
+
+  // ---------------------------------------------------------------------------
+  // Airing-calendar payload extraction. Mirrors the logic in
+  // GraphqlAnilistMetadataGateway so the backend-routed path returns the
+  // same shape (anime media with injected nextAiringEpisode).
+  // ---------------------------------------------------------------------------
+
+  /// Reads `data.Page.airingSchedules`, keeps only the earliest entry per
+  /// anime id, and writes into [into]. Returns false if the payload shape
+  /// is invalid (caller should fall back).
+  static bool _mergeDedupedSchedules(
+    Map<String, dynamic> data, {
+    required Map<int, Map<String, dynamic>> into,
+  }) {
+    final schedules = _extractSchedules(data);
+    if (schedules == null) return false;
+
+    for (final item in schedules) {
+      final media = item['media'];
+      final animeId = media is Map<String, dynamic> ? media['id'] : null;
+      if (media is! Map<String, dynamic> || animeId is! int) continue;
+      if (media['isAdult'] == true) continue;
+
+      final enriched = Map<String, dynamic>.from(media);
+      enriched['nextAiringEpisode'] = <String, dynamic>{
+        'episode': item['episode'],
+        'airingAt': item['airingAt'],
+      };
+
+      final existing = into[animeId];
+      if (existing == null ||
+          _nextAiringTimestamp(enriched) < _nextAiringTimestamp(existing)) {
+        into[animeId] = enriched;
+      }
+    }
+    return true;
+  }
+
+  /// Reads `data.Page.airingSchedules` and appends every entry to [into]
+  /// without deduplicating by anime id (slots variant). Returns false if
+  /// the payload shape is invalid.
+  static bool _appendScheduleEntries(
+    Map<String, dynamic> data, {
+    required List<Map<String, dynamic>> into,
+  }) {
+    final schedules = _extractSchedules(data);
+    if (schedules == null) return false;
+
+    for (final item in schedules) {
+      final media = item['media'];
+      if (media is! Map<String, dynamic>) continue;
+      final animeId = media['id'];
+      if (animeId is! int) continue;
+      if (media['isAdult'] == true) continue;
+
+      final enriched = Map<String, dynamic>.from(media);
+      enriched['nextAiringEpisode'] = <String, dynamic>{
+        'episode': item['episode'],
+        'airingAt': item['airingAt'],
+      };
+      into.add(enriched);
+    }
+    return true;
+  }
+
+  static List<dynamic>? _extractSchedules(Map<String, dynamic> data) {
+    final page = data['Page'];
+    if (page is! Map<String, dynamic>) return null;
+    final schedules = page['airingSchedules'];
+    if (schedules is! List) return null;
+    return schedules;
+  }
+
+  static bool? _extractHasNextPage(Map<String, dynamic> data) {
+    final page = data['Page'];
+    if (page is! Map<String, dynamic>) return null;
+    final pageInfo = page['pageInfo'];
+    if (pageInfo is! Map<String, dynamic>) return null;
+    final hasNext = pageInfo['hasNextPage'];
+    return hasNext is bool ? hasNext : null;
+  }
+
+  static int _nextAiringTimestamp(Map<String, dynamic> media) {
+    final next = media['nextAiringEpisode'];
+    if (next is! Map<String, dynamic>) return 1 << 31;
+    final airingAt = next['airingAt'];
+    return airingAt is int ? airingAt : 1 << 31;
+  }
+}
+
+class _AiringPage {
+  const _AiringPage({required this.hasNext});
+  final bool hasNext;
 }

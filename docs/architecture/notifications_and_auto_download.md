@@ -6,6 +6,7 @@ Status: Active (Slice 6 completed 2026-04-18).
 
 | Concern                          | Who owns it                        |
 |----------------------------------|------------------------------------|
+| AniList home surfaces (trending, season, airing calendar) | Go backend cache `/v1/anilist/home/*` with SWR fallback on the client |
 | Detect airing episode            | Go backend `AiringWorker` polling AniList cache |
 | Deduplicate notifications        | Upstash Redis (`SETNX` + TTL)      |
 | User-facing push notification    | Firebase Cloud Messaging topic `media_{anilistId}` |

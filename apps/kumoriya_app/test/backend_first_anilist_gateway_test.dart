@@ -17,6 +17,8 @@ import 'package:kumoriya_domain/kumoriya_domain.dart';
 class _FakeInnerGateway implements AnilistMetadataGateway {
   int homeCalls = 0;
   int seasonDiscoveryCalls = 0;
+  int airingCalls = 0;
+  int airingSlotsCalls = 0;
 
   List<Map<String, dynamic>> homeResponse = const [
     {'id': 999, 'source': 'inner'},
@@ -68,7 +70,10 @@ class _FakeInnerGateway implements AnilistMetadataGateway {
     DateTime? to,
     int page = 1,
     int perPage = 50,
-  }) async => const Success([]);
+  }) async {
+    airingCalls += 1;
+    return const Success([]);
+  }
 
   @override
   Future<Result<List<Map<String, dynamic>>, KumoriyaError>>
@@ -77,7 +82,10 @@ class _FakeInnerGateway implements AnilistMetadataGateway {
     DateTime? to,
     int page = 1,
     int perPage = 50,
-  }) async => const Success([]);
+  }) async {
+    airingSlotsCalls += 1;
+    return const Success([]);
+  }
 
   @override
   Future<Result<List<Map<String, dynamic>>, KumoriyaError>> searchAnime({
@@ -290,16 +298,184 @@ void main() {
     });
   });
 
-  group('BackendFirstAnilistMetadataGateway — pass-through', () {
-    test('fetchAiringCalendar never hits the backend', () async {
+  group('BackendFirstAnilistMetadataGateway — fetchAiringCalendar', () {
+    test('paginates backend, dedupes by anime id, and sorts by airingAt',
+        () async {
+      var calls = 0;
+      final mock = http_testing.MockClient((req) async {
+        calls += 1;
+        expect(req.url.path, '/v1/anilist/home/airing-calendar');
+        expect(req.url.queryParameters['airingAtGreater'], isNotEmpty);
+        expect(req.url.queryParameters['airingAtLesser'], isNotEmpty);
+
+        if (calls == 1) {
+          return http.Response(
+            jsonEncode({
+              'Page': {
+                'pageInfo': {'hasNextPage': true},
+                'airingSchedules': [
+                  {
+                    'episode': 5,
+                    'airingAt': 1_000_000_300,
+                    'media': {'id': 100, 'title': {'romaji': 'A'}},
+                  },
+                  // Earlier slot for same anime -> dedupe should keep this one
+                  {
+                    'episode': 4,
+                    'airingAt': 1_000_000_100,
+                    'media': {'id': 100, 'title': {'romaji': 'A'}},
+                  },
+                ],
+              },
+            }),
+            200,
+          );
+        }
+        return http.Response(
+          jsonEncode({
+            'Page': {
+              'pageInfo': {'hasNextPage': false},
+              'airingSchedules': [
+                {
+                  'episode': 7,
+                  'airingAt': 1_000_000_200,
+                  'media': {'id': 200, 'title': {'romaji': 'B'}},
+                },
+              ],
+            },
+          }),
+          200,
+        );
+      });
+      final inner = _FakeInnerGateway();
+      final gateway = _buildGateway(httpClient: mock, inner: inner);
+
+      final result = await gateway.fetchAiringCalendar(
+        from: DateTime.utc(2026, 1, 1),
+        to: DateTime.utc(2026, 1, 8),
+      );
+
+      expect(calls, 2);
+      final list = result.fold(onSuccess: (v) => v, onFailure: (_) => null)!;
+      expect(list.length, 2);
+      expect(list[0]['id'], 100,
+          reason: 'earliest airingAt (100) must come first after sort');
+      expect(list[0]['nextAiringEpisode']['episode'], 4,
+          reason: 'dedupe must keep the earlier slot for anime 100');
+      expect(list[1]['id'], 200);
+    });
+
+    test('filters out isAdult media', () async {
       final mock = http_testing.MockClient((_) async {
-        fail('backend must not be called for airing calendar');
+        return http.Response(
+          jsonEncode({
+            'Page': {
+              'pageInfo': {'hasNextPage': false},
+              'airingSchedules': [
+                {
+                  'episode': 1,
+                  'airingAt': 1_000_000_000,
+                  'media': {'id': 1, 'isAdult': true},
+                },
+                {
+                  'episode': 1,
+                  'airingAt': 1_000_000_100,
+                  'media': {'id': 2},
+                },
+              ],
+            },
+          }),
+          200,
+        );
       });
       final inner = _FakeInnerGateway();
       final gateway = _buildGateway(httpClient: mock, inner: inner);
 
       final result = await gateway.fetchAiringCalendar();
+      final list = result.fold(onSuccess: (v) => v, onFailure: (_) => null)!;
+      expect(list.length, 1);
+      expect(list.single['id'], 2);
+    });
+
+    test('falls back to inner on mid-pagination backend failure', () async {
+      var calls = 0;
+      final mock = http_testing.MockClient((_) async {
+        calls += 1;
+        if (calls == 1) {
+          return http.Response(
+            jsonEncode({
+              'Page': {
+                'pageInfo': {'hasNextPage': true},
+                'airingSchedules': [
+                  {
+                    'episode': 1,
+                    'airingAt': 1_000_000_000,
+                    'media': {'id': 1},
+                  },
+                ],
+              },
+            }),
+            200,
+          );
+        }
+        return http.Response('nope', 502);
+      });
+      final inner = _FakeInnerGateway();
+      final gateway = _buildGateway(httpClient: mock, inner: inner);
+
+      final result = await gateway.fetchAiringCalendar();
+      expect(inner.airingCalls, 1, reason: 'inner must cover the whole call');
       expect(result.isSuccess, isTrue);
+    });
+
+    test('falls back to inner on invalid window (to <= from)', () async {
+      final mock = http_testing.MockClient((_) async {
+        fail('backend must not be called when window is invalid');
+      });
+      final inner = _FakeInnerGateway();
+      final gateway = _buildGateway(httpClient: mock, inner: inner);
+
+      final now = DateTime.utc(2026, 1, 1);
+      await gateway.fetchAiringCalendar(from: now, to: now);
+      expect(inner.airingCalls, 1);
+    });
+  });
+
+  group('BackendFirstAnilistMetadataGateway — fetchAiringCalendarSlots', () {
+    test('returns every schedule entry without deduplication', () async {
+      final mock = http_testing.MockClient((_) async {
+        return http.Response(
+          jsonEncode({
+            'Page': {
+              'pageInfo': {'hasNextPage': false},
+              'airingSchedules': [
+                {
+                  'episode': 1,
+                  'airingAt': 1_000_000_000,
+                  'media': {'id': 1},
+                },
+                {
+                  'episode': 2,
+                  'airingAt': 1_000_000_100,
+                  'media': {'id': 1},
+                },
+                {
+                  'episode': 5,
+                  'airingAt': 1_000_000_200,
+                  'media': {'id': 2},
+                },
+              ],
+            },
+          }),
+          200,
+        );
+      });
+      final inner = _FakeInnerGateway();
+      final gateway = _buildGateway(httpClient: mock, inner: inner);
+
+      final result = await gateway.fetchAiringCalendarSlots();
+      final list = result.fold(onSuccess: (v) => v, onFailure: (_) => null)!;
+      expect(list.length, 3, reason: 'slots variant preserves duplicates');
     });
   });
 }

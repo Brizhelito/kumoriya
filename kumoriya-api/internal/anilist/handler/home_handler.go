@@ -61,11 +61,17 @@ func (h *HomeHandler) SeasonDiscovery(c fiber.Ctx) error {
 }
 
 // AiringCalendar returns one page of the airing schedule.
+//
+// Accepts either a days-based window (`?days=7`) or an explicit one
+// (`?airingAtGreater=<unix>&airingAtLesser=<unix>`). The explicit form
+// takes precedence when both boundaries are present and valid.
 func (h *HomeHandler) AiringCalendar(c fiber.Ctx) error {
 	req := service.AiringCalendarRequest{
-		Days:    intQuery(c, "days", 7),
-		Page:    intQuery(c, "page", 1),
-		PerPage: intQuery(c, "perPage", 50),
+		Days:            intQuery(c, "days", 7),
+		AiringAtGreater: int64Query(c, "airingAtGreater", 0),
+		AiringAtLesser:  int64Query(c, "airingAtLesser", 0),
+		Page:            intQuery(c, "page", 1),
+		PerPage:         intQuery(c, "perPage", 50),
 	}
 	res, err := h.svc.AiringCalendar(c.Context(), req)
 	if err != nil {
@@ -90,6 +96,18 @@ func intQuery(c fiber.Ctx, key string, fallback int) int {
 		return fallback
 	}
 	n, err := strconv.Atoi(v)
+	if err != nil || n <= 0 {
+		return fallback
+	}
+	return n
+}
+
+func int64Query(c fiber.Ctx, key string, fallback int64) int64 {
+	v := c.Query(key)
+	if v == "" {
+		return fallback
+	}
+	n, err := strconv.ParseInt(v, 10, 64)
 	if err != nil || n <= 0 {
 		return fallback
 	}

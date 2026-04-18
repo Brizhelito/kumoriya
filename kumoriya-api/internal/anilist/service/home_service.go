@@ -142,10 +142,21 @@ func (s *HomeService) SeasonDiscovery(ctx context.Context, req SeasonDiscoveryRe
 }
 
 // AiringCalendarRequest parameters for the airing calendar.
+//
+// Two ways to specify the window:
+//  1. Days-based (default): set Days to how many days forward from
+//     "now" (truncated to a 5-minute bucket so repeated requests
+//     within the bucket share a cache entry).
+//  2. Explicit timestamps: set both AiringAtGreater and AiringAtLesser
+//     (unix seconds). Overrides Days. Useful when callers need a
+//     custom window — e.g. Flutter's gateway which paginates through
+//     the same window across multiple requests.
 type AiringCalendarRequest struct {
-	Days    int // how many days forward from "now" (default 7)
-	Page    int
-	PerPage int
+	Days            int   // ignored if AiringAtGreater + AiringAtLesser are both non-zero
+	AiringAtGreater int64 // unix seconds, optional
+	AiringAtLesser  int64 // unix seconds, optional
+	Page            int
+	PerPage         int
 }
 
 func (r AiringCalendarRequest) normalized() AiringCalendarRequest {
@@ -158,34 +169,67 @@ func (r AiringCalendarRequest) normalized() AiringCalendarRequest {
 	if r.PerPage <= 0 || r.PerPage > 50 {
 		r.PerPage = 50
 	}
+	// Explicit timestamps require both sides and lesser > greater.
+	if r.AiringAtGreater <= 0 || r.AiringAtLesser <= 0 || r.AiringAtLesser <= r.AiringAtGreater {
+		r.AiringAtGreater = 0
+		r.AiringAtLesser = 0
+	}
 	return r
 }
 
-func (r AiringCalendarRequest) cacheKey(windowStart time.Time) string {
-	return fmt.Sprintf("calendar:d%d:p%d:n%d:w%d", r.Days, r.Page, r.PerPage, windowStart.Unix()/300)
+// hasExplicitWindow reports whether the request carries a valid
+// caller-provided window. Must be called after normalized().
+func (r AiringCalendarRequest) hasExplicitWindow() bool {
+	return r.AiringAtGreater > 0 && r.AiringAtLesser > 0
+}
+
+func (r AiringCalendarRequest) cacheKey() string {
+	if r.hasExplicitWindow() {
+		return fmt.Sprintf(
+			"calendar:g%d:l%d:p%d:n%d",
+			r.AiringAtGreater, r.AiringAtLesser, r.Page, r.PerPage,
+		)
+	}
+	windowStart := time.Now().UTC().Truncate(5 * time.Minute)
+	return fmt.Sprintf(
+		"calendar:d%d:p%d:n%d:w%d",
+		r.Days, r.Page, r.PerPage, windowStart.Unix()/300,
+	)
 }
 
 // AiringCalendar returns a single page of the airing schedule in the
-// requested window. The response is the raw AniList payload; Flutter
-// handles pagination just as it does today.
+// requested window. The response is the raw AniList payload; callers
+// handle pagination client-side.
 //
-// Note: we cache per (days, page, perPage, 5-minute window bucket) so
-// slight clock drift between requests still hits the cache. The bucket
-// changes every 5 min → matches our pre-warm cadence.
+// For days-based requests we cache per (days, page, perPage, 5-minute
+// window bucket) so slight clock drift between requests still hits the
+// cache. The bucket changes every 5 min → matches our pre-warm cadence.
+//
+// For explicit-timestamp requests the cache key uses the timestamps
+// directly — two callers with the same window share a cache entry.
 func (s *HomeService) AiringCalendar(ctx context.Context, req AiringCalendarRequest) (cache.Result, error) {
 	req = req.normalized()
-	windowStart := time.Now().UTC().Truncate(5 * time.Minute)
-	windowEnd := windowStart.Add(time.Duration(req.Days) * 24 * time.Hour)
+
+	var greater, lesser int64
+	if req.hasExplicitWindow() {
+		greater = req.AiringAtGreater
+		lesser = req.AiringAtLesser
+	} else {
+		windowStart := time.Now().UTC().Truncate(5 * time.Minute)
+		windowEnd := windowStart.Add(time.Duration(req.Days) * 24 * time.Hour)
+		greater = windowStart.Unix()
+		lesser = windowEnd.Unix()
+	}
 
 	loader := func(ctx context.Context) (json.RawMessage, error) {
 		return s.client.Execute(ctx, anilist.AiringCalendarQuery, map[string]interface{}{
 			"page":            req.Page,
 			"perPage":         req.PerPage,
-			"airingAtGreater": windowStart.Unix(),
-			"airingAtLesser":  windowEnd.Unix(),
+			"airingAtGreater": greater,
+			"airingAtLesser":  lesser,
 		})
 	}
-	return s.calendar.Get(ctx, req.cacheKey(windowStart), loader)
+	return s.calendar.Get(ctx, req.cacheKey(), loader)
 }
 
 // currentSeasonWindow mirrors the Dart gateway logic so clients and server

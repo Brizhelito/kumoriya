@@ -61,6 +61,25 @@ final class AnilistHomeBackendClient {
     });
   }
 
+  /// `GET /v1/anilist/home/airing-calendar?airingAtGreater=&airingAtLesser=&page=&perPage=`.
+  ///
+  /// Uses the explicit-window form of the backend endpoint so that
+  /// pagination-loop callers always reach the same cache entry regardless
+  /// of clock drift between requests.
+  Future<Result<Map<String, dynamic>, KumoriyaError>> fetchAiringCalendar({
+    required int airingAtGreater,
+    required int airingAtLesser,
+    int page = 1,
+    int perPage = 50,
+  }) {
+    return _get('/v1/anilist/home/airing-calendar', {
+      'airingAtGreater': '$airingAtGreater',
+      'airingAtLesser': '$airingAtLesser',
+      'page': '$page',
+      'perPage': '$perPage',
+    });
+  }
+
   Future<Result<Map<String, dynamic>, KumoriyaError>> _get(
     String path,
     Map<String, String> query,
