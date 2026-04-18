@@ -63,6 +63,15 @@ visual_reference/
 easyappicon-icons-*/
 windows.ico
 
+# Personal account tracking (local only)
+ACCOUNTS.txt
+
+# Android logcat / session logs (local investigation artifacts)
+logs/
+
+# Wrangler build cache
+**/.wrangler/
+
 # HF Spaces clone (embedded git repo)
 infra-temp/hf-space-kumoriya-api/
 
