@@ -29,9 +29,7 @@ const _browserUserAgent =
 Future<void> main(List<String> args) async {
   final source = AnimeAv1SourcePlugin();
   final zillaResolver = ZillaResolverPlugin();
-  final registry = ResolverRegistry(
-    resolvers: <ResolverPlugin>[zillaResolver],
-  );
+  final registry = ResolverRegistry(resolvers: <ResolverPlugin>[zillaResolver]);
   final resolveUseCase = ResolveSourceServerLinkUseCase(registry: registry);
 
   // ── 1. Get an episode with Zilla server links ────────────────────────
@@ -118,8 +116,10 @@ Future<void> main(List<String> args) async {
     sw1.stop();
 
     if (resolveResult.isFailure) {
-      print('✗ Resolve FAILED in ${sw1.elapsedMilliseconds}ms: '
-          '$resolveResult');
+      print(
+        '✗ Resolve FAILED in ${sw1.elapsedMilliseconds}ms: '
+        '$resolveResult',
+      );
       continue;
     }
 
@@ -220,9 +220,9 @@ Future<void> _testFetch({
       );
 
       // Read body to check content
-      final bytes = await response.stream
-          .toBytes()
-          .timeout(const Duration(seconds: 10));
+      final bytes = await response.stream.toBytes().timeout(
+        const Duration(seconds: 10),
+      );
       final body = utf8.decode(bytes, allowMalformed: true);
 
       final isHls = body.contains('#EXTM3U');
@@ -240,9 +240,7 @@ Future<void> _testFetch({
       }
     } on TimeoutException catch (e) {
       sw.stop();
-      print(
-        '  [$label] ✗ TIMEOUT after ${sw.elapsedMilliseconds}ms: $e',
-      );
+      print('  [$label] ✗ TIMEOUT after ${sw.elapsedMilliseconds}ms: $e');
     } on http.ClientException catch (e) {
       sw.stop();
       print(

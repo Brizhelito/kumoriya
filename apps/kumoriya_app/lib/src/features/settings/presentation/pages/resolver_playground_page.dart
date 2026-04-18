@@ -569,13 +569,10 @@ class _ResolverPlaygroundPageState
         return;
       }
 
-      final variantUri = Uri.parse(
-        stream.url.resolve(variantUrl).toString(),
-      );
+      final variantUri = Uri.parse(stream.url.resolve(variantUrl).toString());
       _logAudit('[${probe.serverName}] fetching variant: $variantUri');
 
-      final mediaReq = http.Request('GET', variantUri)
-        ..headers.addAll(headers);
+      final mediaReq = http.Request('GET', variantUri)..headers.addAll(headers);
       final mediaResp = await client.send(mediaReq).timeout(_fetchTimeout);
 
       if (mediaResp.statusCode != 200) {
@@ -585,19 +582,16 @@ class _ResolverPlaygroundPageState
         return;
       }
 
-      final mediaBytes = await mediaResp.stream
-          .toBytes()
-          .timeout(_fetchTimeout);
+      final mediaBytes = await mediaResp.stream.toBytes().timeout(
+        _fetchTimeout,
+      );
       probe.bytesDownloaded += mediaBytes.length;
 
       mediaText = utf8.decode(mediaBytes, allowMalformed: true);
       if (mediaBytes.length >= 2 &&
           mediaBytes[0] == 0x1f &&
           mediaBytes[1] == 0x8b) {
-        mediaText = utf8.decode(
-          gzip.decode(mediaBytes),
-          allowMalformed: true,
-        );
+        mediaText = utf8.decode(gzip.decode(mediaBytes), allowMalformed: true);
       }
       mediaBaseUrl = variantUri;
 
@@ -630,9 +624,7 @@ class _ResolverPlaygroundPageState
     for (final line in mediaLines) {
       final trimmed = line.trim();
       if (trimmed.isNotEmpty && !trimmed.startsWith('#')) {
-        final segUri = Uri.parse(
-          mediaBaseUrl.resolve(trimmed).toString(),
-        );
+        final segUri = Uri.parse(mediaBaseUrl.resolve(trimmed).toString());
         await _fetchProbeBytes(probe, segUri, headers, client);
         break;
       }

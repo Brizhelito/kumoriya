@@ -78,12 +78,11 @@ Future<StreamVerifyOutcome> verifyStreamUrl(
 
     final status = streamed.statusCode;
     // Normalize: strip charset / parameters from content-type.
-    final contentType =
-        (streamed.headers['content-type'] ?? '')
-            .toLowerCase()
-            .split(';')
-            .first
-            .trim();
+    final contentType = (streamed.headers['content-type'] ?? '')
+        .toLowerCase()
+        .split(';')
+        .first
+        .trim();
 
     // HTTP 404 → definitively gone.
     if (status == 404) return StreamVerifyOutcome.rejected;

@@ -234,11 +234,11 @@ Future<Result<List<ResolvedStream>, KumoriyaError>?> _resolveDynamicByseFlow(
       final label = source['label'];
       final mimeType = source['mime_type'];
       final lower = uri.toString().toLowerCase();
-      final isHls = lower.contains('.m3u8') ||
+      final isHls =
+          lower.contains('.m3u8') ||
           lower.contains('/hls/') ||
           lower.contains('/hls2/') ||
-          (mimeType is String &&
-              mimeType.toLowerCase().contains('mpegurl'));
+          (mimeType is String && mimeType.toLowerCase().contains('mpegurl'));
 
       streams.add(
         ResolvedStream(
@@ -295,15 +295,16 @@ List<dynamic>? _decryptPlaybackSources(Map<String, dynamic> playback) {
     final ciphertext = _base64UrlDecodeUnpadded(payloadRaw);
     if (ciphertext.length < 16) return null; // at least the auth tag
 
-    final cipher = GCMBlockCipher(AESEngine())..init(
-      false, // decrypt
-      AEADParameters(
-        KeyParameter(Uint8List.fromList(keyBytes)),
-        128, // tag length in bits
-        Uint8List.fromList(iv),
-        Uint8List(0), // no additional authenticated data
-      ),
-    );
+    final cipher = GCMBlockCipher(AESEngine())
+      ..init(
+        false, // decrypt
+        AEADParameters(
+          KeyParameter(Uint8List.fromList(keyBytes)),
+          128, // tag length in bits
+          Uint8List.fromList(iv),
+          Uint8List(0), // no additional authenticated data
+        ),
+      );
 
     final plaintext = cipher.process(Uint8List.fromList(ciphertext));
 
