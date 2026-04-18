@@ -1,0 +1,20 @@
+{
+  "enabled": true,
+  "name": "Sync Docs on Source Change",
+  "description": "When any Dart source file, pubspec, or analysis options file changes, prompts the agent to review and update the README (or any relevant docs) to reflect the change.",
+  "version": "1",
+  "when": {
+    "type": "fileEdited",
+    "patterns": [
+      "**/*.dart",
+      "**/pubspec.yaml",
+      "**/pubspec.lock",
+      "**/analysis_options.yaml",
+      "**/l10n.yaml"
+    ]
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "A source file was just edited. Review the change and determine if any documentation needs to be updated. Check the README.md at the root and any README.md files within affected packages (e.g. apps/kumoriya_app/README.md). If the change affects public APIs, architecture, setup steps, plugin contracts, or notable behavior, update the relevant README section to reflect it. Keep updates concise and accurate. Do not add speculative or future-looking content."
+  }
+}
