@@ -98,6 +98,22 @@ Future<void> _appMain() async {
     ).wait;
     db = results.$1;
     fcmService = results.$5;
+
+    // When FCM is up, the airing-episode pushes come from the API's
+    // FCM worker. Cancel the legacy Workmanager poller to avoid
+    // double-notifications. The worker file itself is removed in
+    // Slice 6 once FCM is proven stable on device.
+    if (fcmService != null) {
+      unawaited(
+        Workmanager().cancelByUniqueName(kCheckNewEpisodesTask).catchError((
+          Object err,
+        ) {
+          if (kDebugMode) {
+            debugPrint('[Startup] cancel legacy worker failed: $err');
+          }
+        }),
+      );
+    }
   } else {
     db = await openAppDatabase();
     fcmService = null;

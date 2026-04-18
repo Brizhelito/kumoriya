@@ -7,6 +7,15 @@ import 'package:flutter/foundation.dart';
 
 import 'fcm_topic.dart';
 
+/// Minimal surface used by decorators and reconciliation services to
+/// mirror library state to FCM topics. Extracted so those consumers
+/// can be unit-tested against a fake, without spinning up a real
+/// `FirebaseMessaging` instance.
+abstract interface class FcmTopicSubscriber {
+  Future<void> subscribeToMedia(int anilistId);
+  Future<void> unsubscribeFromMedia(int anilistId);
+}
+
 /// Background message handler. Must be a top-level or static function so
 /// it can be passed across the Dart isolate boundary the FCM plugin
 /// spins up for background messages.
@@ -35,7 +44,7 @@ Future<void> kumoriyaFcmBackgroundHandler(RemoteMessage message) async {
 /// subscribe/unsubscribe by AniList media id, and forward incoming
 /// foreground messages through a Stream. No UI, no persistence —
 /// Slice 4 will build on top of this.
-class FcmService {
+class FcmService implements FcmTopicSubscriber {
   FcmService({FirebaseMessaging? messaging})
     : _messaging = messaging ?? FirebaseMessaging.instance;
 
@@ -131,6 +140,7 @@ class FcmService {
 
   /// Subscribes to the `media_{anilistId}` topic. No-op if the id is
   /// invalid or the service is not supported on this platform.
+  @override
   Future<void> subscribeToMedia(int anilistId) async {
     if (!isSupported) return;
     final topic = mediaTopicForAnilistId(anilistId);
@@ -143,6 +153,7 @@ class FcmService {
 
   /// Unsubscribes from the `media_{anilistId}` topic. Mirrors
   /// [subscribeToMedia] — same no-op conditions.
+  @override
   Future<void> unsubscribeFromMedia(int anilistId) async {
     if (!isSupported) return;
     final topic = mediaTopicForAnilistId(anilistId);

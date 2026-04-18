@@ -8,6 +8,8 @@ import 'package:kumoriya_sync/kumoriya_sync.dart';
 import '../features/downloads/application/download_aniskip_file_store.dart';
 import '../features/downloads/application/download_directory_service.dart';
 import 'auth/auth_providers.dart';
+import 'notifications/fcm_aware_library_store.dart';
+import 'notifications/fcm_providers.dart';
 import 'sync/sync_aware_library_store.dart';
 import 'sync/sync_aware_progress_store.dart';
 
@@ -57,11 +59,17 @@ final libraryStoreProvider = Provider<LibraryStore>((ref) {
   final db = ref.watch(appDatabaseProvider);
   final inner = DriftLibraryStore(db);
   final syncQueue = ref.watch(syncQueueStoreProvider);
-  return SyncAwareLibraryStore(
+  // Order matters: FCM decorates the sync-aware store so that
+  // subscription changes are persisted + queued for sync first, and
+  // only then mirrored to FCM. A topic-subscribe failure must not
+  // block the local write nor the sync-queue enqueue.
+  final syncAware = SyncAwareLibraryStore(
     inner: inner,
     syncQueue: syncQueue,
     isAuthenticated: () => ref.read(isAuthenticatedProvider),
   );
+  final fcm = ref.watch(fcmServiceProvider);
+  return FcmAwareLibraryStore(inner: syncAware, fcm: fcm);
 });
 
 final syncQueueStoreProvider = Provider<SyncQueueStore>((ref) {

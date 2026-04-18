@@ -5,6 +5,8 @@ import 'package:kumoriya_auth/kumoriya_auth.dart';
 
 import '../auth/authenticated_http_client.dart';
 import '../auth/secure_token_store.dart';
+import '../notifications/fcm_providers.dart';
+import '../notifications/fcm_topic_sync_service.dart';
 import '../sync/anonymous_to_auth_migration.dart';
 import '../sync/local_user_data_cleaner.dart';
 import '../sync/sync_providers.dart';
@@ -79,6 +81,7 @@ class AuthStateNotifier extends AsyncNotifier<AuthState> {
       return result.fold(
         onSuccess: (newTokens) async {
           await store.saveTokens(newTokens);
+          _scheduleTopicSync();
           return AuthenticatedAuthState(user: user, tokens: newTokens);
         },
         onFailure: (_) async {
@@ -88,7 +91,26 @@ class AuthStateNotifier extends AsyncNotifier<AuthState> {
       );
     }
 
+    _scheduleTopicSync();
     return AuthenticatedAuthState(user: user, tokens: tokens);
+  }
+
+  /// Fires FCM topic reconciliation in the background. Used on app boot
+  /// for already-authenticated sessions so topics survive app data
+  /// wipes, Firebase token rotations, or reinstalls on the same device.
+  /// Best-effort; failures are swallowed.
+  void _scheduleTopicSync() {
+    unawaited(() async {
+      try {
+        final topicSync = FcmTopicSyncService(
+          libraryStore: ref.read(libraryStoreProvider),
+          fcm: ref.read(fcmServiceProvider),
+        );
+        await topicSync.syncTopicsWithLibrary();
+      } catch (_) {
+        // Next boot or login will retry.
+      }
+    }());
   }
 
   Future<void> onOAuthCallback(Uri callbackUri) async {
@@ -117,12 +139,25 @@ class AuthStateNotifier extends AsyncNotifier<AuthState> {
             syncService: ref.read(syncServiceProvider),
           );
           unawaited(
-            migration.migrate().then((_) {
+            migration.migrate().then((_) async {
               // Reload data providers so the UI reflects the freshly synced DB.
               ref.invalidate(continueWatchingProvider);
               ref.invalidate(allWatchHistoryProvider);
               ref.invalidate(favoriteAnimeIdsProvider);
               ref.invalidate(subscribedAnimeIdsProvider);
+
+              // Reconcile FCM topic subscriptions with whatever the
+              // server just pulled down. Idempotent; a failure here
+              // does not block the login flow.
+              try {
+                final topicSync = FcmTopicSyncService(
+                  libraryStore: ref.read(libraryStoreProvider),
+                  fcm: ref.read(fcmServiceProvider),
+                );
+                await topicSync.syncTopicsWithLibrary();
+              } catch (_) {
+                // Best-effort; next login or app-start will retry.
+              }
             }),
           );
           return;
