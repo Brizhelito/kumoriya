@@ -94,7 +94,9 @@ class DownloadForegroundService {
           notificationIcon: notifIcon,
         );
         _running = result is ServiceRequestSuccess;
-        _log('service start result=${result.runtimeType} running=$_running (attempt $attempt/2)');
+        _log(
+          'service start result=${result.runtimeType} running=$_running (attempt $attempt/2)',
+        );
         if (_running) return;
       } catch (e) {
         _log('service start error (attempt $attempt/2): $e');
@@ -162,7 +164,9 @@ class DownloadForegroundService {
       body = '$completedCount episodes downloaded';
     }
 
-    _log('showCompletion: "$title" — "$body" (done=$completedCount failed=$failedCount)');
+    _log(
+      'showCompletion: "$title" — "$body" (done=$completedCount failed=$failedCount)',
+    );
     await plugin.show(
       id: _completionNotificationId,
       title: title,

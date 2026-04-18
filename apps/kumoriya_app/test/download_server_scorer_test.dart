@@ -28,19 +28,13 @@ void main() {
         ..recordFailure('B')
         ..recordFailure('B');
 
-      final ranked = scorer.rankByScore(
-        <String>['B', 'A', 'C'],
-        (s) => s,
-      );
+      final ranked = scorer.rankByScore(<String>['B', 'A', 'C'], (s) => s);
 
       expect(ranked, <String>['A', 'C', 'B']);
     });
 
     test('rankByScore preserves order for equal scores', () {
-      final ranked = scorer.rankByScore(
-        <String>['X', 'Y', 'Z'],
-        (s) => s,
-      );
+      final ranked = scorer.rankByScore(<String>['X', 'Y', 'Z'], (s) => s);
       expect(ranked, <String>['X', 'Y', 'Z']);
     });
 

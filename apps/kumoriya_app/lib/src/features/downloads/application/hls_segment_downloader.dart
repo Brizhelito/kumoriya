@@ -4,7 +4,6 @@ import 'dart:developer' as developer;
 import 'dart:io';
 import 'dart:isolate';
 
-
 import 'package:http/http.dart' as http;
 import 'package:kumoriya_storage/kumoriya_storage.dart';
 import 'package:path/path.dart' as p;

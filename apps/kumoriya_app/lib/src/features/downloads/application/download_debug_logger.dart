@@ -23,7 +23,6 @@ final class _DownloadDebugLogger {
       stackTrace: stackTrace,
       level: 1000,
     );
-
   }
 
   Future<void> dumpBytes(

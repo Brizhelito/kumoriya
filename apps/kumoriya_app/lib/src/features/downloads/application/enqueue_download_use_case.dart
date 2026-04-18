@@ -173,7 +173,9 @@ class EnqueueDownloadUseCase {
       );
       if (match.isNotEmpty) {
         final s = match.first;
-        _log('[pick] quality match: "${s.qualityLabel}" isHls=${s.isHls} host=${s.url.host}');
+        _log(
+          '[pick] quality match: "${s.qualityLabel}" isHls=${s.isHls} host=${s.url.host}',
+        );
         return s;
       }
     }
@@ -182,7 +184,9 @@ class EnqueueDownloadUseCase {
       final hls = streams.where((s) => s.isHls).toList();
       if (hls.isNotEmpty) {
         final s = hls.first;
-        _log('[pick] animeav1→HLS preferred: "${s.qualityLabel}" host=${s.url.host}');
+        _log(
+          '[pick] animeav1→HLS preferred: "${s.qualityLabel}" host=${s.url.host}',
+        );
         return s;
       }
     }
@@ -194,7 +198,9 @@ class EnqueueDownloadUseCase {
       return s;
     }
     final s = streams.first;
-    _log('[pick] fallback HLS: "${s.qualityLabel}" host=${s.url.host} (no non-HLS available)');
+    _log(
+      '[pick] fallback HLS: "${s.qualityLabel}" host=${s.url.host} (no non-HLS available)',
+    );
     return s;
   }
 
