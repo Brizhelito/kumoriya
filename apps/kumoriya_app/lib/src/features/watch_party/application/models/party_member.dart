@@ -18,19 +18,19 @@ final class PartyMember {
   final bool isReady;
 
   factory PartyMember.fromJson(Map<String, dynamic> json) => PartyMember(
-        userId: json['userId'] as String,
-        displayName: json['displayName'] as String,
-        avatarUrl: json['avatarUrl'] as String?,
-        role: json['role'] == 'host' ? PartyRole.host : PartyRole.member,
-        joinedAt: DateTime.parse(json['joinedAt'] as String),
-      );
+    userId: json['userId'] as String,
+    displayName: json['displayName'] as String,
+    avatarUrl: json['avatarUrl'] as String?,
+    role: json['role'] == 'host' ? PartyRole.host : PartyRole.member,
+    joinedAt: DateTime.parse(json['joinedAt'] as String),
+  );
 
   PartyMember copyWith({bool? isReady, PartyRole? role}) => PartyMember(
-        userId: userId,
-        displayName: displayName,
-        avatarUrl: avatarUrl,
-        role: role ?? this.role,
-        joinedAt: joinedAt,
-        isReady: isReady ?? this.isReady,
-      );
+    userId: userId,
+    displayName: displayName,
+    avatarUrl: avatarUrl,
+    role: role ?? this.role,
+    joinedAt: joinedAt,
+    isReady: isReady ?? this.isReady,
+  );
 }

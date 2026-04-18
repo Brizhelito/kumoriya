@@ -15,9 +15,15 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 
+	"go-fiber-microservice/internal/anilist/client"
+	anilisthandler "go-fiber-microservice/internal/anilist/handler"
+	"go-fiber-microservice/internal/anilist/scheduler"
+	anilistservice "go-fiber-microservice/internal/anilist/service"
 	"go-fiber-microservice/internal/config"
 	"go-fiber-microservice/internal/handler"
 	"go-fiber-microservice/internal/middleware"
+	"go-fiber-microservice/internal/notifications"
+	kredis "go-fiber-microservice/internal/redis"
 	"go-fiber-microservice/internal/repository"
 	"go-fiber-microservice/internal/service"
 )
@@ -39,8 +45,12 @@ func main() {
 		ProxyHeader:        "CF-Connecting-IP",
 		EnableIPValidation: true,
 		ReadTimeout:        30 * time.Second,
-		WriteTimeout:       30 * time.Second,
-		BodyLimit:          1 * 1024 * 1024, // 1 MB
+		// WriteTimeout must be 0 (disabled) for WebSocket connections.
+		// A non-zero WriteTimeout causes fasthttp to close long-lived WS
+		// connections mid-handshake. WebSocket read deadlines are managed
+		// per-connection inside signalLoop instead.
+		WriteTimeout: 0,
+		BodyLimit:    1 * 1024 * 1024, // 1 MB
 	})
 
 	// ── Global Middleware ──
@@ -71,6 +81,21 @@ func main() {
 		})
 	}
 
+	// ── AniList Home edge-cache (no DB, no auth) ──
+	anilistCtx, anilistCancel := context.WithCancel(context.Background())
+	anilistClient := client.New()
+	anilistHome := anilistservice.NewHomeService(anilistClient, anilistservice.DefaultConfig())
+	anilisthandler.NewHomeHandler(anilistHome).Register(app)
+	anilistPrewarm := scheduler.New(anilistHome, scheduler.DefaultConfig())
+	go anilistPrewarm.Run(anilistCtx)
+
+	// ── Airing notifications worker (FCM + Upstash dedup) ──
+	// Enabled only when both Firebase credentials and Upstash creds are
+	// present. Missing any disables the worker with a warning so dev
+	// environments boot without secrets.
+	airingCtx, airingCancel := context.WithCancel(context.Background())
+	airingDone := startAiringWorker(airingCtx, cfg, anilistHome)
+
 	// ── Database-dependent routes ──
 	var cleanup func()
 	if cfg.NeonDSN == "" {
@@ -94,6 +119,11 @@ func main() {
 	<-quit
 
 	log.Info().Msg("shutting down...")
+	anilistCancel()
+	airingCancel()
+	if airingDone != nil {
+		<-airingDone
+	}
 	if cleanup != nil {
 		cleanup()
 	}
@@ -177,7 +207,35 @@ func registerProtectedRoutes(app *fiber.App, cfg config.Config) (cleanup func())
 	// ── Watch Party (ephemeral rooms + signaling relay) ──
 	partySvc := service.NewPartyService()
 	signalRelay := service.NewSignalRelay()
-	partyHandler := handler.NewPartyHandler(partySvc, signalRelay)
+
+	// v2 wiring: talk to the Cloudflare Worker when WATCH_PARTY_REALTIME_V2
+	// is set. Both legacy and v2 routes share the same REST paths — the flag
+	// selects which backend the handler uses at request time.
+	var (
+		partyBroker  *service.PartyBrokerClient
+		partySession *service.PartySessionService
+	)
+	if cfg.WatchPartyRealtimeV2 {
+		if cfg.PartyInternalToken == "" {
+			log.Warn().Msg("WATCH_PARTY_REALTIME_V2 requested but PARTY_INTERNAL_TOKEN is empty; falling back to legacy")
+		} else {
+			partyBroker = service.NewPartyBrokerClient(cfg.PartyRealtimeBaseURL, cfg.PartyInternalToken)
+			partySession = service.NewPartySessionService(
+				jwtSvc,
+				cfg.PartyWSAudience,
+				cfg.PartyRealtimeWebsocketBaseURL,
+				0, // use service default (45s) — see NewPartySessionService
+			)
+			log.Info().
+				Str("broker", cfg.PartyRealtimeBaseURL).
+				Str("ws", cfg.PartyRealtimeWebsocketBaseURL).
+				Msg("watch-party realtime v2 enabled")
+		}
+	}
+
+	partyHandler := handler.NewPartyHandlerV2(
+		partySvc, signalRelay, partyBroker, partySession, cfg.WatchPartyRealtimeV2,
+	)
 	signalHandler := handler.NewPartySignalHandler(signalRelay, partySvc)
 
 	partyRateLimit := middleware.PerUserRateLimit(10, time.Minute)
@@ -186,6 +244,7 @@ func registerProtectedRoutes(app *fiber.App, cfg config.Config) (cleanup func())
 	party.Post("/", partyRateLimit, partyHandler.CreateRoom)
 	party.Post("/join", partyRateLimit, partyHandler.JoinRoom)
 	party.Post("/leave", partyHandler.LeaveRoom)
+	party.Post("/session/refresh", partyRateLimit, partyHandler.RefreshSession)
 	party.Get("/me", partyHandler.GetMyRoom)
 	party.Get("/invite/:code", partyHandler.GetRoomByInvite)
 	party.Patch("/:id", partyHandler.UpdateRoom)
@@ -199,6 +258,63 @@ func registerProtectedRoutes(app *fiber.App, cfg config.Config) (cleanup func())
 		pool.Close()
 		log.Info().Msg("write-behind flush complete, pool closed")
 	}
+}
+
+// startAiringWorker wires up the FCM airing-notifications pipeline if all
+// required credentials are present. Returns a done channel that is closed
+// when the worker exits (or nil if the worker was not started).
+func startAiringWorker(ctx context.Context, cfg config.Config, home *anilistservice.HomeService) <-chan struct{} {
+	// FCM credentials — allow either raw JSON or a file path.
+	credsJSON := cfg.FirebaseServiceAccountJSON
+	if credsJSON == "" && cfg.FirebaseServiceAccountFile != "" {
+		raw, err := os.ReadFile(cfg.FirebaseServiceAccountFile)
+		if err != nil {
+			log.Warn().Err(err).Str("path", cfg.FirebaseServiceAccountFile).Msg("airing worker disabled: cannot read service account file")
+			return nil
+		}
+		credsJSON = string(raw)
+	}
+	if credsJSON == "" {
+		log.Warn().Msg("airing worker disabled: FIREBASE_SERVICE_ACCOUNT_JSON / _FILE not set")
+		return nil
+	}
+	if cfg.UpstashRedisURL == "" || cfg.UpstashRedisToken == "" {
+		log.Warn().Msg("airing worker disabled: UPSTASH_REDIS_REST_URL / _TOKEN not set")
+		return nil
+	}
+
+	sender, err := notifications.NewFCMSenderFromCredentialsJSON(ctx, []byte(credsJSON))
+	if err != nil {
+		log.Warn().Err(err).Msg("airing worker disabled: FCM init failed")
+		return nil
+	}
+	rdb, err := kredis.New(kredis.Config{URL: cfg.UpstashRedisURL, Token: cfg.UpstashRedisToken})
+	if err != nil {
+		log.Warn().Err(err).Msg("airing worker disabled: Redis init failed")
+		return nil
+	}
+	// Fail fast if the Redis credentials are bad — otherwise we'd only
+	// discover it at the first airing window.
+	pingCtx, pingCancel := context.WithTimeout(ctx, 5*time.Second)
+	defer pingCancel()
+	if err := rdb.Ping(pingCtx); err != nil {
+		log.Warn().Err(err).Msg("airing worker disabled: Redis ping failed")
+		return nil
+	}
+
+	worker := notifications.NewAiringWorker(
+		notifications.NewCalendarSource(home),
+		sender,
+		notifications.NewRedisDeduper(rdb),
+		notifications.DefaultConfig(),
+	)
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		worker.Run(ctx)
+	}()
+	log.Info().Msg("airing worker: enabled")
+	return done
 }
 
 // buildAssetLinks returns the Digital Asset Links JSON for Android passkey association.

@@ -9,9 +9,6 @@ enum P2PMessageType {
   /// Emoji/gesture reaction.
   reaction,
 
-  /// Text chat message.
-  chat,
-
   /// Episode change request (host only).
   episodeChange,
 
@@ -39,11 +36,11 @@ final class P2PMessage {
   final Map<String, dynamic> payload;
 
   String encode() => jsonEncode({
-        'type': type.name,
-        'senderId': senderId,
-        'senderName': senderName,
-        'payload': payload,
-      });
+    'type': type.name,
+    'senderId': senderId,
+    'senderName': senderName,
+    'payload': payload,
+  });
 
   static P2PMessage? decode(String raw) {
     try {
@@ -72,46 +69,31 @@ extension P2PMessageFactory on P2PMessage {
     required String senderId,
     required bool isPlaying,
     required int positionMs,
-  }) =>
-      P2PMessage(
-        type: P2PMessageType.sync,
-        senderId: senderId,
-        payload: {'isPlaying': isPlaying, 'positionMs': positionMs},
-      );
+  }) => P2PMessage(
+    type: P2PMessageType.sync,
+    senderId: senderId,
+    payload: {'isPlaying': isPlaying, 'positionMs': positionMs},
+  );
 
   static P2PMessage reaction({
     required String senderId,
     required String senderName,
     required String emoji,
-  }) =>
-      P2PMessage(
-        type: P2PMessageType.reaction,
-        senderId: senderId,
-        senderName: senderName,
-        payload: {'emoji': emoji},
-      );
-
-  static P2PMessage chatMessage({
-    required String senderId,
-    required String senderName,
-    required String text,
-  }) =>
-      P2PMessage(
-        type: P2PMessageType.chat,
-        senderId: senderId,
-        senderName: senderName,
-        payload: {'text': text},
-      );
+  }) => P2PMessage(
+    type: P2PMessageType.reaction,
+    senderId: senderId,
+    senderName: senderName,
+    payload: {'emoji': emoji},
+  );
 
   static P2PMessage episodeChange({
     required String senderId,
     required double episodeNumber,
-  }) =>
-      P2PMessage(
-        type: P2PMessageType.episodeChange,
-        senderId: senderId,
-        payload: {'episodeNumber': episodeNumber},
-      );
+  }) => P2PMessage(
+    type: P2PMessageType.episodeChange,
+    senderId: senderId,
+    payload: {'episodeNumber': episodeNumber},
+  );
 
   /// Host changes anime + episode (full navigation change).
   static P2PMessage mediaChange({
@@ -119,24 +101,22 @@ extension P2PMessageFactory on P2PMessage {
     required int anilistId,
     required String animeTitle,
     required double episodeNumber,
-  }) =>
-      P2PMessage(
-        type: P2PMessageType.mediaChange,
-        senderId: senderId,
-        payload: {
-          'anilistId': anilistId,
-          'animeTitle': animeTitle,
-          'episodeNumber': episodeNumber,
-        },
-      );
+  }) => P2PMessage(
+    type: P2PMessageType.mediaChange,
+    senderId: senderId,
+    payload: {
+      'anilistId': anilistId,
+      'animeTitle': animeTitle,
+      'episodeNumber': episodeNumber,
+    },
+  );
 
   static P2PMessage readyToggle({
     required String senderId,
     required bool ready,
-  }) =>
-      P2PMessage(
-        type: P2PMessageType.ready,
-        senderId: senderId,
-        payload: {'ready': ready},
-      );
+  }) => P2PMessage(
+    type: P2PMessageType.ready,
+    senderId: senderId,
+    payload: {'ready': ready},
+  );
 }

@@ -24,18 +24,18 @@ final class PartyRoom {
   final DateTime createdAt;
 
   factory PartyRoom.fromJson(Map<String, dynamic> json) => PartyRoom(
-        id: json['id'] as String,
-        hostId: json['hostId'] as String,
-        members: (json['members'] as List)
-            .map((e) => PartyMember.fromJson(e as Map<String, dynamic>))
-            .toList(),
-        anilistId: json['anilistId'] as int,
-        animeTitle: json['animeTitle'] as String,
-        episodeNumber: (json['episodeNumber'] as num).toDouble(),
-        maxMembers: json['maxMembers'] as int,
-        inviteCode: json['inviteCode'] as String,
-        createdAt: DateTime.parse(json['createdAt'] as String),
-      );
+    id: json['id'] as String,
+    hostId: json['hostId'] as String,
+    members: (json['members'] as List)
+        .map((e) => PartyMember.fromJson(e as Map<String, dynamic>))
+        .toList(),
+    anilistId: json['anilistId'] as int,
+    animeTitle: json['animeTitle'] as String,
+    episodeNumber: (json['episodeNumber'] as num).toDouble(),
+    maxMembers: json['maxMembers'] as int,
+    inviteCode: json['inviteCode'] as String,
+    createdAt: DateTime.parse(json['createdAt'] as String),
+  );
 
   bool get isFull => members.length >= maxMembers;
 
@@ -45,16 +45,16 @@ final class PartyRoom {
     String? animeTitle,
     double? episodeNumber,
     String? hostId,
-  }) =>
-      PartyRoom(
-        id: id,
-        hostId: hostId ?? this.hostId,
-        members: members ?? this.members,
-        anilistId: anilistId ?? this.anilistId,
-        animeTitle: animeTitle ?? this.animeTitle,
-        episodeNumber: episodeNumber ?? this.episodeNumber,
-        maxMembers: maxMembers,
-        inviteCode: inviteCode,
-        createdAt: createdAt,
-      );
+    String? inviteCode,
+  }) => PartyRoom(
+    id: id,
+    hostId: hostId ?? this.hostId,
+    members: members ?? this.members,
+    anilistId: anilistId ?? this.anilistId,
+    animeTitle: animeTitle ?? this.animeTitle,
+    episodeNumber: episodeNumber ?? this.episodeNumber,
+    maxMembers: maxMembers,
+    inviteCode: inviteCode ?? this.inviteCode,
+    createdAt: createdAt,
+  );
 }

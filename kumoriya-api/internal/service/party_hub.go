@@ -29,6 +29,11 @@ type signalClient struct {
 // signaling messages (SDP offers/answers, ICE candidates) between
 // peers in the same room. It does NOT carry sync/reaction/chat —
 // those go over the P2P DataChannels once established.
+//
+// Deprecated: the watch-party realtime v2 flow brokers state through
+// party.kumoriya.online and does not use this relay. Leave in place
+// while WATCH_PARTY_REALTIME_V2 can be flipped off for rollback.
+// See docs/80-deferred-work.md for the removal plan.
 type SignalRelay struct {
 	mu    sync.RWMutex
 	rooms map[string]map[uuid.UUID]*signalClient // roomID → userID → client
@@ -164,14 +169,17 @@ func (sr *SignalRelay) RelaySignal(roomID string, fromUID uuid.UUID, raw []byte)
 	}
 }
 
-// PeerList returns the list of userIDs currently connected to a room
-// (for the new peer to know who to send offers to).
-func (sr *SignalRelay) PeerList(roomID string) []string {
+// PeerList returns the list of userIDs currently connected to a room,
+// excluding the requesting peer (so the new joiner doesn't see itself).
+func (sr *SignalRelay) PeerList(roomID string, excludeUID uuid.UUID) []string {
 	sr.mu.RLock()
 	defer sr.mu.RUnlock()
 
 	var ids []string
 	for uid := range sr.rooms[roomID] {
+		if uid == excludeUID {
+			continue
+		}
 		ids = append(ids, uid.String())
 	}
 	return ids
@@ -180,8 +188,9 @@ func (sr *SignalRelay) PeerList(roomID string) []string {
 func (sr *SignalRelay) writePump(c *signalClient) {
 	for data := range c.send {
 		if err := c.conn.WriteJSON(json.RawMessage(data)); err != nil {
-			log.Debug().Err(err).Str("user", c.name).Msg("signal write error")
+			log.Warn().Err(err).Str("user", c.name).Str("room", c.roomID).Msg("signal write error — closing peer connection")
 			return
 		}
 	}
+	log.Debug().Str("user", c.name).Str("room", c.roomID).Msg("signal writePump: send channel closed")
 }

@@ -95,7 +95,8 @@ func (h *PartySignalHandler) signalLoop(ws *websocket.Conn, roomID string, userI
 	// Tell new peer about existing peers so it can initiate offers.
 	// IMPORTANT: This must be called AFTER Register so the peer sees
 	// everyone who was already connected before it joined.
-	peers := h.relay.PeerList(roomID)
+	// Exclude the new peer itself from the list.
+	peers := h.relay.PeerList(roomID, userID)
 	log.Debug().Str("room", roomID).Str("user", name).Int("existingPeers", len(peers)).Msg("sending room_state to new peer")
 	roomState, _ := json.Marshal(map[string]any{"peers": peers, "roomId": roomID})
 	h.relay.SendTo(roomID, userID, model.SignalMessage{
@@ -115,15 +116,10 @@ func (h *PartySignalHandler) signalLoop(ws *websocket.Conn, roomID string, userI
 
 	// Read loop — relay signaling messages until disconnect.
 	ws.SetReadLimit(4096)
-	// 120s deadline — clients send keepalive pongs every 30s.
-	// This accommodates HF Spaces proxy idle timeout (~30-60s)
-	// while still cleaning up truly dead connections.
+	// 120s deadline — clients send keepalive {"type":"pong"} JSON messages
+	// every 30s (web_socket_channel cannot send native WS PONG frames).
+	// Reset on every received message to keep the connection alive.
 	ws.SetReadDeadline(time.Now().Add(120 * time.Second))
-	ws.SetPongHandler(func(string) error {
-		log.Debug().Str("user", name).Msg("pong received — resetting read deadline")
-		ws.SetReadDeadline(time.Now().Add(120 * time.Second))
-		return nil
-	})
 
 	for {
 		_, message, err := ws.ReadMessage()
@@ -133,14 +129,15 @@ func (h *PartySignalHandler) signalLoop(ws *websocket.Conn, roomID string, userI
 			}
 			return
 		}
-		// Reset read deadline on any message (client is alive).
+		// Reset read deadline on every message (client is alive).
 		ws.SetReadDeadline(time.Now().Add(120 * time.Second))
 
-		// Skip client-side keepalive pongs.
+		// Skip client-side keepalive pongs (sent as JSON text, not WS PONG frames).
 		var probe struct {
 			Type string `json:"type"`
 		}
 		if json.Unmarshal(message, &probe) == nil && probe.Type == "pong" {
+			log.Debug().Str("user", name).Msg("keepalive pong received — deadline reset")
 			continue
 		}
 

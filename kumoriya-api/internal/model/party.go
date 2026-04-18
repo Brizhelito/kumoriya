@@ -59,6 +59,39 @@ type PartyRoomResponse struct {
 	Room PartyRoom `json:"room"`
 }
 
+// ── Watch Party Realtime v2 DTOs ──
+//
+// The v2 surface brokers room state to the dedicated realtime Worker
+// at `party.kumoriya.online`. The REST API emits a short-lived session
+// token (Ed25519 JWT, aud=watch-party) that the client presents to
+// `wss://.../ws?token=...`.
+
+type PartyRealtimeSession struct {
+	RoomID               string `json:"roomId"`
+	WebsocketURL         string `json:"websocketUrl"`
+	SessionToken         string `json:"sessionToken"`
+	ExpiresAt            int64  `json:"expiresAt"`
+	HeartbeatIntervalSec int    `json:"heartbeatIntervalSec"`
+}
+
+// PartyRoomResponseV2 is the new shape returned by create/join/me/invite
+// when WATCH_PARTY_REALTIME_V2 is enabled. It contains the room metadata
+// and the realtime session information in one envelope.
+type PartyRoomResponseV2 struct {
+	Room            PartyRoom             `json:"room"`
+	RealtimeSession *PartyRealtimeSession `json:"realtimeSession,omitempty"`
+}
+
+// PartySessionRefreshRequest is the body for POST /api/v1/party/session/refresh.
+type PartySessionRefreshRequest struct {
+	RoomID string `json:"roomId"`
+}
+
+// PartySessionRefreshResponse is the response for a successful session refresh.
+type PartySessionRefreshResponse struct {
+	Session PartyRealtimeSession `json:"session"`
+}
+
 // ── Signaling WebSocket Messages ──
 //
 // The WS is ephemeral — it only relays WebRTC signaling (SDP + ICE)

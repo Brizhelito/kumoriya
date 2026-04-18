@@ -12,3 +12,23 @@ zone_name = "kumoriya.online"
 
 [triggers]
 crons = ["0 */12 * * *"]
+
+# ── Rate limiting (R5) ────────────────────────────────────────────────
+# Two-tier limiter keyed by CF-Connecting-IP. The "strict" bucket guards
+# unauthenticated mutation endpoints (POST /party, /party/join, auth
+# register/login); the "default" bucket absorbs the normal API traffic
+# of a logged-in user and is only there to bound abusive clients.
+#
+# Namespace ids are arbitrary integers per binding; CF scopes the
+# counters to the account + binding. Do NOT reuse ids across bindings.
+[[unsafe.bindings]]
+name = "RL_DEFAULT"
+type = "ratelimit"
+namespace_id = "2001"
+simple = { limit = 120, period = 60 }
+
+[[unsafe.bindings]]
+name = "RL_STRICT"
+type = "ratelimit"
+namespace_id = "2002"
+simple = { limit = 15, period = 60 }

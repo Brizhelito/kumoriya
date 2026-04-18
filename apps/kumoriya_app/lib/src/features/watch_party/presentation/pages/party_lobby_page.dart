@@ -4,10 +4,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../shared/storage_providers.dart';
 import '../../../../shared/theme/kumoriya_theme.dart';
 import '../../../anime_catalog/presentation/pages/anime_detail_page.dart';
 import '../../application/models/models.dart';
+import '../../application/party_session_guard.dart';
 import '../../application/providers/party_providers.dart';
+import '../../infrastructure/party_debug_logger.dart';
 
 /// Pre-playback lobby for watch party. Shows room members, invite code,
 /// ready states, and peer connection status.
@@ -30,16 +33,29 @@ class _PartyLobbyPageState extends ConsumerState<PartyLobbyPage> {
     super.initState();
     // Set the navigation callback ONCE — not on every rebuild.
     // This handles media change events for non-host members in the lobby.
-    ref.read(partySessionProvider.notifier).onMediaChangeNavigation = (
-      int anilistId,
-      String animeTitle,
-      double episodeNumber,
-    ) {
+    final notifier = ref.read(partySessionProvider.notifier);
+    notifier.onMediaChangeNavigation =
+        (int anilistId, String animeTitle, double episodeNumber) {
+          if (!mounted) return;
+          final navigator = Navigator.of(context, rootNavigator: true);
+          navigator.popUntil((route) => route.isFirst);
+          navigator.push(
+            MaterialPageRoute<void>(
+              builder: (_) => AnimeDetailPage(anilistId: anilistId),
+            ),
+          );
+        };
+    notifier.onKickedOut = (String byUserId, String? reason) {
       if (!mounted) return;
-      Navigator.of(context).popUntil((route) => route.isFirst);
-      Navigator.of(context).push(
-        MaterialPageRoute<void>(
-          builder: (_) => AnimeDetailPage(anilistId: anilistId),
+      final messenger = ScaffoldMessenger.maybeOf(context);
+      messenger?.showSnackBar(
+        SnackBar(
+          content: Text(
+            reason == null || reason.isEmpty
+                ? 'You were removed from the party by the host.'
+                : 'You were removed from the party: $reason',
+          ),
+          duration: const Duration(seconds: 4),
         ),
       );
     };
@@ -50,7 +66,9 @@ class _PartyLobbyPageState extends ConsumerState<PartyLobbyPage> {
   void dispose() {
     // Clear the callback when leaving the lobby to prevent stale references.
     if (_navCallbackSet) {
-      ref.read(partySessionProvider.notifier).onMediaChangeNavigation = null;
+      final notifier = ref.read(partySessionProvider.notifier);
+      notifier.onMediaChangeNavigation = null;
+      notifier.onKickedOut = null;
       _navCallbackSet = false;
     }
     _inviteController.dispose();
@@ -67,6 +85,12 @@ class _PartyLobbyPageState extends ConsumerState<PartyLobbyPage> {
         backgroundColor: KumoriyaColors.surface,
         title: const Text('Watch Party'),
         actions: [
+          // Debug: view party logs
+          IconButton(
+            icon: const Icon(Icons.bug_report),
+            onPressed: () => _showDebugLogs(context),
+            tooltip: 'View Party Debug Logs',
+          ),
           if (session.isActive)
             IconButton(
               icon: const Icon(Icons.exit_to_app),
@@ -76,23 +100,21 @@ class _PartyLobbyPageState extends ConsumerState<PartyLobbyPage> {
       ),
       body: switch (session.status) {
         PartySessionStatus.idle => _IdleView(
-            inviteController: _inviteController,
-            onJoin: _joinParty,
-            onCreate: (widget.anilistId != null && widget.animeTitle != null)
-                ? _createParty
-                : null,
-            animeTitle: widget.animeTitle,
-          ),
+          inviteController: _inviteController,
+          onJoin: _joinParty,
+          onCreate: (widget.anilistId != null && widget.animeTitle != null)
+              ? _createParty
+              : null,
+          animeTitle: widget.animeTitle,
+        ),
         PartySessionStatus.creating ||
         PartySessionStatus.joining ||
-        PartySessionStatus.connecting =>
-          const _LoadingView(),
+        PartySessionStatus.connecting => const _LoadingView(),
         PartySessionStatus.connected => _ConnectedView(session: session),
         PartySessionStatus.error => _ErrorView(
-            message: session.error ?? 'Unknown error',
-            onRetry: () =>
-                ref.read(partySessionProvider.notifier).leaveRoom(),
-          ),
+          message: session.error ?? 'Unknown error',
+          onRetry: () => ref.read(partySessionProvider.notifier).leaveRoom(),
+        ),
       },
     );
   }
@@ -104,17 +126,72 @@ class _PartyLobbyPageState extends ConsumerState<PartyLobbyPage> {
     ref.read(partySessionProvider.notifier).joinRoom(code);
   }
 
-  void _createParty() {
-    dev.log('_createParty: anilistId=${widget.anilistId} title=${widget.animeTitle}', name: 'Party');
-    ref.read(partySessionProvider.notifier).createRoom(
-      anilistId: widget.anilistId!,
-      animeTitle: widget.animeTitle!,
-      episodeNumber: 1,
+  Future<void> _createParty() async {
+    // Seed the party with the user's last-watched episode so resuming a
+    // series does not force everyone back to episode 1. Falls back to 1
+    // when there is no progress yet or the lookup fails — we do not want
+    // the party creation to block on this read.
+    final latestResult = await ref.read(
+      latestEpisodeProgressProvider(widget.anilistId!).future,
     );
+    final latestEpisode = latestResult.fold(
+      onFailure: (_) => null,
+      onSuccess: (progress) => progress?.episodeNumber,
+    );
+    final startEpisode = latestEpisode ?? 1;
+
+    dev.log(
+      '_createParty: anilistId=${widget.anilistId} title=${widget.animeTitle} '
+      'startEpisode=$startEpisode (latest=$latestEpisode)',
+      name: 'Party',
+    );
+    if (!mounted) return;
+    ref
+        .read(partySessionProvider.notifier)
+        .createRoom(
+          anilistId: widget.anilistId!,
+          animeTitle: widget.animeTitle!,
+          episodeNumber: startEpisode.toDouble(),
+        );
   }
 
   void _leaveParty(BuildContext context) {
     ref.read(partySessionProvider.notifier).leaveRoom();
+  }
+
+  Future<void> _showDebugLogs(BuildContext context) async {
+    final logs = await PartyDebugLogger.readAll();
+    if (!mounted || !context.mounted) return;
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Party Debug Logs'),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: SingleChildScrollView(
+            child: SelectableText(
+              logs,
+              style: const TextStyle(fontFamily: 'monospace', fontSize: 10),
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('Close'),
+          ),
+          TextButton(
+            onPressed: () {
+              Clipboard.setData(ClipboardData(text: logs));
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Logs copied to clipboard')),
+              );
+            },
+            child: const Text('Copy'),
+          ),
+        ],
+      ),
+    );
   }
 }
 
@@ -141,26 +218,22 @@ class _IdleView extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           const SizedBox(height: 32),
-          Icon(
-            Icons.groups_outlined,
-            size: 64,
-            color: KumoriyaColors.primary,
-          ),
+          Icon(Icons.groups_outlined, size: 64, color: KumoriyaColors.primary),
           const SizedBox(height: 16),
           Text(
             'Watch together with friends',
             textAlign: TextAlign.center,
-            style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  color: KumoriyaColors.textPrimary,
-                ),
+            style: Theme.of(
+              context,
+            ).textTheme.titleLarge?.copyWith(color: KumoriyaColors.textPrimary),
           ),
           const SizedBox(height: 8),
           Text(
             'Create a room or join with an invite code. Up to 4 people can watch in sync via P2P.',
             textAlign: TextAlign.center,
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: KumoriyaColors.textSecondary,
-                ),
+              color: KumoriyaColors.textSecondary,
+            ),
           ),
           const SizedBox(height: 48),
           // Join section
@@ -200,15 +273,15 @@ class _IdleView extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 24),
-          if (onCreate != null) ...[  
+          if (onCreate != null) ...[
             const Divider(),
             const SizedBox(height: 16),
             Text(
               'Or start a room for ${animeTitle ?? 'this anime'}',
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: KumoriyaColors.textSecondary,
-                  ),
+                color: KumoriyaColors.textSecondary,
+              ),
             ),
             const SizedBox(height: 12),
             OutlinedButton.icon(
@@ -228,9 +301,9 @@ class _IdleView extends StatelessWidget {
             Text(
               'Open an anime page to create a room',
               textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: KumoriyaColors.textMuted,
-                  ),
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(color: KumoriyaColors.textMuted),
             ),
         ],
       ),
@@ -271,8 +344,11 @@ class _ConnectedView extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final room = session.room!;
-    final localUserId = ref.read(partySessionProvider.notifier).syncEngine?.localUserId;
-    final isHost = localUserId == room.hostId;
+    final notifier = ref.read(partySessionProvider.notifier);
+    // `isLocalHost` works under both v1 (P2P) and v2 (brokered realtime),
+    // unlike `syncEngine.localUserId` which is v1-only and returns null in v2.
+    final localUserId = notifier.localUserId;
+    final isHost = notifier.isLocalHost;
 
     dev.log(
       '_ConnectedView: room=${room.id} isHost=$isHost localUserId=$localUserId '
@@ -299,14 +375,18 @@ class _ConnectedView extends ConsumerWidget {
               children: [
                 Row(
                   children: [
-                    const Icon(Icons.live_tv, size: 20, color: KumoriyaColors.primary),
+                    const Icon(
+                      Icons.live_tv,
+                      size: 20,
+                      color: KumoriyaColors.primary,
+                    ),
                     const SizedBox(width: 8),
                     Text(
                       'Now Watching',
                       style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                            color: KumoriyaColors.primary,
-                            fontWeight: FontWeight.w600,
-                          ),
+                        color: KumoriyaColors.primary,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                   ],
                 ),
@@ -314,15 +394,15 @@ class _ConnectedView extends ConsumerWidget {
                 Text(
                   room.animeTitle,
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        color: KumoriyaColors.textPrimary,
-                      ),
+                    color: KumoriyaColors.textPrimary,
+                  ),
                 ),
                 const SizedBox(height: 4),
                 Text(
                   'Episode ${room.episodeNumber.toInt()}',
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: KumoriyaColors.textSecondary,
-                      ),
+                    color: KumoriyaColors.textSecondary,
+                  ),
                 ),
 
                 // ── Host controls ──
@@ -337,7 +417,9 @@ class _ConnectedView extends ConsumerWidget {
                           label: const Text('Change Anime'),
                           style: OutlinedButton.styleFrom(
                             foregroundColor: KumoriyaColors.primary,
-                            side: const BorderSide(color: KumoriyaColors.primary),
+                            side: const BorderSide(
+                              color: KumoriyaColors.primary,
+                            ),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(8),
                             ),
@@ -352,7 +434,9 @@ class _ConnectedView extends ConsumerWidget {
                           label: const Text('Change Ep.'),
                           style: OutlinedButton.styleFrom(
                             foregroundColor: KumoriyaColors.primary,
-                            side: const BorderSide(color: KumoriyaColors.primary),
+                            side: const BorderSide(
+                              color: KumoriyaColors.primary,
+                            ),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(8),
                             ),
@@ -379,9 +463,7 @@ class _ConnectedView extends ConsumerWidget {
                         ),
                         child: Text(
                           room.inviteCode,
-                          style: Theme.of(context)
-                              .textTheme
-                              .titleLarge
+                          style: Theme.of(context).textTheme.titleLarge
                               ?.copyWith(
                                 color: KumoriyaColors.primary,
                                 fontFamily: 'monospace',
@@ -393,11 +475,12 @@ class _ConnectedView extends ConsumerWidget {
                     ),
                     const SizedBox(width: 8),
                     IconButton(
-                      icon: const Icon(Icons.copy, color: KumoriyaColors.primary),
+                      icon: const Icon(
+                        Icons.copy,
+                        color: KumoriyaColors.primary,
+                      ),
                       onPressed: () {
-                        Clipboard.setData(
-                          ClipboardData(text: room.inviteCode),
-                        );
+                        Clipboard.setData(ClipboardData(text: room.inviteCode));
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(
                             content: Text('Invite code copied!'),
@@ -407,7 +490,10 @@ class _ConnectedView extends ConsumerWidget {
                       },
                     ),
                     IconButton(
-                      icon: const Icon(Icons.share, color: KumoriyaColors.primary),
+                      icon: const Icon(
+                        Icons.share,
+                        color: KumoriyaColors.primary,
+                      ),
                       tooltip: 'Share invite link',
                       onPressed: () {
                         final link =
@@ -431,8 +517,8 @@ class _ConnectedView extends ConsumerWidget {
           Text(
             'Members (${room.members.length}/${room.maxMembers})',
             style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                  color: KumoriyaColors.textSecondary,
-                ),
+              color: KumoriyaColors.textSecondary,
+            ),
           ),
           const SizedBox(height: 8),
           Expanded(
@@ -440,10 +526,14 @@ class _ConnectedView extends ConsumerWidget {
               itemCount: room.members.length,
               itemBuilder: (context, index) {
                 final member = room.members[index];
-                final isConnected =
-                    session.connectedPeerIds.contains(member.userId);
-                final isReady =
-                    session.readyStates[member.userId] ?? false;
+                final isConnected = session.connectedPeerIds.contains(
+                  member.userId,
+                );
+                final isReady = session.readyStates[member.userId] ?? false;
+                final isSelf = member.userId == localUserId;
+                // Only the host sees host-only actions, and only on OTHER
+                // members — you cannot kick/promote yourself.
+                final showHostActions = isHost && !isSelf;
 
                 return ListTile(
                   leading: CircleAvatar(
@@ -452,16 +542,12 @@ class _ConnectedView extends ConsumerWidget {
                       member.displayName.isNotEmpty
                           ? member.displayName[0].toUpperCase()
                           : '?',
-                      style: const TextStyle(
-                        color: KumoriyaColors.primary,
-                      ),
+                      style: const TextStyle(color: KumoriyaColors.primary),
                     ),
                   ),
                   title: Text(
                     member.displayName,
-                    style: const TextStyle(
-                      color: KumoriyaColors.textPrimary,
-                    ),
+                    style: const TextStyle(color: KumoriyaColors.textPrimary),
                   ),
                   subtitle: Text(
                     member.role.name,
@@ -492,6 +578,12 @@ class _ConnectedView extends ConsumerWidget {
                             ? KumoriyaColors.statusSuccess
                             : KumoriyaColors.textMuted,
                       ),
+                      if (showHostActions)
+                        _HostMemberActions(
+                          targetUserId: member.userId,
+                          targetDisplayName: member.displayName,
+                          isTargetConnected: isConnected,
+                        ),
                     ],
                   ),
                 );
@@ -527,7 +619,10 @@ class _ConnectedView extends ConsumerWidget {
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: KumoriyaColors.surface,
-        title: const Text('Change Episode', style: TextStyle(color: KumoriyaColors.textPrimary)),
+        title: const Text(
+          'Change Episode',
+          style: TextStyle(color: KumoriyaColors.textPrimary),
+        ),
         content: TextField(
           controller: controller,
           keyboardType: TextInputType.number,
@@ -551,13 +646,17 @@ class _ConnectedView extends ConsumerWidget {
               final ep = double.tryParse(controller.text.trim());
               if (ep == null || ep <= 0) return;
               Navigator.of(ctx).pop();
-              ref.read(partySessionProvider.notifier).changeMedia(
-                anilistId: room.anilistId,
-                animeTitle: room.animeTitle,
-                episodeNumber: ep,
-              );
+              ref
+                  .read(partySessionProvider.notifier)
+                  .changeMedia(
+                    anilistId: room.anilistId,
+                    animeTitle: room.animeTitle,
+                    episodeNumber: ep,
+                  );
             },
-            style: FilledButton.styleFrom(backgroundColor: KumoriyaColors.primary),
+            style: FilledButton.styleFrom(
+              backgroundColor: KumoriyaColors.primary,
+            ),
             child: const Text('Apply'),
           ),
         ],
@@ -581,13 +680,9 @@ class _BottomControls extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final localUserId =
-        ref.read(partySessionProvider.notifier).syncEngine?.localUserId;
+    final localUserId = ref.read(partySessionProvider.notifier).localUserId;
     final localReady = session.readyStates[localUserId] ?? false;
-    final allReady = room.members.isNotEmpty &&
-        room.members.every(
-          (m) => session.readyStates[m.userId] == true,
-        );
+    final allReady = partyHasAllMembersReady(session);
 
     dev.log(
       '_BottomControls: localUserId=$localUserId localReady=$localReady allReady=$allReady members=${room.members.length}',
@@ -601,14 +696,20 @@ class _BottomControls extends ConsumerWidget {
         // Ready toggle
         FilledButton.icon(
           onPressed: () {
-            dev.log('toggleReady: $localReady -> ${!localReady}', name: 'Party');
+            dev.log(
+              'toggleReady: $localReady -> ${!localReady}',
+              name: 'Party',
+            );
             ref.read(partySessionProvider.notifier).toggleReady(!localReady);
           },
-          icon: Icon(localReady ? Icons.check_circle : Icons.radio_button_unchecked),
+          icon: Icon(
+            localReady ? Icons.check_circle : Icons.radio_button_unchecked,
+          ),
           label: Text(localReady ? 'Ready!' : 'Ready'),
           style: FilledButton.styleFrom(
-            backgroundColor:
-                localReady ? KumoriyaColors.statusSuccess : KumoriyaColors.primary,
+            backgroundColor: localReady
+                ? KumoriyaColors.statusSuccess
+                : KumoriyaColors.primary,
             padding: const EdgeInsets.symmetric(vertical: 14),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(12),
@@ -619,7 +720,7 @@ class _BottomControls extends ConsumerWidget {
         // Host: Start Watching button / Members: waiting label
         if (isHost)
           FilledButton.icon(
-            onPressed: allReady ? () => _startWatching(context) : null,
+            onPressed: allReady ? () => _startWatching(context, ref) : null,
             icon: const Icon(Icons.play_arrow),
             label: Text(
               allReady ? 'Start Watching' : 'Waiting for everyone...',
@@ -640,24 +741,21 @@ class _BottomControls extends ConsumerWidget {
             child: Text(
               'Waiting for the host to start...',
               textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: KumoriyaColors.textMuted,
-                  ),
+              style: Theme.of(
+                context,
+              ).textTheme.bodyMedium?.copyWith(color: KumoriyaColors.textMuted),
             ),
           ),
       ],
     );
   }
 
-  void _startWatching(BuildContext context) {
-    // Navigate to the anime detail page where the host selects
-    // an episode and the normal resolve → player flow kicks in.
-    // The party session stays active (it's a global Riverpod provider).
-    Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (_) => AnimeDetailPage(anilistId: room.anilistId),
-      ),
-    );
+  void _startWatching(BuildContext context, WidgetRef ref) {
+    // Broadcast to every client (host included) that we are leaving the
+    // lobby. Each client navigates via [onMediaChangeNavigation], so the
+    // host must NOT push locally here — that would double-push and leave
+    // members stranded on the lobby until a later media change event.
+    ref.read(partySessionProvider.notifier).startWatching();
   }
 }
 
@@ -702,3 +800,133 @@ class _ErrorView extends StatelessWidget {
     );
   }
 }
+
+// ── Host-only per-member actions (kick / promote) ──
+
+class _HostMemberActions extends ConsumerWidget {
+  const _HostMemberActions({
+    required this.targetUserId,
+    required this.targetDisplayName,
+    required this.isTargetConnected,
+  });
+
+  final String targetUserId;
+  final String targetDisplayName;
+  final bool isTargetConnected;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return PopupMenuButton<_HostMemberAction>(
+      icon: const Icon(
+        Icons.more_vert,
+        size: 18,
+        color: KumoriyaColors.textMuted,
+      ),
+      tooltip: 'Host actions',
+      onSelected: (action) => _onAction(context, ref, action),
+      itemBuilder: (context) => <PopupMenuEntry<_HostMemberAction>>[
+        PopupMenuItem<_HostMemberAction>(
+          value: _HostMemberAction.transferHost,
+          // Promoting a disconnected member would instantly put the
+          // party into a hostless/grace state — prevent it at the UI.
+          enabled: isTargetConnected,
+          child: ListTile(
+            dense: true,
+            leading: const Icon(Icons.star_outline),
+            title: const Text('Make host'),
+            subtitle: isTargetConnected
+                ? null
+                : const Text('Member is disconnected'),
+          ),
+        ),
+        const PopupMenuItem<_HostMemberAction>(
+          value: _HostMemberAction.kick,
+          child: ListTile(
+            dense: true,
+            leading: Icon(Icons.person_remove, color: Colors.redAccent),
+            title: Text(
+              'Remove from party',
+              style: TextStyle(color: Colors.redAccent),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Future<void> _onAction(
+    BuildContext context,
+    WidgetRef ref,
+    _HostMemberAction action,
+  ) async {
+    final notifier = ref.read(partySessionProvider.notifier);
+    switch (action) {
+      case _HostMemberAction.kick:
+        final confirmed = await showDialog<bool>(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            backgroundColor: KumoriyaColors.surface,
+            title: const Text(
+              'Remove member?',
+              style: TextStyle(color: KumoriyaColors.textPrimary),
+            ),
+            content: Text(
+              'Remove "$targetDisplayName" from the party? They will be '
+              'disconnected immediately.',
+              style: const TextStyle(color: KumoriyaColors.textSecondary),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: const Text('Cancel'),
+              ),
+              FilledButton(
+                style: FilledButton.styleFrom(
+                  backgroundColor: Colors.redAccent,
+                ),
+                onPressed: () => Navigator.pop(ctx, true),
+                child: const Text('Remove'),
+              ),
+            ],
+          ),
+        );
+        if (confirmed != true || !context.mounted) return;
+        notifier.kickMember(targetUserId);
+        return;
+      case _HostMemberAction.transferHost:
+        final confirmed = await showDialog<bool>(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            backgroundColor: KumoriyaColors.surface,
+            title: const Text(
+              'Transfer host?',
+              style: TextStyle(color: KumoriyaColors.textPrimary),
+            ),
+            content: Text(
+              '"$targetDisplayName" will take over as host. You will keep '
+              'watching but lose host controls.',
+              style: const TextStyle(color: KumoriyaColors.textSecondary),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: const Text('Cancel'),
+              ),
+              FilledButton(
+                style: FilledButton.styleFrom(
+                  backgroundColor: KumoriyaColors.primary,
+                ),
+                onPressed: () => Navigator.pop(ctx, true),
+                child: const Text('Transfer'),
+              ),
+            ],
+          ),
+        );
+        if (confirmed != true || !context.mounted) return;
+        notifier.transferHost(targetUserId);
+        return;
+    }
+  }
+}
+
+enum _HostMemberAction { kick, transferHost }

@@ -1,0 +1,83 @@
+name = "watch-party-realtime"
+main = "src/index.ts"
+# Ed25519 in WebCrypto requires a recent runtime; 2024-09-23 ships it.
+compatibility_date = "2024-09-23"
+compatibility_flags = ["nodejs_compat"]
+
+# ──────────────────────────────────────────────────────────────────────────────
+# IMPORTANT: wrangler does NOT inherit top-level `[[durable_objects.bindings]]`
+# or `[[migrations]]` into `[env.*]` blocks. Every environment we deploy with
+# `--env <name>` must redeclare them. See:
+# https://developers.cloudflare.com/workers/wrangler/configuration/#environments
+#
+# The top-level block below applies only when deploying without `--env`.
+# ──────────────────────────────────────────────────────────────────────────────
+
+# Durable Objects bindings (top-level / no --env)
+[[durable_objects.bindings]]
+name = "PARTY_REGISTRY"
+class_name = "PartyRegistryDO"
+
+[[durable_objects.bindings]]
+name = "PARTY_ROOM"
+class_name = "PartyRoomDO"
+
+# Durable Objects migrations (top-level / no --env).
+# `new_sqlite_classes` creates SQLite-backed DO namespaces, which are
+# available on the Workers Free plan. Our DOs only use the KV-style
+# `state.storage.{get,put,delete,list}` API, which is fully supported
+# on SQLite-backed DOs — no code changes needed.
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["PartyRegistryDO", "PartyRoomDO"]
+
+# Environment variables (non-secret, top-level / no --env)
+[vars]
+# Expected `iss` claim of session tokens (set by kumoriya-api via JWT_ISSUER).
+PARTY_SESSION_ISSUER = "https://api.kumoriya.online"
+# Expected `aud` claim of session tokens (short-lived room tickets).
+PARTY_WS_AUDIENCE = "watch-party"
+
+# ── Development environment ───────────────────────────────────────────────────
+[env.development]
+name = "watch-party-realtime-dev"
+
+[env.development.vars]
+PARTY_SESSION_ISSUER = "https://api.kumoriya.online"
+PARTY_WS_AUDIENCE = "watch-party"
+
+[[env.development.durable_objects.bindings]]
+name = "PARTY_REGISTRY"
+class_name = "PartyRegistryDO"
+
+[[env.development.durable_objects.bindings]]
+name = "PARTY_ROOM"
+class_name = "PartyRoomDO"
+
+[[env.development.migrations]]
+tag = "v1"
+new_sqlite_classes = ["PartyRegistryDO", "PartyRoomDO"]
+
+# ── Production environment ────────────────────────────────────────────────────
+[env.production]
+name = "watch-party-realtime"
+# Routes are configured via Cloudflare dashboard or the `routes` key here once
+# DNS for `party.kumoriya.online` is proxied. Leaving them commented avoids
+# `wrangler deploy` failing in a fresh Cloudflare zone that hasn't been set up.
+# routes = [{ pattern = "party.kumoriya.online/*", zone_name = "kumoriya.online" }]
+
+[env.production.vars]
+PARTY_SESSION_ISSUER = "https://api.kumoriya.online"
+PARTY_WS_AUDIENCE = "watch-party"
+
+[[env.production.durable_objects.bindings]]
+name = "PARTY_REGISTRY"
+class_name = "PartyRegistryDO"
+
+[[env.production.durable_objects.bindings]]
+name = "PARTY_ROOM"
+class_name = "PartyRoomDO"
+
+[[env.production.migrations]]
+tag = "v1"
+new_sqlite_classes = ["PartyRegistryDO", "PartyRoomDO"]

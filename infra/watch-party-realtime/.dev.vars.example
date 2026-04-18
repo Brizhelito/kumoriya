@@ -1,0 +1,13 @@
+# Party Realtime Service - Environment Variables
+# Copy this file to `.dev.vars` for local development.
+
+# Shared bearer token used by kumoriya-api to call /internal/v1/*.
+PARTY_INTERNAL_TOKEN=your-internal-token-here
+
+# Hex-encoded 32-byte Ed25519 public key used to verify session tokens.
+# Must match the public half of kumoriya-api's JWT_PRIVATE_KEY_HEX.
+PARTY_SESSION_PUBLIC_KEY_HEX=your-hex-ed25519-public-key-here
+
+# Overrides for wrangler.toml [vars] (optional):
+# PARTY_SESSION_ISSUER=https://api.kumoriya.online
+# PARTY_WS_AUDIENCE=watch-party

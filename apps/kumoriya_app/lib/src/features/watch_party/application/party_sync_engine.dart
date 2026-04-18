@@ -5,16 +5,23 @@ import '../infrastructure/webrtc_peer_manager.dart';
 
 /// Callback types for the sync engine.
 typedef OnSyncState = void Function(bool isPlaying, int positionMs);
-typedef OnReaction = void Function(String senderId, String senderName, String emoji);
-typedef OnChatMessage = void Function(String senderId, String senderName, String text);
+typedef OnReaction =
+    void Function(String senderId, String senderName, String emoji);
 typedef OnEpisodeChange = void Function(String senderId, double episodeNumber);
-typedef OnMediaChange = void Function(String senderId, int anilistId, String animeTitle, double episodeNumber);
+typedef OnMediaChange =
+    void Function(
+      String senderId,
+      int anilistId,
+      String animeTitle,
+      double episodeNumber,
+    );
 typedef OnReadyToggle = void Function(String senderId, bool ready);
 typedef OnKick = void Function(String targetUserId);
 
-/// Orchestrates P2P message routing for playback sync, reactions, chat,
-/// and room control. Sits on top of [WebRtcPeerManager] and dispatches
-/// incoming [P2PMessage]s to typed callbacks.
+/// Orchestrates P2P message routing for playback sync, reactions, and room
+/// control. Text chat was removed; voice-chat will cover that use case.
+/// Sits on top of [WebRtcPeerManager] and dispatches incoming
+/// [P2PMessage]s to typed callbacks.
 ///
 /// The host periodically broadcasts sync state. Members apply it.
 final class PartySyncEngine {
@@ -36,7 +43,6 @@ final class PartySyncEngine {
 
   OnSyncState? onSyncState;
   OnReaction? onReaction;
-  OnChatMessage? onChatMessage;
   OnEpisodeChange? onEpisodeChange;
   OnMediaChange? onMediaChange;
   OnReadyToggle? onReadyToggle;
@@ -83,33 +89,26 @@ final class PartySyncEngine {
 
   /// Send a reaction emoji to all peers.
   void sendReaction(String emoji) {
-    _peerManager.broadcast(P2PMessage(
-      type: P2PMessageType.reaction,
-      senderId: localUserId,
-      senderName: localUserName,
-      payload: {'emoji': emoji},
-    ));
-  }
-
-  /// Send a chat message to all peers.
-  void sendChat(String text) {
-    if (text.trim().isEmpty) return;
-    _peerManager.broadcast(P2PMessage(
-      type: P2PMessageType.chat,
-      senderId: localUserId,
-      senderName: localUserName,
-      payload: {'text': text},
-    ));
+    _peerManager.broadcast(
+      P2PMessage(
+        type: P2PMessageType.reaction,
+        senderId: localUserId,
+        senderName: localUserName,
+        payload: {'emoji': emoji},
+      ),
+    );
   }
 
   /// Request an episode change (host only).
   void sendEpisodeChange(double episodeNumber) {
     if (!isHost) return;
-    _peerManager.broadcast(P2PMessage(
-      type: P2PMessageType.episodeChange,
-      senderId: localUserId,
-      payload: {'episodeNumber': episodeNumber},
-    ));
+    _peerManager.broadcast(
+      P2PMessage(
+        type: P2PMessageType.episodeChange,
+        senderId: localUserId,
+        payload: {'episodeNumber': episodeNumber},
+      ),
+    );
   }
 
   /// Request a full media change — different anime or episode (host only).
@@ -119,34 +118,40 @@ final class PartySyncEngine {
     required double episodeNumber,
   }) {
     if (!isHost) return;
-    _peerManager.broadcast(P2PMessage(
-      type: P2PMessageType.mediaChange,
-      senderId: localUserId,
-      payload: {
-        'anilistId': anilistId,
-        'animeTitle': animeTitle,
-        'episodeNumber': episodeNumber,
-      },
-    ));
+    _peerManager.broadcast(
+      P2PMessage(
+        type: P2PMessageType.mediaChange,
+        senderId: localUserId,
+        payload: {
+          'anilistId': anilistId,
+          'animeTitle': animeTitle,
+          'episodeNumber': episodeNumber,
+        },
+      ),
+    );
   }
 
   /// Toggle local ready state and broadcast.
   void sendReady(bool ready) {
-    _peerManager.broadcast(P2PMessage(
-      type: P2PMessageType.ready,
-      senderId: localUserId,
-      payload: {'ready': ready},
-    ));
+    _peerManager.broadcast(
+      P2PMessage(
+        type: P2PMessageType.ready,
+        senderId: localUserId,
+        payload: {'ready': ready},
+      ),
+    );
   }
 
   /// Kick a member (host only).
   void kickMember(String targetUserId) {
     if (!isHost) return;
-    _peerManager.broadcast(P2PMessage(
-      type: P2PMessageType.kick,
-      senderId: localUserId,
-      payload: {'targetUserId': targetUserId},
-    ));
+    _peerManager.broadcast(
+      P2PMessage(
+        type: P2PMessageType.kick,
+        senderId: localUserId,
+        payload: {'targetUserId': targetUserId},
+      ),
+    );
   }
 
   void dispose() {
@@ -156,11 +161,13 @@ final class PartySyncEngine {
   // ── Internal ──
 
   void _broadcastSync() {
-    _peerManager.broadcast(P2PMessage(
-      type: P2PMessageType.sync,
-      senderId: localUserId,
-      payload: {'isPlaying': _isPlaying, 'positionMs': _positionMs},
-    ));
+    _peerManager.broadcast(
+      P2PMessage(
+        type: P2PMessageType.sync,
+        senderId: localUserId,
+        payload: {'isPlaying': _isPlaying, 'positionMs': _positionMs},
+      ),
+    );
   }
 
   void _onMessage(String peerId, P2PMessage message) {
@@ -172,12 +179,6 @@ final class PartySyncEngine {
           message.senderId,
           message.senderName,
           message.payload['emoji'] as String? ?? '❤️',
-        );
-      case P2PMessageType.chat:
-        onChatMessage?.call(
-          message.senderId,
-          message.senderName,
-          message.payload['text'] as String? ?? '',
         );
       case P2PMessageType.episodeChange:
         onEpisodeChange?.call(
