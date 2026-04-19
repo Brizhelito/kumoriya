@@ -894,7 +894,10 @@ export class PartyRoomDO {
         if (payload.anilistId !== undefined) {
           roomState.media.anilistId = payload.anilistId;
           roomState.playback = applyPlaybackResetForMediaChange(roomState.playback, now);
-          this.resetAllReadyStates(roomState);
+          // Exempt the host (origin of the intent): their next PlayerPage
+          // will re-mark ready immediately and the round-trip flicker is
+          // user-visible as a spurious "waiting for everyone" toast.
+          const mediaResetIds = this.resetAllReadyStates(roomState, userId);
           roomState.roomVersion += 1;
           roomState.lastActivityAt = now;
           await this.state.storage.put('roomState', roomState);
@@ -906,11 +909,11 @@ export class PartyRoomDO {
               roomState.roomVersion
             )
           );
-          for (const member of roomState.members) {
+          for (const resetUserId of mediaResetIds) {
             this.broadcast(
               buildEnvelope(
                 'member_ready_changed',
-                { userId: member.userId, effectiveReady: false },
+                { userId: resetUserId, effectiveReady: false },
                 roomState.roomId,
                 roomState.roomVersion
               )
@@ -928,7 +931,7 @@ export class PartyRoomDO {
         if (payload.episodeNumber !== undefined) {
           roomState.media.episodeNumber = payload.episodeNumber;
           roomState.playback = applyPlaybackResetForMediaChange(roomState.playback, now);
-          this.resetAllReadyStates(roomState);
+          const episodeResetIds = this.resetAllReadyStates(roomState, userId);
           roomState.roomVersion += 1;
           roomState.lastActivityAt = now;
           await this.state.storage.put('roomState', roomState);
@@ -940,11 +943,11 @@ export class PartyRoomDO {
               roomState.roomVersion
             )
           );
-          for (const member of roomState.members) {
+          for (const resetUserId of episodeResetIds) {
             this.broadcast(
               buildEnvelope(
                 'member_ready_changed',
-                { userId: member.userId, effectiveReady: false },
+                { userId: resetUserId, effectiveReady: false },
                 roomState.roomId,
                 roomState.roomVersion
               )
@@ -1080,13 +1083,31 @@ export class PartyRoomDO {
     );
   }
 
-  /** Reset all members' ready states to false (in-place mutation of roomState) */
-  private resetAllReadyStates(roomState: RoomState): void {
+  /**
+   * Reset ready states to false (in-place mutation of roomState).
+   *
+   * When `exemptUserId` is provided, that member keeps their current ready
+   * state and is excluded from the returned list. This is used when the
+   * host originates a media/episode change — the host will remain on the
+   * driver seat across the transition, so clearing their ready only to
+   * have the new PlayerPage re-emit `toggleReady(true)` a moment later
+   * flickers the host's UI into a spurious "waiting for everyone" state.
+   *
+   * Returns the list of userIds whose ready state was actually cleared, so
+   * callers can broadcast `member_ready_changed` only for them.
+   */
+  private resetAllReadyStates(roomState: RoomState, exemptUserId?: string): string[] {
+    const resetIds: string[] = [];
     for (const member of roomState.members) {
+      if (exemptUserId !== undefined && member.userId === exemptUserId) {
+        continue;
+      }
       member.readyPersisted = false;
       member.effectiveReady = false;
       roomState.readyStates[member.userId] = { readyPersisted: false, effectiveReady: false };
+      resetIds.push(member.userId);
     }
+    return resetIds;
   }
 
   // ─── Reactions / signaling relay ──────────────────────────────────────────
