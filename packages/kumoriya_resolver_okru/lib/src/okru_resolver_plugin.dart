@@ -57,46 +57,70 @@ final class OkruResolverPlugin implements ResolverPlugin {
       );
     }
 
+    // Transport phase — only network-level errors (timeout, socket, DNS)
+    // propagate from here. We deliberately keep the parsing phase below
+    // outside this block so a malformed JSON payload does not get
+    // reclassified as a transport failure (which would poison telemetry
+    // and mislead the retry policy).
+    final http.Response response;
     try {
-      final response = await _httpClient
+      response = await _httpClient
           .get(url, headers: _headers(url))
           .timeout(const Duration(seconds: 8));
-
-      if (response.statusCode != 200) {
-        return Failure(
-          OkruTransportError(
-            message: 'Okru request failed with status ${response.statusCode}.',
-          ),
-        );
-      }
-
-      if (!isResponseSizeAcceptable(response)) {
-        return const Failure(
-          OkruTransportError(message: 'Okru response too large.'),
-        );
-      }
-
-      final streams = _extractStreams(safeResponseBody(response), baseUrl: url);
-      if (streams.isEmpty) {
-        if (_hasHints(safeResponseBody(response))) {
-          return const Failure(
-            OkruInconsistentPayloadError(
-              message: 'Okru payload had player hints but no playable streams.',
-            ),
-          );
-        }
-
-        return const Failure(
-          OkruParseError(message: 'No playable Okru stream found in payload.'),
-        );
-      }
-
-      return Success(ResolveResult(streams: streams));
     } catch (error) {
       return Failure(
         OkruTransportError(message: 'Okru resolve request failed: $error'),
       );
     }
+
+    if (response.statusCode != 200) {
+      return Failure(
+        OkruTransportError(
+          message: 'Okru request failed with status ${response.statusCode}.',
+        ),
+      );
+    }
+
+    if (!isResponseSizeAcceptable(response)) {
+      return const Failure(
+        OkruTransportError(message: 'Okru response too large.'),
+      );
+    }
+
+    // Parsing phase — any exception here is a structural issue with the
+    // payload (schema change, truncated HTML, mangled JSON) and must be
+    // reported as a parse error.
+    final payloadBody = safeResponseBody(response);
+    final List<ResolvedStream> streams;
+    try {
+      streams = _extractStreams(payloadBody, baseUrl: url);
+    } on FormatException catch (error) {
+      return Failure(
+        OkruParseError(
+          message: 'Okru payload JSON could not be decoded: ${error.message}',
+        ),
+      );
+    } catch (error) {
+      return Failure(
+        OkruParseError(message: 'Okru payload parse failed: $error'),
+      );
+    }
+
+    if (streams.isEmpty) {
+      if (_hasHints(payloadBody)) {
+        return const Failure(
+          OkruInconsistentPayloadError(
+            message: 'Okru payload had player hints but no playable streams.',
+          ),
+        );
+      }
+
+      return const Failure(
+        OkruParseError(message: 'No playable Okru stream found in payload.'),
+      );
+    }
+
+    return Success(ResolveResult(streams: streams));
   }
 }
 

@@ -34,6 +34,15 @@ final class StreamwishResolverPlugin implements ResolverPlugin {
     'hgplaycdn.com',
   ];
 
+  /// HTTP status codes that signal the content itself is gone — 404 Not
+  /// Found, 410 Gone, 451 Unavailable For Legal Reasons, 403 Forbidden
+  /// (server refusing the embed outright). StreamWish mirrors share the
+  /// same upstream storage, so retrying them after one of these codes is
+  /// wasted latency: all mirrors answer identically. We short-circuit and
+  /// fail fast, leaving the auto-queue free to try a different resolver
+  /// sooner.
+  static const Set<int> _terminalStatusCodes = <int>{403, 404, 410, 451};
+
   @override
   PluginManifest get manifest => const PluginManifest(
     id: 'kumoriya.resolver.streamwish',
@@ -100,7 +109,20 @@ final class StreamwishResolverPlugin implements ResolverPlugin {
           .timeout(const Duration(seconds: 8));
 
       if (response.statusCode != 200) {
-        // Primary host failed — try mirror hosts before giving up.
+        // Terminal statuses (404/410/451/403) mean the content is gone
+        // from the StreamWish CDN altogether. Mirrors share the storage
+        // layer and will answer identically, so skip the parallel probe
+        // and fail fast.
+        if (_terminalStatusCodes.contains(response.statusCode)) {
+          return Failure(
+            StreamwishTransportError(
+              message:
+                  'StreamWish content unavailable (status ${response.statusCode}).',
+            ),
+          );
+        }
+        // Primary host failed with a transient/soft error — try mirror
+        // hosts before giving up.
         final fallbackStreams = await _tryKnownMirrorFallback(url);
         if (fallbackStreams.isNotEmpty) {
           return Success(ResolveResult(streams: fallbackStreams));

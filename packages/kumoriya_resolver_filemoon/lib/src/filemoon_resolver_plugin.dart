@@ -87,75 +87,14 @@ final class FilemoonResolverPlugin implements ResolverPlugin {
       );
     }
 
+    // Transport phase — keep narrow so only genuine network errors get
+    // reported as transport failures. Anything structural happening after
+    // the response is classified as a parse/inconsistent-payload error.
+    final http.Response response;
     try {
-      final response = await _httpClient
+      response = await _httpClient
           .get(url, headers: _requestHeaders(url))
           .timeout(const Duration(seconds: 8));
-
-      if (response.statusCode != 200) {
-        return Failure(
-          FilemoonTransportError(
-            message:
-                'Filemoon request failed with status ${response.statusCode}.',
-          ),
-        );
-      }
-
-      if (!isResponseSizeAcceptable(response)) {
-        return const Failure(
-          FilemoonTransportError(message: 'Filemoon response too large.'),
-        );
-      }
-
-      final streams = _extractStreams(
-        safeResponseBody(response),
-        resolverUrl: url,
-      );
-      if (streams.isEmpty) {
-        // Only attempt the expensive dynamic API flow if the page is from a
-        // known dynamic host AND the payload actually contains stream hints
-        // (player init, HLS references, etc). This avoids a wasted 8s round-
-        // trip when the page is genuinely empty or unavailable.
-        if (_isDynamicHost(url.host) &&
-            _hasStreamHints(safeResponseBody(response))) {
-          final dynamicResult = await _resolveDynamicByseFlow(
-            url,
-            httpClient: _httpClient,
-          );
-          if (dynamicResult != null) {
-            return dynamicResult.fold(
-              onSuccess: (s) => Success(ResolveResult(streams: s)),
-              onFailure: Failure.new,
-            );
-          }
-        }
-
-        if (_isUnavailablePayload(safeResponseBody(response))) {
-          return Failure(
-            FilemoonTransportError(
-              message:
-                  'Filemoon host responded but reported source unavailable for this video.',
-            ),
-          );
-        }
-
-        if (_hasStreamHints(safeResponseBody(response))) {
-          return const Failure(
-            FilemoonInconsistentPayloadError(
-              message:
-                  'Filemoon payload includes stream hints but no valid candidates were extracted.',
-            ),
-          );
-        }
-        return const Failure(
-          FilemoonParseError(
-            message:
-                'No stream candidates were extracted from Filemoon payload.',
-          ),
-        );
-      }
-
-      return Success(ResolveResult(streams: streams));
     } catch (error) {
       return Failure(
         FilemoonTransportError(
@@ -163,6 +102,81 @@ final class FilemoonResolverPlugin implements ResolverPlugin {
         ),
       );
     }
+
+    if (response.statusCode != 200) {
+      return Failure(
+        FilemoonTransportError(
+          message:
+              'Filemoon request failed with status ${response.statusCode}.',
+        ),
+      );
+    }
+
+    if (!isResponseSizeAcceptable(response)) {
+      return const Failure(
+        FilemoonTransportError(message: 'Filemoon response too large.'),
+      );
+    }
+
+    final payloadBody = safeResponseBody(response);
+    final List<ResolvedStream> streams;
+    try {
+      streams = _extractStreams(payloadBody, resolverUrl: url);
+    } on FormatException catch (error) {
+      return Failure(
+        FilemoonParseError(
+          message: 'Filemoon payload could not be decoded: ${error.message}',
+        ),
+      );
+    } catch (error) {
+      return Failure(
+        FilemoonParseError(message: 'Filemoon payload parse failed: $error'),
+      );
+    }
+
+    if (streams.isEmpty) {
+      // Only attempt the expensive dynamic API flow if the page is from a
+      // known dynamic host AND the payload actually contains stream hints
+      // (player init, HLS references, etc). This avoids a wasted 8s round-
+      // trip when the page is genuinely empty or unavailable.
+      if (_isDynamicHost(url.host) && _hasStreamHints(payloadBody)) {
+        final dynamicResult = await _resolveDynamicByseFlow(
+          url,
+          httpClient: _httpClient,
+        );
+        if (dynamicResult != null) {
+          return dynamicResult.fold(
+            onSuccess: (s) => Success(ResolveResult(streams: s)),
+            onFailure: Failure.new,
+          );
+        }
+      }
+
+      if (_isUnavailablePayload(payloadBody)) {
+        return Failure(
+          FilemoonTransportError(
+            message:
+                'Filemoon host responded but reported source unavailable for this video.',
+          ),
+        );
+      }
+
+      if (_hasStreamHints(payloadBody)) {
+        return const Failure(
+          FilemoonInconsistentPayloadError(
+            message:
+                'Filemoon payload includes stream hints but no valid candidates were extracted.',
+          ),
+        );
+      }
+      return const Failure(
+        FilemoonParseError(
+          message: 'No stream candidates were extracted from Filemoon payload.',
+        ),
+      );
+    }
+
+    return Success(ResolveResult(streams: streams));
   }
 }
 

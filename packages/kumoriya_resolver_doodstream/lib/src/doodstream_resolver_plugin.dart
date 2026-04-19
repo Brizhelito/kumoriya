@@ -114,108 +114,128 @@ final class DoodstreamResolverPlugin implements ResolverPlugin {
       );
     }
 
+    // Doodstream requires two sequential round-trips (embed page + token
+    // endpoint). 8 s × 2 allowed worst-case 16 s before giving up, which
+    // hurts the auto-queue when a Dood mirror is slow. 6 s keeps the 95th
+    // percentile safe on residential networks while capping worst-case at
+    // 12 s — a meaningful improvement for the shared auto-queue budget.
+    const Duration embedTimeout = Duration(seconds: 6);
+    const Duration tokenTimeout = Duration(seconds: 6);
+
+    // Transport phase: embed page fetch.
+    final http.Response embedResponse;
     try {
-      final embedResponse = await _httpClient
+      embedResponse = await _httpClient
           .get(url, headers: _headers(url))
-          .timeout(const Duration(seconds: 8));
-
-      if (embedResponse.statusCode != 200) {
-        return Failure(
-          DoodstreamTransportError(
-            message:
-                'Doodstream embed request failed with status ${embedResponse.statusCode}.',
-          ),
-        );
-      }
-
-      if (!isResponseSizeAcceptable(embedResponse)) {
-        return const Failure(
-          DoodstreamTransportError(
-            message: 'Doodstream embed response too large.',
-          ),
-        );
-      }
-
-      final passMd5Path = _extractPassMd5Path(safeResponseBody(embedResponse));
-      if (passMd5Path == null) {
-        if (_hasHints(safeResponseBody(embedResponse))) {
-          return const Failure(
-            DoodstreamInconsistentPayloadError(
-              message:
-                  'Doodstream payload has stream hints but no pass_md5 path was found.',
-            ),
-          );
-        }
-        return const Failure(
-          DoodstreamParseError(
-            message: 'No pass_md5 token path was found in Doodstream payload.',
-          ),
-        );
-      }
-
-      final tokenUrl = url.replace(
-        path: passMd5Path,
-        query: null,
-        fragment: null,
-      );
-
-      // Token endpoint is lightweight — short timeout reduces total resolve time.
-      final tokenResponse = await _httpClient
-          .get(tokenUrl, headers: _tokenHeaders(url))
-          .timeout(const Duration(seconds: 8));
-
-      if (tokenResponse.statusCode != 200) {
-        return Failure(
-          DoodstreamTransportError(
-            message:
-                'Doodstream token request failed with status ${tokenResponse.statusCode}.',
-          ),
-        );
-      }
-
-      final partialUrl = safeResponseBody(tokenResponse).trim();
-      if (partialUrl.isEmpty || !partialUrl.startsWith('http')) {
-        return const Failure(
-          DoodstreamParseError(
-            message: 'Doodstream token endpoint returned invalid partial URL.',
-          ),
-        );
-      }
-
-      final randomStr = _generateRandomString(10);
-      final timestamp = DateTime.now().millisecondsSinceEpoch;
-      final streamUrl = Uri.tryParse(
-        '$partialUrl$randomStr?token=$randomStr&expiry=$timestamp',
-      );
-
-      if (streamUrl == null) {
-        return const Failure(
-          DoodstreamParseError(
-            message: 'Failed to build Doodstream stream URL from token.',
-          ),
-        );
-      }
-
-      return Success(
-        ResolveResult(
-          streams: <ResolvedStream>[
-            ResolvedStream(
-              url: streamUrl,
-              qualityLabel: 'unknown',
-              mimeType: 'video/mp4',
-              isHls: false,
-              headers: _playbackHeaders(url),
-            ),
-          ],
-        ),
-      );
+          .timeout(embedTimeout);
     } catch (error) {
       return Failure(
         DoodstreamTransportError(
-          message: 'Doodstream resolve request failed: $error',
+          message: 'Doodstream embed request failed: $error',
         ),
       );
     }
+
+    if (embedResponse.statusCode != 200) {
+      return Failure(
+        DoodstreamTransportError(
+          message:
+              'Doodstream embed request failed with status ${embedResponse.statusCode}.',
+        ),
+      );
+    }
+
+    if (!isResponseSizeAcceptable(embedResponse)) {
+      return const Failure(
+        DoodstreamTransportError(
+          message: 'Doodstream embed response too large.',
+        ),
+      );
+    }
+
+    final embedBody = safeResponseBody(embedResponse);
+    final passMd5Path = _extractPassMd5Path(embedBody);
+    if (passMd5Path == null) {
+      if (_hasHints(embedBody)) {
+        return const Failure(
+          DoodstreamInconsistentPayloadError(
+            message:
+                'Doodstream payload has stream hints but no pass_md5 path was found.',
+          ),
+        );
+      }
+      return const Failure(
+        DoodstreamParseError(
+          message: 'No pass_md5 token path was found in Doodstream payload.',
+        ),
+      );
+    }
+
+    final tokenUrl = url.replace(
+      path: passMd5Path,
+      query: null,
+      fragment: null,
+    );
+
+    // Transport phase: token endpoint fetch.
+    final http.Response tokenResponse;
+    try {
+      tokenResponse = await _httpClient
+          .get(tokenUrl, headers: _tokenHeaders(url))
+          .timeout(tokenTimeout);
+    } catch (error) {
+      return Failure(
+        DoodstreamTransportError(
+          message: 'Doodstream token request failed: $error',
+        ),
+      );
+    }
+
+    if (tokenResponse.statusCode != 200) {
+      return Failure(
+        DoodstreamTransportError(
+          message:
+              'Doodstream token request failed with status ${tokenResponse.statusCode}.',
+        ),
+      );
+    }
+
+    final partialUrl = safeResponseBody(tokenResponse).trim();
+    if (partialUrl.isEmpty || !partialUrl.startsWith('http')) {
+      return const Failure(
+        DoodstreamParseError(
+          message: 'Doodstream token endpoint returned invalid partial URL.',
+        ),
+      );
+    }
+
+    final randomStr = _generateRandomString(10);
+    final timestamp = DateTime.now().millisecondsSinceEpoch;
+    final streamUrl = Uri.tryParse(
+      '$partialUrl$randomStr?token=$randomStr&expiry=$timestamp',
+    );
+
+    if (streamUrl == null) {
+      return const Failure(
+        DoodstreamParseError(
+          message: 'Failed to build Doodstream stream URL from token.',
+        ),
+      );
+    }
+
+    return Success(
+      ResolveResult(
+        streams: <ResolvedStream>[
+          ResolvedStream(
+            url: streamUrl,
+            qualityLabel: 'unknown',
+            mimeType: 'video/mp4',
+            isHls: false,
+            headers: _playbackHeaders(url),
+          ),
+        ],
+      ),
+    );
   }
 }
 
