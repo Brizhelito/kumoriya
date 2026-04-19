@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
@@ -618,25 +619,33 @@ class _ContinueWatchingCardWrapperState
   Future<void> _handleResumeTap(String animeTitle) async {
     if (_isLaunching) return;
     setState(() => _isLaunching = true);
-    showBlockingLoader(context, context.l10n.playbackPreparing);
+    // Capture the root navigator up-front so the loader can always be
+    // dismissed, even if this ContinueWatchingCard is rebuilt or unmounted
+    // during the async work below. Without this, a list refresh mid-flight
+    // would leave a phantom "Preparando reproducción…" modal stuck on top
+    // of Home (reproduced in the evidence video).
+    final rootNavigatorContext = Navigator.of(
+      context,
+      rootNavigator: true,
+    ).context;
+    showBlockingLoader(rootNavigatorContext, context.l10n.playbackPreparing);
     var loaderShown = true;
 
     try {
       final openedOffline = await _openDownloadedEpisodeIfAvailable(animeTitle);
-      if (!mounted) return;
       if (openedOffline) {
-        if (loaderShown) {
-          hideBlockingLoader(context);
-          loaderShown = false;
-        }
         return;
       }
+      if (!mounted) return;
 
       final summary = await _loadResumeSummary();
       if (!mounted) return;
       if (summary == null) {
         if (loaderShown) {
-          hideBlockingLoader(context);
+          // Intentional: `rootNavigatorContext` targets the root Navigator
+          // dialog, not this widget's subtree.
+          // ignore: use_build_context_synchronously
+          hideBlockingLoader(rootNavigatorContext);
           loaderShown = false;
         }
         await _openEpisodeListFallback(context, animeTitle);
@@ -645,7 +654,8 @@ class _ContinueWatchingCardWrapperState
       final decision = await _prepareResumeDecision(summary);
       if (!mounted) return;
       if (loaderShown) {
-        hideBlockingLoader(context);
+        // ignore: use_build_context_synchronously
+        hideBlockingLoader(rootNavigatorContext);
         loaderShown = false;
       }
       if (decision == null) {
@@ -661,8 +671,13 @@ class _ContinueWatchingCardWrapperState
         onUnavailable: () => _openEpisodeListFallback(context, animeTitle),
       );
     } finally {
+      // Dismiss the loader via the root navigator regardless of mount state;
+      // the dialog lives on the root navigator, not on this widget's subtree.
+      if (loaderShown) {
+        // ignore: use_build_context_synchronously
+        hideBlockingLoader(rootNavigatorContext);
+      }
       if (mounted) {
-        if (loaderShown) hideBlockingLoader(context);
         setState(() => _isLaunching = false);
       }
     }
@@ -684,6 +699,9 @@ class _ContinueWatchingCardWrapperState
 
     final file = File(downloadTask.filePath!);
     if (!await file.exists()) {
+      unawaited(
+        ref.read(downloadManagerProvider).deleteCompleted(downloadTask.id),
+      );
       return false;
     }
 
@@ -697,6 +715,7 @@ class _ContinueWatchingCardWrapperState
           anilistId: widget.entry.anilistId,
           animeTitle: animeTitle,
           episodeNumber: widget.entry.lastEpisodeNumber.toInt().toString(),
+          persistSelection: false,
           sourcePluginId: downloadTask.sourcePluginId ?? 'offline',
           serverName:
               downloadTask.serverName ?? context.l10n.downloadedSourceLabel,

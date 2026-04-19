@@ -20,10 +20,12 @@ import '../../../../app/l10n.dart';
 import '../../../../shared/icons/kumoriya_icons.dart';
 import '../../../../shared/theme/kumoriya_theme.dart';
 import '../../../../shared/widgets/state_views.dart';
-import '../../../anime_catalog/presentation/pages/anime_detail_page.dart';
+import '../../../anime_catalog/application/models/episode_playback.dart';
+import '../../../anime_catalog/application/models/source_availability.dart';
 import '../../../anime_catalog/presentation/pages/episode_list_page.dart';
 import '../../../anime_catalog/presentation/providers/anime_catalog_providers.dart';
 import '../../../anime_catalog/presentation/providers/storage_providers.dart';
+import '../../../anime_catalog/presentation/support/playback_launch_flow.dart';
 import '../../../downloads/presentation/download_providers.dart';
 import '../../application/models/subtitle_settings.dart';
 import '../../application/models/embedded_tracks.dart';
@@ -39,6 +41,10 @@ import '../../infrastructure/media_kit_playback_engine.dart';
 import '../widgets/player_debug_overlay.dart';
 import '../../../watch_party/application/party_session_guard.dart';
 import '../../../watch_party/application/providers/party_providers.dart';
+import '../../../watch_party/presentation/pages/party_anime_page.dart';
+import '../../../watch_party/presentation/pages/party_episode_list_page.dart';
+import '../../../watch_party/presentation/pages/party_lobby_page.dart';
+import '../../../watch_party/presentation/party_route_mode.dart';
 import '../../../watch_party/presentation/widgets/party_player_overlay.dart';
 
 const bool _playerVerboseLogs = bool.fromEnvironment(
@@ -58,6 +64,7 @@ class PlayerPage extends ConsumerStatefulWidget {
     this.persistSelection = true,
     this.preferredAudioPreference,
     this.totalEpisodes,
+    this.routeMode = PartyRouteMode.standard,
     required this.resolved,
   });
 
@@ -70,6 +77,7 @@ class PlayerPage extends ConsumerStatefulWidget {
   final bool persistSelection;
   final PlaybackAudioPreference? preferredAudioPreference;
   final int? totalEpisodes;
+  final PartyRouteMode routeMode;
   final ResolvedServerLinkResult resolved;
 
   @override
@@ -119,6 +127,14 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
   bool _partyPlayerReadySent = false;
   bool _partyPauseHoldPending = false;
 
+  /// Subscription to `partySessionProvider` used to detect when the party
+  /// room has moved to a different anime/episode while this player is still
+  /// pushed in the navigation stack below the new one. When that happens
+  /// the audio of this stale page must be cut immediately so the host does
+  /// not hear two episodes at once.
+  ProviderSubscription<PartySessionState>? _partyRoomSub;
+  bool _stalePlayerHandled = false;
+
   // Debounces orientation restoration so that pushReplacement to a new
   // PlayerPage can cancel it in initState, preventing a portrait flash.
   static Timer? _orientationRestoreTimer;
@@ -128,11 +144,15 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
       double.tryParse(widget.episodeNumber) ?? 0.0;
 
   /// Whether the current episode is known to not be the last one.
-  /// If [totalEpisodes] is unknown, defaults to true (show the button).
+  /// If [totalEpisodes] is unknown we default to **false** so we do not
+  /// advertise a "next" episode that may not exist (safer UX than dropping
+  /// the user into an `unavailable` state). Parses the episode number as a
+  /// double so fractional episodes (e.g. 7.5) do not collapse to 0 and
+  /// silently disable the button.
   bool get _hasNextEpisode {
     final total = widget.totalEpisodes;
-    if (total == null) return true;
-    final current = int.tryParse(widget.episodeNumber) ?? 0;
+    if (total == null) return false;
+    final current = double.tryParse(widget.episodeNumber) ?? 0;
     return current < total;
   }
 
@@ -172,6 +192,44 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
       _wirePartySyncCallbacks();
       _broadcastSourceSelectionIfHost();
     });
+
+    // Detect when the party room moves on to a different anime or episode
+    // while this page is still alive. That happens when a new PlayerPage is
+    // pushed on top of the old one (host changing episode from the party
+    // episode list, cross-anime `changeMedia`, etc.). The stale page must
+    // cut audio immediately so the user does not hear two episodes at once.
+    _partyRoomSub = ref.listenManual<PartySessionState>(
+      partySessionProvider,
+      (prev, next) => _detectStalePartyPlayer(next),
+      fireImmediately: false,
+    );
+  }
+
+  /// Pauses the engine and stops feeding the party sync pipeline when the
+  /// active party room has moved to a different (anime, episode) pair than
+  /// the one this page was launched for. Idempotent: only the first
+  /// detection does work, later notifications are ignored.
+  void _detectStalePartyPlayer(PartySessionState next) {
+    if (_stalePlayerHandled || _isExiting) return;
+    if (!next.isActive) return;
+    final room = next.room;
+    if (room == null) return;
+    final localEp = double.tryParse(widget.episodeNumber);
+    if (localEp == null) return;
+    final sameAnime = room.anilistId == widget.anilistId;
+    final sameEpisode =
+        sameAnime && (room.episodeNumber - localEp).abs() < 0.001;
+    if (sameAnime && sameEpisode) return;
+
+    _stalePlayerHandled = true;
+    _log(
+      'party room moved to anilistId=${room.anilistId} '
+      'ep=${room.episodeNumber}; this player is on anilistId=${widget.anilistId} '
+      'ep=$localEp — cutting audio and detaching from party sync',
+    );
+    unawaited(_positionSub?.cancel());
+    _positionSub = null;
+    unawaited(_engine?.pause());
   }
 
   /// When a party is active and the local user is the host, announce the
@@ -234,6 +292,8 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
     _log('dispose');
     _periodicSaveTimer?.cancel();
     _partyDriftTimer?.cancel();
+    _partyRoomSub?.close();
+    _partyRoomSub = null;
     unawaited(_saveCurrentProgress());
     unawaited(_disposeRuntime());
     unawaited(_restoreWindowsFullscreenIfNeeded());
@@ -565,13 +625,16 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
             }
             return;
           }
-          final navigator = Navigator.of(context, rootNavigator: true);
-          navigator.popUntil((route) => route.isFirst);
-          navigator.push(
-            MaterialPageRoute<void>(
-              builder: (_) => AnimeDetailPage(anilistId: anilistId),
-            ),
-          );
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (!mounted) return;
+            final navigator = Navigator.of(context, rootNavigator: true);
+            navigator.popUntil((route) => route.isFirst);
+            navigator.push(
+              MaterialPageRoute<void>(
+                builder: (_) => PartyAnimePage(anilistId: anilistId),
+              ),
+            );
+          });
         };
   }
 
@@ -854,7 +917,20 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
       ref.invalidate(animeEpisodeProgressListProvider(widget.anilistId));
     } finally {
       if (mounted) {
-        Navigator.of(context).pop(naturalCompletion);
+        final navigator = Navigator.of(context, rootNavigator: true);
+        if (widget.routeMode.isParty) {
+          navigator.pushAndRemoveUntil(
+            MaterialPageRoute<void>(
+              builder: (_) => PartyLobbyPage(
+                anilistId: widget.anilistId,
+                animeTitle: widget.animeTitle,
+              ),
+            ),
+            (route) => route.isFirst,
+          );
+        } else {
+          navigator.pop(naturalCompletion);
+        }
       }
       _isExiting = false;
     }
@@ -1235,33 +1311,209 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
     if (_state.status == PlayerSessionStatus.playing) {
       await _orchestrator?.togglePlayPause();
     }
-    final openedNextDownload = await _openNextDownloadedEpisodeIfAvailable();
-    if (openedNextDownload || !mounted) {
-      return;
-    }
-    final nextEpisode = _episodeNumberDouble > 0
-        ? _episodeNumberDouble + 1
-        : 1.0;
-    await Navigator.of(context).pushReplacement(
-      MaterialPageRoute<void>(
-        builder: (_) => EpisodeListPage(
-          anilistId: widget.anilistId,
-          animeTitle: widget.animeTitle,
-          focusedEpisodeNumber: nextEpisode,
-        ),
-      ),
-    );
+    await _openAdjacentEpisode(offset: 1);
   }
 
-  Future<bool> _openNextDownloadedEpisodeIfAvailable() async {
-    final currentEpisode = int.tryParse(widget.episodeNumber);
-    if (currentEpisode == null || currentEpisode <= 0) {
-      return false;
+  Future<void> _openPreviousEpisode() async {
+    // Parse as double so fractional episodes (e.g. 7.5) still qualify for
+    // the previous-episode action. Previously `int.tryParse` returned null
+    // and the button became a silent no-op.
+    final currentEpisode = double.tryParse(widget.episodeNumber);
+    if (currentEpisode == null || currentEpisode <= 1) {
+      return;
     }
-    final nextEpisodeNumber = currentEpisode + 1;
+    if (_state.status == PlayerSessionStatus.playing) {
+      await _orchestrator?.togglePlayPause();
+    }
+    await _openAdjacentEpisode(offset: -1);
+  }
+
+  Future<void> _openAdjacentEpisode({required int offset}) async {
+    final currentEpisode = double.tryParse(widget.episodeNumber);
+    if (currentEpisode == null) {
+      return;
+    }
+    // Snap to integer neighbour. AniList numbering is authoritative and
+    // integer for the vast majority of titles; fractional episodes are
+    // edge-case omake/recaps that should still transition into the next
+    // canonical integer episode.
+    final targetEpisode = (currentEpisode + offset).round();
+    if (targetEpisode <= 0) {
+      return;
+    }
+
+    final openedOffline = await _openDownloadedEpisodeIfAvailable(
+      targetEpisode,
+    );
+    if (openedOffline || !mounted) {
+      return;
+    }
+
+    final rootContext = Navigator.of(context, rootNavigator: true).context;
+    showBlockingLoader(rootContext, context.l10n.playbackPreparing);
+    var loaderShown = true;
+
+    try {
+      final summaryResult = await ref.read(
+        sourceAvailabilitySummaryProvider(widget.anilistId).future,
+      );
+      if (!mounted) {
+        return;
+      }
+      final summary = summaryResult.fold(
+        onFailure: (_) => null,
+        onSuccess: (value) => value,
+      );
+      if (summary == null) {
+        return _openEpisodeListReplacement(targetEpisode.toDouble());
+      }
+
+      // Auto-resolve when moving between adjacent episodes so next/prev
+      // matches the behaviour of "continue watching". The previous explicit
+      // `false` defeated auto-queue racing and always forced the server
+      // picker, which felt laggy to users.
+      final decision = await ref
+          .read(startEpisodePlaybackUseCaseProvider)
+          .call(
+            anilistId: widget.anilistId,
+            episodeNumber: targetEpisode.toDouble(),
+            availabilitySummary: summary,
+          );
+      if (!mounted) {
+        return;
+      }
+
+      if (loaderShown) {
+        hideBlockingLoader(rootContext);
+        loaderShown = false;
+      }
+
+      switch (decision.type) {
+        case EpisodePlaybackDecisionType.direct:
+          final launch = decision.launch;
+          if (launch == null) {
+            await _openEpisodeListReplacement(targetEpisode.toDouble());
+            return;
+          }
+          await _replaceWithResolvedPlayer(
+            episodeNumber: targetEpisode,
+            episodeTitle: launch.option.sourceEpisode.title.trim().isEmpty
+                ? null
+                : launch.option.sourceEpisode.title.trim(),
+            sourcePluginId: launch.option.sourcePluginId,
+            serverName: launch.option.serverLink.serverName,
+            persistSelection: true,
+            preferredAudioPreference: switch (launch.option.audioKind) {
+              SourceAudioKind.sub => PlaybackAudioPreference.sub,
+              SourceAudioKind.dub => PlaybackAudioPreference.dub,
+              null => null,
+            },
+            resolved: launch.resolved,
+          );
+          return;
+        case EpisodePlaybackDecisionType.selection:
+          await _openAdjacentEpisodeSelection(
+            episodeNumber: targetEpisode,
+            decision: decision,
+          );
+          return;
+        case EpisodePlaybackDecisionType.unavailable:
+          await _openEpisodeListReplacement(targetEpisode.toDouble());
+          return;
+      }
+    } finally {
+      // The loader was pushed on the *root* navigator via
+      // `showBlockingLoader` + `useRootNavigator: true`, so it outlives
+      // this PlayerPage. We MUST dismiss it regardless of `mounted`:
+      // when an adjacent-episode flow tears down the page mid-await
+      // (auto-advance, pushReplacement, session teardown), `mounted`
+      // becomes false and the loader would otherwise remain stuck as a
+      // phantom modal on top of whatever screen the user lands on
+      // (observed in evidence as a permanent "Preparando reproducción…"
+      // overlay on Home after the episode finale).
+      if (loaderShown) {
+        // ignore: use_build_context_synchronously
+        hideBlockingLoader(rootContext);
+      }
+    }
+  }
+
+  Future<void> _openAdjacentEpisodeSelection({
+    required int episodeNumber,
+    required EpisodePlaybackDecision decision,
+  }) async {
+    final preferenceResult = await ref
+        .read(animeProgressStoreProvider)
+        .getPlaybackPreference(widget.anilistId);
+    final rememberedPreference = preferenceResult.fold(
+      onFailure: (_) => null,
+      onSuccess: (value) => value,
+    );
+    var selection = await showServerPicker(
+      context,
+      options: decision.options,
+      autoSelectionFailed: decision.autoSelectionFailed,
+      rememberedPreference: rememberedPreference,
+    );
+    var remaining = decision.options;
+
+    while (selection != null && mounted) {
+      showBlockingLoader(context, context.l10n.playbackOpeningSelectedServer);
+      final result = await ref
+          .read(resolveSourceServerLinkUseCaseProvider)
+          .call(
+            selection.option.serverLink,
+            preferredResolverId: selection.option.resolverId,
+          );
+      if (!mounted) {
+        return;
+      }
+      hideBlockingLoader(context);
+
+      final resolved = result.fold(
+        onFailure: (_) => null,
+        onSuccess: (value) => value,
+      );
+      if (resolved != null) {
+        await _replaceWithResolvedPlayer(
+          episodeNumber: episodeNumber,
+          episodeTitle: selection.option.sourceEpisode.title.trim().isEmpty
+              ? null
+              : selection.option.sourceEpisode.title.trim(),
+          sourcePluginId: selection.option.sourcePluginId,
+          serverName: selection.option.serverLink.serverName,
+          persistSelection: selection.rememberSelection,
+          preferredAudioPreference: switch (selection.option.audioKind) {
+            SourceAudioKind.sub => PlaybackAudioPreference.sub,
+            SourceAudioKind.dub => PlaybackAudioPreference.dub,
+            null => null,
+          },
+          resolved: resolved,
+        );
+        return;
+      }
+
+      showPlaybackMessage(context, context.l10n.episodeSelectedServerFailed);
+      remaining = remaining
+          .where((item) => item.optionKey != selection!.option.optionKey)
+          .toList(growable: false);
+      if (remaining.isEmpty) {
+        await _openEpisodeListReplacement(episodeNumber.toDouble());
+        return;
+      }
+      selection = await showServerPicker(
+        context,
+        options: remaining,
+        autoSelectionFailed: true,
+        rememberedPreference: rememberedPreference,
+      );
+    }
+  }
+
+  Future<bool> _openDownloadedEpisodeIfAvailable(int episodeNumber) async {
     final downloadTask = await ref
         .read(downloadManagerProvider)
-        .findTaskByEpisode(widget.anilistId, nextEpisodeNumber.toDouble());
+        .findTaskByEpisode(widget.anilistId, episodeNumber.toDouble());
     if (downloadTask == null ||
         downloadTask.status != DownloadStatus.completed ||
         downloadTask.filePath == null ||
@@ -1279,18 +1531,94 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
     }
 
     _log(
-      'open next downloaded episode ep=$nextEpisodeNumber file=${file.path}',
+      'open downloaded adjacent episode ep=$episodeNumber file=${file.path}',
     );
-    // Prevent position listeners from triggering further auto-next while
-    // the pushReplacement is in-flight.
+    await _replaceWithResolvedPlayer(
+      episodeNumber: episodeNumber,
+      episodeTitle: downloadTask.episodeTitle,
+      sourcePluginId: downloadTask.sourcePluginId ?? 'offline',
+      serverName: downloadTask.serverName ?? 'Downloaded',
+      persistSelection: false,
+      resolved: ResolvedServerLinkResult(
+        resolverId: 'offline',
+        resolverName: 'Downloaded',
+        streams: <ResolvedStream>[ResolvedStream(url: file.uri)],
+      ),
+    );
+    return true;
+  }
+
+  Future<void> _replaceWithResolvedPlayer({
+    required int episodeNumber,
+    required String sourcePluginId,
+    required String serverName,
+    required bool persistSelection,
+    required ResolvedServerLinkResult resolved,
+    String? episodeTitle,
+    PlaybackAudioPreference? preferredAudioPreference,
+  }) async {
+    await _prepareForEpisodeReplacement();
+    if (!mounted) {
+      return;
+    }
+    await Navigator.of(context, rootNavigator: true).pushReplacement(
+      MaterialPageRoute<void>(
+        builder: (_) => PlayerPage(
+          anilistId: widget.anilistId,
+          animeTitle: widget.animeTitle,
+          episodeNumber: episodeNumber.toString(),
+          episodeTitle: episodeTitle,
+          sourcePluginId: sourcePluginId,
+          serverName: serverName,
+          persistSelection: persistSelection,
+          preferredAudioPreference: preferredAudioPreference,
+          routeMode: widget.routeMode,
+          resolved: resolved,
+        ),
+      ),
+    );
+  }
+
+  Future<void> _openEpisodeListReplacement(double focusedEpisodeNumber) async {
+    await _prepareForEpisodeReplacement();
+    if (!mounted) {
+      return;
+    }
+    await Navigator.of(context, rootNavigator: true).pushReplacement(
+      MaterialPageRoute<void>(
+        builder: (_) => widget.routeMode.isParty
+            ? PartyEpisodeListPage(
+                anilistId: widget.anilistId,
+                animeTitle: widget.animeTitle,
+                focusedEpisodeNumber: focusedEpisodeNumber,
+              )
+            : EpisodeListPage(
+                anilistId: widget.anilistId,
+                animeTitle: widget.animeTitle,
+                focusedEpisodeNumber: focusedEpisodeNumber,
+              ),
+      ),
+    );
+  }
+
+  Future<void> _prepareForEpisodeReplacement() async {
     _isExiting = true;
     _autoNextTriggeredByEndingResidual = true;
     await _positionSub?.cancel();
     await _completionSub?.cancel();
     _positionSub = null;
     _completionSub = null;
-    // Keep the player locked while replacing this page with the next player
-    // instance, avoiding an intermediate orientation/UI transition.
+    // Drain any in-flight progress save so the next PlayerPage instance
+    // reads the freshest resume position instead of a stale one.
+    final pendingFlush = _pendingProgressFlush;
+    if (pendingFlush != null) {
+      try {
+        await pendingFlush;
+      } catch (_) {
+        // Errors are already surfaced by _saveCurrentProgress; swallow
+        // here so the replacement is not blocked.
+      }
+    }
     _orientationRestoreTimer?.cancel();
     _orientationRestoreTimer = null;
     _suppressOrientationRestore = true;
@@ -1299,91 +1627,6 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
       DeviceOrientation.landscapeLeft,
       DeviceOrientation.landscapeRight,
     ]);
-    if (!mounted) return true;
-    await Navigator.of(context).pushReplacement(
-      MaterialPageRoute<void>(
-        builder: (_) => PlayerPage(
-          anilistId: widget.anilistId,
-          animeTitle: widget.animeTitle,
-          episodeNumber: nextEpisodeNumber.toString(),
-          episodeTitle: downloadTask.episodeTitle,
-          sourcePluginId: downloadTask.sourcePluginId ?? 'offline',
-          serverName: downloadTask.serverName ?? 'Downloaded',
-          resolved: ResolvedServerLinkResult(
-            resolverId: 'offline',
-            resolverName: 'Downloaded',
-            streams: <ResolvedStream>[ResolvedStream(url: file.uri)],
-          ),
-        ),
-      ),
-    );
-    return true;
-  }
-
-  Future<void> _openPreviousEpisode() async {
-    final currentEpisode = int.tryParse(widget.episodeNumber);
-    if (currentEpisode == null || currentEpisode <= 1) {
-      return;
-    }
-    if (_state.status == PlayerSessionStatus.playing) {
-      await _orchestrator?.togglePlayPause();
-    }
-    final prevEpisodeNumber = currentEpisode - 1;
-    // Check for downloaded previous episode first
-    final downloadTask = await ref
-        .read(downloadManagerProvider)
-        .findTaskByEpisode(widget.anilistId, prevEpisodeNumber.toDouble());
-    if (downloadTask != null &&
-        downloadTask.status == DownloadStatus.completed &&
-        downloadTask.filePath != null &&
-        downloadTask.filePath!.trim().isNotEmpty) {
-      final file = File(downloadTask.filePath!);
-      if (await file.exists() && mounted) {
-        _isExiting = true;
-        await _positionSub?.cancel();
-        await _completionSub?.cancel();
-        _positionSub = null;
-        _completionSub = null;
-        _orientationRestoreTimer?.cancel();
-        _orientationRestoreTimer = null;
-        _suppressOrientationRestore = true;
-        SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
-        SystemChrome.setPreferredOrientations(<DeviceOrientation>[
-          DeviceOrientation.landscapeLeft,
-          DeviceOrientation.landscapeRight,
-        ]);
-        if (!mounted) return;
-        await Navigator.of(context).pushReplacement(
-          MaterialPageRoute<void>(
-            builder: (_) => PlayerPage(
-              anilistId: widget.anilistId,
-              animeTitle: widget.animeTitle,
-              episodeNumber: prevEpisodeNumber.toString(),
-              episodeTitle: downloadTask.episodeTitle,
-              sourcePluginId: downloadTask.sourcePluginId ?? 'offline',
-              serverName: downloadTask.serverName ?? 'Downloaded',
-              resolved: ResolvedServerLinkResult(
-                resolverId: 'offline',
-                resolverName: 'Downloaded',
-                streams: <ResolvedStream>[ResolvedStream(url: file.uri)],
-              ),
-            ),
-          ),
-        );
-        return;
-      }
-    }
-    // Fall back to episode list focused on previous episode
-    if (!mounted) return;
-    await Navigator.of(context).pushReplacement(
-      MaterialPageRoute<void>(
-        builder: (_) => EpisodeListPage(
-          anilistId: widget.anilistId,
-          animeTitle: widget.animeTitle,
-          focusedEpisodeNumber: prevEpisodeNumber.toDouble(),
-        ),
-      ),
-    );
   }
 
   @override
