@@ -53,27 +53,40 @@ final class PixeldrainResolverPlugin implements ResolverPlugin {
     final directApi = _extractApiUrlFromInput(url);
     if (directApi != null) {
       return Success(
-        ResolveResult(streams: <ResolvedStream>[_toResolved(directApi)]),
+        ResolveResult(streams: <ResolvedStream>[_toResolved(directApi, null)]),
       );
     }
 
+    // Transport phase: isolate network errors from payload parsing so the
+    // auto-queue can classify them distinctly.
+    final http.Response response;
     try {
-      final response = await _httpClient
-          .get(url)
+      response = await _httpClient
+          .get(url, headers: _browserHeaders(url))
           .timeout(const Duration(seconds: 8));
+    } catch (error) {
+      return Failure(
+        PixeldrainTransportError(
+          message: 'Pixeldrain resolve request failed: $error',
+        ),
+      );
+    }
 
-      if (response.statusCode != 200) {
-        return Failure(
-          PixeldrainTransportError(
-            message:
-                'Pixeldrain request failed with status ${response.statusCode}.',
-          ),
-        );
-      }
+    if (response.statusCode != 200) {
+      return Failure(
+        PixeldrainTransportError(
+          message:
+              'Pixeldrain request failed with status ${response.statusCode}.',
+        ),
+      );
+    }
 
-      final directUrl = _extractApiUrlFromPayload(safeResponseBody(response));
+    // Parse phase.
+    try {
+      final body = safeResponseBody(response);
+      final directUrl = _extractApiUrlFromPayload(body);
       if (directUrl == null) {
-        if (_hasHints(safeResponseBody(response))) {
+        if (_hasHints(body)) {
           return const Failure(
             PixeldrainInconsistentPayloadError(
               message:
@@ -90,16 +103,30 @@ final class PixeldrainResolverPlugin implements ResolverPlugin {
       }
 
       return Success(
-        ResolveResult(streams: <ResolvedStream>[_toResolved(directUrl)]),
+        ResolveResult(
+          streams: <ResolvedStream>[
+            _toResolved(directUrl, _extractMimeType(body)),
+          ],
+        ),
       );
     } catch (error) {
       return Failure(
-        PixeldrainTransportError(
-          message: 'Pixeldrain resolve request failed: $error',
+        PixeldrainParseError(
+          message: 'Failed to parse Pixeldrain payload: $error',
         ),
       );
     }
   }
+}
+
+Map<String, String> _browserHeaders(Uri url) {
+  return <String, String>{
+    'User-Agent':
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 '
+        '(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+    'Referer': '${url.scheme}://${url.host}/',
+    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+  };
 }
 
 Uri? _extractApiUrlFromInput(Uri url) {
@@ -125,6 +152,11 @@ final _pdHintsRe = RegExp(
   multiLine: true,
 );
 
+final _pdMimeRe = RegExp(
+  r'''"mime_type"\s*:\s*"([^"]+)"''',
+  caseSensitive: false,
+);
+
 Uri? _extractApiUrlFromPayload(String payload) {
   final normalized = payload.replaceAll(r'\/', '/');
   final directMatch = _pdApiRe.firstMatch(normalized);
@@ -142,12 +174,33 @@ bool _hasHints(String payload) {
   return _pdHintsRe.hasMatch(payload);
 }
 
-ResolvedStream _toResolved(Uri uri) {
+String? _extractMimeType(String payload) {
+  final match = _pdMimeRe.firstMatch(payload);
+  final mime = match?.group(1)?.trim();
+  if (mime == null || mime.isEmpty) {
+    return null;
+  }
+  // Only trust video/* MIME types — anything else and we fall back to the
+  // default so we do not mislabel audio or unknown binaries as playable.
+  if (!mime.toLowerCase().startsWith('video/')) {
+    return null;
+  }
+  return mime;
+}
+
+ResolvedStream _toResolved(Uri uri, String? mimeType) {
+  final effectiveMime = mimeType ?? 'video/mp4';
+  final isHls = effectiveMime.contains('mpegurl');
   return ResolvedStream(
     url: uri,
     qualityLabel: 'unknown',
-    mimeType: 'video/mp4',
-    isHls: false,
-    headers: const <String, String>{},
+    mimeType: effectiveMime,
+    isHls: isHls,
+    headers: <String, String>{
+      'User-Agent':
+          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 '
+          '(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+      'Referer': 'https://pixeldrain.com/',
+    },
   );
 }

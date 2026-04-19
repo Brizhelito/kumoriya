@@ -90,29 +90,42 @@ final class StreamtapeResolverPlugin implements ResolverPlugin {
       );
     }
 
+    // Transport phase: isolate network errors from parse failures so the
+    // auto-queue can classify them distinctly and skip the resolver faster
+    // on repeatable transport issues.
+    final http.Response response;
     try {
-      final response = await _httpClient
+      response = await _httpClient
           .get(url, headers: _headers(url))
           .timeout(const Duration(seconds: 8));
+    } catch (error) {
+      return Failure(
+        StreamtapeTransportError(
+          message: 'Streamtape resolve request failed: $error',
+        ),
+      );
+    }
 
-      if (response.statusCode != 200) {
-        return Failure(
-          StreamtapeTransportError(
-            message:
-                'Streamtape request failed with status ${response.statusCode}.',
-          ),
-        );
-      }
+    if (response.statusCode != 200) {
+      return Failure(
+        StreamtapeTransportError(
+          message:
+              'Streamtape request failed with status ${response.statusCode}.',
+        ),
+      );
+    }
 
-      if (!isResponseSizeAcceptable(response)) {
-        return const Failure(
-          StreamtapeTransportError(message: 'Streamtape response too large.'),
-        );
-      }
+    if (!isResponseSizeAcceptable(response)) {
+      return const Failure(
+        StreamtapeTransportError(message: 'Streamtape response too large.'),
+      );
+    }
 
-      final streams = _extractStreams(safeResponseBody(response), baseUrl: url);
+    try {
+      final body = safeResponseBody(response);
+      final streams = _extractStreams(body, baseUrl: url);
       if (streams.isEmpty) {
-        if (_hasHints(safeResponseBody(response))) {
+        if (_hasHints(body)) {
           return const Failure(
             StreamtapeInconsistentPayloadError(
               message:
@@ -131,8 +144,8 @@ final class StreamtapeResolverPlugin implements ResolverPlugin {
       return Success(ResolveResult(streams: streams));
     } catch (error) {
       return Failure(
-        StreamtapeTransportError(
-          message: 'Streamtape resolve request failed: $error',
+        StreamtapeParseError(
+          message: 'Failed to parse Streamtape payload: $error',
         ),
       );
     }
@@ -141,7 +154,16 @@ final class StreamtapeResolverPlugin implements ResolverPlugin {
 
 Map<String, String> _headers(Uri url) {
   final origin = '${url.scheme}://${url.host}';
-  return <String, String>{'Referer': '$origin/', 'Origin': origin};
+  return <String, String>{
+    'Referer': '$origin/',
+    'Origin': origin,
+    // Some Streamtape mirrors reject requests without a browser-like UA,
+    // even for the embed page. Keep it in sync with the stream header set
+    // so CDN playback receives consistent fingerprints.
+    'User-Agent':
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 '
+        '(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+  };
 }
 
 final _stTokenRe = RegExp(
@@ -151,7 +173,7 @@ final _stTokenRe = RegExp(
 );
 
 final _stDirectRe = RegExp(
-  r'''https?:\/\/[^\s"'<>]*?(?:tapecontent\.net|streamtape\.com)[^\s"'<>]*?\.mp4[^\s"'<>]*''',
+  r'''https?:\/\/[^\s"'<>]*?(?:tapecontent\.net|streamtape\.com)[^\s"'<>]*?\.(?:mp4|m3u8)[^\s"'<>]*''',
   caseSensitive: false,
   multiLine: true,
 );

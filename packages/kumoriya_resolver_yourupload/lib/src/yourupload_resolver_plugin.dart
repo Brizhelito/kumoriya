@@ -60,23 +60,35 @@ final class YouruploadResolverPlugin implements ResolverPlugin {
       );
     }
 
+    // Transport phase.
+    final http.Response response;
     try {
-      final response = await _httpClient
+      response = await _httpClient
           .get(url, headers: _headers(url))
           .timeout(const Duration(seconds: 8));
+    } catch (error) {
+      return Failure(
+        YouruploadTransportError(
+          message: 'YourUpload resolve request failed: $error',
+        ),
+      );
+    }
 
-      if (response.statusCode != 200) {
-        return Failure(
-          YouruploadTransportError(
-            message:
-                'YourUpload request failed with status ${response.statusCode}.',
-          ),
-        );
-      }
+    if (response.statusCode != 200) {
+      return Failure(
+        YouruploadTransportError(
+          message:
+              'YourUpload request failed with status ${response.statusCode}.',
+        ),
+      );
+    }
 
-      final streams = _extractStreams(safeResponseBody(response), baseUrl: url);
+    // Parse phase.
+    try {
+      final body = safeResponseBody(response);
+      final streams = _extractStreams(body, baseUrl: url);
       if (streams.isEmpty) {
-        if (_hasHints(safeResponseBody(response))) {
+        if (_hasHints(body)) {
           return const Failure(
             YouruploadInconsistentPayloadError(
               message:
@@ -95,12 +107,33 @@ final class YouruploadResolverPlugin implements ResolverPlugin {
       return Success(ResolveResult(streams: streams));
     } catch (error) {
       return Failure(
-        YouruploadTransportError(
-          message: 'YourUpload resolve request failed: $error',
+        YouruploadParseError(
+          message: 'Failed to parse YourUpload payload: $error',
         ),
       );
     }
   }
+}
+
+/// Known YourUpload CDN hosts. Streams are served from `vidcache.net` with
+/// a numeric port, not from `yourupload.com` itself.
+const Set<String> _youruploadCdnHosts = <String>{
+  'yourupload.com',
+  'vidcache.net',
+};
+
+/// Whether [uri] points to a YourUpload-owned CDN host.
+///
+/// Previously any URL with `.mp4`/`.m3u8` in the payload qualified as a
+/// candidate, which meant analytics/ad trackers hosted elsewhere leaked
+/// through. Gate by host suffix so only YourUpload-owned endpoints are
+/// considered playable.
+bool _isYouruploadHost(Uri uri) {
+  final host = uri.host.toLowerCase();
+  if (host.isEmpty) return false;
+  return _youruploadCdnHosts.any(
+    (allowed) => host == allowed || host.endsWith('.$allowed'),
+  );
 }
 
 Map<String, String> _headers(Uri url) {
@@ -157,6 +190,12 @@ List<ResolvedStream> _extractStreams(String payload, {required Uri baseUrl}) {
   for (final candidate in candidates) {
     final uri = Uri.tryParse(candidate);
     if (uri == null || !uri.hasScheme || uri.host.isEmpty) {
+      continue;
+    }
+    // Only keep URLs served by the YourUpload CDN. Extension-based
+    // filtering alone leaked ad/tracker URLs that happened to contain
+    // ".mp4" query fragments.
+    if (!_isYouruploadHost(uri)) {
       continue;
     }
     if (seen.add(uri.toString())) {

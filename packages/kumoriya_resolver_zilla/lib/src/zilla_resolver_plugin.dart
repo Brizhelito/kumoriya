@@ -54,20 +54,38 @@ final class ZillaResolverPlugin implements ResolverPlugin {
       );
     }
 
+    // Only fetch the first ~1 KiB of the manifest via Range — enough to
+    // verify the `#EXTM3U` header without pulling the entire playlist
+    // (which can exceed 100 KiB on multi-variant streams). If the server
+    // ignores Range and returns the full body, we still succeed because
+    // the header appears at byte 0 either way.
+    final probeHeaders = <String, String>{
+      ..._headers(url),
+      'Range': 'bytes=0-1023',
+    };
+
+    final http.Response response;
     try {
-      final response = await _httpClient
-          .get(playlistUrl, headers: _headers(url))
+      response = await _httpClient
+          .get(playlistUrl, headers: probeHeaders)
           .timeout(const Duration(seconds: 8));
+    } catch (error) {
+      return Failure(
+        ZillaTransportError(message: 'Zilla resolve request failed: $error'),
+      );
+    }
 
-      if (response.statusCode != 200) {
-        return Failure(
-          ZillaTransportError(
-            message:
-                'Zilla playlist request failed with status ${response.statusCode}.',
-          ),
-        );
-      }
+    // 200 = Range ignored, 206 = Range honoured. Both are valid for us.
+    if (response.statusCode != 200 && response.statusCode != 206) {
+      return Failure(
+        ZillaTransportError(
+          message:
+              'Zilla playlist request failed with status ${response.statusCode}.',
+        ),
+      );
+    }
 
+    try {
       if (!safeResponseBody(response).contains('#EXTM3U')) {
         return const Failure(
           ZillaParseError(
@@ -91,7 +109,7 @@ final class ZillaResolverPlugin implements ResolverPlugin {
       );
     } catch (error) {
       return Failure(
-        ZillaTransportError(message: 'Zilla resolve request failed: $error'),
+        ZillaParseError(message: 'Failed to parse Zilla playlist: $error'),
       );
     }
   }
