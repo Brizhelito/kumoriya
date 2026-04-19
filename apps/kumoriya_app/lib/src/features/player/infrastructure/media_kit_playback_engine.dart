@@ -1398,6 +1398,42 @@ final class MediaKitPlaybackEngine implements PlaybackEngine {
         // player pauses until the cache refills.  The seek-stall watch in
         // the orchestrator provides a safer timeout mechanism.
         properties.add(platform.setProperty('cache-pause', 'no'));
+        // R6 (mobile buffering fix): tune ffmpeg/lavf network stack for
+        // real-world CDNs (StreamWish, Pixeldrain, Zilla, Okru…). Without
+        // these overrides a ~5 s read timeout plus no reconnect means a
+        // single WiFi power-save dip or CDN TCP RST stalls playback until
+        // the orchestrator reopens (multi-second gap). The anime-nexus
+        // branch below already uses a similar set against the loopback
+        // proxy.
+        //
+        // - timeout=30s: ffmpeg read/write timeout per operation
+        // - rw_timeout=15s: socket RW timeout (guards against silent stalls)
+        // - reconnect + reconnect_streamed: transparently rebuild the TCP
+        //   connection on drops instead of propagating EOF to the demuxer
+        // - reconnect_on_network_error + reconnect_on_http_error: cover
+        //   edge/CDN 5xx retries
+        // - reconnect_delay_max=5s: cap backoff so stalls stay short
+        // - http_persistent=1: HTTP/1.1 keep-alive so HLS segment fetches
+        //   reuse the same TCP/TLS session instead of re-handshaking every
+        //   ~10 s — the main source of stutter on mobile Chromium-less
+        //   stacks.
+        properties.add(
+          platform.setProperty(
+            'demuxer-lavf-o',
+            'timeout=30000000,rw_timeout=15000000,'
+                'reconnect=1,reconnect_streamed=1,'
+                'reconnect_on_network_error=1,reconnect_on_http_error=4xx+5xx,'
+                'reconnect_delay_max=5,http_persistent=1',
+          ),
+        );
+        // Mirror the ffmpeg timeout at the mpv network-timeout level so
+        // non-lavf code paths (stream protocols handled by mpv directly,
+        // e.g. raw https reads) share the same budget.
+        properties.add(platform.setProperty('network-timeout', '30'));
+        // Stream-level read buffer: small increase from the 512 KiB mpv
+        // default reduces read() syscalls on mobile without harming
+        // latency. Keeps first-frame unchanged.
+        properties.add(platform.setProperty('stream-buffer-size', '1MiB'));
       }
 
       if (isAnimeNexus) {
