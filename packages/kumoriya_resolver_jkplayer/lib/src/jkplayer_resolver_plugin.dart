@@ -265,17 +265,23 @@ List<Uri> _extractStreamUrls(
 
   final candidates = <String>{};
 
-  for (final match in _jkDirectRe.allMatches(normalized)) {
-    final value = match.group(0);
-    if (value != null && value.isNotEmpty) {
-      candidates.add(value.trim());
-    }
-  }
-
+  // Keyed candidates (url:/file:/source:) are always trusted because they
+  // carry an explicit JS-player context signal. Direct unfiltered URLs from
+  // the raw HTML are only considered when we can additionally gate them by
+  // media extension — otherwise ad/analytics URLs leak through.
   for (final match in _jkKeyedRe.allMatches(normalized)) {
     final raw = match.group(1) ?? match.group(2);
     if (raw != null && raw.isNotEmpty) {
       candidates.add(raw.trim());
+    }
+  }
+
+  if (!allowUnknownExtension) {
+    for (final match in _jkDirectRe.allMatches(normalized)) {
+      final value = match.group(0);
+      if (value != null && value.isNotEmpty) {
+        candidates.add(value.trim());
+      }
     }
   }
 
