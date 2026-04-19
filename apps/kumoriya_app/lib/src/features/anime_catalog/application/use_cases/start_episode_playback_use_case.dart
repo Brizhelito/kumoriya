@@ -34,11 +34,39 @@ final class StartEpisodePlaybackUseCase {
   final AnimeProgressStore _progressStore;
   final SourceSelectionPolicy _sourceSelectionPolicy;
   final PlaybackPreferencePolicy _playbackPreferencePolicy;
+  static const Set<String> _autoResolveBlockedHosts = <String>{
+    'animeav1.uns.bio',
+  };
+
+  /// Resolvers whose output is not suitable for live streaming and should
+  /// therefore be excluded from the auto-queue race. They remain available
+  /// in the manual server picker (and, separately, in the download
+  /// pipeline) but must never steal a slot from a true streaming resolver.
+  ///
+  /// MediaFire is the canonical example: the plugin is marked as
+  /// `streamResolution` for historical reasons, but the URL it returns is
+  /// a download CDN link with unreliable Range support — opening it in
+  /// media_kit frequently yields a non-seekable playback session.
+  static const Set<String> _autoResolveBlockedResolverIds = <String>{
+    'kumoriya.resolver.mediafire',
+  };
+
+  /// Upper bound on how long the whole auto-queue race is allowed to run
+  /// before giving up and routing the user into the manual picker.
+  ///
+  /// Individual resolver timeouts already cap per-candidate latency (6–12 s
+  /// depending on the host), but when *all* candidates fail, the overall
+  /// resolve time is bounded by the *slowest* failing future. That created
+  /// cases where the user waited 12 s for the loader only to be dumped
+  /// into the picker with no intermediate feedback. This cap shortens the
+  /// worst case to a predictable ceiling.
+  static const Duration _autoQueueOverallTimeout = Duration(seconds: 15);
 
   Future<EpisodePlaybackDecision> call({
     required int anilistId,
     required double episodeNumber,
     required SourceAvailabilitySummary availabilitySummary,
+    bool allowAutomaticResolution = true,
   }) async {
     // Preference and episode progress are independent DB reads — fetch
     // them in parallel to shave one round-trip off the decision path.
@@ -92,17 +120,25 @@ final class StartEpisodePlaybackUseCase {
       episodePreference: reconciliation.episodePreference,
       sourcePriorityIndex: _sourceSelectionPolicy.priorityIndex,
     );
-    final fullAutoQueue = _playbackPreferencePolicy.buildAutoQueue(
+    final fullAutoQueue = allowAutomaticResolution || options.length == 1
+        ? _playbackPreferencePolicy.buildAutoQueue(
+            rankedOptions: ranked,
+            durablePreference: durablePreference,
+            episodePreference: reconciliation.episodePreference,
+          )
+        : const <EpisodePlaybackOption>[];
+    final sanitizedAutoQueue = _sanitizeAutoQueue(
       rankedOptions: ranked,
-      durablePreference: durablePreference,
-      episodePreference: reconciliation.episodePreference,
+      autoQueue: fullAutoQueue,
     );
     final attemptLimit = _playbackPreferencePolicy.automaticAttemptLimit(
       durablePreference: durablePreference,
       episodePreference: reconciliation.episodePreference,
-      autoQueue: fullAutoQueue,
+      autoQueue: sanitizedAutoQueue,
     );
-    final autoQueue = fullAutoQueue.take(attemptLimit).toList(growable: false);
+    final autoQueue = sanitizedAutoQueue
+        .take(attemptLimit)
+        .toList(growable: false);
     final attempted = <String>{};
 
     // Race all auto-queue candidates in parallel. The first successful
@@ -166,7 +202,20 @@ final class StartEpisodePlaybackUseCase {
         });
       }
 
-      final raceResult = await completer.future;
+      // Enforce an overall ceiling so the worst-case "all candidates fail
+      // slowly" path does not make the loader feel stuck. On timeout we
+      // surface the race as if all candidates had failed, which routes
+      // the user into `rankRemainingOptions` / manual picker below.
+      final raceResult = await completer.future.timeout(
+        _autoQueueOverallTimeout,
+        onTimeout: () {
+          _log(
+            'auto-queue overall timeout fired after '
+            '${_autoQueueOverallTimeout.inSeconds}s — falling back to manual picker',
+          );
+          return null;
+        },
+      );
       if (raceResult != null) {
         return raceResult;
       }
@@ -306,6 +355,94 @@ final class StartEpisodePlaybackUseCase {
 
   void _log(String message) {
     developer.log(message, name: 'kumoriya.start_episode_playback');
+  }
+
+  List<EpisodePlaybackOption> _sanitizeAutoQueue({
+    required List<EpisodePlaybackOption> rankedOptions,
+    required List<EpisodePlaybackOption> autoQueue,
+  }) {
+    if (autoQueue.isEmpty) {
+      return autoQueue;
+    }
+
+    final sanitized = autoQueue
+        .where((option) {
+          final shouldSkip = _shouldSkipAutomaticResolution(
+            option: option,
+            rankedOptions: rankedOptions,
+          );
+          if (shouldSkip) {
+            _log(
+              'auto-open skipped source=${option.sourcePluginId} '
+              'server=${option.serverLink.serverName} '
+              'host=${option.serverLink.initialUrl.host} '
+              'resolver=${option.resolverId}',
+            );
+          }
+          return !shouldSkip;
+        })
+        .toList(growable: false);
+
+    if (sanitized.isNotEmpty || rankedOptions.length <= 1) {
+      return sanitized;
+    }
+
+    for (final option in rankedOptions) {
+      if (!_shouldSkipAutomaticResolution(
+        option: option,
+        rankedOptions: rankedOptions,
+      )) {
+        return <EpisodePlaybackOption>[option];
+      }
+    }
+
+    // Hard block: if every remaining option belongs to a resolver that is
+    // categorically excluded from auto-resolution (e.g. MediaFire), do not
+    // fall back to the original `autoQueue`. Returning an empty list routes
+    // the user into the manual picker, which is the only correct outcome
+    // for download-only resolvers.
+    final allHardBlocked = rankedOptions.every(
+      (option) => _autoResolveBlockedResolverIds.contains(option.resolverId),
+    );
+    if (allHardBlocked) {
+      return const <EpisodePlaybackOption>[];
+    }
+
+    return autoQueue;
+  }
+
+  bool _shouldSkipAutomaticResolution({
+    required EpisodePlaybackOption option,
+    required List<EpisodePlaybackOption> rankedOptions,
+  }) {
+    final host = option.serverLink.initialUrl.host.toLowerCase();
+    final resolverId = option.resolverId;
+    final hostBlocked = _autoResolveBlockedHosts.contains(host);
+    final resolverBlocked = _autoResolveBlockedResolverIds.contains(resolverId);
+    // Download-only resolvers (e.g. MediaFire) must never enter the
+    // auto-queue, even if they are the last remaining option. Forcing them
+    // in yields a non-seekable "playback" that looks like a bug; the user
+    // is better served by the manual picker or the download pipeline.
+    if (resolverBlocked) {
+      return true;
+    }
+    if (!hostBlocked) {
+      return false;
+    }
+
+    return rankedOptions.any((candidate) {
+      if (candidate.optionKey == option.optionKey) {
+        return false;
+      }
+      final candidateHost = candidate.serverLink.initialUrl.host.toLowerCase();
+      final candidateResolverBlocked = _autoResolveBlockedResolverIds.contains(
+        candidate.resolverId,
+      );
+      if (candidateResolverBlocked) {
+        return false;
+      }
+      return !_autoResolveBlockedHosts.contains(candidateHost);
+    });
   }
 }
 

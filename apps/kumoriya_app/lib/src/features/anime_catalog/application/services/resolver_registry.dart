@@ -46,7 +46,19 @@ final class ResolverRegistry {
         .toList(growable: false);
 
     if (candidates.isEmpty) {
-      _hostCache[host] = const ResolverNotFound();
+      // Deliberately do NOT cache `ResolverNotFound`. Two reasons:
+      //
+      // 1. Cache key is the host, but `resolver.supports(url)` also filters
+      //    on the URL path; a host that has a resolver for `/e/…` but not
+      //    for `/weird/…` would otherwise get stuck as `NotFound` for
+      //    every future lookup of that host.
+      //
+      // 2. When a resolver grows support for a previously-unknown host
+      //    (e.g. a new StreamWish mirror), we want the next call to pick
+      //    it up without forcing the user to restart the app.
+      //
+      // The recomputation cost is O(resolvers) of a simple `supports`
+      // check — negligible compared to a resolver round-trip.
       return const ResolverNotFound();
     }
 
