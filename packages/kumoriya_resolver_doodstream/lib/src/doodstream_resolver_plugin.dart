@@ -114,13 +114,14 @@ final class DoodstreamResolverPlugin implements ResolverPlugin {
       );
     }
 
-    // Doodstream requires two sequential round-trips (embed page + token
-    // endpoint). 8 s × 2 allowed worst-case 16 s before giving up, which
-    // hurts the auto-queue when a Dood mirror is slow. 6 s keeps the 95th
-    // percentile safe on residential networks while capping worst-case at
-    // 12 s — a meaningful improvement for the shared auto-queue budget.
-    const Duration embedTimeout = Duration(seconds: 6);
-    const Duration tokenTimeout = Duration(seconds: 6);
+    // Doodstream requires two sequential round-trips (embed + token). Mobile
+    // probes over 4G or slow Wi-Fi consistently hit the earlier 6 s window on
+    // both hops and reported `resolver.doodstream.transport`. 12 s × 2 allows
+    // up to 24 s worst-case, still bounded by the orchestrator open timeout,
+    // while catching the slow-but-functional mirrors we were previously
+    // giving up on.
+    const Duration embedTimeout = Duration(seconds: 12);
+    const Duration tokenTimeout = Duration(seconds: 12);
 
     // Transport phase: embed page fetch.
     final http.Response embedResponse;

@@ -93,7 +93,7 @@ final class StreamtapeResolverPlugin implements ResolverPlugin {
     // Transport phase: isolate network errors from parse failures so the
     // auto-queue can classify them distinctly and skip the resolver faster
     // on repeatable transport issues.
-    final http.Response response;
+    http.Response response;
     try {
       response = await _httpClient
           .get(url, headers: _headers(url))
@@ -106,7 +106,56 @@ final class StreamtapeResolverPlugin implements ResolverPlugin {
       );
     }
 
+    // Some source plugins (e.g. jkanime) append an episode-title segment to
+    // the embed URL (`/e/<id>/17.mp4`). Streamtape's mirrors reject the
+    // extra segment with 404 even though the underlying embed still exists.
+    // Retry once against the canonical `/e/<id>/` URL before giving up.
+    if (response.statusCode == 404 && segments.length > 2) {
+      final canonicalUrl = url.replace(
+        pathSegments: segments.sublist(0, 2),
+        query: null,
+        fragment: null,
+      );
+      if (canonicalUrl != url) {
+        try {
+          response = await _httpClient
+              .get(canonicalUrl, headers: _headers(canonicalUrl))
+              .timeout(const Duration(seconds: 8));
+        } catch (error) {
+          return Failure(
+            StreamtapeTransportError(
+              message: 'Streamtape canonical-retry request failed: $error',
+            ),
+          );
+        }
+      }
+    }
+
     if (response.statusCode != 200) {
+      // Streamtape serves a 404 HTML page (~100 KB of ad markup) both when
+      // the video was deleted and when a genuine bot-check kicks in. The
+      // payload itself has explicit markers that distinguish the two:
+      // "deleted", "not found", "no longer available", "has been removed".
+      // Classify deleted uploads separately so the queue stops retrying a
+      // dead mirror.
+      if (response.statusCode == 404 && isResponseSizeAcceptable(response)) {
+        final body = safeResponseBody(response).toLowerCase();
+        const deletedMarkers = <String>[
+          'file is no longer available',
+          'no longer available',
+          'has been deleted',
+          'deleted',
+          'not found',
+          'has been removed',
+        ];
+        if (deletedMarkers.any(body.contains)) {
+          return const Failure(
+            StreamtapeDeletedError(
+              message: 'Streamtape video was deleted or expired upstream.',
+            ),
+          );
+        }
+      }
       return Failure(
         StreamtapeTransportError(
           message:

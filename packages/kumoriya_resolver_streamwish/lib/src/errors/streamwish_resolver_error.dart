@@ -33,6 +33,17 @@ final class StreamwishMalformedLinkError extends StreamwishResolverError {
       );
 }
 
+/// The StreamWish file was deleted or expired upstream. Returning this
+/// instead of a generic parse/transport failure gives the UI and auto-queue
+/// an actionable signal (skip this candidate permanently for the episode).
+final class StreamwishDeletedError extends StreamwishResolverError {
+  const StreamwishDeletedError({required super.message})
+    : super(
+        code: 'resolver.streamwish.deleted',
+        kind: KumoriyaErrorKind.notFound,
+      );
+}
+
 final class StreamwishTransportError extends StreamwishResolverError {
   const StreamwishTransportError({required super.message})
     : super(

@@ -41,6 +41,18 @@ final class StreamtapeTransportError extends StreamtapeResolverError {
       );
 }
 
+/// The Streamtape video was removed by the uploader or expired. Returning
+/// this instead of the generic transport error makes the failure actionable
+/// upstream (e.g. the UI can show "this mirror is dead" and the auto-queue
+/// can skip the candidate permanently for this episode).
+final class StreamtapeDeletedError extends StreamtapeResolverError {
+  const StreamtapeDeletedError({required super.message})
+    : super(
+        code: 'resolver.streamtape.deleted',
+        kind: KumoriyaErrorKind.notFound,
+      );
+}
+
 final class StreamtapeParseError extends StreamtapeResolverError {
   const StreamtapeParseError({required super.message})
     : super(code: 'resolver.streamtape.parse', kind: KumoriyaErrorKind.mapping);

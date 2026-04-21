@@ -135,12 +135,35 @@ final class StreamwishResolverPlugin implements ResolverPlugin {
         );
       }
 
-      final extractionPayload = common.buildExtractionPayload(
-        common.safeResponseBody(response),
-      );
+      final rawBody = common.safeResponseBody(response);
+      // StreamWish serves a 200 OK stub (~400 bytes) for files that were
+      // deleted by the uploader or auto-expired. The body contains
+      // "File is no longer available as it expired or has been deleted."
+      // Return a distinct error so the auto-queue skips the candidate and
+      // the mirror fallback is not wasted (mirrors share the same storage).
+      final lowerBody = rawBody.toLowerCase();
+      const deletedMarkers = <String>[
+        'file is no longer available',
+        'no longer available',
+        'has been deleted',
+      ];
+      if (deletedMarkers.any(lowerBody.contains)) {
+        return const Failure(
+          StreamwishDeletedError(
+            message: 'StreamWish file was deleted or expired upstream.',
+          ),
+        );
+      }
+      final extractionPayload = common.buildExtractionPayload(rawBody);
       var streams = _extractStreams(extractionPayload, url);
-      if (streams.isEmpty &&
-          _isLoadingShell(common.safeResponseBody(response))) {
+      // Broadened fallback: any 200 response that yields zero stream
+      // candidates gets retried against mirror hosts. Streamwish embed
+      // markup changes frequently (loading shells, challenge pages,
+      // sibling templates without the 'sources:' hint), so locking the
+      // mirror race behind the single `_isLoadingShell` pattern let real
+      // failures slip through as `resolver.streamwish.parse`. The race
+      // is bounded to 10 s in parallel and returns fast on hits.
+      if (streams.isEmpty) {
         final fallbackStreams = await _tryKnownMirrorFallback(url);
         if (fallbackStreams.isNotEmpty) {
           streams = fallbackStreams;
@@ -251,11 +274,6 @@ final _swQualityRe = RegExp(r'(2160|1440|1080|720|480|360)p');
 Map<String, String> _headers(Uri url) {
   final origin = '${url.scheme}://${url.host}';
   return <String, String>{'Referer': '$origin/', 'Origin': origin};
-}
-
-bool _isLoadingShell(String payload) {
-  return payload.contains('Page is loading, please wait') &&
-      payload.contains('/main.js');
 }
 
 List<ResolvedStream> _extractStreams(String payload, Uri baseUrl) {

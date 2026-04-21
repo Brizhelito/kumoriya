@@ -133,5 +133,16 @@ Uri? _toPlaylistUrl(Uri url) {
 
 Map<String, String> _headers(Uri url) {
   final origin = '${url.scheme}://${url.host}';
-  return <String, String>{'Referer': '$origin${url.path}', 'Origin': origin};
+  return <String, String>{
+    'Referer': '$origin${url.path}',
+    'Origin': origin,
+    // Zilla edge servers close HLS segment connections with mid-transfer
+    // `End of file` errors when the request arrives without a browser UA,
+    // forcing ffmpeg to burn two to three reconnect cycles per segment
+    // (~6 s lost before first frame). A consistent desktop UA is enough
+    // to get clean 200s.
+    'User-Agent':
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 '
+        '(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+  };
 }
