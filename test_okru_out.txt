@@ -1,4 +1,0 @@
-The current Dart SDK version is 3.8.1.
-
-Because kumoriya_workspace requires SDK version ^3.11.1, version solving failed.
-
