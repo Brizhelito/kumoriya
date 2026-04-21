@@ -14,22 +14,36 @@ type epKey struct {
 	EpisodeNumber float32
 }
 
+// whDeletion carries an LWW-tagged deletion for a watch-history row.
+type whDeletion struct {
+	AnilistID int
+	UpdatedAt int64
+}
+
+// libDeletion carries an LWW-tagged deletion for a library row.
+type libDeletion struct {
+	AnilistID int
+	UpdatedAt int64
+}
+
 // bufferedPush holds merged push data for a single user.
 type bufferedPush struct {
-	Episodes  map[epKey]model.EpisodeProgress
-	History   map[int]model.WatchHistory
-	Prefs     map[int]model.PlaybackPreference
-	Library   map[int]model.LibraryEntry
-	Deletions map[int]struct{} // anilist_ids for watch history deletions
+	Episodes     map[epKey]model.EpisodeProgress
+	History      map[int]model.WatchHistory
+	Prefs        map[int]model.PlaybackPreference
+	Library      map[int]model.LibraryEntry
+	HistoryDel   map[int]whDeletion
+	LibraryDel   map[int]libDeletion
 }
 
 func newBufferedPush() *bufferedPush {
 	return &bufferedPush{
-		Episodes:  make(map[epKey]model.EpisodeProgress),
-		History:   make(map[int]model.WatchHistory),
-		Prefs:     make(map[int]model.PlaybackPreference),
-		Library:   make(map[int]model.LibraryEntry),
-		Deletions: make(map[int]struct{}),
+		Episodes:   make(map[epKey]model.EpisodeProgress),
+		History:    make(map[int]model.WatchHistory),
+		Prefs:      make(map[int]model.PlaybackPreference),
+		Library:    make(map[int]model.LibraryEntry),
+		HistoryDel: make(map[int]whDeletion),
+		LibraryDel: make(map[int]libDeletion),
 	}
 }
 
@@ -46,6 +60,11 @@ func newWriteBuffer() *writeBuffer {
 
 // absorb merges a push request into the buffer using LWW semantics.
 // Returns the number of entries absorbed.
+//
+// Critical invariant: upserts and deletions for the same (entity, anilistID)
+// cannot coexist with older timestamps. When an upsert wins over an existing
+// deletion (or vice versa) the loser is dropped — otherwise the Flush phase
+// would apply both and data could be silently destroyed.
 func (b *writeBuffer) absorb(userID uuid.UUID, req *model.SyncPushRequest) int {
 	b.mu.Lock()
 	defer b.mu.Unlock()
@@ -67,6 +86,14 @@ func (b *writeBuffer) absorb(userID uuid.UUID, req *model.SyncPushRequest) int {
 	}
 
 	for _, wh := range req.WatchHistory {
+		// A pending deletion older than this upsert is obsolete.
+		if d, ok := bp.HistoryDel[wh.AnilistID]; ok && d.UpdatedAt < wh.LastAccessedAt {
+			delete(bp.HistoryDel, wh.AnilistID)
+		}
+		// If a deletion is newer, the upsert must be ignored.
+		if d, ok := bp.HistoryDel[wh.AnilistID]; ok && d.UpdatedAt >= wh.LastAccessedAt {
+			continue
+		}
 		if existing, exists := bp.History[wh.AnilistID]; !exists || wh.LastAccessedAt > existing.LastAccessedAt {
 			bp.History[wh.AnilistID] = wh
 			absorbed++
@@ -81,13 +108,47 @@ func (b *writeBuffer) absorb(userID uuid.UUID, req *model.SyncPushRequest) int {
 	}
 
 	for _, le := range req.LibraryEntries {
-		bp.Library[le.AnilistID] = le // Library merge semantics handled by DB upsert
-		absorbed++
+		// Symmetric handling vs library deletions.
+		if d, ok := bp.LibraryDel[le.AnilistID]; ok && d.UpdatedAt < le.UpdatedAt {
+			delete(bp.LibraryDel, le.AnilistID)
+		}
+		if d, ok := bp.LibraryDel[le.AnilistID]; ok && d.UpdatedAt >= le.UpdatedAt {
+			continue
+		}
+		if existing, exists := bp.Library[le.AnilistID]; !exists || le.UpdatedAt > existing.UpdatedAt {
+			bp.Library[le.AnilistID] = le
+			absorbed++
+		}
 	}
 
 	for _, d := range req.WatchHistoryDeletions {
-		bp.Deletions[d.AnilistID] = struct{}{}
-		delete(bp.History, d.AnilistID) // Also remove from buffered history
+		// LWW: keep the newest deletion timestamp.
+		if existing, exists := bp.HistoryDel[d.AnilistID]; exists && d.UpdatedAt <= existing.UpdatedAt {
+			continue
+		}
+		// If a newer upsert already sits in the buffer, the deletion is stale.
+		if wh, ok := bp.History[d.AnilistID]; ok && wh.LastAccessedAt > d.UpdatedAt {
+			continue
+		}
+		bp.HistoryDel[d.AnilistID] = whDeletion{AnilistID: d.AnilistID, UpdatedAt: d.UpdatedAt}
+		// Drop any buffered upsert that is now superseded.
+		if wh, ok := bp.History[d.AnilistID]; ok && wh.LastAccessedAt <= d.UpdatedAt {
+			delete(bp.History, d.AnilistID)
+		}
+		absorbed++
+	}
+
+	for _, d := range req.LibraryEntryDeletions {
+		if existing, exists := bp.LibraryDel[d.AnilistID]; exists && d.UpdatedAt <= existing.UpdatedAt {
+			continue
+		}
+		if le, ok := bp.Library[d.AnilistID]; ok && le.UpdatedAt > d.UpdatedAt {
+			continue
+		}
+		bp.LibraryDel[d.AnilistID] = libDeletion{AnilistID: d.AnilistID, UpdatedAt: d.UpdatedAt}
+		if le, ok := bp.Library[d.AnilistID]; ok && le.UpdatedAt <= d.UpdatedAt {
+			delete(bp.Library, d.AnilistID)
+		}
 		absorbed++
 	}
 

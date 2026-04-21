@@ -69,6 +69,12 @@ func (h *SyncHandler) Push(c fiber.Ctx) error {
 		log.Warn().Err(err).Str("user_id", userID.String()).Msg("sync push: invalid request body")
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid request body"})
 	}
+	// Clamp client-provided timestamps to the server clock before validation.
+	// This is the only line of defence against devices with broken clocks
+	// setting LWW cursors far into the future, which would otherwise poison
+	// the user's state for every other device until an even newer timestamp
+	// arrived to override it.
+	req.Normalize(model.NowMillis())
 	if err := req.Validate(); err != nil {
 		log.Warn().Err(err).Str("user_id", userID.String()).
 			Int("episodes", len(req.EpisodeProgress)).

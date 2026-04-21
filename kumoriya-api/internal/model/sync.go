@@ -2,6 +2,7 @@ package model
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/google/uuid"
 )
@@ -47,6 +48,22 @@ type LibraryEntry struct {
 	LastNotifiedEpisode     *int      `json:"last_notified_episode,omitempty"`
 	AutoDownloadNewEpisodes bool      `json:"auto_download_new_episodes"`
 	AutoDownloadAudioPref   string    `json:"auto_download_audio_preference"`
+	// UpdatedAt is the authoritative LWW cursor for this row. Separating it
+	// from AddedAt is what allows "unfavorited" states (AddedAt=0) to win
+	// over older "favorited" states (AddedAt>0) without the server having to
+	// special-case the transition.
+	UpdatedAt int64 `json:"updated_at"`
+}
+
+// DurableUntil is the per-entity cursor signalling which client-assigned
+// timestamps are already persisted to Neon for the current user. Clients use
+// it to prune their local sync queue. Any value of 0 means "not yet known",
+// so nothing is safe to prune for that entity.
+type DurableUntil struct {
+	EpisodeProgress    int64 `json:"episode_progress"`
+	WatchHistory       int64 `json:"watch_history"`
+	PlaybackPreference int64 `json:"playback_preference"`
+	LibraryEntry       int64 `json:"library_entry"`
 }
 
 // SyncPullResponse is the response for GET /api/v1/sync/pull
@@ -56,6 +73,7 @@ type SyncPullResponse struct {
 	WatchHistory        []WatchHistory       `json:"watch_history"`
 	PlaybackPreferences []PlaybackPreference `json:"playback_preferences"`
 	LibraryEntries      []LibraryEntry       `json:"library_entries"`
+	DurableUntil        DurableUntil         `json:"durable_until"`
 }
 
 // SyncPushRequest is the body for POST /api/v1/sync/push
@@ -65,27 +83,98 @@ type SyncPushRequest struct {
 	PlaybackPreferences   []PlaybackPreference   `json:"playback_preferences"`
 	LibraryEntries        []LibraryEntry         `json:"library_entries"`
 	WatchHistoryDeletions []WatchHistoryDeletion `json:"watch_history_deletions"`
+	LibraryEntryDeletions []LibraryEntryDeletion `json:"library_entry_deletions"`
 }
 
 // WatchHistoryDeletion requests deletion of a watch history entry.
+// UpdatedAt is the client's timestamp at the moment the user deleted the
+// entry; the repository uses LWW so a stale deletion cannot erase fresher
+// writes. Zero or missing is treated as "now" for backwards compatibility.
 type WatchHistoryDeletion struct {
-	AnilistID int `json:"anilist_id"`
+	AnilistID int   `json:"anilist_id"`
+	UpdatedAt int64 `json:"updated_at,omitempty"`
+}
+
+// LibraryEntryDeletion requests full removal of a library row.
+type LibraryEntryDeletion struct {
+	AnilistID int   `json:"anilist_id"`
+	UpdatedAt int64 `json:"updated_at"`
 }
 
 type SyncPushResponse struct {
-	Applied   int      `json:"applied"`
-	Conflicts []string `json:"conflicts,omitempty"`
+	Applied      int          `json:"applied"`
+	Conflicts    []string     `json:"conflicts,omitempty"`
+	DurableUntil DurableUntil `json:"durable_until"`
 }
 
 const (
 	maxSyncBatchPerEntity = 1000
 	maxSyncBatchTotal     = 5000
+	// Maximum tolerated client-clock skew. Timestamps further in the future
+	// than this are clamped to `now` in Normalize().
+	maxClockSkewMs = 5 * 60 * 1000 // 5 minutes
 )
+
+// Normalize clamps any client-provided timestamp that is implausibly far in
+// the future to `nowMs`, protecting LWW cursors from clients with broken
+// clocks that would otherwise poison state permanently.
+func (r *SyncPushRequest) Normalize(nowMs int64) {
+	limit := nowMs + maxClockSkewMs
+	clamp := func(ts int64) int64 {
+		if ts > limit {
+			return nowMs
+		}
+		return ts
+	}
+	for i := range r.EpisodeProgress {
+		r.EpisodeProgress[i].UpdatedAt = clamp(r.EpisodeProgress[i].UpdatedAt)
+	}
+	for i := range r.WatchHistory {
+		r.WatchHistory[i].LastAccessedAt = clamp(r.WatchHistory[i].LastAccessedAt)
+	}
+	for i := range r.PlaybackPreferences {
+		r.PlaybackPreferences[i].UpdatedAt = clamp(r.PlaybackPreferences[i].UpdatedAt)
+	}
+	for i := range r.LibraryEntries {
+		// Backwards-compat: old clients only set AddedAt. Derive UpdatedAt
+		// from it so LWW still works; absent both, default to now.
+		if r.LibraryEntries[i].UpdatedAt == 0 {
+			if r.LibraryEntries[i].AddedAt > 0 {
+				r.LibraryEntries[i].UpdatedAt = r.LibraryEntries[i].AddedAt
+			} else {
+				r.LibraryEntries[i].UpdatedAt = nowMs
+			}
+		}
+		r.LibraryEntries[i].UpdatedAt = clamp(r.LibraryEntries[i].UpdatedAt)
+		// AddedAt=0 means "not favorite"; keep it. Otherwise clamp.
+		if r.LibraryEntries[i].AddedAt > 0 {
+			r.LibraryEntries[i].AddedAt = clamp(r.LibraryEntries[i].AddedAt)
+		}
+	}
+	for i := range r.WatchHistoryDeletions {
+		if r.WatchHistoryDeletions[i].UpdatedAt == 0 {
+			r.WatchHistoryDeletions[i].UpdatedAt = nowMs
+		} else {
+			r.WatchHistoryDeletions[i].UpdatedAt = clamp(r.WatchHistoryDeletions[i].UpdatedAt)
+		}
+	}
+	for i := range r.LibraryEntryDeletions {
+		if r.LibraryEntryDeletions[i].UpdatedAt == 0 {
+			r.LibraryEntryDeletions[i].UpdatedAt = nowMs
+		} else {
+			r.LibraryEntryDeletions[i].UpdatedAt = clamp(r.LibraryEntryDeletions[i].UpdatedAt)
+		}
+	}
+}
+
+// NowMillis returns the current wall-clock time in Unix milliseconds.
+func NowMillis() int64 { return time.Now().UnixMilli() }
 
 // Validate performs defensive payload validation for sync push requests.
 // It rejects malformed records early to avoid persisting invalid state.
 func (r *SyncPushRequest) Validate() error {
-	total := len(r.EpisodeProgress) + len(r.WatchHistory) + len(r.PlaybackPreferences) + len(r.LibraryEntries) + len(r.WatchHistoryDeletions)
+	total := len(r.EpisodeProgress) + len(r.WatchHistory) + len(r.PlaybackPreferences) +
+		len(r.LibraryEntries) + len(r.WatchHistoryDeletions) + len(r.LibraryEntryDeletions)
 	if total == 0 {
 		return fmt.Errorf("sync payload is empty")
 	}
@@ -96,7 +185,8 @@ func (r *SyncPushRequest) Validate() error {
 		len(r.WatchHistory) > maxSyncBatchPerEntity ||
 		len(r.PlaybackPreferences) > maxSyncBatchPerEntity ||
 		len(r.LibraryEntries) > maxSyncBatchPerEntity ||
-		len(r.WatchHistoryDeletions) > maxSyncBatchPerEntity {
+		len(r.WatchHistoryDeletions) > maxSyncBatchPerEntity ||
+		len(r.LibraryEntryDeletions) > maxSyncBatchPerEntity {
 		return fmt.Errorf("sync payload exceeds per-entity limit")
 	}
 
@@ -143,8 +233,11 @@ func (r *SyncPushRequest) Validate() error {
 	}
 
 	for _, le := range r.LibraryEntries {
-		if le.AnilistID <= 0 || le.AddedAt <= 0 {
-			return fmt.Errorf("invalid library_entries identity or timestamp")
+		if le.AnilistID <= 0 || le.UpdatedAt <= 0 {
+			return fmt.Errorf("invalid library_entries identity or updated_at")
+		}
+		if le.AddedAt < 0 {
+			return fmt.Errorf("invalid library_entries added_at")
 		}
 		if le.LastNotifiedEpisode != nil && *le.LastNotifiedEpisode < 0 {
 			return fmt.Errorf("invalid library_entries last_notified_episode")
@@ -159,6 +252,15 @@ func (r *SyncPushRequest) Validate() error {
 	for _, d := range r.WatchHistoryDeletions {
 		if d.AnilistID <= 0 {
 			return fmt.Errorf("invalid watch_history_deletions anilist_id")
+		}
+	}
+
+	for _, d := range r.LibraryEntryDeletions {
+		if d.AnilistID <= 0 {
+			return fmt.Errorf("invalid library_entry_deletions anilist_id")
+		}
+		if d.UpdatedAt <= 0 {
+			return fmt.Errorf("invalid library_entry_deletions updated_at")
 		}
 	}
 

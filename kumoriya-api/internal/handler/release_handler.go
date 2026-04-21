@@ -1,66 +1,101 @@
 package handler
 
 import (
-	"fmt"
-	"io"
-	"net/http"
-	"sync"
-	"time"
+	"crypto/subtle"
+	"strings"
 
 	"github.com/gofiber/fiber/v3"
 	"github.com/rs/zerolog/log"
+
+	"go-fiber-microservice/internal/repository"
+	"go-fiber-microservice/internal/service"
 )
 
-// ReleaseHandler serves the release update manifest, fetching it from the
-// upstream once on first request and caching it for the lifetime of the
-// process. A restart picks up the latest version.
 type ReleaseHandler struct {
-	upstreamURL string
-	once        sync.Once
-	cached      []byte
-	fetchErr    error
+	service      *service.ReleaseService
+	publishToken string
 }
 
-func NewReleaseHandler(upstreamURL string) *ReleaseHandler {
-	return &ReleaseHandler{upstreamURL: upstreamURL}
+func NewReleaseHandler(svc *service.ReleaseService, publishToken string) *ReleaseHandler {
+	return &ReleaseHandler{
+		service:      svc,
+		publishToken: strings.TrimSpace(publishToken),
+	}
 }
 
-// GetManifest returns the cached release manifest JSON.
 func (h *ReleaseHandler) GetManifest(c fiber.Ctx) error {
-	data, err := h.load()
+	data, err := h.service.GetLatestManifest(c.Context())
 	if err != nil {
+		if err == repository.ErrReleaseNotFound {
+			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "release not found"})
+		}
 		log.Error().Err(err).Msg("release manifest fetch failed")
-		return c.Status(fiber.StatusBadGateway).JSON(fiber.Map{"error": "upstream unavailable"})
+		return c.Status(fiber.StatusBadGateway).JSON(fiber.Map{"error": "release unavailable"})
 	}
 
-	c.Set("Content-Type", "application/json")
-	c.Set("Cache-Control", "public, max-age=3600")
-	return c.Send(data)
+	c.Set("Cache-Control", "public, max-age=300")
+	return c.JSON(data)
 }
 
-func (h *ReleaseHandler) load() ([]byte, error) {
-	h.once.Do(func() {
-		client := &http.Client{Timeout: 10 * time.Second}
-		resp, err := client.Get(h.upstreamURL)
-		if err != nil {
-			h.fetchErr = fmt.Errorf("fetch manifest: %w", err)
-			return
+func (h *ReleaseHandler) GetFeed(c fiber.Ctx) error {
+	data, err := h.service.GetFeed()
+	if err != nil {
+		if err == repository.ErrReleaseNotFound {
+			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "release feed not found"})
 		}
-		defer resp.Body.Close()
+		log.Error().Err(err).Msg("release feed fetch failed")
+		return c.Status(fiber.StatusBadGateway).JSON(fiber.Map{"error": "release feed unavailable"})
+	}
 
-		if resp.StatusCode != http.StatusOK {
-			h.fetchErr = fmt.Errorf("upstream returned %s", resp.Status)
-			return
+	c.Set("Cache-Control", "public, max-age=300")
+	return c.JSON(data)
+}
+
+func (h *ReleaseHandler) GetByTag(c fiber.Ctx) error {
+	tag := strings.TrimSpace(c.Params("tag"))
+	if tag == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "missing tag"})
+	}
+	data, err := h.service.GetRelease(tag)
+	if err != nil {
+		if err == repository.ErrReleaseNotFound {
+			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "release not found"})
 		}
+		log.Error().Err(err).Str("tag", tag).Msg("release by tag fetch failed")
+		return c.Status(fiber.StatusBadGateway).JSON(fiber.Map{"error": "release unavailable"})
+	}
 
-		body, err := io.ReadAll(io.LimitReader(resp.Body, 64*1024))
-		if err != nil {
-			h.fetchErr = fmt.Errorf("read manifest body: %w", err)
-			return
-		}
+	c.Set("Cache-Control", "public, max-age=300")
+	return c.JSON(data)
+}
 
-		h.cached = body
-	})
+func (h *ReleaseHandler) Publish(c fiber.Ctx) error {
+	if h.publishToken == "" {
+		return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{"error": "release publishing disabled"})
+	}
+	if !validBearerToken(c.Get("Authorization"), h.publishToken) {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "unauthorized"})
+	}
 
-	return h.cached, h.fetchErr
+	var input service.PublishReleaseInput
+	if err := c.Bind().JSON(&input); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid request body"})
+	}
+	if err := h.service.Publish(c.Context(), input); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": err.Error()})
+	}
+
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{"ok": true})
+}
+
+func validBearerToken(header, expected string) bool {
+	const prefix = "Bearer "
+	if !strings.HasPrefix(header, prefix) {
+		return false
+	}
+	token := strings.TrimSpace(strings.TrimPrefix(header, prefix))
+	if token == "" || expected == "" {
+		return false
+	}
+	return subtle.ConstantTimeCompare([]byte(token), []byte(expected)) == 1
 }

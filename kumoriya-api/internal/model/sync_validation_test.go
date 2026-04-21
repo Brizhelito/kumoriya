@@ -30,6 +30,7 @@ func TestSyncPushRequestValidate_OK(t *testing.T) {
 		LibraryEntries: []LibraryEntry{{
 			AnilistID:               1,
 			AddedAt:                 1712000000003,
+			UpdatedAt:               1712000000003,
 			LastNotifiedEpisode:     &lastEp,
 			AutoDownloadAudioPref:   "none",
 			AutoDownloadNewEpisodes: true,

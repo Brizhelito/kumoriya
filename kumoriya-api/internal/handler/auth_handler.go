@@ -1,78 +1,20 @@
 package handler
 
 import (
-	"crypto/rand"
-	"encoding/hex"
 	"html/template"
 	"net/url"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/gofiber/fiber/v3"
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
 	"github.com/rs/zerolog/log"
 
 	"go-fiber-microservice/internal/middleware"
 	"go-fiber-microservice/internal/service"
 )
-
-// ───── OAuth state cache (CSRF protection) ─────
-
-type oauthStateEntry struct {
-	redirectURI string
-	deviceName  string
-	deviceID    string
-	expiresAt   time.Time
-}
-
-type oauthStateCache struct {
-	mu      sync.Mutex
-	entries map[string]oauthStateEntry
-}
-
-func newOAuthStateCache() *oauthStateCache {
-	c := &oauthStateCache{entries: make(map[string]oauthStateEntry)}
-	go func() {
-		ticker := time.NewTicker(5 * time.Minute)
-		defer ticker.Stop()
-		for range ticker.C {
-			c.mu.Lock()
-			now := time.Now()
-			for k, e := range c.entries {
-				if now.After(e.expiresAt) {
-					delete(c.entries, k)
-				}
-			}
-			c.mu.Unlock()
-		}
-	}()
-	return c
-}
-
-func (c *oauthStateCache) put(state, redirectURI, deviceName, deviceID string) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	c.entries[state] = oauthStateEntry{
-		redirectURI: redirectURI,
-		deviceName:  deviceName,
-		deviceID:    deviceID,
-		expiresAt:   time.Now().Add(10 * time.Minute),
-	}
-}
-
-func (c *oauthStateCache) pop(state string) (oauthStateEntry, bool) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	e, ok := c.entries[state]
-	if !ok || time.Now().After(e.expiresAt) {
-		delete(c.entries, state)
-		return oauthStateEntry{}, false
-	}
-	delete(c.entries, state)
-	return e, true
-}
 
 // ───── AuthHandler ─────
 
@@ -83,15 +25,27 @@ type AuthHandler struct {
 	authSvc    *service.AuthService
 	oauthSvc   *service.OAuthService
 	passkeySvc *service.PasskeyService
-	stateCache *oauthStateCache
+	jwtSvc     *service.JWTService
 }
 
-func NewAuthHandler(auth *service.AuthService, oauth *service.OAuthService, passkey *service.PasskeyService) *AuthHandler {
+type oauthStateClaims struct {
+	RedirectURI string `json:"redirect_uri"`
+	DeviceName  string `json:"device_name,omitempty"`
+	DeviceID    string `json:"device_id,omitempty"`
+	jwt.RegisteredClaims
+}
+
+func NewAuthHandler(
+	auth *service.AuthService,
+	oauth *service.OAuthService,
+	passkey *service.PasskeyService,
+	jwtSvc *service.JWTService,
+) *AuthHandler {
 	return &AuthHandler{
 		authSvc:    auth,
 		oauthSvc:   oauth,
 		passkeySvc: passkey,
-		stateCache: newOAuthStateCache(),
+		jwtSvc:     jwtSvc,
 	}
 }
 
@@ -111,14 +65,11 @@ func (h *AuthHandler) OAuthStart(c fiber.Ctx) error {
 	deviceName := c.Query("device_name", "unknown")
 	deviceID := c.Query("device_id")
 
-	// Generate CSRF state
-	stateBuf := make([]byte, 32)
-	if _, err := rand.Read(stateBuf); err != nil {
+	state, err := h.newOAuthStateToken(redirectURI, deviceName, deviceID)
+	if err != nil {
+		log.Error().Err(err).Str("provider", provider).Msg("oauth state token failed")
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "internal error"})
 	}
-	state := hex.EncodeToString(stateBuf)
-
-	h.stateCache.put(state, redirectURI, deviceName, deviceID)
 
 	authURL, err := h.oauthSvc.GetAuthURL(provider, state)
 	if err != nil {
@@ -139,21 +90,27 @@ func (h *AuthHandler) OAuthCallback(c fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "missing code or state"})
 	}
 
-	entry, ok := h.stateCache.pop(state)
-	if !ok {
+	entry, err := h.parseOAuthStateToken(state)
+	if err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid or expired state"})
 	}
 
 	info, err := h.oauthSvc.ExchangeCode(c.Context(), provider, code)
 	if err != nil {
 		log.Error().Err(err).Str("provider", provider).Msg("oauth exchange failed")
-		return redirectWithError(c, entry.redirectURI, "oauth_exchange_failed")
+		return redirectWithError(c, entry.RedirectURI, "oauth_exchange_failed")
 	}
 
-	user, pair, err := h.authSvc.LoginOrRegisterOAuth(c.Context(), *info, entry.deviceName, entry.deviceID, c.IP())
+	user, pair, err := h.authSvc.LoginOrRegisterOAuth(
+		c.Context(),
+		*info,
+		entry.DeviceName,
+		entry.DeviceID,
+		c.IP(),
+	)
 	if err != nil {
 		log.Error().Err(err).Msg("login or register failed")
-		return redirectWithError(c, entry.redirectURI, "auth_failed")
+		return redirectWithError(c, entry.RedirectURI, "auth_failed")
 	}
 
 	// Build the callback URL through url.Values so tokens are always safely encoded.
@@ -162,7 +119,7 @@ func (h *AuthHandler) OAuthCallback(c fiber.Ctx) error {
 	params.Set("refresh_token", pair.RefreshToken)
 	params.Set("expires_in", strconv.Itoa(pair.ExpiresIn))
 	params.Set("user_id", user.ID.String())
-	redirectURL := entry.redirectURI + "?" + params.Encode()
+	redirectURL := entry.RedirectURI + "?" + params.Encode()
 
 	// Serve an interstitial HTML page that opens the deep link and tells
 	// the user they can close the browser tab. A bare 302 to a custom
@@ -170,6 +127,38 @@ func (h *AuthHandler) OAuthCallback(c fiber.Ctx) error {
 	return c.Status(fiber.StatusOK).Type("html").SendString(
 		buildDeepLinkPage(redirectURL),
 	)
+}
+
+func (h *AuthHandler) newOAuthStateToken(redirectURI, deviceName, deviceID string) (string, error) {
+	now := time.Now().UTC()
+	return h.jwtSvc.SignClaims(oauthStateClaims{
+		RedirectURI: redirectURI,
+		DeviceName:  deviceName,
+		DeviceID:    deviceID,
+		RegisteredClaims: jwt.RegisteredClaims{
+			Issuer:    "kumoriya-oauth-state",
+			IssuedAt:  jwt.NewNumericDate(now),
+			ExpiresAt: jwt.NewNumericDate(now.Add(10 * time.Minute)),
+		},
+	})
+}
+
+func (h *AuthHandler) parseOAuthStateToken(token string) (oauthStateClaims, error) {
+	parsed, err := h.jwtSvc.ParseClaims(token, &oauthStateClaims{})
+	if err != nil {
+		return oauthStateClaims{}, err
+	}
+	claims, ok := parsed.Claims.(*oauthStateClaims)
+	if !ok || !parsed.Valid || claims.RedirectURI == "" {
+		return oauthStateClaims{}, fiber.ErrBadRequest
+	}
+	if claims.Issuer != "kumoriya-oauth-state" {
+		return oauthStateClaims{}, fiber.ErrBadRequest
+	}
+	if !isAllowedRedirect(claims.RedirectURI) {
+		return oauthStateClaims{}, fiber.ErrBadRequest
+	}
+	return *claims, nil
 }
 
 // Refresh handles POST /auth/refresh { "refresh_token": "...", "user_id": "..." }

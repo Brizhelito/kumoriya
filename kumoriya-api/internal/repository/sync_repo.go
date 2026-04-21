@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"database/sql"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -146,11 +147,15 @@ func (r *SyncRepo) UpsertWatchHistory(ctx context.Context, userID uuid.UUID, wh 
 	return tag.RowsAffected() > 0, nil
 }
 
-// DeleteWatchHistory removes a watch history entry for a given user and anilist ID.
-func (r *SyncRepo) DeleteWatchHistory(ctx context.Context, userID uuid.UUID, anilistID int) error {
+// DeleteWatchHistory removes a watch-history row only when the deletion
+// timestamp is at least as recent as the existing row's last_accessed_at.
+// Without this LWW guard a stale deletion replayed by the client queue would
+// erase a freshly-written entry.
+func (r *SyncRepo) DeleteWatchHistory(ctx context.Context, userID uuid.UUID, anilistID int, tsMs int64) error {
 	_, err := r.pool.Exec(ctx,
-		`DELETE FROM sync_watch_history WHERE user_id = $1 AND anilist_id = $2`,
-		userID, anilistID,
+		`DELETE FROM sync_watch_history
+		 WHERE user_id = $1 AND anilist_id = $2 AND last_accessed_at <= $3`,
+		userID, anilistID, tsMs,
 	)
 	return err
 }
@@ -208,15 +213,14 @@ func (r *SyncRepo) UpsertPlaybackPreference(ctx context.Context, userID uuid.UUI
 // --- Library Entries ---
 
 func (r *SyncRepo) PullLibraryEntries(ctx context.Context, userID uuid.UUID, since int64) ([]model.LibraryEntry, error) {
-	// Library entries use added_at = LEAST(old, new) in the upsert, so added_at
-	// can go backward.  Pull all entries for the user to avoid missed updates.
-	// Library set is small/bounded per user.
+	// Library state uses LWW on updated_at. Pulling with `updated_at > since`
+	// is correct now that added_at is no longer the ordering key.
 	rows, err := r.pool.Query(ctx,
 		`SELECT user_id, anilist_id, added_at, notify_new_episodes, last_notified_episode,
-		        auto_download_new_episodes, auto_download_audio_preference
+		        auto_download_new_episodes, auto_download_audio_preference, updated_at
 		 FROM sync_library_entry
-		 WHERE user_id = $1`,
-		userID,
+		 WHERE user_id = $1 AND updated_at > $2`,
+		userID, since,
 	)
 	if err != nil {
 		return nil, err
@@ -227,7 +231,7 @@ func (r *SyncRepo) PullLibraryEntries(ctx context.Context, userID uuid.UUID, sin
 	for rows.Next() {
 		var le model.LibraryEntry
 		if err := rows.Scan(&le.UserID, &le.AnilistID, &le.AddedAt, &le.NotifyNewEpisodes, &le.LastNotifiedEpisode,
-			&le.AutoDownloadNewEpisodes, &le.AutoDownloadAudioPref); err != nil {
+			&le.AutoDownloadNewEpisodes, &le.AutoDownloadAudioPref, &le.UpdatedAt); err != nil {
 			return nil, err
 		}
 		items = append(items, le)
@@ -235,32 +239,81 @@ func (r *SyncRepo) PullLibraryEntries(ctx context.Context, userID uuid.UUID, sin
 	return items, rows.Err()
 }
 
+// UpsertLibraryEntry replaces the whole row when the incoming updated_at is
+// strictly newer. This lets unfavorite (added_at = 0) correctly win over a
+// previous favorite (added_at > 0), which the previous `LEAST(added_at)`
+// semantics made impossible.
 func (r *SyncRepo) UpsertLibraryEntry(ctx context.Context, userID uuid.UUID, le model.LibraryEntry) (bool, error) {
-	// LWW by added_at; merge booleans (if either side is true, keep true)
 	tag, err := r.pool.Exec(ctx,
 		`INSERT INTO sync_library_entry
 		   (user_id, anilist_id, added_at, notify_new_episodes, last_notified_episode,
-		    auto_download_new_episodes, auto_download_audio_preference)
-		 VALUES ($1, $2, $3, $4, $5, $6, $7)
+		    auto_download_new_episodes, auto_download_audio_preference, updated_at)
+		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
 		 ON CONFLICT (user_id, anilist_id)
 		 DO UPDATE SET
-		   added_at = LEAST(sync_library_entry.added_at, EXCLUDED.added_at),
-		   notify_new_episodes = sync_library_entry.notify_new_episodes OR EXCLUDED.notify_new_episodes,
-		   last_notified_episode = CASE
+		   added_at                      = EXCLUDED.added_at,
+		   notify_new_episodes           = EXCLUDED.notify_new_episodes,
+		   last_notified_episode         = CASE
 		     WHEN sync_library_entry.last_notified_episode IS NULL THEN EXCLUDED.last_notified_episode
 		     WHEN EXCLUDED.last_notified_episode IS NULL THEN sync_library_entry.last_notified_episode
 		     ELSE GREATEST(sync_library_entry.last_notified_episode, EXCLUDED.last_notified_episode)
 		   END,
-		   auto_download_new_episodes = sync_library_entry.auto_download_new_episodes OR EXCLUDED.auto_download_new_episodes,
-		   auto_download_audio_preference = CASE
-		     WHEN EXCLUDED.added_at > sync_library_entry.added_at THEN EXCLUDED.auto_download_audio_preference
-		     ELSE sync_library_entry.auto_download_audio_preference
-		   END`,
+		   auto_download_new_episodes    = EXCLUDED.auto_download_new_episodes,
+		   auto_download_audio_preference = EXCLUDED.auto_download_audio_preference,
+		   updated_at                    = EXCLUDED.updated_at
+		 WHERE EXCLUDED.updated_at > sync_library_entry.updated_at`,
 		userID, le.AnilistID, le.AddedAt, le.NotifyNewEpisodes, le.LastNotifiedEpisode,
-		le.AutoDownloadNewEpisodes, le.AutoDownloadAudioPref,
+		le.AutoDownloadNewEpisodes, le.AutoDownloadAudioPref, le.UpdatedAt,
 	)
 	if err != nil {
 		return false, err
 	}
 	return tag.RowsAffected() > 0, nil
+}
+
+// DeleteLibraryEntry removes the row only when the incoming deletion is at
+// least as recent as the current updated_at. Mirrors DeleteWatchHistory's
+// LWW guard.
+func (r *SyncRepo) DeleteLibraryEntry(ctx context.Context, userID uuid.UUID, anilistID int, tsMs int64) error {
+	_, err := r.pool.Exec(ctx,
+		`DELETE FROM sync_library_entry
+		 WHERE user_id = $1 AND anilist_id = $2 AND updated_at <= $3`,
+		userID, anilistID, tsMs,
+	)
+	return err
+}
+
+// --- Durability cursors ---
+
+// MaxDurableTimestamps reads the current max client-assigned timestamp per
+// entity for a user. Used to rehydrate in-memory `durable_until` cursors
+// after a server restart, so clients can resume pruning their queues without
+// losing data.
+func (r *SyncRepo) MaxDurableTimestamps(ctx context.Context, userID uuid.UUID) (model.DurableUntil, error) {
+	var d model.DurableUntil
+	var ep, wh, pp, le sql.NullInt64
+	err := r.pool.QueryRow(ctx,
+		`SELECT
+		   (SELECT MAX(updated_at)      FROM sync_episode_progress    WHERE user_id = $1),
+		   (SELECT MAX(last_accessed_at) FROM sync_watch_history       WHERE user_id = $1),
+		   (SELECT MAX(updated_at)      FROM sync_playback_preference WHERE user_id = $1),
+		   (SELECT MAX(updated_at)      FROM sync_library_entry       WHERE user_id = $1)`,
+		userID,
+	).Scan(&ep, &wh, &pp, &le)
+	if err != nil {
+		return d, err
+	}
+	if ep.Valid {
+		d.EpisodeProgress = ep.Int64
+	}
+	if wh.Valid {
+		d.WatchHistory = wh.Int64
+	}
+	if pp.Valid {
+		d.PlaybackPreference = pp.Int64
+	}
+	if le.Valid {
+		d.LibraryEntry = le.Int64
+	}
+	return d, nil
 }

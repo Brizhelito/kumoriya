@@ -12,6 +12,7 @@ import (
 	"github.com/gofiber/fiber/v3/middleware/helmet"
 	"github.com/gofiber/fiber/v3/middleware/recover"
 	"github.com/gofiber/fiber/v3/middleware/requestid"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 
@@ -58,7 +59,11 @@ func main() {
 	app.Use(requestid.New())
 	app.Use(helmet.New())
 	app.Use(cors.New(cors.Config{
-		AllowOrigins: []string{"https://api.kumoriya.online"},
+		AllowOrigins: []string{
+			"https://api.kumoriya.online",
+			"https://kumoriya.online",
+			"https://www.kumoriya.online",
+		},
 		AllowMethods: []string{"GET", "POST", "PATCH", "DELETE", "OPTIONS"},
 		AllowHeaders: []string{"Authorization", "Content-Type"},
 		MaxAge:       3600,
@@ -66,10 +71,6 @@ func main() {
 
 	// ── Health (no DB) ──
 	app.Get("/health", handler.Health)
-
-	// ── Release manifest (no DB needed) ──
-	releaseHandler := handler.NewReleaseHandler(cfg.ReleaseManifestURL)
-	app.Get("/releases/latest", releaseHandler.GetManifest)
 
 	// ── Digital Asset Links for Android passkeys ──
 	if len(cfg.AndroidAPKFingerprints) > 0 || len(cfg.AndroidAPKDebugFingerprints) > 0 {
@@ -99,9 +100,39 @@ func main() {
 	// ── Database-dependent routes ──
 	var cleanup func()
 	if cfg.NeonDSN == "" {
-		log.Warn().Msg("NEON_DSN not set; only /health is available")
+		releaseService := service.NewReleaseService(nil, cfg.ReleaseManifestURL)
+		releaseHandler := handler.NewReleaseHandler(
+			releaseService,
+			cfg.ReleasePublishToken,
+		)
+		app.Get("/releases/latest", releaseHandler.GetManifest)
+		log.Warn().Msg("NEON_DSN not set; release feed publishing is disabled")
 	} else {
-		cleanup = registerProtectedRoutes(app, cfg)
+		pool, err := repository.NewPool(context.Background(), cfg.NeonDSN)
+		if err != nil {
+			log.Fatal().Err(err).Msg("failed to connect to database")
+		}
+
+		releaseRepo := repository.NewReleaseRepo(pool)
+		releaseService := service.NewReleaseService(
+			releaseRepo,
+			cfg.ReleaseManifestURL,
+		)
+		if err := releaseService.Warm(context.Background()); err != nil {
+			log.Warn().
+				Err(err).
+				Msg("release cache warm failed; latest will fall back to legacy manifest until publish")
+		}
+		releaseHandler := handler.NewReleaseHandler(
+			releaseService,
+			cfg.ReleasePublishToken,
+		)
+		app.Get("/releases/latest", releaseHandler.GetManifest)
+		app.Get("/releases/feed", releaseHandler.GetFeed)
+		app.Get("/releases/:tag", releaseHandler.GetByTag)
+		app.Post("/internal/releases/publish", releaseHandler.Publish)
+
+		cleanup = registerProtectedRoutes(app, cfg, pool)
 	}
 
 	// ── Graceful Shutdown ──
@@ -132,12 +163,7 @@ func main() {
 	}
 }
 
-func registerProtectedRoutes(app *fiber.App, cfg config.Config) (cleanup func()) {
-	pool, err := repository.NewPool(context.Background(), cfg.NeonDSN)
-	if err != nil {
-		log.Fatal().Err(err).Msg("failed to connect to database")
-	}
-
+func registerProtectedRoutes(app *fiber.App, cfg config.Config, pool *pgxpool.Pool) (cleanup func()) {
 	userRepo := repository.NewUserRepo(pool)
 	syncRepo := repository.NewSyncRepo(pool)
 
@@ -159,12 +185,12 @@ func registerProtectedRoutes(app *fiber.App, cfg config.Config) (cleanup func())
 	}()
 
 	var passkeySvc *service.PasskeyService
-	passkeySvc, err = service.NewPasskeyService(cfg.WebAuthnRPID, cfg.WebAuthnRPOrigins, cfg.WebAuthnRPName, userRepo)
+	passkeySvc, err := service.NewPasskeyService(cfg.WebAuthnRPID, cfg.WebAuthnRPOrigins, cfg.WebAuthnRPName, userRepo)
 	if err != nil {
 		log.Warn().Err(err).Msg("passkey service init failed; passkey endpoints disabled")
 	}
 
-	authHandler := handler.NewAuthHandler(authSvc, oauthSvc, passkeySvc)
+	authHandler := handler.NewAuthHandler(authSvc, oauthSvc, passkeySvc, jwtSvc)
 	syncHandler := handler.NewSyncHandler(syncSvc, cfg.SyncDebugLog)
 	profileHandler := handler.NewProfileHandler(userRepo)
 	authIPRateLimit := middleware.PerIPRateLimit(10, time.Minute)

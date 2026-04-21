@@ -107,7 +107,9 @@ func (c *pullCache) merge(userID uuid.UUID, req *model.SyncPushRequest) {
 
 	snap, exists := c.snapshots[userID]
 	if !exists {
-		// No cached snapshot — seed one from push data.
+		// No cached snapshot — seed one from push data. Deletions are not
+		// persisted into the seed; they only matter once there is a cached
+		// row to remove.
 		resp := &model.SyncPullResponse{
 			ServerTime:          time.Now().UnixMilli(),
 			EpisodeProgress:     append([]model.EpisodeProgress{}, req.EpisodeProgress...),
@@ -175,12 +177,14 @@ func (c *pullCache) merge(userID uuid.UUID, req *model.SyncPushRequest) {
 		}
 	}
 
-	// Merge library entries.
+	// Merge library entries (LWW by updated_at).
 	for _, le := range req.LibraryEntries {
 		found := false
 		for i, ex := range resp.LibraryEntries {
 			if ex.AnilistID == le.AnilistID {
-				resp.LibraryEntries[i] = le
+				if le.UpdatedAt > ex.UpdatedAt {
+					resp.LibraryEntries[i] = le
+				}
 				found = true
 				break
 			}
@@ -190,11 +194,21 @@ func (c *pullCache) merge(userID uuid.UUID, req *model.SyncPushRequest) {
 		}
 	}
 
-	// Apply watch history deletions.
+	// Apply watch-history deletions with LWW.
 	for _, d := range req.WatchHistoryDeletions {
 		for i, ex := range resp.WatchHistory {
-			if ex.AnilistID == d.AnilistID {
+			if ex.AnilistID == d.AnilistID && ex.LastAccessedAt <= d.UpdatedAt {
 				resp.WatchHistory = append(resp.WatchHistory[:i], resp.WatchHistory[i+1:]...)
+				break
+			}
+		}
+	}
+
+	// Apply library deletions with LWW.
+	for _, d := range req.LibraryEntryDeletions {
+		for i, ex := range resp.LibraryEntries {
+			if ex.AnilistID == d.AnilistID && ex.UpdatedAt <= d.UpdatedAt {
+				resp.LibraryEntries = append(resp.LibraryEntries[:i], resp.LibraryEntries[i+1:]...)
 				break
 			}
 		}
@@ -204,18 +218,16 @@ func (c *pullCache) merge(userID uuid.UUID, req *model.SyncPushRequest) {
 }
 
 // filterBySince creates a new SyncPullResponse containing only entries that
-// are newer than `since` (unix millis). LibraryEntries are always included
-// (the DB query already pulls all of them for correctness).
+// are newer than `since` (unix millis). LibraryEntries are filtered by
+// updated_at, matching the server-side LWW key.
 func filterBySince(full *model.SyncPullResponse, since int64) *model.SyncPullResponse {
 	out := &model.SyncPullResponse{
 		ServerTime:          time.Now().UnixMilli(),
 		EpisodeProgress:     make([]model.EpisodeProgress, 0),
 		WatchHistory:        make([]model.WatchHistory, 0),
 		PlaybackPreferences: make([]model.PlaybackPreference, 0),
-		LibraryEntries:      full.LibraryEntries, // always full set
-	}
-	if out.LibraryEntries == nil {
-		out.LibraryEntries = []model.LibraryEntry{}
+		LibraryEntries:      make([]model.LibraryEntry, 0),
+		DurableUntil:        full.DurableUntil,
 	}
 	for _, ep := range full.EpisodeProgress {
 		if ep.UpdatedAt > since {
@@ -230,6 +242,11 @@ func filterBySince(full *model.SyncPullResponse, since int64) *model.SyncPullRes
 	for _, pp := range full.PlaybackPreferences {
 		if pp.UpdatedAt > since {
 			out.PlaybackPreferences = append(out.PlaybackPreferences, pp)
+		}
+	}
+	for _, le := range full.LibraryEntries {
+		if le.UpdatedAt > since {
+			out.LibraryEntries = append(out.LibraryEntries, le)
 		}
 	}
 	return out

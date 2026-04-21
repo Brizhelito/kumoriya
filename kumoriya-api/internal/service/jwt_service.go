@@ -52,12 +52,7 @@ func (s *JWTService) GenerateAccessToken(userID uuid.UUID, displayName string) (
 }
 
 func (s *JWTService) ValidateAccessToken(tokenStr string) (*AccessClaims, error) {
-	token, err := jwt.ParseWithClaims(tokenStr, &AccessClaims{}, func(t *jwt.Token) (interface{}, error) {
-		if _, ok := t.Method.(*jwt.SigningMethodEd25519); !ok {
-			return nil, fmt.Errorf("unexpected signing method: %v", t.Header["alg"])
-		}
-		return s.publicKey, nil
-	})
+	token, err := s.ParseClaims(tokenStr, &AccessClaims{})
 	if err != nil {
 		return nil, err
 	}
@@ -66,6 +61,20 @@ func (s *JWTService) ValidateAccessToken(tokenStr string) (*AccessClaims, error)
 		return nil, fmt.Errorf("invalid token claims")
 	}
 	return claims, nil
+}
+
+func (s *JWTService) SignClaims(claims jwt.Claims) (string, error) {
+	token := jwt.NewWithClaims(jwt.SigningMethodEdDSA, claims)
+	return token.SignedString(s.privateKey)
+}
+
+func (s *JWTService) ParseClaims(tokenStr string, claims jwt.Claims) (*jwt.Token, error) {
+	return jwt.ParseWithClaims(tokenStr, claims, func(t *jwt.Token) (interface{}, error) {
+		if _, ok := t.Method.(*jwt.SigningMethodEd25519); !ok {
+			return nil, fmt.Errorf("unexpected signing method: %v", t.Header["alg"])
+		}
+		return s.publicKey, nil
+	})
 }
 
 // GenerateRefreshToken returns a random hex-encoded refresh token and its bcrypt hash.
