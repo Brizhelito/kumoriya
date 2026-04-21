@@ -1,5 +1,5 @@
 param(
-  [string]$EnvFilePath = "secrets/r2.credentials.env"
+  [string]$EnvFilePath = "secrets/kumoriya_r2.credentials.env"
 )
 
 Set-StrictMode -Version Latest

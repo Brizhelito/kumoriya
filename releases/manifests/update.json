@@ -5,8 +5,8 @@
     "url": "https://pub-8159019abe1741a097538b976c19722c.r2.dev/artifacts/windows/v0.1.4/Kumoriya-0.1.4-windows-x64-setup.exe"
   },
   "android": {
-    "release_notes": "v0.1.4: immediate download cancellation, orphan cleanup, enhanced HLS reliability, post-update dialog",
-    "latest_version": "0.1.4",
-    "url": "https://pub-8159019abe1741a097538b976c19722c.r2.dev/artifacts/android/v0.1.4/kumoriya-0.1.4.apk"
+    "release_notes": "v0.2.0: dedicated Watch Party surfaces, backend-powered AniList discovery, FCM airing alerts, and API-driven release delivery",
+    "latest_version": "0.2.0",
+    "url": "https://pub-8159019abe1741a097538b976c19722c.r2.dev/artifacts/android/v0.2.0/kumoriya-0.2.0.apk"
   }
 }
