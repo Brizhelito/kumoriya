@@ -7,6 +7,7 @@ final class LibrarySyncEntry {
     this.autoDownloadNewEpisodes = false,
     this.autoDownloadAudioPreference,
     this.addedAt,
+    this.updatedAt,
   });
 
   final int anilistId;
@@ -16,7 +17,12 @@ final class LibrarySyncEntry {
   final bool autoDownloadNewEpisodes;
   final String? autoDownloadAudioPreference;
 
-  /// Server-side timestamp (milliseconds since epoch) for when this entry was
-  /// added to the library. `null` when the server omits the field.
+  /// Milliseconds since epoch for when this entry was added as a favorite.
+  /// `null` (or 0 on the wire) means "not favorite" — the row may still exist
+  /// to carry subscription or auto-download state.
   final DateTime? addedAt;
+
+  /// LWW cursor for library state. Server uses this to decide whether an
+  /// incoming push should overwrite the current row. `null` for legacy rows.
+  final DateTime? updatedAt;
 }

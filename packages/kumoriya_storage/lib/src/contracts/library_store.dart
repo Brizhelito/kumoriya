@@ -1,5 +1,25 @@
 import 'package:kumoriya_core/kumoriya_core.dart';
 
+final class LibraryEntrySnapshot {
+  const LibraryEntrySnapshot({
+    required this.anilistId,
+    required this.isFavorite,
+    required this.addedAt,
+    required this.notifyNewEpisodes,
+    required this.autoDownloadNewEpisodes,
+    required this.autoDownloadAudioPreference,
+    required this.lastNotifiedEpisode,
+  });
+
+  final int anilistId;
+  final bool isFavorite;
+  final DateTime? addedAt;
+  final bool notifyNewEpisodes;
+  final bool autoDownloadNewEpisodes;
+  final String? autoDownloadAudioPreference;
+  final int? lastNotifiedEpisode;
+}
+
 abstract interface class LibraryStore {
   Future<Result<void, KumoriyaError>> setFavorite(
     int anilistId, {
@@ -40,6 +60,8 @@ abstract interface class LibraryStore {
   Future<void> setAutoDownloadAudioPreference(int anilistId, String preference);
 
   Future<Result<Set<int>, KumoriyaError>> getAutoDownloadAnimeIds();
+
+  Future<LibraryEntrySnapshot?> getEntrySnapshot(int anilistId);
 
   /// Wipes every user-scoped row in the library (favorites, subscriptions,
   /// auto-download preferences). Meant to be invoked when the user signs out

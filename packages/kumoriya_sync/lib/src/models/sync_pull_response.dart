@@ -1,5 +1,6 @@
 import 'package:kumoriya_storage/kumoriya_storage.dart';
 
+import 'durable_until.dart';
 import 'library_sync_entry.dart';
 
 final class SyncPullResponse {
@@ -9,6 +10,7 @@ final class SyncPullResponse {
     required this.watchHistory,
     required this.playbackPreferences,
     required this.libraryEntries,
+    this.durableUntil = DurableUntil.empty,
   });
 
   final DateTime serverTime;
@@ -16,4 +18,5 @@ final class SyncPullResponse {
   final List<AnimeWatchHistory> watchHistory;
   final List<PlaybackPreference> playbackPreferences;
   final List<LibrarySyncEntry> libraryEntries;
+  final DurableUntil durableUntil;
 }

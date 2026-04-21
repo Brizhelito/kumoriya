@@ -12,6 +12,8 @@ final class SyncPushResult {
 }
 
 abstract interface class SyncService {
+  void restoreLastSyncAt(DateTime? value);
+
   Future<Result<SyncPushResult, KumoriyaError>> pushPending();
 
   Future<Result<SyncPullResponse, KumoriyaError>> pullSince(DateTime since);
@@ -19,4 +21,6 @@ abstract interface class SyncService {
   Future<Result<void, KumoriyaError>> fullSync();
 
   Future<Result<SyncStatus, KumoriyaError>> getStatus();
+
+  Future<Result<DateTime?, KumoriyaError>> getLastSyncAt();
 }

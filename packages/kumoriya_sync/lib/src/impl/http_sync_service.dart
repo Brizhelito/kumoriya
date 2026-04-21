@@ -6,13 +6,34 @@ import 'package:kumoriya_storage/kumoriya_storage.dart';
 
 import '../contracts/sync_queue_store.dart';
 import '../contracts/sync_service.dart';
+import '../models/durable_until.dart';
 import '../models/library_sync_entry.dart';
 import '../models/sync_conflict.dart';
 import '../models/sync_pull_response.dart';
 import '../models/sync_queue_entry.dart';
 import '../models/sync_status.dart';
 
+/// Max retry attempts per entry before it is parked in `poisoned` state.
+/// Poisoned entries are excluded from `getPendingEntries` so one bad payload
+/// cannot block the whole queue.
+const int _maxRetryCount = 8;
+
 /// Concrete [SyncService] that pushes/pulls sync data to the Kumoriya backend.
+///
+/// ## Durability contract (client is source of truth)
+///
+/// The server buffers pushes in RAM and flushes to Neon every ~2h. A `200 OK`
+/// on `/sync/push` only means **absorbed in RAM**, not persisted. To avoid
+/// data loss on server restarts, this service **never** deletes queue entries
+/// on push success. Instead:
+///
+/// 1. On push success, entries are left in `syncing` status.
+/// 2. The server returns `durable_until` (per entity) in the push and pull
+///    responses, representing the highest client-assigned timestamp that is
+///    already committed to Neon.
+/// 3. Any queue entry whose payload timestamp is `<= durable_until[entity]`
+///    is deleted from the local queue.
+/// 4. Entries that exceed [_maxRetryCount] are marked `poisoned`.
 final class HttpSyncService implements SyncService {
   HttpSyncService({
     required this.httpClient,
@@ -31,8 +52,10 @@ final class HttpSyncService implements SyncService {
   DateTime? _lastSyncAt;
   SyncStatus _currentStatus = SyncStatus.idle;
 
-  /// External setter for restoring persisted lastSyncAt.
-  set lastSyncAt(DateTime? value) => _lastSyncAt = value;
+  @override
+  void restoreLastSyncAt(DateTime? value) {
+    _lastSyncAt = value;
+  }
 
   @override
   Future<Result<SyncPushResult, KumoriyaError>> pushPending() async {
@@ -83,14 +106,13 @@ final class HttpSyncService implements SyncService {
                       .toList() ??
                   [];
 
-              // Mark synced and clean up.
-              for (final entry in entries) {
-                await queueStore.updateStatus(
-                  id: entry.id,
-                  status: SyncQueueEntryStatus.synced,
-                );
-              }
-              await queueStore.clearSyncedEntries();
+              // The server may echo back `durable_until` cursors per entity.
+              // Any queue entry whose payload timestamp is <= the matching
+              // cursor is confirmed persisted to Neon and safe to delete.
+              final durable = DurableUntil.fromJson(
+                data['durable_until'] as Map<String, dynamic>?,
+              );
+              await _pruneByDurability(entries, durable);
 
               _currentStatus = SyncStatus.success;
               return Success(
@@ -98,12 +120,22 @@ final class HttpSyncService implements SyncService {
               );
             }
 
-            // Push failed — mark entries as failed.
+            // Permanent 4xx (except 429) → entries are bad and will never
+            // succeed. Park them as poisoned immediately.
+            final isPermanent4xx =
+                response.statusCode >= 400 &&
+                response.statusCode < 500 &&
+                response.statusCode != 429;
+
             for (final entry in entries) {
+              final nextRetry = entry.retryCount + 1;
+              final exhausted = nextRetry >= _maxRetryCount;
               await queueStore.updateStatus(
                 id: entry.id,
-                status: SyncQueueEntryStatus.failed,
-                retryCount: entry.retryCount + 1,
+                status: (isPermanent4xx || exhausted)
+                    ? SyncQueueEntryStatus.poisoned
+                    : SyncQueueEntryStatus.failed,
+                retryCount: nextRetry,
                 lastError: 'HTTP ${response.statusCode}',
               );
             }
@@ -118,10 +150,14 @@ final class HttpSyncService implements SyncService {
             );
           } catch (e) {
             for (final entry in entries) {
+              final nextRetry = entry.retryCount + 1;
+              final exhausted = nextRetry >= _maxRetryCount;
               await queueStore.updateStatus(
                 id: entry.id,
-                status: SyncQueueEntryStatus.failed,
-                retryCount: entry.retryCount + 1,
+                status: exhausted
+                    ? SyncQueueEntryStatus.poisoned
+                    : SyncQueueEntryStatus.failed,
+                retryCount: nextRetry,
                 lastError: e.toString(),
               );
             }
@@ -175,10 +211,25 @@ final class HttpSyncService implements SyncService {
       final data = jsonDecode(response.body) as Map<String, dynamic>;
       final pullResponse = _parsePullResponse(data);
 
-      // Apply to local stores.
-      await _applyPullToLocal(pullResponse);
+      // Apply to local stores. If any write fails we keep `_lastSyncAt`
+      // unchanged so the next pull will re-fetch the same window — the
+      // alternative (advancing the cursor on partial failure) silently
+      // drops the rows that never made it to disk.
+      final allApplied = await _applyPullToLocal(pullResponse);
 
-      _lastSyncAt = pullResponse.serverTime;
+      // Prune queue entries already durable on the server. This can happen
+      // even on a plain pull (no push in this cycle) because another device
+      // may have pushed data that was flushed.
+      final pendingResult = await queueStore.getPendingEntries();
+      final pendingEntries = pendingResult.fold(
+        onSuccess: (v) => v,
+        onFailure: (_) => const <SyncQueueEntry>[],
+      );
+      await _pruneByDurability(pendingEntries, pullResponse.durableUntil);
+
+      if (allApplied) {
+        _lastSyncAt = pullResponse.serverTime;
+      }
       _currentStatus = SyncStatus.success;
       return Success(pullResponse);
     } catch (e) {
@@ -219,11 +270,79 @@ final class HttpSyncService implements SyncService {
     return Success(_currentStatus);
   }
 
+  @override
+  Future<Result<DateTime?, KumoriyaError>> getLastSyncAt() async {
+    return Success(_lastSyncAt);
+  }
+
+  /// Deletes queue entries whose payload timestamp is `<= durable[entity]`.
+  /// Entries without a timestamp (e.g. malformed payload) are kept.
+  Future<void> _pruneByDurability(
+    List<SyncQueueEntry> entries,
+    DurableUntil durable,
+  ) async {
+    if (entries.isEmpty) return;
+    final toDelete = <int>[];
+    for (final entry in entries) {
+      final ts = _payloadTimestamp(entry);
+      if (ts == null) continue;
+      final cursor = _cursorFor(entry.entityType, durable);
+      if (cursor > 0 && ts <= cursor) {
+        toDelete.add(entry.id);
+      }
+    }
+    if (toDelete.isNotEmpty) {
+      await queueStore.deleteEntries(toDelete);
+    }
+  }
+
+  int _cursorFor(SyncEntityType type, DurableUntil d) {
+    switch (type) {
+      case SyncEntityType.episodeProgress:
+        return d.episodeProgress;
+      case SyncEntityType.watchHistory:
+      case SyncEntityType.watchHistoryDeletion:
+        return d.watchHistory;
+      case SyncEntityType.playbackPreference:
+        return d.playbackPreference;
+      case SyncEntityType.libraryEntry:
+      case SyncEntityType.libraryEntryDeletion:
+        return d.libraryEntry;
+    }
+  }
+
+  /// Extracts the LWW timestamp used by the server for this entity. Returns
+  /// `null` if the payload is malformed.
+  int? _payloadTimestamp(SyncQueueEntry entry) {
+    try {
+      final decoded = jsonDecode(entry.payload) as Map<String, dynamic>;
+      switch (entry.entityType) {
+        case SyncEntityType.episodeProgress:
+        case SyncEntityType.playbackPreference:
+          return (decoded['updated_at'] as num?)?.toInt();
+        case SyncEntityType.watchHistory:
+          return (decoded['last_accessed_at'] as num?)?.toInt();
+        case SyncEntityType.watchHistoryDeletion:
+          // Deletions carry `updated_at` (client assigns at enqueue time).
+          // Older payloads without it fall back to `createdAt`.
+          return (decoded['updated_at'] as num?)?.toInt() ??
+              entry.createdAt.millisecondsSinceEpoch;
+        case SyncEntityType.libraryEntry:
+        case SyncEntityType.libraryEntryDeletion:
+          return (decoded['updated_at'] as num?)?.toInt();
+      }
+    } catch (_) {
+      return null;
+    }
+  }
+
   Map<String, dynamic> _buildPushPayload(List<SyncQueueEntry> entries) {
     final episodeProgress = <Map<String, dynamic>>[];
     final watchHistory = <Map<String, dynamic>>[];
+    final watchHistoryDeletions = <Map<String, dynamic>>[];
     final playbackPreferences = <Map<String, dynamic>>[];
     final libraryEntries = <Map<String, dynamic>>[];
+    final libraryEntryDeletions = <Map<String, dynamic>>[];
 
     for (final entry in entries) {
       final decoded = jsonDecode(entry.payload) as Map<String, dynamic>;
@@ -232,18 +351,24 @@ final class HttpSyncService implements SyncService {
           episodeProgress.add(decoded);
         case SyncEntityType.watchHistory:
           watchHistory.add(decoded);
+        case SyncEntityType.watchHistoryDeletion:
+          watchHistoryDeletions.add(decoded);
         case SyncEntityType.playbackPreference:
           playbackPreferences.add(decoded);
         case SyncEntityType.libraryEntry:
           libraryEntries.add(decoded);
+        case SyncEntityType.libraryEntryDeletion:
+          libraryEntryDeletions.add(decoded);
       }
     }
 
     return {
       'episode_progress': episodeProgress,
       'watch_history': watchHistory,
+      'watch_history_deletions': watchHistoryDeletions,
       'playback_preferences': playbackPreferences,
       'library_entries': libraryEntries,
+      'library_entry_deletions': libraryEntryDeletions,
     };
   }
 
@@ -270,12 +395,17 @@ final class HttpSyncService implements SyncService {
         .map(_parseLibraryEntry)
         .toList();
 
+    final durable = DurableUntil.fromJson(
+      data['durable_until'] as Map<String, dynamic>?,
+    );
+
     return SyncPullResponse(
       serverTime: DateTime.fromMillisecondsSinceEpoch(serverTimeMs),
       episodeProgress: episodes,
       watchHistory: history,
       playbackPreferences: prefs,
       libraryEntries: library,
+      durableUntil: durable,
     );
   }
 
@@ -331,16 +461,19 @@ final class HttpSyncService implements SyncService {
   }
 
   LibrarySyncEntry _parseLibraryEntry(Map<String, dynamic> data) {
+    final addedAt = _tryParseTimestamp(data['added_at']);
+    final updatedAt = _tryParseTimestamp(data['updated_at']);
     return LibrarySyncEntry(
       anilistId: (data['anilist_id'] as num).toInt(),
-      isFavorite: true, // present on server = favorited
+      isFavorite: addedAt != null,
       notify: data['notify_new_episodes'] as bool? ?? false,
       lastNotifiedEpisode: (data['last_notified_episode'] as num?)?.toInt(),
       autoDownloadNewEpisodes:
           data['auto_download_new_episodes'] as bool? ?? false,
       autoDownloadAudioPreference:
           data['auto_download_audio_preference'] as String?,
-      addedAt: _tryParseTimestamp(data['added_at']),
+      addedAt: addedAt,
+      updatedAt: updatedAt,
     );
   }
 
@@ -368,12 +501,18 @@ final class HttpSyncService implements SyncService {
     };
   }
 
-  Future<void> _applyPullToLocal(SyncPullResponse pull) async {
+  /// Applies pulled rows to the local (raw, non-sync-aware) stores.
+  /// Returns `true` only when every row was written successfully — a single
+  /// failure must keep `_lastSyncAt` from advancing so the next pull re-tries
+  /// the same window.
+  Future<bool> _applyPullToLocal(SyncPullResponse pull) async {
+    var ok = true;
     for (final ep in pull.episodeProgress) {
-      await progressStore.upsert(ep);
+      final r = await progressStore.upsert(ep);
+      if (r.isFailure) ok = false;
     }
     for (final wh in pull.watchHistory) {
-      await progressStore.upsertWatchHistory(
+      final r = await progressStore.upsertWatchHistory(
         anilistId: wh.anilistId,
         episodeNumber: wh.lastEpisodeNumber,
         positionSeconds: wh.lastPositionSeconds,
@@ -381,21 +520,29 @@ final class HttpSyncService implements SyncService {
         lastSourcePluginId: wh.lastSourcePluginId,
         lastAccessedAt: wh.lastAccessedAt,
       );
+      if (r.isFailure) ok = false;
     }
     for (final pref in pull.playbackPreferences) {
-      await progressStore.upsertPlaybackPreference(pref);
+      final r = await progressStore.upsertPlaybackPreference(pref);
+      if (r.isFailure) ok = false;
     }
     for (final lib in pull.libraryEntries) {
-      await libraryStore.setFavorite(
+      final r = await libraryStore.setFavorite(
         lib.anilistId,
         isFavorite: lib.isFavorite,
         addedAt: lib.addedAt,
       );
-      await libraryStore.setSubscription(lib.anilistId, notify: lib.notify);
-      await libraryStore.setAutoDownload(
+      if (r.isFailure) ok = false;
+      final rSub = await libraryStore.setSubscription(
+        lib.anilistId,
+        notify: lib.notify,
+      );
+      if (rSub.isFailure) ok = false;
+      final rDl = await libraryStore.setAutoDownload(
         lib.anilistId,
         autoDownload: lib.autoDownloadNewEpisodes,
       );
+      if (rDl.isFailure) ok = false;
       if (lib.autoDownloadAudioPreference != null) {
         await libraryStore.setAutoDownloadAudioPreference(
           lib.anilistId,
@@ -403,11 +550,13 @@ final class HttpSyncService implements SyncService {
         );
       }
       if (lib.lastNotifiedEpisode != null) {
-        await libraryStore.updateLastNotifiedEpisode(
+        final r2 = await libraryStore.updateLastNotifiedEpisode(
           lib.anilistId,
           lib.lastNotifiedEpisode!,
         );
+        if (r2.isFailure) ok = false;
       }
     }
+    return ok;
   }
 }

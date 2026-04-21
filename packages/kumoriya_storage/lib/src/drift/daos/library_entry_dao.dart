@@ -126,11 +126,41 @@ class LibraryEntryDao extends DatabaseAccessor<AppDatabase>
   }
 
   Future<void> updateAutoDownload(int anilistId, {required bool autoDownload}) {
-    return (update(
-      libraryEntryTable,
-    )..where((t) => t.anilistId.equals(anilistId))).write(
-      LibraryEntryTableCompanion(autoDownloadNewEpisodes: Value(autoDownload)),
-    );
+    return transaction(() async {
+      final existing = await getEntry(anilistId);
+      if (existing == null) {
+        if (!autoDownload) {
+          return;
+        }
+
+        await into(libraryEntryTable).insert(
+          LibraryEntryTableCompanion(
+            anilistId: Value(anilistId),
+            addedAt: const Value(0),
+            autoDownloadNewEpisodes: Value(autoDownload),
+          ),
+        );
+        return;
+      }
+
+      await (update(
+        libraryEntryTable,
+      )..where((t) => t.anilistId.equals(anilistId))).write(
+        LibraryEntryTableCompanion(
+          autoDownloadNewEpisodes: Value(autoDownload),
+        ),
+      );
+
+      if (!autoDownload &&
+          existing.addedAt <= 0 &&
+          !existing.notifyNewEpisodes &&
+          (existing.autoDownloadAudioPreference == null ||
+              existing.autoDownloadAudioPreference == 'none')) {
+        await (delete(
+          libraryEntryTable,
+        )..where((t) => t.anilistId.equals(anilistId))).go();
+      }
+    });
   }
 
   Future<String?> getAutoDownloadAudioPreference(int anilistId) async {
@@ -144,13 +174,27 @@ class LibraryEntryDao extends DatabaseAccessor<AppDatabase>
     int anilistId,
     String preference,
   ) {
-    return (update(
-      libraryEntryTable,
-    )..where((t) => t.anilistId.equals(anilistId))).write(
-      LibraryEntryTableCompanion(
-        autoDownloadAudioPreference: Value(preference),
-      ),
-    );
+    return transaction(() async {
+      final existing = await getEntry(anilistId);
+      if (existing == null) {
+        await into(libraryEntryTable).insert(
+          LibraryEntryTableCompanion(
+            anilistId: Value(anilistId),
+            addedAt: const Value(0),
+            autoDownloadAudioPreference: Value(preference),
+          ),
+        );
+        return;
+      }
+
+      await (update(
+        libraryEntryTable,
+      )..where((t) => t.anilistId.equals(anilistId))).write(
+        LibraryEntryTableCompanion(
+          autoDownloadAudioPreference: Value(preference),
+        ),
+      );
+    });
   }
 
   Future<List<LibraryEntryTableData>> getAutoDownloadEntries() {
@@ -165,6 +209,12 @@ class LibraryEntryDao extends DatabaseAccessor<AppDatabase>
       ..addColumns([libraryEntryTable.anilistId])
       ..where(libraryEntryTable.autoDownloadNewEpisodes.equals(true));
     return query.map((row) => row.read(libraryEntryTable.anilistId)!).get();
+  }
+
+  Future<LibraryEntryTableData?> getEntry(int anilistId) {
+    return (select(
+      libraryEntryTable,
+    )..where((t) => t.anilistId.equals(anilistId))).getSingleOrNull();
   }
 
   Future<int> clearAll() {

@@ -191,6 +191,26 @@ final class DriftLibraryStore implements LibraryStore {
   }
 
   @override
+  Future<LibraryEntrySnapshot?> getEntrySnapshot(int anilistId) async {
+    final row = await _dao.getEntry(anilistId);
+    if (row == null) {
+      return null;
+    }
+
+    return LibraryEntrySnapshot(
+      anilistId: row.anilistId,
+      isFavorite: row.addedAt > 0,
+      addedAt: row.addedAt > 0
+          ? DateTime.fromMillisecondsSinceEpoch(row.addedAt)
+          : null,
+      notifyNewEpisodes: row.notifyNewEpisodes,
+      autoDownloadNewEpisodes: row.autoDownloadNewEpisodes,
+      autoDownloadAudioPreference: row.autoDownloadAudioPreference,
+      lastNotifiedEpisode: row.lastNotifiedEpisode,
+    );
+  }
+
+  @override
   Future<Result<void, KumoriyaError>> clearAll() async {
     try {
       await _dao.clearAll();

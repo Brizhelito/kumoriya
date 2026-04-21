@@ -17,6 +17,10 @@ abstract interface class SyncQueueStore {
 
   Future<Result<void, KumoriyaError>> deleteEntry(int id);
 
+  /// Bulk delete by ids. Used after a push to drop entries whose payload
+  /// timestamp is ≤ the server's confirmed `durable_until` cursor.
+  Future<Result<void, KumoriyaError>> deleteEntries(List<int> ids);
+
   Future<Result<void, KumoriyaError>> clearSyncedEntries();
 
   /// Wipes every entry in the sync queue regardless of status. Meant to be
