@@ -21,10 +21,51 @@ class LocalReleaseNotes {
 LocalReleaseNotes? releaseNotesForVersion(String version, Locale locale) {
   final spanish = locale.languageCode.toLowerCase() == 'es';
   return switch (version) {
+    '0.2.0' => spanish ? _v020Es : _v020En,
     '0.1.4' => spanish ? _v014Es : _v014En,
     _ => null,
   };
 }
+
+const LocalReleaseNotes _v020En = LocalReleaseNotes(
+  version: '0.2.0',
+  title: 'What changed in v0.2.0',
+  summary:
+      'Watch Party got dedicated collaborative screens, discovery moved further behind the backend, and release delivery is now API-driven.',
+  added: <String>[
+    'Dedicated Watch Party anime and episode pages focused on room context, readiness, and shared playback.',
+    'Backend-powered AniList home cache and FCM episode notifications.',
+    'Unified API-backed release feed for app and website metadata.',
+  ],
+  changed: <String>[
+    'Party navigation now preserves room context through detail, episode list, and player routes.',
+    'Profile page now highlights Watch Party and logout while de-emphasizing delete-account and UUID metadata.',
+  ],
+  fixed: <String>[
+    'Release publishing now refreshes the backend snapshot immediately instead of relying on a stale one-shot cache.',
+    'Android and backend notification channels are aligned under kumoriya_new_episodes.',
+  ],
+);
+
+const LocalReleaseNotes _v020Es = LocalReleaseNotes(
+  version: '0.2.0',
+  title: 'Cambios en la v0.2.0',
+  summary:
+      'Watch Party ganó pantallas colaborativas dedicadas, el descubrimiento se apoya más en el backend y la distribución de releases ahora pasa por la API.',
+  added: <String>[
+    'Páginas dedicadas de anime y episodios para Watch Party con foco en sala, miembros, estado ready y reproducción compartida.',
+    'Cache backend para el home de AniList y notificaciones FCM para episodios al aire.',
+    'Feed unificado de releases por API para app y website.',
+  ],
+  changed: <String>[
+    'La navegación de party ahora conserva mejor el contexto de sala entre detalle, episodios y reproductor.',
+    'La pantalla de perfil ahora resalta Watch Party y logout, mientras borrar cuenta y el UUID quedan más discretos.',
+  ],
+  fixed: <String>[
+    'El publish de releases ahora refresca el snapshot del backend de inmediato en lugar de depender de una cache vieja.',
+    'Android y backend quedaron alineados en el canal kumoriya_new_episodes.',
+  ],
+);
 
 const LocalReleaseNotes _v014En = LocalReleaseNotes(
   version: '0.1.4',

@@ -35,7 +35,7 @@ final class AnonymousToAuthMigration {
           (allHistoryResult as Success<List<AnimeWatchHistory>, KumoriyaError>)
               .value;
       for (final wh in history) {
-        final now = DateTime.now().millisecondsSinceEpoch;
+        final lastAccessedAt = wh.lastAccessedAt;
         await syncQueue.enqueue(
           SyncQueueEntry(
             id: 0,
@@ -47,9 +47,9 @@ final class AnonymousToAuthMigration {
               'last_source_plugin_id': wh.lastSourcePluginId,
               'last_position_seconds': wh.lastPositionSeconds,
               'last_total_duration_seconds': wh.lastTotalDurationSeconds,
-              'last_accessed_at': now,
+              'last_accessed_at': lastAccessedAt.millisecondsSinceEpoch,
             }),
-            createdAt: DateTime.now(),
+            createdAt: lastAccessedAt,
             status: SyncQueueEntryStatus.pending,
           ),
         );
@@ -94,26 +94,33 @@ final class AnonymousToAuthMigration {
     final autoResult = await libraryStore.getAutoDownloadAnimeIds();
 
     final allIds = <int>{};
-    favResult.fold(onSuccess: allIds.addAll, onFailure: (_) {});
-    subResult.fold(onSuccess: allIds.addAll, onFailure: (_) {});
-    autoResult.fold(onSuccess: allIds.addAll, onFailure: (_) {});
-
-    final favSet = favResult.fold(
-      onSuccess: (s) => s,
-      onFailure: (_) => <int>{},
+    favResult.fold(
+      onSuccess: (ids) {
+        allIds.addAll(ids);
+      },
+      onFailure: (_) {},
     );
-    final subSet = subResult.fold(
-      onSuccess: (s) => s,
-      onFailure: (_) => <int>{},
+    subResult.fold(
+      onSuccess: (ids) {
+        allIds.addAll(ids);
+      },
+      onFailure: (_) {},
     );
-    final autoSet = autoResult.fold(
-      onSuccess: (s) => s,
-      onFailure: (_) => <int>{},
+    autoResult.fold(
+      onSuccess: (ids) {
+        allIds.addAll(ids);
+      },
+      onFailure: (_) {},
     );
 
     for (final id in allIds) {
-      final audioPref = await libraryStore.getAutoDownloadAudioPreference(id);
-      final now = DateTime.now().millisecondsSinceEpoch;
+      final snapshot = await libraryStore.getEntrySnapshot(id);
+      if (snapshot == null) {
+        continue;
+      }
+
+      final effectiveAddedAt = snapshot.addedAt ?? DateTime.now();
+
       await syncQueue.enqueue(
         SyncQueueEntry(
           id: 0,
@@ -121,11 +128,12 @@ final class AnonymousToAuthMigration {
           entityKey: jsonEncode({'anilistId': id}),
           payload: jsonEncode({
             'anilist_id': id,
-            'is_favorite': favSet.contains(id),
-            'added_at': now,
-            'notify_new_episodes': subSet.contains(id),
-            'auto_download_new_episodes': autoSet.contains(id),
-            'auto_download_audio_preference': audioPref ?? 'none',
+            'is_favorite': snapshot.isFavorite,
+            'added_at': effectiveAddedAt.millisecondsSinceEpoch,
+            'notify_new_episodes': snapshot.notifyNewEpisodes,
+            'auto_download_new_episodes': snapshot.autoDownloadNewEpisodes,
+            'auto_download_audio_preference':
+                snapshot.autoDownloadAudioPreference ?? 'none',
           }),
           createdAt: DateTime.now(),
           status: SyncQueueEntryStatus.pending,

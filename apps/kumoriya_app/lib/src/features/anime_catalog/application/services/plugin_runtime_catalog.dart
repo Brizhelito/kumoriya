@@ -1,3 +1,5 @@
+import 'dart:io' show Platform;
+
 import 'package:http/http.dart' as http;
 import 'package:kumoriya_plugins/kumoriya_plugins.dart';
 import 'package:kumoriya_resolver_anime_nexus/kumoriya_resolver_anime_nexus.dart';
@@ -22,6 +24,8 @@ import 'package:kumoriya_source_animeav1/kumoriya_source_animeav1.dart';
 import 'package:kumoriya_source_animeflv/kumoriya_source_animeflv.dart';
 import 'package:kumoriya_source_jkanime/kumoriya_source_jkanime.dart';
 
+import '../../../player/infrastructure/native_anime_nexus_bypass_resolver.dart';
+
 List<SourcePlugin> buildDefaultSourcePlugins() {
   return <SourcePlugin>[
     JkAnimeSourcePlugin(),
@@ -33,6 +37,19 @@ List<SourcePlugin> buildDefaultSourcePlugins() {
 
 List<ResolverPlugin> buildDefaultResolverPlugins({http.Client? httpClient}) {
   return <ResolverPlugin>[
+    // Native bypass for anime.nexus — Android only. Outputs the
+    // `kumoriya-native://anime-nexus?watch=…` carrier URL that
+    // [KumoriyaExoPlayerEngine] detects and routes into the in-process
+    // HTTP+WS bootstrap (Fase 2), avoiding the ~10-14 s cold-start tax
+    // of the legacy Dart loopback proxy. Its declared priority (200)
+    // is higher than [AnimeNexusResolverPlugin]'s (120), so the
+    // registry picks it first whenever both support the URL.
+    //
+    // Desktop / iOS stay on the legacy resolver because media_kit does
+    // not understand the `kumoriya-native://` carrier scheme. Adding
+    // the bypass unconditionally would break playback on those
+    // platforms.
+    if (Platform.isAndroid) const NativeAnimeNexusBypassResolver(),
     AnimeNexusResolverPlugin(),
     JkPlayerJkResolverPlugin(httpClient: httpClient),
     JkPlayerResolverPlugin(httpClient: httpClient),

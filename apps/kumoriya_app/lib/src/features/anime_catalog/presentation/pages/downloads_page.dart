@@ -1015,6 +1015,7 @@ class _CompletedEpisodeTile extends ConsumerWidget {
               task.animeTitle ??
               context.l10n.downloadEpisodeLabel(task.episodeNumber.toInt()),
           episodeNumber: task.episodeNumber.toInt().toString(),
+          persistSelection: false,
           sourcePluginId: task.sourcePluginId ?? 'offline',
           serverName: task.serverName ?? context.l10n.downloadedSourceLabel,
           episodeTitle: task.episodeTitle,

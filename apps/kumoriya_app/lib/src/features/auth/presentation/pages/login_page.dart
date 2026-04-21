@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kumoriya_auth/kumoriya_auth.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../../../app/l10n.dart';
 import '../../../../shared/auth/auth_providers.dart';
 import '../../../../shared/auth/device_id_provider.dart';
 import '../../../../shared/auth/device_name_provider.dart';
@@ -58,7 +59,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
         if (!launched && mounted) {
           setState(() {
             _loading = false;
-            _error = 'Could not open browser';
+            _error = context.l10n.authCouldNotOpenBrowser;
           });
         }
         // Keep loading state — callback will resolve via deep link.
@@ -112,7 +113,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
               ),
               const SizedBox(height: 24),
               Text(
-                'Welcome to Kumoriya',
+                context.l10n.authLoginWelcomeTitle,
                 style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                   color: KumoriyaColors.textPrimary,
                   fontWeight: FontWeight.w700,
@@ -120,7 +121,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
               ),
               const SizedBox(height: 8),
               Text(
-                'Sign in to sync your progress across devices',
+                context.l10n.authLoginSubtitle,
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                   color: KumoriyaColors.textSecondary,
                 ),
@@ -137,7 +138,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                   ),
                 ),
               _OAuthButton(
-                label: 'Continue with Discord',
+                label: context.l10n.authContinueWithDiscord,
                 icon: Icons.discord,
                 backgroundColor: const Color(0xFF5865F2),
                 onPressed: _loading
@@ -146,7 +147,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
               ),
               const SizedBox(height: 12),
               _OAuthButton(
-                label: 'Continue with Google',
+                label: context.l10n.authContinueWithGoogle,
                 icon: Icons.account_circle,
                 backgroundColor: KumoriyaColors.surface,
                 onPressed: _loading
@@ -165,7 +166,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                 Padding(
                   padding: const EdgeInsets.only(bottom: 4),
                   child: Text(
-                    'Waiting for browser to return…',
+                    context.l10n.authWaitingForBrowser,
                     style: TextStyle(
                       color: KumoriyaColors.textMuted,
                       fontSize: 13,
@@ -175,8 +176,8 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                 ),
                 TextButton(
                   onPressed: _cancelLogin,
-                  child: const Text(
-                    'Cancel login',
+                  child: Text(
+                    context.l10n.authCancelLogin,
                     style: TextStyle(color: KumoriyaColors.statusDanger),
                   ),
                 ),
@@ -184,7 +185,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
               TextButton(
                 onPressed: () => Navigator.of(context).pop(),
                 child: Text(
-                  'Skip for now',
+                  context.l10n.authSkipForNow,
                   style: TextStyle(color: KumoriyaColors.textMuted),
                 ),
               ),

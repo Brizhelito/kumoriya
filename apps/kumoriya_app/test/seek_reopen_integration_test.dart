@@ -558,6 +558,12 @@ final class _FakeEngine implements PlaybackEngine {
   Future<void> setEmbeddedAudioTrack(EmbeddedAudioTrack track) async {}
   @override
   Future<void> setEmbeddedSubtitleTrack(EmbeddedSubtitleTrack track) async {}
+
+  @override
+  Future<void> setEmbeddedVideoTrack(EmbeddedVideoTrack track) async {}
+
+  @override
+  Future<void> clearEmbeddedVideoTrack() async {}
   @override
   Future<void> clearEmbeddedSubtitleTrack() async {}
 

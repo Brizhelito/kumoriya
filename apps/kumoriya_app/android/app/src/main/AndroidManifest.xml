@@ -19,6 +19,7 @@
         android:label="${appLabel}"
         android:appCategory="video"
         android:name="${applicationName}"
+        android:networkSecurityConfig="@xml/network_security_config"
         android:icon="@mipmap/ic_launcher"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:requestLegacyExternalStorage="true">
@@ -46,6 +47,22 @@
                 <category android:name="android.intent.category.DEFAULT"/>
                 <category android:name="android.intent.category.BROWSABLE"/>
                 <data android:scheme="kumoriya" android:host="auth" android:pathPrefix="/callback"/>
+            </intent-filter>
+            <!-- Watch party invite: custom scheme fallback (works without App Link verification). -->
+            <intent-filter android:autoVerify="false">
+                <action android:name="android.intent.action.VIEW"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <category android:name="android.intent.category.BROWSABLE"/>
+                <data android:scheme="kumoriya" android:host="party" android:pathPrefix="/join"/>
+            </intent-filter>
+            <!-- Watch party invite: verified Android App Link via join.kumoriya.online.
+                 A dedicated invite Worker serves /.well-known/assetlinks.json and
+                 the fallback landing without sharing the website's routing/cache. -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <category android:name="android.intent.category.BROWSABLE"/>
+                <data android:scheme="https" android:host="join.kumoriya.online"/>
             </intent-filter>
         </activity>
         <!-- Don't delete the meta-data below.

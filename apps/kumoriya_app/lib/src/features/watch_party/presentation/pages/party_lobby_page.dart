@@ -4,21 +4,32 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../app/l10n.dart';
 import '../../../../shared/storage_providers.dart';
 import '../../../../shared/theme/kumoriya_theme.dart';
-import '../../../anime_catalog/presentation/pages/anime_detail_page.dart';
 import '../../application/models/models.dart';
 import '../../application/party_session_guard.dart';
 import '../../application/providers/party_providers.dart';
 import '../../infrastructure/party_debug_logger.dart';
+import 'party_anime_page.dart';
 
 /// Pre-playback lobby for watch party. Shows room members, invite code,
 /// ready states, and peer connection status.
+///
+/// When [autoJoinCode] is provided (e.g. from a deep link) the lobby will
+/// trigger [PartySessionNotifier.joinRoom] on mount, so the user lands
+/// directly in the connecting/connected state without typing the code.
 class PartyLobbyPage extends ConsumerStatefulWidget {
-  const PartyLobbyPage({super.key, this.anilistId, this.animeTitle});
+  const PartyLobbyPage({
+    super.key,
+    this.anilistId,
+    this.animeTitle,
+    this.autoJoinCode,
+  });
 
   final int? anilistId;
   final String? animeTitle;
+  final String? autoJoinCode;
 
   @override
   ConsumerState<PartyLobbyPage> createState() => _PartyLobbyPageState();
@@ -27,6 +38,7 @@ class PartyLobbyPage extends ConsumerStatefulWidget {
 class _PartyLobbyPageState extends ConsumerState<PartyLobbyPage> {
   final _inviteController = TextEditingController();
   bool _navCallbackSet = false;
+  PartySessionNotifier? _partyNotifier;
 
   @override
   void initState() {
@@ -34,16 +46,20 @@ class _PartyLobbyPageState extends ConsumerState<PartyLobbyPage> {
     // Set the navigation callback ONCE — not on every rebuild.
     // This handles media change events for non-host members in the lobby.
     final notifier = ref.read(partySessionProvider.notifier);
+    _partyNotifier = notifier;
     notifier.onMediaChangeNavigation =
         (int anilistId, String animeTitle, double episodeNumber) {
           if (!mounted) return;
-          final navigator = Navigator.of(context, rootNavigator: true);
-          navigator.popUntil((route) => route.isFirst);
-          navigator.push(
-            MaterialPageRoute<void>(
-              builder: (_) => AnimeDetailPage(anilistId: anilistId),
-            ),
-          );
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (!mounted) return;
+            final navigator = Navigator.of(context, rootNavigator: true);
+            navigator.popUntil((route) => route.isFirst);
+            navigator.push(
+              MaterialPageRoute<void>(
+                builder: (_) => PartyAnimePage(anilistId: anilistId),
+              ),
+            );
+          });
         };
     notifier.onKickedOut = (String byUserId, String? reason) {
       if (!mounted) return;
@@ -52,23 +68,46 @@ class _PartyLobbyPageState extends ConsumerState<PartyLobbyPage> {
         SnackBar(
           content: Text(
             reason == null || reason.isEmpty
-                ? 'You were removed from the party by the host.'
-                : 'You were removed from the party: $reason',
+                ? context.l10n.partyRemovedByHost
+                : context.l10n.partyRemovedWithReason(reason),
           ),
           duration: const Duration(seconds: 4),
         ),
       );
     };
     _navCallbackSet = true;
+
+    // If opened from a deep link, join the room as soon as the lobby is
+    // mounted. Deferred to the next frame so the notifier/auth chain is
+    // ready and the UI can reflect the joining/connecting status.
+    final autoCode = widget.autoJoinCode;
+    if (autoCode != null && autoCode.trim().isNotEmpty) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        final session = ref.read(partySessionProvider);
+        final normalizedCode = autoCode.trim().toUpperCase().replaceAll(
+          RegExp(r'[^A-Z0-9]'),
+          '',
+        );
+        if (normalizedCode.isEmpty) return;
+        // Skip if we're already in any non-idle state to avoid racing an
+        // existing session (e.g. user already had the app in a room).
+        if (session.status != PartySessionStatus.idle) return;
+        _inviteController.text = normalizedCode;
+        ref.read(partySessionProvider.notifier).joinRoom(normalizedCode);
+      });
+    }
   }
 
   @override
   void dispose() {
     // Clear the callback when leaving the lobby to prevent stale references.
     if (_navCallbackSet) {
-      final notifier = ref.read(partySessionProvider.notifier);
-      notifier.onMediaChangeNavigation = null;
-      notifier.onKickedOut = null;
+      final notifier = _partyNotifier;
+      if (notifier != null) {
+        notifier.onMediaChangeNavigation = null;
+        notifier.onKickedOut = null;
+      }
       _navCallbackSet = false;
     }
     _inviteController.dispose();
@@ -83,13 +122,24 @@ class _PartyLobbyPageState extends ConsumerState<PartyLobbyPage> {
       backgroundColor: KumoriyaColors.background,
       appBar: AppBar(
         backgroundColor: KumoriyaColors.surface,
-        title: const Text('Watch Party'),
+        title: Text(context.l10n.partyTitle),
         actions: [
+          if (session.isActive && session.room != null)
+            IconButton(
+              icon: const Icon(Icons.travel_explore_rounded),
+              onPressed: () => Navigator.of(context, rootNavigator: true).push(
+                MaterialPageRoute<void>(
+                  builder: (_) =>
+                      PartyAnimePage(anilistId: session.room!.anilistId),
+                ),
+              ),
+              tooltip: context.l10n.partyOpenBrowseTooltip,
+            ),
           // Debug: view party logs
           IconButton(
             icon: const Icon(Icons.bug_report),
             onPressed: () => _showDebugLogs(context),
-            tooltip: 'View Party Debug Logs',
+            tooltip: context.l10n.partyViewDebugLogsTooltip,
           ),
           if (session.isActive)
             IconButton(
@@ -165,7 +215,7 @@ class _PartyLobbyPageState extends ConsumerState<PartyLobbyPage> {
     showDialog<void>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Party Debug Logs'),
+        title: Text(context.l10n.partyDebugLogsTitle),
         content: SizedBox(
           width: double.maxFinite,
           child: SingleChildScrollView(
@@ -178,16 +228,16 @@ class _PartyLobbyPageState extends ConsumerState<PartyLobbyPage> {
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text('Close'),
+            child: Text(context.l10n.partyClose),
           ),
           TextButton(
             onPressed: () {
               Clipboard.setData(ClipboardData(text: logs));
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Logs copied to clipboard')),
+                SnackBar(content: Text(context.l10n.partyLogsCopied)),
               );
             },
-            child: const Text('Copy'),
+            child: Text(context.l10n.partyCopy),
           ),
         ],
       ),
@@ -221,7 +271,7 @@ class _IdleView extends StatelessWidget {
           Icon(Icons.groups_outlined, size: 64, color: KumoriyaColors.primary),
           const SizedBox(height: 16),
           Text(
-            'Watch together with friends',
+            context.l10n.partyWatchTogetherTitle,
             textAlign: TextAlign.center,
             style: Theme.of(
               context,
@@ -229,7 +279,7 @@ class _IdleView extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           Text(
-            'Create a room or join with an invite code. Up to 4 people can watch in sync via P2P.',
+            context.l10n.partyInviteIntro,
             textAlign: TextAlign.center,
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
               color: KumoriyaColors.textSecondary,
@@ -239,9 +289,19 @@ class _IdleView extends StatelessWidget {
           // Join section
           TextField(
             controller: inviteController,
-            style: const TextStyle(color: KumoriyaColors.textPrimary),
+            textCapitalization: TextCapitalization.characters,
+            autocorrect: false,
+            enableSuggestions: false,
+            textInputAction: TextInputAction.go,
+            inputFormatters: [_UpperCaseInviteCodeFormatter()],
+            style: const TextStyle(
+              color: KumoriyaColors.textPrimary,
+              fontFamily: 'monospace',
+              letterSpacing: 3,
+              fontWeight: FontWeight.w600,
+            ),
             decoration: InputDecoration(
-              labelText: 'Invite Code',
+              labelText: context.l10n.partyInviteCodeLabel,
               labelStyle: const TextStyle(color: KumoriyaColors.textMuted),
               filled: true,
               fillColor: KumoriyaColors.surface,
@@ -263,7 +323,7 @@ class _IdleView extends StatelessWidget {
           FilledButton.icon(
             onPressed: onJoin,
             icon: const Icon(Icons.login),
-            label: const Text('Join Party'),
+            label: Text(context.l10n.partyJoin),
             style: FilledButton.styleFrom(
               backgroundColor: KumoriyaColors.primary,
               padding: const EdgeInsets.symmetric(vertical: 16),
@@ -277,7 +337,9 @@ class _IdleView extends StatelessWidget {
             const Divider(),
             const SizedBox(height: 16),
             Text(
-              'Or start a room for ${animeTitle ?? 'this anime'}',
+              context.l10n.partyStartRoomForAnime(
+                animeTitle ?? context.l10n.partyStartRoomFallbackAnime,
+              ),
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                 color: KumoriyaColors.textSecondary,
@@ -287,7 +349,7 @@ class _IdleView extends StatelessWidget {
             OutlinedButton.icon(
               onPressed: onCreate,
               icon: const Icon(Icons.add),
-              label: const Text('Create Room'),
+              label: Text(context.l10n.partyCreateRoom),
               style: OutlinedButton.styleFrom(
                 foregroundColor: KumoriyaColors.primary,
                 side: const BorderSide(color: KumoriyaColors.primary),
@@ -299,7 +361,7 @@ class _IdleView extends StatelessWidget {
             ),
           ] else
             Text(
-              'Open an anime page to create a room',
+              context.l10n.partyOpenAnimeToCreate,
               textAlign: TextAlign.center,
               style: Theme.of(
                 context,
@@ -318,14 +380,14 @@ class _LoadingView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Center(
+    return Center(
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           CircularProgressIndicator(color: KumoriyaColors.primary),
           SizedBox(height: 16),
           Text(
-            'Connecting...',
+            context.l10n.authConnecting,
             style: TextStyle(color: KumoriyaColors.textSecondary),
           ),
         ],
@@ -382,7 +444,7 @@ class _ConnectedView extends ConsumerWidget {
                     ),
                     const SizedBox(width: 8),
                     Text(
-                      'Now Watching',
+                      context.l10n.partyNowWatching,
                       style: Theme.of(context).textTheme.labelMedium?.copyWith(
                         color: KumoriyaColors.primary,
                         fontWeight: FontWeight.w600,
@@ -399,7 +461,7 @@ class _ConnectedView extends ConsumerWidget {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  'Episode ${room.episodeNumber.toInt()}',
+                  context.l10n.partyEpisodeNumber(room.episodeNumber.toInt()),
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                     color: KumoriyaColors.textSecondary,
                   ),
@@ -414,7 +476,7 @@ class _ConnectedView extends ConsumerWidget {
                         child: OutlinedButton.icon(
                           onPressed: () => _changeAnime(context, ref),
                           icon: const Icon(Icons.swap_horiz, size: 18),
-                          label: const Text('Change Anime'),
+                          label: Text(context.l10n.partyChangeAnime),
                           style: OutlinedButton.styleFrom(
                             foregroundColor: KumoriyaColors.primary,
                             side: const BorderSide(
@@ -431,7 +493,7 @@ class _ConnectedView extends ConsumerWidget {
                         child: OutlinedButton.icon(
                           onPressed: () => _changeEpisode(context, ref, room),
                           icon: const Icon(Icons.skip_next, size: 18),
-                          label: const Text('Change Ep.'),
+                          label: Text(context.l10n.partyChangeEpisode),
                           style: OutlinedButton.styleFrom(
                             foregroundColor: KumoriyaColors.primary,
                             side: const BorderSide(
@@ -482,8 +544,8 @@ class _ConnectedView extends ConsumerWidget {
                       onPressed: () {
                         Clipboard.setData(ClipboardData(text: room.inviteCode));
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Invite code copied!'),
+                          SnackBar(
+                            content: Text(context.l10n.partyInviteCodeCopied),
                             duration: Duration(seconds: 2),
                           ),
                         );
@@ -494,14 +556,17 @@ class _ConnectedView extends ConsumerWidget {
                         Icons.share,
                         color: KumoriyaColors.primary,
                       ),
-                      tooltip: 'Share invite link',
+                      tooltip: context.l10n.partyShareInviteLinkTooltip,
                       onPressed: () {
+                        // Universal https link — opens the app via verified
+                        // Android App Link, falls back to the landing page
+                        // when the app is not installed.
                         final link =
-                            'kumoriya://party/join?code=${room.inviteCode}';
+                            'https://join.kumoriya.online/${room.inviteCode}';
                         Clipboard.setData(ClipboardData(text: link));
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Invite link copied!'),
+                          SnackBar(
+                            content: Text(context.l10n.partyInviteLinkCopied),
                             duration: Duration(seconds: 2),
                           ),
                         );
@@ -515,7 +580,10 @@ class _ConnectedView extends ConsumerWidget {
           const SizedBox(height: 16),
           // Members list
           Text(
-            'Members (${room.members.length}/${room.maxMembers})',
+            context.l10n.partyMembersCount(
+              room.members.length,
+              room.maxMembers,
+            ),
             style: Theme.of(context).textTheme.titleSmall?.copyWith(
               color: KumoriyaColors.textSecondary,
             ),
@@ -601,11 +669,13 @@ class _ConnectedView extends ConsumerWidget {
   /// The party icon on AnimeDetailPage will offer "Set for Party"
   /// when the user is already in an active room as host.
   void _changeAnime(BuildContext context, WidgetRef ref) {
-    Navigator.of(context).pop();
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Browse an anime and tap the party icon to switch.'),
-        duration: Duration(seconds: 3),
+    final room = ref.read(partySessionProvider).room;
+    if (room == null) {
+      return;
+    }
+    Navigator.of(context, rootNavigator: true).push(
+      MaterialPageRoute<void>(
+        builder: (_) => PartyAnimePage(anilistId: room.anilistId),
       ),
     );
   }
@@ -619,8 +689,8 @@ class _ConnectedView extends ConsumerWidget {
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: KumoriyaColors.surface,
-        title: const Text(
-          'Change Episode',
+        title: Text(
+          context.l10n.partyChangeEpisodeTitle,
           style: TextStyle(color: KumoriyaColors.textPrimary),
         ),
         content: TextField(
@@ -629,7 +699,7 @@ class _ConnectedView extends ConsumerWidget {
           autofocus: true,
           style: const TextStyle(color: KumoriyaColors.textPrimary),
           decoration: InputDecoration(
-            labelText: 'Episode number',
+            labelText: context.l10n.partyEpisodeNumberLabel,
             labelStyle: const TextStyle(color: KumoriyaColors.textMuted),
             filled: true,
             fillColor: KumoriyaColors.background,
@@ -639,7 +709,7 @@ class _ConnectedView extends ConsumerWidget {
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text('Cancel'),
+            child: Text(context.l10n.profileCancel),
           ),
           FilledButton(
             onPressed: () {
@@ -657,7 +727,7 @@ class _ConnectedView extends ConsumerWidget {
             style: FilledButton.styleFrom(
               backgroundColor: KumoriyaColors.primary,
             ),
-            child: const Text('Apply'),
+            child: Text(context.l10n.partyApply),
           ),
         ],
       ),
@@ -705,7 +775,11 @@ class _BottomControls extends ConsumerWidget {
           icon: Icon(
             localReady ? Icons.check_circle : Icons.radio_button_unchecked,
           ),
-          label: Text(localReady ? 'Ready!' : 'Ready'),
+          label: Text(
+            localReady
+                ? context.l10n.partyReadyConfirmed
+                : context.l10n.partyReady,
+          ),
           style: FilledButton.styleFrom(
             backgroundColor: localReady
                 ? KumoriyaColors.statusSuccess
@@ -723,7 +797,9 @@ class _BottomControls extends ConsumerWidget {
             onPressed: allReady ? () => _startWatching(context, ref) : null,
             icon: const Icon(Icons.play_arrow),
             label: Text(
-              allReady ? 'Start Watching' : 'Waiting for everyone...',
+              allReady
+                  ? context.l10n.partyStartWatching
+                  : context.l10n.partyWaitingForEveryone,
             ),
             style: FilledButton.styleFrom(
               backgroundColor: KumoriyaColors.primary,
@@ -739,7 +815,7 @@ class _BottomControls extends ConsumerWidget {
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 8),
             child: Text(
-              'Waiting for the host to start...',
+              context.l10n.partyWaitingForHost,
               textAlign: TextAlign.center,
               style: Theme.of(
                 context,
@@ -792,7 +868,7 @@ class _ErrorView extends StatelessWidget {
               style: FilledButton.styleFrom(
                 backgroundColor: KumoriyaColors.primary,
               ),
-              child: const Text('Try Again'),
+              child: Text(context.l10n.partyTryAgain),
             ),
           ],
         ),
@@ -822,7 +898,7 @@ class _HostMemberActions extends ConsumerWidget {
         size: 18,
         color: KumoriyaColors.textMuted,
       ),
-      tooltip: 'Host actions',
+      tooltip: context.l10n.partyHostActionsTooltip,
       onSelected: (action) => _onAction(context, ref, action),
       itemBuilder: (context) => <PopupMenuEntry<_HostMemberAction>>[
         PopupMenuItem<_HostMemberAction>(
@@ -833,19 +909,19 @@ class _HostMemberActions extends ConsumerWidget {
           child: ListTile(
             dense: true,
             leading: const Icon(Icons.star_outline),
-            title: const Text('Make host'),
+            title: Text(context.l10n.partyMakeHost),
             subtitle: isTargetConnected
                 ? null
-                : const Text('Member is disconnected'),
+                : Text(context.l10n.partyMemberDisconnected),
           ),
         ),
-        const PopupMenuItem<_HostMemberAction>(
+        PopupMenuItem<_HostMemberAction>(
           value: _HostMemberAction.kick,
           child: ListTile(
             dense: true,
             leading: Icon(Icons.person_remove, color: Colors.redAccent),
             title: Text(
-              'Remove from party',
+              context.l10n.partyRemoveFromParty,
               style: TextStyle(color: Colors.redAccent),
             ),
           ),
@@ -866,26 +942,25 @@ class _HostMemberActions extends ConsumerWidget {
           context: context,
           builder: (ctx) => AlertDialog(
             backgroundColor: KumoriyaColors.surface,
-            title: const Text(
-              'Remove member?',
+            title: Text(
+              context.l10n.partyRemoveMemberTitle,
               style: TextStyle(color: KumoriyaColors.textPrimary),
             ),
             content: Text(
-              'Remove "$targetDisplayName" from the party? They will be '
-              'disconnected immediately.',
+              context.l10n.partyRemoveMemberBody(targetDisplayName),
               style: const TextStyle(color: KumoriyaColors.textSecondary),
             ),
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(ctx, false),
-                child: const Text('Cancel'),
+                child: Text(context.l10n.profileCancel),
               ),
               FilledButton(
                 style: FilledButton.styleFrom(
                   backgroundColor: Colors.redAccent,
                 ),
                 onPressed: () => Navigator.pop(ctx, true),
-                child: const Text('Remove'),
+                child: Text(context.l10n.partyRemove),
               ),
             ],
           ),
@@ -898,26 +973,25 @@ class _HostMemberActions extends ConsumerWidget {
           context: context,
           builder: (ctx) => AlertDialog(
             backgroundColor: KumoriyaColors.surface,
-            title: const Text(
-              'Transfer host?',
+            title: Text(
+              context.l10n.partyTransferHostTitle,
               style: TextStyle(color: KumoriyaColors.textPrimary),
             ),
             content: Text(
-              '"$targetDisplayName" will take over as host. You will keep '
-              'watching but lose host controls.',
+              context.l10n.partyTransferHostBody(targetDisplayName),
               style: const TextStyle(color: KumoriyaColors.textSecondary),
             ),
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(ctx, false),
-                child: const Text('Cancel'),
+                child: Text(context.l10n.profileCancel),
               ),
               FilledButton(
                 style: FilledButton.styleFrom(
                   backgroundColor: KumoriyaColors.primary,
                 ),
                 onPressed: () => Navigator.pop(ctx, true),
-                child: const Text('Transfer'),
+                child: Text(context.l10n.partyTransfer),
               ),
             ],
           ),
@@ -930,3 +1004,29 @@ class _HostMemberActions extends ConsumerWidget {
 }
 
 enum _HostMemberAction { kick, transferHost }
+
+/// Forces the invite-code input to uppercase alphanumeric characters only.
+///
+/// Users often paste codes in mixed case or surrounded by whitespace (copied
+/// from chat apps, QR readers, etc.). Normalising on input avoids
+/// surface-level "code not found" errors on the server, which compares the
+/// canonical uppercase form.
+class _UpperCaseInviteCodeFormatter extends TextInputFormatter {
+  static final RegExp _allowed = RegExp(r'[^A-Z0-9]');
+
+  @override
+  TextEditingValue formatEditUpdate(
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
+    final sanitized = newValue.text.toUpperCase().replaceAll(_allowed, '');
+    if (sanitized == newValue.text) {
+      return newValue;
+    }
+    return TextEditingValue(
+      text: sanitized,
+      selection: TextSelection.collapsed(offset: sanitized.length),
+      composing: TextRange.empty,
+    );
+  }
+}

@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../app/l10n.dart';
 import '../../../../shared/theme/kumoriya_theme.dart';
 import '../../application/app_update_service.dart';
 import '../../application/update_installer.dart';
@@ -30,6 +31,7 @@ class UpdateAvailableDialog extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(appUpdateProvider);
+    final l10n = context.l10n;
 
     // Auto-trigger install when download finishes.
     ref.listen<AppUpdateState>(appUpdateProvider, (prev, next) {
@@ -37,7 +39,9 @@ class UpdateAvailableDialog extends ConsumerWidget {
         UpdateInstaller.install(next.filePath).catchError((error) {
           ref
               .read(appUpdateProvider.notifier)
-              .setErrorMessage('No se pudo abrir el instalador: $error');
+              .setErrorMessage(
+                l10n.updateInstallerOpenFailed(error.toString()),
+              );
         });
       }
     });
@@ -51,7 +55,7 @@ class UpdateAvailableDialog extends ConsumerWidget {
         children: [
           Icon(Icons.system_update, color: KumoriyaColors.primary, size: 28),
           const SizedBox(width: KumoriyaSpacing.sm),
-          const Expanded(child: Text('Nueva actualización')),
+          Expanded(child: Text(l10n.updateAvailableTitle)),
         ],
       ),
       content: _buildContent(context, state),
@@ -89,7 +93,7 @@ class UpdateAvailableDialog extends ConsumerWidget {
         // Release notes
         if (update.releaseNotes.isNotEmpty) ...[
           Text(
-            'Novedades:',
+            context.l10n.updateWhatsNew,
             style: textTheme.labelSmall?.copyWith(
               color: KumoriyaColors.textMuted,
             ),
@@ -110,7 +114,7 @@ class UpdateAvailableDialog extends ConsumerWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Descargando actualización…',
+                context.l10n.updateDownloading,
                 style: textTheme.bodySmall?.copyWith(
                   color: KumoriyaColors.textMuted,
                 ),
@@ -154,8 +158,8 @@ class UpdateAvailableDialog extends ConsumerWidget {
               Expanded(
                 child: Text(
                   Platform.isWindows
-                      ? 'Instalando… la aplicación se cerrará.'
-                      : 'Abriendo instalador…',
+                      ? context.l10n.updateInstallingWindows
+                      : context.l10n.updateOpeningInstaller,
                   style: textTheme.bodySmall?.copyWith(
                     color: KumoriyaColors.statusSuccess,
                   ),
@@ -211,7 +215,7 @@ class UpdateAvailableDialog extends ConsumerWidget {
             Navigator.of(context).pop();
           },
           child: Text(
-            'Cerrar',
+            context.l10n.updateClose,
             style: TextStyle(color: KumoriyaColors.textMuted),
           ),
         ),
@@ -219,7 +223,7 @@ class UpdateAvailableDialog extends ConsumerWidget {
           onPressed: () {
             ref.read(appUpdateProvider.notifier).downloadAndInstall(update);
           },
-          child: const Text('Reintentar'),
+          child: Text(context.l10n.retry),
         ),
       ];
     }
@@ -232,7 +236,7 @@ class UpdateAvailableDialog extends ConsumerWidget {
           Navigator.of(context).pop();
         },
         child: Text(
-          'Más tarde',
+          context.l10n.updateLater,
           style: TextStyle(color: KumoriyaColors.textMuted),
         ),
       ),
@@ -240,7 +244,7 @@ class UpdateAvailableDialog extends ConsumerWidget {
         onPressed: () {
           ref.read(appUpdateProvider.notifier).downloadAndInstall(update);
         },
-        child: const Text('Actualizar'),
+        child: Text(context.l10n.updateNow),
       ),
     ];
   }

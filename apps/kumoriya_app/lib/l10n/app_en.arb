@@ -746,6 +746,45 @@
   "profileUnnamedPasskey": "Unnamed passkey",
   "profileUnknownProvider": "Unknown",
   "profileNoEmail": "No email",
+  "profileSyncIdle": "Idle",
+  "profileSyncPushing": "Uploading",
+  "profileSyncPulling": "Downloading",
+  "profileSyncSuccess": "Up to date",
+  "profileSyncFailed": "Failed",
+  "profileTimeJustNow": "Just now",
+  "profileTimeMinutesAgo": "{count} {unit} ago",
+  "@profileTimeMinutesAgo": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "unit": {}
+    }
+  },
+  "profileTimeHoursAgo": "{count} {unit} ago",
+  "@profileTimeHoursAgo": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "unit": {}
+    }
+  },
+  "profileTimeDaysAgo": "{count} {unit} ago",
+  "@profileTimeDaysAgo": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "unit": {}
+    }
+  },
+  "profileTimeMinuteSingular": "minute",
+  "profileTimeMinutePlural": "minutes",
+  "profileTimeHourSingular": "hour",
+  "profileTimeHourPlural": "hours",
+  "profileTimeDaySingular": "day",
+  "profileTimeDayPlural": "days",
 
   "settingsAutoDeleteWatched": "Auto-delete watched downloads",
   "settingsAutoDeleteNever": "Never",
@@ -773,5 +812,274 @@
   "profilePasskeyDeleteTitle": "Delete passkey?",
   "profilePasskeyDeleteBody": "This passkey will be removed and can no longer be used to sign in.",
   "profilePasskeyDeleted": "Passkey deleted",
-  "profilePasskeyDeleteFailed": "Could not delete passkey"
+  "profilePasskeyDeleteFailed": "Could not delete passkey",
+
+  "authLoginWelcomeTitle": "Welcome to Kumoriya",
+  "authLoginSubtitle": "Sign in to sync your progress across devices",
+  "authCouldNotOpenBrowser": "Could not open browser",
+  "authContinueWithDiscord": "Continue with Discord",
+  "authContinueWithGoogle": "Continue with Google",
+  "authWaitingForBrowser": "Waiting for browser to return...",
+  "authCancelLogin": "Cancel login",
+  "authSkipForNow": "Skip for now",
+  "authLoginFailed": "Login failed",
+  "authGoBack": "Go back",
+  "authConnecting": "Connecting...",
+  "authMayTakeSeconds": "This may take a few seconds",
+
+  "updateAvailableTitle": "New update",
+  "updateWhatsNew": "What's new:",
+  "updateDownloading": "Downloading update...",
+  "updateInstallingWindows": "Installing... the app will close.",
+  "updateOpeningInstaller": "Opening installer...",
+  "updateClose": "Close",
+  "updateLater": "Later",
+  "updateNow": "Update",
+  "updateInstallerOpenFailed": "Could not open installer: {error}",
+  "@updateInstallerOpenFailed": {
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "updateReleaseNotesAdded": "Added",
+  "updateReleaseNotesChanged": "Changed",
+  "updateReleaseNotesFixed": "Fixed",
+  "updateGotIt": "Got it",
+
+  "partyTitle": "Watch Party",
+  "partyOpenBrowseTooltip": "Open party browse",
+  "partyViewDebugLogsTooltip": "View party debug logs",
+  "partyRemovedByHost": "You were removed from the party by the host.",
+  "partyRemovedWithReason": "You were removed from the party: {reason}",
+  "@partyRemovedWithReason": {
+    "placeholders": {
+      "reason": {}
+    }
+  },
+  "partyDebugLogsTitle": "Party Debug Logs",
+  "partyClose": "Close",
+  "partyCopy": "Copy",
+  "partyLogsCopied": "Logs copied to clipboard",
+  "partyWatchTogetherTitle": "Watch together with friends",
+  "partyInviteIntro": "Create a room or join with an invite code. Up to 4 people can watch in sync via P2P.",
+  "partyInviteCodeLabel": "Invite code",
+  "partyJoin": "Join Party",
+  "partyStartRoomForAnime": "Or start a room for {animeTitle}",
+  "@partyStartRoomForAnime": {
+    "placeholders": {
+      "animeTitle": {}
+    }
+  },
+  "partyStartRoomFallbackAnime": "this anime",
+  "partyCreateRoom": "Create Room",
+  "partyOpenAnimeToCreate": "Open an anime page to create a room",
+  "partyNowWatching": "Now Watching",
+  "partyEpisodeNumber": "Episode {episodeNumber}",
+  "@partyEpisodeNumber": {
+    "placeholders": {
+      "episodeNumber": {
+        "type": "int"
+      }
+    }
+  },
+  "partyChangeAnime": "Change Anime",
+  "partyChangeEpisode": "Change Ep.",
+  "partyInviteCodeCopied": "Invite code copied!",
+  "partyShareInviteLinkTooltip": "Share invite link",
+  "partyInviteLinkCopied": "Invite link copied!",
+  "partyMembersCount": "Members ({current}/{max})",
+  "@partyMembersCount": {
+    "placeholders": {
+      "current": {
+        "type": "int"
+      },
+      "max": {
+        "type": "int"
+      }
+    }
+  },
+  "partyChangeEpisodeTitle": "Change Episode",
+  "partyEpisodeNumberLabel": "Episode number",
+  "partyApply": "Apply",
+  "partyReady": "Ready",
+  "partyReadyConfirmed": "Ready!",
+  "partyStartWatching": "Start Watching",
+  "partyWaitingForEveryone": "Waiting for everyone...",
+  "partyWaitingForHost": "Waiting for the host to start...",
+  "partyTryAgain": "Try Again",
+  "partyHostActionsTooltip": "Host actions",
+  "partyMakeHost": "Make host",
+  "partyMemberDisconnected": "Member is disconnected",
+  "partyRemoveFromParty": "Remove from party",
+  "partyRemoveMemberTitle": "Remove member?",
+  "partyRemoveMemberBody": "Remove \"{name}\" from the party? They will be disconnected immediately.",
+  "@partyRemoveMemberBody": {
+    "placeholders": {
+      "name": {}
+    }
+  },
+  "partyRemove": "Remove",
+  "partyTransferHostTitle": "Transfer host?",
+  "partyTransferHostBody": "\"{name}\" will take over as host. You will keep watching but lose host controls.",
+  "@partyTransferHostBody": {
+    "placeholders": {
+      "name": {}
+    }
+  },
+  "partyTransfer": "Transfer",
+  "partyPreparingStage": "Preparing the party stage...",
+  "partyCouldNotLoadAnime": "Could not load this anime for the party.",
+  "partyBrowseModeBanner": "Watch Party mode: browse together, then return to the lobby to confirm the next move.",
+  "partyEpisodeModeBanner": "Watch Party mode: choose the episode together, then return to the lobby if the host needs to change the room target.",
+  "partyHostSourceMissing": "The host picked a source you do not have installed.",
+  "partyHostEpisodeUnavailable": "That episode is not available on your installed sources yet.",
+  "partyHostServerUnavailable": "The host server is not available locally. Pick another one.",
+  "partyHostResolverFailed": "The shared stream could not be resolved here. Pick another server.",
+  "partyEpisodeCta": "Watch Party Ep. {episodeNumber}",
+  "@partyEpisodeCta": {
+    "placeholders": {
+      "episodeNumber": {
+        "type": "int"
+      }
+    }
+  },
+  "partyStartWithParty": "Start with Party",
+  "partyOnlyHostCanSwitchAnime": "Only the host can switch the party anime.",
+  "partySwitchedToAnime": "Party switched to \"{animeTitle}\".",
+  "@partySwitchedToAnime": {
+    "placeholders": {
+      "animeTitle": {}
+    }
+  },
+  "partyNoPlayableSourcesReady": "No playable sources are ready yet.",
+  "partyGettingRoomStreamReady": "Getting the room stream ready...",
+  "partyLoadingEpisodeBoard": "Loading the party episode board...",
+  "partyCouldNotLoadEpisodes": "Could not load party episodes.",
+  "partyHostChoosesNextEpisode": "The host chooses the next party episode.",
+  "partyMovedToEpisode": "Party moved to episode {episodeNumber}.",
+  "@partyMovedToEpisode": {
+    "placeholders": {
+      "episodeNumber": {
+        "type": "int"
+      }
+    }
+  },
+  "partyOpeningEpisode": "Opening the party episode...",
+  "partyBackToLobbyTooltip": "Back to party lobby",
+  "partyEpisodesTitle": "Party Episodes",
+  "partyLockedToEpisode": "The host locked the party to episode {episodeNumber}.",
+  "@partyLockedToEpisode": {
+    "placeholders": {
+      "episodeNumber": {
+        "type": "int"
+      }
+    }
+  },
+  "partyActiveTooltip": "Party active",
+  "partySetForPartyTooltip": "Set for party",
+  "partyChangeAnimeTitle": "Change Party Anime",
+  "partyChangeAnimeBody": "Switch the party to \"{animeTitle}\"?\nAll members will be redirected.",
+  "@partyChangeAnimeBody": {
+    "placeholders": {
+      "animeTitle": {}
+    }
+  },
+  "partySwitch": "Switch",
+  "partyLobbyTooltip": "Party Lobby",
+  "partyChooseEpisode": "Choose Party Episode",
+  "partyPreviewEpisodes": "Preview Episodes",
+  "partyOpening": "Opening...",
+  "partyWatchCurrentEpisode": "Watch Current Episode",
+  "partyHostChoosesAnime": "Host Chooses Anime",
+  "partyMaybeNext": "Maybe next in the party",
+  "partyChooseRoomNext": "Choose what the room should watch next.",
+  "partyRoomCode": "Room code {code}",
+  "@partyRoomCode": {
+    "placeholders": {
+      "code": {}
+    }
+  },
+  "partyInRoomCount": "{count} in room",
+  "@partyInRoomCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "partyReadyCount": "{count} ready",
+  "@partyReadyCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "partyConnectedCount": "{count} connected",
+  "@partyConnectedCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "partyEpisodeCount": "{count} eps",
+  "@partyEpisodeCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "partyRoomOnEpisode": "Room on ep {episodeNumber}",
+  "@partyRoomOnEpisode": {
+    "placeholders": {
+      "episodeNumber": {
+        "type": "int"
+      }
+    }
+  },
+  "partyIntentCurrentTitle": "Let's line up the next episode",
+  "partyIntentCurrentHost": "Keep the room moving: pick the episode, then launch together.",
+  "partyIntentCurrentMember": "You are browsing the active room anime. Once the host chooses, everyone follows together.",
+  "partyIntentOtherTitle": "This feels like a good room pick",
+  "partyIntentOtherHost": "Switch the room here if the party wants to watch \"{animeTitle}\" instead.",
+  "@partyIntentOtherHost": {
+    "placeholders": {
+      "animeTitle": {}
+    }
+  },
+  "partyIntentOtherMember": "You can browse alternatives, but only the host can switch the room anime.",
+  "partyRoomReadySources": "Room-ready sources",
+  "partyNeedPlayableSource": "We still need a playable source before everyone can watch together.",
+  "partyWhoIsHere": "Who is on the couch",
+  "partyYouSuffix": "You",
+  "partyEpisodesHostSubtitle": "Pick the episode everyone will watch next.",
+  "partyEpisodesMemberSubtitle": "Follow the host and join when the room episode is ready.",
+  "partyOnlineCount": "{count} online",
+  "@partyOnlineCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "partyNoEpisodesYet": "No episodes are available yet.",
+  "partyRoomPick": "Room Pick",
+  "partyTapToQueue": "Tap to Queue",
+  "partyHostDecides": "Host decides",
+  "partyWatchTogether": "Watch together",
+  "partyWaitingOnSource": "Waiting on source",
+  "partyLocked": "Locked",
+  "partyRoomEpisodeReady": "This is the room episode. Everyone can launch from here.",
+  "partyRoomEpisodeNoSource": "This is the room episode, but no source is ready yet.",
+  "partyTapToMoveEpisode": "Tap to move the room to episode {episodeNumber}.",
+  "@partyTapToMoveEpisode": {
+    "placeholders": {
+      "episodeNumber": {
+        "type": "int"
+      }
+    }
+  },
+  "partyOnlyHostChangesEpisode": "Only the host can change the party episode."
 }

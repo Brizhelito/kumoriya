@@ -122,9 +122,7 @@ class _FakeLibraryStore implements LibraryStore {
     required bool notify,
   }) async {
     if (setSubscriptionFails) {
-      return const Failure(
-        SimpleError(code: 'fake', message: 'fake failure'),
-      );
+      return const Failure(SimpleError(code: 'fake', message: 'fake failure'));
     }
     lastSetSubscription = (anilistId, notify);
     return const Success(null);
@@ -183,6 +181,9 @@ class _FakeLibraryStore implements LibraryStore {
   @override
   Future<Result<Set<int>, KumoriyaError>> getAutoDownloadAnimeIds() async =>
       const Success(<int>{});
+
+  @override
+  Future<LibraryEntrySnapshot?> getEntrySnapshot(int anilistId) async => null;
 
   @override
   Future<Result<void, KumoriyaError>> clearAll() async => const Success(null);

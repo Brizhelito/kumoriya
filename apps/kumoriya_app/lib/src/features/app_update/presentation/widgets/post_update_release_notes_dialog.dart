@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../../app/l10n.dart';
 import '../../../../shared/theme/kumoriya_theme.dart';
 import '../../application/release_notes_catalog.dart';
 
@@ -29,7 +30,6 @@ class PostUpdateReleaseNotesDialog extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final spanish = Localizations.localeOf(context).languageCode == 'es';
     final textTheme = Theme.of(context).textTheme;
 
     Widget section(String label, List<String> items) {
@@ -121,9 +121,9 @@ class PostUpdateReleaseNotesDialog extends StatelessWidget {
                   color: KumoriyaColors.textSecondary,
                 ),
               ),
-              section(spanish ? 'Agregado' : 'Added', notes.added),
-              section(spanish ? 'Cambios' : 'Changed', notes.changed),
-              section(spanish ? 'Corregido' : 'Fixed', notes.fixed),
+              section(context.l10n.updateReleaseNotesAdded, notes.added),
+              section(context.l10n.updateReleaseNotesChanged, notes.changed),
+              section(context.l10n.updateReleaseNotesFixed, notes.fixed),
             ],
           ),
         ),
@@ -131,7 +131,7 @@ class PostUpdateReleaseNotesDialog extends StatelessWidget {
       actions: <Widget>[
         FilledButton(
           onPressed: () => Navigator.of(context).pop(),
-          child: Text(spanish ? 'Entendido' : 'Got it'),
+          child: Text(context.l10n.updateGotIt),
         ),
       ],
     );

@@ -203,6 +203,20 @@ final class _FakeLibraryStore implements LibraryStore {
   }
 
   @override
+  Future<LibraryEntrySnapshot?> getEntrySnapshot(int anilistId) async {
+    return LibraryEntrySnapshot(
+      anilistId: anilistId,
+      isFavorite: false,
+      addedAt: null,
+      notifyNewEpisodes: false,
+      autoDownloadNewEpisodes: autoDownloadIds.contains(anilistId),
+      autoDownloadAudioPreference:
+          autoDownloadAudioPreferenceByAnime[anilistId] ?? 'none',
+      lastNotifiedEpisode: null,
+    );
+  }
+
+  @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 

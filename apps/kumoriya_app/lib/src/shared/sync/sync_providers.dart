@@ -3,14 +3,15 @@ import 'package:kumoriya_sync/kumoriya_sync.dart';
 
 import '../auth/auth_providers.dart';
 import '../storage_providers.dart';
+import 'sync_refresh.dart';
 
 const _apiBaseUrl = 'https://api.kumoriya.online';
 
 final syncServiceProvider = Provider<SyncService>((ref) {
   final httpClient = ref.watch(authenticatedHttpClientProvider);
   final queueStore = ref.watch(syncQueueStoreProvider);
-  final progressStore = ref.watch(animeProgressStoreProvider);
-  final libraryStore = ref.watch(libraryStoreProvider);
+  final progressStore = ref.watch(rawAnimeProgressStoreProvider);
+  final libraryStore = ref.watch(rawLibraryStoreProvider);
 
   return HttpSyncService(
     httpClient: httpClient,
@@ -69,26 +70,25 @@ class SyncTrigger {
     _ref.read(syncStatusProvider.notifier).set(SyncStatus.pushing);
 
     final syncService = _ref.read(syncServiceProvider);
+    final persistedLastSyncAt = await _ref
+        .read(secureTokenStoreProvider)
+        .loadLastSyncAt();
+    syncService.restoreLastSyncAt(persistedLastSyncAt);
     final result = await syncService.fullSync();
 
     result.fold(
       onSuccess: (_) async {
         _ref.read(syncStatusProvider.notifier).set(SyncStatus.success);
-        // Update lastSyncAt from the service's internal state.
-        final statusResult = await syncService.getStatus();
-        statusResult.fold(
-          onSuccess: (_) {
-            _ref
-                .read(lastSyncAtProvider.notifier)
-                .setLastSyncAt(DateTime.now());
+        final lastSyncResult = await syncService.getLastSyncAt();
+        await lastSyncResult.fold(
+          onSuccess: (time) async {
+            if (time != null) {
+              await _ref.read(lastSyncAtProvider.notifier).setLastSyncAt(time);
+            }
           },
-          onFailure: (_) {},
+          onFailure: (_) async {},
         );
-        // Reload data providers so the UI reflects the freshly synced DB.
-        _ref.invalidate(continueWatchingProvider);
-        _ref.invalidate(allWatchHistoryProvider);
-        _ref.invalidate(favoriteAnimeIdsProvider);
-        _ref.invalidate(subscribedAnimeIdsProvider);
+        _ref.read(syncDataRefreshEpochProvider.notifier).bump();
       },
       onFailure: (_) {
         _ref.read(syncStatusProvider.notifier).set(SyncStatus.failed);

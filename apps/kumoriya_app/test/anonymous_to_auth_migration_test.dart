@@ -13,6 +13,7 @@ final class _FakeSyncService implements SyncService {
   bool fullSyncCalled = false;
   List<SyncQueueEntry>? queueSnapshotAtFullSync;
   final SyncQueueStore queueStore;
+  DateTime? restoredLastSyncAt;
 
   _FakeSyncService(this.queueStore);
 
@@ -40,6 +41,16 @@ final class _FakeSyncService implements SyncService {
   @override
   Future<Result<SyncStatus, KumoriyaError>> getStatus() async {
     return const Success(SyncStatus.idle);
+  }
+
+  @override
+  Future<Result<DateTime?, KumoriyaError>> getLastSyncAt() async {
+    return Success(restoredLastSyncAt);
+  }
+
+  @override
+  void restoreLastSyncAt(DateTime? value) {
+    restoredLastSyncAt = value;
   }
 }
 

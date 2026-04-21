@@ -54,6 +54,11 @@ class ServerQualityRegistry {
 
     // Good tier — reliable, decent speed
     'pixeldrain.com': ServerQualityTier.good,
+    // Zilla serves AV1 1080p. Mid-tier Android SoCs (Helio G99) need the
+    // dav1d-perf tuning in media_kit_playback_engine._configureDecoderForStream
+    // (skiploopfilter=all + skipframe=nonref + fast + framedrop=vo + large
+    // cache) to reach sustained playback in ~12 s. On desktop with HW or
+    // fast software AV1 it already works inside 12 s.
     'player.zilla-networks.com': ServerQualityTier.good,
     'bysekoze.com': ServerQualityTier.good,
     'filemoon.sx': ServerQualityTier.good,
@@ -72,6 +77,7 @@ class ServerQualityRegistry {
     'streamtape.com': ServerQualityTier.average,
     'streamtape.to': ServerQualityTier.average,
     'upnshare.com': ServerQualityTier.average,
+    'animeav1.uns.bio': ServerQualityTier.low,
     'mega.nz': ServerQualityTier.average,
 
     // Low tier — slow or unreliable

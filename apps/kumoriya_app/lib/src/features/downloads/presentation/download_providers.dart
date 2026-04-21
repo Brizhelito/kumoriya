@@ -13,6 +13,7 @@ import '../../anime_catalog/application/use_cases/resolve_source_server_link_use
 import '../../anime_catalog/application/services/resolver_registry.dart';
 import '../../anime_catalog/presentation/providers/anime_catalog_providers.dart';
 import '../../anime_catalog/presentation/providers/storage_providers.dart';
+import '../../../shared/sync/sync_refresh.dart';
 import '../application/auto_delete_watched_service.dart';
 import '../application/download_cover_service.dart';
 import '../application/download_directory_service.dart';
@@ -319,6 +320,7 @@ final downloadProgressByTaskProvider = StreamProvider.autoDispose
 
 final autoDownloadAnimeIdsProvider =
     FutureProvider.autoDispose<Result<Set<int>, KumoriyaError>>((ref) async {
+      ref.watch(syncDataRefreshEpochProvider);
       return ref.watch(libraryStoreProvider).getAutoDownloadAnimeIds();
     });
 

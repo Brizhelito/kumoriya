@@ -25,29 +25,42 @@ String _formatDate(String? iso) {
   }
 }
 
-String _formatRelativeTime(DateTime dt, String locale) {
+String _formatRelativeTime(BuildContext context, DateTime dt, String locale) {
+  final l10n = context.l10n;
   final diff = DateTime.now().difference(dt);
-  final isEs = locale.startsWith('es');
   if (diff.inSeconds < 60) {
-    return isEs ? 'Hace un momento' : 'Just now';
+    return l10n.profileTimeJustNow;
   } else if (diff.inMinutes < 60) {
     final m = diff.inMinutes;
-    return isEs
-        ? 'Hace $m ${m == 1 ? 'minuto' : 'minutos'}'
-        : '$m ${m == 1 ? 'minute' : 'minutes'} ago';
+    final unit = m == 1
+        ? l10n.profileTimeMinuteSingular
+        : l10n.profileTimeMinutePlural;
+    return l10n.profileTimeMinutesAgo(m, unit);
   } else if (diff.inHours < 24) {
     final h = diff.inHours;
-    return isEs
-        ? 'Hace $h ${h == 1 ? 'hora' : 'horas'}'
-        : '$h ${h == 1 ? 'hour' : 'hours'} ago';
+    final unit = h == 1
+        ? l10n.profileTimeHourSingular
+        : l10n.profileTimeHourPlural;
+    return l10n.profileTimeHoursAgo(h, unit);
   } else if (diff.inDays < 7) {
     final d = diff.inDays;
-    return isEs
-        ? 'Hace $d ${d == 1 ? 'día' : 'días'}'
-        : '$d ${d == 1 ? 'day' : 'days'} ago';
+    final unit = d == 1
+        ? l10n.profileTimeDaySingular
+        : l10n.profileTimeDayPlural;
+    return l10n.profileTimeDaysAgo(d, unit);
   } else {
     return DateFormat.yMMMd(locale).format(dt.toLocal());
   }
+}
+
+String _syncStatusLabel(BuildContext context, SyncStatus status) {
+  return switch (status) {
+    SyncStatus.idle => context.l10n.profileSyncIdle,
+    SyncStatus.pushing => context.l10n.profileSyncPushing,
+    SyncStatus.pulling => context.l10n.profileSyncPulling,
+    SyncStatus.success => context.l10n.profileSyncSuccess,
+    SyncStatus.failed => context.l10n.profileSyncFailed,
+  };
 }
 
 /// Profile details fetched from the backend.
@@ -129,12 +142,6 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
       appBar: AppBar(
         title: Text(context.l10n.profileTitle),
         backgroundColor: KumoriyaColors.surface,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.logout, color: KumoriyaColors.statusDanger),
-            onPressed: _confirmLogout,
-          ),
-        ],
       ),
       body: ListView(
         padding: const EdgeInsets.all(16),
@@ -169,14 +176,51 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                     fontWeight: FontWeight.w700,
                   ),
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  user.id,
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: KumoriyaColors.textMuted,
+                const SizedBox(height: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 5,
+                  ),
+                  decoration: BoxDecoration(
+                    color: KumoriyaColors.surface.withValues(alpha: 0.72),
+                    borderRadius: BorderRadius.circular(999),
+                    border: Border.all(
+                      color: KumoriyaColors.borderSubtle.withValues(alpha: 0.8),
+                    ),
+                  ),
+                  child: Text(
+                    user.id,
+                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                      color: KumoriyaColors.textDisabled,
+                      letterSpacing: 0.2,
+                    ),
                   ),
                 ),
               ],
+            ),
+          ),
+          const SizedBox(height: 24),
+
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: _confirmLogout,
+              icon: const Icon(Icons.logout_rounded, size: 18),
+              label: Text(context.l10n.profileLogOut),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: KumoriyaColors.accentAmber.withValues(
+                  alpha: 0.18,
+                ),
+                foregroundColor: KumoriyaColors.textPrimary,
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                  side: BorderSide(
+                    color: KumoriyaColors.accentAmber.withValues(alpha: 0.28),
+                  ),
+                ),
+              ),
             ),
           ),
           const SizedBox(height: 32),
@@ -253,13 +297,14 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
           _InfoTile(
             icon: Icons.sync,
             title: context.l10n.profileSyncStatus,
-            subtitle: syncStatus.name,
+            subtitle: _syncStatusLabel(context, syncStatus),
           ),
           _InfoTile(
             icon: Icons.schedule,
             title: context.l10n.profileLastSynced,
             subtitle: lastSyncAsync.value != null
                 ? _formatRelativeTime(
+                    context,
                     lastSyncAsync.value!,
                     Localizations.localeOf(context).languageCode,
                   )
@@ -282,14 +327,45 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
           ),
           const SizedBox(height: 32),
 
-          // Delete account
-          Center(
-            child: TextButton(
-              onPressed: _confirmDeleteAccount,
-              child: Text(
-                context.l10n.profileDeleteAccount,
-                style: const TextStyle(color: KumoriyaColors.statusDanger),
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: KumoriyaColors.surface.withValues(alpha: 0.72),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: KumoriyaColors.statusDanger.withValues(alpha: 0.18),
               ),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  context.l10n.profileDeleteAccount,
+                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                    color: KumoriyaColors.textSecondary,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  context.l10n.profileDeleteAccountWarning,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: KumoriyaColors.textMuted,
+                    height: 1.4,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: TextButton(
+                    onPressed: _confirmDeleteAccount,
+                    style: TextButton.styleFrom(
+                      foregroundColor: KumoriyaColors.statusDanger,
+                    ),
+                    child: Text(context.l10n.profileDeleteAccount),
+                  ),
+                ),
+              ],
             ),
           ),
         ],

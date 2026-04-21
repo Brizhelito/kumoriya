@@ -746,6 +746,45 @@
   "profileUnnamedPasskey": "Passkey sin nombre",
   "profileUnknownProvider": "Desconocido",
   "profileNoEmail": "Sin email",
+  "profileSyncIdle": "En espera",
+  "profileSyncPushing": "Subiendo",
+  "profileSyncPulling": "Descargando",
+  "profileSyncSuccess": "Al día",
+  "profileSyncFailed": "Falló",
+  "profileTimeJustNow": "Hace un momento",
+  "profileTimeMinutesAgo": "Hace {count} {unit}",
+  "@profileTimeMinutesAgo": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "unit": {}
+    }
+  },
+  "profileTimeHoursAgo": "Hace {count} {unit}",
+  "@profileTimeHoursAgo": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "unit": {}
+    }
+  },
+  "profileTimeDaysAgo": "Hace {count} {unit}",
+  "@profileTimeDaysAgo": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "unit": {}
+    }
+  },
+  "profileTimeMinuteSingular": "minuto",
+  "profileTimeMinutePlural": "minutos",
+  "profileTimeHourSingular": "hora",
+  "profileTimeHourPlural": "horas",
+  "profileTimeDaySingular": "día",
+  "profileTimeDayPlural": "días",
 
   "settingsAutoDeleteWatched": "Borrar automáticamente descargas vistas",
   "settingsAutoDeleteNever": "Nunca",
@@ -773,5 +812,274 @@
   "profilePasskeyDeleteTitle": "¿Eliminar passkey?",
   "profilePasskeyDeleteBody": "Esta passkey será eliminada y ya no podrá usarse para iniciar sesión.",
   "profilePasskeyDeleted": "Passkey eliminada",
-  "profilePasskeyDeleteFailed": "No se pudo eliminar la passkey"
+  "profilePasskeyDeleteFailed": "No se pudo eliminar la passkey",
+
+  "authLoginWelcomeTitle": "Bienvenido a Kumoriya",
+  "authLoginSubtitle": "Inicia sesión para sincronizar tu progreso entre dispositivos",
+  "authCouldNotOpenBrowser": "No se pudo abrir el navegador",
+  "authContinueWithDiscord": "Continuar con Discord",
+  "authContinueWithGoogle": "Continuar con Google",
+  "authWaitingForBrowser": "Esperando a que vuelva el navegador...",
+  "authCancelLogin": "Cancelar inicio de sesión",
+  "authSkipForNow": "Omitir por ahora",
+  "authLoginFailed": "Falló el inicio de sesión",
+  "authGoBack": "Volver",
+  "authConnecting": "Conectando...",
+  "authMayTakeSeconds": "Esto puede tardar unos segundos",
+
+  "updateAvailableTitle": "Nueva actualización",
+  "updateWhatsNew": "Novedades:",
+  "updateDownloading": "Descargando actualización...",
+  "updateInstallingWindows": "Instalando... la aplicación se cerrará.",
+  "updateOpeningInstaller": "Abriendo instalador...",
+  "updateClose": "Cerrar",
+  "updateLater": "Más tarde",
+  "updateNow": "Actualizar",
+  "updateInstallerOpenFailed": "No se pudo abrir el instalador: {error}",
+  "@updateInstallerOpenFailed": {
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "updateReleaseNotesAdded": "Agregado",
+  "updateReleaseNotesChanged": "Cambios",
+  "updateReleaseNotesFixed": "Corregido",
+  "updateGotIt": "Entendido",
+
+  "partyTitle": "Watch Party",
+  "partyOpenBrowseTooltip": "Abrir exploración de la party",
+  "partyViewDebugLogsTooltip": "Ver logs debug de la party",
+  "partyRemovedByHost": "El host te expulsó de la party.",
+  "partyRemovedWithReason": "Fuiste expulsado de la party: {reason}",
+  "@partyRemovedWithReason": {
+    "placeholders": {
+      "reason": {}
+    }
+  },
+  "partyDebugLogsTitle": "Logs Debug de la Party",
+  "partyClose": "Cerrar",
+  "partyCopy": "Copiar",
+  "partyLogsCopied": "Logs copiados al portapapeles",
+  "partyWatchTogetherTitle": "Mira junto a tus amigos",
+  "partyInviteIntro": "Crea una sala o únete con un código de invitación. Hasta 4 personas pueden ver sincronizadas vía P2P.",
+  "partyInviteCodeLabel": "Código de invitación",
+  "partyJoin": "Unirse a la party",
+  "partyStartRoomForAnime": "O crea una sala para {animeTitle}",
+  "@partyStartRoomForAnime": {
+    "placeholders": {
+      "animeTitle": {}
+    }
+  },
+  "partyStartRoomFallbackAnime": "este anime",
+  "partyCreateRoom": "Crear sala",
+  "partyOpenAnimeToCreate": "Abre la página de un anime para crear una sala",
+  "partyNowWatching": "Viendo ahora",
+  "partyEpisodeNumber": "Episodio {episodeNumber}",
+  "@partyEpisodeNumber": {
+    "placeholders": {
+      "episodeNumber": {
+        "type": "int"
+      }
+    }
+  },
+  "partyChangeAnime": "Cambiar anime",
+  "partyChangeEpisode": "Cambiar ep.",
+  "partyInviteCodeCopied": "¡Código de invitación copiado!",
+  "partyShareInviteLinkTooltip": "Compartir enlace de invitación",
+  "partyInviteLinkCopied": "¡Enlace de invitación copiado!",
+  "partyMembersCount": "Miembros ({current}/{max})",
+  "@partyMembersCount": {
+    "placeholders": {
+      "current": {
+        "type": "int"
+      },
+      "max": {
+        "type": "int"
+      }
+    }
+  },
+  "partyChangeEpisodeTitle": "Cambiar episodio",
+  "partyEpisodeNumberLabel": "Número de episodio",
+  "partyApply": "Aplicar",
+  "partyReady": "Listo",
+  "partyReadyConfirmed": "¡Listo!",
+  "partyStartWatching": "Empezar a ver",
+  "partyWaitingForEveryone": "Esperando a todos...",
+  "partyWaitingForHost": "Esperando a que el host empiece...",
+  "partyTryAgain": "Intentar de nuevo",
+  "partyHostActionsTooltip": "Acciones del host",
+  "partyMakeHost": "Hacer host",
+  "partyMemberDisconnected": "El miembro está desconectado",
+  "partyRemoveFromParty": "Expulsar de la party",
+  "partyRemoveMemberTitle": "¿Expulsar miembro?",
+  "partyRemoveMemberBody": "¿Expulsar a \"{name}\" de la party? Se desconectará de inmediato.",
+  "@partyRemoveMemberBody": {
+    "placeholders": {
+      "name": {}
+    }
+  },
+  "partyRemove": "Expulsar",
+  "partyTransferHostTitle": "¿Transferir host?",
+  "partyTransferHostBody": "\"{name}\" tomará el rol de host. Seguirás viendo, pero perderás los controles de host.",
+  "@partyTransferHostBody": {
+    "placeholders": {
+      "name": {}
+    }
+  },
+  "partyTransfer": "Transferir",
+  "partyPreparingStage": "Preparando el escenario de la party...",
+  "partyCouldNotLoadAnime": "No se pudo cargar este anime para la party.",
+  "partyBrowseModeBanner": "Modo Watch Party: exploren juntos y luego vuelvan al lobby para confirmar el siguiente paso.",
+  "partyEpisodeModeBanner": "Modo Watch Party: elijan el episodio juntos y luego vuelvan al lobby si el host necesita cambiar el objetivo de la sala.",
+  "partyHostSourceMissing": "El host eligió una fuente que no tienes instalada.",
+  "partyHostEpisodeUnavailable": "Ese episodio todavía no está disponible en tus fuentes instaladas.",
+  "partyHostServerUnavailable": "Ese servidor del host no está disponible localmente. Elige otro.",
+  "partyHostResolverFailed": "No se pudo resolver aquí el stream compartido. Elige otro servidor.",
+  "partyEpisodeCta": "Watch Party Ep. {episodeNumber}",
+  "@partyEpisodeCta": {
+    "placeholders": {
+      "episodeNumber": {
+        "type": "int"
+      }
+    }
+  },
+  "partyStartWithParty": "Iniciar con Party",
+  "partyOnlyHostCanSwitchAnime": "Solo el host puede cambiar el anime de la party.",
+  "partySwitchedToAnime": "La party cambió a \"{animeTitle}\".",
+  "@partySwitchedToAnime": {
+    "placeholders": {
+      "animeTitle": {}
+    }
+  },
+  "partyNoPlayableSourcesReady": "Todavía no hay fuentes reproducibles listas.",
+  "partyGettingRoomStreamReady": "Preparando el stream de la sala...",
+  "partyLoadingEpisodeBoard": "Cargando el tablero de episodios de la party...",
+  "partyCouldNotLoadEpisodes": "No se pudieron cargar los episodios de la party.",
+  "partyHostChoosesNextEpisode": "El host elige el siguiente episodio de la party.",
+  "partyMovedToEpisode": "La party pasó al episodio {episodeNumber}.",
+  "@partyMovedToEpisode": {
+    "placeholders": {
+      "episodeNumber": {
+        "type": "int"
+      }
+    }
+  },
+  "partyOpeningEpisode": "Abriendo el episodio de la party...",
+  "partyBackToLobbyTooltip": "Volver al lobby de la party",
+  "partyEpisodesTitle": "Episodios de la party",
+  "partyLockedToEpisode": "El host bloqueó la party en el episodio {episodeNumber}.",
+  "@partyLockedToEpisode": {
+    "placeholders": {
+      "episodeNumber": {
+        "type": "int"
+      }
+    }
+  },
+  "partyActiveTooltip": "Party activa",
+  "partySetForPartyTooltip": "Usar para la party",
+  "partyChangeAnimeTitle": "Cambiar anime de la party",
+  "partyChangeAnimeBody": "¿Cambiar la party a \"{animeTitle}\"?\nTodos los miembros serán redirigidos.",
+  "@partyChangeAnimeBody": {
+    "placeholders": {
+      "animeTitle": {}
+    }
+  },
+  "partySwitch": "Cambiar",
+  "partyLobbyTooltip": "Lobby de la party",
+  "partyChooseEpisode": "Elegir episodio de la party",
+  "partyPreviewEpisodes": "Previsualizar episodios",
+  "partyOpening": "Abriendo...",
+  "partyWatchCurrentEpisode": "Ver episodio actual",
+  "partyHostChoosesAnime": "El host elige el anime",
+  "partyMaybeNext": "Tal vez siga en la party",
+  "partyChooseRoomNext": "Elige qué debería ver la sala a continuación.",
+  "partyRoomCode": "Código de sala {code}",
+  "@partyRoomCode": {
+    "placeholders": {
+      "code": {}
+    }
+  },
+  "partyInRoomCount": "{count} en la sala",
+  "@partyInRoomCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "partyReadyCount": "{count} listos",
+  "@partyReadyCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "partyConnectedCount": "{count} conectados",
+  "@partyConnectedCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "partyEpisodeCount": "{count} eps",
+  "@partyEpisodeCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "partyRoomOnEpisode": "Sala en ep {episodeNumber}",
+  "@partyRoomOnEpisode": {
+    "placeholders": {
+      "episodeNumber": {
+        "type": "int"
+      }
+    }
+  },
+  "partyIntentCurrentTitle": "Alineemos el siguiente episodio",
+  "partyIntentCurrentHost": "Mantén la sala en movimiento: elige el episodio y luego entren juntos.",
+  "partyIntentCurrentMember": "Estás navegando el anime activo de la sala. Cuando el host elija, todos siguen juntos.",
+  "partyIntentOtherTitle": "Se siente como una buena elección para la sala",
+  "partyIntentOtherHost": "Cambia aquí la sala si la party quiere ver \"{animeTitle}\" en su lugar.",
+  "@partyIntentOtherHost": {
+    "placeholders": {
+      "animeTitle": {}
+    }
+  },
+  "partyIntentOtherMember": "Puedes explorar alternativas, pero solo el host puede cambiar el anime de la sala.",
+  "partyRoomReadySources": "Fuentes listas para la sala",
+  "partyNeedPlayableSource": "Todavía hace falta una fuente reproducible antes de que todos puedan ver juntos.",
+  "partyWhoIsHere": "Quién está en el sofá",
+  "partyYouSuffix": "Tú",
+  "partyEpisodesHostSubtitle": "Elige el episodio que todos verán a continuación.",
+  "partyEpisodesMemberSubtitle": "Sigue al host y entra cuando el episodio de la sala esté listo.",
+  "partyOnlineCount": "{count} en línea",
+  "@partyOnlineCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "partyNoEpisodesYet": "Todavía no hay episodios disponibles.",
+  "partyRoomPick": "Elección de sala",
+  "partyTapToQueue": "Tocar para poner en cola",
+  "partyHostDecides": "Decide el host",
+  "partyWatchTogether": "Ver juntos",
+  "partyWaitingOnSource": "Esperando fuente",
+  "partyLocked": "Bloqueado",
+  "partyRoomEpisodeReady": "Este es el episodio de la sala. Todos pueden entrar desde aquí.",
+  "partyRoomEpisodeNoSource": "Este es el episodio de la sala, pero todavía no hay una fuente lista.",
+  "partyTapToMoveEpisode": "Toca para mover la sala al episodio {episodeNumber}.",
+  "@partyTapToMoveEpisode": {
+    "placeholders": {
+      "episodeNumber": {
+        "type": "int"
+      }
+    }
+  },
+  "partyOnlyHostChangesEpisode": "Solo el host puede cambiar el episodio de la party."
 }

@@ -21,6 +21,8 @@ import '../../../auth/presentation/pages/profile_page.dart';
 import '../../../downloads/presentation/download_providers.dart';
 import '../../../downloads/application/auto_delete_watched_service.dart';
 import '../../../player/application/models/subtitle_settings.dart';
+import 'kumoriya_exoplayer_playground_page.dart';
+import 'player_flow_playground_page.dart';
 import 'resolver_playground_page.dart';
 
 class SettingsPage extends ConsumerStatefulWidget {
@@ -482,6 +484,38 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                                 },
                                 icon: const Icon(Icons.science_rounded),
                                 label: const Text('Resolver Playground'),
+                              ),
+                            if (kDebugMode)
+                              FilledButton.tonalIcon(
+                                onPressed: () {
+                                  Navigator.of(
+                                    context,
+                                    rootNavigator: true,
+                                  ).push(
+                                    MaterialPageRoute<void>(
+                                      builder: (_) =>
+                                          const PlayerFlowPlaygroundPage(),
+                                    ),
+                                  );
+                                },
+                                icon: const Icon(Icons.play_circle_outline_rounded),
+                                label: const Text('Player Flow Playground'),
+                              ),
+                            if (kDebugMode && Platform.isAndroid)
+                              FilledButton.tonalIcon(
+                                onPressed: () {
+                                  Navigator.of(
+                                    context,
+                                    rootNavigator: true,
+                                  ).push(
+                                    MaterialPageRoute<void>(
+                                      builder: (_) =>
+                                          const KumoriyaExoPlayerPlaygroundPage(),
+                                    ),
+                                  );
+                                },
+                                icon: const Icon(Icons.smart_display_rounded),
+                                label: const Text('kumoriya_exoplayer Playground'),
                               ),
                           ],
                         ),

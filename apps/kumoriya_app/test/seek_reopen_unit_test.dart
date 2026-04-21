@@ -314,6 +314,12 @@ final class _StateErrorEngine implements PlaybackEngine {
   Future<void> setEmbeddedAudioTrack(EmbeddedAudioTrack track) async {}
   @override
   Future<void> setEmbeddedSubtitleTrack(EmbeddedSubtitleTrack track) async {}
+
+  @override
+  Future<void> setEmbeddedVideoTrack(EmbeddedVideoTrack track) async {}
+
+  @override
+  Future<void> clearEmbeddedVideoTrack() async {}
   @override
   Future<void> clearEmbeddedSubtitleTrack() async {}
 
@@ -403,6 +409,12 @@ final class _SequencedEngine implements PlaybackEngine {
   Future<void> setEmbeddedAudioTrack(EmbeddedAudioTrack track) async {}
   @override
   Future<void> setEmbeddedSubtitleTrack(EmbeddedSubtitleTrack track) async {}
+
+  @override
+  Future<void> setEmbeddedVideoTrack(EmbeddedVideoTrack track) async {}
+
+  @override
+  Future<void> clearEmbeddedVideoTrack() async {}
   @override
   Future<void> clearEmbeddedSubtitleTrack() async {}
 

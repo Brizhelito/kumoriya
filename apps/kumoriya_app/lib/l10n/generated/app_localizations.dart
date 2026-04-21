@@ -2713,6 +2713,96 @@ abstract class AppLocalizations {
   /// **'No email'**
   String get profileNoEmail;
 
+  /// No description provided for @profileSyncIdle.
+  ///
+  /// In en, this message translates to:
+  /// **'Idle'**
+  String get profileSyncIdle;
+
+  /// No description provided for @profileSyncPushing.
+  ///
+  /// In en, this message translates to:
+  /// **'Uploading'**
+  String get profileSyncPushing;
+
+  /// No description provided for @profileSyncPulling.
+  ///
+  /// In en, this message translates to:
+  /// **'Downloading'**
+  String get profileSyncPulling;
+
+  /// No description provided for @profileSyncSuccess.
+  ///
+  /// In en, this message translates to:
+  /// **'Up to date'**
+  String get profileSyncSuccess;
+
+  /// No description provided for @profileSyncFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed'**
+  String get profileSyncFailed;
+
+  /// No description provided for @profileTimeJustNow.
+  ///
+  /// In en, this message translates to:
+  /// **'Just now'**
+  String get profileTimeJustNow;
+
+  /// No description provided for @profileTimeMinutesAgo.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} {unit} ago'**
+  String profileTimeMinutesAgo(int count, Object unit);
+
+  /// No description provided for @profileTimeHoursAgo.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} {unit} ago'**
+  String profileTimeHoursAgo(int count, Object unit);
+
+  /// No description provided for @profileTimeDaysAgo.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} {unit} ago'**
+  String profileTimeDaysAgo(int count, Object unit);
+
+  /// No description provided for @profileTimeMinuteSingular.
+  ///
+  /// In en, this message translates to:
+  /// **'minute'**
+  String get profileTimeMinuteSingular;
+
+  /// No description provided for @profileTimeMinutePlural.
+  ///
+  /// In en, this message translates to:
+  /// **'minutes'**
+  String get profileTimeMinutePlural;
+
+  /// No description provided for @profileTimeHourSingular.
+  ///
+  /// In en, this message translates to:
+  /// **'hour'**
+  String get profileTimeHourSingular;
+
+  /// No description provided for @profileTimeHourPlural.
+  ///
+  /// In en, this message translates to:
+  /// **'hours'**
+  String get profileTimeHourPlural;
+
+  /// No description provided for @profileTimeDaySingular.
+  ///
+  /// In en, this message translates to:
+  /// **'day'**
+  String get profileTimeDaySingular;
+
+  /// No description provided for @profileTimeDayPlural.
+  ///
+  /// In en, this message translates to:
+  /// **'days'**
+  String get profileTimeDayPlural;
+
   /// No description provided for @settingsAutoDeleteWatched.
   ///
   /// In en, this message translates to:
@@ -2820,6 +2910,810 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Could not delete passkey'**
   String get profilePasskeyDeleteFailed;
+
+  /// No description provided for @authLoginWelcomeTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Welcome to Kumoriya'**
+  String get authLoginWelcomeTitle;
+
+  /// No description provided for @authLoginSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign in to sync your progress across devices'**
+  String get authLoginSubtitle;
+
+  /// No description provided for @authCouldNotOpenBrowser.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not open browser'**
+  String get authCouldNotOpenBrowser;
+
+  /// No description provided for @authContinueWithDiscord.
+  ///
+  /// In en, this message translates to:
+  /// **'Continue with Discord'**
+  String get authContinueWithDiscord;
+
+  /// No description provided for @authContinueWithGoogle.
+  ///
+  /// In en, this message translates to:
+  /// **'Continue with Google'**
+  String get authContinueWithGoogle;
+
+  /// No description provided for @authWaitingForBrowser.
+  ///
+  /// In en, this message translates to:
+  /// **'Waiting for browser to return...'**
+  String get authWaitingForBrowser;
+
+  /// No description provided for @authCancelLogin.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel login'**
+  String get authCancelLogin;
+
+  /// No description provided for @authSkipForNow.
+  ///
+  /// In en, this message translates to:
+  /// **'Skip for now'**
+  String get authSkipForNow;
+
+  /// No description provided for @authLoginFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Login failed'**
+  String get authLoginFailed;
+
+  /// No description provided for @authGoBack.
+  ///
+  /// In en, this message translates to:
+  /// **'Go back'**
+  String get authGoBack;
+
+  /// No description provided for @authConnecting.
+  ///
+  /// In en, this message translates to:
+  /// **'Connecting...'**
+  String get authConnecting;
+
+  /// No description provided for @authMayTakeSeconds.
+  ///
+  /// In en, this message translates to:
+  /// **'This may take a few seconds'**
+  String get authMayTakeSeconds;
+
+  /// No description provided for @updateAvailableTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'New update'**
+  String get updateAvailableTitle;
+
+  /// No description provided for @updateWhatsNew.
+  ///
+  /// In en, this message translates to:
+  /// **'What\'s new:'**
+  String get updateWhatsNew;
+
+  /// No description provided for @updateDownloading.
+  ///
+  /// In en, this message translates to:
+  /// **'Downloading update...'**
+  String get updateDownloading;
+
+  /// No description provided for @updateInstallingWindows.
+  ///
+  /// In en, this message translates to:
+  /// **'Installing... the app will close.'**
+  String get updateInstallingWindows;
+
+  /// No description provided for @updateOpeningInstaller.
+  ///
+  /// In en, this message translates to:
+  /// **'Opening installer...'**
+  String get updateOpeningInstaller;
+
+  /// No description provided for @updateClose.
+  ///
+  /// In en, this message translates to:
+  /// **'Close'**
+  String get updateClose;
+
+  /// No description provided for @updateLater.
+  ///
+  /// In en, this message translates to:
+  /// **'Later'**
+  String get updateLater;
+
+  /// No description provided for @updateNow.
+  ///
+  /// In en, this message translates to:
+  /// **'Update'**
+  String get updateNow;
+
+  /// No description provided for @updateInstallerOpenFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not open installer: {error}'**
+  String updateInstallerOpenFailed(Object error);
+
+  /// No description provided for @updateReleaseNotesAdded.
+  ///
+  /// In en, this message translates to:
+  /// **'Added'**
+  String get updateReleaseNotesAdded;
+
+  /// No description provided for @updateReleaseNotesChanged.
+  ///
+  /// In en, this message translates to:
+  /// **'Changed'**
+  String get updateReleaseNotesChanged;
+
+  /// No description provided for @updateReleaseNotesFixed.
+  ///
+  /// In en, this message translates to:
+  /// **'Fixed'**
+  String get updateReleaseNotesFixed;
+
+  /// No description provided for @updateGotIt.
+  ///
+  /// In en, this message translates to:
+  /// **'Got it'**
+  String get updateGotIt;
+
+  /// No description provided for @partyTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Watch Party'**
+  String get partyTitle;
+
+  /// No description provided for @partyOpenBrowseTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Open party browse'**
+  String get partyOpenBrowseTooltip;
+
+  /// No description provided for @partyViewDebugLogsTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'View party debug logs'**
+  String get partyViewDebugLogsTooltip;
+
+  /// No description provided for @partyRemovedByHost.
+  ///
+  /// In en, this message translates to:
+  /// **'You were removed from the party by the host.'**
+  String get partyRemovedByHost;
+
+  /// No description provided for @partyRemovedWithReason.
+  ///
+  /// In en, this message translates to:
+  /// **'You were removed from the party: {reason}'**
+  String partyRemovedWithReason(Object reason);
+
+  /// No description provided for @partyDebugLogsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Party Debug Logs'**
+  String get partyDebugLogsTitle;
+
+  /// No description provided for @partyClose.
+  ///
+  /// In en, this message translates to:
+  /// **'Close'**
+  String get partyClose;
+
+  /// No description provided for @partyCopy.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy'**
+  String get partyCopy;
+
+  /// No description provided for @partyLogsCopied.
+  ///
+  /// In en, this message translates to:
+  /// **'Logs copied to clipboard'**
+  String get partyLogsCopied;
+
+  /// No description provided for @partyWatchTogetherTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Watch together with friends'**
+  String get partyWatchTogetherTitle;
+
+  /// No description provided for @partyInviteIntro.
+  ///
+  /// In en, this message translates to:
+  /// **'Create a room or join with an invite code. Up to 4 people can watch in sync via P2P.'**
+  String get partyInviteIntro;
+
+  /// No description provided for @partyInviteCodeLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Invite code'**
+  String get partyInviteCodeLabel;
+
+  /// No description provided for @partyJoin.
+  ///
+  /// In en, this message translates to:
+  /// **'Join Party'**
+  String get partyJoin;
+
+  /// No description provided for @partyStartRoomForAnime.
+  ///
+  /// In en, this message translates to:
+  /// **'Or start a room for {animeTitle}'**
+  String partyStartRoomForAnime(Object animeTitle);
+
+  /// No description provided for @partyStartRoomFallbackAnime.
+  ///
+  /// In en, this message translates to:
+  /// **'this anime'**
+  String get partyStartRoomFallbackAnime;
+
+  /// No description provided for @partyCreateRoom.
+  ///
+  /// In en, this message translates to:
+  /// **'Create Room'**
+  String get partyCreateRoom;
+
+  /// No description provided for @partyOpenAnimeToCreate.
+  ///
+  /// In en, this message translates to:
+  /// **'Open an anime page to create a room'**
+  String get partyOpenAnimeToCreate;
+
+  /// No description provided for @partyNowWatching.
+  ///
+  /// In en, this message translates to:
+  /// **'Now Watching'**
+  String get partyNowWatching;
+
+  /// No description provided for @partyEpisodeNumber.
+  ///
+  /// In en, this message translates to:
+  /// **'Episode {episodeNumber}'**
+  String partyEpisodeNumber(int episodeNumber);
+
+  /// No description provided for @partyChangeAnime.
+  ///
+  /// In en, this message translates to:
+  /// **'Change Anime'**
+  String get partyChangeAnime;
+
+  /// No description provided for @partyChangeEpisode.
+  ///
+  /// In en, this message translates to:
+  /// **'Change Ep.'**
+  String get partyChangeEpisode;
+
+  /// No description provided for @partyInviteCodeCopied.
+  ///
+  /// In en, this message translates to:
+  /// **'Invite code copied!'**
+  String get partyInviteCodeCopied;
+
+  /// No description provided for @partyShareInviteLinkTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Share invite link'**
+  String get partyShareInviteLinkTooltip;
+
+  /// No description provided for @partyInviteLinkCopied.
+  ///
+  /// In en, this message translates to:
+  /// **'Invite link copied!'**
+  String get partyInviteLinkCopied;
+
+  /// No description provided for @partyMembersCount.
+  ///
+  /// In en, this message translates to:
+  /// **'Members ({current}/{max})'**
+  String partyMembersCount(int current, int max);
+
+  /// No description provided for @partyChangeEpisodeTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Change Episode'**
+  String get partyChangeEpisodeTitle;
+
+  /// No description provided for @partyEpisodeNumberLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Episode number'**
+  String get partyEpisodeNumberLabel;
+
+  /// No description provided for @partyApply.
+  ///
+  /// In en, this message translates to:
+  /// **'Apply'**
+  String get partyApply;
+
+  /// No description provided for @partyReady.
+  ///
+  /// In en, this message translates to:
+  /// **'Ready'**
+  String get partyReady;
+
+  /// No description provided for @partyReadyConfirmed.
+  ///
+  /// In en, this message translates to:
+  /// **'Ready!'**
+  String get partyReadyConfirmed;
+
+  /// No description provided for @partyStartWatching.
+  ///
+  /// In en, this message translates to:
+  /// **'Start Watching'**
+  String get partyStartWatching;
+
+  /// No description provided for @partyWaitingForEveryone.
+  ///
+  /// In en, this message translates to:
+  /// **'Waiting for everyone...'**
+  String get partyWaitingForEveryone;
+
+  /// No description provided for @partyWaitingForHost.
+  ///
+  /// In en, this message translates to:
+  /// **'Waiting for the host to start...'**
+  String get partyWaitingForHost;
+
+  /// No description provided for @partyTryAgain.
+  ///
+  /// In en, this message translates to:
+  /// **'Try Again'**
+  String get partyTryAgain;
+
+  /// No description provided for @partyHostActionsTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Host actions'**
+  String get partyHostActionsTooltip;
+
+  /// No description provided for @partyMakeHost.
+  ///
+  /// In en, this message translates to:
+  /// **'Make host'**
+  String get partyMakeHost;
+
+  /// No description provided for @partyMemberDisconnected.
+  ///
+  /// In en, this message translates to:
+  /// **'Member is disconnected'**
+  String get partyMemberDisconnected;
+
+  /// No description provided for @partyRemoveFromParty.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove from party'**
+  String get partyRemoveFromParty;
+
+  /// No description provided for @partyRemoveMemberTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove member?'**
+  String get partyRemoveMemberTitle;
+
+  /// No description provided for @partyRemoveMemberBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove \"{name}\" from the party? They will be disconnected immediately.'**
+  String partyRemoveMemberBody(Object name);
+
+  /// No description provided for @partyRemove.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove'**
+  String get partyRemove;
+
+  /// No description provided for @partyTransferHostTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Transfer host?'**
+  String get partyTransferHostTitle;
+
+  /// No description provided for @partyTransferHostBody.
+  ///
+  /// In en, this message translates to:
+  /// **'\"{name}\" will take over as host. You will keep watching but lose host controls.'**
+  String partyTransferHostBody(Object name);
+
+  /// No description provided for @partyTransfer.
+  ///
+  /// In en, this message translates to:
+  /// **'Transfer'**
+  String get partyTransfer;
+
+  /// No description provided for @partyPreparingStage.
+  ///
+  /// In en, this message translates to:
+  /// **'Preparing the party stage...'**
+  String get partyPreparingStage;
+
+  /// No description provided for @partyCouldNotLoadAnime.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not load this anime for the party.'**
+  String get partyCouldNotLoadAnime;
+
+  /// No description provided for @partyBrowseModeBanner.
+  ///
+  /// In en, this message translates to:
+  /// **'Watch Party mode: browse together, then return to the lobby to confirm the next move.'**
+  String get partyBrowseModeBanner;
+
+  /// No description provided for @partyEpisodeModeBanner.
+  ///
+  /// In en, this message translates to:
+  /// **'Watch Party mode: choose the episode together, then return to the lobby if the host needs to change the room target.'**
+  String get partyEpisodeModeBanner;
+
+  /// No description provided for @partyHostSourceMissing.
+  ///
+  /// In en, this message translates to:
+  /// **'The host picked a source you do not have installed.'**
+  String get partyHostSourceMissing;
+
+  /// No description provided for @partyHostEpisodeUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'That episode is not available on your installed sources yet.'**
+  String get partyHostEpisodeUnavailable;
+
+  /// No description provided for @partyHostServerUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'The host server is not available locally. Pick another one.'**
+  String get partyHostServerUnavailable;
+
+  /// No description provided for @partyHostResolverFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'The shared stream could not be resolved here. Pick another server.'**
+  String get partyHostResolverFailed;
+
+  /// No description provided for @partyEpisodeCta.
+  ///
+  /// In en, this message translates to:
+  /// **'Watch Party Ep. {episodeNumber}'**
+  String partyEpisodeCta(int episodeNumber);
+
+  /// No description provided for @partyStartWithParty.
+  ///
+  /// In en, this message translates to:
+  /// **'Start with Party'**
+  String get partyStartWithParty;
+
+  /// No description provided for @partyOnlyHostCanSwitchAnime.
+  ///
+  /// In en, this message translates to:
+  /// **'Only the host can switch the party anime.'**
+  String get partyOnlyHostCanSwitchAnime;
+
+  /// No description provided for @partySwitchedToAnime.
+  ///
+  /// In en, this message translates to:
+  /// **'Party switched to \"{animeTitle}\".'**
+  String partySwitchedToAnime(Object animeTitle);
+
+  /// No description provided for @partyNoPlayableSourcesReady.
+  ///
+  /// In en, this message translates to:
+  /// **'No playable sources are ready yet.'**
+  String get partyNoPlayableSourcesReady;
+
+  /// No description provided for @partyGettingRoomStreamReady.
+  ///
+  /// In en, this message translates to:
+  /// **'Getting the room stream ready...'**
+  String get partyGettingRoomStreamReady;
+
+  /// No description provided for @partyLoadingEpisodeBoard.
+  ///
+  /// In en, this message translates to:
+  /// **'Loading the party episode board...'**
+  String get partyLoadingEpisodeBoard;
+
+  /// No description provided for @partyCouldNotLoadEpisodes.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not load party episodes.'**
+  String get partyCouldNotLoadEpisodes;
+
+  /// No description provided for @partyHostChoosesNextEpisode.
+  ///
+  /// In en, this message translates to:
+  /// **'The host chooses the next party episode.'**
+  String get partyHostChoosesNextEpisode;
+
+  /// No description provided for @partyMovedToEpisode.
+  ///
+  /// In en, this message translates to:
+  /// **'Party moved to episode {episodeNumber}.'**
+  String partyMovedToEpisode(int episodeNumber);
+
+  /// No description provided for @partyOpeningEpisode.
+  ///
+  /// In en, this message translates to:
+  /// **'Opening the party episode...'**
+  String get partyOpeningEpisode;
+
+  /// No description provided for @partyBackToLobbyTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Back to party lobby'**
+  String get partyBackToLobbyTooltip;
+
+  /// No description provided for @partyEpisodesTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Party Episodes'**
+  String get partyEpisodesTitle;
+
+  /// No description provided for @partyLockedToEpisode.
+  ///
+  /// In en, this message translates to:
+  /// **'The host locked the party to episode {episodeNumber}.'**
+  String partyLockedToEpisode(int episodeNumber);
+
+  /// No description provided for @partyActiveTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Party active'**
+  String get partyActiveTooltip;
+
+  /// No description provided for @partySetForPartyTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Set for party'**
+  String get partySetForPartyTooltip;
+
+  /// No description provided for @partyChangeAnimeTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Change Party Anime'**
+  String get partyChangeAnimeTitle;
+
+  /// No description provided for @partyChangeAnimeBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Switch the party to \"{animeTitle}\"?\nAll members will be redirected.'**
+  String partyChangeAnimeBody(Object animeTitle);
+
+  /// No description provided for @partySwitch.
+  ///
+  /// In en, this message translates to:
+  /// **'Switch'**
+  String get partySwitch;
+
+  /// No description provided for @partyLobbyTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Party Lobby'**
+  String get partyLobbyTooltip;
+
+  /// No description provided for @partyChooseEpisode.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose Party Episode'**
+  String get partyChooseEpisode;
+
+  /// No description provided for @partyPreviewEpisodes.
+  ///
+  /// In en, this message translates to:
+  /// **'Preview Episodes'**
+  String get partyPreviewEpisodes;
+
+  /// No description provided for @partyOpening.
+  ///
+  /// In en, this message translates to:
+  /// **'Opening...'**
+  String get partyOpening;
+
+  /// No description provided for @partyWatchCurrentEpisode.
+  ///
+  /// In en, this message translates to:
+  /// **'Watch Current Episode'**
+  String get partyWatchCurrentEpisode;
+
+  /// No description provided for @partyHostChoosesAnime.
+  ///
+  /// In en, this message translates to:
+  /// **'Host Chooses Anime'**
+  String get partyHostChoosesAnime;
+
+  /// No description provided for @partyMaybeNext.
+  ///
+  /// In en, this message translates to:
+  /// **'Maybe next in the party'**
+  String get partyMaybeNext;
+
+  /// No description provided for @partyChooseRoomNext.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose what the room should watch next.'**
+  String get partyChooseRoomNext;
+
+  /// No description provided for @partyRoomCode.
+  ///
+  /// In en, this message translates to:
+  /// **'Room code {code}'**
+  String partyRoomCode(Object code);
+
+  /// No description provided for @partyInRoomCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} in room'**
+  String partyInRoomCount(int count);
+
+  /// No description provided for @partyReadyCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} ready'**
+  String partyReadyCount(int count);
+
+  /// No description provided for @partyConnectedCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} connected'**
+  String partyConnectedCount(int count);
+
+  /// No description provided for @partyEpisodeCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} eps'**
+  String partyEpisodeCount(int count);
+
+  /// No description provided for @partyRoomOnEpisode.
+  ///
+  /// In en, this message translates to:
+  /// **'Room on ep {episodeNumber}'**
+  String partyRoomOnEpisode(int episodeNumber);
+
+  /// No description provided for @partyIntentCurrentTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Let\'s line up the next episode'**
+  String get partyIntentCurrentTitle;
+
+  /// No description provided for @partyIntentCurrentHost.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep the room moving: pick the episode, then launch together.'**
+  String get partyIntentCurrentHost;
+
+  /// No description provided for @partyIntentCurrentMember.
+  ///
+  /// In en, this message translates to:
+  /// **'You are browsing the active room anime. Once the host chooses, everyone follows together.'**
+  String get partyIntentCurrentMember;
+
+  /// No description provided for @partyIntentOtherTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'This feels like a good room pick'**
+  String get partyIntentOtherTitle;
+
+  /// No description provided for @partyIntentOtherHost.
+  ///
+  /// In en, this message translates to:
+  /// **'Switch the room here if the party wants to watch \"{animeTitle}\" instead.'**
+  String partyIntentOtherHost(Object animeTitle);
+
+  /// No description provided for @partyIntentOtherMember.
+  ///
+  /// In en, this message translates to:
+  /// **'You can browse alternatives, but only the host can switch the room anime.'**
+  String get partyIntentOtherMember;
+
+  /// No description provided for @partyRoomReadySources.
+  ///
+  /// In en, this message translates to:
+  /// **'Room-ready sources'**
+  String get partyRoomReadySources;
+
+  /// No description provided for @partyNeedPlayableSource.
+  ///
+  /// In en, this message translates to:
+  /// **'We still need a playable source before everyone can watch together.'**
+  String get partyNeedPlayableSource;
+
+  /// No description provided for @partyWhoIsHere.
+  ///
+  /// In en, this message translates to:
+  /// **'Who is on the couch'**
+  String get partyWhoIsHere;
+
+  /// No description provided for @partyYouSuffix.
+  ///
+  /// In en, this message translates to:
+  /// **'You'**
+  String get partyYouSuffix;
+
+  /// No description provided for @partyEpisodesHostSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Pick the episode everyone will watch next.'**
+  String get partyEpisodesHostSubtitle;
+
+  /// No description provided for @partyEpisodesMemberSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Follow the host and join when the room episode is ready.'**
+  String get partyEpisodesMemberSubtitle;
+
+  /// No description provided for @partyOnlineCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} online'**
+  String partyOnlineCount(int count);
+
+  /// No description provided for @partyNoEpisodesYet.
+  ///
+  /// In en, this message translates to:
+  /// **'No episodes are available yet.'**
+  String get partyNoEpisodesYet;
+
+  /// No description provided for @partyRoomPick.
+  ///
+  /// In en, this message translates to:
+  /// **'Room Pick'**
+  String get partyRoomPick;
+
+  /// No description provided for @partyTapToQueue.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap to Queue'**
+  String get partyTapToQueue;
+
+  /// No description provided for @partyHostDecides.
+  ///
+  /// In en, this message translates to:
+  /// **'Host decides'**
+  String get partyHostDecides;
+
+  /// No description provided for @partyWatchTogether.
+  ///
+  /// In en, this message translates to:
+  /// **'Watch together'**
+  String get partyWatchTogether;
+
+  /// No description provided for @partyWaitingOnSource.
+  ///
+  /// In en, this message translates to:
+  /// **'Waiting on source'**
+  String get partyWaitingOnSource;
+
+  /// No description provided for @partyLocked.
+  ///
+  /// In en, this message translates to:
+  /// **'Locked'**
+  String get partyLocked;
+
+  /// No description provided for @partyRoomEpisodeReady.
+  ///
+  /// In en, this message translates to:
+  /// **'This is the room episode. Everyone can launch from here.'**
+  String get partyRoomEpisodeReady;
+
+  /// No description provided for @partyRoomEpisodeNoSource.
+  ///
+  /// In en, this message translates to:
+  /// **'This is the room episode, but no source is ready yet.'**
+  String get partyRoomEpisodeNoSource;
+
+  /// No description provided for @partyTapToMoveEpisode.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap to move the room to episode {episodeNumber}.'**
+  String partyTapToMoveEpisode(int episodeNumber);
+
+  /// No description provided for @partyOnlyHostChangesEpisode.
+  ///
+  /// In en, this message translates to:
+  /// **'Only the host can change the party episode.'**
+  String get partyOnlyHostChangesEpisode;
 }
 
 class _AppLocalizationsDelegate

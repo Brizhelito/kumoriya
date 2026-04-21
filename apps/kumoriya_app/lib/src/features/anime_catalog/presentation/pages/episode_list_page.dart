@@ -19,6 +19,8 @@ import '../../../downloads/presentation/widgets/download_path_dialog.dart';
 import '../../../player/presentation/pages/player_page.dart';
 import '../../../watch_party/application/party_session_guard.dart';
 import '../../../watch_party/application/providers/party_providers.dart';
+import '../../../watch_party/presentation/party_route_mode.dart';
+import '../../../watch_party/presentation/pages/party_lobby_page.dart';
 import '../providers/anime_catalog_providers.dart';
 import '../providers/storage_providers.dart';
 import '../support/episode_display_title.dart';
@@ -28,7 +30,7 @@ import '../widgets/source_badge.dart';
 import '../widgets/source_quality_picker_sheet.dart';
 import '../../../../shared/theme/kumoriya_theme.dart';
 
-class EpisodeListPage extends ConsumerStatefulWidget {
+class EpisodeListPage extends StatelessWidget {
   const EpisodeListPage({
     super.key,
     required this.anilistId,
@@ -41,10 +43,35 @@ class EpisodeListPage extends ConsumerStatefulWidget {
   final double? focusedEpisodeNumber;
 
   @override
-  ConsumerState<EpisodeListPage> createState() => _EpisodeListPageState();
+  Widget build(BuildContext context) {
+    return EpisodeListScene(
+      anilistId: anilistId,
+      animeTitle: animeTitle,
+      focusedEpisodeNumber: focusedEpisodeNumber,
+      routeMode: PartyRouteMode.standard,
+    );
+  }
 }
 
-class _EpisodeListPageState extends ConsumerState<EpisodeListPage> {
+class EpisodeListScene extends ConsumerStatefulWidget {
+  const EpisodeListScene({
+    super.key,
+    required this.anilistId,
+    required this.animeTitle,
+    this.focusedEpisodeNumber,
+    required this.routeMode,
+  });
+
+  final int anilistId;
+  final String animeTitle;
+  final double? focusedEpisodeNumber;
+  final PartyRouteMode routeMode;
+
+  @override
+  ConsumerState<EpisodeListScene> createState() => _EpisodeListSceneState();
+}
+
+class _EpisodeListSceneState extends ConsumerState<EpisodeListScene> {
   static const int _aniSkipPrefetchWindowBefore = 10;
   static const int _aniSkipPrefetchWindowAfter = 50;
   static const int _aniSkipPrefetchLargeSeries = 150;
@@ -118,7 +145,26 @@ class _EpisodeListPageState extends ConsumerState<EpisodeListPage> {
         (episodesState.isLoading || availabilityState.isLoading)) {
       return Scaffold(
         appBar: AppBar(
-          title: Text(context.l10n.episodeListTitle(widget.animeTitle)),
+          leading: widget.routeMode.isParty
+              ? IconButton(
+                  icon: const Icon(Icons.arrow_back_rounded),
+                  tooltip: context.l10n.partyBackToLobbyTooltip,
+                  onPressed: () => Navigator.of(context, rootNavigator: true)
+                      .pushReplacement(
+                        MaterialPageRoute<void>(
+                          builder: (_) => PartyLobbyPage(
+                            anilistId: widget.anilistId,
+                            animeTitle: widget.animeTitle,
+                          ),
+                        ),
+                      ),
+                )
+              : null,
+          title: Text(
+            widget.routeMode.isParty
+                ? context.l10n.partyEpisodesTitle
+                : context.l10n.episodeListTitle(widget.animeTitle),
+          ),
         ),
         body: LoadingStateView(label: context.l10n.episodeListLoading),
       );
@@ -193,7 +239,26 @@ class _EpisodeListPageState extends ConsumerState<EpisodeListPage> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(context.l10n.episodeListTitle(widget.animeTitle)),
+        leading: widget.routeMode.isParty
+            ? IconButton(
+                icon: const Icon(Icons.arrow_back_rounded),
+                tooltip: context.l10n.partyBackToLobbyTooltip,
+                onPressed: () =>
+                    Navigator.of(context, rootNavigator: true).pushReplacement(
+                      MaterialPageRoute<void>(
+                        builder: (_) => PartyLobbyPage(
+                          anilistId: widget.anilistId,
+                          animeTitle: widget.animeTitle,
+                        ),
+                      ),
+                    ),
+              )
+            : null,
+        title: Text(
+          widget.routeMode.isParty
+              ? context.l10n.partyEpisodesTitle
+              : context.l10n.episodeListTitle(widget.animeTitle),
+        ),
       ),
       body: rows.isEmpty
           ? EmptyStateView(message: context.l10n.episodeListEmpty)
@@ -210,6 +275,7 @@ class _EpisodeListPageState extends ConsumerState<EpisodeListPage> {
                       animeTitle: widget.animeTitle,
                       rows: rows,
                       lockedEpisodeNumber: partyLockedEpisode,
+                      routeMode: widget.routeMode,
                     ),
                   ),
                 ),
@@ -249,6 +315,7 @@ class _EpisodeListPageState extends ConsumerState<EpisodeListPage> {
                         anilistId: widget.anilistId,
                         animeTitle: widget.animeTitle,
                         downloadTask: dlTask,
+                        routeMode: widget.routeMode,
                         onTap:
                             row.playableSources.isEmpty ||
                                 sourceSummary == null ||
@@ -371,8 +438,10 @@ class _EpisodeListPageState extends ConsumerState<EpisodeListPage> {
               animeTitle: widget.animeTitle,
               episodeNumber: row.number.toInt().toString(),
               episodeTitle: row.displayTitle,
+              persistSelection: false,
               sourcePluginId: offlineTask.sourcePluginId ?? 'offline',
               serverName: offlineTask.serverName ?? 'Downloaded',
+              routeMode: widget.routeMode,
               resolved: ResolvedServerLinkResult(
                 resolverId: 'offline',
                 resolverName: 'Downloaded',
@@ -417,6 +486,7 @@ class _EpisodeListPageState extends ConsumerState<EpisodeListPage> {
       anilistId: widget.anilistId,
       animeTitle: widget.animeTitle,
       episodeTitle: row.displayTitle,
+      routeMode: widget.routeMode,
       decision: decision,
     );
   }
@@ -435,9 +505,7 @@ class _EpisodeListPageState extends ConsumerState<EpisodeListPage> {
   ) {
     ScaffoldMessenger.maybeOf(context)?.showSnackBar(
       SnackBar(
-        content: Text(
-          'The host locked the party to episode ${episodeNumber.toInt()}.',
-        ),
+        content: Text(context.l10n.partyLockedToEpisode(episodeNumber.toInt())),
         duration: const Duration(seconds: 2),
       ),
     );
@@ -539,6 +607,7 @@ class _EpisodeListHeader extends ConsumerWidget {
     required this.animeTitle,
     required this.rows,
     required this.lockedEpisodeNumber,
+    required this.routeMode,
   });
 
   final SourceAvailabilitySummary? summary;
@@ -547,6 +616,7 @@ class _EpisodeListHeader extends ConsumerWidget {
   final String animeTitle;
   final List<_EpisodeRowData> rows;
   final double? lockedEpisodeNumber;
+  final PartyRouteMode routeMode;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -556,6 +626,10 @@ class _EpisodeListHeader extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
+        if (routeMode.isParty) ...<Widget>[
+          const _PartyEpisodeBanner(),
+          const SizedBox(height: 8),
+        ],
         if (lockedEpisodeNumber != null) ...<Widget>[
           _InfoBanner(
             message:
@@ -586,7 +660,7 @@ class _EpisodeListHeader extends ConsumerWidget {
                 )
                 .toList(growable: false),
           ),
-        if (playableSources.isNotEmpty) ...<Widget>[
+        if (!routeMode.isParty && playableSources.isNotEmpty) ...<Widget>[
           const SizedBox(height: 8),
           SizedBox(
             width: double.infinity,
@@ -752,6 +826,7 @@ class _EpisodeCard extends ConsumerStatefulWidget {
     required this.row,
     required this.anilistId,
     required this.animeTitle,
+    required this.routeMode,
     this.downloadTask,
     this.onTap,
   });
@@ -759,6 +834,7 @@ class _EpisodeCard extends ConsumerStatefulWidget {
   final _EpisodeRowData row;
   final int anilistId;
   final String animeTitle;
+  final PartyRouteMode routeMode;
   final DownloadTask? downloadTask;
   final VoidCallback? onTap;
 
@@ -867,13 +943,16 @@ class _EpisodeCardState extends ConsumerState<_EpisodeCard> {
                 spacing: 8,
                 overflowAlignment: OverflowBarAlignment.end,
                 children: <Widget>[
-                  _buildDownloadButton(context, dlTask),
+                  if (!widget.routeMode.isParty)
+                    _buildDownloadButton(context, dlTask),
                   FilledButton.tonalIcon(
                     onPressed: widget.onTap,
                     icon: const Icon(Icons.play_arrow_rounded),
                     label: Text(
                       row.playableSources.isEmpty
                           ? context.l10n.playEpisode
+                          : widget.routeMode.isParty
+                          ? 'Propose to Party'
                           : context.l10n.detailPlay,
                     ),
                   ),
@@ -954,6 +1033,15 @@ class _EpisodeCardState extends ConsumerState<_EpisodeCard> {
         SnackBar(content: Text(context.l10n.downloadFailed)),
       );
     }
+  }
+}
+
+class _PartyEpisodeBanner extends StatelessWidget {
+  const _PartyEpisodeBanner();
+
+  @override
+  Widget build(BuildContext context) {
+    return _InfoBanner(message: context.l10n.partyEpisodeModeBanner);
   }
 }
 

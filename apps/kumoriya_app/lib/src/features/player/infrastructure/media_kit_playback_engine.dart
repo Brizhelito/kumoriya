@@ -30,12 +30,15 @@ final class MediaKitPlaybackEngine implements PlaybackEngine {
     defaultValue: 'auto-safe',
   );
 
-  /// 64 MB on mobile (limited RAM), 128 MB on desktop.
+  /// Effectively unlimited demuxer buffer: 512 MB on mobile, 1 GB on desktop.
+  /// Chosen to absorb long readahead windows on CDNs with rotating hosts
+  /// (e.g. Desu) where each segment requires a fresh TCP+TLS handshake and
+  /// starving the cache stalls playback.
   static int _bufferSizeForPlatform() {
     if (Platform.isAndroid || Platform.isIOS) {
-      return 64 * 1024 * 1024;
+      return 512 * 1024 * 1024;
     }
-    return 128 * 1024 * 1024;
+    return 1024 * 1024 * 1024;
   }
 
   MediaKitPlaybackEngine({
@@ -468,6 +471,16 @@ final class MediaKitPlaybackEngine implements PlaybackEngine {
     return player.setSubtitleTrack(SubtitleTrack.no());
   }
 
+  // media_kit / libmpv exposes quality via HLS variants through a
+  // different API (`player.streams.video` + hls-bitrate cap). The
+  // desktop player_page does not surface a variant picker yet, so keep
+  // both hooks as no-ops until that slice lands.
+  @override
+  Future<void> setEmbeddedVideoTrack(EmbeddedVideoTrack track) async {}
+
+  @override
+  Future<void> clearEmbeddedVideoTrack() async {}
+
   @override
   Future<void> pause() {
     if (_disposed) return Future<void>.value();
@@ -480,6 +493,18 @@ final class MediaKitPlaybackEngine implements PlaybackEngine {
     if (_disposed) return Future<void>.value();
     _log('play');
     return player.play();
+  }
+
+  @override
+  Future<void> setVolume(double percent) {
+    if (_disposed) return Future<void>.value();
+    return player.setVolume(percent);
+  }
+
+  @override
+  Future<void> setPlaybackSpeed(double rate) {
+    if (_disposed) return Future<void>.value();
+    return player.setRate(rate);
   }
 
   @override
@@ -1340,21 +1365,44 @@ final class MediaKitPlaybackEngine implements PlaybackEngine {
     }
 
     final isAnimeNexus = _isAnimeNexusLoopback(stream.url);
+    // Zilla serves AV1-in-fMP4 (ftyp brand av01 verified in runtime probe).
+    // auto-safe stalls for 12-37 s logging "Could not open codec" before
+    // falling back to software dav1d. Pure software (hwdec=no) skips the
+    // fallback dance but cannot keep up with 1080p AV1 on mid-tier SoCs
+    // (Helio G99), which stalls after rendering the first I-frame.
+    // Force mediacodec-copy: uses Android's c2.android.av1-dav1d decoder
+    // (software underneath but with MediaCodec's tighter platform
+    // integration), avoiding both the codec-open stall and the pure-libav
+    // throughput wall.
+    final isZillaAv1 = stream.url.host.contains('zilla-networks');
+    // On Android the device has no AV1 HW decoder (verified on Helio G99),
+    // so auto-safe burns 12-37 s attempting MediaCodec before falling back
+    // to libdav1d. Force software up front for Zilla; everywhere else let
+    // mpv pick the best HW path.
+    final hwdecValue = isZillaAv1
+        ? (defaultTargetPlatform == TargetPlatform.android ? 'no' : 'auto-safe')
+        : 'auto-safe';
 
     try {
+      final cores = Platform.numberOfProcessors;
+      // Zilla AV1 on Android needs every core + loop-filter skip to decode
+      // 1080p in real time on Helio G99 class SoCs. Baseline (non-Zilla)
+      // keeps cores-1 so the UI thread always has headroom.
+      final decodeThreads = (isZillaAv1 && defaultTargetPlatform == TargetPlatform.android)
+          ? cores.clamp(1, 8)
+          : (cores > 2 ? cores - 1 : 1);
+
       final properties = <Future<void>>[
         // R2: Use auto-safe everywhere — mpv picks the best hw decoder
         // (mediacodec on Android, d3d11va on Windows) and falls back to
         // software automatically.  The old anime-nexus hwdec='no' forced
         // software decode even on 1080p+ which caused low FPS.
-        platform.setProperty('hwdec', 'auto-safe'),
+        platform.setProperty('hwdec', hwdecValue),
         platform.setProperty('vd-lavc-software-fallback', 'yes'),
         // R2: Use multi-threaded software decoding as fallback.  cores-1
-        // avoids starving the Flutter UI thread.
-        platform.setProperty(
-          'vd-lavc-threads',
-          '${Platform.numberOfProcessors > 2 ? Platform.numberOfProcessors - 1 : 1}',
-        ),
+        // avoids starving the Flutter UI thread; Zilla AV1 overrides this
+        // and takes all cores because decode is the bottleneck.
+        platform.setProperty('vd-lavc-threads', '$decodeThreads'),
         // Force precise seeking to the exact requested timestamp instead of
         // snapping to the previous keyframe — prevents blocky/corrupted
         // frames that appear when the decoder starts mid-GOP.
@@ -1369,25 +1417,52 @@ final class MediaKitPlaybackEngine implements PlaybackEngine {
         platform.setProperty('video-sync', 'audio'),
       ];
 
-      // R2: Provide generous demuxer buffers on all platforms so backward
-      // seeks within already-buffered content resolve without re-fetching.
+      // Zilla AV1 on Android: force the dav1d-perf cocktail.
+      // - vd-lavc-skiploopfilter=all: skips the AV1 deblocking loop filter,
+      //   cutting ~25-35% of decode CPU with only minor edge ringing.
+      // - vd-lavc-skipframe=nonref: drop non-reference frames when behind
+      //   (B-frame equivalents); preserves I/P frames so visual continuity
+      //   is kept even when the decoder cannot keep up.
+      // - vd-lavc-fast=yes: enable all non-bitexact codec optimizations.
+      // - framedrop=vo: drop frames at the output stage when the decoder
+      //   falls behind audio, instead of letting the whole pipeline stall.
+      // - cache-secs=30 / demuxer-readahead-secs=30: give the decoder a
+      //   generous runway of fetched data so it can batch-decode and catch
+      //   up during the slow warmup of libdav1d.
+      if (isZillaAv1 && defaultTargetPlatform == TargetPlatform.android) {
+        properties.addAll(<Future<void>>[
+          platform.setProperty('vd-lavc-skiploopfilter', 'all'),
+          platform.setProperty('vd-lavc-skipframe', 'nonref'),
+          platform.setProperty('vd-lavc-fast', 'yes'),
+          platform.setProperty('framedrop', 'vo'),
+          platform.setProperty('cache', 'yes'),
+          platform.setProperty('cache-secs', '30'),
+          platform.setProperty('demuxer-readahead-secs', '30'),
+        ]);
+      }
+
+      // Effectively unlimited demuxer buffers on all platforms.  Rotating-host
+      // CDNs (Desu) force a new TCP+TLS handshake per segment; small buffers
+      // leave no slack to absorb the overhead and stall playback.  Values
+      // below are a hard ceiling — mpv only allocates what it actually needs
+      // for the active readahead window.
       if (defaultTargetPlatform == TargetPlatform.android) {
-        properties.add(platform.setProperty('demuxer-max-bytes', '100MiB'));
-        properties.add(platform.setProperty('demuxer-max-back-bytes', '50MiB'));
+        properties.add(platform.setProperty('demuxer-max-bytes', '512MiB'));
+        properties.add(platform.setProperty('demuxer-max-back-bytes', '256MiB'));
       } else {
-        // Desktop has more RAM headroom.
-        properties.add(platform.setProperty('demuxer-max-bytes', '150MiB'));
-        properties.add(platform.setProperty('demuxer-max-back-bytes', '80MiB'));
+        properties.add(platform.setProperty('demuxer-max-bytes', '2GiB'));
+        properties.add(platform.setProperty('demuxer-max-back-bytes', '1GiB'));
       }
 
       // R2: Non-anime-nexus streams also benefit from a seekable demuxer
       // cache and generous readahead to reduce re-fetching on backward seek.
       if (!isAnimeNexus) {
         properties.add(platform.setProperty('demuxer-seekable-cache', 'yes'));
-        // R5: Increased from 60s to 120s — larger readahead means more
-        // content is pre-fetched, reducing the chance of a seek landing
-        // outside cached data and needing a network round-trip.
-        properties.add(platform.setProperty('demuxer-readahead-secs', '120'));
+        // Readahead window raised to ~1h so mpv keeps pre-fetching as long
+        // as there is bandwidth headroom.  Combined with the 512 MiB demuxer
+        // ceiling this absorbs long handshake-heavy sequences on rotating
+        // CDN hosts without starving playback.
+        properties.add(platform.setProperty('demuxer-readahead-secs', '3600'));
         // R5: Start decoding immediately instead of waiting for the buffer
         // to fill.  Non-AN streams typically resolve to direct or CDN URLs
         // with good throughput; stalling for initial cache fill adds 1-3s
@@ -1423,7 +1498,14 @@ final class MediaKitPlaybackEngine implements PlaybackEngine {
             'timeout=30000000,rw_timeout=15000000,'
                 'reconnect=1,reconnect_streamed=1,'
                 'reconnect_on_network_error=1,reconnect_on_http_error=4xx+5xx,'
-                'reconnect_delay_max=5,http_persistent=1',
+                'reconnect_delay_max=5,http_persistent=1,'
+                // http_multiple=1: open HLS segment N+1 in parallel while N
+                // still decodes — critical on rotating-host CDNs (Desu)
+                // where keepalive cannot be reused across segments.
+                // http_seekable=0: skip the initial Range probe on segment
+                // opens — segments are fetched whole, the probe just burns
+                // one extra RTT per segment.
+                'http_multiple=1,http_seekable=0',
           ),
         );
         // Mirror the ffmpeg timeout at the mpv network-timeout level so
@@ -1465,7 +1547,8 @@ final class MediaKitPlaybackEngine implements PlaybackEngine {
       await Future.wait(properties);
 
       _log(
-        'decoder-config hwdec=auto-safe platform=$defaultTargetPlatform animeNexus=$isAnimeNexus',
+        'decoder-config hwdec=$hwdecValue platform=$defaultTargetPlatform '
+        'animeNexus=$isAnimeNexus zillaAv1=$isZillaAv1',
       );
     } catch (error) {
       _log('decoder-config failed error=$error');

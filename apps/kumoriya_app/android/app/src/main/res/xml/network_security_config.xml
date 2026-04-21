@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Kumoriya network security config.
+
+  Default posture: enforce HTTPS everywhere. Cleartext HTTP is only permitted
+  for loopback addresses used by in-process proxies (anime-nexus HLS loopback
+  proxy binds to 127.0.0.1 on a random port). Without this override, Media3
+  ExoPlayer refuses to open cleartext URLs on Android 9+ ("Source error" on
+  http:// URLs) — libmpv ships its own HTTP stack and bypasses this policy.
+-->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="false" />
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="false">127.0.0.1</domain>
+        <domain includeSubdomains="false">localhost</domain>
+    </domain-config>
+</network-security-config>

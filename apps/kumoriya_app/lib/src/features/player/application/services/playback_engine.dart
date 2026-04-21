@@ -33,6 +33,14 @@ abstract interface class PlaybackEngine {
   Future<void> pause();
   Future<void> seekTo(Duration position);
 
+  /// Sets the output audio volume as a percent (100 = unity). media_kit /
+  /// libmpv supports up to 300 (with smart audio boost); ExoPlayer /
+  /// video_player is limited to 0..100 and silently clamps the boost range.
+  Future<void> setVolume(double percent) async {}
+
+  /// Sets the playback rate multiplier (1.0 = real-time).
+  Future<void> setPlaybackSpeed(double rate) async {}
+
   /// Select an embedded audio track by id.
   Future<void> setEmbeddedAudioTrack(EmbeddedAudioTrack track) async {}
 
@@ -41,6 +49,15 @@ abstract interface class PlaybackEngine {
 
   /// Disable the embedded subtitle track.
   Future<void> clearEmbeddedSubtitleTrack() async {}
+
+  /// Pin the HLS variant to [track]. Disables ABR until
+  /// [clearEmbeddedVideoTrack] is called. No-op on engines that do not
+  /// expose per-variant selection (media_kit desktop).
+  Future<void> setEmbeddedVideoTrack(EmbeddedVideoTrack track) async {}
+
+  /// Drop any video-track override and hand quality selection back to
+  /// the engine's ABR heuristics. No-op on engines without ABR.
+  Future<void> clearEmbeddedVideoTrack() async {}
 
   /// Signals a best-effort, non-blocking prefetch for the segment region
   /// around [position].  Used by the orchestrator for predictive prewarm

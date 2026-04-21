@@ -98,6 +98,7 @@ final class PlayerSessionOrchestrator {
   int _currentCandidateIndex = -1;
   int _runtimeErrorRetriesForCurrentCandidate = 0;
   int _recoveriesForCurrentCandidate = 0;
+  // Reset alongside _recoveriesForCurrentCandidate via _resetPerCandidateRecoveryCounters().
   bool _isPlaying = false;
   bool _isBuffering = false;
   Duration _lastKnownPosition = Duration.zero;
@@ -114,6 +115,10 @@ final class PlayerSessionOrchestrator {
   Timer? _autoQualityUpgradeTimer;
   Timer? _autoQualityDownshiftTimer;
   Timer? _seekStallTimer;
+  Timer? _playbackStallTimer;
+  Duration _playbackStallReferencePosition = Duration.zero;
+  int _playbackStallTicks = 0;
+  int _playbackStallRecoveriesForCurrentCandidate = 0;
   DateTime? _lastBufferingAt;
   DateTime? _lastQualitySwitchAt;
   int? _lastStableCandidateIndex;
@@ -234,6 +239,7 @@ final class PlayerSessionOrchestrator {
     _currentCandidateIndex = index;
     _runtimeErrorRetriesForCurrentCandidate = 0;
     _recoveriesForCurrentCandidate = 0;
+    _playbackStallRecoveriesForCurrentCandidate = 0;
     _lastQualitySwitchAt = DateTime.now();
     _log(
       'qualityManual switch toIndex=$index '
@@ -309,6 +315,7 @@ final class PlayerSessionOrchestrator {
     _externalSubtitles = externalSubtitles;
     _runtimeErrorRetriesForCurrentCandidate = 0;
     _recoveriesForCurrentCandidate = 0;
+    _playbackStallRecoveriesForCurrentCandidate = 0;
     _resetSeekRecoveryTracking();
     _cancelSeekSession('new-start');
     _pendingTargetPosition = _normalizeNullablePosition(initialPosition);
@@ -334,6 +341,7 @@ final class PlayerSessionOrchestrator {
     _currentCandidateIndex = await _pickInitialCandidateIndex();
     _runtimeErrorRetriesForCurrentCandidate = 0;
     _recoveriesForCurrentCandidate = 0;
+    _playbackStallRecoveriesForCurrentCandidate = 0;
     _resetSeekRecoveryTracking();
     _cancelSeekSession('retry');
     return _openCurrentCandidate(startPosition: _pendingTargetPosition);
@@ -455,6 +463,7 @@ final class PlayerSessionOrchestrator {
     _autoQualityUpgradeTimer?.cancel();
     _autoQualityDownshiftTimer?.cancel();
     _seekStallTimer?.cancel();
+    _playbackStallTimer?.cancel();
     _seekPositionValidationTimer?.cancel();
     _abrHttpClient?.close(force: true);
     _abrHttpClient = null;
@@ -712,6 +721,7 @@ final class PlayerSessionOrchestrator {
       _currentCandidateIndex++;
       _runtimeErrorRetriesForCurrentCandidate = 0;
       _recoveriesForCurrentCandidate = 0;
+      _playbackStallRecoveriesForCurrentCandidate = 0;
       _isRecoveringCurrentCandidate = false;
       _resetSeekRecoveryTracking();
       _log(
@@ -839,8 +849,10 @@ final class PlayerSessionOrchestrator {
 
     if (playing && !_isBuffering) {
       _startAutoQualityUpgradeWatch();
+      _startPlaybackStallWatch();
     } else {
       _autoQualityUpgradeTimer?.cancel();
+      _stopPlaybackStallWatch();
     }
   }
 
@@ -856,6 +868,7 @@ final class PlayerSessionOrchestrator {
     if (buffering) {
       _lastBufferingAt = DateTime.now();
       _scheduleAutoQualityDownshiftIfNeeded();
+      _stopPlaybackStallWatch();
       _emit(
         _state.copyWith(
           status: PlayerSessionStatus.buffering,
@@ -903,6 +916,7 @@ final class PlayerSessionOrchestrator {
 
     if (_isPlaying) {
       _startAutoQualityUpgradeWatch();
+      _startPlaybackStallWatch();
     }
   }
 
@@ -1492,6 +1506,12 @@ final class PlayerSessionOrchestrator {
     // Allow local file:// URIs for offline/downloaded playback.
     if (url.scheme == 'file') return true;
 
+    // Allow the kumoriya-native:// carrier scheme emitted by
+    // [NativeAnimeNexusBypassResolver]. The engine (Android-only
+    // KumoriyaExoPlayerEngine) decodes it into a real anime.nexus watch
+    // URL and drives the native HTTP+WS bootstrap directly.
+    if (url.scheme == 'kumoriya-native') return true;
+
     if (!url.hasScheme || url.host.isEmpty) {
       return false;
     }
@@ -1758,6 +1778,7 @@ final class PlayerSessionOrchestrator {
     if (_currentCandidateIndex < _rankedCandidates.length) {
       _runtimeErrorRetriesForCurrentCandidate = 0;
       _recoveriesForCurrentCandidate = 0;
+      _playbackStallRecoveriesForCurrentCandidate = 0;
       _isRecoveringCurrentCandidate = false;
       _resetSeekRecoveryTracking();
       _emit(
@@ -2112,6 +2133,115 @@ final class PlayerSessionOrchestrator {
     });
   }
 
+  // ──────────────────────────────────────────────────────────────────────────
+  // Playback stall watchdog.
+  //
+  // The engine can report `playing=true` and `buffering=false` while the
+  // demuxer silently stalls (no segments fetched, position frozen). The
+  // existing buffering timer only fires while `buffering=true`, so these
+  // silent stalls leave the UI stuck on a frozen frame with no fallback.
+  //
+  // This watchdog ticks every 3 s and counts consecutive ticks where the
+  // position has not advanced. After 3 ticks (~9 s) it escalates by
+  // reopening the current candidate; if that fails twice, it hands off to
+  // `_handleCandidateFailure` which promotes the next candidate.
+  // ──────────────────────────────────────────────────────────────────────────
+
+  static const Duration _playbackStallTickInterval = Duration(seconds: 3);
+  static const int _playbackStallTicksThreshold = 3; // ~9 s
+  static const int _playbackStallMaxRecoveriesPerCandidate = 2;
+
+  void _startPlaybackStallWatch() {
+    _playbackStallTimer?.cancel();
+    _playbackStallReferencePosition = _lastKnownPosition;
+    _playbackStallTicks = 0;
+    _playbackStallTimer = Timer.periodic(_playbackStallTickInterval, (_) {
+      _onPlaybackStallTick();
+    });
+  }
+
+  void _stopPlaybackStallWatch() {
+    _playbackStallTimer?.cancel();
+    _playbackStallTimer = null;
+    _playbackStallTicks = 0;
+  }
+
+  void _onPlaybackStallTick() {
+    if (_isDisposed || !_isPlaying || _isBuffering) {
+      _stopPlaybackStallWatch();
+      return;
+    }
+    // Only watch while the engine should actually be advancing. Skip during
+    // active seeks (seek-stall detection has its own path) and before we
+    // have any real position.
+    if (_activeSeekSession != null ||
+        _isRecoveringCurrentCandidate ||
+        _lastKnownPosition <= Duration.zero) {
+      _playbackStallReferencePosition = _lastKnownPosition;
+      _playbackStallTicks = 0;
+      return;
+    }
+
+    if (_lastKnownPosition > _playbackStallReferencePosition) {
+      _playbackStallReferencePosition = _lastKnownPosition;
+      _playbackStallTicks = 0;
+      return;
+    }
+
+    _playbackStallTicks += 1;
+    _log(
+      'playbackStall tick=$_playbackStallTicks/$_playbackStallTicksThreshold '
+      'position=$_lastKnownPosition buffering=$_isBuffering playing=$_isPlaying '
+      'recoveries=$_playbackStallRecoveriesForCurrentCandidate',
+    );
+    if (_playbackStallTicks < _playbackStallTicksThreshold) {
+      return;
+    }
+
+    _stopPlaybackStallWatch();
+    _handlePlaybackStall();
+  }
+
+  void _handlePlaybackStall() {
+    final candidate = _state.selectedStream;
+    if (candidate == null) return;
+    final stalledAt = _lastKnownPosition;
+    _log(
+      'playbackStall triggered candidate=${candidate.url} position=$stalledAt '
+      'recoveries=$_playbackStallRecoveriesForCurrentCandidate/'
+      '$_playbackStallMaxRecoveriesPerCandidate',
+    );
+
+    if (_playbackStallRecoveriesForCurrentCandidate <
+        _playbackStallMaxRecoveriesPerCandidate) {
+      _playbackStallRecoveriesForCurrentCandidate += 1;
+      unawaited(
+        _recoverCurrentCandidate(
+          errorCode: 'player.stall_no_progress',
+          reason:
+              'Playback stalled with no position progress for '
+              '${_playbackStallTickInterval.inSeconds * _playbackStallTicksThreshold}s.',
+          recoveryPosition: stalledAt > Duration.zero ? stalledAt : null,
+          force: true,
+        ),
+      );
+      return;
+    }
+
+    _log(
+      'playbackStall exhausted recoveries — failing over candidate '
+      'index=$_currentCandidateIndex',
+    );
+    unawaited(
+      _handleCandidateFailure(
+        code: 'player.stall_no_progress',
+        message:
+            'Playback stalled repeatedly with no position progress; '
+            'falling over to next candidate.',
+      ),
+    );
+  }
+
   void _scheduleAutoQualityDownshiftIfNeeded() {
     _autoQualityDownshiftTimer?.cancel();
     final candidate = _state.selectedStream;
@@ -2227,6 +2357,7 @@ final class PlayerSessionOrchestrator {
     _currentCandidateIndex = targetIndex;
     _runtimeErrorRetriesForCurrentCandidate = 0;
     _recoveriesForCurrentCandidate = 0;
+    _playbackStallRecoveriesForCurrentCandidate = 0;
     _lastQualitySwitchAt = now;
 
     _log(
@@ -2922,7 +3053,19 @@ final class PlayerSessionOrchestrator {
   Future<void> _applySubtitleTrack() async {
     final track = _preferredSubtitleTrack;
     if (track == null) {
-      await _playbackEngine.clearSubtitleTrack();
+      // When the orchestrator has no external subtitles to apply we
+      // intentionally DO NOT call `clearSubtitleTrack` on the engine.
+      //
+      // Rationale: the native anime.nexus bypass (Kotlin) seeds its own
+      // external `.ass` tracks into the `MergingMediaSource` during
+      // bootstrap. Those tracks are not visible to Dart until the
+      // `SubtitleTracksChanged` event lands, so if we eagerly clear
+      // here we destroy what Kotlin just merged (observed: 11 tracks
+      // seeded → cleared 156 ms later). Leaving subtitles untouched
+      // when we have nothing to apply keeps both sides in sync — the
+      // user can still disable rendering explicitly via the picker's
+      // "disable subtitles" entry, which routes through
+      // [clearExternalSubtitleTrack] / [clearEmbeddedSubtitleTrack].
       return;
     }
 

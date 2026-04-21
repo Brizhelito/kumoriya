@@ -477,6 +477,113 @@ void main() {
       );
     },
   );
+
+  test(
+    'skips automatic resolution when interactive selection is required',
+    () async {
+      const source = _MultiServerSourcePlugin();
+      final summary = await _summaryFor(const <SourcePlugin>[
+        source,
+      ], registry: registry);
+
+      await store.upsertPlaybackPreference(
+        PlaybackPreference(
+          anilistId: _detail.anime.anilistId,
+          preferredSourcePluginId: source.manifest.id,
+          preferredServerName: 'Backup',
+          preferredResolverPluginId: 'kumoriya.resolver.fake',
+          updatedAt: DateTime(2026, 1, 1),
+        ),
+      );
+
+      final decision =
+          await _buildUseCase(
+            sourcePlugins: const <SourcePlugin>[source],
+            store: store,
+            registry: registry,
+            resolver: resolver,
+          ).call(
+            anilistId: _detail.anime.anilistId,
+            episodeNumber: 1,
+            availabilitySummary: summary,
+            allowAutomaticResolution: false,
+          );
+
+      expect(decision.type, EpisodePlaybackDecisionType.selection);
+      expect(decision.autoSelectionFailed, isFalse);
+      expect(decision.options, hasLength(3));
+      expect(decision.options.first.serverLink.serverName, 'Backup');
+      expect(decision.options.first.isPreferred, isTrue);
+    },
+  );
+
+  test(
+    'still opens directly when only one option exists and auto resolution is disabled',
+    () async {
+      const source = _SingleServerSourcePlugin();
+      final summary = await _summaryFor(const <SourcePlugin>[
+        source,
+      ], registry: registry);
+
+      final decision =
+          await _buildUseCase(
+            sourcePlugins: const <SourcePlugin>[source],
+            store: store,
+            registry: registry,
+            resolver: resolver,
+          ).call(
+            anilistId: _detail.anime.anilistId,
+            episodeNumber: 1,
+            availabilitySummary: summary,
+            allowAutomaticResolution: false,
+          );
+
+      expect(decision.type, EpisodePlaybackDecisionType.direct);
+      expect(decision.launch, isNotNull);
+      expect(decision.launch!.option.serverLink.serverName, 'Streamwish');
+    },
+  );
+
+  test(
+    'skips animeav1 uns host auto-open when a safer alternative exists',
+    () async {
+      const source = _AnimeAv1DubFallbackSourcePlugin();
+      final summary = await _summaryFor(const <SourcePlugin>[
+        source,
+      ], registry: registry);
+
+      await store.upsertPlaybackPreference(
+        PlaybackPreference(
+          anilistId: _detail.anime.anilistId,
+          preferredSourcePluginId: source.manifest.id,
+          preferredServerName: 'AnimeAV1 DUB',
+          preferredResolverPluginId: 'kumoriya.resolver.fake',
+          preferredAudioPreference: PlaybackAudioPreference.dub,
+          updatedAt: DateTime(2026, 1, 1),
+        ),
+      );
+
+      final decision =
+          await _buildUseCase(
+            sourcePlugins: const <SourcePlugin>[source],
+            store: store,
+            registry: registry,
+            resolver: resolver,
+          ).call(
+            anilistId: _detail.anime.anilistId,
+            episodeNumber: 1,
+            availabilitySummary: summary,
+          );
+
+      expect(decision.type, EpisodePlaybackDecisionType.direct);
+      expect(decision.launch, isNotNull);
+      expect(decision.launch!.option.serverLink.serverName, 'Zilla');
+      expect(
+        decision.launch!.option.serverLink.initialUrl.host,
+        'video.example',
+      );
+    },
+  );
 }
 
 StartEpisodePlaybackUseCase _buildUseCase({
@@ -703,6 +810,43 @@ class _FailingSourcePlugin extends _BaseFakeSourcePlugin {
   }
 }
 
+class _AnimeAv1DubFallbackSourcePlugin extends _BaseFakeSourcePlugin {
+  const _AnimeAv1DubFallbackSourcePlugin();
+
+  @override
+  PluginManifest get manifest => const PluginManifest(
+    id: 'kumoriya.source.animeav1',
+    displayName: 'AnimeAV1',
+    type: PluginType.source,
+    capabilities: <PluginCapability>{
+      PluginCapability.search,
+      PluginCapability.episodeList,
+      PluginCapability.linkExtraction,
+    },
+    iconUrl: 'https://example.com/animeav1.png',
+  );
+
+  @override
+  Future<Result<List<SourceServerLink>, KumoriyaError>> getEpisodeServerLinks(
+    SourceEpisode episode,
+  ) async {
+    return Success(<SourceServerLink>[
+      SourceServerLink(
+        serverId: 'animeav1-dub',
+        serverName: 'AnimeAV1 DUB',
+        initialUrl: Uri.parse('https://animeav1.uns.bio/#xhutzl'),
+        language: 'dub',
+      ),
+      SourceServerLink(
+        serverId: 'zilla',
+        serverName: 'Zilla',
+        initialUrl: Uri.parse('https://video.example/zilla/1'),
+        language: 'dub',
+      ),
+    ]);
+  }
+}
+
 abstract class _BaseFakeSourcePlugin implements SourcePlugin {
   const _BaseFakeSourcePlugin();
 
@@ -756,11 +900,14 @@ class _FakeResolverPlugin implements ResolverPlugin {
 
   @override
   Future<Result<ResolveResult, KumoriyaError>> resolve(Uri url) async {
+    final streamId = url.pathSegments.isNotEmpty
+        ? url.pathSegments.last
+        : (url.fragment.isNotEmpty ? url.fragment : 'stream');
     return Success(
       ResolveResult(
         streams: <ResolvedStream>[
           ResolvedStream(
-            url: Uri.parse('https://cdn.example/${url.pathSegments.last}.m3u8'),
+            url: Uri.parse('https://cdn.example/$streamId.m3u8'),
             isHls: true,
           ),
         ],
@@ -769,7 +916,8 @@ class _FakeResolverPlugin implements ResolverPlugin {
   }
 
   @override
-  bool supports(Uri url) => url.host == 'video.example';
+  bool supports(Uri url) =>
+      url.host == 'video.example' || url.host == 'animeav1.uns.bio';
 }
 
 class _FlakyResolverPlugin implements ResolverPlugin {
@@ -830,6 +978,12 @@ final class _FakeAnimeProgressStore implements AnimeProgressStore {
     int anilistId,
   ) async {
     _preferencesByAnime.remove(anilistId);
+    return const Success(null);
+  }
+
+  @override
+  Future<Result<void, KumoriyaError>> clearAllProgress() async {
+    _progressByEpisode.clear();
     return const Success(null);
   }
 

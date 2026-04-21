@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kumoriya_auth/kumoriya_auth.dart';
 
+import '../../../../app/l10n.dart';
 import '../../../../shared/auth/auth_providers.dart';
 import '../../../../shared/theme/kumoriya_theme.dart';
 
@@ -65,7 +66,7 @@ class _OAuthCallbackPageState extends ConsumerState<OAuthCallbackPage> {
                   ),
                   const SizedBox(height: 16),
                   Text(
-                    'Login failed',
+                    context.l10n.authLoginFailed,
                     style: Theme.of(context).textTheme.titleMedium?.copyWith(
                       color: KumoriyaColors.textPrimary,
                     ),
@@ -79,7 +80,7 @@ class _OAuthCallbackPageState extends ConsumerState<OAuthCallbackPage> {
                   const SizedBox(height: 24),
                   TextButton(
                     onPressed: () => Navigator.of(context).pop(),
-                    child: const Text('Go back'),
+                    child: Text(context.l10n.authGoBack),
                   ),
                 ],
               )
@@ -90,14 +91,14 @@ class _OAuthCallbackPageState extends ConsumerState<OAuthCallbackPage> {
               ),
               const SizedBox(height: 24),
               Text(
-                'Connecting...',
+                context.l10n.authConnecting,
                 style: Theme.of(context).textTheme.titleMedium?.copyWith(
                   color: KumoriyaColors.textPrimary,
                 ),
               ),
               const SizedBox(height: 8),
               Text(
-                'This may take a few seconds',
+                context.l10n.authMayTakeSeconds,
                 style: TextStyle(color: KumoriyaColors.textMuted),
               ),
               const SizedBox(height: 24),
@@ -113,8 +114,8 @@ class _OAuthCallbackPageState extends ConsumerState<OAuthCallbackPage> {
                     Navigator.of(context).pop();
                   }
                 },
-                child: const Text(
-                  'Cancel',
+                child: Text(
+                  context.l10n.profileCancel,
                   style: TextStyle(color: KumoriyaColors.statusDanger),
                 ),
               ),

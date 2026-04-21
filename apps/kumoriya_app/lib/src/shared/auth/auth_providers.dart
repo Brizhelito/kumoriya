@@ -10,6 +10,7 @@ import '../notifications/fcm_topic_sync_service.dart';
 import '../sync/anonymous_to_auth_migration.dart';
 import '../sync/local_user_data_cleaner.dart';
 import '../sync/sync_providers.dart';
+import '../sync/sync_refresh.dart';
 import '../storage_providers.dart';
 
 const _apiBaseUrl = 'https://api.kumoriya.online';
@@ -147,11 +148,7 @@ class AuthStateNotifier extends AsyncNotifier<AuthState> {
           );
           unawaited(
             migration.migrate().then((_) async {
-              // Reload data providers so the UI reflects the freshly synced DB.
-              ref.invalidate(continueWatchingProvider);
-              ref.invalidate(allWatchHistoryProvider);
-              ref.invalidate(favoriteAnimeIdsProvider);
-              ref.invalidate(subscribedAnimeIdsProvider);
+              ref.read(syncDataRefreshEpochProvider.notifier).bump();
 
               // Reconcile FCM topic subscriptions with whatever the
               // server just pulled down. Idempotent; a failure here
@@ -198,11 +195,7 @@ class AuthStateNotifier extends AsyncNotifier<AuthState> {
     await store.clearAll();
     state = const AsyncData(UnauthenticatedAuthState());
 
-    // Invalidate cached data providers so the UI reflects the wiped DB.
-    ref.invalidate(continueWatchingProvider);
-    ref.invalidate(allWatchHistoryProvider);
-    ref.invalidate(favoriteAnimeIdsProvider);
-    ref.invalidate(subscribedAnimeIdsProvider);
+    ref.read(syncDataRefreshEpochProvider.notifier).bump();
     ref.invalidate(lastSyncAtProvider);
   }
 }

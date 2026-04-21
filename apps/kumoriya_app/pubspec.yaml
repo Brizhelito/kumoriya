@@ -1,7 +1,7 @@
 name: kumoriya_app
 description: Kumoriya main Flutter application.
 publish_to: none
-version: 0.1.4+5
+version: 0.2.0+6
 
 resolution: workspace
 
@@ -18,6 +18,9 @@ dependencies:
   media_kit: ^1.2.6
   media_kit_video: ^2.0.1
   media_kit_libs_video: ^1.0.7
+  # ExoPlayer engine for Android (AV1 streaming). On non-Android platforms
+  # the plugin is not wired — PlaybackEngineFactory guards by platform.
+  video_player: ^2.9.0
   kumoriya_anilist:
   kumoriya_core:
   kumoriya_domain:
@@ -48,6 +51,7 @@ dependencies:
   kumoriya_storage:
   kumoriya_sync:
   kumoriya_auth:
+  kumoriya_exoplayer:
   drift:
   sqlite3_flutter_libs:
   path_provider:

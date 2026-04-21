@@ -148,12 +148,46 @@ final class SyncAwareProgressStore implements AnimeProgressStore {
       _inner.getAllHistory();
 
   @override
-  Future<Result<void, KumoriyaError>> deleteHistoryEntry(int anilistId) =>
-      _inner.deleteHistoryEntry(anilistId);
+  Future<Result<void, KumoriyaError>> deleteHistoryEntry(int anilistId) async {
+    final result = await _inner.deleteHistoryEntry(anilistId);
+    if (result.isSuccess && _isAuthenticated()) {
+      await _syncQueue.enqueue(
+        SyncQueueEntry(
+          id: 0,
+          entityType: SyncEntityType.watchHistoryDeletion,
+          entityKey: jsonEncode({'anilistId': anilistId}),
+          payload: jsonEncode({'anilist_id': anilistId}),
+          createdAt: DateTime.now(),
+          status: SyncQueueEntryStatus.pending,
+        ),
+      );
+    }
+    return result;
+  }
 
   @override
-  Future<Result<void, KumoriyaError>> clearAllHistory() =>
-      _inner.clearAllHistory();
+  Future<Result<void, KumoriyaError>> clearAllHistory() async {
+    final historyResult = await _inner.getAllHistory();
+    final result = await _inner.clearAllHistory();
+    if (result.isSuccess && _isAuthenticated() && historyResult.isSuccess) {
+      final history =
+          (historyResult as Success<List<AnimeWatchHistory>, KumoriyaError>)
+              .value;
+      for (final entry in history) {
+        await _syncQueue.enqueue(
+          SyncQueueEntry(
+            id: 0,
+            entityType: SyncEntityType.watchHistoryDeletion,
+            entityKey: jsonEncode({'anilistId': entry.anilistId}),
+            payload: jsonEncode({'anilist_id': entry.anilistId}),
+            createdAt: DateTime.now(),
+            status: SyncQueueEntryStatus.pending,
+          ),
+        );
+      }
+    }
+    return result;
+  }
 
   @override
   Future<Result<PlaybackPreference?, KumoriyaError>> getPlaybackPreference(

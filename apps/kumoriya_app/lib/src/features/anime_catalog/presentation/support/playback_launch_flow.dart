@@ -17,6 +17,7 @@ import '../providers/anime_catalog_providers.dart';
 import '../providers/storage_providers.dart';
 import '../widgets/source_badge.dart';
 import '../../../player/presentation/pages/player_page.dart';
+import '../../../watch_party/presentation/party_route_mode.dart';
 
 typedef PlaybackUnavailableFallback = FutureOr<void> Function();
 
@@ -38,6 +39,7 @@ Future<void> handlePlaybackDecision({
   String? episodeTitle,
   required EpisodePlaybackDecision decision,
   PlaybackUnavailableFallback? onUnavailable,
+  PartyRouteMode routeMode = PartyRouteMode.standard,
 }) async {
   switch (decision.type) {
     case EpisodePlaybackDecisionType.direct:
@@ -47,6 +49,7 @@ Future<void> handlePlaybackDecision({
         animeTitle: animeTitle,
         episodeTitle: episodeTitle,
         launch: decision.launch!,
+        routeMode: routeMode,
       );
       return;
     case EpisodePlaybackDecisionType.selection:
@@ -63,6 +66,7 @@ Future<void> handlePlaybackDecision({
           ),
           remaining: const <EpisodePlaybackOption>[],
           onUnavailable: onUnavailable,
+          routeMode: routeMode,
         );
         return;
       }
@@ -96,6 +100,7 @@ Future<void> handlePlaybackDecision({
             .where((item) => item.optionKey != option.option.optionKey)
             .toList(growable: false),
         onUnavailable: onUnavailable,
+        routeMode: routeMode,
       );
       return;
     case EpisodePlaybackDecisionType.unavailable:
@@ -158,6 +163,7 @@ Future<PartyAutoResolveOutcome> openPartySelectedSource({
   required String sourcePluginId,
   required String serverName,
   String? resolverPluginId,
+  PartyRouteMode routeMode = PartyRouteMode.standard,
 }) async {
   void log(String msg) {
     dev.log('party-auto-resolve: $msg', name: 'Party');
@@ -287,6 +293,7 @@ Future<PartyAutoResolveOutcome> openPartySelectedSource({
     anilistId: anilistId,
     animeTitle: animeTitle,
     episodeTitle: episode.title.isEmpty ? null : episode.title,
+    routeMode: routeMode,
     decision: EpisodePlaybackDecision.direct(
       launch: EpisodePlayerLaunch(option: option, resolved: resolved),
       autoSelectionFailed: false,
@@ -361,6 +368,7 @@ Future<void> _resolveSelectedOption(
   required ServerPickerSelection selection,
   required List<EpisodePlaybackOption> remaining,
   PlaybackUnavailableFallback? onUnavailable,
+  PartyRouteMode routeMode = PartyRouteMode.standard,
 }) async {
   showBlockingLoader(context, context.l10n.playbackOpeningSelectedServer);
   final result = await ref
@@ -400,6 +408,7 @@ Future<void> _resolveSelectedOption(
               .where((item) => item.optionKey != next.option.optionKey)
               .toList(growable: false),
           onUnavailable: onUnavailable,
+          routeMode: routeMode,
         );
         return;
       }
@@ -418,6 +427,7 @@ Future<void> _resolveSelectedOption(
           resolved: resolved,
         ),
         persistSelection: selection.rememberSelection,
+        routeMode: routeMode,
       );
     },
   );
@@ -437,6 +447,7 @@ Future<bool> _openPlayer(
   String? episodeTitle,
   required EpisodePlayerLaunch launch,
   bool persistSelection = true,
+  PartyRouteMode routeMode = PartyRouteMode.standard,
 }) async {
   final resolvedEpisodeTitle =
       episodeTitle ?? launch.option.sourceEpisode.title.trim();
@@ -452,6 +463,7 @@ Future<bool> _openPlayer(
         sourcePluginId: launch.option.sourcePluginId,
         serverName: launch.option.serverLink.serverName,
         persistSelection: persistSelection,
+        routeMode: routeMode,
         preferredAudioPreference: switch (launch.option.audioKind) {
           SourceAudioKind.sub => PlaybackAudioPreference.sub,
           SourceAudioKind.dub => PlaybackAudioPreference.dub,

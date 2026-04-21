@@ -10,6 +10,7 @@ import '../features/downloads/application/download_directory_service.dart';
 import 'auth/auth_providers.dart';
 import 'notifications/fcm_aware_library_store.dart';
 import 'notifications/fcm_providers.dart';
+import 'sync/sync_refresh.dart';
 import 'sync/sync_aware_library_store.dart';
 import 'sync/sync_aware_progress_store.dart';
 
@@ -19,9 +20,13 @@ final appDatabaseProvider = Provider<AppDatabase>((ref) {
   );
 });
 
-final animeProgressStoreProvider = Provider<AnimeProgressStore>((ref) {
+final rawAnimeProgressStoreProvider = Provider<AnimeProgressStore>((ref) {
   final db = ref.watch(appDatabaseProvider);
-  final inner = DriftAnimeProgressStore(db);
+  return DriftAnimeProgressStore(db);
+});
+
+final animeProgressStoreProvider = Provider<AnimeProgressStore>((ref) {
+  final inner = ref.watch(rawAnimeProgressStoreProvider);
   final syncQueue = ref.watch(syncQueueStoreProvider);
   return SyncAwareProgressStore(
     inner: inner,
@@ -55,9 +60,13 @@ final hlsSegmentStoreProvider = Provider<HlsSegmentStore>((ref) {
   return DriftHlsSegmentStore(db);
 });
 
-final libraryStoreProvider = Provider<LibraryStore>((ref) {
+final rawLibraryStoreProvider = Provider<LibraryStore>((ref) {
   final db = ref.watch(appDatabaseProvider);
-  final inner = DriftLibraryStore(db);
+  return DriftLibraryStore(db);
+});
+
+final libraryStoreProvider = Provider<LibraryStore>((ref) {
+  final inner = ref.watch(rawLibraryStoreProvider);
   final syncQueue = ref.watch(syncQueueStoreProvider);
   // Order matters: FCM decorates the sync-aware store so that
   // subscription changes are persisted + queued for sync first, and
@@ -94,11 +103,13 @@ final translationCacheStoreProvider = Provider<TranslationCacheStore>((ref) {
 
 final favoriteAnimeIdsProvider =
     FutureProvider.autoDispose<Result<Set<int>, KumoriyaError>>((ref) async {
+      ref.watch(syncDataRefreshEpochProvider);
       return ref.watch(libraryStoreProvider).getFavoriteAnimeIds();
     });
 
 final subscribedAnimeIdsProvider =
     FutureProvider.autoDispose<Result<Set<int>, KumoriyaError>>((ref) async {
+      ref.watch(syncDataRefreshEpochProvider);
       return ref.watch(libraryStoreProvider).getSubscribedAnimeIds();
     });
 
@@ -132,6 +143,7 @@ final isSubscribedProvider = FutureProvider.autoDispose.family<bool, int>((
 
 final autoDownloadAudioPreferenceProvider = FutureProvider.autoDispose
     .family<String, int>((ref, anilistId) async {
+      ref.watch(syncDataRefreshEpochProvider);
       final preference = await ref
           .watch(libraryStoreProvider)
           .getAutoDownloadAudioPreference(anilistId);
@@ -142,6 +154,7 @@ final continueWatchingProvider =
     FutureProvider.autoDispose<Result<List<AnimeWatchHistory>, KumoriyaError>>((
       ref,
     ) async {
+      ref.watch(syncDataRefreshEpochProvider);
       final link = ref.keepAlive();
       final timer = Timer(const Duration(minutes: 5), link.close);
       ref.onDispose(timer.cancel);
@@ -152,6 +165,7 @@ final allWatchHistoryProvider =
     FutureProvider.autoDispose<Result<List<AnimeWatchHistory>, KumoriyaError>>((
       ref,
     ) async {
+      ref.watch(syncDataRefreshEpochProvider);
       final link = ref.keepAlive();
       final timer = Timer(const Duration(minutes: 5), link.close);
       ref.onDispose(timer.cancel);
@@ -163,6 +177,7 @@ final latestEpisodeProgressProvider = FutureProvider.autoDispose
       ref,
       anilistId,
     ) async {
+      ref.watch(syncDataRefreshEpochProvider);
       return ref.watch(animeProgressStoreProvider).getLatestProgress(anilistId);
     });
 
@@ -171,6 +186,7 @@ final animeEpisodeProgressListProvider = FutureProvider.autoDispose
       ref,
       anilistId,
     ) async {
+      ref.watch(syncDataRefreshEpochProvider);
       return ref.watch(animeProgressStoreProvider).getAllProgress(anilistId);
     });
 
@@ -179,6 +195,7 @@ final playbackPreferenceProvider = FutureProvider.autoDispose
       ref,
       anilistId,
     ) async {
+      ref.watch(syncDataRefreshEpochProvider);
       return ref
           .watch(animeProgressStoreProvider)
           .getPlaybackPreference(anilistId);
@@ -189,6 +206,7 @@ final episodeProgressProvider = FutureProvider.autoDispose
       Result<EpisodeProgress?, KumoriyaError>,
       ({int anilistId, double episodeNumber})
     >((ref, args) async {
+      ref.watch(syncDataRefreshEpochProvider);
       return ref
           .watch(animeProgressStoreProvider)
           .getProgress(args.anilistId, args.episodeNumber);

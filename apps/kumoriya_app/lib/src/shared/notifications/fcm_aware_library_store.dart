@@ -51,11 +51,7 @@ final class FcmAwareLibraryStore implements LibraryStore {
     int anilistId, {
     required bool isFavorite,
     DateTime? addedAt,
-  }) => _inner.setFavorite(
-    anilistId,
-    isFavorite: isFavorite,
-    addedAt: addedAt,
-  );
+  }) => _inner.setFavorite(anilistId, isFavorite: isFavorite, addedAt: addedAt);
 
   @override
   Future<Result<Set<int>, KumoriyaError>> getFavoriteAnimeIds() =>
@@ -98,6 +94,10 @@ final class FcmAwareLibraryStore implements LibraryStore {
   @override
   Future<Result<Set<int>, KumoriyaError>> getAutoDownloadAnimeIds() =>
       _inner.getAutoDownloadAnimeIds();
+
+  @override
+  Future<LibraryEntrySnapshot?> getEntrySnapshot(int anilistId) =>
+      _inner.getEntrySnapshot(anilistId);
 
   @override
   Future<Result<void, KumoriyaError>> clearAll() => _inner.clearAll();

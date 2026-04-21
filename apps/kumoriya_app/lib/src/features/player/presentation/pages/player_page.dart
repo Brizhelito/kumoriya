@@ -37,7 +37,9 @@ import '../../application/services/player_session_orchestrator.dart';
 import '../../application/use_cases/clear_playback_preference_use_case.dart';
 import '../../application/use_cases/save_playback_preference_use_case.dart';
 import '../../application/use_cases/save_progress_use_case.dart';
-import '../../infrastructure/media_kit_playback_engine.dart';
+import '../../application/services/playback_engine.dart';
+import '../../infrastructure/playback_engine_factory.dart';
+import '../widgets/player_video_surface.dart';
 import '../widgets/player_debug_overlay.dart';
 import '../../../watch_party/application/party_session_guard.dart';
 import '../../../watch_party/application/providers/party_providers.dart';
@@ -85,7 +87,7 @@ class PlayerPage extends ConsumerStatefulWidget {
 }
 
 class _PlayerPageState extends ConsumerState<PlayerPage> {
-  MediaKitPlaybackEngine? _engine;
+  PlaybackEngine? _engine;
   PlayerSessionOrchestrator? _orchestrator;
   late final SaveProgressUseCase _saveProgress;
   late final SavePlaybackPreferenceUseCase _savePlaybackPreference;
@@ -309,7 +311,7 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
 
   Future<void> _installRuntime() async {
     await _disposeRuntime();
-    final engine = MediaKitPlaybackEngine(
+    final engine = createPlaybackEngine(
       forceSoftwareVideoOutput: _forceSoftwareVideoOutput,
       onVideoOutputFallbackRequested: _handleVideoOutputFallback,
     );
@@ -1849,7 +1851,7 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
                     ?.toViewConfiguration(),
                 episodeTitle: widget.episodeTitle,
                 onVolumeChanged: (vol) {
-                  _engine?.player.setVolume(vol * 100);
+                  _engine?.setVolume(vol * 100);
                   try {
                     VolumeController.instance.setVolume(vol.clamp(0.0, 1.0));
                   } catch (_) {}
@@ -1867,7 +1869,7 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
                     );
                   } catch (_) {}
                 },
-                onSpeedChanged: (speed) => _engine?.player.setRate(speed),
+                onSpeedChanged: (speed) => _engine?.setPlaybackSpeed(speed),
                 diagnosticsStream: engine?.diagnosticsStream,
                 seekLatencyMs: _orchestrator?.lastSeekLatencyMs,
               ),
@@ -1885,28 +1887,80 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
     if (orchestrator == null) {
       return;
     }
-    final items = orchestrator.qualityCandidates;
-    if (items.isEmpty) {
+
+    // Prefer the orchestrator's ranked candidate list when it carries
+    // multiple entries (one stream URL per quality, e.g. resolver-driven
+    // sources like JKAnime). For sources that expose a single HLS master
+    // with in-manifest variants (native anime.nexus), fall back to the
+    // engine's embedded video-track inventory so the user still gets a
+    // usable quality picker.
+    final orchestratorItems = orchestrator.qualityCandidates;
+    final embeddedVariants = _embeddedTracks.video;
+    final useEmbedded =
+        orchestratorItems.length <= 1 && embeddedVariants.length > 1;
+
+    if (!useEmbedded) {
+      if (orchestratorItems.isEmpty) return;
+      await _showPlayerSelectorSheet(
+        context: context,
+        title: context.l10n.playerQuality,
+        icon: KumoriyaIcons.playerQuality,
+        options: List<_PlayerSelectorOption>.generate(orchestratorItems.length, (
+          index,
+        ) {
+          final stream = orchestratorItems[index];
+          final selected =
+              _state.selectedStream?.url.toString() == stream.url.toString();
+          final label =
+              stream.qualityLabel ??
+              '${context.l10n.playerQuality} ${index + 1}';
+          return _PlayerSelectorOption(
+            icon: Icons.high_quality_rounded,
+            title: label,
+            selected: selected,
+            onTap: () => unawaited(orchestrator.selectQualityByIndex(index)),
+          );
+        }),
+      );
       return;
     }
 
+    final engine = _engine;
+    if (engine == null) return;
+
+    // Sort variants by resolution desc so the picker reads 1080p → 720p
+    // → 480p from top to bottom, matching user expectations.
+    final sorted = [...embeddedVariants]..sort((a, b) {
+      final aH = a.height ?? 0;
+      final bH = b.height ?? 0;
+      return bH.compareTo(aH);
+    });
+    final anySelected = sorted.any((t) => t.selected);
     await _showPlayerSelectorSheet(
       context: context,
       title: context.l10n.playerQuality,
       icon: KumoriyaIcons.playerQuality,
-      options: List<_PlayerSelectorOption>.generate(items.length, (index) {
-        final stream = items[index];
-        final selected =
-            _state.selectedStream?.url.toString() == stream.url.toString();
-        final label =
-            stream.qualityLabel ?? '${context.l10n.playerQuality} ${index + 1}';
-        return _PlayerSelectorOption(
-          icon: Icons.high_quality_rounded,
-          title: label,
-          selected: selected,
-          onTap: () => unawaited(orchestrator.selectQualityByIndex(index)),
-        );
-      }),
+      options: <_PlayerSelectorOption>[
+        _PlayerSelectorOption(
+          icon: Icons.auto_awesome_rounded,
+          title: 'Auto',
+          // "Auto" is the active choice whenever no variant is currently
+          // pinned by the user — matches Media3's ABR default.
+          selected: !anySelected,
+          onTap: () => unawaited(engine.clearEmbeddedVideoTrack()),
+        ),
+        ...sorted.map(
+          (track) => _PlayerSelectorOption(
+            icon: Icons.high_quality_rounded,
+            title: track.displayLabel,
+            subtitle: track.bitrate != null
+                ? '${(track.bitrate! / 1000).round()} kbps'
+                : null,
+            selected: track.selected,
+            onTap: () => unawaited(engine.setEmbeddedVideoTrack(track)),
+          ),
+        ),
+      ],
     );
   }
 
@@ -2425,7 +2479,7 @@ class _ImmersivePlayerView extends StatefulWidget {
     this.seekLatencyMs,
   });
 
-  final MediaKitPlaybackEngine? engine;
+  final PlaybackEngine? engine;
   final bool isLoading;
   final bool isPlaying;
   final bool isError;
@@ -3115,16 +3169,14 @@ class _ImmersivePlayerViewState extends State<_ImmersivePlayerView>
               if (widget.engine != null)
                 RepaintBoundary(
                   child: IgnorePointer(
-                    // media_kit can render through a native surface on some platforms.
-                    // Keep pointer handling in the Flutter overlay so playback controls
-                    // remain tappable/clickable for every stream type.
-                    child: Video(
-                      controller: widget.engine!.videoController,
-                      controls: NoVideoControls,
+                    // Native-surface backed video. Pointer events still go to the
+                    // Flutter overlay so playback controls stay interactive for
+                    // every stream type and every backend (media_kit / ExoPlayer).
+                    child: PlayerVideoSurface(
+                      engine: widget.engine!,
                       fit: BoxFit.contain,
                       subtitleViewConfiguration:
-                          widget.subtitleViewConfiguration ??
-                          const SubtitleViewConfiguration(),
+                          widget.subtitleViewConfiguration,
                     ),
                   ),
                 )

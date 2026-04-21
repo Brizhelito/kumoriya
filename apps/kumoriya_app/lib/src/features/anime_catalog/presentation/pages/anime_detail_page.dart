@@ -33,25 +33,51 @@ import 'episode_list_page.dart';
 import '../../../watch_party/presentation/pages/party_lobby_page.dart';
 import '../../../watch_party/application/party_session_guard.dart';
 import '../../../watch_party/application/providers/party_providers.dart';
+import '../../../watch_party/presentation/pages/party_anime_page.dart';
+import '../../../watch_party/presentation/pages/party_episode_list_page.dart';
+import '../../../watch_party/presentation/party_route_mode.dart';
 import '../support/episode_display_title.dart';
 import '../support/playback_launch_flow.dart';
 import '../support/plugin_icon_helpers.dart';
 import '../widgets/source_badge.dart';
 import '../widgets/source_quality_picker_sheet.dart';
 
-class AnimeDetailPage extends ConsumerStatefulWidget {
+class AnimeDetailPage extends StatelessWidget {
   const AnimeDetailPage({super.key, required this.anilistId});
 
   final int anilistId;
 
   @override
-  ConsumerState<AnimeDetailPage> createState() => _AnimeDetailPageState();
+  Widget build(BuildContext context) {
+    return AnimeDetailScene(
+      anilistId: anilistId,
+      routeMode: PartyRouteMode.standard,
+      enableDebugShortcuts: true,
+    );
+  }
 }
 
-class _AnimeDetailPageState extends ConsumerState<AnimeDetailPage> {
+class AnimeDetailScene extends ConsumerStatefulWidget {
+  const AnimeDetailScene({
+    super.key,
+    required this.anilistId,
+    required this.routeMode,
+    this.enableDebugShortcuts = false,
+  });
+
+  final int anilistId;
+  final PartyRouteMode routeMode;
+  final bool enableDebugShortcuts;
+
+  @override
+  ConsumerState<AnimeDetailScene> createState() => _AnimeDetailSceneState();
+}
+
+class _AnimeDetailSceneState extends ConsumerState<AnimeDetailScene> {
   bool _partySourceCallbackSet = false;
   // Swallow duplicate `source_selected` broadcasts (e.g. Worker retry).
   int? _lastPartyAutoResolveAtMs;
+  PartySessionNotifier? _partyNotifier;
 
   Future<void> _handlePartySourceSelected({
     required String sourcePluginId,
@@ -92,6 +118,7 @@ class _AnimeDetailPageState extends ConsumerState<AnimeDetailPage> {
       sourcePluginId: sourcePluginId,
       serverName: serverName,
       resolverPluginId: resolverPluginId,
+      routeMode: widget.routeMode,
     );
     if (!mounted) return;
 
@@ -101,18 +128,16 @@ class _AnimeDetailPageState extends ConsumerState<AnimeDetailPage> {
       case PartyAutoResolveOutcome.notActive:
         break;
       case PartyAutoResolveOutcome.sourceUnavailable:
-        hint =
-            'Host is using a source you don\'t have. Pick a server to continue.';
+        hint = context.l10n.partyHostSourceMissing;
         break;
       case PartyAutoResolveOutcome.episodeUnavailable:
-        hint = 'Host\'s episode isn\'t available on your sources yet.';
+        hint = context.l10n.partyHostEpisodeUnavailable;
         break;
       case PartyAutoResolveOutcome.serverUnavailable:
-        hint = 'Host\'s server isn\'t available locally. Pick another one.';
+        hint = context.l10n.partyHostServerUnavailable;
         break;
       case PartyAutoResolveOutcome.resolverFailed:
-        hint =
-            'Couldn\'t resolve the host\'s stream. Pick a server to continue.';
+        hint = context.l10n.partyHostResolverFailed;
         break;
     }
     if (hint != null) {
@@ -132,6 +157,7 @@ class _AnimeDetailPageState extends ConsumerState<AnimeDetailPage> {
     // here, resolver fails), we stay on this page and let the user
     // proceed through the normal server picker.
     final notifier = ref.read(partySessionProvider.notifier);
+    _partyNotifier = notifier;
     notifier.onPartySourceSelected =
         (
           String sourcePluginId,
@@ -177,7 +203,7 @@ class _AnimeDetailPageState extends ConsumerState<AnimeDetailPage> {
   @override
   void dispose() {
     if (_partySourceCallbackSet) {
-      ref.read(partySessionProvider.notifier).onPartySourceSelected = null;
+      _partyNotifier?.onPartySourceSelected = null;
       _partySourceCallbackSet = false;
     }
     super.dispose();
@@ -300,16 +326,17 @@ class _AnimeDetailPageState extends ConsumerState<AnimeDetailPage> {
             onRetry: () =>
                 ref.invalidate(animeDetailProvider(widget.anilistId)),
           ),
-          onSuccess: (detail) => _AnimeDetailBody(
+          onSuccess: (detail) => AnimeDetailContent(
             detail: detail,
             availabilityState: availabilityState,
             latestProgressState: latestProgressState,
+            routeMode: widget.routeMode,
           ),
         ),
       ),
     );
 
-    if (!kDebugMode) {
+    if (!kDebugMode || !widget.enableDebugShortcuts) {
       return content;
     }
 
@@ -323,17 +350,20 @@ class _AnimeDetailPageState extends ConsumerState<AnimeDetailPage> {
   }
 }
 
-class _AnimeDetailBody extends ConsumerWidget {
-  const _AnimeDetailBody({
+class AnimeDetailContent extends ConsumerWidget {
+  const AnimeDetailContent({
+    super.key,
     required this.detail,
     required this.availabilityState,
     required this.latestProgressState,
+    required this.routeMode,
   });
 
   final AnimeDetail detail;
   final AsyncValue<Result<SourceAvailabilitySummary, KumoriyaError>>
   availabilityState;
   final AsyncValue<Result<EpisodeProgress?, KumoriyaError>> latestProgressState;
+  final PartyRouteMode routeMode;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -354,10 +384,27 @@ class _AnimeDetailBody extends ConsumerWidget {
             stretch: true,
             backgroundColor: KumoriyaColors.background,
             elevation: 0,
+            leading: routeMode.isParty
+                ? IconButton(
+                    icon: const Icon(Icons.arrow_back_rounded),
+                    tooltip: context.l10n.partyBackToLobbyTooltip,
+                    onPressed: () => Navigator.of(context, rootNavigator: true)
+                        .pushReplacement(
+                          MaterialPageRoute<void>(
+                            builder: (_) => PartyLobbyPage(
+                              anilistId: detail.anime.anilistId,
+                              animeTitle: detail.anime.title.romaji,
+                            ),
+                          ),
+                        ),
+                  )
+                : null,
+            title: routeMode.isParty ? Text(context.l10n.partyTitle) : null,
             actions: [
               _PartyActionButton(
                 anilistId: detail.anime.anilistId,
                 animeTitle: detail.anime.title.romaji,
+                routeMode: routeMode,
               ),
             ],
             flexibleSpace: FlexibleSpaceBar(
@@ -369,6 +416,10 @@ class _AnimeDetailBody extends ConsumerWidget {
             padding: const EdgeInsets.fromLTRB(16, 18, 16, 28),
             sliver: SliverList(
               delegate: SliverChildListDelegate(<Widget>[
+                if (routeMode.isParty) ...<Widget>[
+                  const _PartyBrowseBanner(),
+                  const SizedBox(height: 14),
+                ],
                 _TitleBlock(detail: detail),
                 const SizedBox(height: 14),
                 _PlayResumeCta(
@@ -376,7 +427,16 @@ class _AnimeDetailBody extends ConsumerWidget {
                   animeTitle: detail.anime.title.romaji,
                   availabilityState: availabilityState,
                   latestProgressState: latestProgressState,
+                  routeMode: routeMode,
                 ),
+                if (!routeMode.isParty) ...<Widget>[
+                  const SizedBox(height: 12),
+                  _WatchPartySpotlightCard(
+                    anilistId: detail.anime.anilistId,
+                    animeTitle: detail.anime.title.romaji,
+                    routeMode: routeMode,
+                  ),
+                ],
                 const SizedBox(height: 12),
                 _LibraryActions(anilistId: detail.anime.anilistId),
                 if (detail.synopsis != null &&
@@ -403,6 +463,7 @@ class _AnimeDetailBody extends ConsumerWidget {
                   detail: detail,
                   availabilityState: availabilityState,
                   latestProgressState: latestProgressState,
+                  routeMode: routeMode,
                 ),
                 if (detail.relations.isNotEmpty) ...<Widget>[
                   const SizedBox(height: 22),
@@ -424,9 +485,13 @@ class _AnimeDetailBody extends ConsumerWidget {
                             ),
                             onTap: () => Navigator.of(context).push(
                               MaterialPageRoute<void>(
-                                builder: (_) => AnimeDetailPage(
-                                  anilistId: relation.anime.anilistId,
-                                ),
+                                builder: (_) => routeMode.isParty
+                                    ? PartyAnimePage(
+                                        anilistId: relation.anime.anilistId,
+                                      )
+                                    : AnimeDetailPage(
+                                        anilistId: relation.anime.anilistId,
+                                      ),
                               ),
                             ),
                             child: Container(
@@ -507,6 +572,7 @@ class _PlayResumeCta extends ConsumerStatefulWidget {
     required this.animeTitle,
     required this.availabilityState,
     required this.latestProgressState,
+    required this.routeMode,
   });
 
   final int anilistId;
@@ -514,6 +580,7 @@ class _PlayResumeCta extends ConsumerStatefulWidget {
   final AsyncValue<Result<SourceAvailabilitySummary, KumoriyaError>>
   availabilityState;
   final AsyncValue<Result<EpisodeProgress?, KumoriyaError>> latestProgressState;
+  final PartyRouteMode routeMode;
 
   @override
   ConsumerState<_PlayResumeCta> createState() => _PlayResumeCtaState();
@@ -560,7 +627,9 @@ class _PlayResumeCtaState extends ConsumerState<_PlayResumeCta> {
     final label = isCheckingSources
         ? checkingLabel
         : partyLockedEpisode != null
-        ? 'Watch Party Ep. ${partyLockedEpisode.toInt()}'
+        ? context.l10n.partyEpisodeCta(partyLockedEpisode.toInt())
+        : widget.routeMode.isParty
+        ? context.l10n.partyStartWithParty
         : hasProgress
         ? context.l10n.detailResumeEpisode(latestProgress.episodeNumber.toInt())
         : context.l10n.detailPlay;
@@ -643,8 +712,10 @@ class _PlayResumeCtaState extends ConsumerState<_PlayResumeCta> {
               anilistId: widget.anilistId,
               animeTitle: widget.animeTitle,
               episodeNumber: episodeNumber.toInt().toString(),
+              persistSelection: false,
               sourcePluginId: offlineTask.sourcePluginId ?? 'offline',
               serverName: offlineTask.serverName ?? 'Downloaded',
+              routeMode: widget.routeMode,
               resolved: ResolvedServerLinkResult(
                 resolverId: 'offline',
                 resolverName: 'Downloaded',
@@ -682,7 +753,42 @@ class _PlayResumeCtaState extends ConsumerState<_PlayResumeCta> {
       anilistId: widget.anilistId,
       animeTitle: widget.animeTitle,
       episodeTitle: null,
+      routeMode: widget.routeMode,
       decision: decision,
+    );
+  }
+}
+
+class _PartyBrowseBanner extends StatelessWidget {
+  const _PartyBrowseBanner();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: KumoriyaColors.primaryContainer.withValues(alpha: 0.72),
+        borderRadius: BorderRadius.circular(KumoriyaRadius.lg),
+        border: Border.all(
+          color: KumoriyaColors.primary.withValues(alpha: 0.25),
+        ),
+      ),
+      child: Row(
+        children: <Widget>[
+          const Icon(Icons.groups_rounded, color: KumoriyaColors.primary),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              context.l10n.partyBrowseModeBanner,
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: KumoriyaColors.textPrimary,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -752,10 +858,15 @@ class _CollapsibleSynopsisState extends State<_CollapsibleSynopsis> {
 }
 
 class _PartyActionButton extends ConsumerWidget {
-  const _PartyActionButton({required this.anilistId, required this.animeTitle});
+  const _PartyActionButton({
+    required this.anilistId,
+    required this.animeTitle,
+    required this.routeMode,
+  });
 
   final int anilistId;
   final String animeTitle;
+  final PartyRouteMode routeMode;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -776,33 +887,40 @@ class _PartyActionButton extends ConsumerWidget {
           isSameAnime ? Icons.group : Icons.swap_horiz,
           color: isSameAnime ? KumoriyaColors.primary : Colors.orangeAccent,
         ),
-        tooltip: isSameAnime ? 'Party active' : 'Set for Party',
+        tooltip: isSameAnime
+            ? context.l10n.partyActiveTooltip
+            : context.l10n.partySetForPartyTooltip,
         onPressed: isSameAnime
-            ? () => Navigator.of(context).push(
-                MaterialPageRoute<void>(
+            ? () {
+                final navigator = Navigator.of(context, rootNavigator: true);
+                final route = MaterialPageRoute<void>(
                   builder: (_) => PartyLobbyPage(
                     anilistId: anilistId,
                     animeTitle: animeTitle,
                   ),
-                ),
-              )
+                );
+                if (routeMode.isParty) {
+                  navigator.pushReplacement(route);
+                } else {
+                  navigator.push(route);
+                }
+              }
             : () async {
                 final confirmed = await showDialog<bool>(
                   context: context,
                   builder: (ctx) => AlertDialog(
-                    title: const Text('Change Party Anime'),
+                    title: Text(context.l10n.partyChangeAnimeTitle),
                     content: Text(
-                      'Switch the party to "$animeTitle"?\n'
-                      'All members will be redirected.',
+                      context.l10n.partyChangeAnimeBody(animeTitle),
                     ),
                     actions: [
                       TextButton(
                         onPressed: () => Navigator.pop(ctx, false),
-                        child: const Text('Cancel'),
+                        child: Text(context.l10n.profileCancel),
                       ),
                       FilledButton(
                         onPressed: () => Navigator.pop(ctx, true),
-                        child: const Text('Switch'),
+                        child: Text(context.l10n.partySwitch),
                       ),
                     ],
                   ),
@@ -818,7 +936,9 @@ class _PartyActionButton extends ConsumerWidget {
                   if (context.mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
-                        content: Text('Party switched to "$animeTitle"'),
+                        content: Text(
+                          context.l10n.partySwitchedToAnime(animeTitle),
+                        ),
                       ),
                     );
                   }
@@ -833,11 +953,74 @@ class _PartyActionButton extends ConsumerWidget {
         isActive ? Icons.group : Icons.group_add_outlined,
         color: isActive ? KumoriyaColors.primary : null,
       ),
-      tooltip: isActive ? 'Party Lobby' : 'Watch Party',
-      onPressed: () => Navigator.of(context).push(
-        MaterialPageRoute<void>(
+      tooltip: isActive
+          ? context.l10n.partyLobbyTooltip
+          : context.l10n.partyTitle,
+      onPressed: () {
+        final navigator = Navigator.of(context, rootNavigator: true);
+        final route = MaterialPageRoute<void>(
           builder: (_) =>
               PartyLobbyPage(anilistId: anilistId, animeTitle: animeTitle),
+        );
+        if (routeMode.isParty) {
+          navigator.pushReplacement(route);
+        } else {
+          navigator.push(route);
+        }
+      },
+    );
+  }
+}
+
+class _WatchPartySpotlightCard extends ConsumerWidget {
+  const _WatchPartySpotlightCard({
+    required this.anilistId,
+    required this.animeTitle,
+    required this.routeMode,
+  });
+
+  final int anilistId;
+  final String animeTitle;
+  final PartyRouteMode routeMode;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final isActive = ref.watch(partySessionProvider).isActive;
+
+    return SizedBox(
+      width: double.infinity,
+      child: OutlinedButton.icon(
+        onPressed: () {
+          final navigator = Navigator.of(context, rootNavigator: true);
+          final route = MaterialPageRoute<void>(
+            builder: (_) =>
+                PartyLobbyPage(anilistId: anilistId, animeTitle: animeTitle),
+          );
+          if (routeMode.isParty) {
+            navigator.pushReplacement(route);
+          } else {
+            navigator.push(route);
+          }
+        },
+        icon: Icon(
+          isActive ? Icons.groups_rounded : Icons.group_add_rounded,
+          size: 20,
+        ),
+        label: Text(
+          isActive ? context.l10n.partyLobbyTooltip : context.l10n.partyTitle,
+        ),
+        style: OutlinedButton.styleFrom(
+          foregroundColor: KumoriyaColors.textPrimary,
+          side: BorderSide(
+            color: KumoriyaColors.primary.withValues(alpha: 0.35),
+          ),
+          backgroundColor: KumoriyaColors.primaryContainer.withValues(
+            alpha: 0.28,
+          ),
+          minimumSize: const Size.fromHeight(48),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(KumoriyaRadius.lg),
+          ),
         ),
       ),
     );
@@ -1048,12 +1231,14 @@ class _EpisodeDetailSection extends ConsumerStatefulWidget {
     required this.detail,
     required this.availabilityState,
     required this.latestProgressState,
+    required this.routeMode,
   });
 
   final AnimeDetail detail;
   final AsyncValue<Result<SourceAvailabilitySummary, KumoriyaError>>
   availabilityState;
   final AsyncValue<Result<EpisodeProgress?, KumoriyaError>> latestProgressState;
+  final PartyRouteMode routeMode;
 
   @override
   ConsumerState<_EpisodeDetailSection> createState() =>
@@ -1267,7 +1452,8 @@ class _EpisodeDetailSectionState extends ConsumerState<_EpisodeDetailSection> {
           ),
         ],
       ),
-      if (!isLongSeries &&
+      if (!widget.routeMode.isParty &&
+          !isLongSeries &&
           allRows.any(
             (row) => row.sourceEpisodes.keys.any(
               (id) => id != _excludedDetailDownloadSource,
@@ -1526,8 +1712,10 @@ class _EpisodeDetailSectionState extends ConsumerState<_EpisodeDetailSection> {
               animeTitle: widget.detail.anime.title.romaji,
               episodeNumber: row.number.toInt().toString(),
               episodeTitle: row.displayTitle,
+              persistSelection: false,
               sourcePluginId: offlineTask.sourcePluginId ?? 'offline',
               serverName: offlineTask.serverName ?? 'Downloaded',
+              routeMode: widget.routeMode,
               resolved: ResolvedServerLinkResult(
                 resolverId: 'offline',
                 resolverName: 'Downloaded',
@@ -1572,6 +1760,7 @@ class _EpisodeDetailSectionState extends ConsumerState<_EpisodeDetailSection> {
       anilistId: widget.detail.anime.anilistId,
       animeTitle: widget.detail.anime.title.romaji,
       episodeTitle: row.displayTitle,
+      routeMode: widget.routeMode,
       decision: decision,
     );
   }
@@ -1579,11 +1768,17 @@ class _EpisodeDetailSectionState extends ConsumerState<_EpisodeDetailSection> {
   Future<void> _openEpisodeListPage(EpisodeProgress? latestProgress) {
     return Navigator.of(context, rootNavigator: true).push(
       MaterialPageRoute<void>(
-        builder: (_) => EpisodeListPage(
-          anilistId: widget.detail.anime.anilistId,
-          animeTitle: widget.detail.anime.title.romaji,
-          focusedEpisodeNumber: latestProgress?.episodeNumber,
-        ),
+        builder: (_) => widget.routeMode.isParty
+            ? PartyEpisodeListPage(
+                anilistId: widget.detail.anime.anilistId,
+                animeTitle: widget.detail.anime.title.romaji,
+                focusedEpisodeNumber: latestProgress?.episodeNumber,
+              )
+            : EpisodeListPage(
+                anilistId: widget.detail.anime.anilistId,
+                animeTitle: widget.detail.anime.title.romaji,
+                focusedEpisodeNumber: latestProgress?.episodeNumber,
+              ),
       ),
     );
   }

@@ -410,6 +410,21 @@ class PartySessionNotifier extends Notifier<PartySessionState> {
   /// change events to drive navigation and is a no-op here.
   void startWatching() {
     if (!kWatchPartyRealtimeV2) return;
+    // Navigate the host optimistically before sending the brokered intent.
+    // In some deployments the Worker fan-out reaches members but does not
+    // echo `start_watching` back to the initiating host, which leaves the
+    // host stranded on the lobby. Triggering the local callback first keeps
+    // the host aligned with the rest of the room. Once the lobby route is
+    // replaced, it clears [onMediaChangeNavigation], so a later echoed event
+    // will not double-push.
+    final room = state.room;
+    if (room != null) {
+      onMediaChangeNavigation?.call(
+        room.anilistId,
+        room.animeTitle,
+        room.episodeNumber,
+      );
+    }
     _realtime?.sendPlaybackIntent(action: 'start_watching');
   }
 

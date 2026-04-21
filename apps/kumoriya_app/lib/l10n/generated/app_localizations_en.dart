@@ -1497,6 +1497,57 @@ class AppLocalizationsEn extends AppLocalizations {
   String get profileNoEmail => 'No email';
 
   @override
+  String get profileSyncIdle => 'Idle';
+
+  @override
+  String get profileSyncPushing => 'Uploading';
+
+  @override
+  String get profileSyncPulling => 'Downloading';
+
+  @override
+  String get profileSyncSuccess => 'Up to date';
+
+  @override
+  String get profileSyncFailed => 'Failed';
+
+  @override
+  String get profileTimeJustNow => 'Just now';
+
+  @override
+  String profileTimeMinutesAgo(int count, Object unit) {
+    return '$count $unit ago';
+  }
+
+  @override
+  String profileTimeHoursAgo(int count, Object unit) {
+    return '$count $unit ago';
+  }
+
+  @override
+  String profileTimeDaysAgo(int count, Object unit) {
+    return '$count $unit ago';
+  }
+
+  @override
+  String get profileTimeMinuteSingular => 'minute';
+
+  @override
+  String get profileTimeMinutePlural => 'minutes';
+
+  @override
+  String get profileTimeHourSingular => 'hour';
+
+  @override
+  String get profileTimeHourPlural => 'hours';
+
+  @override
+  String get profileTimeDaySingular => 'day';
+
+  @override
+  String get profileTimeDayPlural => 'days';
+
+  @override
   String get settingsAutoDeleteWatched => 'Auto-delete watched downloads';
 
   @override
@@ -1553,4 +1604,470 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get profilePasskeyDeleteFailed => 'Could not delete passkey';
+
+  @override
+  String get authLoginWelcomeTitle => 'Welcome to Kumoriya';
+
+  @override
+  String get authLoginSubtitle =>
+      'Sign in to sync your progress across devices';
+
+  @override
+  String get authCouldNotOpenBrowser => 'Could not open browser';
+
+  @override
+  String get authContinueWithDiscord => 'Continue with Discord';
+
+  @override
+  String get authContinueWithGoogle => 'Continue with Google';
+
+  @override
+  String get authWaitingForBrowser => 'Waiting for browser to return...';
+
+  @override
+  String get authCancelLogin => 'Cancel login';
+
+  @override
+  String get authSkipForNow => 'Skip for now';
+
+  @override
+  String get authLoginFailed => 'Login failed';
+
+  @override
+  String get authGoBack => 'Go back';
+
+  @override
+  String get authConnecting => 'Connecting...';
+
+  @override
+  String get authMayTakeSeconds => 'This may take a few seconds';
+
+  @override
+  String get updateAvailableTitle => 'New update';
+
+  @override
+  String get updateWhatsNew => 'What\'s new:';
+
+  @override
+  String get updateDownloading => 'Downloading update...';
+
+  @override
+  String get updateInstallingWindows => 'Installing... the app will close.';
+
+  @override
+  String get updateOpeningInstaller => 'Opening installer...';
+
+  @override
+  String get updateClose => 'Close';
+
+  @override
+  String get updateLater => 'Later';
+
+  @override
+  String get updateNow => 'Update';
+
+  @override
+  String updateInstallerOpenFailed(Object error) {
+    return 'Could not open installer: $error';
+  }
+
+  @override
+  String get updateReleaseNotesAdded => 'Added';
+
+  @override
+  String get updateReleaseNotesChanged => 'Changed';
+
+  @override
+  String get updateReleaseNotesFixed => 'Fixed';
+
+  @override
+  String get updateGotIt => 'Got it';
+
+  @override
+  String get partyTitle => 'Watch Party';
+
+  @override
+  String get partyOpenBrowseTooltip => 'Open party browse';
+
+  @override
+  String get partyViewDebugLogsTooltip => 'View party debug logs';
+
+  @override
+  String get partyRemovedByHost =>
+      'You were removed from the party by the host.';
+
+  @override
+  String partyRemovedWithReason(Object reason) {
+    return 'You were removed from the party: $reason';
+  }
+
+  @override
+  String get partyDebugLogsTitle => 'Party Debug Logs';
+
+  @override
+  String get partyClose => 'Close';
+
+  @override
+  String get partyCopy => 'Copy';
+
+  @override
+  String get partyLogsCopied => 'Logs copied to clipboard';
+
+  @override
+  String get partyWatchTogetherTitle => 'Watch together with friends';
+
+  @override
+  String get partyInviteIntro =>
+      'Create a room or join with an invite code. Up to 4 people can watch in sync via P2P.';
+
+  @override
+  String get partyInviteCodeLabel => 'Invite code';
+
+  @override
+  String get partyJoin => 'Join Party';
+
+  @override
+  String partyStartRoomForAnime(Object animeTitle) {
+    return 'Or start a room for $animeTitle';
+  }
+
+  @override
+  String get partyStartRoomFallbackAnime => 'this anime';
+
+  @override
+  String get partyCreateRoom => 'Create Room';
+
+  @override
+  String get partyOpenAnimeToCreate => 'Open an anime page to create a room';
+
+  @override
+  String get partyNowWatching => 'Now Watching';
+
+  @override
+  String partyEpisodeNumber(int episodeNumber) {
+    return 'Episode $episodeNumber';
+  }
+
+  @override
+  String get partyChangeAnime => 'Change Anime';
+
+  @override
+  String get partyChangeEpisode => 'Change Ep.';
+
+  @override
+  String get partyInviteCodeCopied => 'Invite code copied!';
+
+  @override
+  String get partyShareInviteLinkTooltip => 'Share invite link';
+
+  @override
+  String get partyInviteLinkCopied => 'Invite link copied!';
+
+  @override
+  String partyMembersCount(int current, int max) {
+    return 'Members ($current/$max)';
+  }
+
+  @override
+  String get partyChangeEpisodeTitle => 'Change Episode';
+
+  @override
+  String get partyEpisodeNumberLabel => 'Episode number';
+
+  @override
+  String get partyApply => 'Apply';
+
+  @override
+  String get partyReady => 'Ready';
+
+  @override
+  String get partyReadyConfirmed => 'Ready!';
+
+  @override
+  String get partyStartWatching => 'Start Watching';
+
+  @override
+  String get partyWaitingForEveryone => 'Waiting for everyone...';
+
+  @override
+  String get partyWaitingForHost => 'Waiting for the host to start...';
+
+  @override
+  String get partyTryAgain => 'Try Again';
+
+  @override
+  String get partyHostActionsTooltip => 'Host actions';
+
+  @override
+  String get partyMakeHost => 'Make host';
+
+  @override
+  String get partyMemberDisconnected => 'Member is disconnected';
+
+  @override
+  String get partyRemoveFromParty => 'Remove from party';
+
+  @override
+  String get partyRemoveMemberTitle => 'Remove member?';
+
+  @override
+  String partyRemoveMemberBody(Object name) {
+    return 'Remove \"$name\" from the party? They will be disconnected immediately.';
+  }
+
+  @override
+  String get partyRemove => 'Remove';
+
+  @override
+  String get partyTransferHostTitle => 'Transfer host?';
+
+  @override
+  String partyTransferHostBody(Object name) {
+    return '\"$name\" will take over as host. You will keep watching but lose host controls.';
+  }
+
+  @override
+  String get partyTransfer => 'Transfer';
+
+  @override
+  String get partyPreparingStage => 'Preparing the party stage...';
+
+  @override
+  String get partyCouldNotLoadAnime =>
+      'Could not load this anime for the party.';
+
+  @override
+  String get partyBrowseModeBanner =>
+      'Watch Party mode: browse together, then return to the lobby to confirm the next move.';
+
+  @override
+  String get partyEpisodeModeBanner =>
+      'Watch Party mode: choose the episode together, then return to the lobby if the host needs to change the room target.';
+
+  @override
+  String get partyHostSourceMissing =>
+      'The host picked a source you do not have installed.';
+
+  @override
+  String get partyHostEpisodeUnavailable =>
+      'That episode is not available on your installed sources yet.';
+
+  @override
+  String get partyHostServerUnavailable =>
+      'The host server is not available locally. Pick another one.';
+
+  @override
+  String get partyHostResolverFailed =>
+      'The shared stream could not be resolved here. Pick another server.';
+
+  @override
+  String partyEpisodeCta(int episodeNumber) {
+    return 'Watch Party Ep. $episodeNumber';
+  }
+
+  @override
+  String get partyStartWithParty => 'Start with Party';
+
+  @override
+  String get partyOnlyHostCanSwitchAnime =>
+      'Only the host can switch the party anime.';
+
+  @override
+  String partySwitchedToAnime(Object animeTitle) {
+    return 'Party switched to \"$animeTitle\".';
+  }
+
+  @override
+  String get partyNoPlayableSourcesReady =>
+      'No playable sources are ready yet.';
+
+  @override
+  String get partyGettingRoomStreamReady => 'Getting the room stream ready...';
+
+  @override
+  String get partyLoadingEpisodeBoard => 'Loading the party episode board...';
+
+  @override
+  String get partyCouldNotLoadEpisodes => 'Could not load party episodes.';
+
+  @override
+  String get partyHostChoosesNextEpisode =>
+      'The host chooses the next party episode.';
+
+  @override
+  String partyMovedToEpisode(int episodeNumber) {
+    return 'Party moved to episode $episodeNumber.';
+  }
+
+  @override
+  String get partyOpeningEpisode => 'Opening the party episode...';
+
+  @override
+  String get partyBackToLobbyTooltip => 'Back to party lobby';
+
+  @override
+  String get partyEpisodesTitle => 'Party Episodes';
+
+  @override
+  String partyLockedToEpisode(int episodeNumber) {
+    return 'The host locked the party to episode $episodeNumber.';
+  }
+
+  @override
+  String get partyActiveTooltip => 'Party active';
+
+  @override
+  String get partySetForPartyTooltip => 'Set for party';
+
+  @override
+  String get partyChangeAnimeTitle => 'Change Party Anime';
+
+  @override
+  String partyChangeAnimeBody(Object animeTitle) {
+    return 'Switch the party to \"$animeTitle\"?\nAll members will be redirected.';
+  }
+
+  @override
+  String get partySwitch => 'Switch';
+
+  @override
+  String get partyLobbyTooltip => 'Party Lobby';
+
+  @override
+  String get partyChooseEpisode => 'Choose Party Episode';
+
+  @override
+  String get partyPreviewEpisodes => 'Preview Episodes';
+
+  @override
+  String get partyOpening => 'Opening...';
+
+  @override
+  String get partyWatchCurrentEpisode => 'Watch Current Episode';
+
+  @override
+  String get partyHostChoosesAnime => 'Host Chooses Anime';
+
+  @override
+  String get partyMaybeNext => 'Maybe next in the party';
+
+  @override
+  String get partyChooseRoomNext => 'Choose what the room should watch next.';
+
+  @override
+  String partyRoomCode(Object code) {
+    return 'Room code $code';
+  }
+
+  @override
+  String partyInRoomCount(int count) {
+    return '$count in room';
+  }
+
+  @override
+  String partyReadyCount(int count) {
+    return '$count ready';
+  }
+
+  @override
+  String partyConnectedCount(int count) {
+    return '$count connected';
+  }
+
+  @override
+  String partyEpisodeCount(int count) {
+    return '$count eps';
+  }
+
+  @override
+  String partyRoomOnEpisode(int episodeNumber) {
+    return 'Room on ep $episodeNumber';
+  }
+
+  @override
+  String get partyIntentCurrentTitle => 'Let\'s line up the next episode';
+
+  @override
+  String get partyIntentCurrentHost =>
+      'Keep the room moving: pick the episode, then launch together.';
+
+  @override
+  String get partyIntentCurrentMember =>
+      'You are browsing the active room anime. Once the host chooses, everyone follows together.';
+
+  @override
+  String get partyIntentOtherTitle => 'This feels like a good room pick';
+
+  @override
+  String partyIntentOtherHost(Object animeTitle) {
+    return 'Switch the room here if the party wants to watch \"$animeTitle\" instead.';
+  }
+
+  @override
+  String get partyIntentOtherMember =>
+      'You can browse alternatives, but only the host can switch the room anime.';
+
+  @override
+  String get partyRoomReadySources => 'Room-ready sources';
+
+  @override
+  String get partyNeedPlayableSource =>
+      'We still need a playable source before everyone can watch together.';
+
+  @override
+  String get partyWhoIsHere => 'Who is on the couch';
+
+  @override
+  String get partyYouSuffix => 'You';
+
+  @override
+  String get partyEpisodesHostSubtitle =>
+      'Pick the episode everyone will watch next.';
+
+  @override
+  String get partyEpisodesMemberSubtitle =>
+      'Follow the host and join when the room episode is ready.';
+
+  @override
+  String partyOnlineCount(int count) {
+    return '$count online';
+  }
+
+  @override
+  String get partyNoEpisodesYet => 'No episodes are available yet.';
+
+  @override
+  String get partyRoomPick => 'Room Pick';
+
+  @override
+  String get partyTapToQueue => 'Tap to Queue';
+
+  @override
+  String get partyHostDecides => 'Host decides';
+
+  @override
+  String get partyWatchTogether => 'Watch together';
+
+  @override
+  String get partyWaitingOnSource => 'Waiting on source';
+
+  @override
+  String get partyLocked => 'Locked';
+
+  @override
+  String get partyRoomEpisodeReady =>
+      'This is the room episode. Everyone can launch from here.';
+
+  @override
+  String get partyRoomEpisodeNoSource =>
+      'This is the room episode, but no source is ready yet.';
+
+  @override
+  String partyTapToMoveEpisode(int episodeNumber) {
+    return 'Tap to move the room to episode $episodeNumber.';
+  }
+
+  @override
+  String get partyOnlyHostChangesEpisode =>
+      'Only the host can change the party episode.';
 }

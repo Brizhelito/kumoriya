@@ -75,40 +75,52 @@ final class SyncAwareLibraryStore implements LibraryStore {
   }
 
   Future<void> _enqueueLibraryChange(int anilistId) async {
-    // Read current state to build full payload.
-    final favResult = await _inner.getFavoriteAnimeIds();
-    final subResult = await _inner.getSubscribedAnimeIds();
-    final autoResult = await _inner.getAutoDownloadAnimeIds();
-    final audioPref = await _inner.getAutoDownloadAudioPreference(anilistId);
+    final snapshot = await _inner.getEntrySnapshot(anilistId);
+    final entityKey = jsonEncode({'anilistId': anilistId});
+    final now = DateTime.now();
+    final nowMs = now.millisecondsSinceEpoch;
 
-    final isFav = favResult.fold(
-      onSuccess: (s) => s.contains(anilistId),
-      onFailure: (_) => false,
-    );
-    final isSub = subResult.fold(
-      onSuccess: (s) => s.contains(anilistId),
-      onFailure: (_) => false,
-    );
-    final isAuto = autoResult.fold(
-      onSuccess: (s) => s.contains(anilistId),
-      onFailure: (_) => false,
-    );
+    if (snapshot == null) {
+      // Local row was fully purged (not favorite + not subscribed + no
+      // auto-download). Tell the server to delete its row too; the
+      // queue-store's collapse logic drops any pending upsert for this id.
+      await _syncQueue.enqueue(
+        SyncQueueEntry(
+          id: 0,
+          entityType: SyncEntityType.libraryEntryDeletion,
+          entityKey: entityKey,
+          payload: jsonEncode({
+            'anilist_id': anilistId,
+            'updated_at': nowMs,
+          }),
+          createdAt: now,
+          status: SyncQueueEntryStatus.pending,
+        ),
+      );
+      return;
+    }
 
-    final now = DateTime.now().millisecondsSinceEpoch;
+    // `added_at = 0` is the wire signal for "not favorite". The server uses
+    // LWW on `updated_at`, so the full snapshot is safe to transmit.
+    final addedAtMs = snapshot.isFavorite
+        ? (snapshot.addedAt ?? now).millisecondsSinceEpoch
+        : 0;
+
     await _syncQueue.enqueue(
       SyncQueueEntry(
         id: 0,
         entityType: SyncEntityType.libraryEntry,
-        entityKey: jsonEncode({'anilistId': anilistId}),
+        entityKey: entityKey,
         payload: jsonEncode({
           'anilist_id': anilistId,
-          'is_favorite': isFav,
-          'added_at': now,
-          'notify_new_episodes': isSub,
-          'auto_download_new_episodes': isAuto,
-          'auto_download_audio_preference': audioPref ?? 'none',
+          'added_at': addedAtMs,
+          'notify_new_episodes': snapshot.notifyNewEpisodes,
+          'auto_download_new_episodes': snapshot.autoDownloadNewEpisodes,
+          'auto_download_audio_preference':
+              snapshot.autoDownloadAudioPreference ?? 'none',
+          'updated_at': nowMs,
         }),
-        createdAt: DateTime.now(),
+        createdAt: now,
         status: SyncQueueEntryStatus.pending,
       ),
     );
@@ -144,6 +156,10 @@ final class SyncAwareLibraryStore implements LibraryStore {
   @override
   Future<Result<Set<int>, KumoriyaError>> getAutoDownloadAnimeIds() =>
       _inner.getAutoDownloadAnimeIds();
+
+  @override
+  Future<LibraryEntrySnapshot?> getEntrySnapshot(int anilistId) =>
+      _inner.getEntrySnapshot(anilistId);
 
   // Wipe operations bypass the sync queue intentionally: they are invoked
   // during logout to leave the local DB in an anonymous state, and must not
