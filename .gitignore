@@ -103,3 +103,6 @@ benchmark_results.json
 *_test_results.txt
 test_results/
 *_output.txt
+
+# Local debug/log scratchpad (kept out of git and Cascade context)
+.artifacts/
