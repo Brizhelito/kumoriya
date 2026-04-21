@@ -1,0 +1,30 @@
+name: kumoriya_exoplayer
+description: >-
+  Kumoriya native Android playback plugin built on AndroidX Media3 / ExoPlayer.
+  Replaces video_player and media_kit on Android and owns downloads,
+  notifications, Chromecast and PiP. iOS/desktop stubs only.
+publish_to: none
+version: 0.0.3
+
+resolution: workspace
+
+environment:
+  sdk: ^3.11.1
+  flutter: '>=3.22.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  plugin_platform_interface: ^2.1.7
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
+  plugin:
+    platforms:
+      android:
+        package: dev.kumoriya.exoplayer
+        pluginClass: KumoriyaExoPlayerPlugin
