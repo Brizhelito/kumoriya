@@ -1,6 +1,6 @@
 ---
 name: source-plugin-jkanime
-description: Implement and maintain Kumoriya's JKAnime source plugin under plugin architecture constraints. Use when work involves JKAnime search, minimal anime detail, real episode listing, defensive HTML parsing, fixture-driven parser hardening, source-plugin contract compliance, plugin-focused tests, and clear limitation reporting. Exclude playback and resolver work, and prefer honest no-match/no-data results over ambiguous behavior.
+description: Implement or maintain Kumoriya JKAnime source plugin. Use for JKAnime search, detail, episode listing, defensive HTML parsing, fixtures, and plugin tests. Excludes playback and resolvers.
 ---
 
 # Source Plugin JKAnime (Kumoriya)

@@ -1,6 +1,6 @@
 ---
 name: resolver-runtime-audit
-description: Audit Kumoriya resolver failures and dynamic extraction behavior using evidence-first workflow across static code, runtime DOM/JS/network, and real payloads. Use when diagnosing why a resolver fails, discovering real host aliases, understanding dynamically exposed links from source plugins, comparing why one host works and another fails, or deciding whether a fault is in source extraction, resolver host gating, parser logic, redirects/referer policy, or runtime payload shape.
+description: Diagnose Kumoriya resolver failures with evidence from static code, runtime DOM/JS, and network payloads. Use to decide if fault is in source extraction, host gating, parser, or redirects.
 ---
 
 # Resolver Runtime Audit

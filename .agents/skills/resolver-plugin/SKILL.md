@@ -1,6 +1,6 @@
 ---
 name: resolver-plugin
-description: Create and maintain Kumoriya video resolver plugins as independent modules from source plugins, playback, and UI. Use when implementing a new resolver, hardening an existing resolver, defining resolver contracts, normalizing URLs, handling headers/referer/cookies/timeouts, adding HTML/JS fixtures, and writing resolver-focused tests with conservative host acceptance/rejection rules.
+description: Create or harden Kumoriya video resolver plugins (independent from source plugins, playback, UI). Use for resolver contracts, URL/host gating, headers/cookies, fixtures, and resolver tests.
 ---
 
 # Resolver Plugin (Kumoriya)

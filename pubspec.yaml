@@ -37,4 +37,5 @@ workspace:
   - packages/kumoriya_testing
   - packages/kumoriya_matching
   - packages/kumoriya_resolver_common
+  - packages/kumoriya_exoplayer
   - tools/resolver_cli

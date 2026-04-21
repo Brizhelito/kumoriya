@@ -1,0 +1,120 @@
+# Cascade indexing exclusions.
+# Goal: keep the index and prompt context lean, reduce token usage.
+# This is additive to .gitignore — duplicates are fine.
+
+# ===== Build / tooling caches =====
+build/
+.dart_tool/
+.pub/
+.flutter-plugins
+.flutter-plugins-dependencies
+node_modules/
+dist/
+coverage/
+__pycache__/
+*.pyc
+.wrangler/
+**/.wrangler/
+.playwright-mcp/
+
+# ===== Editor / assistant local state =====
+.vs/
+.vscode/
+.idea/
+.windsurf/
+.codex/logs/
+.codex/auth.json
+
+# ===== Secrets (defense in depth — should already be in .gitignore) =====
+.env
+.env.*
+*.env
+secrets/
+*.secret
+auth.json
+*firebase-adminsdk*.json
+*firebase-service-account*.json
+google-services*.json
+ACCOUNTS.txt
+party.env
+redis.env
+
+# ===== Embedded / vendored repos (not our code) =====
+kumoriya-api/.git/
+infra-temp/hf-space-kumoriya-api/
+infra-temp/hf-space-deploy/space/
+reference/
+
+# ===== Generated release artifacts =====
+releases/versions/
+releases/*.apk
+releases/*.exe
+releases/*.sha256
+releases/**/checksums.sha256
+
+# ===== Big binaries / assets the agent never needs to read =====
+*.apk
+*.exe
+*.ico
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.webp
+*.mp4
+*.mov
+*.pdf
+*.zip
+*.tar
+*.tar.gz
+*.7z
+logo.ico
+example.png
+evidence/
+
+# Local debug/log scratchpad (canonical location)
+.artifacts/
+
+# ===== Local investigation / debugging artifacts (root noise) =====
+analyze_*.txt
+analyze_result.txt
+aniskip_probe_results.txt
+anilist_tags_snapshot.json
+anilist_tag_translation_gap_report.txt
+flutter_*.log
+logs.txt
+logs/
+test_*.txt
+test_r.txt
+test_out_fresh.txt
+test_run_okru.txt
+test_okru_out.txt
+bench_*.json
+benchmark_results.json
+*_test_results.txt
+test_results/
+*_output.txt
+debug_aniskip_standalone.dart
+
+# ===== Audit outputs =====
+audit*.json
+audit*.txt
+*_audit*.json
+*_audit*.txt
+
+# ===== Sentry / crash dumps =====
+Sentry issues/
+apps/kumoriya_app/.sentry-native/
+
+# ===== Lockfiles (usually not needed as context) =====
+pubspec.lock
+package-lock.json
+**/package-lock.json
+go.sum
+
+# ===== Duplicate agent configs (canonical lives in .agents/skills/) =====
+# Keep .github/agents/ and .codex/ committed but out of the Cascade index
+# to avoid duplicated steering context. Comment out if you actively use them.
+.github/agents/
+.codex/agents/
+.codex/prompts/

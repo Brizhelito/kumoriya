@@ -1,6 +1,6 @@
 ---
 name: player-slice
-description: Implement focused Kumoriya player vertical slices using media_kit while keeping playback responsibilities isolated from scraping/resolution logic. Use when building or hardening player session/orchestrator flows, controls, server/quality switching, progress/resume, basic fallback behavior, error states, and minimal player UX validation with pre-resolved playback inputs.
+description: Implement Kumoriya player slices with media_kit, isolated from scraping/resolution. Use for session/orchestrator flows, controls, server/quality switching, progress/resume, and error states.
 ---
 
 # Player Slice (Kumoriya)

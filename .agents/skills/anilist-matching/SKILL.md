@@ -1,6 +1,6 @@
 ---
 name: anilist-matching
-description: Design and implement strict AniList-to-source matching for Kumoriya where AniList is canonical and scraped sources are noisy. Use when building or refining matching heuristics, normalization, confidence decisions, and match/no-match tests for anime metadata linking. Prioritize conservative acceptance, explicit rejection reasons, explainable confidence, and no-match over false positives.
+description: Strict AniList-to-source matching for Kumoriya. Use for matching heuristics, title normalization, confidence rules, and match/no-match tests. Prefer no-match over false positive.
 ---
 
 # AniList Matching (Kumoriya)

@@ -1,6 +1,6 @@
 ---
 name: flutter-vertical-slice
-description: Implement and validate small Flutter vertical slices in Kumoriya-style modular monorepos (Riverpod + lightweight clean architecture) with strict scope control. Use when a request asks for a specific feature slice, bugfix slice, or incremental product step that must stay bounded, map affected packages/layers, run real validation (format/analyze/tests/run-build when applicable), and report clear versioning milestones.
+description: Implement bounded Flutter vertical slices in Kumoriya (Riverpod + clean architecture). Use for scoped feature or bugfix slices requiring package mapping, validation (format/analyze/tests) and versioning milestones.
 ---
 
 # Flutter Vertical Slice (Kumoriya)

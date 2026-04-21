@@ -4,18 +4,25 @@ All notable changes to Kumoriya will be documented in this file.
 
 ## [Unreleased]
 
+## [v0.2.0] - 2026-04-18
+
 ### Added
-- **Server-side AniList home cache (Go backend)** — trending, seasonal discovery, and airing calendar are now served from `api.kumoriya.online/v1/anilist/home/*` with in-memory SWR caching, prewarm scheduler, and conservative TTLs (trending 10m, season 30m, calendar 5m). Clients hit the backend first and transparently fall back to direct AniList on any backend failure. Reduces AniList rate-limit pressure across the fleet.
-- **Firebase Cloud Messaging push notifications for airing episodes** — `media_{anilistId}` topic subscriptions mirror the `notify_new_episodes` library toggle; topics are reconciled after login (post-migration) and on every app boot with an active session. Server-side `AiringWorker` polls the cached airing calendar, dedupes via Upstash Redis `SETNX`, and fans out via Firebase topics.
-- **Backend-first AniList metadata gateway decorator** — `BackendFirstAnilistMetadataGateway` intercepts `fetchHomeCatalog`, `fetchSeasonDiscovery`, `fetchAiringCalendar`, and `fetchAiringCalendarSlots`; feature-flag `KUMORIYA_GO_ANILIST_HOME` (default on) allows rollback without redeploy. Airing-calendar variant paginates through the backend and preserves the direct-AniList dedup + sort + `isAdult` filter semantics.
-- **Explicit-window airing calendar on the Go backend** — `/v1/anilist/home/airing-calendar` now accepts `?airingAtGreater=&airingAtLesser=` (unix seconds) in addition to `?days=`, enabling client gateways to paginate through a fixed window while sharing the server SWR cache.
+- **Dedicated Watch Party surfaces** — party anime and episode pages now have their own room-first layouts, making it much easier to understand members, readiness, room state, and the collaborative launch flow.
+- **Server-side AniList home cache (Go backend)** — trending, seasonal discovery, and airing calendar are now served from `api.kumoriya.online/v1/anilist/home/*` with in-memory SWR caching and conservative TTLs to reduce AniList rate-limit pressure.
+- **Firebase Cloud Messaging push notifications for airing episodes** — `media_{anilistId}` topic subscriptions now mirror the `notify_new_episodes` toggle and are reconciled after login and on app boot.
+- **Backend-first AniList metadata gateway** — clients now prefer backend-powered home/discovery fetches with transparent fallback to direct AniList on backend failure.
+- **API-driven release feed** — release metadata now lives in Neon and is served through `api.kumoriya.online/releases/*`, enabling the app and website to read a shared source of truth.
 
 ### Changed
-- **Legacy new-episodes background worker reduced to auto-download only** — local-notification path removed (redundant with FCM push). Worker cadence dropped from 1h to 4h to reduce scraping traffic. Only anime with `auto_download_new_episodes=true` produce network activity.
-- **FCM notification channel aligned** between Go server (`AiringWorker`) and Android client: both use `kumoriya_new_episodes`.
+- **Watch Party navigation flow** — party browse and playback routes now preserve room context correctly and return users to the lobby instead of unwinding the global navigation stack.
+- **Profile hierarchy** — Watch Party is now a prominent CTA, logout is more visible, and destructive/account metadata actions are much more discreet to reduce accidental taps.
+- **Legacy new-episodes worker reduced to auto-download only** — local notifications were removed in favor of FCM push, and worker cadence was reduced to lower scraping traffic.
+- **Website release data source** — homepage downloads and changelog entries now consume the API-backed release feed instead of hand-maintained JSON as the primary source.
 
-### Removed
-- Debug-only "Test notificacion" button in Settings (targeted the removed local-notification path).
+### Fixed
+- **Release publish staleness** — release metadata no longer depends on a one-time manifest fetch; publishing a new version now refreshes the API cache immediately.
+- **Airing notification channel drift** — Android and backend now use the same `kumoriya_new_episodes` channel.
+- **Accidental account deletion risk in Profile** — destructive actions and the account UUID are now visually de-emphasized compared with the main session actions.
 
 ## [v0.1.4] - 2026-04-02
 
