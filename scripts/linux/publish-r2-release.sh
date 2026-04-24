@@ -67,12 +67,29 @@ PUBSPEC="$APP_DIR/pubspec.yaml"
 load_env_file() {
   local path="$1"
   [[ -z "$path" || ! -f "$path" ]] && return 0
-  # shellcheck disable=SC1090
-  set -a; source "$path"; set +a
+  # Parse manually so CRLF line endings (Windows) do not break `source`.
+  # Also supports lines like "KEY=value with spaces" without needing quotes.
+  while IFS= read -r line || [[ -n "$line" ]]; do
+    line="${line%$'\r'}"
+    line="${line#"${line%%[![:space:]]*}"}"  # ltrim
+    [[ -z "$line" || "$line" == \#* ]] && continue
+    local key="${line%%=*}"
+    local value="${line#*=}"
+    [[ "$key" == "$line" ]] && continue  # no '=' → skip
+    export "$key=$value"
+  done < "$path"
 }
 
 load_env_file "$R2_ENV_FILE"
 load_env_file "$UPDATE_ENV_FILE"
+
+# If the R2 env file ships an AWS_PROFILE (useful on Windows where creds live
+# in ~/.aws/credentials) but we also have direct AWS_ACCESS_KEY_ID/SECRET, the
+# CLI would prefer the profile and fail with "profile not found" on machines
+# that do not have that profile configured. Prefer the direct keys.
+if [[ -n "${AWS_ACCESS_KEY_ID:-}" && -n "${AWS_SECRET_ACCESS_KEY:-}" ]]; then
+  unset AWS_PROFILE
+fi
 
 : "${R2_BUCKET_NAME:?R2_BUCKET_NAME missing (check $R2_ENV_FILE)}"
 : "${R2_ENDPOINT_URL:?R2_ENDPOINT_URL missing}"

@@ -1,12 +1,37 @@
 {
-  "windows": {
-    "release_notes": "v0.1.4: immediate download cancellation, orphan cleanup, enhanced HLS reliability, post-update dialog",
-    "latest_version": "0.1.4",
-    "url": "https://pub-8159019abe1741a097538b976c19722c.r2.dev/artifacts/windows/v0.1.4/Kumoriya-0.1.4-windows-x64-setup.exe"
-  },
   "android": {
-    "release_notes": "v0.2.0: dedicated Watch Party surfaces, backend-powered AniList discovery, FCM airing alerts, and API-driven release delivery",
-    "latest_version": "0.2.0",
-    "url": "https://pub-8159019abe1741a097538b976c19722c.r2.dev/artifacts/android/v0.2.0/kumoriya-0.2.0.apk"
+    "latest_version": "0.3.0",
+    "url": "https://pub-8159019abe1741a097538b976c19722c.r2.dev/artifacts/android/v0.3.0/kumoriya-0.3.0-universal.apk",
+    "release_notes": "APK split per ABI + native download engine + event-driven sync",
+    "universal": {
+      "url": "https://pub-8159019abe1741a097538b976c19722c.r2.dev/artifacts/android/v0.3.0/kumoriya-0.3.0-universal.apk",
+      "file_name": "kumoriya-0.3.0-universal.apk",
+      "r2_key": "artifacts/android/v0.3.0/kumoriya-0.3.0-universal.apk",
+      "size_bytes": 113271238,
+      "sha256": "f1c68d038dc032293bf270a9ca9f1b6fa6956c57b732fd4ca61b202e6edf00c9"
+    },
+    "abis": {
+      "x86_64": {
+        "url": "https://pub-8159019abe1741a097538b976c19722c.r2.dev/artifacts/android/v0.3.0/kumoriya-0.3.0-x86_64.apk",
+        "file_name": "kumoriya-0.3.0-x86_64.apk",
+        "r2_key": "artifacts/android/v0.3.0/kumoriya-0.3.0-x86_64.apk",
+        "size_bytes": 45145310,
+        "sha256": "ca45fb345b739078b3bcd6773d8c044ef7864b552a319ccdb6592b90d8e260b3"
+      },
+      "arm64_v8a": {
+        "url": "https://pub-8159019abe1741a097538b976c19722c.r2.dev/artifacts/android/v0.3.0/kumoriya-0.3.0-arm64-v8a.apk",
+        "file_name": "kumoriya-0.3.0-arm64-v8a.apk",
+        "r2_key": "artifacts/android/v0.3.0/kumoriya-0.3.0-arm64-v8a.apk",
+        "size_bytes": 42282690,
+        "sha256": "6db65ce6d5eefcc19ad1951980a3a2d7928a44dfb344522a5dc237396fe792b4"
+      },
+      "armeabi_v7a": {
+        "url": "https://pub-8159019abe1741a097538b976c19722c.r2.dev/artifacts/android/v0.3.0/kumoriya-0.3.0-armeabi-v7a.apk",
+        "file_name": "kumoriya-0.3.0-armeabi-v7a.apk",
+        "r2_key": "artifacts/android/v0.3.0/kumoriya-0.3.0-armeabi-v7a.apk",
+        "size_bytes": 35408986,
+        "sha256": "0ab28c4ce6584e275079251a26dee81f4b8b33eb5a44f766507c7dcb9c52cc1f"
+      }
+    }
   }
 }
