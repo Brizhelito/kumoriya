@@ -14,6 +14,7 @@ import 'download_error_classifier.dart';
 import 'download_foreground_service.dart';
 import 'download_library_index_service.dart';
 import 'hls_segment_downloader.dart';
+import '../domain/download_backend.dart';
 
 /// Result of a successful link refresh.
 final class DownloadRefreshResult {
@@ -116,7 +117,7 @@ int _defaultMaxConnectionsPerHost() {
 typedef DownloadServerOutcomeCallback =
     void Function(String serverName, {required bool success});
 
-class DownloadManagerService {
+class DownloadManagerService implements DownloadBackend {
   DownloadManagerService({
     required DownloadStore store,
     required DownloadDirectoryService directoryService,
@@ -202,10 +203,13 @@ class DownloadManagerService {
   static const _progressDbWriteMs = 3000;
   static const _directFlushMs = 2000;
 
+  @override
   Stream<DownloadStatusChange> get statusChangeStream =>
       _statusChangeController.stream;
+  @override
   Stream<DownloadProgressEvent> get progressStream =>
       _progressController.stream;
+  @override
   Stream<DownloadAggregateProgress> get aggregateProgressStream =>
       _aggregateProgressController.stream;
 
@@ -218,6 +222,7 @@ class DownloadManagerService {
     unawaited(_processQueue());
   }
 
+  @override
   Future<DownloadTask?> findTaskByEpisode(
     int anilistId,
     double episodeNumber,
@@ -247,6 +252,7 @@ class DownloadManagerService {
     return task;
   }
 
+  @override
   Future<DownloadLibrarySyncReport> syncDownloadedLibrary() async {
     final report = await _libraryIndexService.syncCurrentLibrary();
     if (report.changed) {
@@ -255,6 +261,7 @@ class DownloadManagerService {
     return report;
   }
 
+  @override
   Future<void> enqueue(DownloadTask task) async {
     if (_disposed) {
       return;
@@ -274,6 +281,7 @@ class DownloadManagerService {
     unawaited(_processQueue());
   }
 
+  @override
   Future<void> pause(String taskId) async {
     final active = _activeDownloads.remove(taskId);
     active?.cancel();
@@ -282,6 +290,7 @@ class DownloadManagerService {
     await _updateStatus(taskId, DownloadStatus.paused);
   }
 
+  @override
   Future<void> resume(String taskId) async {
     await clearTaskError(taskId);
     _reResolveAttempts.remove(taskId);
@@ -291,6 +300,7 @@ class DownloadManagerService {
     await _processQueue();
   }
 
+  @override
   Future<void> cancel(String taskId) async {
     final active = _activeDownloads.remove(taskId);
     active?.cancel();
@@ -325,6 +335,7 @@ class DownloadManagerService {
     unawaited(_processQueue());
   }
 
+  @override
   Future<void> cancelAll() async {
     for (final active in _activeDownloads.values.toList()) {
       active.cancel();
@@ -359,6 +370,7 @@ class DownloadManagerService {
     }
   }
 
+  @override
   Future<void> clearQueue() async {
     final tasksToClean = <DownloadTask>[];
     for (final status in [DownloadStatus.pending, DownloadStatus.failed]) {
@@ -386,17 +398,27 @@ class DownloadManagerService {
     }
   }
 
+  @override
   Future<void> retry(String taskId) async => resume(taskId);
 
   Future<void> retryFailed(String taskId) async => resume(taskId);
 
   /// Re-queues every failed download in one shot.
+  @override
   Future<void> retryAllFailed() async {
-    final result = await _store.getTasksByStatus(DownloadStatus.failed);
-    final tasks = result.fold(
-      onSuccess: (v) => v,
-      onFailure: (_) => <DownloadTask>[],
-    );
+    // "Failed" from the user's POV includes both the hard-error `failed`
+    // state and the soft-error `disconnected` state — both need the same
+    // "retry all" UX affordance.
+    final failedResult = await _store.getTasksByStatus(DownloadStatus.failed);
+    final disconnectedResult =
+        await _store.getTasksByStatus(DownloadStatus.disconnected);
+    final tasks = <DownloadTask>[
+      ...failedResult.fold(onSuccess: (v) => v, onFailure: (_) => const []),
+      ...disconnectedResult.fold(
+        onSuccess: (v) => v,
+        onFailure: (_) => const [],
+      ),
+    ];
     for (final task in tasks) {
       await clearTaskError(task.id);
       _reResolveAttempts.remove(task.id);
@@ -408,6 +430,7 @@ class DownloadManagerService {
   }
 
   /// Pauses every currently downloading task.
+  @override
   Future<void> pauseAll() async {
     final ids = _activeDownloads.keys.toList();
     for (final id in ids) {
@@ -416,6 +439,7 @@ class DownloadManagerService {
   }
 
   /// Resumes every paused task.
+  @override
   Future<void> resumeAll() async {
     final result = await _store.getTasksByStatus(DownloadStatus.paused);
     final tasks = result.fold(
@@ -431,6 +455,7 @@ class DownloadManagerService {
     if (tasks.isNotEmpty) await _processQueue();
   }
 
+  @override
   Future<void> deleteCompleted(String taskId) async {
     _reResolveAttempts.remove(taskId);
     _triedServersPerTask.remove(taskId);
@@ -456,6 +481,7 @@ class DownloadManagerService {
     );
   }
 
+  @override
   Future<void> restoreQueue() async {
     await syncDownloadedLibrary();
 
@@ -660,9 +686,16 @@ class DownloadManagerService {
         if (task.serverName != null) {
           _onServerOutcome?.call(task.serverName!, success: false);
         }
+        // Pure network failures get a distinct `disconnected` state so
+        // the UI shows "Sin conexión" with a retry affordance instead of
+        // the red "failed" banner. Downstream logic (`retry`, auto-delete,
+        // library sync) already treats both as non-terminal.
+        final finalStatus = errorKind == DownloadErrorKind.networkError
+            ? DownloadStatus.disconnected
+            : DownloadStatus.failed;
         await _updateStatus(
           task.id,
-          DownloadStatus.failed,
+          finalStatus,
           errorMessage: message,
         );
       }
@@ -1847,6 +1880,13 @@ class DownloadManagerService {
     await chain.catchError((_) {});
   }
 
+  @override
+  Future<void> setWifiOnly(bool enabled) async {
+    // No-op on desktop — WiFi-only mode is only meaningful on Android
+    // where the native engine monitors connectivity via ConnectivityManager.
+  }
+
+  @override
   void dispose() {
     if (_disposed) {
       return;

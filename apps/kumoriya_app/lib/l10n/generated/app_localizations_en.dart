@@ -1562,6 +1562,16 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settingsAutoDeleteImmediately => 'Immediately';
 
   @override
+  String get settingsDownloadsTitle => 'Downloads';
+
+  @override
+  String get settingsDownloadsWifiOnly => 'WiFi-only downloads';
+
+  @override
+  String get settingsDownloadsWifiOnlyDescription =>
+      'Pause downloads when not connected to WiFi';
+
+  @override
   String get onboardingNotificationTitle => 'Enable notifications?';
 
   @override

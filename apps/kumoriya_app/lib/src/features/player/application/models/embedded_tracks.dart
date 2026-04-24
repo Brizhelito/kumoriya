@@ -13,11 +13,17 @@ final class EmbeddedAudioTrack {
 }
 
 final class EmbeddedSubtitleTrack {
-  const EmbeddedSubtitleTrack({required this.id, this.title, this.language});
+  const EmbeddedSubtitleTrack({
+    required this.id,
+    this.title,
+    this.language,
+    this.selected = false,
+  });
 
   final String id;
   final String? title;
   final String? language;
+  final bool selected;
 
   String get displayLabel => title ?? language ?? 'Track $id';
 }

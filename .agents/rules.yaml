@@ -1,0 +1,153 @@
+version: 2
+project: kumoriya
+
+roles:
+  architect:
+    model_tier: strong
+    may: [decompose, define_contract, generate_tests, rewrite_spec, escalate]
+    must_not: [write_implementation, run_code, edit_system_index_without_green_task]
+  worker:
+    model_tier: cheap
+    may: [write_code_in_allowed_files]
+    must_not:
+      - read_files_outside_task.files_allowed
+      - read_system_index
+      - add_dependencies
+      - modify_public_signatures
+      - emit_non_code_text
+      - rename_symbols
+      - branch_on_test_literals
+  reviewer:
+    model_tier: mid_or_strong
+    may: [verdict, request_retry, escalate, generate_adversarial_probe]
+    must_not: [edit_code, relax_tests]
+
+task_isolation:
+  one_task_per_invocation: true
+  context_whitelist:
+    - .agents/tasks/<TASK_ID>.yaml
+    - .agents/contracts/<referenced>.json
+    - .agents/tests/<TASK_ID>.spec.yaml
+    - files listed in task.files_allowed (verbatim or minimized)
+    - .agents/runs/<TASK_ID>/retry-context.json (if retry)
+  context_blacklist:
+    - .agents/system_index.json (for worker)
+    - other tasks, contracts, runs
+    - full repo tree
+    - prior chat history beyond current task
+    - previous worker drafts (never re-sent on retry)
+
+system_index:
+  path: .agents/system_index.json
+  readers: [architect, reviewer]
+  writers: [architect, orchestrator_on_green]
+  worker_access: forbidden
+  update_rule: atomic_on_verdict_pass_and_mutation_pass
+
+preflight:
+  required_before_worker_call: true
+  checks:
+    - P1_every_test_covered_by_contract
+    - P2_no_contradictions_with_invariants
+    - P3_every_error_code_exercised_by_failure_test
+    - P4_all_types_resolved
+    - P5_no_violation_of_global_invariants
+    - P6_estimated_loc_within_task_constraints
+  on_fail: escalate_to_architect
+
+scope_creep_guard:
+  max_files_modified_per_task: 3
+  max_lines_changed_per_task: 150
+  deny_if:
+    - diff touches files outside task.files_allowed
+    - new top-level symbols not declared in contract
+    - new third-party imports not in task.constraints
+
+anti_cheat:
+  enabled: true
+  reviewer_checks:
+    C8_1: no literal from tests[].input used as conditional guard
+    C8_2: no return value equal to tests[].expected via hardcoded literal unless derivable
+    C8_3: no lookup table keyed by test inputs
+    C8_4: cyclomatic complexity proportional to distinct expectations
+    C8_5: implementation must pass one reviewer-generated adversarial probe
+    C8_6: no dead branches reachable only by test inputs
+  on_violation: escalate  # never retry, never coach a cheater
+
+mutation:
+  enabled: true
+  required_for_commit: true
+  generators:
+    - random_ascii
+    - unicode_fuzz
+    - boundary
+    - property_based
+  budget_seconds: 5
+  on_fail:
+    action: retry_with_promoted_test
+    max_promotions_per_task: 3
+
+retry:
+  max_attempts: 2
+  context: structured
+  never_pass_prior_draft: true
+  retry_packet_schema:
+    attempt: int
+    failing_tests: [{id, expected, actual, diff}]
+    static_violations: [{check, location}]
+    reviewer_hint: string
+    do_not_touch: [string]
+
+scheduling:
+  dag_required: true
+  runnable_if: all_depends_on_are_pass_and_system_index_reflects_them
+  on_rollback: invalidate_dependents_as_stale
+  cycles: rejected_before_any_model_call
+
+file_context:
+  minimization: true
+  full_file_threshold_loc: 120
+  new_file_sends_only: [declared_signature]
+  strip: [comments, blank_lines, unrelated_functions]
+
+token_budget:
+  architect:    { max_input: 10000, max_output: 4000 }
+  worker:       { max_input: 4000,  max_output: 1500 }
+  reviewer:     { max_input: 3000,  max_output: 500 }
+
+runners:
+  dart:
+    format: flutter format
+    analyze: flutter analyze
+    test: flutter test
+    cwd_match: ["apps/kumoriya_app", "packages/kumoriya_*"]
+  go:
+    test: go test ./...
+    vet: go vet ./...
+    cwd_match: ["kumoriya-api"]
+  python:
+    test: pytest -q
+    lint: ruff check .
+    cwd_match: ["tools/kumoriya-orch", "tools/anime-nexus-runtime-node/scripts"]
+  node:
+    test: npm test --silent
+    cwd_match: ["infra/*", "tools/anime-nexus-runtime-node"]
+
+failure_handling:
+  escalate_to_architect_when:
+    - preflight failed
+    - reviewer verdict == escalate
+    - worker emitted ESCALATE
+    - same failing test persists after 2 retries
+    - mutation_failures > max_promotions_per_task
+    - system_index conflict detected
+  architect_patch_actions:
+    - rewrite_contract
+    - split_task
+    - insert_predecessor_task
+    - append_blocker_to_dev_diary
+
+logging:
+  per_attempt: [task_id, attempt_no, role, tokens_in, tokens_out, verdict, retries, runners_result]
+  redact: [api_keys, user_data]
+  destination: .agents/runs/<TASK_ID>/

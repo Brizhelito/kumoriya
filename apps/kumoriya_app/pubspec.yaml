@@ -1,7 +1,7 @@
 name: kumoriya_app
 description: Kumoriya main Flutter application.
 publish_to: none
-version: 0.2.0+6
+version: 0.3.0+7
 
 resolution: workspace
 
@@ -17,7 +17,16 @@ dependencies:
   flutter_riverpod: ^3.0.3
   media_kit: ^1.2.6
   media_kit_video: ^2.0.1
-  media_kit_libs_video: ^1.0.7
+  # Desktop-only media_kit native libs. We intentionally exclude
+  # `media_kit_libs_android_video` (pulled in by the meta-package
+  # `media_kit_libs_video`) because Android playback goes through the
+  # first-party `kumoriya_exoplayer` plugin — shipping libmpv +
+  # libavcodec + libdav1d on Android adds ~40MB of .so to the APK that
+  # the app never loads. `PlaybackEngineFactory` guards at runtime so
+  # no media_kit code path is exercised on Android.
+  media_kit_libs_linux: ^1.2.1
+  media_kit_libs_windows_video: ^1.0.11
+  media_kit_libs_macos_video: ^1.1.4
   # ExoPlayer engine for Android (AV1 streaming). On non-Android platforms
   # the plugin is not wired — PlaybackEngineFactory guards by platform.
   video_player: ^2.9.0
@@ -80,6 +89,7 @@ dependencies:
   sentry_flutter: ^9.16.0
   firebase_core: ^3.8.0
   firebase_messaging: ^15.1.5
+  connectivity_plus: ^6.1.0
 
 dev_dependencies:
   flutter_test:

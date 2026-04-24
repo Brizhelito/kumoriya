@@ -171,9 +171,8 @@ final class CheckSourceAvailabilityUseCase {
       return episodes;
     }
 
-    final sortedMetadata =
-        anilistDetail.episodes.toList(growable: false)
-          ..sort((a, b) => a.number.compareTo(b.number));
+    final sortedMetadata = anilistDetail.episodes.toList(growable: false)
+      ..sort((a, b) => a.number.compareTo(b.number));
     final airedMetadata = sortedMetadata
         .where((episode) => episode.isAired)
         .toList(growable: false);

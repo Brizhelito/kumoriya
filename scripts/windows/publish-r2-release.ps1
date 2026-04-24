@@ -152,7 +152,13 @@ $issPath = Join-Path $appDir "windows\kumoriya_installer.iss"
 $version = Get-AppVersion -PubspecPath $pubspecPath
 $tag = "v$version"
 
-$apkOutPath = Join-Path $appDir "build\app\outputs\flutter-apk\app-release.apk"
+$apkOutputDir = Join-Path $appDir "build\app\outputs\flutter-apk"
+$universalApkName = "app-release.apk"
+$splitApkNames = @(
+  "app-armeabi-v7a-release.apk",
+  "app-arm64-v8a-release.apk",
+  "app-x86_64-release.apk"
+)
 $setupFileName = "Kumoriya-$version-windows-x64-setup.exe"
 $setupOutPath = Join-Path $appDir "build\windows\installer\$setupFileName"
 
@@ -160,8 +166,10 @@ Push-Location $appDir
 try {
   if (-not $SkipBuild) {
     if ($BuildAndroid) {
-      Write-Host "Building Android APK..."
+      Write-Host "Building Android universal APK..."
       flutter build apk --release
+      Write-Host "Building Android per-ABI APKs..."
+      flutter build apk --release --split-per-abi --target-platform android-arm,android-arm64,android-x64
     }
 
     if ($BuildWindows) {
@@ -180,15 +188,20 @@ finally {
   Pop-Location
 }
 
-if ($BuildAndroid -and -not (Test-Path $apkOutPath)) {
-  throw "APK not found at $apkOutPath"
+if ($BuildAndroid) {
+  if (-not (Test-Path (Join-Path $apkOutputDir $universalApkName))) {
+    throw "Universal APK not found at $(Join-Path $apkOutputDir $universalApkName)"
+  }
+  foreach ($name in $splitApkNames) {
+    if (-not (Test-Path (Join-Path $apkOutputDir $name))) {
+      throw "Split APK not found at $(Join-Path $apkOutputDir $name)"
+    }
+  }
 }
 if ($BuildWindows -and -not (Test-Path $setupOutPath)) {
   throw "Windows installer not found at $setupOutPath"
 }
 
-$androidFileName = "kumoriya-$version.apk"
-$androidKey = "artifacts/android/$tag/$androidFileName"
 $windowsKey = "artifacts/windows/$tag/$setupFileName"
 $releaseJsonKey = "releases/$tag/release.json"
 $changelogEsKey = "releases/changelogs/es/$tag.md"
@@ -212,7 +225,6 @@ if (-not (Test-Path $releaseNotesEnPath)) {
 $notesEsMarkdown = Get-Content -Path $releaseNotesEsPath -Raw
 $notesEnMarkdown = Get-Content -Path $releaseNotesEnPath -Raw
 
-$androidUrl = "$PublicBaseUrl/$androidKey"
 $windowsUrl = "$PublicBaseUrl/$windowsKey"
 
 $releaseMeta = @{
@@ -236,11 +248,55 @@ $releaseMeta = @{
   }
 }
 
+# Build Android artifact metadata (used for upload, release.json, update.json and API publish).
+$androidArtifacts = @()
 if ($BuildAndroid) {
+  # Tuple: source apk name -> @(abi_key, file_name).
+  # abi_key uses underscores to match the Go backend enum (AndroidABI*).
+  # file_name uses hyphens for human-friendly download names.
+  $abiMap = @{
+    "app-release.apk" = @("universal", "kumoriya-$version-universal.apk")
+    "app-armeabi-v7a-release.apk" = @("armeabi_v7a", "kumoriya-$version-armeabi-v7a.apk")
+    "app-arm64-v8a-release.apk" = @("arm64_v8a", "kumoriya-$version-arm64-v8a.apk")
+    "app-x86_64-release.apk" = @("x86_64", "kumoriya-$version-x86_64.apk")
+  }
+  foreach ($source in $abiMap.Keys) {
+    $abi = $abiMap[$source][0]
+    $fileName = $abiMap[$source][1]
+    $sourcePath = Join-Path $apkOutputDir $source
+    $sha256 = (Get-FileHash -Algorithm SHA256 -Path $sourcePath).Hash.ToLower()
+    $sizeBytes = (Get-Item $sourcePath).Length
+    $key = "artifacts/android/$tag/$fileName"
+    $url = "$PublicBaseUrl/$key"
+
+    $androidArtifacts += [PSCustomObject]@{
+      abi = $abi
+      source_path = $sourcePath
+      file_name = $fileName
+      r2_key = $key
+      public_url = $url
+      sha256 = $sha256
+      size_bytes = $sizeBytes
+    }
+  }
+
+  # Legacy single-artifact entry for release.json (human reference)
+  $universalArtifact = $androidArtifacts | Where-Object { $_.abi -eq "universal" } | Select-Object -First 1
   $releaseMeta.artifacts.android = @{
-    file_name = $androidFileName
-    r2_key = $androidKey
-    public_url = $androidUrl
+    file_name = $universalArtifact.file_name
+    r2_key = $universalArtifact.r2_key
+    public_url = $universalArtifact.public_url
+    abis = @()
+  }
+  foreach ($a in $androidArtifacts) {
+    $releaseMeta.artifacts.android.abis += @{
+      abi = $a.abi
+      file_name = $a.file_name
+      r2_key = $a.r2_key
+      public_url = $a.public_url
+      size_bytes = $a.size_bytes
+      sha256 = $a.sha256
+    }
   }
 }
 if ($BuildWindows) {
@@ -254,10 +310,29 @@ $releaseMeta | ConvertTo-Json -Depth 8 | Set-Content -Path $releaseJsonPath
 
 $updateManifest = @{}
 if ($BuildAndroid) {
+  $universalArtifact = $androidArtifacts | Where-Object { $_.abi -eq "universal" } | Select-Object -First 1
   $updateManifest.android = @{
     latest_version = $version
-    url = $androidUrl
+    url = $universalArtifact.public_url
     release_notes = $ReleaseNotes
+    universal = @{
+      url = $universalArtifact.public_url
+      file_name = $universalArtifact.file_name
+      r2_key = $universalArtifact.r2_key
+      size_bytes = $universalArtifact.size_bytes
+      sha256 = $universalArtifact.sha256
+    }
+    abis = @{}
+  }
+  foreach ($a in $androidArtifacts) {
+    if ($a.abi -eq "universal") { continue }
+    $updateManifest.android.abis[$a.abi] = @{
+      url = $a.public_url
+      file_name = $a.file_name
+      r2_key = $a.r2_key
+      size_bytes = $a.size_bytes
+      sha256 = $a.sha256
+    }
   }
 }
 if ($BuildWindows) {
@@ -269,10 +344,14 @@ if ($BuildWindows) {
 }
 $updateManifest | ConvertTo-Json -Depth 8 | Set-Content -Path $updateManifestPath
 
-if ($BuildAndroid) {
-  $tempAndroidPath = Join-Path $env:TEMP $androidFileName
-  Copy-Item -Path $apkOutPath -Destination $tempAndroidPath -Force
-  Upload-FileToR2 -FilePath $tempAndroidPath -Bucket $BucketName -Key $androidKey -Endpoint $EndpointUrl -ContentType "application/vnd.android.package-archive" -ContentDisposition "attachment; filename=`"$androidFileName`""
+foreach ($a in $androidArtifacts) {
+  Upload-FileToR2 `
+    -FilePath $a.source_path `
+    -Bucket $BucketName `
+    -Key $a.r2_key `
+    -Endpoint $EndpointUrl `
+    -ContentType "application/vnd.android.package-archive" `
+    -ContentDisposition "attachment; filename=`"$($a.file_name)`""
 }
 
 if ($BuildWindows) {
@@ -308,10 +387,31 @@ $publishBody = @{
 }
 
 if ($BuildAndroid) {
+  $universalArtifact = $androidArtifacts | Where-Object { $_.abi -eq "universal" } | Select-Object -First 1
   $publishBody.downloads.android = @{
-    url = $androidUrl
-    file_name = $androidFileName
-    r2_key = $androidKey
+    url = $universalArtifact.public_url
+    file_name = $universalArtifact.file_name
+    r2_key = $universalArtifact.r2_key
+    size_bytes = $universalArtifact.size_bytes
+    sha256 = $universalArtifact.sha256
+    universal = @{
+      url = $universalArtifact.public_url
+      file_name = $universalArtifact.file_name
+      r2_key = $universalArtifact.r2_key
+      size_bytes = $universalArtifact.size_bytes
+      sha256 = $universalArtifact.sha256
+    }
+    abis = @{}
+  }
+  foreach ($a in $androidArtifacts) {
+    if ($a.abi -eq "universal") { continue }
+    $publishBody.downloads.android.abis[$a.abi] = @{
+      url = $a.public_url
+      file_name = $a.file_name
+      r2_key = $a.r2_key
+      size_bytes = $a.size_bytes
+      sha256 = $a.sha256
+    }
   }
 }
 if ($BuildWindows) {
@@ -340,7 +440,11 @@ Upload-FileToR2 -FilePath $updateManifestPath -Bucket $BucketName -Key "update.j
 Write-Host ""
 Write-Host "Release published successfully."
 Write-Host "Version: $version"
-if ($BuildAndroid) { Write-Host "Android URL: $androidUrl" }
+if ($BuildAndroid) {
+  foreach ($a in $androidArtifacts) {
+    Write-Host "Android $($a.abi) URL: $($a.public_url)"
+  }
+}
 if ($BuildWindows) { Write-Host "Windows URL: $windowsUrl" }
 Write-Host "API publish URL: $publishUrl"
 Write-Host "Manifest URL: $PublicBaseUrl/update.json"

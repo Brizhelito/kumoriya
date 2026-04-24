@@ -23,6 +23,7 @@ import 'src/shared/notifications/fcm_providers.dart';
 import 'src/shared/notifications/fcm_service.dart';
 import 'src/shared/storage_providers.dart';
 import 'src/workers/check_new_episodes_worker.dart';
+import 'src/workers/push_pending_sync_worker.dart';
 
 Future<void> main() async {
   await SentryFlutter.init((options) {
@@ -80,43 +81,27 @@ Future<void> _appMain() async {
   if (!kIsWeb && Platform.isWindows) {
     await windowManager.ensureInitialized();
   }
-  MediaKit.ensureInitialized();
-
-  // Open DB and platform-specific init in parallel — both are independent.
-  // Firebase must initialise BEFORE we register the background FCM handler;
-  // kept sequential (fast: single native call reading google-services.json).
-  late final AppDatabase db;
-  late final FcmService? fcmService;
-  if (Platform.isAndroid) {
-    await _initFirebase();
-    final results = await (
-      openAppDatabase(),
-      _initNotifications(),
-      _initWorkmanager(),
-      DownloadForegroundService.initialize(),
-      _initFcm(),
-    ).wait;
-    db = results.$1;
-    fcmService = results.$5;
-
-    // FCM handles user-facing push notifications; the Workmanager
-    // poller stays alive to drive auto-download of new episodes. Its
-    // cadence was reduced to 4h in Slice 6 so the total scraping
-    // traffic per device is low.
-  } else {
-    db = await openAppDatabase();
-    fcmService = null;
+  // Skip media_kit init on Android — playback runs through
+  // `kumoriya_exoplayer` and the libmpv native libs are not bundled.
+  // Calling ensureInitialized() with no native libs throws a
+  // MissingPluginException / dlopen failure.
+  if (!kIsWeb && !Platform.isAndroid) {
+    MediaKit.ensureInitialized();
   }
+
+  // Only the DB blocks the provider tree (it is injected as an override
+  // before runApp). Every other platform init — Firebase, FCM, local
+  // notifications, Workmanager, the download foreground service — is
+  // independent of the first frame and runs post-runApp to keep the
+  // critical path minimal.
+  final db = await openAppDatabase();
 
   if (kDebugMode) {
     debugPrint('[Startup] DB ready in ${startupWatch.elapsedMilliseconds}ms');
   }
 
   final container = ProviderContainer(
-    overrides: [
-      appDatabaseProvider.overrideWithValue(db),
-      if (fcmService != null) fcmServiceProvider.overrideWithValue(fcmService),
-    ],
+    overrides: [appDatabaseProvider.overrideWithValue(db)],
   );
 
   // Restore pending downloads after the first frame to avoid blocking paint.
@@ -140,6 +125,15 @@ Future<void> _appMain() async {
 
   // Initialize party debug logger (non-blocking).
   unawaited(PartyDebugLogger.initialize());
+
+  // Android-only platform services. None of these block the first frame:
+  // Firebase + FCM register handlers that are only invoked when a push
+  // arrives; local notifications only fire from the worker; Workmanager
+  // and the download foreground service are user-driven. Running them
+  // post-runApp shaves several hundred ms off cold start.
+  if (Platform.isAndroid) {
+    unawaited(_bootstrapAndroidServices(container));
+  }
 
   runApp(
     SentryWidget(
@@ -177,18 +171,28 @@ Future<void> _initFirebase() async {
 }
 
 /// Boots the domain-level FCM wrapper. Must run after `_initFirebase`.
-/// Returns `null` if initialisation fails so downstream code can treat
-/// notifications as an optional capability instead of a hard dependency.
-Future<FcmService?> _initFcm() async {
+/// Uses the default `fcmServiceProvider` singleton and initialises it
+/// in place. Failures are swallowed so notifications stay optional.
+Future<void> _initFcm(ProviderContainer container) async {
   try {
-    final service = FcmService();
-    await service.initialize();
-    return service;
+    await container.read(fcmServiceProvider).initialize();
   } catch (err, st) {
     debugPrint('[Startup] FCM init failed: $err');
     unawaited(Sentry.captureException(err, stackTrace: st));
-    return null;
   }
+}
+
+/// Fires all Android platform initialisations after `runApp` so the
+/// first frame is not blocked. Firebase must complete before FCM
+/// initialises; everything else is independent and runs in parallel.
+Future<void> _bootstrapAndroidServices(ProviderContainer container) async {
+  await _initFirebase();
+  await Future.wait<void>([
+    _initNotifications(),
+    _initWorkmanager(),
+    DownloadForegroundService.initialize(),
+    _initFcm(container),
+  ]);
 }
 
 Future<void> _initNotifications() async {
@@ -225,6 +229,18 @@ Future<void> _initWorkmanager() async {
     kCheckNewEpisodesTask,
     kCheckNewEpisodesTask,
     frequency: const Duration(hours: 4),
+    constraints: Constraints(networkType: NetworkType.connected),
+    existingWorkPolicy: ExistingPeriodicWorkPolicy.update,
+  );
+
+  // Absolute fallback for the sync-push coordinator: if the user never
+  // opens the app (so debounce/resume/connectivity triggers never fire)
+  // but has pending queue entries, drain them every 12h. The
+  // SyncCoordinator owns the real-time path; this is belt + suspenders.
+  await Workmanager().registerPeriodicTask(
+    kPushPendingSyncTask,
+    kPushPendingSyncTask,
+    frequency: const Duration(hours: 12),
     constraints: Constraints(networkType: NetworkType.connected),
     existingWorkPolicy: ExistingPeriodicWorkPolicy.update,
   );

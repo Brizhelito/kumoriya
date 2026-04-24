@@ -1,0 +1,38 @@
+target: kumoriya_orch.smoke_slugify.slugify
+framework: pytest
+
+cases:
+  - id: U1
+    kind: unit
+    arrange: { text: "Hello World", max_len: 50 }
+    assert: "== 'hello-world'"
+
+  - id: U2
+    kind: edge
+    arrange: { text: "  Árbol  Ñandú!! ", max_len: 50 }
+    assert: "== 'arbol-nandu'"
+
+  - id: U3
+    kind: edge
+    arrange: { text: "abcdef", max_len: 4 }
+    assert: "== 'abcd'"
+
+  - id: F1
+    kind: failure
+    arrange: { text: "   ", max_len: 10 }
+    assert_raises: E_EMPTY
+
+  - id: F2
+    kind: failure
+    arrange: { text: "ok", max_len: 0 }
+    assert_raises: E_RANGE
+
+  - id: F3
+    kind: failure
+    arrange: { text: "ok", max_len: 201 }
+    assert_raises: E_RANGE
+
+rules:
+  - no network calls
+  - no filesystem writes
+  - deterministic

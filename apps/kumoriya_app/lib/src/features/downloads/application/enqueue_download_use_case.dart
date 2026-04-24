@@ -11,19 +11,19 @@ import '../../anime_catalog/application/use_cases/resolve_source_server_link_use
 import 'download_cover_service.dart';
 import 'download_debug_logger.dart';
 import 'download_identity.dart';
-import 'download_manager_service.dart';
+import '../domain/download_backend.dart';
 
 /// Resolves the best stream for an episode and enqueues a download.
 class EnqueueDownloadUseCase {
   const EnqueueDownloadUseCase({
-    required DownloadManagerService downloadManager,
+    required DownloadBackend downloadManager,
     required ResolveSourceServerLinkUseCase resolveUseCase,
     DownloadCoverService? coverService,
   }) : _downloadManager = downloadManager,
        _resolveUseCase = resolveUseCase,
        _coverService = coverService;
 
-  final DownloadManagerService _downloadManager;
+  final DownloadBackend _downloadManager;
   final ResolveSourceServerLinkUseCase _resolveUseCase;
   final DownloadCoverService? _coverService;
 
@@ -191,8 +191,11 @@ class EnqueueDownloadUseCase {
       }
     }
     // Prefer non-HLS streams for direct download, fall back to HLS.
+    // Pick the HIGHEST-resolution stream — resolvers like Okru list
+    // qualities ascending (144p → 2160p) and taking .first yielded 144p.
     final nonHls = streams.where((s) => !s.isHls).toList();
     if (nonHls.isNotEmpty) {
+      nonHls.sort((a, b) => _qualityRank(b).compareTo(_qualityRank(a)));
       final s = nonHls.first;
       _log('[pick] non-HLS direct: "${s.qualityLabel}" host=${s.url.host}');
       return s;
@@ -202,6 +205,28 @@ class EnqueueDownloadUseCase {
       '[pick] fallback HLS: "${s.qualityLabel}" host=${s.url.host} (no non-HLS available)',
     );
     return s;
+  }
+
+  /// Numeric rank for a [ResolvedStream] quality label — higher is better.
+  /// Handles labels like "1080p", "720", "FullHD", "unknown".
+  static int _qualityRank(ResolvedStream stream) {
+    final label = stream.qualityLabel?.toLowerCase().trim() ?? '';
+    if (label.isEmpty || label == 'unknown' || label == 'auto') return 0;
+    final digits = RegExp(r'(\d{3,4})').firstMatch(label)?.group(1);
+    if (digits != null) return int.tryParse(digits) ?? 0;
+    // Fallback: map named tiers when the resolver didn't normalize.
+    const named = <String, int>{
+      'mobile': 144,
+      'lowest': 240,
+      'low': 360,
+      'sd': 480,
+      'hd': 720,
+      'fullhd': 1080,
+      'full': 1080,
+      'quad': 1440,
+      'ultra': 2160,
+    };
+    return named[label] ?? 0;
   }
 
   String _guessExtension(ResolvedStream stream) {

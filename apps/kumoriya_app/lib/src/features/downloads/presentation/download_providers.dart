@@ -22,6 +22,8 @@ import '../application/download_library_index_service.dart';
 import '../application/download_manager_service.dart';
 import '../application/download_server_scorer.dart';
 import '../application/enqueue_download_use_case.dart';
+import '../application/native_download_backend.dart';
+import '../domain/download_backend.dart';
 
 // ─── Server Scorer (session-scoped singleton) ───────────────────────────────
 
@@ -77,41 +79,54 @@ final downloadLibraryIndexServiceProvider =
       );
     });
 
-final downloadManagerProvider = Provider<DownloadManagerService>((ref) {
-  final store = ref.watch(downloadStoreProvider);
-  final sourcePluginMap = ref.watch(sourcePluginMapProvider);
-  final registry = ref.watch(resolverRegistryProvider);
-  final resolveUseCase = ref.watch(resolveSourceServerLinkUseCaseProvider);
-  final sourceAvailabilityStore = ref.watch(sourceAvailabilityStoreProvider);
-  final cacheCodec = ref.watch(sourceAvailabilityCacheCodecProvider);
-  final scorer = ref.watch(downloadServerScorerProvider);
-  final httpClient = ref.watch(downloadHttpClientProvider);
+/// Platform-aware download manager provider.
+///
+/// Uses NativeDownloadBackend on Android (OkHttp engine with FGS).
+/// Uses DownloadManagerService (Dart HTTP) on other platforms.
+final downloadManagerProvider = Provider<DownloadBackend>((ref) {
+  if (Platform.isAndroid) {
+    final dirService = ref.watch(downloadDirectoryServiceProvider);
+    final backend = NativeDownloadBackend(ref, dirService);
+    backend.initialize();
+    ref.onDispose(backend.dispose);
+    return backend;
+  } else {
+    // Use Dart downloader for iOS, Windows, Linux, macOS
+    final store = ref.watch(downloadStoreProvider);
+    final sourcePluginMap = ref.watch(sourcePluginMapProvider);
+    final registry = ref.watch(resolverRegistryProvider);
+    final resolveUseCase = ref.watch(resolveSourceServerLinkUseCaseProvider);
+    final sourceAvailabilityStore = ref.watch(sourceAvailabilityStoreProvider);
+    final cacheCodec = ref.watch(sourceAvailabilityCacheCodecProvider);
+    final scorer = ref.watch(downloadServerScorerProvider);
+    final httpClient = ref.watch(downloadHttpClientProvider);
 
-  final manager = DownloadManagerService(
-    store: store,
-    directoryService: ref.watch(downloadDirectoryServiceProvider),
-    libraryIndexService: ref.watch(downloadLibraryIndexServiceProvider),
-    hlsSegmentStore: ref.watch(hlsSegmentStoreProvider),
-    foregroundService: DownloadForegroundService(),
-    httpClient: httpClient,
-    linkRefresher: _buildLinkRefresher(
-      sourcePluginMap: sourcePluginMap,
-      registry: registry,
-      resolveUseCase: resolveUseCase,
-      sourceAvailabilityStore: sourceAvailabilityStore,
-      cacheCodec: cacheCodec,
-      scorer: scorer,
-    ),
-    onServerOutcome: (serverName, {required success}) {
-      if (success) {
-        scorer.recordSuccess(serverName);
-      } else {
-        scorer.recordFailure(serverName);
-      }
-    },
-  );
-  ref.onDispose(manager.dispose);
-  return manager;
+    final manager = DownloadManagerService(
+      store: store,
+      directoryService: ref.watch(downloadDirectoryServiceProvider),
+      libraryIndexService: ref.watch(downloadLibraryIndexServiceProvider),
+      hlsSegmentStore: ref.watch(hlsSegmentStoreProvider),
+      foregroundService: DownloadForegroundService(),
+      httpClient: httpClient,
+      linkRefresher: _buildLinkRefresher(
+        sourcePluginMap: sourcePluginMap,
+        registry: registry,
+        resolveUseCase: resolveUseCase,
+        sourceAvailabilityStore: sourceAvailabilityStore,
+        cacheCodec: cacheCodec,
+        scorer: scorer,
+      ),
+      onServerOutcome: (serverName, {required success}) {
+        if (success) {
+          scorer.recordSuccess(serverName);
+        } else {
+          scorer.recordFailure(serverName);
+        }
+      },
+    );
+    ref.onDispose(manager.dispose);
+    return manager;
+  }
 });
 
 // ─── Enqueue Use Case ────────────────────────────────────────────────────────
@@ -165,8 +180,7 @@ final autoDeleteWatchedServiceProvider = Provider<AutoDeleteWatchedService>((
 /// Global status change stream — broadcasts every download status change.
 final downloadStatusChangeStreamProvider =
     StreamProvider.autoDispose<DownloadStatusChange>((ref) {
-      final manager = ref.watch(downloadManagerProvider);
-      return manager.statusChangeStream;
+      return ref.watch(downloadManagerProvider).statusChangeStream;
     });
 
 /// Scoped status change stream — only fires when a specific anime's downloads
@@ -175,8 +189,7 @@ final downloadStatusChangeStreamProvider =
 /// download status changes.
 final downloadStatusChangeForAnimeProvider = StreamProvider.autoDispose
     .family<DownloadStatusChange, int>((ref, anilistId) {
-      final manager = ref.watch(downloadManagerProvider);
-      return manager.statusChangeStream.where(
+      return ref.watch(downloadManagerProvider).statusChangeStream.where(
         (e) => e.anilistId == null || e.anilistId == anilistId,
       );
     });
@@ -184,7 +197,21 @@ final downloadStatusChangeForAnimeProvider = StreamProvider.autoDispose
 // ─── Per-tab status change streams ──────────────────────────────────────────
 
 const _completedStatuses = {DownloadStatus.completed};
-const _activeStatuses = {DownloadStatus.downloading, DownloadStatus.paused};
+const _activeStatuses = {
+  DownloadStatus.downloading,
+  DownloadStatus.paused,
+  // `remuxing` lives in the active tab too — without this entry the
+  // filter in [_isRelevantToTab] would skip the `remuxing → completed`
+  // transition, leaving the row stuck on the active tab after the file
+  // has actually finished.
+  DownloadStatus.remuxing,
+  // `disconnected` is an auto-pause triggered by network loss. The task
+  // will auto-resume on reconnect, so from a UX point of view it still
+  // belongs with the in-progress items — hiding it would make the user
+  // think the download vanished. Grouping it with paused also means
+  // `downloading → disconnected` correctly re-fires this tab's query.
+  DownloadStatus.disconnected,
+};
 const _queueStatuses = {DownloadStatus.pending, DownloadStatus.failed};
 
 /// Returns true when a status change is relevant to a given tab's status group.
@@ -201,8 +228,7 @@ bool _isRelevantToTab(DownloadStatusChange e, Set<DownloadStatus> tabStatuses) {
 /// Fires only when the completed tab's data may have changed.
 final completedTabStatusChangeProvider =
     StreamProvider.autoDispose<DownloadStatusChange>((ref) {
-      final manager = ref.watch(downloadManagerProvider);
-      return manager.statusChangeStream.where(
+      return ref.watch(downloadManagerProvider).statusChangeStream.where(
         (e) => _isRelevantToTab(e, _completedStatuses),
       );
     });
@@ -210,8 +236,7 @@ final completedTabStatusChangeProvider =
 /// Fires only when the active (downloading/paused) tab's data may have changed.
 final activeTabStatusChangeProvider =
     StreamProvider.autoDispose<DownloadStatusChange>((ref) {
-      final manager = ref.watch(downloadManagerProvider);
-      return manager.statusChangeStream.where(
+      return ref.watch(downloadManagerProvider).statusChangeStream.where(
         (e) => _isRelevantToTab(e, _activeStatuses),
       );
     });
@@ -219,8 +244,7 @@ final activeTabStatusChangeProvider =
 /// Fires only when the queue (pending/failed) tab's data may have changed.
 final queueTabStatusChangeProvider =
     StreamProvider.autoDispose<DownloadStatusChange>((ref) {
-      final manager = ref.watch(downloadManagerProvider);
-      return manager.statusChangeStream.where(
+      return ref.watch(downloadManagerProvider).statusChangeStream.where(
         (e) => _isRelevantToTab(e, _queueStatuses),
       );
     });
@@ -258,6 +282,10 @@ final activeDownloadTasksProvider =
       return ref.watch(downloadStoreProvider).getTasksByStatuses([
         DownloadStatus.downloading,
         DownloadStatus.paused,
+        DownloadStatus.remuxing,
+        // Disconnected tasks stay visible in the active tab — they're
+        // queued to auto-resume once connectivity returns.
+        DownloadStatus.disconnected,
       ], ascending: false);
     });
 

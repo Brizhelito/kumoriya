@@ -11,13 +11,16 @@ final class SyncAwareProgressStore implements AnimeProgressStore {
     required AnimeProgressStore inner,
     required SyncQueueStore syncQueue,
     required bool Function() isAuthenticated,
+    void Function()? onEnqueued,
   }) : _inner = inner,
        _syncQueue = syncQueue,
-       _isAuthenticated = isAuthenticated;
+       _isAuthenticated = isAuthenticated,
+       _onEnqueued = onEnqueued;
 
   final AnimeProgressStore _inner;
   final SyncQueueStore _syncQueue;
   final bool Function() _isAuthenticated;
+  final void Function()? _onEnqueued;
 
   @override
   Future<Result<void, KumoriyaError>> upsert(EpisodeProgress progress) async {
@@ -46,6 +49,7 @@ final class SyncAwareProgressStore implements AnimeProgressStore {
           status: SyncQueueEntryStatus.pending,
         ),
       );
+      _onEnqueued?.call();
     }
     return result;
   }
@@ -88,6 +92,7 @@ final class SyncAwareProgressStore implements AnimeProgressStore {
           status: SyncQueueEntryStatus.pending,
         ),
       );
+      _onEnqueued?.call();
     }
     return result;
   }
@@ -117,6 +122,7 @@ final class SyncAwareProgressStore implements AnimeProgressStore {
           status: SyncQueueEntryStatus.pending,
         ),
       );
+      _onEnqueued?.call();
     }
     return result;
   }
@@ -161,6 +167,7 @@ final class SyncAwareProgressStore implements AnimeProgressStore {
           status: SyncQueueEntryStatus.pending,
         ),
       );
+      _onEnqueued?.call();
     }
     return result;
   }
@@ -184,6 +191,7 @@ final class SyncAwareProgressStore implements AnimeProgressStore {
             status: SyncQueueEntryStatus.pending,
           ),
         );
+        _onEnqueued?.call();
       }
     }
     return result;

@@ -31,7 +31,8 @@ final class PartyPlaybackState {
     required int clientServerOffsetMs,
   }) {
     if (!isPlaying) return basePositionMs;
-    final nowOnServer = DateTime.now().millisecondsSinceEpoch + clientServerOffsetMs;
+    final nowOnServer =
+        DateTime.now().millisecondsSinceEpoch + clientServerOffsetMs;
     final delta = nowOnServer - effectiveAtMs;
     return basePositionMs + (delta < 0 ? 0 : delta);
   }
@@ -84,19 +85,18 @@ final class PartyRealtimeState {
     int? roomVersion,
     int? clientServerOffsetMs,
     String? error,
-  }) =>
-      PartyRealtimeState(
-        roomId: roomId ?? this.roomId,
-        hostId: hostId ?? this.hostId,
-        inviteCode: inviteCode ?? this.inviteCode,
-        members: members ?? this.members,
-        readyStates: readyStates ?? this.readyStates,
-        connectedIds: connectedIds ?? this.connectedIds,
-        playback: playback ?? this.playback,
-        roomVersion: roomVersion ?? this.roomVersion,
-        clientServerOffsetMs: clientServerOffsetMs ?? this.clientServerOffsetMs,
-        error: error,
-      );
+  }) => PartyRealtimeState(
+    roomId: roomId ?? this.roomId,
+    hostId: hostId ?? this.hostId,
+    inviteCode: inviteCode ?? this.inviteCode,
+    members: members ?? this.members,
+    readyStates: readyStates ?? this.readyStates,
+    connectedIds: connectedIds ?? this.connectedIds,
+    playback: playback ?? this.playback,
+    roomVersion: roomVersion ?? this.roomVersion,
+    clientServerOffsetMs: clientServerOffsetMs ?? this.clientServerOffsetMs,
+    error: error,
+  );
 
   /// Derive a "legacy" [PartyRoom] view so callers that still expect a
   /// `PartyRoom` can keep working during the migration.
@@ -154,7 +154,10 @@ PartyRealtimeState reducePartyRealtimeEvent(
     case 'host_transferred':
       final newHost = payload['newHostId'];
       if (newHost is String) {
-        return prev.copyWith(hostId: newHost, roomVersion: roomVersion ?? prev.roomVersion);
+        return prev.copyWith(
+          hostId: newHost,
+          roomVersion: roomVersion ?? prev.roomVersion,
+        );
       }
       return prev;
     case 'room_closed':
@@ -350,8 +353,8 @@ PartyRealtimeState _applyPlayback(
       nextOffset = rawOffset;
     } else {
       const alpha = 0.25;
-      nextOffset =
-          (prev.clientServerOffsetMs * (1 - alpha) + rawOffset * alpha).round();
+      nextOffset = (prev.clientServerOffsetMs * (1 - alpha) + rawOffset * alpha)
+          .round();
     }
   }
 

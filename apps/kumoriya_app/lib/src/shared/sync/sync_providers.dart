@@ -1,8 +1,14 @@
+import 'dart:async';
+import 'dart:io';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kumoriya_sync/kumoriya_sync.dart';
+import 'package:workmanager/workmanager.dart';
 
 import '../auth/auth_providers.dart';
 import '../storage_providers.dart';
+import '../../workers/push_pending_sync_worker.dart';
+import 'sync_coordinator.dart';
 import 'sync_refresh.dart';
 
 const _apiBaseUrl = 'https://api.kumoriya.online';
@@ -52,6 +58,36 @@ class SyncStatusNotifier extends Notifier<SyncStatus> {
     state = value;
   }
 }
+
+final syncCoordinatorProvider = Provider<SyncCoordinator>((ref) {
+  final coordinator = SyncCoordinator(
+    syncService: ref.watch(syncServiceProvider),
+    queueStore: ref.watch(syncQueueStoreProvider),
+    isAuthenticated: () => ref.read(isAuthenticatedProvider),
+    loadLastSyncAt: () => ref.read(secureTokenStoreProvider).loadLastSyncAt(),
+    saveLastSyncAt: (time) async {
+      await ref.read(lastSyncAtProvider.notifier).setLastSyncAt(time);
+    },
+    onDataRefreshed: () {
+      ref.read(syncDataRefreshEpochProvider.notifier).bump();
+    },
+    connectivity: PluginConnectivityProbe(),
+    schedulePushJob: Platform.isAndroid
+        ? () async {
+            await Workmanager().registerOneOffTask(
+              kPushPendingSyncTask,
+              kPushPendingSyncTask,
+              constraints: Constraints(networkType: NetworkType.connected),
+              existingWorkPolicy: ExistingWorkPolicy.replace,
+            );
+          }
+        : null,
+  );
+  ref.onDispose(() {
+    unawaited(coordinator.dispose());
+  });
+  return coordinator;
+});
 
 final syncTriggerProvider = Provider<SyncTrigger>((ref) {
   return SyncTrigger(ref);

@@ -18,18 +18,19 @@ import androidx.media3.common.Tracks
 import androidx.media3.common.VideoSize
 import androidx.media3.datasource.DataSource
 import androidx.media3.datasource.DefaultDataSource
-import androidx.media3.datasource.DefaultHttpDataSource
 import androidx.media3.datasource.HttpDataSource
+import androidx.media3.datasource.okhttp.OkHttpDataSource
+import dev.kumoriya.exoplayer.http.KumoriyaHttpClient
 import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.Renderer
 import androidx.media3.exoplayer.dash.DashMediaSource
+import androidx.media3.exoplayer.text.TextOutput
 import androidx.media3.exoplayer.hls.HlsMediaSource
 import androidx.media3.exoplayer.source.MediaSource
 import androidx.media3.exoplayer.source.MergingMediaSource
 import androidx.media3.exoplayer.source.ProgressiveMediaSource
 import androidx.media3.exoplayer.source.SingleSampleMediaSource
-import androidx.media3.exoplayer.text.TextOutput
 import dev.kumoriya.exoplayer.nexus.NexusDataSourceFactory
 import dev.kumoriya.exoplayer.nexus.NexusPlaybackSession
 import dev.kumoriya.exoplayer.nexus.ResolvedSubtitle
@@ -55,14 +56,13 @@ class PlayerInstance(
 
     private val surface: Surface = Surface(textureEntry.surfaceTexture())
 
-    // Mirrors `video_player_android`'s HTTP factory configuration byte-for-byte.
-    // Every call to [open] (or [attachNexusSession]) rebuilds the User-Agent
-    // and defaultRequestProperties through [configureHttpFactory] so no state
-    // leaks across streams — but we keep `setAllowCrossProtocolRedirects(true)`
-    // permanent because every HLS master→variant flip we ship depends on it.
-    private val dataSourceFactory = DefaultHttpDataSource.Factory()
-        .setAllowCrossProtocolRedirects(true)
-        .setUserAgent(DEFAULT_USER_AGENT)
+    // Shared OkHttp-backed factory for all non-Nexus HTTP requests.
+    // Cross-protocol redirects (http↔https) are handled by the underlying
+    // OkHttpClient's `followSslRedirects(true)`. Every call to [open] (or
+    // [attachNexusSession]) rebuilds the User-Agent and defaultRequestProperties
+    // so no state leaks across streams.
+    private val dataSourceFactory: OkHttpDataSource.Factory =
+        KumoriyaHttpClient.asMedia3Factory()
 
     // We intentionally do NOT install a custom `MediaSourceFactory` on
     // the player. Every `open()` call builds the right
@@ -101,12 +101,17 @@ class PlayerInstance(
                         as? androidx.media3.exoplayer.text.TextRenderer
                     textRenderer?.experimentalSetLegacyDecodingEnabled(true)
                 }
+
             },
         )
         .build()
         .also { p ->
             p.setVideoSurface(surface)
             p.addListener(this)
+            p.trackSelectionParameters = p.trackSelectionParameters
+                .buildUpon()
+                .setTrackTypeDisabled(C.TRACK_TYPE_TEXT, true)
+                .build()
         }
 
     private val eventChannel = EventChannel(
@@ -254,16 +259,10 @@ class PlayerInstance(
         //   2. Put every other header into defaultRequestProperties.
         //   3. Always reset both on each open so stale state from a previous
         //      stream cannot bleed across unrelated requests.
-        val customUa = headers.entries.firstOrNull {
-            it.key.equals("User-Agent", ignoreCase = true)
-        }?.value
-        dataSourceFactory.setUserAgent(customUa ?: DEFAULT_USER_AGENT)
-        val propertyHeaders = if (customUa != null) {
-            headers.filterKeys { !it.equals("User-Agent", ignoreCase = true) }
-        } else {
-            headers
-        }
-        dataSourceFactory.setDefaultRequestProperties(propertyHeaders)
+        dataSourceFactory.setUserAgent(KumoriyaHttpClient.extractUserAgent(headers))
+        dataSourceFactory.setDefaultRequestProperties(
+            KumoriyaHttpClient.headersWithoutUserAgent(headers),
+        )
         val resolvedMime = normaliseMimeType(mimeType)
         val itemBuilder = MediaItem.Builder().setUri(Uri.parse(url))
         if (resolvedMime != null) {
@@ -476,6 +475,19 @@ class PlayerInstance(
     }
 
     /**
+     * Set the preferred subtitle languages for auto-selection.
+     * Requires Media3 1.1+.
+     */
+    fun setPreferredSubtitleLanguages(languages: List<String>) {
+        requireNotReleased()
+        player.trackSelectionParameters = player.trackSelectionParameters
+            .buildUpon()
+            .setPreferredTextLanguages(*languages.toTypedArray())
+            .build()
+        emitLog("[subtitle-track] preferredLanguages=${languages.joinToString(",")}")
+    }
+
+    /**
      * Select the video track identified by [trackId] — same encoding as
      * [selectAudioTrack]. Forces ABR off for the video type and pins the
      * player to the requested variant. Used by the Dart quality picker
@@ -630,16 +642,10 @@ class PlayerInstance(
             "[swap-url] url=$url mimeType=${mimeType ?: "(auto)"} " +
                 "headerKeys=${headers.keys.toList()}",
         )
-        val customUa = headers.entries.firstOrNull {
-            it.key.equals("User-Agent", ignoreCase = true)
-        }?.value
-        dataSourceFactory.setUserAgent(customUa ?: DEFAULT_USER_AGENT)
-        val propertyHeaders = if (customUa != null) {
-            headers.filterKeys { !it.equals("User-Agent", ignoreCase = true) }
-        } else {
-            headers
-        }
-        dataSourceFactory.setDefaultRequestProperties(propertyHeaders)
+        dataSourceFactory.setUserAgent(KumoriyaHttpClient.extractUserAgent(headers))
+        dataSourceFactory.setDefaultRequestProperties(
+            KumoriyaHttpClient.headersWithoutUserAgent(headers),
+        )
 
         val resolvedMime = normaliseMimeType(mimeType)
         val itemBuilder = MediaItem.Builder().setUri(Uri.parse(url))
@@ -794,6 +800,49 @@ class PlayerInstance(
                 "height" to videoSize.height.toDouble(),
             ),
         )
+        // Hint the compositor to match the stream's cadence so 23.976/24/25 fps
+        // content does not judder on 60 Hz panels. Requires API 30+.
+        applySurfaceFrameRate(player.videoFormat?.frameRate ?: 0f)
+    }
+
+    /**
+     * Forward the active video frame rate to the Flutter [Surface] so Android's
+     * display compositor can pick a matching refresh rate. This fixes the
+     * periodic frame "stutter" visible on typical 60 Hz devices when playing
+     * 23.976 / 24 / 25 fps sources.
+     *
+     * Uses the 3-arg overload on API 31+ to force refresh-rate switches
+     * (`CHANGE_FRAMERATE_ALWAYS`); falls back to the 2-arg form on API 30; is a
+     * no-op on older releases (no public API to request refresh-rate changes).
+     */
+    private var appliedSurfaceFrameRate: Float = 0f
+
+    private fun applySurfaceFrameRate(frameRate: Float) {
+        if (!surface.isValid) return
+        val target = if (frameRate.isFinite() && frameRate > 0f) frameRate else 0f
+        if (target == appliedSurfaceFrameRate) return
+        try {
+            when {
+                Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
+                    surface.setFrameRate(
+                        target,
+                        Surface.FRAME_RATE_COMPATIBILITY_FIXED_SOURCE,
+                        Surface.CHANGE_FRAME_RATE_ALWAYS,
+                    )
+                }
+                Build.VERSION.SDK_INT >= Build.VERSION_CODES.R -> {
+                    surface.setFrameRate(
+                        target,
+                        Surface.FRAME_RATE_COMPATIBILITY_FIXED_SOURCE,
+                    )
+                }
+            }
+            appliedSurfaceFrameRate = target
+        } catch (t: Throwable) {
+            // Never let a frame-rate hint tear down playback — worst case we
+            // keep the default cadence and log once for diagnostics.
+            Log.w(LOG_TAG, "setFrameRate($target) failed: ${t.message}")
+        }
     }
 
     override fun onPlayerError(error: PlaybackException) {
@@ -847,6 +896,22 @@ class PlayerInstance(
             .filterIsInstance<HttpDataSource.InvalidResponseCodeException>()
             .map { it.responseCode }
             .firstOrNull { it == 401 || it == 403 || it == 410 }
+    }
+
+    override fun onCues(cueGroup: androidx.media3.common.text.CueGroup) {
+        onCues(cueGroup.cues)
+    }
+
+    override fun onCues(cues: List<androidx.media3.common.text.Cue>) {
+        val payload = cues.map { cue ->
+            mapOf(
+                "text" to cue.text?.toString(),
+                "line" to cue.line,
+                "lineType" to cue.lineType,
+                "position" to cue.position,
+            )
+        }
+        sendEvent(mapOf("event" to "subtitleCue", "value" to payload))
     }
 
     // --- Internals ------------------------------------------------------
@@ -1335,19 +1400,40 @@ class PlayerInstance(
      * When [resolvedMime] is `null` (no hint from the resolver) we
      * fall through to Progressive, which matches legacy `video_player`
      * behaviour for `VideoFormat.other` / `null`.
+     *
+     * Local file URIs (`file://`, `content://`, etc.) use [DefaultDataSource.Factory]
+     * so ExoPlayer can read from the filesystem; remote URLs keep using the
+     * HTTP-only factory to avoid unnecessary delegation overhead.
      */
     private fun buildMediaSource(
         item: MediaItem,
         resolvedMime: String?,
     ): MediaSource {
-        val effectiveMime = resolvedMime ?: inferMimeFromUri(item.localConfiguration?.uri)
+        val uri = item.localConfiguration?.uri
+        val effectiveMime = resolvedMime ?: inferMimeFromUri(uri)
+        val factory = effectiveDataSourceFactoryForUri(uri)
         return when (effectiveMime) {
             "application/x-mpegURL" ->
-                HlsMediaSource.Factory(dataSourceFactory).createMediaSource(item)
+                HlsMediaSource.Factory(factory).createMediaSource(item)
             "application/dash+xml" ->
-                DashMediaSource.Factory(dataSourceFactory).createMediaSource(item)
+                DashMediaSource.Factory(factory).createMediaSource(item)
             else ->
-                ProgressiveMediaSource.Factory(dataSourceFactory).createMediaSource(item)
+                ProgressiveMediaSource.Factory(factory).createMediaSource(item)
+        }
+    }
+
+    /**
+     * Returns [DefaultDataSource.Factory] for local/content URIs so
+     * ExoPlayer can access the filesystem or Android content providers;
+     * returns the cached [dataSourceFactory] (HTTP-only) for remote URLs
+     * to avoid the overhead of the delegating chain.
+     */
+    private fun effectiveDataSourceFactoryForUri(uri: Uri?): DataSource.Factory {
+        val scheme = uri?.scheme?.lowercase()
+        return if (scheme == "file" || scheme == "content" || scheme == "asset") {
+            DefaultDataSource.Factory(context, dataSourceFactory)
+        } else {
+            dataSourceFactory
         }
     }
 
@@ -1409,17 +1495,6 @@ class PlayerInstance(
         private const val LOG_TAG = "KumoriyaExoPlayer"
         private const val POSITION_POLL_MS = 200L
         private const val DIAGNOSTICS_POLL_MS = 1000L
-
-        /**
-         * Literal string `video_player_android` hard-codes when the caller
-         * doesn't pass a User-Agent header. Tested against every source in
-         * the Player Flow Playground — anything that worked with the legacy
-         * `video_player`-backed engine still works with this UA.
-         *
-         * Resolvers are free to override by including `User-Agent` in their
-         * [ResolvedStream.headers]; see [PlayerInstance.open].
-         */
-        private const val DEFAULT_USER_AGENT = "ExoPlayer"
     }
 }
 

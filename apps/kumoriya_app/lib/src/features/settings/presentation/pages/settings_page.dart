@@ -20,6 +20,8 @@ import '../../../auth/presentation/pages/login_page.dart';
 import '../../../auth/presentation/pages/profile_page.dart';
 import '../../../downloads/presentation/download_providers.dart';
 import '../../../downloads/application/auto_delete_watched_service.dart';
+import '../../../downloads/application/hls_remux_mode_notifier.dart';
+import '../../../downloads/application/wifi_only_mode_notifier.dart';
 import '../../../player/application/models/subtitle_settings.dart';
 import 'kumoriya_exoplayer_playground_page.dart';
 import 'player_flow_playground_page.dart';
@@ -498,7 +500,9 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                                     ),
                                   );
                                 },
-                                icon: const Icon(Icons.play_circle_outline_rounded),
+                                icon: const Icon(
+                                  Icons.play_circle_outline_rounded,
+                                ),
                                 label: const Text('Player Flow Playground'),
                               ),
                             if (kDebugMode && Platform.isAndroid)
@@ -515,7 +519,9 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                                   );
                                 },
                                 icon: const Icon(Icons.smart_display_rounded),
-                                label: const Text('kumoriya_exoplayer Playground'),
+                                label: const Text(
+                                  'kumoriya_exoplayer Playground',
+                                ),
                               ),
                           ],
                         ),
@@ -578,6 +584,13 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                 ),
                 const _SectionDivider(),
                 _AutoDeleteWatchedSection(),
+                // WiFi-only + HLS remux toggles only apply to the native
+                // Android download pipeline. Desktop uses a different
+                // native plugin that does not honor these flags.
+                if (!Platform.isWindows) ...<Widget>[
+                  const _SectionDivider(),
+                  const _WifiOnlyDownloadsSection(),
+                ],
                 const _SectionDivider(),
                 _SettingsSection(
                   title: context.l10n.settingsPlaybackPreferencesTitle,
@@ -1215,6 +1228,65 @@ class _AutoDeleteWatchedSection extends ConsumerWidget {
                 ),
               );
             }).toList(),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ─── WiFi-only downloads section ────────────────────────────────────────────
+
+class _WifiOnlyDownloadsSection extends ConsumerWidget {
+  const _WifiOnlyDownloadsSection();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final asyncEnabled = ref.watch(wifiOnlyModeNotifierProvider);
+    final enabled = asyncEnabled.value ?? false;
+
+    final asyncRemux = ref.watch(hlsRemuxModeNotifierProvider);
+    final remuxEnabled = asyncRemux.value ?? true;
+
+    return _SettingsSection(
+      title: context.l10n.settingsDownloadsTitle,
+      child: Column(
+        children: <Widget>[
+          _SettingsActionRow(
+            leading: Icons.wifi_rounded,
+            title: context.l10n.settingsDownloadsWifiOnly,
+            subtitle: context.l10n.settingsDownloadsWifiOnlyDescription,
+            trailing: Switch(
+              value: enabled,
+              onChanged: asyncEnabled.isLoading
+                  ? null
+                  : (value) {
+                      ref
+                          .read(wifiOnlyModeNotifierProvider.notifier)
+                          .setEnabled(value);
+                    },
+            ),
+          ),
+          _SettingsActionRow(
+            leading: Icons.auto_fix_high_rounded,
+            // TODO(i18n): localize once the downloads screens are
+            // reviewed for translation.
+            title: 'Remuxear HLS a MP4',
+            subtitle:
+                'Activado: convierte a MP4 universal al terminar '
+                '(puede tardar unos segundos). Desactivado: guarda '
+                'directamente como .ts (instantáneo, compatible con VLC '
+                'y la mayoría de reproductores).',
+            trailing: Switch(
+              value: remuxEnabled,
+              onChanged: asyncRemux.isLoading
+                  ? null
+                  : (value) {
+                      ref
+                          .read(hlsRemuxModeNotifierProvider.notifier)
+                          .setEnabled(value);
+                    },
+            ),
           ),
         ],
       ),

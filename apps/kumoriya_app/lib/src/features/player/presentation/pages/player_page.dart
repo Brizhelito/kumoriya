@@ -39,6 +39,7 @@ import '../../application/use_cases/save_playback_preference_use_case.dart';
 import '../../application/use_cases/save_progress_use_case.dart';
 import '../../application/services/playback_engine.dart';
 import '../../infrastructure/playback_engine_factory.dart';
+import '../../infrastructure/kumoriya_exoplayer_engine.dart';
 import '../widgets/player_video_surface.dart';
 import '../widgets/player_debug_overlay.dart';
 import '../../../watch_party/application/party_session_guard.dart';
@@ -66,6 +67,7 @@ class PlayerPage extends ConsumerStatefulWidget {
     this.persistSelection = true,
     this.preferredAudioPreference,
     this.totalEpisodes,
+    this.nextAiringEpisodeNumber,
     this.routeMode = PartyRouteMode.standard,
     required this.resolved,
   });
@@ -79,6 +81,7 @@ class PlayerPage extends ConsumerStatefulWidget {
   final bool persistSelection;
   final PlaybackAudioPreference? preferredAudioPreference;
   final int? totalEpisodes;
+  final double? nextAiringEpisodeNumber;
   final PartyRouteMode routeMode;
   final ResolvedServerLinkResult resolved;
 
@@ -125,6 +128,7 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
   EmbeddedAudioTrack? _activeAudioTrack;
   EmbeddedSubtitleTrack? _activeEmbeddedSubtitleTrack;
   ExternalSubtitleTrack? _activeExternalSubtitleTrack;
+  bool _autoPickedSubtitle = false;
   late final String _instanceId = identityHashCode(this).toRadixString(16);
   bool _partyPlayerReadySent = false;
   bool _partyPauseHoldPending = false;
@@ -145,17 +149,31 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
   double get _episodeNumberDouble =>
       double.tryParse(widget.episodeNumber) ?? 0.0;
 
-  /// Whether the current episode is known to not be the last one.
+  /// Whether the current episode is known to not be the last one AND the next
+  /// episode has already aired.
   /// If [totalEpisodes] is unknown we default to **false** so we do not
   /// advertise a "next" episode that may not exist (safer UX than dropping
   /// the user into an `unavailable` state). Parses the episode number as a
   /// double so fractional episodes (e.g. 7.5) do not collapse to 0 and
   /// silently disable the button.
+  /// For airing anime, also checks [nextAiringEpisodeNumber] to ensure the
+  /// next episode has been released.
   bool get _hasNextEpisode {
     final total = widget.totalEpisodes;
     if (total == null) return false;
     final current = double.tryParse(widget.episodeNumber) ?? 0;
-    return current < total;
+    if (current >= total) return false;
+    
+    // For airing anime, verify the next episode has been released
+    final nextAiring = widget.nextAiringEpisodeNumber;
+    if (nextAiring != null) {
+      final nextEpisode = current + 1;
+      // Next episode is available only if it's before the next airing episode
+      return nextEpisode < nextAiring;
+    }
+    
+    // If no nextAiringEpisodeNumber, assume all episodes up to total are available
+    return true;
   }
 
   @override
@@ -385,6 +403,7 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
         return;
       }
       setState(() => _embeddedTracks = tracks);
+      _maybeAutoPickSubtitle(tracks);
     });
     _completionSub = orchestrator.naturalCompletionStream.listen((_) {
       _onNaturalCompletion();
@@ -416,6 +435,7 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
     _tracksSub = null;
     _completionSub = null;
     _embeddedTracks = EmbeddedTracks.empty;
+    _autoPickedSubtitle = false;
     final orchestrator = _orchestrator;
     _orchestrator = null;
     _engine = null;
@@ -1252,6 +1272,65 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
     unawaited(_openEpisodeSelectorFromPlayer());
   }
 
+  void _maybeAutoPickSubtitle(EmbeddedTracks tracks) {
+    if (_autoPickedSubtitle) return;
+    if (tracks.subtitle.isEmpty) return;
+    _autoPickedSubtitle = true;
+
+    // If Media3 already has one selected (e.g. external seeded by Kotlin),
+    // adopt it for the picker and stop here.
+    final preSelected = tracks.subtitle
+        .cast<EmbeddedSubtitleTrack?>()
+        .firstWhere((t) => t?.selected == true, orElse: () => null);
+    if (preSelected != null) {
+      if (mounted) {
+        setState(() => _activeEmbeddedSubtitleTrack = preSelected);
+      } else {
+        _activeEmbeddedSubtitleTrack = preSelected;
+      }
+      return;
+    }
+
+    final deviceLocale = PlatformDispatcher.instance.locale;
+    final primary = deviceLocale.languageCode.toLowerCase(); // 'es', 'en', ...
+    // Normalise to ISO-639-1 two-letter + accept 3-letter ('spa', 'eng').
+    bool matches(String? lang, String target) {
+      if (lang == null) return false;
+      final l = lang.toLowerCase();
+      if (l == target) return true;
+      if (target == 'es' && (l == 'spa' || l.startsWith('es-'))) return true;
+      if (target == 'en' && (l == 'eng' || l.startsWith('en-'))) return true;
+      return false;
+    }
+
+    EmbeddedSubtitleTrack? pick;
+    for (final t in tracks.subtitle) {
+      if (matches(t.language, primary)) {
+        pick = t;
+        break;
+      }
+    }
+    if (pick == null && primary != 'en') {
+      for (final t in tracks.subtitle) {
+        if (matches(t.language, 'en')) {
+          pick = t;
+          break;
+        }
+      }
+    }
+
+    if (pick == null) return; // leave disabled per user preference
+    if (mounted) {
+      setState(() => _activeEmbeddedSubtitleTrack = pick);
+    } else {
+      _activeEmbeddedSubtitleTrack = pick;
+    }
+    final orchestrator = _orchestrator;
+    if (orchestrator != null) {
+      unawaited(orchestrator.selectEmbeddedSubtitleTrack(pick));
+    }
+  }
+
   Future<void> _enterWindowsFullscreenIfSupported() async {
     if (kIsWeb || !(Platform.isWindows || Platform.isLinux)) {
       return;
@@ -1576,6 +1655,8 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
           preferredAudioPreference: preferredAudioPreference,
           routeMode: widget.routeMode,
           resolved: resolved,
+          totalEpisodes: widget.totalEpisodes,
+          nextAiringEpisodeNumber: widget.nextAiringEpisodeNumber,
         ),
       ),
     );
@@ -1629,6 +1710,16 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
       DeviceOrientation.landscapeLeft,
       DeviceOrientation.landscapeRight,
     ]);
+  }
+
+  SubtitleViewConfiguration _subtitleViewConfigFor(
+    PlaybackEngine? engine,
+    SubtitleSettings settings,
+  ) {
+    if (engine is KumoriyaExoPlayerEngine) {
+      return settings.toOverlayConfiguration();
+    }
+    return settings.toViewConfiguration();
   }
 
   @override
@@ -1769,14 +1860,9 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
                       },
                 onBack: () => _handleExit(context),
                 onRetry: _retryPlayback,
-                onOpenEpisodes: !partyMemberLocked && _hasNextEpisode
-                    ? () => unawaited(_openEpisodeSelectorFromPlayer())
-                    : null,
+                onOpenEpisodes: (partyMemberLocked ? null : (_hasNextEpisode ? () => unawaited(_openEpisodeSelectorFromPlayer()) : null)),
                 onPreviousEpisode:
-                    !partyMemberLocked &&
-                        (int.tryParse(widget.episodeNumber) ?? 0) > 1
-                    ? () => unawaited(_openPreviousEpisode())
-                    : null,
+                    (partyMemberLocked ? null : ((int.tryParse(widget.episodeNumber) ?? 0) > 1 ? () => unawaited(_openPreviousEpisode()) : null)),
                 onQuality: () => unawaited(_showQualityPicker(context)),
                 onAudio: _embeddedTracks.hasMultipleAudio
                     ? () => unawaited(_showAudioTrackPicker(context))
@@ -1847,8 +1933,9 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
                     ? context.l10n.playerAllCandidatesFailed
                     : null,
                 formatDuration: _formatDuration,
-                subtitleViewConfiguration: subtitleConfig
-                    ?.toViewConfiguration(),
+                subtitleViewConfiguration: subtitleConfig != null
+                    ? _subtitleViewConfigFor(engine, subtitleConfig)
+                    : null,
                 episodeTitle: widget.episodeTitle,
                 onVolumeChanged: (vol) {
                   _engine?.setVolume(vol * 100);
@@ -1905,22 +1992,23 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
         context: context,
         title: context.l10n.playerQuality,
         icon: KumoriyaIcons.playerQuality,
-        options: List<_PlayerSelectorOption>.generate(orchestratorItems.length, (
-          index,
-        ) {
-          final stream = orchestratorItems[index];
-          final selected =
-              _state.selectedStream?.url.toString() == stream.url.toString();
-          final label =
-              stream.qualityLabel ??
-              '${context.l10n.playerQuality} ${index + 1}';
-          return _PlayerSelectorOption(
-            icon: Icons.high_quality_rounded,
-            title: label,
-            selected: selected,
-            onTap: () => unawaited(orchestrator.selectQualityByIndex(index)),
-          );
-        }),
+        options: List<_PlayerSelectorOption>.generate(
+          orchestratorItems.length,
+          (index) {
+            final stream = orchestratorItems[index];
+            final selected =
+                _state.selectedStream?.url.toString() == stream.url.toString();
+            final label =
+                stream.qualityLabel ??
+                '${context.l10n.playerQuality} ${index + 1}';
+            return _PlayerSelectorOption(
+              icon: Icons.high_quality_rounded,
+              title: label,
+              selected: selected,
+              onTap: () => unawaited(orchestrator.selectQualityByIndex(index)),
+            );
+          },
+        ),
       );
       return;
     }
@@ -1930,11 +2018,12 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
 
     // Sort variants by resolution desc so the picker reads 1080p → 720p
     // → 480p from top to bottom, matching user expectations.
-    final sorted = [...embeddedVariants]..sort((a, b) {
-      final aH = a.height ?? 0;
-      final bH = b.height ?? 0;
-      return bH.compareTo(aH);
-    });
+    final sorted = [...embeddedVariants]
+      ..sort((a, b) {
+        final aH = a.height ?? 0;
+        final bH = b.height ?? 0;
+        return bH.compareTo(aH);
+      });
     final anySelected = sorted.any((t) => t.selected);
     await _showPlayerSelectorSheet(
       context: context,

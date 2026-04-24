@@ -300,6 +300,13 @@ final class _FakePlaybackEngine implements PlaybackEngine {
   Future<void> setSubtitleTrack(ExternalSubtitleTrack track) async {}
 
   @override
+  Future<void> setVolume(double percent) async {}
+  @override
+  Future<void> setPlaybackSpeed(double rate) async {}
+  @override
+  Future<void> setPreferredSubtitleLanguages(List<String> languages) async {}
+
+  @override
   Future<void> dispose() async {
     await _playingController.close();
     await _bufferingController.close();

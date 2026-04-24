@@ -431,6 +431,15 @@ class _EpisodeListSceneState extends ConsumerState<EpisodeListScene> {
       final file = File(offlineTask.filePath!);
       if (await file.exists()) {
         if (!mounted) return;
+
+        final detailResult = await ref.read(animeDetailProvider(widget.anilistId).future);
+        if (!mounted) return;
+        final totalEpisodes = detailResult.fold(
+          onFailure: (_) => null,
+          onSuccess: (detail) => detail.anime.totalEpisodes,
+        );
+
+        // ignore: use_build_context_synchronously
         await Navigator.of(context, rootNavigator: true).push(
           MaterialPageRoute<void>(
             builder: (_) => PlayerPage(
@@ -447,6 +456,7 @@ class _EpisodeListSceneState extends ConsumerState<EpisodeListScene> {
                 resolverName: 'Downloaded',
                 streams: <ResolvedStream>[ResolvedStream(url: file.uri)],
               ),
+              totalEpisodes: totalEpisodes,
             ),
           ),
         );
@@ -480,6 +490,15 @@ class _EpisodeListSceneState extends ConsumerState<EpisodeListScene> {
     final rootNavigator = Navigator.of(context, rootNavigator: true);
     hideBlockingLoader(rootNavigator.context);
     setState(() => _isLaunching = false);
+
+    final detailResult = await ref.read(animeDetailProvider(widget.anilistId).future);
+    if (!mounted) return;
+    final totalEpisodes = detailResult.fold(
+      onFailure: (_) => null,
+      onSuccess: (detail) => detail.anime.totalEpisodes,
+    );
+
+    // ignore: use_build_context_synchronously
     await handlePlaybackDecision(
       context: rootNavigator.context,
       ref: ref,
@@ -488,6 +507,7 @@ class _EpisodeListSceneState extends ConsumerState<EpisodeListScene> {
       episodeTitle: row.displayTitle,
       routeMode: widget.routeMode,
       decision: decision,
+      totalEpisodes: totalEpisodes,
     );
   }
 
@@ -1066,6 +1086,18 @@ class _DownloadStatusChip extends StatelessWidget {
         Icons.pause_circle_rounded,
         KumoriyaColors.statusWarning,
         context.l10n.downloadPaused,
+      ),
+      DownloadStatus.disconnected => (
+        Icons.cloud_off_rounded,
+        KumoriyaColors.textMuted,
+        // TODO(i18n): localize.
+        'Sin conexi\u00f3n',
+      ),
+      DownloadStatus.remuxing => (
+        Icons.auto_fix_high_rounded,
+        Theme.of(context).colorScheme.primary,
+        // TODO(i18n): localize.
+        'Procesando\u2026',
       ),
       DownloadStatus.completed => (
         Icons.check_circle_rounded,

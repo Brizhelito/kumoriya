@@ -36,14 +36,10 @@ final class ExoPlayerPlaybackEngine implements PlaybackEngine {
   /// texture. Null when no open call has succeeded yet.
   VideoPlayerController? get videoController => _controller;
 
-  final StreamController<bool> _playing =
-      StreamController<bool>.broadcast();
-  final StreamController<bool> _buffering =
-      StreamController<bool>.broadcast();
-  final StreamController<bool> _completed =
-      StreamController<bool>.broadcast();
-  final StreamController<String> _errors =
-      StreamController<String>.broadcast();
+  final StreamController<bool> _playing = StreamController<bool>.broadcast();
+  final StreamController<bool> _buffering = StreamController<bool>.broadcast();
+  final StreamController<bool> _completed = StreamController<bool>.broadcast();
+  final StreamController<String> _errors = StreamController<String>.broadcast();
   final StreamController<Duration> _position =
       StreamController<Duration>.broadcast();
   final StreamController<Duration> _duration =
@@ -86,8 +82,7 @@ final class ExoPlayerPlaybackEngine implements PlaybackEngine {
       const Stream<EmbeddedTracks>.empty();
 
   @override
-  Stream<double> get bufferingPercentageStream =>
-      const Stream<double>.empty();
+  Stream<double> get bufferingPercentageStream => const Stream<double>.empty();
 
   @override
   Stream<PlayerDiagnostics> get diagnosticsStream =>
@@ -256,7 +251,10 @@ final class ExoPlayerPlaybackEngine implements PlaybackEngine {
         return;
       }
       final trimmed = text.trimLeft();
-      final head = trimmed.substring(0, trimmed.length < 80 ? trimmed.length : 80);
+      final head = trimmed.substring(
+        0,
+        trimmed.length < 80 ? trimmed.length : 80,
+      );
       final isWebVtt = head.startsWith('WEBVTT');
       debugPrint(
         '[exoplayer.subs] loaded textLen=${text.length} isWebVtt=$isWebVtt '
@@ -269,7 +267,9 @@ final class ExoPlayerPlaybackEngine implements PlaybackEngine {
         '[exoplayer.subs] parsed captionCount=${file.captions.length} '
         'first=${file.captions.isEmpty ? "<none>" : "${file.captions.first.start}-${file.captions.first.end} ${file.captions.first.text}"}',
       );
-      await controller.setClosedCaptionFile(Future<ClosedCaptionFile>.value(file));
+      await controller.setClosedCaptionFile(
+        Future<ClosedCaptionFile>.value(file),
+      );
       debugPrint('[exoplayer.subs] setClosedCaptionFile done');
     } catch (error, stack) {
       debugPrint('[exoplayer.subs] setSubtitleTrack FAILED: $error\n$stack');
@@ -314,6 +314,9 @@ final class ExoPlayerPlaybackEngine implements PlaybackEngine {
 
   @override
   Future<void> clearEmbeddedSubtitleTrack() async {}
+
+  @override
+  Future<void> setPreferredSubtitleLanguages(List<String> languages) async {}
 
   @override
   Future<void> setEmbeddedVideoTrack(EmbeddedVideoTrack track) async {}

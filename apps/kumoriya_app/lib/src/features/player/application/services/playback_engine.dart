@@ -50,6 +50,9 @@ abstract interface class PlaybackEngine {
   /// Disable the embedded subtitle track.
   Future<void> clearEmbeddedSubtitleTrack() async {}
 
+  /// Set the preferred subtitle languages for auto-selection.
+  Future<void> setPreferredSubtitleLanguages(List<String> languages) async {}
+
   /// Pin the HLS variant to [track]. Disables ABR until
   /// [clearEmbeddedVideoTrack] is called. No-op on engines that do not
   /// expose per-variant selection (media_kit desktop).

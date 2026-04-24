@@ -27,29 +27,46 @@ import '../features/player/presentation/pages/player_performance_benchmark_page.
 import '../shared/auth/auth_providers.dart';
 import '../shared/auth/deep_link_handler.dart';
 import '../shared/navigation/app_navigation_shell.dart';
+import '../shared/sync/sync_providers.dart';
 import '../shared/theme/kumoriya_theme.dart';
 import 'l10n.dart';
 
-class KumoriyaApp extends StatefulWidget {
+class KumoriyaApp extends ConsumerStatefulWidget {
   const KumoriyaApp({super.key});
 
   @override
-  State<KumoriyaApp> createState() => _KumoriyaAppState();
+  ConsumerState<KumoriyaApp> createState() => _KumoriyaAppState();
 }
 
-class _KumoriyaAppState extends State<KumoriyaApp> {
+class _KumoriyaAppState extends ConsumerState<KumoriyaApp> {
   final GlobalKey<NavigatorState> _navigatorKey = GlobalKey<NavigatorState>();
   late final DeepLinkHandler _deepLinkHandler;
+  late final AppLifecycleListener _lifecycleListener;
 
   @override
   void initState() {
     super.initState();
     _deepLinkHandler = DeepLinkHandler(navigatorKey: _navigatorKey);
     _deepLinkHandler.init();
+
+    // Sync coordinator lifecycle hooks: push on resume; schedule
+    // expedited background push on pause. See [SyncCoordinator].
+    _lifecycleListener = AppLifecycleListener(
+      onResume: () {
+        final coordinator = ref.read(syncCoordinatorProvider);
+        // fire-and-forget; coordinator handles errors internally.
+        coordinator.notifyAppResumed();
+      },
+      onPause: () {
+        final coordinator = ref.read(syncCoordinatorProvider);
+        coordinator.notifyAppPaused();
+      },
+    );
   }
 
   @override
   void dispose() {
+    _lifecycleListener.dispose();
     _deepLinkHandler.dispose();
     super.dispose();
   }

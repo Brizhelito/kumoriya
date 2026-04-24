@@ -1,0 +1,40 @@
+target: <module.function>
+framework: <pytest | flutter_test | go_test | vitest>
+
+cases:
+  - id: U1
+    kind: unit
+    arrange: { x: "abc", y: 3 }
+    act: call(x, y)
+    assert: result == {ok: true, value: "abcabcabc"}
+
+  - id: E1
+    kind: edge
+    arrange: { x: "a", y: 0 }
+    assert: result == {ok: true, value: ""}
+
+  - id: F1
+    kind: failure
+    arrange: { x: "", y: 5 }
+    assert_raises: E_EMPTY
+
+  - id: F2
+    kind: failure
+    arrange: { x: "a", y: 999 }
+    assert_raises: E_RANGE
+
+rules:
+  - no network calls
+  - no filesystem writes outside tmp
+  - each test independent and deterministic
+  - seed random with 0
+  - no mocks of the unit under test
+
+mutation:
+  generators:
+    - random_ascii:   { n: 20, len: [0, 300] }
+    - unicode_fuzz:   { n: 20, categories: [L, M, N, P, Zs] }
+    - boundary:       { values: ["", " ", "-", "--", "a" * 201] }
+    - property_based: { n: 30, invariants_from: contract.invariants }
+  oracle_from: contract.invariants
+  budget_seconds: 5

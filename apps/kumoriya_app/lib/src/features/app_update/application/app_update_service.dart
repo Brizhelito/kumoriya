@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:cronet_http/cronet_http.dart';
+import 'package:device_info_plus/device_info_plus.dart';
 import 'package:http/http.dart' as http;
 import 'package:kumoriya_core/kumoriya_core.dart';
 import 'package:package_info_plus/package_info_plus.dart';
@@ -34,12 +35,17 @@ class AvailableUpdate {
     required this.newVersion,
     required this.downloadUrl,
     required this.releaseNotes,
+    this.sizeBytes,
   });
 
   final String currentVersion;
   final String newVersion;
   final String downloadUrl;
   final String releaseNotes;
+
+  /// APK size in bytes, if known from the manifest. Useful for progress
+  /// estimation before the download starts.
+  final int? sizeBytes;
 }
 
 /// Progress callback for the download phase.
@@ -71,10 +77,15 @@ class AppUpdateService {
   /// Checks the remote manifest and returns an [AvailableUpdate] if the remote
   /// version is strictly newer than the current app version, or `null` if up to
   /// date.
-  Future<Result<AvailableUpdate?, KumoriyaError>> checkForUpdate() async {
+  ///
+  /// [platformOverride] is intended for testing on hosts where
+  /// [Platform.isAndroid] would otherwise be false.
+  Future<Result<AvailableUpdate?, KumoriyaError>> checkForUpdate({
+    String? currentVersion,
+    String? platformOverride,
+  }) async {
     try {
-      final info = await PackageInfo.fromPlatform();
-      final currentVersion = info.version; // e.g. "0.1.0"
+      final currentVersion_ = currentVersion ?? (await PackageInfo.fromPlatform()).version;
 
       final response = await _client
           .get(Uri.parse(_manifestUrl))
@@ -95,7 +106,9 @@ class AppUpdateService {
           jsonDecode(response.body) as Map<String, dynamic>;
 
       final String platformKey;
-      if (Platform.isAndroid) {
+      if (platformOverride != null) {
+        platformKey = platformOverride;
+      } else if (Platform.isAndroid) {
         platformKey = 'android';
       } else if (Platform.isWindows) {
         platformKey = 'windows';
@@ -110,23 +123,33 @@ class AppUpdateService {
         return const Success(null);
       }
 
-      final remote = PlatformUpdateInfo(
-        latestVersion: platformData['latest_version'] as String? ?? '',
-        url: platformData['url'] as String? ?? '',
-        releaseNotes: platformData['release_notes'] as String? ?? '',
-      );
+      final String? resolvedUrl;
+      final int? resolvedSize;
+      if (platformKey == 'android') {
+        (resolvedUrl, resolvedSize) = await _resolveAndroidDownloadUrl(platformData);
+      } else {
+        resolvedUrl = platformData['url'] as String?;
+        resolvedSize = null;
+      }
 
-      if (remote.latestVersion.isEmpty || remote.url.isEmpty) {
+      if (resolvedUrl == null || resolvedUrl.isEmpty) {
         return const Success(null);
       }
 
-      if (_isNewer(remote.latestVersion, currentVersion)) {
+      final latestVersion = platformData['latest_version'] as String? ?? '';
+      final releaseNotes = platformData['release_notes'] as String? ?? '';
+      if (latestVersion.isEmpty) {
+        return const Success(null);
+      }
+
+      if (_isNewer(latestVersion, currentVersion_)) {
         return Success(
           AvailableUpdate(
-            currentVersion: currentVersion,
-            newVersion: remote.latestVersion,
-            downloadUrl: remote.url,
-            releaseNotes: remote.releaseNotes,
+            currentVersion: currentVersion_,
+            newVersion: latestVersion,
+            downloadUrl: resolvedUrl,
+            releaseNotes: releaseNotes,
+            sizeBytes: resolvedSize,
           ),
         );
       }
@@ -156,6 +179,61 @@ class AppUpdateService {
         ),
       );
     }
+  }
+
+  /// Detects the device's primary ABI via [DeviceInfoPlugin] and resolves the
+  /// best matching APK URL from the manifest. Falls back to `universal`, then
+  /// `url` (legacy top-level) if the ABI map is missing.
+  static Future<(String?, int?)> _resolveAndroidDownloadUrl(
+    Map<String, dynamic> platformData,
+  ) async {
+    final abisData = platformData['abis'] as Map<String, dynamic>?;
+    final universalData = platformData['universal'] as Map<String, dynamic>?;
+    final legacyUrl = platformData['url'] as String?;
+
+    // Map from Build.SUPPORTED_ABIS value → manifest ABI key.
+    const manifestKey = <String, String>{
+      'arm64-v8a': 'arm64_v8a',
+      'armeabi-v7a': 'armeabi_v7a',
+      'x86_64': 'x86_64',
+    };
+
+    String? url;
+    int? size;
+    Map<String, dynamic>? artifact;
+
+    if (abisData != null && abisData.isNotEmpty) {
+      try {
+        final deviceInfo = await DeviceInfoPlugin().androidInfo;
+        for (final supported in deviceInfo.supportedAbis) {
+          final key = manifestKey[supported];
+          if (key == null) continue;
+          final data = abisData[key] as Map<String, dynamic>?;
+          if (data != null && data['url'] is String) {
+            artifact = data;
+            break;
+          }
+        }
+      } catch (_) {
+        // Not running on Android (e.g., test runner / CI) — fall through to
+        // universal so the update check still works.
+      }
+    }
+
+    if (artifact == null && universalData != null) {
+      artifact = universalData;
+    }
+
+    if (artifact != null) {
+      url = artifact['url'] as String?;
+      size = artifact['size_bytes'] as int?;
+    }
+
+    if (url == null || url.isEmpty) {
+      url = legacyUrl;
+    }
+
+    return (url, size);
   }
 
   /// Downloads the installer to a temporary directory and returns the file

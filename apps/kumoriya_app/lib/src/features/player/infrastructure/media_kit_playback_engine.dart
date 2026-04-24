@@ -471,6 +471,9 @@ final class MediaKitPlaybackEngine implements PlaybackEngine {
     return player.setSubtitleTrack(SubtitleTrack.no());
   }
 
+  @override
+  Future<void> setPreferredSubtitleLanguages(List<String> languages) async {}
+
   // media_kit / libmpv exposes quality via HLS variants through a
   // different API (`player.streams.video` + hls-bitrate cap). The
   // desktop player_page does not surface a variant picker yet, so keep
@@ -1388,7 +1391,8 @@ final class MediaKitPlaybackEngine implements PlaybackEngine {
       // Zilla AV1 on Android needs every core + loop-filter skip to decode
       // 1080p in real time on Helio G99 class SoCs. Baseline (non-Zilla)
       // keeps cores-1 so the UI thread always has headroom.
-      final decodeThreads = (isZillaAv1 && defaultTargetPlatform == TargetPlatform.android)
+      final decodeThreads =
+          (isZillaAv1 && defaultTargetPlatform == TargetPlatform.android)
           ? cores.clamp(1, 8)
           : (cores > 2 ? cores - 1 : 1);
 
@@ -1448,7 +1452,9 @@ final class MediaKitPlaybackEngine implements PlaybackEngine {
       // for the active readahead window.
       if (defaultTargetPlatform == TargetPlatform.android) {
         properties.add(platform.setProperty('demuxer-max-bytes', '512MiB'));
-        properties.add(platform.setProperty('demuxer-max-back-bytes', '256MiB'));
+        properties.add(
+          platform.setProperty('demuxer-max-back-bytes', '256MiB'),
+        );
       } else {
         properties.add(platform.setProperty('demuxer-max-bytes', '2GiB'));
         properties.add(platform.setProperty('demuxer-max-back-bytes', '1GiB'));

@@ -181,6 +181,15 @@ class AuthStateNotifier extends AsyncNotifier<AuthState> {
       await authService.logout(refreshToken: currentState.tokens.refreshToken);
     }
 
+    // Flush any pending queue entries to the server before wiping local
+    // data. Capped timeout so a broken network does not block logout;
+    // residual entries are cleared by `LocalUserDataCleaner` below.
+    try {
+      await ref.read(syncCoordinatorProvider).flushBeforeLogout();
+    } catch (_) {
+      // Best-effort; logout proceeds regardless.
+    }
+
     // Wipe user-scoped local data BEFORE flipping auth state so SyncAware
     // wrappers do not enqueue deletions against the account being signed
     // out of. Also prevents leakage to a different account on next login.

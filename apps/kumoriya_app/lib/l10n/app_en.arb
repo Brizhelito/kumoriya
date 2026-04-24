@@ -798,6 +798,10 @@
   },
   "settingsAutoDeleteImmediately": "Immediately",
 
+  "settingsDownloadsTitle": "Downloads",
+  "settingsDownloadsWifiOnly": "WiFi-only downloads",
+  "settingsDownloadsWifiOnlyDescription": "Pause downloads when not connected to WiFi",
+
   "onboardingNotificationTitle": "Enable notifications?",
   "onboardingNotificationBody": "Kumoriya can notify you when new episodes are available for your subscribed anime.",
   "onboardingNotificationAllow": "Allow",

@@ -2827,6 +2827,24 @@ abstract class AppLocalizations {
   /// **'Immediately'**
   String get settingsAutoDeleteImmediately;
 
+  /// No description provided for @settingsDownloadsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Downloads'**
+  String get settingsDownloadsTitle;
+
+  /// No description provided for @settingsDownloadsWifiOnly.
+  ///
+  /// In en, this message translates to:
+  /// **'WiFi-only downloads'**
+  String get settingsDownloadsWifiOnly;
+
+  /// No description provided for @settingsDownloadsWifiOnlyDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Pause downloads when not connected to WiFi'**
+  String get settingsDownloadsWifiOnlyDescription;
+
   /// No description provided for @onboardingNotificationTitle.
   ///
   /// In en, this message translates to:

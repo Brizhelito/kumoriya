@@ -1,8 +1,8 @@
 name: kumoriya_exoplayer
 description: >-
   Kumoriya native Android playback plugin built on AndroidX Media3 / ExoPlayer.
-  Replaces video_player and media_kit on Android and owns downloads,
-  notifications, Chromecast and PiP. iOS/desktop stubs only.
+  Replaces video_player and media_kit on Android. iOS/desktop stubs only.
+  Native downloader was removed and will be rebuilt from scratch.
 publish_to: none
 version: 0.0.3
 

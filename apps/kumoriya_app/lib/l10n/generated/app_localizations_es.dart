@@ -1580,6 +1580,16 @@ class AppLocalizationsEs extends AppLocalizations {
   String get settingsAutoDeleteImmediately => 'Inmediatamente';
 
   @override
+  String get settingsDownloadsTitle => 'Descargas';
+
+  @override
+  String get settingsDownloadsWifiOnly => 'Descargas solo con WiFi';
+
+  @override
+  String get settingsDownloadsWifiOnlyDescription =>
+      'Pausar descargas cuando no esté conectado a WiFi';
+
+  @override
   String get onboardingNotificationTitle => '¿Activar notificaciones?';
 
   @override

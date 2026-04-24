@@ -24,6 +24,7 @@ allprojects {
 plugins {
     id("com.android.library")
     id("kotlin-android")
+    id("org.jetbrains.kotlin.plugin.serialization") version "2.2.20"
 }
 
 android {
@@ -70,9 +71,14 @@ android {
     }
 }
 
-val media3Version = "1.4.1"
+// Keep in sync with whatever `media_kit_libs_android_video` resolves to in
+// the app. On mismatch, Gradle will upgrade the plugin's runtime classes
+// to the higher version and any API drift between versions (e.g. added
+// abstract method) crashes with AbstractMethodError at runtime.
+val media3Version = "1.9.2"
 val okhttpVersion = "4.12.0"
 val coroutinesVersion = "1.8.1"
+val serializationVersion = "1.7.3"
 
 dependencies {
     // Fases 0-1: core playback + HLS/DASH/MP4 auto-detect + OkHttp datasource.
@@ -82,12 +88,19 @@ dependencies {
     implementation("androidx.media3:media3-exoplayer-dash:$media3Version")
     implementation("androidx.media3:media3-datasource-okhttp:$media3Version")
 
+    // Downloader: HLS remux (Transformer writes MP4 from local .ts segments).
+    implementation("androidx.media3:media3-transformer:$media3Version")
+    implementation("androidx.media3:media3-muxer:$media3Version")
+
     // Fase 2: native anime.nexus pipeline replaces the Dart loopback proxy.
     // OkHttp is already pulled in transitively by media3-datasource-okhttp but
     // we depend on it explicitly to stay in control of the version + expose
     // OkHttp's WebSocket and CookieJar APIs to the nexus module.
     implementation("com.squareup.okhttp3:okhttp:$okhttpVersion")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:$coroutinesVersion")
+
+    // Downloader: atomic state manifest persistence.
+    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:$serializationVersion")
 
     testImplementation("org.jetbrains.kotlin:kotlin-test")
     testImplementation("org.mockito:mockito-core:5.0.0")

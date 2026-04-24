@@ -29,7 +29,9 @@ void main() {
         'roomVersion': 7,
         'sender': 'user-1',
         'messageId': 'abc',
-        'payload': {'member': {'userId': 'user-2', 'name': 'Bob'}},
+        'payload': {
+          'member': {'userId': 'user-2', 'name': 'Bob'},
+        },
       });
       final env = PartyEventEnvelope.tryParse(raw);
       expect(env, isNotNull);
@@ -54,57 +56,56 @@ void main() {
   group('reducePartyRealtimeEvent', () {
     const empty = PartyRealtimeState();
 
-    test('room_snapshot populates roomId, host, members, ready and playback', () {
-      final state = reducePartyRealtimeEvent(empty, 'room_snapshot', {
-        'roomId': 'room-1',
-        'hostId': 'user-1',
-        'inviteCode': 'ABCDEF',
-        'roomVersion': 3,
-        'serverTimeMs': DateTime.now().millisecondsSinceEpoch + 1234,
-        'members': [
-          {
-            'userId': 'user-1',
-            'name': 'Alice',
-            'presence': 'connected',
-            'effectiveReady': true,
-            'joinedAtMs': 1,
+    test(
+      'room_snapshot populates roomId, host, members, ready and playback',
+      () {
+        final state = reducePartyRealtimeEvent(empty, 'room_snapshot', {
+          'roomId': 'room-1',
+          'hostId': 'user-1',
+          'inviteCode': 'ABCDEF',
+          'roomVersion': 3,
+          'serverTimeMs': DateTime.now().millisecondsSinceEpoch + 1234,
+          'members': [
+            {
+              'userId': 'user-1',
+              'name': 'Alice',
+              'presence': 'connected',
+              'effectiveReady': true,
+              'joinedAtMs': 1,
+            },
+            {
+              'userId': 'user-2',
+              'name': 'Bob',
+              'presence': 'disconnected',
+              'effectiveReady': false,
+              'joinedAtMs': 2,
+            },
+          ],
+          'playback': {
+            'status': 'playing',
+            'basePositionMs': 5000,
+            'effectiveAtMs': 10000,
+            'generation': 4,
           },
-          {
-            'userId': 'user-2',
-            'name': 'Bob',
-            'presence': 'disconnected',
-            'effectiveReady': false,
-            'joinedAtMs': 2,
-          },
-        ],
-        'playback': {
-          'status': 'playing',
-          'basePositionMs': 5000,
-          'effectiveAtMs': 10000,
-          'generation': 4,
-        },
-      });
+        });
 
-      expect(state.roomId, 'room-1');
-      expect(state.hostId, 'user-1');
-      expect(state.inviteCode, 'ABCDEF');
-      expect(state.roomVersion, 3);
-      expect(state.members.map((m) => m.userId), ['user-1', 'user-2']);
-      expect(state.connectedIds, {'user-1'});
-      expect(state.readyStates['user-1'], true);
-      expect(state.readyStates['user-2'], false);
-      expect(state.playback.isPlaying, true);
-      expect(state.playback.basePositionMs, 5000);
-      expect(state.clientServerOffsetMs, greaterThan(0));
-    });
+        expect(state.roomId, 'room-1');
+        expect(state.hostId, 'user-1');
+        expect(state.inviteCode, 'ABCDEF');
+        expect(state.roomVersion, 3);
+        expect(state.members.map((m) => m.userId), ['user-1', 'user-2']);
+        expect(state.connectedIds, {'user-1'});
+        expect(state.readyStates['user-1'], true);
+        expect(state.readyStates['user-2'], false);
+        expect(state.playback.isPlaying, true);
+        expect(state.playback.basePositionMs, 5000);
+        expect(state.clientServerOffsetMs, greaterThan(0));
+      },
+    );
 
     test('member_joined adds member and marks connected', () {
       final state = reducePartyRealtimeEvent(empty, 'member_joined', {
-        'member': {
-          'userId': 'user-2',
-          'name': 'Bob',
-          'effectiveReady': false,
-        },
+        'member': {'userId': 'user-2', 'name': 'Bob', 'effectiveReady': false},
       }, roomVersion: 2);
 
       expect(state.members.map((m) => m.userId), ['user-2']);
@@ -136,10 +137,11 @@ void main() {
         connectedIds: const {'user-1'},
         readyStates: const {'user-1': true},
       );
-      final state = reducePartyRealtimeEvent(initial, 'member_presence_changed', {
-        'userId': 'user-1',
-        'presence': 'disconnected',
-      });
+      final state = reducePartyRealtimeEvent(
+        initial,
+        'member_presence_changed',
+        {'userId': 'user-1', 'presence': 'disconnected'},
+      );
       expect(state.connectedIds, isEmpty);
       expect(state.readyStates['user-1'], false);
     });
@@ -156,12 +158,16 @@ void main() {
     });
 
     test('playback_state_changed replaces playback', () {
-      final state = reducePartyRealtimeEvent(PartyRealtimeState(), 'playback_state_changed', {
-        'status': 'paused',
-        'basePositionMs': 9_000,
-        'effectiveAtMs': 42_000,
-        'generation': 11,
-      });
+      final state = reducePartyRealtimeEvent(
+        PartyRealtimeState(),
+        'playback_state_changed',
+        {
+          'status': 'paused',
+          'basePositionMs': 9_000,
+          'effectiveAtMs': 42_000,
+          'generation': 11,
+        },
+      );
       expect(state.playback.isPlaying, false);
       expect(state.playback.basePositionMs, 9_000);
       expect(state.playback.generation, 11);
@@ -189,7 +195,9 @@ void main() {
 
     test('unknown events are no-ops', () {
       const initial = PartyRealtimeState(roomId: 'room-1', roomVersion: 5);
-      final state = reducePartyRealtimeEvent(initial, 'no_such_event', {'x': 1});
+      final state = reducePartyRealtimeEvent(initial, 'no_such_event', {
+        'x': 1,
+      });
       expect(identical(state, initial), true);
     });
 
@@ -202,23 +210,42 @@ void main() {
             'hostId': 'user-1',
             'inviteCode': 'AAA111',
             'members': [
-              {'userId': 'user-1', 'name': 'Alice', 'presence': 'connected', 'effectiveReady': false},
+              {
+                'userId': 'user-1',
+                'name': 'Alice',
+                'presence': 'connected',
+                'effectiveReady': false,
+              },
             ],
-            'playback': {'status': 'paused', 'basePositionMs': 0, 'effectiveAtMs': 0, 'generation': 0},
+            'playback': {
+              'status': 'paused',
+              'basePositionMs': 0,
+              'effectiveAtMs': 0,
+              'generation': 0,
+            },
           },
         ),
         (
           'member_joined',
-          {'member': {'userId': 'user-2', 'name': 'Bob', 'effectiveReady': false}},
+          {
+            'member': {
+              'userId': 'user-2',
+              'name': 'Bob',
+              'effectiveReady': false,
+            },
+          },
         ),
         ('member_ready_changed', {'userId': 'user-1', 'effectiveReady': true}),
         ('member_ready_changed', {'userId': 'user-2', 'effectiveReady': true}),
-        ('playback_state_changed', {
-          'status': 'playing',
-          'basePositionMs': 0,
-          'effectiveAtMs': DateTime.now().millisecondsSinceEpoch,
-          'generation': 1,
-        }),
+        (
+          'playback_state_changed',
+          {
+            'status': 'playing',
+            'basePositionMs': 0,
+            'effectiveAtMs': DateTime.now().millisecondsSinceEpoch,
+            'generation': 1,
+          },
+        ),
       ]);
 
       expect(state.readyStates.values.every((r) => r), true);

@@ -1,0 +1,27 @@
+{
+  "module": "kumoriya_orch.smoke_slugify",
+  "function": "slugify",
+  "signature": "slugify(text: str, max_len: int) -> str",
+  "types": {
+    "text":    {"kind": "string", "nullable": false},
+    "max_len": {"kind": "int", "min": 1, "max": 200},
+    "return":  {"kind": "string", "pattern": "^[a-z0-9-]*$"}
+  },
+  "invariants": [
+    "len(return) <= max_len",
+    "no leading or trailing '-' in return",
+    "no '--' runs in return",
+    "return is lowercase ascii"
+  ],
+  "edge_cases": [
+    {"case": "'  Hello,  World!  '",   "expected": "'hello-world'"},
+    {"case": "'Árbol Ñandú'",          "expected": "'arbol-nandu'"},
+    {"case": "max_len truncates mid-word", "expected": "trim trailing '-'"}
+  ],
+  "errors": [
+    {"code": "E_EMPTY", "message": "text empty after normalization"},
+    {"code": "E_RANGE", "message": "max_len out of [1,200]"}
+  ],
+  "purity": "pure",
+  "deterministic": true
+}

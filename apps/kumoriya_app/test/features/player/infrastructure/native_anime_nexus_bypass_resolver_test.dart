@@ -41,15 +41,12 @@ void main() {
 
     test('resolve produces the native carrier URL', () async {
       final result = await resolver.resolve(
-        Uri.parse(
-          'https://anime.nexus/watch/uuid-1/slug-42',
-        ),
+        Uri.parse('https://anime.nexus/watch/uuid-1/slug-42'),
       );
 
       expect(result, isA<Success<ResolveResult, KumoriyaError>>());
-      final streams = (result as Success<ResolveResult, KumoriyaError>)
-          .value
-          .streams;
+      final streams =
+          (result as Success<ResolveResult, KumoriyaError>).value.streams;
       expect(streams, hasLength(1));
       final carrier = streams.single.url;
       expect(carrier.scheme, 'kumoriya-native');

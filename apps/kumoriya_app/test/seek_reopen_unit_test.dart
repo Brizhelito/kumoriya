@@ -324,6 +324,13 @@ final class _StateErrorEngine implements PlaybackEngine {
   Future<void> clearEmbeddedSubtitleTrack() async {}
 
   @override
+  Future<void> setVolume(double percent) async {}
+  @override
+  Future<void> setPlaybackSpeed(double rate) async {}
+  @override
+  Future<void> setPreferredSubtitleLanguages(List<String> languages) async {}
+
+  @override
   Future<void> dispose() async {
     await _playing.close();
     await _buffering.close();
@@ -417,6 +424,13 @@ final class _SequencedEngine implements PlaybackEngine {
   Future<void> clearEmbeddedVideoTrack() async {}
   @override
   Future<void> clearEmbeddedSubtitleTrack() async {}
+
+  @override
+  Future<void> setVolume(double percent) async {}
+  @override
+  Future<void> setPlaybackSpeed(double rate) async {}
+  @override
+  Future<void> setPreferredSubtitleLanguages(List<String> languages) async {}
 
   @override
   Future<void> dispose() async {

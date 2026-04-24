@@ -48,8 +48,20 @@ type PlatformLatestManifest struct {
 	ReleaseNotes  string `json:"release_notes"`
 }
 
+// AndroidLatestManifest extends the plain platform manifest with a universal
+// APK slot plus per-ABI splits. `URL` (inherited) keeps pointing to the
+// universal APK (or best fallback) so clients that pre-date the ABI split
+// keep working without code changes.
+type AndroidLatestManifest struct {
+	LatestVersion string                              `json:"latest_version"`
+	URL           string                              `json:"url"`
+	ReleaseNotes  string                              `json:"release_notes"`
+	Universal     *ReleaseArtifactResponse            `json:"universal,omitempty"`
+	ABIs          map[string]*ReleaseArtifactResponse `json:"abis,omitempty"`
+}
+
 type LatestManifestResponse struct {
-	Android *PlatformLatestManifest `json:"android,omitempty"`
+	Android *AndroidLatestManifest  `json:"android,omitempty"`
 	Windows *PlatformLatestManifest `json:"windows,omitempty"`
 }
 
@@ -64,14 +76,113 @@ type ReleaseMarkdownNotes struct {
 }
 
 type ReleaseArtifactResponse struct {
-	URL      string `json:"url"`
-	FileName string `json:"file_name,omitempty"`
-	R2Key    string `json:"r2_key,omitempty"`
+	URL       string `json:"url"`
+	FileName  string `json:"file_name,omitempty"`
+	R2Key     string `json:"r2_key,omitempty"`
+	SizeBytes int64  `json:"size_bytes,omitempty"`
+	SHA256    string `json:"sha256,omitempty"`
+}
+
+// AndroidDownloadsResponse mirrors the /releases/latest shape for a specific
+// release: a canonical `url` pointing to the universal APK plus an optional
+// `abis` map and `universal` entry carrying richer metadata (size, sha256).
+type AndroidDownloadsResponse struct {
+	URL       string                              `json:"url,omitempty"`
+	FileName  string                              `json:"file_name,omitempty"`
+	R2Key     string                              `json:"r2_key,omitempty"`
+	SizeBytes int64                               `json:"size_bytes,omitempty"`
+	SHA256    string                              `json:"sha256,omitempty"`
+	Universal *ReleaseArtifactResponse            `json:"universal,omitempty"`
+	ABIs      map[string]*ReleaseArtifactResponse `json:"abis,omitempty"`
+}
+
+// UnmarshalJSON accepts both the legacy flat shape (same keys as
+// ReleaseArtifactResponse) and the new nested shape (url + universal + abis).
+// This keeps publish scripts from older deployments working unchanged.
+func (a *AndroidDownloadsResponse) UnmarshalJSON(data []byte) error {
+	type aux struct {
+		URL       string                              `json:"url"`
+		FileName  string                              `json:"file_name"`
+		R2Key     string                              `json:"r2_key"`
+		SizeBytes int64                               `json:"size_bytes"`
+		SHA256    string                              `json:"sha256"`
+		Universal *ReleaseArtifactResponse            `json:"universal"`
+		ABIs      map[string]*ReleaseArtifactResponse `json:"abis"`
+	}
+	var raw aux
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return err
+	}
+	a.URL = raw.URL
+	a.FileName = raw.FileName
+	a.R2Key = raw.R2Key
+	a.SizeBytes = raw.SizeBytes
+	a.SHA256 = raw.SHA256
+	a.Universal = raw.Universal
+	a.ABIs = raw.ABIs
+	return nil
+}
+
+// Build returns the canonical model representation, promoting a legacy flat
+// URL into the `universal` slot when no explicit universal is provided.
+func (a *AndroidDownloadsResponse) toModel() *model.AndroidArtifacts {
+	if a == nil {
+		return nil
+	}
+	out := &model.AndroidArtifacts{ABIs: map[string]*model.ReleaseArtifact{}}
+	if a.Universal != nil && strings.TrimSpace(a.Universal.URL) != "" {
+		out.Universal = a.Universal.toModel()
+	} else if strings.TrimSpace(a.URL) != "" {
+		out.Universal = &model.ReleaseArtifact{
+			URL:       strings.TrimSpace(a.URL),
+			FileName:  strings.TrimSpace(a.FileName),
+			R2Key:     strings.TrimSpace(a.R2Key),
+			SizeBytes: a.SizeBytes,
+			SHA256:    strings.TrimSpace(a.SHA256),
+		}
+	}
+	for abi, artifact := range a.ABIs {
+		if artifact == nil || strings.TrimSpace(artifact.URL) == "" {
+			continue
+		}
+		if !isValidABI(abi) {
+			continue
+		}
+		out.ABIs[abi] = artifact.toModel()
+	}
+	if out.IsEmpty() {
+		return nil
+	}
+	return out
+}
+
+func isValidABI(abi string) bool {
+	switch abi {
+	case model.AndroidABIUniversal,
+		model.AndroidABIArm64V8a,
+		model.AndroidABIArmeabiV7a,
+		model.AndroidABIX86_64:
+		return true
+	}
+	return false
+}
+
+func (a *ReleaseArtifactResponse) toModel() *model.ReleaseArtifact {
+	if a == nil || strings.TrimSpace(a.URL) == "" {
+		return nil
+	}
+	return &model.ReleaseArtifact{
+		URL:       strings.TrimSpace(a.URL),
+		FileName:  strings.TrimSpace(a.FileName),
+		R2Key:     strings.TrimSpace(a.R2Key),
+		SizeBytes: a.SizeBytes,
+		SHA256:    strings.TrimSpace(a.SHA256),
+	}
 }
 
 type ReleaseDownloadsResponse struct {
-	Android *ReleaseArtifactResponse `json:"android,omitempty"`
-	Windows *ReleaseArtifactResponse `json:"windows,omitempty"`
+	Android *AndroidDownloadsResponse `json:"android,omitempty"`
+	Windows *ReleaseArtifactResponse  `json:"windows,omitempty"`
 }
 
 type ReleaseDetailsResponse struct {
@@ -212,12 +323,27 @@ func buildLatestManifest(release *model.ReleaseRecord) *LatestManifestResponse {
 		return nil
 	}
 	resp := &LatestManifestResponse{}
-	if release.Android != nil && release.Android.URL != "" {
-		resp.Android = &PlatformLatestManifest{
+	if !release.Android.IsEmpty() {
+		android := &AndroidLatestManifest{
 			LatestVersion: release.Version,
-			URL:           release.Android.URL,
 			ReleaseNotes:  release.ManifestReleaseNotes,
+			ABIs:          map[string]*ReleaseArtifactResponse{},
 		}
+		if primary := release.Android.Primary(); primary != nil {
+			android.URL = primary.URL
+		}
+		if release.Android.Universal != nil && release.Android.Universal.URL != "" {
+			android.Universal = buildArtifactResponse(release.Android.Universal)
+		}
+		for abi, artifact := range release.Android.ABIs {
+			if resp := buildArtifactResponse(artifact); resp != nil {
+				android.ABIs[abi] = resp
+			}
+		}
+		if len(android.ABIs) == 0 {
+			android.ABIs = nil
+		}
+		resp.Android = android
 	}
 	if release.Windows != nil && release.Windows.URL != "" {
 		resp.Windows = &PlatformLatestManifest{
@@ -246,7 +372,7 @@ func buildReleaseDetails(release model.ReleaseRecord) ReleaseDetailsResponse {
 			EN: release.NotesENMarkdown,
 		},
 		Downloads: ReleaseDownloadsResponse{
-			Android: buildArtifactResponse(release.Android),
+			Android: buildAndroidDownloadsResponse(release.Android),
 			Windows: buildArtifactResponse(release.Windows),
 		},
 	}
@@ -257,10 +383,38 @@ func buildArtifactResponse(artifact *model.ReleaseArtifact) *ReleaseArtifactResp
 		return nil
 	}
 	return &ReleaseArtifactResponse{
-		URL:      artifact.URL,
-		FileName: artifact.FileName,
-		R2Key:    artifact.R2Key,
+		URL:       artifact.URL,
+		FileName:  artifact.FileName,
+		R2Key:     artifact.R2Key,
+		SizeBytes: artifact.SizeBytes,
+		SHA256:    artifact.SHA256,
 	}
+}
+
+func buildAndroidDownloadsResponse(android *model.AndroidArtifacts) *AndroidDownloadsResponse {
+	if android.IsEmpty() {
+		return nil
+	}
+	out := &AndroidDownloadsResponse{ABIs: map[string]*ReleaseArtifactResponse{}}
+	if primary := android.Primary(); primary != nil {
+		out.URL = primary.URL
+		out.FileName = primary.FileName
+		out.R2Key = primary.R2Key
+		out.SizeBytes = primary.SizeBytes
+		out.SHA256 = primary.SHA256
+	}
+	if android.Universal != nil && android.Universal.URL != "" {
+		out.Universal = buildArtifactResponse(android.Universal)
+	}
+	for abi, artifact := range android.ABIs {
+		if resp := buildArtifactResponse(artifact); resp != nil {
+			out.ABIs[abi] = resp
+		}
+	}
+	if len(out.ABIs) == 0 {
+		out.ABIs = nil
+	}
+	return out
 }
 
 func validatePublishInput(input PublishReleaseInput) (model.ReleaseRecord, error) {
@@ -290,7 +444,9 @@ func validatePublishInput(input PublishReleaseInput) (model.ReleaseRecord, error
 	if strings.TrimSpace(input.NotesMarkdown.ES) == "" || strings.TrimSpace(input.NotesMarkdown.EN) == "" {
 		return model.ReleaseRecord{}, errors.New("notes_markdown.es and notes_markdown.en are required")
 	}
-	if input.Downloads.Android == nil && input.Downloads.Windows == nil {
+	androidModel := input.Downloads.Android.toModel()
+	windowsModel := toModelArtifact(input.Downloads.Windows)
+	if androidModel == nil && windowsModel == nil {
 		return model.ReleaseRecord{}, errors.New("at least one download artifact is required")
 	}
 
@@ -309,8 +465,8 @@ func validatePublishInput(input PublishReleaseInput) (model.ReleaseRecord, error
 		SummaryEN:            strings.TrimSpace(input.Summary.EN),
 		NotesESMarkdown:      input.NotesMarkdown.ES,
 		NotesENMarkdown:      input.NotesMarkdown.EN,
-		Android:              toModelArtifact(input.Downloads.Android),
-		Windows:              toModelArtifact(input.Downloads.Windows),
+		Android:              androidModel,
+		Windows:              windowsModel,
 		IsLatest:             isLatest,
 	}, nil
 }
@@ -320,9 +476,11 @@ func toModelArtifact(artifact *ReleaseArtifactResponse) *model.ReleaseArtifact {
 		return nil
 	}
 	return &model.ReleaseArtifact{
-		URL:      strings.TrimSpace(artifact.URL),
-		FileName: strings.TrimSpace(artifact.FileName),
-		R2Key:    strings.TrimSpace(artifact.R2Key),
+		URL:       strings.TrimSpace(artifact.URL),
+		FileName:  strings.TrimSpace(artifact.FileName),
+		R2Key:     strings.TrimSpace(artifact.R2Key),
+		SizeBytes: artifact.SizeBytes,
+		SHA256:    strings.TrimSpace(artifact.SHA256),
 	}
 }
 
@@ -357,6 +515,21 @@ func cloneLatestManifest(in *LatestManifestResponse) *LatestManifestResponse {
 	out := *in
 	if in.Android != nil {
 		android := *in.Android
+		if in.Android.Universal != nil {
+			universal := *in.Android.Universal
+			android.Universal = &universal
+		}
+		if len(in.Android.ABIs) > 0 {
+			abis := make(map[string]*ReleaseArtifactResponse, len(in.Android.ABIs))
+			for abi, artifact := range in.Android.ABIs {
+				if artifact == nil {
+					continue
+				}
+				copy := *artifact
+				abis[abi] = &copy
+			}
+			android.ABIs = abis
+		}
 		out.Android = &android
 	}
 	if in.Windows != nil {

@@ -43,13 +43,15 @@ final class StartEpisodePlaybackUseCase {
   /// in the manual server picker (and, separately, in the download
   /// pipeline) but must never steal a slot from a true streaming resolver.
   ///
-  /// MediaFire is the canonical example: the plugin is marked as
-  /// `streamResolution` for historical reasons, but the URL it returns is
-  /// a download CDN link with unreliable Range support — opening it in
-  /// media_kit frequently yields a non-seekable playback session.
-  static const Set<String> _autoResolveBlockedResolverIds = <String>{
-    'kumoriya.resolver.mediafire',
-  };
+  /// Historically this contained `kumoriya.resolver.mediafire`: the
+  /// plugin returns a download CDN URL whose Range support was unreliable
+  /// under media_kit, producing non-seekable "playback". The
+  /// kumoriya_exoplayer engine (Media3 native, now shipping) handles
+  /// direct MP4 + Range cleanly — 2026-04-23 playground run: 17/17
+  /// @ 1190 ms openMed. Keeping the set machinery intact (and empty) so a
+  /// future download-only resolver can be gated here without wiring new
+  /// plumbing.
+  static const Set<String> _autoResolveBlockedResolverIds = <String>{};
 
   /// Upper bound on how long the whole auto-queue race is allowed to run
   /// before giving up and routing the user into the manual picker.
@@ -310,9 +312,17 @@ final class StartEpisodePlaybackUseCase {
       return const <EpisodePlaybackOption>[];
     }
 
+    // Include SourceServerLinkType.download links. Source plugins tag
+    // hosts like Mediafire as `download` by default, but the MediaFire
+    // resolver now produces playable MP4 streams under
+    // kumoriya_exoplayer (2026-04-23 playground: 17/17 @ 1190 ms).
+    // Hosts without a streaming resolver (Mega, raw MP4Upload, etc.) are
+    // dropped by the next filter (`selectFor(link.initialUrl) is
+    // ResolverSelected`), so this is safe.
     final result = await GetSourceEpisodeServerLinksUseCase(
       sourcePlugin: plugin,
       registry: _registry,
+      includeDownloadLinks: true,
     ).call(episode);
 
     return result.fold(

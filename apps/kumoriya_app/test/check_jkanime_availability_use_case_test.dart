@@ -532,65 +532,60 @@ void main() {
     },
   );
 
-  test(
-    'grouped season alignment uses prequel episode count when source has '
-    'more S2 episodes than AniList reports as aired',
-    () async {
-      // Regression: Otonari no Tenshi-sama S2 — AniList reported 2 aired
-      // (nextAiringEpisode=3) while the source already listed 3 S2 episodes
-      // under the grouped S1 slug (source.length = 12 + 3 = 15). The legacy
-      // heuristic `source.sublist(length - aired)` dropped source_13
-      // (= real S2_ep1) and aligned source_14 to displayed "ep1", so clicking
-      // ep1 played ep2's content.
-      final plugin = _FakeSourcePluginGroupedPrequelAware();
-      final useCase = CheckSourceAvailabilityUseCase(
-        sourcePlugin: plugin,
-        matcher: matcher,
-      );
+  test('grouped season alignment uses prequel episode count when source has '
+      'more S2 episodes than AniList reports as aired', () async {
+    // Regression: Otonari no Tenshi-sama S2 — AniList reported 2 aired
+    // (nextAiringEpisode=3) while the source already listed 3 S2 episodes
+    // under the grouped S1 slug (source.length = 12 + 3 = 15). The legacy
+    // heuristic `source.sublist(length - aired)` dropped source_13
+    // (= real S2_ep1) and aligned source_14 to displayed "ep1", so clicking
+    // ep1 played ep2's content.
+    final plugin = _FakeSourcePluginGroupedPrequelAware();
+    final useCase = CheckSourceAvailabilityUseCase(
+      sourcePlugin: plugin,
+      matcher: matcher,
+    );
 
-      final availability = await useCase.call(
-        AnimeDetail(
-          anime: const Anime(
-            anilistId: 999,
-            title: AnimeTitle(romaji: 'Otonari no Tenshi-sama 2'),
-            format: AnimeFormat.tv,
-            totalEpisodes: 12,
-            status: AnimeStatus.releasing,
-          ),
-          episodes: const <AnimeEpisode>[
-            AnimeEpisode(number: 1, title: 'Episode 1', isAired: true),
-            AnimeEpisode(number: 2, title: 'Episode 2', isAired: true),
-            AnimeEpisode(number: 3, title: 'Episode 3', isAired: false),
-          ],
-          relations: const <AnimeRelation>[
-            AnimeRelation(
-              type: AnimeRelationType.prequel,
-              anime: Anime(
-                anilistId: 998,
-                title: AnimeTitle(romaji: 'Otonari no Tenshi-sama'),
-                format: AnimeFormat.tv,
-                totalEpisodes: 12,
-              ),
-            ),
-          ],
+    final availability = await useCase.call(
+      AnimeDetail(
+        anime: const Anime(
+          anilistId: 999,
+          title: AnimeTitle(romaji: 'Otonari no Tenshi-sama 2'),
+          format: AnimeFormat.tv,
+          totalEpisodes: 12,
+          status: AnimeStatus.releasing,
         ),
-      );
+        episodes: const <AnimeEpisode>[
+          AnimeEpisode(number: 1, title: 'Episode 1', isAired: true),
+          AnimeEpisode(number: 2, title: 'Episode 2', isAired: true),
+          AnimeEpisode(number: 3, title: 'Episode 3', isAired: false),
+        ],
+        relations: const <AnimeRelation>[
+          AnimeRelation(
+            type: AnimeRelationType.prequel,
+            anime: Anime(
+              anilistId: 998,
+              title: AnimeTitle(romaji: 'Otonari no Tenshi-sama'),
+              format: AnimeFormat.tv,
+              totalEpisodes: 12,
+            ),
+          ),
+        ],
+      ),
+    );
 
-      expect(availability.status, SourceAvailabilityStatus.available);
-      // The alignment should start at source_13 (first S2 episode in the
-      // grouped listing) and expose source_13 → displayed ep1.
-      expect(
-        availability.episodes
-            .map((episode) => episode.sourceEpisodeId)
-            .toList(),
-        <String>['otonari_13', 'otonari_14', 'otonari_15'],
-      );
-      expect(
-        availability.episodes.map((episode) => episode.number).toList(),
-        <double>[1, 2, 3],
-      );
-    },
-  );
+    expect(availability.status, SourceAvailabilityStatus.available);
+    // The alignment should start at source_13 (first S2 episode in the
+    // grouped listing) and expose source_13 → displayed ep1.
+    expect(
+      availability.episodes.map((episode) => episode.sourceEpisodeId).toList(),
+      <String>['otonari_13', 'otonari_14', 'otonari_15'],
+    );
+    expect(
+      availability.episodes.map((episode) => episode.number).toList(),
+      <double>[1, 2, 3],
+    );
+  });
 }
 
 AnimeDetail _detail(String title, {AnimeTitle? titleOverride}) {

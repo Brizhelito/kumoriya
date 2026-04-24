@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:kumoriya_exoplayer/kumoriya_exoplayer.dart';
+import 'package:kumoriya_exoplayer/src/events/cue_event.dart';
 import 'package:kumoriya_plugins/kumoriya_plugins.dart';
 
 import '../application/models/embedded_tracks.dart';
@@ -90,6 +91,8 @@ final class KumoriyaExoPlayerEngine implements PlaybackEngine {
       StreamController<Duration>.broadcast();
   final StreamController<EmbeddedTracks> _embeddedTracks =
       StreamController<EmbeddedTracks>.broadcast();
+  final StreamController<CueEvent> _cues =
+      StreamController<CueEvent>.broadcast();
 
   /// Texture id for the [Texture] widget, or `null` before the first open
   /// has succeeded.
@@ -121,6 +124,10 @@ final class KumoriyaExoPlayerEngine implements PlaybackEngine {
 
   @override
   Stream<EmbeddedTracks> get embeddedTracksStream => _embeddedTracks.stream;
+
+  /// Subtitle cue events from Media3. Each event carries decoded subtitle
+  /// text with timing information for the overlay widget.
+  Stream<CueEvent> get cueStream => _cues.stream;
 
   /// Fan-out for the diagnostics overlay. Lazily starts the native
   /// diagnostics pipeline on the first subscriber so production users
@@ -299,7 +306,13 @@ final class KumoriyaExoPlayerEngine implements PlaybackEngine {
       ..add(controller.audioTracksStream.listen((_) => _publishEmbedded()))
       ..add(controller.subtitleTracksStream.listen((_) => _publishEmbedded()))
       ..add(controller.videoTracksStream.listen((_) => _publishEmbedded()))
-      ..add(controller.urlExpiredStream.listen(_handleUrlExpired));
+      ..add(controller.urlExpiredStream.listen(_handleUrlExpired))
+      ..add(
+        controller.cueStream.listen((event) {
+          if (_cues.isClosed) return;
+          _cues.add(event);
+        }),
+      );
     // When a debug overlay was already subscribed before open() landed
     // (e.g. the user toggled it on the settings page first), enable
     // diagnostics on the fresh controller so the overlay keeps getting
@@ -369,6 +382,7 @@ final class KumoriyaExoPlayerEngine implements PlaybackEngine {
                 id: t.id,
                 title: t.label,
                 language: t.language,
+                selected: t.selected,
               ),
             )
             .toList(growable: false),
@@ -488,6 +502,11 @@ final class KumoriyaExoPlayerEngine implements PlaybackEngine {
   }
 
   @override
+  Future<void> setPreferredSubtitleLanguages(List<String> languages) async {
+    await _controller?.setPreferredSubtitleLanguages(languages);
+  }
+
+  @override
   Future<void> setEmbeddedVideoTrack(EmbeddedVideoTrack track) async {
     await _controller?.selectVideoTrack(track.id);
   }
@@ -551,6 +570,7 @@ final class KumoriyaExoPlayerEngine implements PlaybackEngine {
     await _position.close();
     await _duration.close();
     await _embeddedTracks.close();
+    await _cues.close();
     if (!_diagnostics.isClosed) await _diagnostics.close();
     aspectRatio.dispose();
   }

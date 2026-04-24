@@ -106,3 +106,8 @@ test_results/
 
 # Local debug/log scratchpad (kept out of git and Cascade context)
 .artifacts/
+apps/kumoriya_app/error_log.txt
+apps/kumoriya_app/run_and_capture_errors.sh
+evidence/
+.agents/runs/
+.kiro/

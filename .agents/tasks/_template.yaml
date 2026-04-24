@@ -1,0 +1,61 @@
+id: TASK-0000
+title: <short imperative>
+status: ready              # ready | in_progress | pass | stale | blocked
+version: 1
+
+description: <=3 sentences, what + why>
+
+depends_on: []             # list of task ids that must be pass
+provides:
+  module: <dotted.name>    # null if task adds no new module
+  exports: []              # e.g. ["slugify"]
+consumes:
+  modules: []              # modules this task reads or imports
+
+input_contract:
+  - name: <arg>
+    type: <type>
+    constraints: <ranges, format, nullability>
+
+output_contract:
+  returns:
+    type: <type>
+    shape: <schema or regex>
+  side_effects: none       # or [file_write, db, network]
+  errors:
+    - code: E_EXAMPLE
+      when: <condition>
+      raises: <ExceptionType>
+
+constraints:
+  - pure
+  - no_io
+  - max_lines: 80
+  - complexity: O(n)
+  - language: dart         # dart | go | python | typescript
+
+files_allowed:
+  modify: []
+  create: []
+  read_only: []
+
+forbidden:
+  - edit files outside files_allowed
+  - add new dependencies
+  - change public signatures of other modules
+  - catch-all try/except without rethrow
+  - TODO/FIXME/placeholder code
+  - branch on literal test inputs
+
+acceptance_criteria:
+  - all tests in tests[] pass
+  - no lint / analyze / type errors
+  - matches output_contract exactly
+  - no forbidden actions triggered
+  - mutation suite passes
+
+tests: []                  # list of test case ids defined in tests/<TASK_ID>.spec.yaml
+
+context_budget:
+  max_input_tokens: 4000
+  max_output_tokens: 1500

@@ -99,7 +99,8 @@ final class BackendFirstAnilistMetadataGateway
       _inner.fetchSeasonRecommendations(request);
 
   @override
-  Future<Result<List<Map<String, dynamic>>, KumoriyaError>> fetchAiringCalendar({
+  Future<Result<List<Map<String, dynamic>>, KumoriyaError>>
+  fetchAiringCalendar({
     DateTime? from,
     DateTime? to,
     int page = 1,
@@ -156,7 +157,7 @@ final class BackendFirstAnilistMetadataGateway
     required int perPage,
     required bool dedupe,
     required Future<Result<List<Map<String, dynamic>>, KumoriyaError>>
-        Function()
+    Function()
     innerFallback,
   }) async {
     final fromDate = (from ?? DateTime.now()).toUtc();
@@ -230,11 +231,9 @@ final class BackendFirstAnilistMetadataGateway
   ) => _inner.fetchAnimeDetail(anilistId);
 
   @override
-  Future<Result<List<Map<String, dynamic>>, KumoriyaError>> fetchBatchAnimeByIds(
-    List<int> ids, {
-    int page = 1,
-    int perPage = 50,
-  }) => _inner.fetchBatchAnimeByIds(ids, page: page, perPage: perPage);
+  Future<Result<List<Map<String, dynamic>>, KumoriyaError>>
+  fetchBatchAnimeByIds(List<int> ids, {int page = 1, int perPage = 50}) =>
+      _inner.fetchBatchAnimeByIds(ids, page: page, perPage: perPage);
 
   @override
   Future<Result<List<Map<String, dynamic>>, KumoriyaError>> browseAnime({
@@ -291,9 +290,8 @@ final class BackendFirstAnilistMetadataGateway
   /// Extracts the aliased current/upcoming/recommended/carryover sections
   /// from a season-discovery combo payload. `current` is required —
   /// the other keys are optional and only included if present.
-  static Map<String, List<Map<String, dynamic>>>? _extractSeasonDiscoverySections(
-    Map<String, dynamic> data,
-  ) {
+  static Map<String, List<Map<String, dynamic>>>?
+  _extractSeasonDiscoverySections(Map<String, dynamic> data) {
     final sections = <String, List<Map<String, dynamic>>>{};
     for (final alias in const <String>[
       'current',

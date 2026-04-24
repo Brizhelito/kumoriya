@@ -6,7 +6,7 @@ import 'package:kumoriya_storage/kumoriya_storage.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
-import 'download_manager_service.dart';
+import '../domain/download_backend.dart';
 
 /// Delay options for auto-deleting watched downloads.
 enum AutoDeleteDelay {
@@ -77,14 +77,14 @@ class AutoDeleteWatchedService {
   const AutoDeleteWatchedService({
     required DownloadStore downloadStore,
     required AnimeProgressStore progressStore,
-    required DownloadManagerService downloadManager,
+    required DownloadBackend downloadManager,
   }) : _downloadStore = downloadStore,
        _progressStore = progressStore,
        _downloadManager = downloadManager;
 
   final DownloadStore _downloadStore;
   final AnimeProgressStore _progressStore;
-  final DownloadManagerService _downloadManager;
+  final DownloadBackend _downloadManager;
 
   /// Runs one cleanup pass. Returns the number of tasks deleted.
   Future<int> run(AutoDeleteDelay delay) async {

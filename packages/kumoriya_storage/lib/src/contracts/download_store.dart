@@ -1,6 +1,25 @@
 import 'package:kumoriya_core/kumoriya_core.dart';
 
-enum DownloadStatus { pending, downloading, paused, completed, failed }
+/// Lifecycle states a download task can be in.
+///
+/// [remuxing] is emitted by the native HLS pipeline while Media3's
+/// Transformer transmuxes the concatenated `.ts` into the final `.mp4`
+/// — no bytes are added to [DownloadTask.downloadedBytes] during this
+/// phase, so the UI should treat it like "downloading, buffer at 100%".
+enum DownloadStatus {
+  pending,
+  downloading,
+  paused,
+  remuxing,
+  /// Network dropped mid-download (not a server error, not a user pause).
+  /// Distinct from [paused] so the UI can show "Sin conexión" and from
+  /// [failed] so the user doesn't feel punished for something outside
+  /// their control. The native engine preserves partial bytes; a future
+  /// NetworkMonitor auto-resumes when connectivity returns.
+  disconnected,
+  completed,
+  failed,
+}
 
 final class DownloadTask {
   const DownloadTask({

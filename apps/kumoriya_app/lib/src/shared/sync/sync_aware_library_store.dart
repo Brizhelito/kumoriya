@@ -11,13 +11,16 @@ final class SyncAwareLibraryStore implements LibraryStore {
     required LibraryStore inner,
     required SyncQueueStore syncQueue,
     required bool Function() isAuthenticated,
+    void Function()? onEnqueued,
   }) : _inner = inner,
        _syncQueue = syncQueue,
-       _isAuthenticated = isAuthenticated;
+       _isAuthenticated = isAuthenticated,
+       _onEnqueued = onEnqueued;
 
   final LibraryStore _inner;
   final SyncQueueStore _syncQueue;
   final bool Function() _isAuthenticated;
+  final void Function()? _onEnqueued;
 
   @override
   Future<Result<void, KumoriyaError>> setFavorite(
@@ -89,14 +92,12 @@ final class SyncAwareLibraryStore implements LibraryStore {
           id: 0,
           entityType: SyncEntityType.libraryEntryDeletion,
           entityKey: entityKey,
-          payload: jsonEncode({
-            'anilist_id': anilistId,
-            'updated_at': nowMs,
-          }),
+          payload: jsonEncode({'anilist_id': anilistId, 'updated_at': nowMs}),
           createdAt: now,
           status: SyncQueueEntryStatus.pending,
         ),
       );
+      _onEnqueued?.call();
       return;
     }
 
@@ -124,6 +125,7 @@ final class SyncAwareLibraryStore implements LibraryStore {
         status: SyncQueueEntryStatus.pending,
       ),
     );
+    _onEnqueued?.call();
   }
 
   // Pass-through reads.

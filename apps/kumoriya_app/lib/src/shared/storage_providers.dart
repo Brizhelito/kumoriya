@@ -10,6 +10,7 @@ import '../features/downloads/application/download_directory_service.dart';
 import 'auth/auth_providers.dart';
 import 'notifications/fcm_aware_library_store.dart';
 import 'notifications/fcm_providers.dart';
+import 'sync/sync_providers.dart';
 import 'sync/sync_refresh.dart';
 import 'sync/sync_aware_library_store.dart';
 import 'sync/sync_aware_progress_store.dart';
@@ -32,6 +33,7 @@ final animeProgressStoreProvider = Provider<AnimeProgressStore>((ref) {
     inner: inner,
     syncQueue: syncQueue,
     isAuthenticated: () => ref.read(isAuthenticatedProvider),
+    onEnqueued: () => ref.read(syncCoordinatorProvider).notifyLocalWrite(),
   );
 });
 
@@ -76,6 +78,7 @@ final libraryStoreProvider = Provider<LibraryStore>((ref) {
     inner: inner,
     syncQueue: syncQueue,
     isAuthenticated: () => ref.read(isAuthenticatedProvider),
+    onEnqueued: () => ref.read(syncCoordinatorProvider).notifyLocalWrite(),
   );
   final fcm = ref.watch(fcmServiceProvider);
   return FcmAwareLibraryStore(inner: syncAware, fcm: fcm);

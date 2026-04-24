@@ -67,8 +67,7 @@ class FcmService implements FcmTopicSubscriber {
   Stream<String> get tokens => _tokenController.stream;
 
   /// Foreground messages forwarded from `FirebaseMessaging.onMessage`.
-  Stream<RemoteMessage> get foregroundMessages =>
-      _foregroundController.stream;
+  Stream<RemoteMessage> get foregroundMessages => _foregroundController.stream;
 
   /// Only enabled on Android for now. iOS/Desktop return `false`.
   static bool get isSupported => !kIsWeb && Platform.isAndroid;

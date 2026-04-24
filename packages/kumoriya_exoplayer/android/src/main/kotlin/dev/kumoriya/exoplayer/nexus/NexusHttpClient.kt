@@ -1,28 +1,24 @@
 package dev.kumoriya.exoplayer.nexus
 
+import dev.kumoriya.exoplayer.http.KumoriyaHttpClient
 import okhttp3.OkHttpClient
 import java.util.concurrent.TimeUnit
 
 /**
- * Shared OkHttp client factory for a nexus playback session.
+ * Per-session OkHttp client factory for anime.nexus playback.
  *
- * One HTTP stack powers everything: page scrape, stream metadata fetch,
- * CDN manifest/segment fetches and WebSocket upgrade. That way TLS
- * sessions, DNS cache and connection pools are reused across the session
- * — no warm-up cost between phases.
+ * Derives from [KumoriyaHttpClient.shared] via `newBuilder()` so the
+ * connection pool, TLS sessions, DNS cache, timeouts, and redirect
+ * policy are reused — only the session-specific [cookieJar] and
+ * WebSocket [pingInterval] are overridden.
  */
 internal object NexusHttpClient {
     fun build(cookieJar: NexusCookieJar): OkHttpClient {
-        return OkHttpClient.Builder()
+        return KumoriyaHttpClient.shared.newBuilder()
             .cookieJar(cookieJar)
-            .followRedirects(true)
-            .followSslRedirects(true)
-            .connectTimeout(15, TimeUnit.SECONDS)
-            .readTimeout(30, TimeUnit.SECONDS)
-            .writeTimeout(15, TimeUnit.SECONDS)
-            // Long-lived streams (WebSocket + manifest + segments) demand
-            // generous pools; the default of 5 stalls HLS playback because
-            // Media3 fans out parallel segment fetches.
+            // Long-lived WebSocket connections need a keep-alive ping;
+            // the shared client does not set one because regular HTTP
+            // requests don't need it.
             .pingInterval(20, TimeUnit.SECONDS)
             .build()
     }

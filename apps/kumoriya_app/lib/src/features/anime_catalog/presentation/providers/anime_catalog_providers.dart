@@ -619,6 +619,10 @@ final sourceEpisodeServerLinksProvider = FutureProvider.autoDispose
       return GetSourceEpisodeServerLinksUseCase(
         sourcePlugin: ref.watch(sourcePluginByIdProvider(args.sourcePluginId)),
         registry: ref.watch(resolverRegistryProvider),
+        // Include download-type links (Mediafire) so they show up in the
+        // manual server picker and watch-party resolution paths. Hosts
+        // without a streaming resolver are filtered out by the use case.
+        includeDownloadLinks: true,
       ).call(args.episode);
     });
 

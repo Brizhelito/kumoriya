@@ -15,6 +15,7 @@ import '../../application/models/resolved_server_link_result.dart';
 import '../../../downloads/application/download_manager_service.dart';
 import '../../../downloads/presentation/download_providers.dart';
 import '../../../player/presentation/pages/player_page.dart';
+import '../providers/anime_catalog_providers.dart';
 import 'anime_detail_page.dart';
 
 class DownloadsPage extends ConsumerWidget {
@@ -600,7 +601,9 @@ class _ActiveDownloadRowState extends ConsumerState<_ActiveDownloadRow> {
                 ],
               ),
               if (task.status == DownloadStatus.downloading ||
-                  task.status == DownloadStatus.paused) ...<Widget>[
+                  task.status == DownloadStatus.paused ||
+                  task.status == DownloadStatus.remuxing ||
+                  task.status == DownloadStatus.disconnected) ...<Widget>[
                 const SizedBox(height: 8),
                 ClipRRect(
                   borderRadius: BorderRadius.circular(999),
@@ -659,7 +662,7 @@ class _ActiveDownloadRowState extends ConsumerState<_ActiveDownloadRow> {
           icon: const Icon(Icons.refresh_rounded, size: 18),
           tooltip: context.l10n.downloadRetry,
           onPressed: () async {
-            await manager.retryFailed(task.id);
+            await manager.retry(task.id);
           },
         );
       case DownloadStatus.pending:
@@ -672,6 +675,43 @@ class _ActiveDownloadRowState extends ConsumerState<_ActiveDownloadRow> {
         );
       case DownloadStatus.completed:
         return const SizedBox.shrink();
+      case DownloadStatus.remuxing:
+        // Remux cannot be paused mid-flight; only cancel is exposed. It
+        // tears down the Transformer and deletes tmp artifacts.
+        return IconButton(
+          icon: const Icon(Icons.close_rounded, size: 18),
+          tooltip: context.l10n.downloadCancel,
+          onPressed: () async {
+            await manager.cancel(task.id);
+          },
+        );
+      case DownloadStatus.disconnected:
+        // Manual retry + cancel. Once a NetworkMonitor lands in the
+        // native engine this state will auto-recover, but the retry
+        // button is still useful for users on unstable connections.
+        return Row(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            IconButton(
+              icon: const Icon(Icons.refresh_rounded, size: 18),
+              tooltip: context.l10n.downloadRetry,
+              constraints: const BoxConstraints(),
+              padding: const EdgeInsets.all(6),
+              onPressed: () async {
+                await manager.retry(task.id);
+              },
+            ),
+            IconButton(
+              icon: const Icon(Icons.close_rounded, size: 18),
+              tooltip: context.l10n.downloadCancel,
+              constraints: const BoxConstraints(),
+              padding: const EdgeInsets.all(6),
+              onPressed: () async {
+                await manager.cancel(task.id);
+              },
+            ),
+          ],
+        );
     }
   }
 }
@@ -996,7 +1036,11 @@ class _CompletedEpisodeTile extends ConsumerWidget {
     );
   }
 
-  void _playDownloaded(BuildContext context, WidgetRef ref, DownloadTask task) {
+  Future<void> _playDownloaded(
+    BuildContext context,
+    WidgetRef ref,
+    DownloadTask task,
+  ) async {
     if (task.filePath == null) return;
     final file = File(task.filePath!);
     if (!file.existsSync()) {
@@ -1007,6 +1051,20 @@ class _CompletedEpisodeTile extends ConsumerWidget {
       ref.read(downloadManagerProvider).deleteCompleted(task.id);
       return;
     }
+
+    // Fetch totalEpisodes for next episode button
+    final detailResult = await ref.read(animeDetailProvider(task.anilistId).future);
+    final totalEpisodes = detailResult.fold(
+      onFailure: (_) => null,
+      onSuccess: (detail) => detail.anime.totalEpisodes,
+    );
+    final nextAiringEpisodeNumber = detailResult.fold(
+      onFailure: (_) => null,
+      onSuccess: (detail) => detail.anime.nextAiringEpisodeNumber?.toDouble(),
+    );
+
+    if (!context.mounted) return;
+
     Navigator.of(context, rootNavigator: true).push(
       MaterialPageRoute<void>(
         builder: (_) => PlayerPage(
@@ -1024,6 +1082,8 @@ class _CompletedEpisodeTile extends ConsumerWidget {
             resolverName: context.l10n.downloadedSourceLabel,
             streams: <ResolvedStream>[ResolvedStream(url: file.uri)],
           ),
+          totalEpisodes: totalEpisodes,
+          nextAiringEpisodeNumber: nextAiringEpisodeNumber,
         ),
       ),
     );
@@ -1069,6 +1129,13 @@ String _dlStatusText(BuildContext context, DownloadTask task) {
       return context.l10n.downloadInProgress;
     case DownloadStatus.paused:
       return context.l10n.downloadPaused;
+    case DownloadStatus.remuxing:
+      // TODO(i18n): localize. Shown while the native pipeline transmuxes
+      // the HLS segments into MP4 — usually a few seconds.
+      return 'Procesando…';
+    case DownloadStatus.disconnected:
+      // TODO(i18n): localize.
+      return 'Sin conexión';
     case DownloadStatus.completed:
       return context.l10n.downloadComplete;
     case DownloadStatus.failed:
@@ -1084,6 +1151,17 @@ Color _dlStatusColor(DownloadStatus status) {
       return KumoriyaColors.primary;
     case DownloadStatus.paused:
       return KumoriyaColors.statusWarning;
+    case DownloadStatus.remuxing:
+      // Green/success so the "Procesando…" step reads as a distinct
+      // post-download phase (the bytes already landed on disk; this is
+      // the mux-to-MP4 wrap-up). Matching `primary` made it feel like
+      // the download was mysteriously still running.
+      return KumoriyaColors.statusSuccess;
+    case DownloadStatus.disconnected:
+      // Distinct from `paused` (warning/yellow) and `failed` (danger/red):
+      // use the muted gray so the user reads it as "waiting on something
+      // outside our control" rather than a problem to act on.
+      return KumoriyaColors.textMuted;
     case DownloadStatus.completed:
       return KumoriyaColors.statusSuccess;
     case DownloadStatus.failed:
@@ -1093,6 +1171,9 @@ Color _dlStatusColor(DownloadStatus status) {
 
 double? _dlProgress(DownloadTask task) {
   if (task.status == DownloadStatus.completed) return 1.0;
+  // Remux happens after every segment is written to disk — pin the bar
+  // to 100% so the user doesn't see it regress while Transformer runs.
+  if (task.status == DownloadStatus.remuxing) return 1.0;
   if (task.totalBytes == null || task.totalBytes == 0) return null;
   if (task.downloadedBytes == null) return null;
   return (task.downloadedBytes! / task.totalBytes!).clamp(0.0, 1.0);
@@ -1113,9 +1194,17 @@ String? _dlLabel(DownloadTask task, DownloadProgressEvent? live) {
 
   final parts = <String>[];
   if (total > 0) {
-    final pct = ((downloaded / total) * 100).toStringAsFixed(0);
+    // Clamp: HLS `totalBytes` is a bitrate×duration estimate stored in
+    // Drift, and a row that survived an app restart may have
+    // `downloaded > total` when the estimate undershot. Raw division
+    // would render >100% and surface a stale total that confuses the
+    // user. Cap at 100% and show the larger of the two as the total.
+    final effectiveTotal = total < downloaded ? downloaded : total;
+    final pct = ((downloaded / effectiveTotal) * 100)
+        .clamp(0.0, 100.0)
+        .toStringAsFixed(0);
     parts.add('$pct%');
-    parts.add('${_fmtBytes(downloaded)} / ${_fmtBytes(total)}');
+    parts.add('${_fmtBytes(downloaded)} / ${_fmtBytes(effectiveTotal)}');
   } else if (downloaded > 0) {
     parts.add(_fmtBytes(downloaded));
   }

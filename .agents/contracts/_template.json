@@ -1,0 +1,26 @@
+{
+  "module": "<dotted.name>",
+  "function": "<name>",
+  "signature": "fn(x: T1, y: T2) -> R",
+  "types": {
+    "T1": {"kind": "string", "pattern": "^[a-z]+$", "nullable": false},
+    "T2": {"kind": "int", "min": 0, "max": 100},
+    "R":  {"kind": "object", "fields": {"ok": "bool", "value": "string|null"}}
+  },
+  "invariants": [
+    "example: if x is empty then raise E_EMPTY",
+    "example: result.ok == true implies result.value != null"
+  ],
+  "edge_cases": [
+    {"case": "empty string", "expected": "raise E_EMPTY"},
+    {"case": "y == 0", "expected": "{ok: true, value: ''}"},
+    {"case": "unicode input", "expected": "handled as UTF-8"}
+  ],
+  "errors": [
+    {"code": "E_EMPTY",    "message": "input x must be non-empty"},
+    {"code": "E_RANGE",    "message": "y out of [0,100]"},
+    {"code": "E_INTERNAL", "message": "unexpected state, retryable=false"}
+  ],
+  "purity": "pure",
+  "deterministic": true
+}

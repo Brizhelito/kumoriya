@@ -662,6 +662,19 @@ class _ContinueWatchingCardWrapperState
         await _openEpisodeListFallback(context, animeTitle);
         return;
       }
+
+      final detailResult = await ref.read(animeDetailProvider(widget.entry.anilistId).future);
+      if (!mounted) return;
+      final totalEpisodes = detailResult.fold(
+        onFailure: (_) => null,
+        onSuccess: (detail) => detail.anime.totalEpisodes,
+      );
+      final nextAiringEpisodeNumber = detailResult.fold(
+        onFailure: (_) => null,
+        onSuccess: (detail) => detail.anime.nextAiringEpisodeNumber?.toDouble(),
+      );
+
+      // ignore: use_build_context_synchronously
       await handlePlaybackDecision(
         context: context,
         ref: ref,
@@ -669,6 +682,8 @@ class _ContinueWatchingCardWrapperState
         animeTitle: animeTitle,
         decision: decision,
         onUnavailable: () => _openEpisodeListFallback(context, animeTitle),
+        totalEpisodes: totalEpisodes,
+        nextAiringEpisodeNumber: nextAiringEpisodeNumber,
       );
     } finally {
       // Dismiss the loader via the root navigator regardless of mount state;
@@ -709,6 +724,21 @@ class _ContinueWatchingCardWrapperState
       return true;
     }
 
+    // Fetch totalEpisodes for next episode button
+    final detailResult = await ref.read(animeDetailProvider(widget.entry.anilistId).future);
+    final totalEpisodes = detailResult.fold(
+      onFailure: (_) => null,
+      onSuccess: (detail) => detail.anime.totalEpisodes,
+    );
+    final nextAiringEpisodeNumber = detailResult.fold(
+      onFailure: (_) => null,
+      onSuccess: (detail) => detail.anime.nextAiringEpisodeNumber?.toDouble(),
+    );
+
+    if (!mounted) {
+      return true;
+    }
+
     await Navigator.of(context, rootNavigator: true).push(
       MaterialPageRoute<void>(
         builder: (_) => PlayerPage(
@@ -724,6 +754,8 @@ class _ContinueWatchingCardWrapperState
             resolverName: context.l10n.downloadedSourceLabel,
             streams: <ResolvedStream>[ResolvedStream(url: file.uri)],
           ),
+          totalEpisodes: totalEpisodes,
+          nextAiringEpisodeNumber: nextAiringEpisodeNumber,
         ),
       ),
     );

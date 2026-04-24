@@ -30,6 +30,7 @@ import '../features/downloads/application/download_library_index_service.dart';
 import '../features/downloads/application/download_manager_service.dart';
 import '../features/downloads/application/enqueue_download_use_case.dart';
 import '../app/runtime_config.dart';
+import 'push_pending_sync_worker.dart';
 
 /// Workmanager task name for the periodic auto-download-of-new-episodes
 /// worker.
@@ -82,18 +83,19 @@ query BatchAiringStatus($ids: [Int]) {
 @pragma('vm:entry-point')
 void checkNewEpisodesCallbackDispatcher() {
   Workmanager().executeTask((task, inputData) async {
-    if (task != kCheckNewEpisodesTask) {
-      return true;
-    }
-
     WidgetsFlutterBinding.ensureInitialized();
 
     try {
-      await _runCheckNewEpisodes();
+      switch (task) {
+        case kCheckNewEpisodesTask:
+          await _runCheckNewEpisodes();
+        case kPushPendingSyncTask:
+          await runPushPendingSyncWorker();
+      }
     } catch (e, st) {
       developer.log(
-        'CheckNewEpisodesWorker unhandled error: $e',
-        name: 'CheckNewEpisodesWorker',
+        'Workmanager task "$task" failed: $e',
+        name: 'WorkmanagerDispatcher',
         error: e,
         stackTrace: st,
       );

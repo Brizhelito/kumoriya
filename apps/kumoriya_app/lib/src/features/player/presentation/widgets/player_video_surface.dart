@@ -6,6 +6,7 @@ import '../../application/services/playback_engine.dart';
 import '../../infrastructure/exoplayer_playback_engine.dart';
 import '../../infrastructure/kumoriya_exoplayer_engine.dart';
 import '../../infrastructure/media_kit_playback_engine.dart';
+import 'subtitle_overlay.dart';
 
 /// Renders the current video output for any [PlaybackEngine] implementation.
 ///
@@ -59,7 +60,17 @@ class PlayerVideoSurface extends StatelessWidget {
           builder: (context, ratio, _) {
             return AspectRatio(
               aspectRatio: ratio ?? 16 / 9,
-              child: Texture(textureId: id),
+              child: Stack(
+                alignment: Alignment.bottomCenter,
+                children: [
+                  Texture(textureId: id),
+                  // Subtitle overlay receives cues from native ExoPlayer
+                  SubtitleOverlay(
+                    cueStream: e.cueStream,
+                    configuration: subtitleViewConfiguration,
+                  ),
+                ],
+              ),
             );
           },
         ),

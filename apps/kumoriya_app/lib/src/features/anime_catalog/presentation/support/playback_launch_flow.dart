@@ -40,6 +40,8 @@ Future<void> handlePlaybackDecision({
   required EpisodePlaybackDecision decision,
   PlaybackUnavailableFallback? onUnavailable,
   PartyRouteMode routeMode = PartyRouteMode.standard,
+  int? totalEpisodes,
+  double? nextAiringEpisodeNumber,
 }) async {
   switch (decision.type) {
     case EpisodePlaybackDecisionType.direct:
@@ -50,6 +52,8 @@ Future<void> handlePlaybackDecision({
         episodeTitle: episodeTitle,
         launch: decision.launch!,
         routeMode: routeMode,
+        totalEpisodes: totalEpisodes,
+        nextAiringEpisodeNumber: nextAiringEpisodeNumber,
       );
       return;
     case EpisodePlaybackDecisionType.selection:
@@ -67,6 +71,8 @@ Future<void> handlePlaybackDecision({
           remaining: const <EpisodePlaybackOption>[],
           onUnavailable: onUnavailable,
           routeMode: routeMode,
+          totalEpisodes: totalEpisodes,
+          nextAiringEpisodeNumber: nextAiringEpisodeNumber,
         );
         return;
       }
@@ -101,6 +107,8 @@ Future<void> handlePlaybackDecision({
             .toList(growable: false),
         onUnavailable: onUnavailable,
         routeMode: routeMode,
+        totalEpisodes: totalEpisodes,
+        nextAiringEpisodeNumber: nextAiringEpisodeNumber,
       );
       return;
     case EpisodePlaybackDecisionType.unavailable:
@@ -219,6 +227,9 @@ Future<PartyAutoResolveOutcome> openPartySelectedSource({
   final linksResult = await GetSourceEpisodeServerLinksUseCase(
     sourcePlugin: plugin,
     registry: registry,
+    // Include download-type links so the watch-party host's Mediafire
+    // selection can match this client's candidate list.
+    includeDownloadLinks: true,
   ).call(episode);
   final links = linksResult.fold(
     onFailure: (_) => const <SourceServerLink>[],
@@ -369,6 +380,8 @@ Future<void> _resolveSelectedOption(
   required List<EpisodePlaybackOption> remaining,
   PlaybackUnavailableFallback? onUnavailable,
   PartyRouteMode routeMode = PartyRouteMode.standard,
+  int? totalEpisodes,
+  double? nextAiringEpisodeNumber,
 }) async {
   showBlockingLoader(context, context.l10n.playbackOpeningSelectedServer);
   final result = await ref
@@ -409,6 +422,8 @@ Future<void> _resolveSelectedOption(
               .toList(growable: false),
           onUnavailable: onUnavailable,
           routeMode: routeMode,
+          totalEpisodes: totalEpisodes,
+          nextAiringEpisodeNumber: nextAiringEpisodeNumber,
         );
         return;
       }
@@ -428,6 +443,8 @@ Future<void> _resolveSelectedOption(
         ),
         persistSelection: selection.rememberSelection,
         routeMode: routeMode,
+        totalEpisodes: totalEpisodes,
+        nextAiringEpisodeNumber: nextAiringEpisodeNumber,
       );
     },
   );
@@ -448,6 +465,8 @@ Future<bool> _openPlayer(
   required EpisodePlayerLaunch launch,
   bool persistSelection = true,
   PartyRouteMode routeMode = PartyRouteMode.standard,
+  int? totalEpisodes,
+  double? nextAiringEpisodeNumber,
 }) async {
   final resolvedEpisodeTitle =
       episodeTitle ?? launch.option.sourceEpisode.title.trim();
@@ -470,6 +489,8 @@ Future<bool> _openPlayer(
           null => null,
         },
         resolved: launch.resolved,
+        totalEpisodes: totalEpisodes,
+        nextAiringEpisodeNumber: nextAiringEpisodeNumber,
       ),
     ),
   );

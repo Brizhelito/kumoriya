@@ -126,6 +126,36 @@ class SubtitleSettings {
     );
   }
 
+  /// Logical-pixel mapping for the native Kumoriya ExoPlayer overlay.
+  /// The media_kit values (32/48/64/80) are video-pixel sized; the
+  /// native Flutter Text widget lives in logical space and needs
+  /// values tuned to typical phone widths (≈360–430 dp).
+  double get _overlayFontPixels => switch (fontSize) {
+    SubtitleFontSize.small => 14,
+    SubtitleFontSize.medium => 18,
+    SubtitleFontSize.large => 22,
+    SubtitleFontSize.extraLarge => 26,
+  };
+
+  SubtitleViewConfiguration toOverlayConfiguration() {
+    final effectiveFontColor = fontColor.color.withValues(alpha: fontOpacity);
+    final effectiveBgColor =
+        backgroundColor == SubtitleBackgroundColor.transparent
+        ? Colors.transparent
+        : backgroundColor.color.withValues(alpha: backgroundOpacity);
+    return SubtitleViewConfiguration(
+      style: TextStyle(
+        fontSize: _overlayFontPixels,
+        color: effectiveFontColor,
+        fontWeight: FontWeight.w600,
+        backgroundColor: effectiveBgColor,
+        shadows: _edgeShadows(),
+      ),
+      textAlign: TextAlign.center,
+      padding: EdgeInsets.fromLTRB(16, 0, 16, bottomPadding),
+    );
+  }
+
   Map<String, dynamic> toJson() => {
     'fontSize': fontSize.name,
     'fontColor': fontColor.name,

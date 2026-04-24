@@ -568,6 +568,13 @@ final class _FakeEngine implements PlaybackEngine {
   Future<void> clearEmbeddedSubtitleTrack() async {}
 
   @override
+  Future<void> setVolume(double percent) async {}
+  @override
+  Future<void> setPlaybackSpeed(double rate) async {}
+  @override
+  Future<void> setPreferredSubtitleLanguages(List<String> languages) async {}
+
+  @override
   Future<void> dispose() async {
     await _playing.close();
     await _buffering.close();

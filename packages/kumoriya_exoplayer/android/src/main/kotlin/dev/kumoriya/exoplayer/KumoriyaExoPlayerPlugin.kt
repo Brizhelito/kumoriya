@@ -7,6 +7,7 @@ import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
 import io.flutter.plugin.common.MethodChannel.MethodCallHandler
 import io.flutter.plugin.common.MethodChannel.Result
+import dev.kumoriya.exoplayer.downloads.DownloadChannels
 import java.util.concurrent.Executors
 
 /**
@@ -24,6 +25,7 @@ class KumoriyaExoPlayerPlugin :
 
     private lateinit var channel: MethodChannel
     private lateinit var registry: PlayerRegistry
+    private var downloadChannels: DownloadChannels? = null
     private val mainHandler = Handler(Looper.getMainLooper())
 
     /**
@@ -38,10 +40,16 @@ class KumoriyaExoPlayerPlugin :
     override fun onAttachedToEngine(binding: FlutterPlugin.FlutterPluginBinding) {
         channel = MethodChannel(binding.binaryMessenger, CHANNEL_METHODS)
         channel.setMethodCallHandler(this)
+
         registry = PlayerRegistry(
             context = binding.applicationContext,
             binaryMessenger = binding.binaryMessenger,
             textures = binding.textureRegistry,
+        )
+
+        downloadChannels = DownloadChannels(
+            context = binding.applicationContext,
+            messenger = binding.binaryMessenger,
         )
     }
 
@@ -114,6 +122,12 @@ class KumoriyaExoPlayerPlugin :
                 val textureId = call.requireLong("textureId")
                 val trackId = call.requireString("trackId")
                 registry.require(textureId).selectSubtitleTrack(trackId)
+                null
+            }
+            "setPreferredSubtitleLanguages" -> onMain(result) {
+                val textureId = call.requireLong("textureId")
+                val languages = call.argument<List<String>>("languages").orEmpty()
+                registry.require(textureId).setPreferredSubtitleLanguages(languages)
                 null
             }
             "clearSubtitleTrack" -> onMain(result) {
@@ -233,6 +247,8 @@ class KumoriyaExoPlayerPlugin :
     override fun onDetachedFromEngine(binding: FlutterPlugin.FlutterPluginBinding) {
         mainHandler.post { registry.disposeAll() }
         channel.setMethodCallHandler(null)
+        downloadChannels?.detach()
+        downloadChannels = null
         ioExecutor.shutdown()
     }
 

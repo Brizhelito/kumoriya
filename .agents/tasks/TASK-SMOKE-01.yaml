@@ -1,0 +1,58 @@
+id: TASK-SMOKE-01
+title: implement smoke_slugify
+status: ready
+version: 1
+
+description: >
+  Smoke-test task for the orchestration pipeline. Implements a pure ASCII
+  slugifier used only to validate the end-to-end loop (preflight, runners,
+  commit, system_index update).
+
+depends_on: []
+provides:
+  module: kumoriya_orch.smoke_slugify
+  exports: [slugify]
+consumes:
+  modules: []
+
+input_contract:
+  - { name: text,    type: str, constraints: "non-null" }
+  - { name: max_len, type: int, constraints: "1..200" }
+
+output_contract:
+  returns:
+    type: str
+    shape: "^[a-z0-9-]*$"
+  side_effects: none
+  errors:
+    - { code: E_EMPTY, when: "text is empty after normalization", raises: ValueError }
+    - { code: E_RANGE, when: "max_len not in 1..200",             raises: ValueError }
+
+constraints:
+  - pure
+  - no_io
+  - max_lines: 40
+  - language: python
+
+files_allowed:
+  modify: []
+  create:
+    - tools/kumoriya-orch/src/kumoriya_orch/smoke_slugify.py
+  read_only: []
+
+forbidden:
+  - add new dependencies
+  - edit files outside files_allowed
+  - branch on literal test inputs
+  - TODO/FIXME/placeholder code
+
+acceptance_criteria:
+  - all tests in TASK-SMOKE-01.spec.yaml pass via pytest
+  - no lint errors
+  - matches output_contract exactly
+
+tests: [U1, U2, U3, F1, F2, F3]
+
+context_budget:
+  max_input_tokens: 1500
+  max_output_tokens: 600

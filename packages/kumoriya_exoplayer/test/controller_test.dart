@@ -111,6 +111,16 @@ class _FakePlatform extends KumoriyaExoPlayerPlatform {
       calls.add({'op': 'clearSubtitleTrack', 'textureId': textureId});
 
   @override
+  Future<void> setPreferredSubtitleLanguages(
+    int textureId,
+    List<String> languages,
+  ) async => calls.add({
+    'op': 'setPreferredSubtitleLanguages',
+    'textureId': textureId,
+    'languages': languages,
+  });
+
+  @override
   Future<void> addExternalSubtitle(
     int textureId, {
     required String uri,
@@ -441,6 +451,13 @@ void main() {
 
       await controller.clearSubtitleTrack();
       expect(fake.calls.last, {'op': 'clearSubtitleTrack', 'textureId': 10});
+
+      await controller.setPreferredSubtitleLanguages(<String>['es', 'en']);
+      expect(fake.calls.last, {
+        'op': 'setPreferredSubtitleLanguages',
+        'textureId': 10,
+        'languages': <String>['es', 'en'],
+      });
 
       await controller.dispose();
     },

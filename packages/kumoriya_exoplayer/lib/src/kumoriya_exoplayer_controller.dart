@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'events/cue_event.dart';
 import 'events/playback_event.dart';
 import 'models/audio_track.dart';
 import 'models/diagnostics_snapshot.dart';
@@ -48,6 +49,7 @@ class KumoriyaExoPlayerController {
   final _urlExpiredController = StreamController<UrlExpired>.broadcast();
   final _diagnosticsController =
       StreamController<DiagnosticsSnapshot>.broadcast();
+  final _cueController = StreamController<CueEvent>.broadcast();
 
   late final StreamSubscription<PlaybackEvent> _eventSub;
 
@@ -111,6 +113,10 @@ class KumoriyaExoPlayerController {
   /// otherwise.
   Stream<DiagnosticsSnapshot> get diagnosticsStream =>
       _diagnosticsController.stream;
+
+  /// Subtitle cue events from Media3's TextRenderer. Each event carries
+  /// one or more [Cue]s that should be displayed at their respective timestamps.
+  Stream<CueEvent> get cueStream => _cueController.stream;
 
   /// Prepare the native player to play [url] with optional HTTP [headers],
   /// an optional [mimeType] hint (e.g. `application/x-mpegURL` for HLS),
@@ -215,6 +221,12 @@ class KumoriyaExoPlayerController {
     return _platform.clearSubtitleTrack(textureId);
   }
 
+  /// Set the preferred subtitle languages for auto-selection.
+  Future<void> setPreferredSubtitleLanguages(List<String> languages) {
+    _ensureAlive();
+    return _platform.setPreferredSubtitleLanguages(textureId, languages);
+  }
+
   /// Attach an external subtitle file to the currently playing stream.
   /// Position is preserved across the attach. [mimeType] must be one of
   /// `text/vtt`, `application/x-subrip`, `text/x-ssa` (aliases accepted).
@@ -302,6 +314,7 @@ class KumoriyaExoPlayerController {
     await _videoTracksController.close();
     await _urlExpiredController.close();
     await _diagnosticsController.close();
+    await _cueController.close();
   }
 
   // --- Internals -----------------------------------------------------
@@ -342,6 +355,8 @@ class KumoriyaExoPlayerController {
         _urlExpiredController.add(event);
       case DiagnosticsReport(:final snapshot):
         _diagnosticsController.add(snapshot);
+      case CueEvent(:final cues):
+        _cueController.add(CueEvent(cues));
     }
   }
 

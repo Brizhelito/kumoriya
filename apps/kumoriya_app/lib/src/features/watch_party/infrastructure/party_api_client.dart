@@ -94,7 +94,9 @@ final class PartyApiClient {
       throw PartyApiException(res.statusCode, _errorBody(res));
     }
     final json = jsonDecode(res.body) as Map<String, dynamic>;
-    return PartyRealtimeSession.fromJson(json['session'] as Map<String, dynamic>);
+    return PartyRealtimeSession.fromJson(
+      json['session'] as Map<String, dynamic>,
+    );
   }
 
   /// POST /api/v1/party/leave — leave current room. In the v2 brokered flow
@@ -103,9 +105,9 @@ final class PartyApiClient {
   Future<void> leaveRoom({String? roomId}) async {
     final uri = roomId == null
         ? Uri.parse('$_baseUrl$_basePath/leave')
-        : Uri.parse('$_baseUrl$_basePath/leave').replace(
-            queryParameters: {'roomId': roomId},
-          );
+        : Uri.parse(
+            '$_baseUrl$_basePath/leave',
+          ).replace(queryParameters: {'roomId': roomId});
     final res = await _http.post(
       uri,
       headers: {'Content-Type': 'application/json'},

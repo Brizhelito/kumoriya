@@ -343,6 +343,8 @@ class _PartyAnimePageState extends ConsumerState<PartyAnimePage> {
       animeTitle: detail.anime.title.romaji,
       routeMode: PartyRouteMode.party,
       decision: decision,
+      totalEpisodes: detail.anime.totalEpisodes,
+      nextAiringEpisodeNumber: detail.anime.nextAiringEpisodeNumber?.toDouble(),
     );
   }
 }

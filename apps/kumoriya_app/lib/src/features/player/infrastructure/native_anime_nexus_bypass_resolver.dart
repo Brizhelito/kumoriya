@@ -20,12 +20,12 @@ final class NativeAnimeNexusBypassResolver implements ResolverPlugin {
 
   @override
   PluginManifest get manifest => const PluginManifest(
-        id: 'kumoriya.resolver.anime_nexus.native_bypass',
-        displayName: 'anime.nexus (native)',
-        type: PluginType.resolver,
-        capabilities: <PluginCapability>{PluginCapability.streamResolution},
-        supportedHosts: <String>['anime.nexus'],
-      );
+    id: 'kumoriya.resolver.anime_nexus.native_bypass',
+    displayName: 'anime.nexus (native)',
+    type: PluginType.resolver,
+    capabilities: <PluginCapability>{PluginCapability.streamResolution},
+    supportedHosts: <String>['anime.nexus'],
+  );
 
   /// Must be strictly greater than `AnimeNexusResolverPlugin.priority`
   /// (120) so the registry picks us first on Android.

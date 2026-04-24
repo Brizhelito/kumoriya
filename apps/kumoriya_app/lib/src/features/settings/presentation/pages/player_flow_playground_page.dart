@@ -1152,11 +1152,10 @@ class _PlayerFlowPlaygroundPageState
           child: SegmentedButton<PlaybackEngineKind>(
             segments: PlaybackEngineKind.values
                 .map(
-                  (PlaybackEngineKind k) =>
-                      ButtonSegment<PlaybackEngineKind>(
-                        value: k,
-                        label: Text(k.label),
-                      ),
+                  (PlaybackEngineKind k) => ButtonSegment<PlaybackEngineKind>(
+                    value: k,
+                    label: Text(k.label),
+                  ),
                 )
                 .toList(),
             selected: <PlaybackEngineKind>{_selectedEngine},

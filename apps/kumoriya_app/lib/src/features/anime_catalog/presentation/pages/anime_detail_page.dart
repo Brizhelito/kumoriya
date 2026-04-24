@@ -706,6 +706,15 @@ class _PlayResumeCtaState extends ConsumerState<_PlayResumeCta> {
       final file = File(offlineTask.filePath!);
       if (await file.exists()) {
         if (!mounted) return;
+
+        final detailResult = await ref.read(animeDetailProvider(widget.anilistId).future);
+        if (!mounted) return;
+        final totalEpisodes = detailResult.fold(
+          onFailure: (_) => null,
+          onSuccess: (detail) => detail.anime.totalEpisodes,
+        );
+
+        // ignore: use_build_context_synchronously
         await Navigator.of(context, rootNavigator: true).push(
           MaterialPageRoute<void>(
             builder: (_) => PlayerPage(
@@ -721,6 +730,7 @@ class _PlayResumeCtaState extends ConsumerState<_PlayResumeCta> {
                 resolverName: 'Downloaded',
                 streams: <ResolvedStream>[ResolvedStream(url: file.uri)],
               ),
+              totalEpisodes: totalEpisodes,
             ),
           ),
         );
@@ -747,6 +757,15 @@ class _PlayResumeCtaState extends ConsumerState<_PlayResumeCta> {
     if (!mounted) return;
     hideBlockingLoader(context);
     setState(() => _isLaunching = false);
+
+    final detailResult = await ref.read(animeDetailProvider(widget.anilistId).future);
+    if (!mounted) return;
+    final totalEpisodes = detailResult.fold(
+      onFailure: (_) => null,
+      onSuccess: (detail) => detail.anime.totalEpisodes,
+    );
+
+    // ignore: use_build_context_synchronously
     await handlePlaybackDecision(
       context: context,
       ref: ref,
@@ -755,6 +774,7 @@ class _PlayResumeCtaState extends ConsumerState<_PlayResumeCta> {
       episodeTitle: null,
       routeMode: widget.routeMode,
       decision: decision,
+      totalEpisodes: totalEpisodes,
     );
   }
 }
@@ -1721,6 +1741,8 @@ class _EpisodeDetailSectionState extends ConsumerState<_EpisodeDetailSection> {
                 resolverName: 'Downloaded',
                 streams: <ResolvedStream>[ResolvedStream(url: file.uri)],
               ),
+              totalEpisodes: widget.detail.anime.totalEpisodes,
+              nextAiringEpisodeNumber: widget.detail.anime.nextAiringEpisodeNumber?.toDouble(),
             ),
           ),
         );
@@ -1762,6 +1784,8 @@ class _EpisodeDetailSectionState extends ConsumerState<_EpisodeDetailSection> {
       episodeTitle: row.displayTitle,
       routeMode: widget.routeMode,
       decision: decision,
+      totalEpisodes: widget.detail.anime.totalEpisodes,
+      nextAiringEpisodeNumber: widget.detail.anime.nextAiringEpisodeNumber?.toDouble(),
     );
   }
 
@@ -2643,6 +2667,14 @@ class _DetailDownloadStatusIcon extends ConsumerWidget {
       DownloadStatus.paused => (
         Icons.pause_circle_outline_rounded,
         KumoriyaColors.statusWarning,
+      ),
+      DownloadStatus.remuxing => (
+        Icons.auto_fix_high_rounded,
+        KumoriyaColors.primary,
+      ),
+      DownloadStatus.disconnected => (
+        Icons.cloud_off_rounded,
+        KumoriyaColors.textMuted,
       ),
       DownloadStatus.completed => (
         Icons.download_done_rounded,

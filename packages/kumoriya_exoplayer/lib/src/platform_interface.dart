@@ -78,6 +78,12 @@ abstract class KumoriyaExoPlayerPlatform extends PlatformInterface {
   /// inventory stays available; next `selectSubtitleTrack` re-enables.
   Future<void> clearSubtitleTrack(int textureId);
 
+  /// Set the preferred subtitle languages for auto-selection.
+  Future<void> setPreferredSubtitleLanguages(
+    int textureId,
+    List<String> languages,
+  );
+
   /// Merge an external subtitle file ([uri]) on top of the current base
   /// stream, preserving playback position. [mimeType] must be one of
   /// `text/vtt`, `application/x-subrip`, `text/x-ssa` (or their
@@ -258,6 +264,17 @@ class MethodChannelKumoriyaExoPlayer extends KumoriyaExoPlayerPlatform {
   Future<void> clearSubtitleTrack(int textureId) {
     return _channel.invokeMethod<void>('clearSubtitleTrack', {
       'textureId': textureId,
+    });
+  }
+
+  @override
+  Future<void> setPreferredSubtitleLanguages(
+    int textureId,
+    List<String> languages,
+  ) {
+    return _channel.invokeMethod<void>('setPreferredSubtitleLanguages', {
+      'textureId': textureId,
+      'languages': languages,
     });
   }
 

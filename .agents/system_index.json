@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "commit": null,
+  "updated_at": null,
+  "modules": {},
+  "dependencies": {},
+  "global_invariants": [
+    "AniList is canonical metadata; no source may override it",
+    "Source plugins, resolver plugins and the player are independent",
+    "UI depends on contracts, never on concrete plugins or storage",
+    "No module imports from tests/",
+    "Error codes are globally unique within the package scope",
+    "Public signatures change only via an architect patch that updates system_index"
+  ],
+  "error_code_registry": {},
+  "notes": "Populated atomically by the orchestrator when a task passes both reviewer and mutation. Worker never reads this file."
+}

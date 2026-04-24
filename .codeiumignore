@@ -22,6 +22,8 @@ __pycache__/
 .vscode/
 .idea/
 .windsurf/
+!.windsurf/workflows/
+!.windsurf/workflows/**
 .codex/logs/
 .codex/auth.json
 

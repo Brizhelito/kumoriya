@@ -50,8 +50,9 @@ class _KumoriyaExoPlayerPlaygroundPageState
   ];
 
   final TextEditingController _searchController = TextEditingController();
-  final TextEditingController _manualUrlController =
-      TextEditingController(text: _manualPresets.first.url);
+  final TextEditingController _manualUrlController = TextEditingController(
+    text: _manualPresets.first.url,
+  );
   final TextEditingController _nexusWatchController = TextEditingController();
 
   List<SourcePlugin> _sources = <SourcePlugin>[];
@@ -618,8 +619,7 @@ class _KumoriyaExoPlayerPlaygroundPageState
                     controller: _nexusWatchController,
                     decoration: const InputDecoration(
                       border: OutlineInputBorder(),
-                      labelText:
-                          'https://anime.nexus/watch/<uuid>/<slug>',
+                      labelText: 'https://anime.nexus/watch/<uuid>/<slug>',
                       isDense: true,
                     ),
                     keyboardType: TextInputType.url,
@@ -666,8 +666,7 @@ class _KumoriyaExoPlayerPlaygroundPageState
                       for (final p in _manualPresets)
                         ActionChip(
                           label: Text(p.label),
-                          onPressed: () =>
-                              _manualUrlController.text = p.url,
+                          onPressed: () => _manualUrlController.text = p.url,
                         ),
                       FilledButton.icon(
                         onPressed: _resolving
@@ -866,10 +865,7 @@ class _PlayerControls extends StatelessWidget {
           children: [
             const SizedBox(width: 60, child: Text('vol')),
             Expanded(
-              child: Slider(
-                value: volume.clamp(0.0, 1.0),
-                onChanged: onVolume,
-              ),
+              child: Slider(value: volume.clamp(0.0, 1.0), onChanged: onVolume),
             ),
             SizedBox(
               width: 46,
@@ -912,10 +908,7 @@ class _SectionHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Padding(
     padding: const EdgeInsets.only(bottom: 6),
-    child: Text(
-      text,
-      style: const TextStyle(fontWeight: FontWeight.bold),
-    ),
+    child: Text(text, style: const TextStyle(fontWeight: FontWeight.bold)),
   );
 }
 
@@ -1025,11 +1018,7 @@ class _ServerList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: [
-        for (final s in servers) _serverRow(s),
-      ],
-    );
+    return Column(children: [for (final s in servers) _serverRow(s)]);
   }
 
   Widget _serverRow(SourceServerLink s) {
@@ -1052,7 +1041,10 @@ class _ServerList extends StatelessWidget {
         '${s.serverName} · ${s.detectedHost ?? s.initialUrl.host}',
         style: const TextStyle(fontSize: 13),
       ),
-      subtitle: Text('resolver=$resolverName', style: const TextStyle(fontSize: 11)),
+      subtitle: Text(
+        'resolver=$resolverName',
+        style: const TextStyle(fontSize: 11),
+      ),
       trailing: SizedBox(
         width: 96,
         child: FilledButton(

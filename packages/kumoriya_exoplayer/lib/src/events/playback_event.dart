@@ -1,11 +1,13 @@
 import '../models/audio_track.dart';
 import '../models/diagnostics_snapshot.dart';
+import '../models/subtitle_cue.dart';
 import '../models/subtitle_track.dart';
 import '../models/video_track.dart';
+import 'cue_event.dart';
 
 /// Playback events emitted by the native `dev.kumoriya.exoplayer/events/<id>`
 /// channel, parsed from the raw `Map` payload sent by Kotlin.
-sealed class PlaybackEvent {
+abstract class PlaybackEvent {
   const PlaybackEvent();
 
   /// Decode a raw payload from the event channel. Returns `null` when the
@@ -84,6 +86,16 @@ sealed class PlaybackEvent {
           url: url,
           httpCode: httpCode is int ? httpCode : null,
         );
+      case 'subtitleCue':
+        if (value is! List) return null;
+        final cues = <SubtitleCue>[];
+        for (final entry in value) {
+          if (entry is Map) {
+            final parsed = SubtitleCue.tryParse(entry);
+            cues.add(parsed);
+          }
+        }
+        return CueEvent(List.unmodifiable(cues));
       default:
         return null;
     }

@@ -226,6 +226,8 @@ class _PartyEpisodeListPageState extends ConsumerState<PartyEpisodeListPage> {
       episodeTitle: _displayEpisodeTitle(episode),
       routeMode: PartyRouteMode.party,
       decision: decision,
+      totalEpisodes: detail.anime.totalEpisodes,
+      nextAiringEpisodeNumber: detail.anime.nextAiringEpisodeNumber?.toDouble(),
     );
   }
 

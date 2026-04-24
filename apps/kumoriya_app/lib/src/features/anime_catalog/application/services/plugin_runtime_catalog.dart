@@ -8,7 +8,7 @@ import 'package:kumoriya_resolver_filemoon/kumoriya_resolver_filemoon.dart';
 // import 'package:kumoriya_resolver_hqq/kumoriya_resolver_hqq.dart';
 import 'package:kumoriya_resolver_jkplayer/kumoriya_resolver_jkplayer.dart';
 import 'package:kumoriya_resolver_mediafire/kumoriya_resolver_mediafire.dart';
-// import 'package:kumoriya_resolver_mixdrop/kumoriya_resolver_mixdrop.dart';
+import 'package:kumoriya_resolver_mixdrop/kumoriya_resolver_mixdrop.dart';
 // import 'package:kumoriya_resolver_mp4upload/kumoriya_resolver_mp4upload.dart';
 import 'package:kumoriya_resolver_okru/kumoriya_resolver_okru.dart';
 import 'package:kumoriya_resolver_pixeldrain/kumoriya_resolver_pixeldrain.dart';
@@ -54,21 +54,32 @@ List<ResolverPlugin> buildDefaultResolverPlugins({http.Client? httpClient}) {
     JkPlayerJkResolverPlugin(httpClient: httpClient),
     JkPlayerResolverPlugin(httpClient: httpClient),
     StreamwishResolverPlugin(httpClient: httpClient),
-    // MP4Upload disabled: CDN too slow for acceptable user experience.
-    // Mp4uploadResolverPlugin(),
+    // Mp4upload disabled: CDN serves invalid TLS cert on port :183.
+    // Rejected by both Cronet (Android, ERR_CERT_AUTHORITY_INVALID) and
+    // BoringSSL (desktop, CERTIFICATE_VERIFY_FAILED) in 2026-04-23 audit.
+    // Re-enabling needs a per-host trust-relaxed HTTP client AND matching
+    // config in the ExoPlayer DataSource. Skipped: not worth the MITM risk.
+    // Mp4uploadResolverPlugin(httpClient: httpClient),
     PixeldrainResolverPlugin(httpClient: httpClient),
     StreamtapeResolverPlugin(httpClient: httpClient),
     DoodstreamResolverPlugin(httpClient: httpClient),
     YouruploadResolverPlugin(httpClient: httpClient),
     OkruResolverPlugin(httpClient: httpClient),
-    // HQQ disabled: 0/12 success — requires visual captcha challenge.
-    // HqqResolverPlugin(),
+    // HQQ disabled: host sits behind a WAF that replies with a proxy-auth
+    // challenge (ERR_UNEXPECTED_PROXY_AUTH in 2026-04-23 audit, Netu session).
+    // Previous hypothesis (visual captcha) was wrong. Re-enabling needs a
+    // client that handles the 407/CONNECT flow — not fixable from resolver.
+    // HqqResolverPlugin(httpClient: httpClient),
     UpnshareResolverPlugin(httpClient: httpClient),
     ZillaResolverPlugin(httpClient: httpClient),
-    // VOE disabled: 0/12 success — requires runtime JS session token.
-    // VoeResolverPlugin(),
-    // MixDrop disabled: CDN rejects playback despite valid resolution.
-    // MixdropResolverPlugin(),
+    // VOE disabled: payload requires runtime JS session/token flow not
+    // reproducible from static HTTP (confirmed on both Android and desktop
+    // in 2026-04-23 audit). Needs a headless JS runtime to resolve.
+    // VoeResolverPlugin(httpClient: httpClient),
+    // MixDrop: playback broken (CDN rejects ExoPlayer), but re-enabled
+    // for direct-download testing — OkHttp + Referer/Origin headers
+    // pass the CDN checks that reject the player.
+    MixdropResolverPlugin(httpClient: httpClient),
     FilemoonResolverPlugin(httpClient: httpClient),
     VidhideResolverPlugin(httpClient: httpClient),
     MediafireResolverPlugin(httpClient: httpClient),
