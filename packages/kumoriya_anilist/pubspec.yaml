@@ -12,6 +12,7 @@ dependencies:
   http: ^1.5.0
   kumoriya_core:
   kumoriya_domain:
+  kumoriya_manga_domain:
 
 dev_dependencies:
   lints: ^6.0.0

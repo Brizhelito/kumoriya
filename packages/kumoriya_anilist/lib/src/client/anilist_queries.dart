@@ -541,3 +541,186 @@ query TagCollection {
   }
 }
 ''';
+
+// ---------------------------------------------------------------------------
+// Manga queries
+// ---------------------------------------------------------------------------
+
+/// Fields shared across all manga catalog queries. Manga has no
+/// `season` / `seasonYear` / `episodes` / `nextAiringEpisode`; instead it
+/// carries `chapters`, `volumes`, `countryOfOrigin`, and `startDate.year`.
+const String _mangaFragment = r'''
+fragment MangaFields on Media {
+  id
+  title {
+    romaji
+    english
+    native
+  }
+  synonyms
+  format
+  chapters
+  volumes
+  averageScore
+  popularity
+  status
+  description(asHtml: false)
+  genres
+  bannerImage
+  countryOfOrigin
+  startDate {
+    year
+  }
+  coverImage {
+    large
+    medium
+  }
+}
+''';
+
+const String _trendingMangaBody = r'''
+query TrendingManga($page: Int, $perPage: Int) {
+  Page(page: $page, perPage: $perPage) {
+    media(
+      type: MANGA,
+      sort: [TRENDING_DESC, POPULARITY_DESC, SCORE_DESC],
+      isAdult: false
+    ) {
+      ...MangaFields
+    }
+  }
+}
+''';
+
+const String trendingMangaQuery = _trendingMangaBody + _mangaFragment;
+
+const String _searchMangaBody = r'''
+query SearchManga($query: String, $page: Int, $perPage: Int) {
+  Page(page: $page, perPage: $perPage) {
+    media(
+      type: MANGA,
+      search: $query,
+      sort: [SEARCH_MATCH, POPULARITY_DESC],
+      isAdult: false
+    ) {
+      ...MangaFields
+    }
+  }
+}
+''';
+
+const String searchMangaQuery = _searchMangaBody + _mangaFragment;
+
+/// Manga detail. Includes relations so the UI can cross-link to anime
+/// adaptations / sequels / spin-offs (relation nodes carry their own
+/// `type`, so the consumer must filter to MANGA when building manga
+/// relation lists and to ANIME when building cross-universe links).
+const String mangaDetailQuery = r'''
+query MangaDetail($id: Int) {
+  Media(id: $id, type: MANGA) {
+    id
+    title {
+      romaji
+      english
+      native
+    }
+    synonyms
+    format
+    chapters
+    volumes
+    averageScore
+    popularity
+    status
+    description(asHtml: false)
+    genres
+    bannerImage
+    countryOfOrigin
+    startDate {
+      year
+    }
+    coverImage {
+      large
+      medium
+    }
+    relations {
+      edges {
+        relationType
+      }
+      nodes {
+        id
+        type
+        title {
+          romaji
+          english
+          native
+        }
+        format
+        chapters
+        volumes
+        averageScore
+        status
+        countryOfOrigin
+        startDate {
+          year
+        }
+        coverImage {
+          large
+          medium
+        }
+      }
+    }
+  }
+}
+''';
+
+/// Batch manga by AniList ids — used to warm the library cache.
+const String _batchMangaByIdsBody = r'''
+query BatchMangaByIds($ids: [Int], $page: Int, $perPage: Int) {
+  Page(page: $page, perPage: $perPage) {
+    media(id_in: $ids, type: MANGA) {
+      ...MangaFields
+    }
+  }
+}
+''';
+
+const String batchMangaByIdsQuery = _batchMangaByIdsBody + _mangaFragment;
+
+/// Browse manga with optional filters. AniList exposes
+/// `countryOfOrigin: CountryCode` as a single value (not a list); when
+/// the caller passes multiple countries we use the first one and let the
+/// caller decide whether to client-side merge multi-country browses.
+const String _browseMangaBody = r'''
+query BrowseManga(
+  $page: Int,
+  $perPage: Int,
+  $search: String,
+  $genres: [String],
+  $tags: [String],
+  $formatIn: [MediaFormat],
+  $statusIn: [MediaStatus],
+  $countryOfOrigin: CountryCode,
+  $sort: [MediaSort]
+) {
+  Page(page: $page, perPage: $perPage) {
+    pageInfo {
+      hasNextPage
+    }
+    media(
+      type: MANGA,
+      search: $search,
+      genre_in: $genres,
+      tag_in: $tags,
+      format_in: $formatIn,
+      status_in: $statusIn,
+      countryOfOrigin: $countryOfOrigin,
+      sort: $sort,
+      isAdult: false
+    ) {
+      ...MangaFields
+    }
+  }
+}
+''';
+
+const String browseMangaQuery = _browseMangaBody + _mangaFragment;

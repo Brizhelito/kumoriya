@@ -267,4 +267,50 @@ final class _FakeGateway implements AnilistMetadataGateway {
   fetchTagCollection() async {
     return const Success(<Map<String, dynamic>>[]);
   }
+
+  // Manga stubs — this fake covers the anime repo path; the manga repo
+  // has its own dedicated fake in anilist_manga_catalog_repository_test.
+
+  @override
+  Future<Result<List<Map<String, dynamic>>, KumoriyaError>>
+  fetchMangaHomeCatalog({int page = 1, int perPage = 20}) async {
+    return const Success(<Map<String, dynamic>>[]);
+  }
+
+  @override
+  Future<Result<List<Map<String, dynamic>>, KumoriyaError>> searchManga({
+    required String query,
+    int page = 1,
+    int perPage = 20,
+  }) async {
+    return const Success(<Map<String, dynamic>>[]);
+  }
+
+  @override
+  Future<Result<Map<String, dynamic>, KumoriyaError>> fetchMangaDetail(
+    int anilistId,
+  ) async {
+    return const Failure(AnilistNotFoundError(message: 'not found'));
+  }
+
+  @override
+  Future<Result<List<Map<String, dynamic>>, KumoriyaError>>
+  fetchBatchMangaByIds(List<int> ids, {int page = 1, int perPage = 50}) async {
+    return const Success(<Map<String, dynamic>>[]);
+  }
+
+  @override
+  Future<Result<List<Map<String, dynamic>>, KumoriyaError>> browseManga({
+    String? search,
+    List<String>? genres,
+    List<String>? tags,
+    List<String>? formats,
+    List<String>? statuses,
+    String? countryOfOrigin,
+    List<String>? sort,
+    int page = 1,
+    int perPage = 20,
+  }) async {
+    return const Success(<Map<String, dynamic>>[]);
+  }
 }

@@ -79,4 +79,45 @@ abstract interface class AnilistMetadataGateway {
   /// Fetches all available media tags.
   Future<Result<List<Map<String, dynamic>>, KumoriyaError>>
   fetchTagCollection();
+
+  // ---------------------------------------------------------------------------
+  // Manga
+  // ---------------------------------------------------------------------------
+
+  /// Trending + popular manga for the manga Home tab.
+  Future<Result<List<Map<String, dynamic>>, KumoriyaError>>
+  fetchMangaHomeCatalog({int page = 1, int perPage = 20});
+
+  /// Free-text search against the manga catalog.
+  Future<Result<List<Map<String, dynamic>>, KumoriyaError>> searchManga({
+    required String query,
+    int page = 1,
+    int perPage = 20,
+  });
+
+  /// Catalog-level metadata for a single manga (with relations).
+  Future<Result<Map<String, dynamic>, KumoriyaError>> fetchMangaDetail(
+    int anilistId,
+  );
+
+  /// Bulk fetch manga by AniList ids for cache warmup / library
+  /// reconciliation.
+  Future<Result<List<Map<String, dynamic>>, KumoriyaError>>
+  fetchBatchMangaByIds(List<int> ids, {int page = 1, int perPage = 50});
+
+  /// Browse manga with advanced filters. `countryOfOrigin` accepts a
+  /// single ISO 3166-1 alpha-2 code (e.g. `'JP'`, `'KR'`, `'CN'`, `'TW'`)
+  /// because AniList's filter is single-valued; the application layer
+  /// must merge multi-country requests itself.
+  Future<Result<List<Map<String, dynamic>>, KumoriyaError>> browseManga({
+    String? search,
+    List<String>? genres,
+    List<String>? tags,
+    List<String>? formats,
+    List<String>? statuses,
+    String? countryOfOrigin,
+    List<String>? sort,
+    int page = 1,
+    int perPage = 20,
+  });
 }

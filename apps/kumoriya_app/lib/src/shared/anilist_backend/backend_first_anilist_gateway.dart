@@ -269,6 +269,58 @@ final class BackendFirstAnilistMetadataGateway
   fetchTagCollection() => _inner.fetchTagCollection();
 
   // ---------------------------------------------------------------------------
+  // Manga pass-through. The Kumoriya Go backend does not yet proxy any
+  // manga-shaped surfaces; once it does, the relevant overrides should
+  // route through `_backend` with the same fall-back-to-inner pattern as
+  // `fetchHomeCatalog` / `fetchSeasonDiscovery` above.
+  // ---------------------------------------------------------------------------
+
+  @override
+  Future<Result<List<Map<String, dynamic>>, KumoriyaError>>
+  fetchMangaHomeCatalog({int page = 1, int perPage = 20}) =>
+      _inner.fetchMangaHomeCatalog(page: page, perPage: perPage);
+
+  @override
+  Future<Result<List<Map<String, dynamic>>, KumoriyaError>> searchManga({
+    required String query,
+    int page = 1,
+    int perPage = 20,
+  }) => _inner.searchManga(query: query, page: page, perPage: perPage);
+
+  @override
+  Future<Result<Map<String, dynamic>, KumoriyaError>> fetchMangaDetail(
+    int anilistId,
+  ) => _inner.fetchMangaDetail(anilistId);
+
+  @override
+  Future<Result<List<Map<String, dynamic>>, KumoriyaError>>
+  fetchBatchMangaByIds(List<int> ids, {int page = 1, int perPage = 50}) =>
+      _inner.fetchBatchMangaByIds(ids, page: page, perPage: perPage);
+
+  @override
+  Future<Result<List<Map<String, dynamic>>, KumoriyaError>> browseManga({
+    String? search,
+    List<String>? genres,
+    List<String>? tags,
+    List<String>? formats,
+    List<String>? statuses,
+    String? countryOfOrigin,
+    List<String>? sort,
+    int page = 1,
+    int perPage = 20,
+  }) => _inner.browseManga(
+    search: search,
+    genres: genres,
+    tags: tags,
+    formats: formats,
+    statuses: statuses,
+    countryOfOrigin: countryOfOrigin,
+    sort: sort,
+    page: page,
+    perPage: perPage,
+  );
+
+  // ---------------------------------------------------------------------------
   // Payload extraction helpers
   // ---------------------------------------------------------------------------
 

@@ -126,6 +126,43 @@ class _FakeInnerGateway implements AnilistMetadataGateway {
   @override
   Future<Result<List<Map<String, dynamic>>, KumoriyaError>>
   fetchTagCollection() async => const Success([]);
+
+  // Manga stubs — this fake covers anime decorator paths only.
+
+  @override
+  Future<Result<List<Map<String, dynamic>>, KumoriyaError>>
+  fetchMangaHomeCatalog({int page = 1, int perPage = 20}) async =>
+      const Success([]);
+
+  @override
+  Future<Result<List<Map<String, dynamic>>, KumoriyaError>> searchManga({
+    required String query,
+    int page = 1,
+    int perPage = 20,
+  }) async => const Success([]);
+
+  @override
+  Future<Result<Map<String, dynamic>, KumoriyaError>> fetchMangaDetail(
+    int anilistId,
+  ) async => const Failure(AnilistNotFoundError(message: 'not found'));
+
+  @override
+  Future<Result<List<Map<String, dynamic>>, KumoriyaError>>
+  fetchBatchMangaByIds(List<int> ids, {int page = 1, int perPage = 50}) async =>
+      const Success([]);
+
+  @override
+  Future<Result<List<Map<String, dynamic>>, KumoriyaError>> browseManga({
+    String? search,
+    List<String>? genres,
+    List<String>? tags,
+    List<String>? formats,
+    List<String>? statuses,
+    String? countryOfOrigin,
+    List<String>? sort,
+    int page = 1,
+    int perPage = 20,
+  }) async => const Success([]);
 }
 
 BackendFirstAnilistMetadataGateway _buildGateway({

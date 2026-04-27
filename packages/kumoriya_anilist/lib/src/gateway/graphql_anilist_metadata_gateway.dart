@@ -810,6 +810,203 @@ final class GraphqlAnilistMetadataGateway implements AnilistMetadataGateway {
     );
   }
 
+  // -------------------------------------------------------------------------
+  // Manga
+  // -------------------------------------------------------------------------
+
+  @override
+  Future<Result<List<Map<String, dynamic>>, KumoriyaError>>
+  fetchMangaHomeCatalog({int page = 1, int perPage = 20}) async {
+    final result = await _client.execute(
+      query: trendingMangaQuery,
+      variables: <String, dynamic>{'page': page, 'perPage': perPage},
+    );
+
+    return result.fold(
+      onSuccess: (data) {
+        final media = _extractMediaList(data);
+        if (media == null) {
+          return const Failure(
+            AnilistMappingError(
+              message:
+                  'Trending manga payload does not contain Page.media list.',
+            ),
+          );
+        }
+        return Success(media);
+      },
+      onFailure: (err) {
+        developer.log(
+          'fetchMangaHomeCatalog error [${err.code}/${err.kind.name}]: ${err.message}',
+          name: 'GraphqlAnilistMetadataGateway',
+        );
+        return Failure(err);
+      },
+    );
+  }
+
+  @override
+  Future<Result<List<Map<String, dynamic>>, KumoriyaError>> searchManga({
+    required String query,
+    int page = 1,
+    int perPage = 20,
+  }) async {
+    final result = await _client.execute(
+      query: searchMangaQuery,
+      variables: <String, dynamic>{
+        'query': query,
+        'page': page,
+        'perPage': perPage,
+      },
+    );
+
+    return result.fold(
+      onSuccess: (data) {
+        final media = _extractMediaList(data);
+        if (media == null) {
+          return const Failure(
+            AnilistMappingError(
+              message: 'Manga search payload does not contain Page.media list.',
+            ),
+          );
+        }
+        return Success(media);
+      },
+      onFailure: (err) {
+        developer.log(
+          'searchManga(query=$query) error [${err.code}/${err.kind.name}]: ${err.message}',
+          name: 'GraphqlAnilistMetadataGateway',
+        );
+        return Failure(err);
+      },
+    );
+  }
+
+  @override
+  Future<Result<Map<String, dynamic>, KumoriyaError>> fetchMangaDetail(
+    int anilistId,
+  ) async {
+    final result = await _client.execute(
+      query: mangaDetailQuery,
+      variables: <String, dynamic>{'id': anilistId},
+    );
+
+    return result.fold(
+      onSuccess: (data) {
+        final media = data['Media'];
+        if (media == null) {
+          return Failure(
+            AnilistNotFoundError(
+              message: 'No manga found for AniList id $anilistId.',
+            ),
+          );
+        }
+        if (media is! Map<String, dynamic>) {
+          return const Failure(
+            AnilistMappingError(message: 'Manga payload is not a JSON object.'),
+          );
+        }
+        return Success(media);
+      },
+      onFailure: (err) {
+        developer.log(
+          'fetchMangaDetail(id=$anilistId) error [${err.code}/${err.kind.name}]: ${err.message}',
+          name: 'GraphqlAnilistMetadataGateway',
+        );
+        return Failure(err);
+      },
+    );
+  }
+
+  @override
+  Future<Result<List<Map<String, dynamic>>, KumoriyaError>>
+  fetchBatchMangaByIds(List<int> ids, {int page = 1, int perPage = 50}) async {
+    if (ids.isEmpty) {
+      return const Success(<Map<String, dynamic>>[]);
+    }
+
+    final result = await _client.execute(
+      query: batchMangaByIdsQuery,
+      variables: <String, dynamic>{
+        'ids': ids,
+        'page': page,
+        'perPage': perPage,
+      },
+    );
+
+    return result.fold(
+      onSuccess: (data) {
+        final media = _extractMediaList(data);
+        if (media == null) {
+          return const Failure(
+            AnilistMappingError(
+              message: 'Batch manga payload does not contain Page.media list.',
+            ),
+          );
+        }
+        return Success(media);
+      },
+      onFailure: (err) {
+        developer.log(
+          'fetchBatchMangaByIds error [${err.code}/${err.kind.name}]: ${err.message}',
+          name: 'GraphqlAnilistMetadataGateway',
+        );
+        return Failure(err);
+      },
+    );
+  }
+
+  @override
+  Future<Result<List<Map<String, dynamic>>, KumoriyaError>> browseManga({
+    String? search,
+    List<String>? genres,
+    List<String>? tags,
+    List<String>? formats,
+    List<String>? statuses,
+    String? countryOfOrigin,
+    List<String>? sort,
+    int page = 1,
+    int perPage = 20,
+  }) async {
+    final variables = <String, dynamic>{
+      'page': page,
+      'perPage': perPage,
+      'search': ?search,
+      'genres': ?genres,
+      'tags': ?tags,
+      'formatIn': ?formats,
+      'statusIn': ?statuses,
+      'countryOfOrigin': ?countryOfOrigin,
+      'sort': ?sort,
+    };
+
+    final result = await _client.execute(
+      query: browseMangaQuery,
+      variables: variables,
+    );
+
+    return result.fold(
+      onSuccess: (data) {
+        final media = _extractMediaList(data);
+        if (media == null) {
+          return const Failure(
+            AnilistMappingError(
+              message: 'Browse manga payload does not contain Page.media list.',
+            ),
+          );
+        }
+        return Success(media);
+      },
+      onFailure: (err) {
+        developer.log(
+          'browseManga error [${err.code}/${err.kind.name}]: ${err.message}',
+          name: 'GraphqlAnilistMetadataGateway',
+        );
+        return Failure(err);
+      },
+    );
+  }
+
   @override
   Future<Result<List<Map<String, dynamic>>, KumoriyaError>>
   fetchTagCollection() async {
