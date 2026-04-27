@@ -2,7 +2,6 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:kumoriya_exoplayer/kumoriya_exoplayer.dart';
-import 'package:kumoriya_exoplayer/src/events/cue_event.dart';
 import 'package:kumoriya_plugins/kumoriya_plugins.dart';
 
 import '../application/models/embedded_tracks.dart';

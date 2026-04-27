@@ -1,7 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:kumoriya_exoplayer/src/events/cue_event.dart';
+import 'package:kumoriya_exoplayer/kumoriya_exoplayer.dart';
 import 'package:media_kit_video/media_kit_video.dart';
 
 /// Renders subtitle cues as a positioned text overlay.
