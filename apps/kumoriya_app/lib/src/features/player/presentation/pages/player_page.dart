@@ -1431,6 +1431,7 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
     }
 
     final rootContext = Navigator.of(context, rootNavigator: true).context;
+    // ignore: use_build_context_synchronously
     showBlockingLoader(rootContext, context.l10n.playbackPreparing);
     var loaderShown = true;
 
@@ -1465,6 +1466,7 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
       }
 
       if (loaderShown) {
+        // ignore: use_build_context_synchronously
         hideBlockingLoader(rootContext);
         loaderShown = false;
       }
@@ -1530,7 +1532,9 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
       onFailure: (_) => null,
       onSuccess: (value) => value,
     );
+    if (!mounted) return;
     var selection = await showServerPicker(
+      // ignore: use_build_context_synchronously
       context,
       options: decision.options,
       autoSelectionFailed: decision.autoSelectionFailed,
@@ -1539,6 +1543,7 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
     var remaining = decision.options;
 
     while (selection != null && mounted) {
+      // ignore: use_build_context_synchronously
       showBlockingLoader(context, context.l10n.playbackOpeningSelectedServer);
       final result = await ref
           .read(resolveSourceServerLinkUseCaseProvider)
