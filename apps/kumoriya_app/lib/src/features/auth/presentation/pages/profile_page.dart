@@ -1,17 +1,13 @@
 import 'dart:convert';
-import 'dart:developer' as developer;
 
 import 'package:cached_network_image/cached_network_image.dart';
-import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:kumoriya_sync/kumoriya_sync.dart';
 
 import '../../../../app/l10n.dart';
 import '../../../../shared/auth/auth_providers.dart';
-import '../../../../shared/auth/passkey_authenticator.dart';
 import '../../../../shared/sync/sync_providers.dart';
 import '../../../../shared/theme/kumoriya_theme.dart';
 import 'login_page.dart';
@@ -450,126 +446,6 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
       ),
     );
   }
-
-  Future<void> _registerPasskey() async {
-    if (!PasskeyAuthenticator.isSupported) {
-      _showSnackbar(context.l10n.profilePasskeyRegisterFailed);
-      return;
-    }
-
-    // Resolve device model name to use as friendly label — no dialog needed.
-    String? deviceName;
-    try {
-      final androidInfo = await DeviceInfoPlugin().androidInfo;
-      deviceName = androidInfo.model;
-    } catch (_) {}
-
-    if (!mounted) return;
-
-    // Begin registration on server — get CredentialCreation options.
-    final client = ref.read(authenticatedHttpClientProvider);
-    try {
-      final beginResp = await client.postJson(
-        '/auth/passkeys/register/begin',
-        body: {'friendly_name': deviceName ?? ''},
-      );
-      if (beginResp.statusCode != 200) {
-        if (mounted) _showSnackbar(context.l10n.profilePasskeyRegisterFailed);
-        return;
-      }
-
-      // 3) Call platform authenticator with the server options.
-      final attestationJson = await PasskeyAuthenticator.create(beginResp.body);
-
-      // 4) Send attestation response to server to complete registration.
-      final finishResp = await client.postJson(
-        '/auth/passkeys/register/finish',
-        body: jsonDecode(attestationJson),
-      );
-
-      if (!mounted) return;
-      if (finishResp.statusCode == 200) {
-        ref.invalidate(_profileDetailsProvider);
-        _showSnackbar(context.l10n.profilePasskeyRegistered);
-      } else {
-        developer.log(
-          'passkey register finish ${finishResp.statusCode}: ${finishResp.body}',
-          name: 'kumoriya.profile',
-        );
-        _showSnackbar(context.l10n.profilePasskeyRegisterFailed);
-      }
-    } on PlatformException catch (e) {
-      developer.log(
-        'passkey platform error: ${e.code} - ${e.message}',
-        name: 'kumoriya.profile',
-      );
-      if (mounted && e.code != 'CANCELLED') {
-        _showSnackbar(context.l10n.profilePasskeyRegisterFailed);
-      }
-    } catch (e) {
-      developer.log('passkey register error: $e', name: 'kumoriya.profile');
-      if (mounted) {
-        _showSnackbar(context.l10n.profilePasskeyRegisterFailed);
-      }
-    }
-  }
-
-  void _confirmDeletePasskey(String passkeyId) {
-    showDialog<void>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: KumoriyaColors.surface,
-        title: Text(
-          context.l10n.profilePasskeyDeleteTitle,
-          style: const TextStyle(color: KumoriyaColors.textPrimary),
-        ),
-        content: Text(
-          context.l10n.profilePasskeyDeleteBody,
-          style: const TextStyle(color: KumoriyaColors.textSecondary),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: Text(context.l10n.profileCancel),
-          ),
-          TextButton(
-            onPressed: () async {
-              Navigator.pop(ctx);
-              await _deletePasskey(passkeyId);
-            },
-            child: Text(
-              context.l10n.profileDelete,
-              style: const TextStyle(color: KumoriyaColors.statusDanger),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Future<void> _deletePasskey(String passkeyId) async {
-    final client = ref.read(authenticatedHttpClientProvider);
-    try {
-      final resp = await client.deleteRequest('/auth/passkeys/$passkeyId');
-      if (!mounted) return;
-      if (resp.statusCode == 200 || resp.statusCode == 204) {
-        ref.invalidate(_profileDetailsProvider);
-        _showSnackbar(context.l10n.profilePasskeyDeleted);
-      } else {
-        _showSnackbar(context.l10n.profilePasskeyDeleteFailed);
-      }
-    } catch (_) {
-      if (mounted) {
-        _showSnackbar(context.l10n.profilePasskeyDeleteFailed);
-      }
-    }
-  }
-
-  void _showSnackbar(String message) {
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text(message)));
-  }
 }
 
 class _LoginRedirectPage extends StatelessWidget {
@@ -648,69 +524,6 @@ class _InfoTile extends StatelessWidget {
               ],
             ),
           ),
-        ],
-      ),
-    );
-  }
-}
-
-class _PasskeyTile extends StatelessWidget {
-  const _PasskeyTile({
-    required this.name,
-    required this.subtitle,
-    this.onDelete,
-  });
-  final String name;
-  final String subtitle;
-  final VoidCallback? onDelete;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: KumoriyaColors.surface,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Row(
-        children: [
-          const Icon(Icons.key, color: KumoriyaColors.primary, size: 22),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  name,
-                  style: const TextStyle(
-                    color: KumoriyaColors.textPrimary,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                if (subtitle.isNotEmpty) ...[
-                  const SizedBox(height: 2),
-                  Text(
-                    subtitle,
-                    style: const TextStyle(
-                      color: KumoriyaColors.textMuted,
-                      fontSize: 12,
-                    ),
-                  ),
-                ],
-              ],
-            ),
-          ),
-          if (onDelete != null)
-            IconButton(
-              icon: const Icon(
-                Icons.delete_outline,
-                color: KumoriyaColors.statusDanger,
-                size: 20,
-              ),
-              onPressed: onDelete,
-              tooltip: context.l10n.profileDelete,
-            ),
         ],
       ),
     );
