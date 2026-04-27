@@ -95,7 +95,15 @@ func main() {
 	// present. Missing any disables the worker with a warning so dev
 	// environments boot without secrets.
 	airingCtx, airingCancel := context.WithCancel(context.Background())
-	airingDone := startAiringWorker(airingCtx, cfg, anilistHome)
+	fcmSender := buildFCMSender(airingCtx, cfg)
+	airingDone := startAiringWorker(airingCtx, cfg, anilistHome, fcmSender)
+
+	// ── Notifications admin: gated by RELEASE_PUBLISH_TOKEN ──
+	// Reuses the deploy bearer token (Authorization: Bearer <RELEASE_PUBLISH_TOKEN>)
+	// and the same FCM Sender as the airing worker. Always registered;
+	// returns 503 at request time if the sender or token is unavailable.
+	notifAdmin := handler.NewNotificationsAdminHandler(fcmSender, cfg.ReleasePublishToken)
+	app.Post("/internal/notifications/test", notifAdmin.SendTest)
 
 	// ── Database-dependent routes ──
 	var cleanup func()
@@ -286,22 +294,40 @@ func registerProtectedRoutes(app *fiber.App, cfg config.Config, pool *pgxpool.Po
 	}
 }
 
-// startAiringWorker wires up the FCM airing-notifications pipeline if all
-// required credentials are present. Returns a done channel that is closed
-// when the worker exits (or nil if the worker was not started).
-func startAiringWorker(ctx context.Context, cfg config.Config, home *anilistservice.HomeService) <-chan struct{} {
-	// FCM credentials — allow either raw JSON or a file path.
+// buildFCMSender builds an FCM Sender from configured Firebase credentials,
+// or returns nil (with a warn log) when credentials are missing or invalid.
+//
+// Extracted from startAiringWorker so the same Sender can also back the
+// admin "send test notification" endpoint without duplicating credential
+// parsing or risking divergence between the worker and ad-hoc senders.
+func buildFCMSender(ctx context.Context, cfg config.Config) notifications.Sender {
 	credsJSON := cfg.FirebaseServiceAccountJSON
 	if credsJSON == "" && cfg.FirebaseServiceAccountFile != "" {
 		raw, err := os.ReadFile(cfg.FirebaseServiceAccountFile)
 		if err != nil {
-			log.Warn().Err(err).Str("path", cfg.FirebaseServiceAccountFile).Msg("airing worker disabled: cannot read service account file")
+			log.Warn().Err(err).Str("path", cfg.FirebaseServiceAccountFile).Msg("fcm sender disabled: cannot read service account file")
 			return nil
 		}
 		credsJSON = string(raw)
 	}
 	if credsJSON == "" {
-		log.Warn().Msg("airing worker disabled: FIREBASE_SERVICE_ACCOUNT_JSON / _FILE not set")
+		log.Warn().Msg("fcm sender disabled: FIREBASE_SERVICE_ACCOUNT_JSON / _FILE not set")
+		return nil
+	}
+	sender, err := notifications.NewFCMSenderFromCredentialsJSON(ctx, []byte(credsJSON))
+	if err != nil {
+		log.Warn().Err(err).Msg("fcm sender disabled: FCM init failed")
+		return nil
+	}
+	return sender
+}
+
+// startAiringWorker wires up the FCM airing-notifications pipeline if all
+// required credentials are present. Returns a done channel that is closed
+// when the worker exits (or nil if the worker was not started).
+func startAiringWorker(ctx context.Context, cfg config.Config, home *anilistservice.HomeService, sender notifications.Sender) <-chan struct{} {
+	if sender == nil {
+		log.Warn().Msg("airing worker disabled: fcm sender unavailable")
 		return nil
 	}
 	if cfg.UpstashRedisURL == "" || cfg.UpstashRedisToken == "" {
@@ -309,11 +335,6 @@ func startAiringWorker(ctx context.Context, cfg config.Config, home *anilistserv
 		return nil
 	}
 
-	sender, err := notifications.NewFCMSenderFromCredentialsJSON(ctx, []byte(credsJSON))
-	if err != nil {
-		log.Warn().Err(err).Msg("airing worker disabled: FCM init failed")
-		return nil
-	}
 	rdb, err := kredis.New(kredis.Config{URL: cfg.UpstashRedisURL, Token: cfg.UpstashRedisToken})
 	if err != nil {
 		log.Warn().Err(err).Msg("airing worker disabled: Redis init failed")
