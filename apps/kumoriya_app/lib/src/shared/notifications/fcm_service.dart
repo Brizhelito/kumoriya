@@ -111,7 +111,27 @@ class FcmService implements FcmTopicSubscriber {
     // Fire-and-forget initial fetch; we don't block init on it.
     unawaited(_fetchInitialToken());
 
+    // Subscribe every install to the app-updates broadcast topic. The
+    // server fans out to this topic from `POST /internal/releases/publish`,
+    // so users learn about new versions without polling the manifest.
+    // subscribeToTopic is idempotent — repeat calls are safe and the
+    // SDK queues the call internally if the FCM token is not ready yet.
+    unawaited(_subscribeAppUpdates());
+
     _initialized = true;
+  }
+
+  Future<void> _subscribeAppUpdates() async {
+    try {
+      await _messaging.subscribeToTopic(kAppUpdatesTopic);
+      if (kDebugMode) {
+        debugPrint('[FCM] subscribed topic=$kAppUpdatesTopic');
+      }
+    } catch (err) {
+      if (kDebugMode) {
+        debugPrint('[FCM] $kAppUpdatesTopic subscribe failed: $err');
+      }
+    }
   }
 
   Future<void> _fetchInitialToken() async {

@@ -112,6 +112,7 @@ func main() {
 		releaseHandler := handler.NewReleaseHandler(
 			releaseService,
 			cfg.ReleasePublishToken,
+			fcmSender,
 		)
 		app.Get("/releases/latest", releaseHandler.GetManifest)
 		log.Warn().Msg("NEON_DSN not set; release feed publishing is disabled")
@@ -134,6 +135,7 @@ func main() {
 		releaseHandler := handler.NewReleaseHandler(
 			releaseService,
 			cfg.ReleasePublishToken,
+			fcmSender,
 		)
 		app.Get("/releases/latest", releaseHandler.GetManifest)
 		app.Get("/releases/feed", releaseHandler.GetFeed)

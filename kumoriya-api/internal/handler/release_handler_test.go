@@ -12,6 +12,7 @@ import (
 	"github.com/gofiber/fiber/v3"
 
 	"go-fiber-microservice/internal/model"
+	"go-fiber-microservice/internal/notifications"
 	"go-fiber-microservice/internal/repository"
 	"go-fiber-microservice/internal/service"
 )
@@ -84,7 +85,8 @@ func (f *fakeReleaseRepo) ListReleases(_ context.Context, limit int) ([]model.Re
 func TestReleasePublishUpdatesLatestAndFeed(t *testing.T) {
 	repo := newFakeReleaseRepo()
 	svc := service.NewReleaseService(repo, "")
-	h := NewReleaseHandler(svc, "test-token")
+	fcm := &fakeSender{}
+	h := NewReleaseHandler(svc, "test-token", fcm)
 
 	app := fiber.New()
 	app.Post("/internal/releases/publish", h.Publish)
@@ -134,6 +136,26 @@ func TestReleasePublishUpdatesLatestAndFeed(t *testing.T) {
 	}
 	if resp.StatusCode != fiber.StatusOK {
 		t.Fatalf("publish status = %d, want %d", resp.StatusCode, fiber.StatusOK)
+	}
+
+	// FCM broadcast should fan out exactly once on a successful publish,
+	// targeting the shared `app_updates` topic with the version + tag in
+	// the data payload so clients can deep-link straight to the update flow.
+	if got := len(fcm.sent); got != 1 {
+		t.Fatalf("fcm broadcast count = %d, want 1", got)
+	}
+	push := fcm.sent[0]
+	if push.topic != notifications.AppUpdatesTopic {
+		t.Errorf("fcm topic = %q, want %q", push.topic, notifications.AppUpdatesTopic)
+	}
+	if push.msg.Title != "Nueva versión 0.2.0" {
+		t.Errorf("fcm title = %q", push.msg.Title)
+	}
+	if push.msg.Body != "Resumen corto" {
+		t.Errorf("fcm body = %q, want Spanish summary", push.msg.Body)
+	}
+	if push.msg.Data["type"] != "app_update" || push.msg.Data["version"] != "0.2.0" || push.msg.Data["tag"] != "v0.2.0" {
+		t.Errorf("fcm data missing fields: %+v", push.msg.Data)
 	}
 
 	resp, err = app.Test(httptest.NewRequest("GET", "/releases/latest", nil))
@@ -194,7 +216,7 @@ func TestReleasePublishUpdatesLatestAndFeed(t *testing.T) {
 func TestReleasePublishWithABIsplits(t *testing.T) {
 	repo := newFakeReleaseRepo()
 	svc := service.NewReleaseService(repo, "")
-	h := NewReleaseHandler(svc, "test-token")
+	h := NewReleaseHandler(svc, "test-token", nil)
 
 	app := fiber.New()
 	app.Post("/internal/releases/publish", h.Publish)
@@ -312,7 +334,7 @@ func TestReleasePublishLegacyFlatAndroidShape(t *testing.T) {
 	// promoted to the universal slot and `latest.android.url` echoes it.
 	repo := newFakeReleaseRepo()
 	svc := service.NewReleaseService(repo, "")
-	h := NewReleaseHandler(svc, "test-token")
+	h := NewReleaseHandler(svc, "test-token", nil)
 
 	app := fiber.New()
 	app.Post("/internal/releases/publish", h.Publish)
@@ -368,7 +390,7 @@ func TestReleasePublishLegacyFlatAndroidShape(t *testing.T) {
 func TestReleasePublishRejectsBadToken(t *testing.T) {
 	repo := newFakeReleaseRepo()
 	svc := service.NewReleaseService(repo, "")
-	h := NewReleaseHandler(svc, "correct-token")
+	h := NewReleaseHandler(svc, "correct-token", nil)
 
 	app := fiber.New()
 	app.Post("/internal/releases/publish", h.Publish)
@@ -388,7 +410,7 @@ func TestReleasePublishRejectsBadToken(t *testing.T) {
 
 func TestReleaseFeedNotFoundWhenEmpty(t *testing.T) {
 	svc := service.NewReleaseService(newFakeReleaseRepo(), "")
-	h := NewReleaseHandler(svc, "token")
+	h := NewReleaseHandler(svc, "token", nil)
 
 	app := fiber.New()
 	app.Get("/releases/feed", h.GetFeed)

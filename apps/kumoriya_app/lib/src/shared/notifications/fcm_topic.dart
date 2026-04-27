@@ -8,6 +8,13 @@ library;
 /// Server code publishes to `media_{anilistId}`.
 const String kMediaTopicPrefix = 'media_';
 
+/// Broadcast topic for new-app-version pushes. Every Android client
+/// subscribes on launch so a single API publish reaches all installs.
+///
+/// Mirrors `notifications.AppUpdatesTopic` on the Go side
+/// (`kumoriya-api/internal/notifications/topics.go`).
+const String kAppUpdatesTopic = 'app_updates';
+
 /// Builds the FCM topic name for per-media airing notifications.
 ///
 /// Accepts a positive AniList media id; returns `null` for invalid ids

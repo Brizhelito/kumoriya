@@ -2,6 +2,16 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:kumoriya_app/src/shared/notifications/fcm_topic.dart';
 
 void main() {
+  group('kAppUpdatesTopic', () {
+    test('matches the server-side constant', () {
+      // Mirrors `notifications.AppUpdatesTopic` in
+      // kumoriya-api/internal/notifications/topics.go. If the server
+      // ever changes the topic name, this test forces the client side
+      // to follow.
+      expect(kAppUpdatesTopic, 'app_updates');
+    });
+  });
+
   group('mediaTopicForAnilistId', () {
     test('returns media_{id} for a positive id', () {
       expect(mediaTopicForAnilistId(147105), 'media_147105');
