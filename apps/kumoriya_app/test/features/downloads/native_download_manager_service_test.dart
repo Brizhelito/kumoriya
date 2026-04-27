@@ -16,7 +16,7 @@ import 'package:kumoriya_app/src/features/downloads/application/native_download_
 import 'package:kumoriya_app/src/shared/storage_providers.dart';
 import 'package:kumoriya_core/kumoriya_core.dart';
 import 'package:kumoriya_storage/kumoriya_storage.dart';
-import 'package:riverpod/riverpod.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
