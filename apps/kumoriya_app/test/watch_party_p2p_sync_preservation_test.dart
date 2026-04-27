@@ -32,7 +32,6 @@ import 'package:http/http.dart' as http;
 import 'package:kumoriya_app/src/features/watch_party/application/models/models.dart';
 import 'package:kumoriya_app/src/features/watch_party/infrastructure/party_api_client.dart';
 import 'package:kumoriya_app/src/features/watch_party/infrastructure/signaling_client.dart';
-import 'package:web_socket_channel/web_socket_channel.dart';
 
 void main() {
   group('Property 2: Preservation - Non-P2P Functionality', () {

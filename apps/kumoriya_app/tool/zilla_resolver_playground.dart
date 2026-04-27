@@ -1,4 +1,5 @@
 // ignore_for_file: avoid_print
+
 /// Resolver playground: tests Zilla HLS resolution and download-path headers
 /// to diagnose why the player resolves fine but the downloader times out.
 ///
@@ -9,6 +10,8 @@
 ///   dart run tool/zilla_resolver_playground.dart jujutsu-kaisen 0
 ///
 /// If no args: searches "Jujutsu Kaisen", picks first result, first episode.
+library;
+
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
@@ -59,7 +62,7 @@ Future<void> main(List<String> args) async {
   }
 
   print('\n─── Getting episodes for sourceId=$sourceId ───');
-  final episodesResult = await source.getEpisodes(sourceId!);
+  final episodesResult = await source.getEpisodes(sourceId);
   if (episodesResult.isFailure) {
     print('getEpisodes failed: $episodesResult');
     exit(1);

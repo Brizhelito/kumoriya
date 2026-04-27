@@ -1,4 +1,4 @@
-// ignore_for_file: lines_longer_than_80_chars
+// ignore_for_file: lines_longer_than_80_chars, avoid_print, unused_local_variable
 
 /// Bug Condition Exploration Test — Task 1 (watch-party-p2p-sync-fix)
 ///
@@ -33,13 +33,8 @@
 /// - Media changes propagate to all members
 library;
 
-import 'dart:async';
-
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kumoriya_app/src/features/watch_party/application/models/models.dart';
-import 'package:kumoriya_app/src/features/watch_party/application/models/p2p_message.dart';
-import 'package:kumoriya_app/src/features/watch_party/infrastructure/webrtc_peer_manager.dart';
-import 'package:kumoriya_app/src/features/watch_party/infrastructure/signaling_client.dart';
 
 void main() {
   group('Property 1: Bug Condition - P2P Message Delivery Failure', () {

@@ -1,4 +1,4 @@
-import 'package:flutter_test/flutter_test.dart';
+import 'package:test/test.dart';
 import 'package:kumoriya_domain/src/recommendation/get_available_recommendations_use_case.dart';
 import 'package:kumoriya_domain/src/recommendation/recommendation_provider.dart';
 import 'package:kumoriya_domain/src/source_availability/models/source_availability.dart';
