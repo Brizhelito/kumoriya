@@ -18,12 +18,33 @@ import (
 
 type fakeCalendar struct {
 	payload json.RawMessage
+	// entries, when non-nil, is filtered against req.AiringAtGreater /
+	// AiringAtLesser to mirror AniList's strict-greater / strict-lesser
+	// semantics. Use this when a test cares about the upstream window
+	// behaviour; legacy tests keep using `payload` and ignore the req.
+	entries []buildEntry
+	lastReq service.AiringCalendarRequest
 	err     error
 }
 
 func (f *fakeCalendar) AiringCalendar(ctx context.Context, req service.AiringCalendarRequest) (calendarResult, error) {
+	f.lastReq = req
 	if f.err != nil {
 		return calendarResult{}, f.err
+	}
+	if f.entries != nil {
+		filtered := make([]buildEntry, 0, len(f.entries))
+		for _, e := range f.entries {
+			// AniList: airingAt_greater is strict (>), airingAt_lesser is strict (<).
+			if req.AiringAtGreater > 0 && e.AiringAt <= req.AiringAtGreater {
+				continue
+			}
+			if req.AiringAtLesser > 0 && e.AiringAt >= req.AiringAtLesser {
+				continue
+			}
+			filtered = append(filtered, e)
+		}
+		return calendarResult{Data: buildPayload(filtered)}, nil
 	}
 	return calendarResult{Data: f.payload}, nil
 }
@@ -249,6 +270,47 @@ func TestAiringWorker_EmptyPayloadIsError(t *testing.T) {
 	w := NewAiringWorker(cal, &fakeSender{}, newMemDeduper(), DefaultConfig())
 	if err := w.Cycle(context.Background()); err == nil {
 		t.Fatalf("expected error on empty payload")
+	}
+}
+
+// TestAiringWorker_RecoversAcrossBucketBoundary is the regression for the
+// "no llegan notificaciones" bug: with the old days-based query the worker
+// asked AniList for `airingAt_greater = now.Truncate(5min)`, so any episode
+// whose airingAt fell just before the current 5-min cache bucket was
+// stripped at the upstream and never dispatched. We reproduce that boundary
+// (now lands 30s into a fresh bucket, episode aired 90s ago) and assert the
+// worker still sees and dispatches it.
+func TestAiringWorker_RecoversAcrossBucketBoundary(t *testing.T) {
+	bucket := time.Date(2026, 4, 18, 14, 5, 0, 0, time.UTC) // bucket boundary
+	now := bucket.Add(30 * time.Second)
+	aired := bucket.Add(-90 * time.Second) // aired in previous bucket
+
+	cal := &fakeCalendar{entries: []buildEntry{
+		{MediaID: 42, Episode: 7, AiringAt: aired.Unix(), TitleEN: "Boundary"},
+	}}
+	send := &fakeSender{}
+	w := NewAiringWorker(cal, send, newMemDeduper(), Config{
+		Tick: 5 * time.Minute, Window: 10 * time.Minute, DedupTTL: time.Hour,
+	})
+	w.Clock = fixedClock(now)
+
+	if err := w.Cycle(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if got := len(send.sent); got != 1 {
+		t.Fatalf("expected 1 dispatch across bucket boundary, got %d", got)
+	}
+	if send.sent[0].topic != "media_42" {
+		t.Errorf("expected media_42, got %s", send.sent[0].topic)
+	}
+	// Sanity: the worker must request an explicit window (not Days-based)
+	// so the upstream cache key is stable and the past margin is honoured.
+	if cal.lastReq.AiringAtGreater == 0 || cal.lastReq.AiringAtLesser == 0 {
+		t.Errorf("worker must use explicit window; got %+v", cal.lastReq)
+	}
+	if cal.lastReq.AiringAtGreater >= aired.Unix() {
+		t.Errorf("airingAtGreater (%d) must be < episode airingAt (%d) so AniList returns it",
+			cal.lastReq.AiringAtGreater, aired.Unix())
 	}
 }
 

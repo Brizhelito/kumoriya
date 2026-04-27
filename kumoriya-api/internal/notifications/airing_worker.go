@@ -144,8 +144,29 @@ func (w *AiringWorker) Run(ctx context.Context) {
 
 // Cycle runs a single scan → claim → dispatch pass. Exported for tests.
 func (w *AiringWorker) Cycle(ctx context.Context) error {
+	now := w.Clock()
+	// Use an explicit window with a generous backward margin instead of
+	// `Days: 1`. The days-based path inside HomeService translates to
+	// `airingAt_greater = now.Truncate(5min)`, and AniList treats that
+	// filter as STRICT greater-than — so any episode whose airingAt is
+	// before the current 5-minute bucket is filtered out at the upstream
+	// before our [now-Window, now] selector ever runs. With the worker's
+	// own Tick also at 5 min, recently-aired episodes systematically fall
+	// into the gap between bucket boundaries and never get dispatched.
+	//
+	// We bucket the explicit timestamps to 5 min so the cache key in
+	// HomeService stays stable across rapid retries, and we look back
+	// pastMargin minutes — well beyond Tick + Window + any plausible
+	// upstream/clock skew — so a missed cycle still recovers on the
+	// next one (dedup keeps it from double-firing).
+	const pastMargin = 30 * time.Minute
+	windowStart := now.Truncate(5 * time.Minute).Add(-pastMargin)
+	windowEnd := windowStart.Add(24 * time.Hour)
 	cal, err := w.calendar.AiringCalendar(ctx, service.AiringCalendarRequest{
-		Days: 1, Page: 1, PerPage: 50,
+		AiringAtGreater: windowStart.Unix(),
+		AiringAtLesser:  windowEnd.Unix(),
+		Page:            1,
+		PerPage:         50,
 	})
 	if err != nil {
 		return fmt.Errorf("fetch calendar: %w", err)
@@ -155,12 +176,11 @@ func (w *AiringWorker) Cycle(ctx context.Context) error {
 		return fmt.Errorf("parse calendar: %w", err)
 	}
 
-	now := w.Clock()
-	windowStart := now.Add(-w.Window)
+	dispatchWindowStart := now.Add(-w.Window)
 
 	dispatched, skipped, failed := 0, 0, 0
 	for _, e := range entries {
-		if e.AiringAt < windowStart.Unix() || e.AiringAt > now.Unix() {
+		if e.AiringAt < dispatchWindowStart.Unix() || e.AiringAt > now.Unix() {
 			continue
 		}
 		ok, err := w.dedup.Claim(ctx, e.MediaID, e.Episode, w.DedupTTL)
