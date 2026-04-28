@@ -272,6 +272,11 @@ Each slice ends with: format, analyze, relevant tests, dev-diary entry per `.age
 - Existing skills that already cover manga work without changes:
   - `anilist-matching`, `flutter-vertical-slice`, `storage-drift`, `uiux-review`, `validate-task`, `changelog-release-notes`, `dev-diary`.
 
+## 12.5. Open follow-ups (deferred from earlier slices)
+
+- **AniList manga coverage probe** (deferred during Slice 7.5/7.6, 2026-04-28). On 2026-04-28 the AniList GraphQL API was returning HTTP 403 "temporarily disabled due to severe stability issues", so we couldn't run the empirical 30-title coverage probe (10 manga JP, 10 manhwa KR, 5 manhua CN, 5 webtoon originals). Decision: keep AniList as canonical metadata source (consistent with anime, refactor cost prohibitive otherwise), document expected coverage gaps for webtoons. Re-run the probe post-Slice 8 as a sanity check, not a blocker. Script staged at `/tmp/anilist_manga_coverage.sh` while it lasts; if needed, port it to `tools/scripts/` for repeatable use.
+  - Action item if re-run shows >20% miss rate on representative titles: open a slice for adding MangaUpdates as a **secondary metadata source** behind a feature flag, without displacing AniList as canonical.
+
 ## 13. Definition of done for the manga phase
 
 - A user can: switch to the manga universe, discover via Home, search any manga, open detail, read a chapter (vertical or paginated), resume across sessions, mark as library, download a chapter, read it offline, and see latest updates of titles they follow.
