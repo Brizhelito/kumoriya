@@ -24,7 +24,7 @@ class UniverseSwitch extends ConsumerWidget {
       container: true,
       label: context.l10n.universeSwitchLabel,
       child: Container(
-        padding: const EdgeInsets.all(4),
+        padding: const EdgeInsets.all(3),
         decoration: BoxDecoration(
           color: KumoriyaColors.surface,
           borderRadius: BorderRadius.circular(KumoriyaRadius.lg),
@@ -83,7 +83,7 @@ class _Segment extends StatelessWidget {
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 160),
           curve: Curves.easeOut,
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
           decoration: BoxDecoration(
             color: selected ? primary : Colors.transparent,
             borderRadius: BorderRadius.circular(KumoriyaRadius.md),
@@ -91,15 +91,15 @@ class _Segment extends StatelessWidget {
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: <Widget>[
-              Icon(selected ? activeIcon : icon, size: 16, color: fg),
-              const SizedBox(width: 6),
+              Icon(selected ? activeIcon : icon, size: 14, color: fg),
+              const SizedBox(width: 5),
               Text(
                 label,
                 style: TextStyle(
                   color: fg,
-                  fontSize: 12,
+                  fontSize: 11,
                   fontWeight: selected ? FontWeight.w700 : FontWeight.w600,
-                  letterSpacing: 0.3,
+                  letterSpacing: 0.2,
                 ),
               ),
             ],

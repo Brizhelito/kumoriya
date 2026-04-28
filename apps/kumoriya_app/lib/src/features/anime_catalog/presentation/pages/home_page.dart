@@ -232,28 +232,34 @@ class _MobileHeader extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 10),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: <Widget>[
-              Text(
-                'Kumoriya',
-                style: theme.textTheme.headlineSmall?.copyWith(
-                  letterSpacing: -0.3,
+          Flexible(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                Text(
+                  'Kumoriya',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.headlineSmall?.copyWith(
+                    letterSpacing: -0.3,
+                  ),
                 ),
-              ),
-              Text(
-                DateFormat.MMMd(
-                  Localizations.localeOf(context).toString(),
-                ).format(DateTime.now()),
-                style: const TextStyle(
-                  fontSize: 11,
-                  color: KumoriyaColors.textTertiary,
+                Text(
+                  DateFormat.MMMd(
+                    Localizations.localeOf(context).toString(),
+                  ).format(DateTime.now()),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 11,
+                    color: KumoriyaColors.textTertiary,
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
-          const Spacer(),
+          const SizedBox(width: 8),
           const UniverseSwitch(),
           if (kDebugMode)
             IconButton(

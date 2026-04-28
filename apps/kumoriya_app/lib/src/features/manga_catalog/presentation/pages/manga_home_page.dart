@@ -26,13 +26,10 @@ class MangaHomePage extends ConsumerWidget {
           onRefresh: () async => ref.invalidate(mangaHomeProvider),
           child: CustomScrollView(
             slivers: <Widget>[
-              const SliverToBoxAdapter(
+              SliverToBoxAdapter(
                 child: Padding(
-                  padding: EdgeInsets.fromLTRB(16, 16, 16, 8),
-                  child: Align(
-                    alignment: Alignment.centerLeft,
-                    child: UniverseSwitch(),
-                  ),
+                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+                  child: _MangaMobileHeader(brandSubtitle: l10n.universeManga),
                 ),
               ),
               ...asyncHome.when(
@@ -115,6 +112,77 @@ class MangaHomePage extends ConsumerWidget {
     Navigator.of(context).push(
       MaterialPageRoute<void>(
         builder: (_) => MangaDetailPage(anilistId: manga.anilistId),
+      ),
+    );
+  }
+}
+
+/// Branded header for the manga Home — visually parallel to the anime
+/// home `_MobileHeader` (logo + brand + Spacer + UniverseSwitch) so the
+/// switch sits where the user expects it across both universes.
+class _MangaMobileHeader extends StatelessWidget {
+  const _MangaMobileHeader({required this.brandSubtitle});
+
+  final String brandSubtitle;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final primary = theme.colorScheme.primary;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(
+        children: <Widget>[
+          Container(
+            width: 32,
+            height: 32,
+            decoration: BoxDecoration(
+              color: primary,
+              shape: BoxShape.circle,
+              boxShadow: <BoxShadow>[
+                BoxShadow(
+                  color: primary.withValues(alpha: 0.30),
+                  blurRadius: 10,
+                  offset: const Offset(0, 3),
+                ),
+              ],
+            ),
+            alignment: Alignment.center,
+            child: Icon(
+              Icons.menu_book_rounded,
+              size: 18,
+              color: theme.colorScheme.onPrimary,
+            ),
+          ),
+          const SizedBox(width: 10),
+          Flexible(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                Text(
+                  'Kumoriya',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.headlineSmall?.copyWith(
+                    letterSpacing: -0.3,
+                  ),
+                ),
+                Text(
+                  brandSubtitle,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 11,
+                    color: KumoriyaColors.textTertiary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          const UniverseSwitch(),
+        ],
       ),
     );
   }
