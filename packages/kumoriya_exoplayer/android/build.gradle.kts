@@ -88,9 +88,12 @@ dependencies {
     implementation("androidx.media3:media3-exoplayer-dash:$media3Version")
     implementation("androidx.media3:media3-datasource-okhttp:$media3Version")
 
-    // Downloader: HLS remux (Transformer writes MP4 from local .ts segments).
+    // Downloader: HLS remux. media3-transformer covers the MPEG-TS path
+    // (HlsRemuxer); media3-muxer + media3-extractor power the direct
+    // fMP4 transmux pipe (Mp4Transmuxer) without going through a player.
     implementation("androidx.media3:media3-transformer:$media3Version")
     implementation("androidx.media3:media3-muxer:$media3Version")
+    implementation("androidx.media3:media3-extractor:$media3Version")
 
     // Fase 2: native anime.nexus pipeline replaces the Dart loopback proxy.
     // OkHttp is already pulled in transitively by media3-datasource-okhttp but

@@ -60,34 +60,9 @@ internal object HlsDownloader {
         )
         if (!animeDir.exists()) animeDir.mkdirs()
 
-        // Final output: when the remux toggle is ON, force `.mp4` — the
-        // Dart enqueue path hardcodes `.ts` for every HLS task (it can't
-        // know whether the user's remux preference is on at queue time),
-        // so we rewrite the extension here to match the actual container
-        // Transformer will emit. When OFF, force `.ts` — no remux step
-        // will run, the concatenated transport stream IS the final file.
-        val base = params.fileName.substringBeforeLast('.')
-        val finalFile = if (params.remuxToMp4) {
-            File(animeDir, "$base.mp4")
-        } else {
-            File(animeDir, "$base.ts")
-        }
-        if (finalFile.exists()) {
-            Log.w(TAG, "${params.taskId}: overwriting existing ${finalFile.name}")
-            finalFile.delete()
-        }
-
         val tmpDir = StorageLayout.tmpTaskDir(context, params.taskId)
         val segmentsDir = File(tmpDir, "segments")
         segmentsDir.mkdirs()
-        // When remux is disabled, concat directly into the final file
-        // (via a `.partial` sibling) so we avoid an extra copy from tmp
-        // back to the user's downloads dir.
-        val tsConcat = if (params.remuxToMp4) {
-            File(tmpDir, "concat.ts")
-        } else {
-            File(animeDir, "${finalFile.name}.partial")
-        }
 
         // 1-2. Resolve master → variant → media playlist.
         val resolved = resolveMediaPlaylist(params)
@@ -96,6 +71,39 @@ internal object HlsDownloader {
         if (segments.isEmpty()) {
             throw DownloadIOException("HLS playlist has no segments")
         }
+
+        // CMAF / fMP4 streams (AnimeAV1's Zilla CDN, etc.) declare an init
+        // segment via #EXT-X-MAP that holds the `ftyp` + `moov` boxes.
+        // Media segments only carry `moof` + `mdat`, so the init segment
+        // MUST be prepended to the concatenated file or no extractor can
+        // recognise the container — Transformer fails with
+        // "UnrecognizedInputFormatException: NoDeclaredBrand" and the user
+        // sees "Asset loader error". The Dart engine already handles this;
+        // the Kotlin pipeline didn't until now.
+        val initSeg = segments.firstOrNull { it.initializationSegment != null }
+            ?.initializationSegment
+        val isFmp4 = initSeg != null
+
+        // Output is always `.mp4`. Both pipelines write to a tmp
+        // concat file first, then transmux into the final `.mp4`:
+        //   - fMP4 input  → concat init+segments verbatim, then run
+        //     Mp4Transmuxer (Media3 FragmentedMp4Extractor →
+        //     Mp4Muxer) to produce a flat MP4 with proper sample
+        //     index tables (stco/stsc/stsz/stts/ctts) and preserved
+        //     edit lists. Skips Transformer/ExoPlayer entirely so
+        //     it's noticeably faster than the player-driven path.
+        //   - MPEG-TS    → concat into tmp/concat.ts then run
+        //     HlsRemuxer (Transformer + InAppMp4Muxer). Required
+        //     because no player consumes raw MPEG-TS as `.mp4`.
+        // The `params.remuxToMp4` toggle is intentionally ignored.
+        val base = params.fileName.substringBeforeLast('.')
+        val finalFile = File(animeDir, "$base.mp4")
+        if (finalFile.exists()) {
+            Log.w(TAG, "${params.taskId}: overwriting existing ${finalFile.name}")
+            finalFile.delete()
+        }
+        // Concat target lives in tmp; transmux/remux reads then we wipe tmp.
+        val concatTarget = File(tmpDir, if (isFmp4) "concat.mp4" else "concat.ts")
         // Build an encryption-key cache. HLS AES-128 streams declare
         // `#EXT-X-KEY:METHOD=AES-128,URI="..."` either once per playlist or
         // per group of segments; the parser attaches the effective
@@ -133,6 +141,28 @@ internal object HlsDownloader {
                 "duration=${media.durationUs / 1_000_000}s, " +
                 "estimatedSize=${estimatedTotalBytes}B (bitrate=${resolved.bitrateBps}bps)",
         )
+
+        // 2b. Download the fMP4 init segment first if present. Cached in
+        // segmentsDir so a resumed task doesn't re-fetch it. Honours the
+        // optional EXT-X-MAP BYTERANGE attribute via a Range header.
+        val initFile: File? = if (initSeg != null) {
+            val f = File(segmentsDir, "init.mp4")
+            if (!f.exists() || f.length() == 0L) {
+                val initUrl = resolveUri(media.baseUri, initSeg.url)
+                fetchInitSegment(
+                    url = initUrl,
+                    headers = params.headers,
+                    outFile = f,
+                    byteRangeOffset = initSeg.byteRangeOffset,
+                    byteRangeLength = initSeg.byteRangeLength,
+                )
+                Log.i(
+                    TAG,
+                    "${params.taskId}: fMP4 init downloaded ${f.length()}B from $initUrl",
+                )
+            }
+            f
+        } else null
 
         // 3. Parallel segment download with bandwidth-aware permit count.
         val workers = ParallelDownloader.workerCountFor(context)
@@ -223,10 +253,28 @@ internal object HlsDownloader {
             jobs.awaitAll()
         }
 
-        // 4. Concat segments in playlist order into the tmp .ts.
-        Log.i(TAG, "${params.taskId}: concatenating ${segments.size} segments")
-        FileOutputStream(tsConcat, false).use { out ->
+        // 4. Concat init (fMP4 only) + segments in playlist order
+        //    verbatim. We do NOT strip or patch anything here — the
+        //    transmux step in 5a (Mp4Transmuxer) reads the raw fMP4
+        //    via Media3's FragmentedMp4Extractor which knows how to
+        //    handle multiple per-segment styp/sidx + tfdt continuity
+        //    + edit lists. Manual surgery here is what made A/V drift
+        //    in earlier revisions.
+        Log.i(
+            TAG,
+            "${params.taskId}: concatenating ${segments.size} segments " +
+                "(fmp4=$isFmp4, target=${concatTarget.name})",
+        )
+        concatTarget.parentFile?.mkdirs()
+        FileOutputStream(concatTarget, false).use { out ->
             val buf = ByteArray(BUFFER_SIZE)
+            initFile?.inputStream()?.use { ins ->
+                while (true) {
+                    val read = ins.read(buf)
+                    if (read == -1) break
+                    out.write(buf, 0, read)
+                }
+            }
             for (i in segments.indices) {
                 coroutineContext.ensureActive()
                 segmentFile(segmentsDir, i).inputStream().use { ins ->
@@ -253,29 +301,36 @@ internal object HlsDownloader {
             )
         }
 
-        if (params.remuxToMp4) {
-            // 5. Remux the concatenated .ts into the final .mp4 using Media3
-            //    Transformer (transmux only — no re-encode). This is
-            //    typically I/O-bound for H.264 + AAC streams.
+        if (isFmp4) {
+            // 5a. fMP4 transmux to flat MP4 via Mp4Transmuxer.
+            //     Pure extractor → muxer pipe, no decode/encode, no
+            //     ExoPlayer player loop. Output has stco/stsc/stsz/
+            //     stts indexes, preserved edit lists (AAC priming),
+            //     and tfdt-continuous A/V sync — i.e. plays correctly
+            //     in mpv / ExoPlayer / VLC / system player.
+            eventSink.emitStatus(params.taskId, DownloadStatus.REMUXING)
+            val t0 = System.currentTimeMillis()
+            Mp4Transmuxer.transmux(
+                input = concatTarget,
+                output = finalFile,
+                taskId = params.taskId,
+            )
+            Log.i(
+                TAG,
+                "${params.taskId}: fMP4 transmux completed in ${System.currentTimeMillis() - t0}ms",
+            )
+            tmpDir.deleteRecursively()
+        } else {
+            // 5b. MPEG-TS: wrap into MP4 via Media3 Transformer (transmux
+            //     only — no re-encode). Uses InAppMp4Muxer for speed.
             HlsRemuxer.remux(
                 context = context,
                 taskId = params.taskId,
-                input = tsConcat,
+                input = concatTarget,
                 output = finalFile,
                 eventSink = eventSink,
             )
-            // Cleanup tmp after successful remux.
             tmpDir.deleteRecursively()
-        } else {
-            // Skip remux: promote the .partial concat to the final .ts.
-            if (!tsConcat.renameTo(finalFile)) {
-                throw DownloadIOException(
-                    "Failed to rename ${tsConcat.name} \u2192 ${finalFile.name}",
-                )
-            }
-            // The segments dir lives under tmpDir and is always disposable.
-            tmpDir.deleteRecursively()
-            Log.i(TAG, "${params.taskId}: remux disabled \u2014 kept .ts output")
         }
 
         val size = finalFile.length()
@@ -417,6 +472,59 @@ internal object HlsDownloader {
                 throw DownloadIOException("Failed to finalize segment ${outFile.name}")
             }
             return written
+        }
+    }
+
+    /**
+     * Fetch the fMP4 init segment referenced by `#EXT-X-MAP`. When the
+     * playlist supplies a `BYTERANGE` attribute (init bundled into a
+     * sidecar), translates it into a `Range` HTTP header; otherwise
+     * downloads the full URL.
+     */
+    private suspend fun fetchInitSegment(
+        url: String,
+        headers: Map<String, String>,
+        outFile: File,
+        byteRangeOffset: Long,
+        byteRangeLength: Long,
+    ): Long = withContext(Dispatchers.IO) {
+        val extraHeaders = if (byteRangeLength > 0) {
+            val end = byteRangeOffset + byteRangeLength - 1
+            headers + ("Range" to "bytes=$byteRangeOffset-$end")
+        } else {
+            headers
+        }
+        val req = DownloadHttpClient.buildGet(url, extraHeaders)
+        DownloadHttpClient.client.newCall(req).execute().use { resp ->
+            // 200 = full body, 206 = honoured Range — both valid.
+            if (resp.code != 200 && resp.code != 206) {
+                throw DownloadHttpException(
+                    resp.code,
+                    "HTTP ${resp.code} for init segment $url",
+                )
+            }
+            val body = resp.body
+                ?: throw DownloadHttpException(resp.code, "Empty init body")
+            val tmp = File(outFile.parentFile, "${outFile.name}.partial")
+            var written = 0L
+            FileOutputStream(tmp, false).use { out ->
+                body.byteStream().use { ins ->
+                    val buf = ByteArray(BUFFER_SIZE)
+                    while (true) {
+                        val read = ins.read(buf)
+                        if (read == -1) break
+                        out.write(buf, 0, read)
+                        written += read
+                    }
+                }
+            }
+            if (!tmp.renameTo(outFile)) {
+                tmp.delete()
+                throw DownloadIOException(
+                    "Failed to finalize init segment ${outFile.name}",
+                )
+            }
+            written
         }
     }
 
