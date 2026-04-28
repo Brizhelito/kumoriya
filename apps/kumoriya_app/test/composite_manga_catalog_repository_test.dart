@@ -1,0 +1,451 @@
+import 'package:flutter_test/flutter_test.dart';
+import 'package:kumoriya_app/src/features/manga_catalog/application/services/composite_manga_catalog_repository.dart';
+import 'package:kumoriya_core/kumoriya_core.dart';
+import 'package:kumoriya_manga_domain/kumoriya_manga_domain.dart';
+import 'package:kumoriya_manga_plugins/kumoriya_manga_plugins.dart';
+import 'package:kumoriya_plugins/kumoriya_plugins.dart';
+import 'package:kumoriya_storage/kumoriya_storage.dart';
+
+// ---------------------------------------------------------------------------
+// Test doubles
+
+class _FakeAnilistMangaRepo implements MangaCatalogRepository {
+  _FakeAnilistMangaRepo({
+    this.detail,
+    this.home = const <Manga>[],
+    this.failHomeWith,
+  });
+
+  MangaDetail? detail;
+  List<Manga> home;
+  KumoriyaError? failHomeWith;
+
+  @override
+  Future<Result<List<Manga>, KumoriyaError>> fetchHomeCatalog({
+    int page = 1,
+    int perPage = 20,
+  }) async {
+    if (failHomeWith != null) return Failure(failHomeWith!);
+    return Success(home);
+  }
+
+  @override
+  Future<Result<List<Manga>, KumoriyaError>> searchManga(
+    MangaSearchRequest request,
+  ) async {
+    return Success(home);
+  }
+
+  @override
+  Future<Result<List<Manga>, KumoriyaError>> browseManga(
+    MangaBrowseRequest request,
+  ) async {
+    return Success(home);
+  }
+
+  @override
+  Future<Result<MangaDetail, KumoriyaError>> fetchMangaDetail(
+    int anilistId,
+  ) async {
+    if (detail == null) {
+      return Failure(
+        SimpleError(
+          code: 'fake.detail.missing',
+          message: 'no detail',
+          kind: KumoriyaErrorKind.notFound,
+        ),
+      );
+    }
+    return Success(detail!);
+  }
+
+  @override
+  Future<Result<List<MangaChapter>, KumoriyaError>> fetchMangaChapters(
+    int anilistId,
+  ) async {
+    return const Success(<MangaChapter>[]);
+  }
+
+  @override
+  Future<Result<List<Manga>, KumoriyaError>> fetchBatchMangaByIds(
+    List<int> ids,
+  ) async {
+    return Success(home);
+  }
+
+  @override
+  Future<Result<List<String>, KumoriyaError>> fetchGenreCollection() async {
+    return const Success(<String>[]);
+  }
+
+  @override
+  Future<Result<List<MangaTag>, KumoriyaError>> fetchTagCollection() async {
+    return const Success(<MangaTag>[]);
+  }
+}
+
+class _FakeMangaSourcePlugin implements MangaSourcePlugin {
+  _FakeMangaSourcePlugin({
+    this.searchResults = const <SourceMangaMatch>[],
+    this.chaptersById = const <String, List<SourceChapter>>{},
+  });
+
+  List<SourceMangaMatch> searchResults;
+  Map<String, List<SourceChapter>> chaptersById;
+  int searchCalls = 0;
+  int chaptersCalls = 0;
+
+  @override
+  PluginManifest get manifest => const PluginManifest(
+    id: 'test.fake.source',
+    displayName: 'Fake source',
+    type: PluginType.source,
+    capabilities: <PluginCapability>{PluginCapability.search},
+    baseUrls: <String>['https://fake.test'],
+  );
+
+  @override
+  MangaSourceCapabilities get mangaCapabilities =>
+      const MangaSourceCapabilities(
+        supportsLanguageFilter: true,
+        supportsScanlatorFilter: true,
+        supportsLatestFeed: false,
+        requiresPageHeaders: false,
+      );
+
+  @override
+  Future<Result<List<SourceMangaMatch>, KumoriyaError>> search(
+    MangaSearchQuery query,
+  ) async {
+    searchCalls++;
+    return Success(searchResults);
+  }
+
+  @override
+  Future<Result<List<SourceMangaMatch>, KumoriyaError>> getLatestUpdates({
+    int page = 1,
+    int limit = 20,
+  }) async {
+    return const Success(<SourceMangaMatch>[]);
+  }
+
+  @override
+  Future<Result<SourceMangaDetail, KumoriyaError>> getMangaDetail(
+    String sourceMangaId,
+  ) async {
+    return Failure(
+      SimpleError(
+        code: 'fake.detail.unsupported',
+        message: 'not used in tests',
+        kind: KumoriyaErrorKind.unexpected,
+      ),
+    );
+  }
+
+  @override
+  Future<Result<List<SourceChapter>, KumoriyaError>> getChapters(
+    MangaChapterQuery query,
+  ) async {
+    chaptersCalls++;
+    final ch = chaptersById[query.sourceMangaId] ?? const <SourceChapter>[];
+    return Success(ch);
+  }
+
+  @override
+  Future<Result<List<SourcePage>, KumoriyaError>> getChapterPages(
+    SourceChapter chapter,
+  ) async {
+    return const Success(<SourcePage>[]);
+  }
+}
+
+class _InMemoryMangaCacheStore implements MangaCacheStore {
+  final Map<int, MangaCacheEntry> _entries = <int, MangaCacheEntry>{};
+
+  @override
+  Future<Result<void, KumoriyaError>> upsert(MangaCacheEntry entry) async {
+    _entries[entry.anilistId] = entry;
+    return const Success(null);
+  }
+
+  @override
+  Future<Result<MangaCacheEntry?, KumoriyaError>> get(int anilistId) async {
+    return Success(_entries[anilistId]);
+  }
+
+  @override
+  Future<Result<void, KumoriyaError>> remove(int anilistId) async {
+    _entries.remove(anilistId);
+    return const Success(null);
+  }
+
+  @override
+  Future<Result<int, KumoriyaError>> deleteOlderThan(Duration maxAge) async {
+    return const Success(0);
+  }
+
+  @override
+  Future<Result<List<MangaCacheEntry>, KumoriyaError>> getRecent({
+    int limit = 20,
+    int offset = 0,
+  }) async {
+    final all = _entries.values.toList();
+    return Success(all.skip(offset).take(limit).toList(growable: false));
+  }
+
+  @override
+  Future<Result<List<MangaCacheEntry>, KumoriyaError>> getByStatus(
+    String status, {
+    int limit = 20,
+    int offset = 0,
+  }) async {
+    return const Success(<MangaCacheEntry>[]);
+  }
+
+  @override
+  Future<Result<List<MangaCacheEntry>, KumoriyaError>> searchByTitle(
+    String query, {
+    int limit = 20,
+    int offset = 0,
+  }) async {
+    final q = query.toLowerCase();
+    final hits = _entries.values
+        .where((e) => e.titleRomaji.toLowerCase().contains(q))
+        .toList();
+    return Success(hits.skip(offset).take(limit).toList(growable: false));
+  }
+
+  @override
+  Future<Result<List<MangaCacheEntry>, KumoriyaError>> getByIds(
+    List<int> ids,
+  ) async {
+    return Success(
+      ids
+          .map((i) => _entries[i])
+          .whereType<MangaCacheEntry>()
+          .toList(growable: false),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Helpers
+
+Manga _manga({
+  int id = 100,
+  String romaji = 'Chainsaw Man',
+  String? english = 'Chainsaw Man',
+  String? native = 'チェンソーマン',
+  List<String> synonyms = const <String>[],
+}) {
+  return Manga(
+    anilistId: id,
+    title: MangaTitle(
+      romaji: romaji,
+      english: english,
+      native: native,
+      synonyms: synonyms,
+    ),
+    format: MangaFormat.manga,
+    coverImageUrl: 'https://example/cover.jpg',
+  );
+}
+
+MangaDetail _detail(Manga manga) => MangaDetail(manga: manga);
+
+SourceChapter _ch({
+  required String sourceMangaId,
+  required String id,
+  required double number,
+  String? title,
+}) {
+  return SourceChapter(
+    sourceMangaId: sourceMangaId,
+    sourceChapterId: id,
+    number: number,
+    title: title,
+    language: 'en',
+  );
+}
+
+void main() {
+  group('CompositeMangaCatalogRepository.fetchMangaChapters', () {
+    test('matches via externalIds["al"] and returns mapped chapters', () async {
+      final manga = _manga(id: 105778);
+      final delegate = _FakeAnilistMangaRepo(detail: _detail(manga));
+      final source = _FakeMangaSourcePlugin(
+        searchResults: <SourceMangaMatch>[
+          const SourceMangaMatch(
+            sourceId: 'wrong-id',
+            title: 'Different Manga',
+          ),
+          const SourceMangaMatch(
+            sourceId: 'mangadex-uuid-1',
+            title: 'Chainsaw Man',
+            externalIds: <String, String>{'al': '105778'},
+          ),
+        ],
+        chaptersById: <String, List<SourceChapter>>{
+          'mangadex-uuid-1': <SourceChapter>[
+            _ch(sourceMangaId: 'mangadex-uuid-1', id: 'c1', number: 1),
+            _ch(sourceMangaId: 'mangadex-uuid-1', id: 'c2', number: 2),
+          ],
+        },
+      );
+      final repo = CompositeMangaCatalogRepository(
+        delegate: delegate,
+        sourcePlugin: source,
+        cacheStore: _InMemoryMangaCacheStore(),
+        preferredLanguages: () => const <String>['en'],
+      );
+
+      final result = await repo.fetchMangaChapters(105778);
+      expect(result.isSuccess, isTrue);
+      final chapters = (result as Success<List<MangaChapter>, KumoriyaError>)
+          .value;
+      expect(chapters, hasLength(2));
+      expect(chapters.first.number, 1);
+    });
+
+    test('falls back to fuzzy title match when no externalIds["al"]', () async {
+      final manga = _manga(id: 1, romaji: 'Berserk', english: 'Berserk');
+      final delegate = _FakeAnilistMangaRepo(detail: _detail(manga));
+      final source = _FakeMangaSourcePlugin(
+        searchResults: const <SourceMangaMatch>[
+          SourceMangaMatch(sourceId: 'src-berserk', title: 'BERSERK '),
+        ],
+        chaptersById: <String, List<SourceChapter>>{
+          'src-berserk': <SourceChapter>[
+            _ch(sourceMangaId: 'src-berserk', id: 'c1', number: 1),
+          ],
+        },
+      );
+      final repo = CompositeMangaCatalogRepository(
+        delegate: delegate,
+        sourcePlugin: source,
+        cacheStore: _InMemoryMangaCacheStore(),
+        preferredLanguages: () => const <String>['en'],
+      );
+
+      final result = await repo.fetchMangaChapters(1);
+      expect(result.isSuccess, isTrue);
+      expect(
+        (result as Success<List<MangaChapter>, KumoriyaError>).value,
+        hasLength(1),
+      );
+    });
+
+    test('returns empty list when no source candidate matches', () async {
+      final manga = _manga(id: 999, romaji: 'Obscure Webtoon Original');
+      final delegate = _FakeAnilistMangaRepo(detail: _detail(manga));
+      final source = _FakeMangaSourcePlugin(
+        searchResults: const <SourceMangaMatch>[
+          SourceMangaMatch(
+            sourceId: 'unrelated',
+            title: 'Something Else Entirely',
+          ),
+        ],
+      );
+      final repo = CompositeMangaCatalogRepository(
+        delegate: delegate,
+        sourcePlugin: source,
+        cacheStore: _InMemoryMangaCacheStore(),
+        preferredLanguages: () => const <String>['en'],
+      );
+
+      final result = await repo.fetchMangaChapters(999);
+      expect(result.isSuccess, isTrue);
+      expect(
+        (result as Success<List<MangaChapter>, KumoriyaError>).value,
+        isEmpty,
+      );
+    });
+
+    test('memoizes the resolved sourceMangaId across calls', () async {
+      final manga = _manga(id: 7);
+      final delegate = _FakeAnilistMangaRepo(detail: _detail(manga));
+      final source = _FakeMangaSourcePlugin(
+        searchResults: const <SourceMangaMatch>[
+          SourceMangaMatch(
+            sourceId: 'cache-me',
+            title: 'Chainsaw Man',
+            externalIds: <String, String>{'al': '7'},
+          ),
+        ],
+        chaptersById: <String, List<SourceChapter>>{
+          'cache-me': <SourceChapter>[
+            _ch(sourceMangaId: 'cache-me', id: 'a', number: 1),
+          ],
+        },
+      );
+      final repo = CompositeMangaCatalogRepository(
+        delegate: delegate,
+        sourcePlugin: source,
+        cacheStore: _InMemoryMangaCacheStore(),
+        preferredLanguages: () => const <String>['en'],
+      );
+
+      await repo.fetchMangaChapters(7);
+      await repo.fetchMangaChapters(7);
+      expect(
+        source.searchCalls,
+        1,
+        reason: 'second call must reuse memoized sourceMangaId',
+      );
+      expect(source.chaptersCalls, 2);
+    });
+  });
+
+  group('CompositeMangaCatalogRepository catalog fallbacks', () {
+    test('serves from cache when AniList home returns transport failure', () async {
+      final cache = _InMemoryMangaCacheStore();
+      await cache.upsert(
+        MangaCacheEntry(
+          anilistId: 1,
+          titleRomaji: 'Cached Manga',
+          updatedAt: DateTime.now(),
+        ),
+      );
+      final delegate = _FakeAnilistMangaRepo(
+        failHomeWith: SimpleError(
+          code: 'anilist.service_unavailable',
+          message: 'down',
+          kind: KumoriyaErrorKind.transport,
+        ),
+      );
+      final repo = CompositeMangaCatalogRepository(
+        delegate: delegate,
+        sourcePlugin: _FakeMangaSourcePlugin(),
+        cacheStore: cache,
+        preferredLanguages: () => const <String>['en'],
+      );
+
+      final result = await repo.fetchHomeCatalog();
+      expect(result.isSuccess, isTrue);
+      final manga = (result as Success<List<Manga>, KumoriyaError>).value;
+      expect(manga, hasLength(1));
+      expect(manga.first.title.romaji, 'Cached Manga');
+    });
+
+    test('writes through to cache on successful home read', () async {
+      final cache = _InMemoryMangaCacheStore();
+      final delegate = _FakeAnilistMangaRepo(
+        home: <Manga>[_manga(id: 42, romaji: 'Fresh Manga')],
+      );
+      final repo = CompositeMangaCatalogRepository(
+        delegate: delegate,
+        sourcePlugin: _FakeMangaSourcePlugin(),
+        cacheStore: cache,
+        preferredLanguages: () => const <String>['en'],
+      );
+
+      final result = await repo.fetchHomeCatalog();
+      expect(result.isSuccess, isTrue);
+      final cached = await cache.get(42);
+      expect(
+        (cached as Success<MangaCacheEntry?, KumoriyaError>).value,
+        isNotNull,
+      );
+    });
+  });
+}

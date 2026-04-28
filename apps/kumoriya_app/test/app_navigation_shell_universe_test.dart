@@ -3,9 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kumoriya_app/l10n/generated/app_localizations.dart';
 import 'package:kumoriya_app/src/features/manga_catalog/presentation/pages/manga_downloads_page.dart';
-import 'package:kumoriya_app/src/features/manga_catalog/presentation/pages/manga_home_page.dart';
 import 'package:kumoriya_app/src/features/manga_catalog/presentation/pages/manga_library_page.dart';
-import 'package:kumoriya_app/src/features/manga_catalog/presentation/pages/manga_search_page.dart';
 import 'package:kumoriya_app/src/shared/navigation/app_navigation_shell.dart';
 import 'package:kumoriya_app/src/shared/universe/active_universe_providers.dart';
 import 'package:kumoriya_app/src/shared/universe/active_universe_store.dart';
@@ -58,8 +56,12 @@ Widget _buildShell({MediaKind? initial}) {
           KumoriyaAnimeTab.downloads: (_) => tab('anime-downloads'),
         },
         mangaTabBuilders: <KumoriyaMangaTab, WidgetBuilder>{
-          KumoriyaMangaTab.home: (_) => const MangaHomePage(),
-          KumoriyaMangaTab.search: (_) => const MangaSearchPage(),
+          // The real MangaHomePage / MangaSearchPage need the full
+          // provider graph (AniList gateway, Drift database) which
+          // these shell-focused tests don't set up. Use lightweight
+          // stubs so the shell can render without network/database.
+          KumoriyaMangaTab.home: (_) => tab('manga-home'),
+          KumoriyaMangaTab.search: (_) => tab('manga-search'),
           KumoriyaMangaTab.library: (_) => const MangaLibraryPage(),
           KumoriyaMangaTab.downloads: (_) => const MangaDownloadsPage(),
         },
@@ -108,7 +110,7 @@ void main() {
     // 4 manga tabs + 1 settings = 5 items, one fewer than anime.
     expect(nav.items, hasLength(5));
     // Manga Home is the active tab — its placeholder should be visible.
-    expect(find.text('Manga Home'), findsOneWidget);
+    expect(find.text('tab:manga-home'), findsOneWidget);
   });
 
   testWidgets('tapping the universe switch flips the shell to manga', (
@@ -129,7 +131,7 @@ void main() {
       find.byType(BottomNavigationBar),
     );
     expect(nav.items, hasLength(5));
-    expect(find.text('Manga Home'), findsOneWidget);
+    expect(find.text('tab:manga-home'), findsOneWidget);
   });
 
   testWidgets('per-universe tab selection survives a switch round-trip', (
@@ -161,7 +163,7 @@ void main() {
     await tester.pumpAndSettle();
 
     // Manga has its own current tab (home, default).
-    expect(find.text('Manga Home'), findsOneWidget);
+    expect(find.text('tab:manga-home'), findsOneWidget);
     expect(
       tester
           .widget<BottomNavigationBar>(find.byType(BottomNavigationBar))
