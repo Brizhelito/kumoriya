@@ -54,22 +54,25 @@ const _legacyManifestJson = '''
 
 void main() {
   group('AppUpdateService ABI selection', () {
-    test('legacy manifest without abis/universal falls back to top-level url', () async {
-      final service = AppUpdateService(
-        httpClient: _clientReturning(_legacyManifestJson),
-      );
-      final result = await service.checkForUpdate(
-        currentVersion: '0.0.9',
-        platformOverride: 'android',
-      );
-      final update = result.fold<AvailableUpdate?>(
-        onSuccess: (u) => u,
-        onFailure: (_) => null,
-      );
-      expect(update, isNotNull);
-      expect(update!.downloadUrl, 'https://cdn.example/legacy.apk');
-      expect(update.sizeBytes, isNull);
-    });
+    test(
+      'legacy manifest without abis/universal falls back to top-level url',
+      () async {
+        final service = AppUpdateService(
+          httpClient: _clientReturning(_legacyManifestJson),
+        );
+        final result = await service.checkForUpdate(
+          currentVersion: '0.0.9',
+          platformOverride: 'android',
+        );
+        final update = result.fold<AvailableUpdate?>(
+          onSuccess: (u) => u,
+          onFailure: (_) => null,
+        );
+        expect(update, isNotNull);
+        expect(update!.downloadUrl, 'https://cdn.example/legacy.apk');
+        expect(update.sizeBytes, isNull);
+      },
+    );
 
     test('resolves universal APK when no ABI match is available', () async {
       final service = AppUpdateService(

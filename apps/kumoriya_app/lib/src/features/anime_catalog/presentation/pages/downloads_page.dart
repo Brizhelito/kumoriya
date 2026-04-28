@@ -1053,7 +1053,9 @@ class _CompletedEpisodeTile extends ConsumerWidget {
     }
 
     // Fetch totalEpisodes for next episode button
-    final detailResult = await ref.read(animeDetailProvider(task.anilistId).future);
+    final detailResult = await ref.read(
+      animeDetailProvider(task.anilistId).future,
+    );
     final totalEpisodes = detailResult.fold(
       onFailure: (_) => null,
       onSuccess: (detail) => detail.anime.totalEpisodes,

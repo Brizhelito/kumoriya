@@ -432,7 +432,9 @@ class _EpisodeListSceneState extends ConsumerState<EpisodeListScene> {
       if (await file.exists()) {
         if (!mounted) return;
 
-        final detailResult = await ref.read(animeDetailProvider(widget.anilistId).future);
+        final detailResult = await ref.read(
+          animeDetailProvider(widget.anilistId).future,
+        );
         if (!mounted) return;
         final totalEpisodes = detailResult.fold(
           onFailure: (_) => null,
@@ -491,7 +493,9 @@ class _EpisodeListSceneState extends ConsumerState<EpisodeListScene> {
     hideBlockingLoader(rootNavigator.context);
     setState(() => _isLaunching = false);
 
-    final detailResult = await ref.read(animeDetailProvider(widget.anilistId).future);
+    final detailResult = await ref.read(
+      animeDetailProvider(widget.anilistId).future,
+    );
     if (!mounted) return;
     final totalEpisodes = detailResult.fold(
       onFailure: (_) => null,

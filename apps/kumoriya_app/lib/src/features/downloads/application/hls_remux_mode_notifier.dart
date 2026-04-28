@@ -68,6 +68,4 @@ final hlsRemuxModeStoreProvider = Provider<HlsRemuxModeStore>((ref) {
 });
 
 final hlsRemuxModeNotifierProvider =
-    AsyncNotifierProvider<HlsRemuxModeNotifier, bool>(
-      HlsRemuxModeNotifier.new,
-    );
+    AsyncNotifierProvider<HlsRemuxModeNotifier, bool>(HlsRemuxModeNotifier.new);

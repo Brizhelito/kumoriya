@@ -33,8 +33,7 @@ class NativeDownloadBackend implements DownloadBackend {
 
   final _progressController =
       StreamController<DownloadProgressEvent>.broadcast();
-  final _statusController =
-      StreamController<DownloadStatusChange>.broadcast();
+  final _statusController = StreamController<DownloadStatusChange>.broadcast();
   final _aggregateController =
       StreamController<DownloadAggregateProgress>.broadcast();
 
@@ -139,11 +138,13 @@ class NativeDownloadBackend implements DownloadBackend {
     await store.insertTask(task);
 
     // Notify UI immediately.
-    _statusController.add(DownloadStatusChange(
-      taskId: task.id,
-      anilistId: task.anilistId,
-      newStatus: task.status,
-    ));
+    _statusController.add(
+      DownloadStatusChange(
+        taskId: task.id,
+        anilistId: task.anilistId,
+        newStatus: task.status,
+      ),
+    );
 
     // Resolve target directory.
     final targetDir = await _directoryService.resolveDownloadsDirectory();
@@ -243,8 +244,9 @@ class NativeDownloadBackend implements DownloadBackend {
     // `disconnected` is a soft-failure state — retry-all should sweep
     // both it and the hard `failed` state in one pass.
     final failedResult = await store.getTasksByStatus(DownloadStatus.failed);
-    final disconnectedResult =
-        await store.getTasksByStatus(DownloadStatus.disconnected);
+    final disconnectedResult = await store.getTasksByStatus(
+      DownloadStatus.disconnected,
+    );
     final tasks = <DownloadTask>[
       ...failedResult.fold(onSuccess: (t) => t, onFailure: (_) => const []),
       ...disconnectedResult.fold(
@@ -253,11 +255,9 @@ class NativeDownloadBackend implements DownloadBackend {
       ),
     ];
     for (final task in tasks) {
-      await store.updateTask(_copyTaskWith(
-        task,
-        status: DownloadStatus.pending,
-        errorMessage: null,
-      ));
+      await store.updateTask(
+        _copyTaskWith(task, status: DownloadStatus.pending, errorMessage: null),
+      );
       await resume(task.id);
     }
     if (tasks.isNotEmpty) {
@@ -290,11 +290,13 @@ class NativeDownloadBackend implements DownloadBackend {
       await _deleteFileArtifacts(task);
     }
     await store.deleteTask(taskId);
-    _statusController.add(DownloadStatusChange(
-      taskId: taskId,
-      anilistId: task?.anilistId,
-      oldStatus: task?.status,
-    ));
+    _statusController.add(
+      DownloadStatusChange(
+        taskId: taskId,
+        anilistId: task?.anilistId,
+        oldStatus: task?.status,
+      ),
+    );
   }
 
   @override
@@ -369,50 +371,58 @@ class NativeDownloadBackend implements DownloadBackend {
       // in Drift — the downloads tab pipes this straight into its
       // per-task progress provider.
       if (downloadedBytes != null && totalBytes != null) {
-        _progressController.add(DownloadProgressEvent(
-          taskId: taskId,
-          downloadedBytes: downloadedBytes,
-          totalBytes: totalBytes,
-          bytesPerSecond: bytesPerSecond,
-        ));
+        _progressController.add(
+          DownloadProgressEvent(
+            taskId: taskId,
+            downloadedBytes: downloadedBytes,
+            totalBytes: totalBytes,
+            bytesPerSecond: bytesPerSecond,
+          ),
+        );
       }
 
       final oldStatus = task.status;
       // Cancelled status on native side means "deleted" in Drift terms.
       if (map['status'] == 'cancelled') {
         await store.deleteTask(taskId);
-        _statusController.add(DownloadStatusChange(
-          taskId: taskId,
-          anilistId: task.anilistId,
-          oldStatus: oldStatus,
-          newStatus: null,
-        ));
+        _statusController.add(
+          DownloadStatusChange(
+            taskId: taskId,
+            anilistId: task.anilistId,
+            oldStatus: oldStatus,
+            newStatus: null,
+          ),
+        );
         await _methodChannel.invokeMethod('forgetSnapshot', {'taskId': taskId});
         continue;
       }
 
-      await store.updateTask(_copyTaskWith(
-        task,
-        status: status,
-        errorMessage: errorMessage,
-        filePath: filePath,
-        totalBytes: totalBytes,
-        downloadedBytes: downloadedBytes,
-      ));
+      await store.updateTask(
+        _copyTaskWith(
+          task,
+          status: status,
+          errorMessage: errorMessage,
+          filePath: filePath,
+          totalBytes: totalBytes,
+          downloadedBytes: downloadedBytes,
+        ),
+      );
 
       if (status != null && status != oldStatus) {
-        _statusController.add(DownloadStatusChange(
-          taskId: taskId,
-          anilistId: task.anilistId,
-          oldStatus: oldStatus,
-          newStatus: status,
-        ));
+        _statusController.add(
+          DownloadStatusChange(
+            taskId: taskId,
+            anilistId: task.anilistId,
+            oldStatus: oldStatus,
+            newStatus: status,
+          ),
+        );
       }
 
       // Prune the native cache for terminal states — they won't emit
       // again and we don't want to re-apply them on the next reattach.
-      final terminal = status == DownloadStatus.completed ||
-          status == DownloadStatus.failed;
+      final terminal =
+          status == DownloadStatus.completed || status == DownloadStatus.failed;
       if (terminal) {
         await _methodChannel.invokeMethod('forgetSnapshot', {'taskId': taskId});
       }
@@ -491,12 +501,14 @@ class NativeDownloadBackend implements DownloadBackend {
 
     switch (type) {
       case 'progress':
-        _progressController.add(DownloadProgressEvent(
-          taskId: taskId,
-          downloadedBytes: (map['downloadedBytes'] as num?)?.toInt() ?? 0,
-          totalBytes: (map['totalBytes'] as num?)?.toInt() ?? 0,
-          bytesPerSecond: (map['bytesPerSecond'] as num?)?.toInt() ?? 0,
-        ));
+        _progressController.add(
+          DownloadProgressEvent(
+            taskId: taskId,
+            downloadedBytes: (map['downloadedBytes'] as num?)?.toInt() ?? 0,
+            totalBytes: (map['totalBytes'] as num?)?.toInt() ?? 0,
+            bytesPerSecond: (map['bytesPerSecond'] as num?)?.toInt() ?? 0,
+          ),
+        );
         break;
 
       case 'status':
@@ -526,20 +538,21 @@ class NativeDownloadBackend implements DownloadBackend {
         // active and completed tabs. Without oldStatus the active tab
         // never re-queries Drift on completion and the row stays stuck
         // on "descargando" until a manual refresh.
-        final (oldStatus, anilistId) =
-            await _updateTaskInStore(
-              taskId,
-              newStatus,
-              errorMessage,
-              filePath,
-              totalBytes,
-            );
-        _statusController.add(DownloadStatusChange(
-          taskId: taskId,
-          anilistId: anilistId,
-          oldStatus: oldStatus,
-          newStatus: newStatus,
-        ));
+        final (oldStatus, anilistId) = await _updateTaskInStore(
+          taskId,
+          newStatus,
+          errorMessage,
+          filePath,
+          totalBytes,
+        );
+        _statusController.add(
+          DownloadStatusChange(
+            taskId: taskId,
+            anilistId: anilistId,
+            oldStatus: oldStatus,
+            newStatus: newStatus,
+          ),
+        );
         break;
 
       case 'warning':
@@ -599,17 +612,19 @@ class NativeDownloadBackend implements DownloadBackend {
       return (oldStatus, anilistId);
     }
 
-    await store.updateTask(_copyTaskWith(
-      task,
-      status: newStatus,
-      errorMessage: errorMessage,
-      filePath: filePath,
-      totalBytes: totalBytes,
-      // On COMPLETED, downloaded == total so the UI shows 100%.
-      downloadedBytes: newStatus == DownloadStatus.completed
-          ? totalBytes
-          : null,
-    ));
+    await store.updateTask(
+      _copyTaskWith(
+        task,
+        status: newStatus,
+        errorMessage: errorMessage,
+        filePath: filePath,
+        totalBytes: totalBytes,
+        // On COMPLETED, downloaded == total so the UI shows 100%.
+        downloadedBytes: newStatus == DownloadStatus.completed
+            ? totalBytes
+            : null,
+      ),
+    );
     return (oldStatus, anilistId);
   }
 
@@ -658,11 +673,13 @@ class NativeDownloadBackend implements DownloadBackend {
       await _deleteFileArtifacts(task);
     }
     await store.deleteTask(taskId);
-    _statusController.add(DownloadStatusChange(
-      taskId: taskId,
-      anilistId: task?.anilistId,
-      oldStatus: task?.status,
-    ));
+    _statusController.add(
+      DownloadStatusChange(
+        taskId: taskId,
+        anilistId: task?.anilistId,
+        oldStatus: task?.status,
+      ),
+    );
   }
 
   /// Best-effort removal of on-disk artifacts for [task]. Safe to call
@@ -689,7 +706,9 @@ class NativeDownloadBackend implements DownloadBackend {
         try {
           final f = File('$filePath$suffix');
           if (await f.exists()) await f.delete();
-        } catch (_) {/* ignore */}
+        } catch (_) {
+          /* ignore */
+        }
       }
     }
   }

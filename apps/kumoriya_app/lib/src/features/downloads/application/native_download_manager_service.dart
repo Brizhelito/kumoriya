@@ -23,13 +23,15 @@ class NativeDownloadManagerService implements DownloadBackend {
 
   final Ref _ref;
   StreamSubscription? _progressSubscription;
-  final _progressController = StreamController<DownloadProgressEvent>.broadcast();
+  final _progressController =
+      StreamController<DownloadProgressEvent>.broadcast();
   final _statusController = StreamController<DownloadStatusChange>.broadcast();
 
   NativeDownloadManagerService(this._ref);
 
   @override
-  Stream<DownloadProgressEvent> get progressStream => _progressController.stream;
+  Stream<DownloadProgressEvent> get progressStream =>
+      _progressController.stream;
 
   /// Kept for backward-compat with callers that reference the old name.
   Stream<DownloadStatusChange> get statusStream => _statusController.stream;
@@ -47,7 +49,10 @@ class NativeDownloadManagerService implements DownloadBackend {
     _progressSubscription = _progressChannel.receiveBroadcastStream().listen(
       _handleNativeEvent,
       onError: (error) {
-        developer.log('Native download event error: $error', name: 'NativeDownload');
+        developer.log(
+          'Native download event error: $error',
+          name: 'NativeDownload',
+        );
         _progressController.addError(error);
       },
     );
@@ -73,11 +78,13 @@ class NativeDownloadManagerService implements DownloadBackend {
     await store.insertTask(task);
 
     // Notify UI immediately so the queue tab shows the new task.
-    _statusController.add(DownloadStatusChange(
-      taskId: task.id,
-      anilistId: task.anilistId,
-      newStatus: task.status,
-    ));
+    _statusController.add(
+      DownloadStatusChange(
+        taskId: task.id,
+        anilistId: task.anilistId,
+        newStatus: task.status,
+      ),
+    );
 
     await _enqueueNative(
       taskId: task.id,
@@ -174,13 +181,13 @@ class NativeDownloadManagerService implements DownloadBackend {
 
   /// Find a task by episode (delegates to download store)
   @override
-  Future<DownloadTask?> findTaskByEpisode(int animeId, double episodeNumber) async {
+  Future<DownloadTask?> findTaskByEpisode(
+    int animeId,
+    double episodeNumber,
+  ) async {
     final store = _ref.read(downloadStoreProvider);
     final result = await store.getTaskByEpisode(animeId, episodeNumber);
-    return result.fold(
-      onSuccess: (task) => task,
-      onFailure: (_) => null,
-    );
+    return result.fold(onSuccess: (task) => task, onFailure: (_) => null);
   }
 
   /// Synchronize Drift state with native download manager state.
@@ -190,7 +197,9 @@ class NativeDownloadManagerService implements DownloadBackend {
   @override
   Future<void> syncDownloadedLibrary() async {
     try {
-      final nativeDownloads = await _channel.invokeListMethod<Map>('syncDownloadedLibrary');
+      final nativeDownloads = await _channel.invokeListMethod<Map>(
+        'syncDownloadedLibrary',
+      );
       final store = _ref.read(downloadStoreProvider);
 
       // Get all local tasks
@@ -216,11 +225,13 @@ class NativeDownloadManagerService implements DownloadBackend {
             await store.updateTask(
               _copyTaskWith(localTask, status: nativeState),
             );
-            _statusController.add(DownloadStatusChange(
-              taskId: taskId,
-              oldStatus: localTask.status,
-              newStatus: nativeState,
-            ));
+            _statusController.add(
+              DownloadStatusChange(
+                taskId: taskId,
+                oldStatus: localTask.status,
+                newStatus: nativeState,
+              ),
+            );
           }
 
           // Update filePath if completed and has path
@@ -234,11 +245,13 @@ class NativeDownloadManagerService implements DownloadBackend {
 
           // Update progress for active downloads
           if (nativeState == DownloadStatus.downloading) {
-            _progressController.add(DownloadProgressEvent(
-              taskId: taskId,
-              downloadedBytes: bytesDownloaded,
-              totalBytes: totalBytes ?? 0,
-            ));
+            _progressController.add(
+              DownloadProgressEvent(
+                taskId: taskId,
+                downloadedBytes: bytesDownloaded,
+                totalBytes: totalBytes ?? 0,
+              ),
+            );
           }
         }
       }
@@ -257,23 +270,27 @@ class NativeDownloadManagerService implements DownloadBackend {
         final stateInt = event['state'] as int? ?? 0;
         final downloadedBytes = event['downloadedBytes'] as int? ?? 0;
         final totalBytes = event['totalBytes'] as int? ?? 0;
-        unawaited(_applyStateTransition(
-          taskId,
-          _mapNativeState(stateInt),
-          downloadedBytes: downloadedBytes,
-          totalBytes: totalBytes,
-        ));
+        unawaited(
+          _applyStateTransition(
+            taskId,
+            _mapNativeState(stateInt),
+            downloadedBytes: downloadedBytes,
+            totalBytes: totalBytes,
+          ),
+        );
         break;
 
       case 'progress':
         final downloadedBytes = event['downloadedBytes'] as int? ?? 0;
         final totalBytes = event['totalBytes'] as int? ?? 0;
 
-        _progressController.add(DownloadProgressEvent(
-          taskId: taskId,
-          downloadedBytes: downloadedBytes,
-          totalBytes: totalBytes,
-        ));
+        _progressController.add(
+          DownloadProgressEvent(
+            taskId: taskId,
+            downloadedBytes: downloadedBytes,
+            totalBytes: totalBytes,
+          ),
+        );
 
         // Update Drift periodically
         _updateProgressInDrift(taskId, downloadedBytes, totalBytes);
@@ -282,31 +299,39 @@ class NativeDownloadManagerService implements DownloadBackend {
       case 'completed':
         final filePath = event['filePath'] as String?;
         _updateCompletedInDrift(taskId, filePath);
-        _progressController.add(DownloadProgressEvent(
-          taskId: taskId,
-          isComplete: true,
-          downloadedBytes: event['totalBytes'] as int? ?? 0,
-          totalBytes: event['totalBytes'] as int? ?? 0,
-        ));
-        _statusController.add(DownloadStatusChange(
-          taskId: taskId,
-          newStatus: DownloadStatus.completed,
-        ));
+        _progressController.add(
+          DownloadProgressEvent(
+            taskId: taskId,
+            isComplete: true,
+            downloadedBytes: event['totalBytes'] as int? ?? 0,
+            totalBytes: event['totalBytes'] as int? ?? 0,
+          ),
+        );
+        _statusController.add(
+          DownloadStatusChange(
+            taskId: taskId,
+            newStatus: DownloadStatus.completed,
+          ),
+        );
         break;
 
       case 'failed':
         final errorMsg = event['error'] as String?;
         _updateFailedInDrift(taskId, errorMsg);
         // Emit a zero-progress event to signal failure
-        _progressController.add(DownloadProgressEvent(
-          taskId: taskId,
-          downloadedBytes: 0,
-          totalBytes: 0,
-        ));
-        _statusController.add(DownloadStatusChange(
-          taskId: taskId,
-          newStatus: DownloadStatus.failed,
-        ));
+        _progressController.add(
+          DownloadProgressEvent(
+            taskId: taskId,
+            downloadedBytes: 0,
+            totalBytes: 0,
+          ),
+        );
+        _statusController.add(
+          DownloadStatusChange(
+            taskId: taskId,
+            newStatus: DownloadStatus.failed,
+          ),
+        );
         break;
 
       case 'cancelled':
@@ -318,8 +343,10 @@ class NativeDownloadManagerService implements DownloadBackend {
       case 'warning':
         // Log warning but don't change state
         final message = event['message'] as String?;
-        developer.log('Native download warning for $taskId: $message',
-            name: 'NativeDownload');
+        developer.log(
+          'Native download warning for $taskId: $message',
+          name: 'NativeDownload',
+        );
         break;
     }
   }
@@ -363,15 +390,19 @@ class NativeDownloadManagerService implements DownloadBackend {
           totalBytes: totalBytes > 0 ? totalBytes : null,
         ),
       );
-      _statusController.add(DownloadStatusChange(
-        taskId: taskId,
-        anilistId: task.anilistId,
-        oldStatus: task.status,
-        newStatus: newStatus,
-      ));
+      _statusController.add(
+        DownloadStatusChange(
+          taskId: taskId,
+          anilistId: task.anilistId,
+          oldStatus: task.status,
+          newStatus: newStatus,
+        ),
+      );
     } catch (e) {
-      developer.log('Error applying state transition: $e',
-          name: 'NativeDownload');
+      developer.log(
+        'Error applying state transition: $e',
+        name: 'NativeDownload',
+      );
     }
   }
 
@@ -382,11 +413,13 @@ class NativeDownloadManagerService implements DownloadBackend {
       final result = await store.getTask(taskId);
       final task = result.fold(onSuccess: (t) => t, onFailure: (_) => null);
       await store.deleteTask(taskId);
-      _statusController.add(DownloadStatusChange(
-        taskId: taskId,
-        anilistId: task?.anilistId,
-        oldStatus: task?.status,
-      ));
+      _statusController.add(
+        DownloadStatusChange(
+          taskId: taskId,
+          anilistId: task?.anilistId,
+          oldStatus: task?.status,
+        ),
+      );
     } catch (e) {
       developer.log('Error deleting task: $e', name: 'NativeDownload');
     }
@@ -400,10 +433,7 @@ class NativeDownloadManagerService implements DownloadBackend {
     try {
       final store = _ref.read(downloadStoreProvider);
       final result = await store.getTask(taskId);
-      final task = result.fold(
-        onSuccess: (t) => t,
-        onFailure: (_) => null,
-      );
+      final task = result.fold(onSuccess: (t) => t, onFailure: (_) => null);
 
       // Progress can arrive while the task is still in pending or paused
       // (Media3 fires onDownloadChanged on every byte). Accept any non-terminal
@@ -416,7 +446,10 @@ class NativeDownloadManagerService implements DownloadBackend {
       if (task != null && nonTerminal.contains(task.status)) {
         // Only update if significant progress change (>5% or >1MB)
         final currentProgress = task.downloadedBytes ?? 0;
-        final threshold = (totalBytes * 0.05).toInt().clamp(0, 1048576); // 5% or 1MB
+        final threshold = (totalBytes * 0.05).toInt().clamp(
+          0,
+          1048576,
+        ); // 5% or 1MB
 
         if ((downloadedBytes - currentProgress).abs() > threshold) {
           await store.updateTask(
@@ -437,10 +470,7 @@ class NativeDownloadManagerService implements DownloadBackend {
     try {
       final store = _ref.read(downloadStoreProvider);
       final result = await store.getTask(taskId);
-      final task = result.fold(
-        onSuccess: (t) => t,
-        onFailure: (_) => null,
-      );
+      final task = result.fold(onSuccess: (t) => t, onFailure: (_) => null);
 
       if (task != null) {
         await store.updateTask(
@@ -460,10 +490,7 @@ class NativeDownloadManagerService implements DownloadBackend {
     try {
       final store = _ref.read(downloadStoreProvider);
       final result = await store.getTask(taskId);
-      final task = result.fold(
-        onSuccess: (t) => t,
-        onFailure: (_) => null,
-      );
+      final task = result.fold(onSuccess: (t) => t, onFailure: (_) => null);
       if (task != null) {
         await store.updateTask(
           _copyTaskWith(task, status: DownloadStatus.failed),
@@ -586,11 +613,13 @@ class NativeDownloadManagerService implements DownloadBackend {
       final result = await store.getTask(taskId);
       final task = result.fold(onSuccess: (t) => t, onFailure: (_) => null);
       await store.deleteTask(taskId);
-      _statusController.add(DownloadStatusChange(
-        taskId: taskId,
-        anilistId: task?.anilistId,
-        oldStatus: task?.status,
-      ));
+      _statusController.add(
+        DownloadStatusChange(
+          taskId: taskId,
+          anilistId: task?.anilistId,
+          oldStatus: task?.status,
+        ),
+      );
     } catch (e) {
       developer.log('Error deleting completed: $e', name: 'NativeDownload');
     }
@@ -607,7 +636,9 @@ class NativeDownloadManagerService implements DownloadBackend {
         onFailure: (_) => <DownloadTask>[],
       );
       for (final task in tasks) {
-        await store.updateTask(_copyTaskWith(task, status: DownloadStatus.pending));
+        await store.updateTask(
+          _copyTaskWith(task, status: DownloadStatus.pending),
+        );
         await resumeDownload(task.id);
       }
       if (tasks.isNotEmpty) {

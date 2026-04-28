@@ -93,7 +93,8 @@ final class _FakeQueueStore implements SyncQueueStore {
   int pending = 0;
 
   @override
-  Future<Result<List<SyncQueueEntry>, KumoriyaError>> getPendingEntries() async {
+  Future<Result<List<SyncQueueEntry>, KumoriyaError>>
+  getPendingEntries() async {
     return Success(
       List.generate(
         pending,
@@ -119,8 +120,7 @@ final class _FakeQueueStore implements SyncQueueStore {
     required SyncQueueEntryStatus status,
     int? retryCount,
     String? lastError,
-  }) =>
-      throw UnimplementedError();
+  }) => throw UnimplementedError();
 
   @override
   Future<Result<void, KumoriyaError>> deleteEntry(int id) =>

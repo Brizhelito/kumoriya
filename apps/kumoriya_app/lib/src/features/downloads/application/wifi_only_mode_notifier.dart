@@ -86,6 +86,4 @@ final wifiOnlyModeStoreProvider = Provider<WifiOnlyModeStore>((ref) {
 
 /// Provider for WiFi-only mode setting.
 final wifiOnlyModeNotifierProvider =
-    AsyncNotifierProvider<WifiOnlyModeNotifier, bool>(
-      WifiOnlyModeNotifier.new,
-    );
+    AsyncNotifierProvider<WifiOnlyModeNotifier, bool>(WifiOnlyModeNotifier.new);

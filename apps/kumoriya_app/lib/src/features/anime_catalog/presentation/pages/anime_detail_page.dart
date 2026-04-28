@@ -707,7 +707,9 @@ class _PlayResumeCtaState extends ConsumerState<_PlayResumeCta> {
       if (await file.exists()) {
         if (!mounted) return;
 
-        final detailResult = await ref.read(animeDetailProvider(widget.anilistId).future);
+        final detailResult = await ref.read(
+          animeDetailProvider(widget.anilistId).future,
+        );
         if (!mounted) return;
         final totalEpisodes = detailResult.fold(
           onFailure: (_) => null,
@@ -758,7 +760,9 @@ class _PlayResumeCtaState extends ConsumerState<_PlayResumeCta> {
     hideBlockingLoader(context);
     setState(() => _isLaunching = false);
 
-    final detailResult = await ref.read(animeDetailProvider(widget.anilistId).future);
+    final detailResult = await ref.read(
+      animeDetailProvider(widget.anilistId).future,
+    );
     if (!mounted) return;
     final totalEpisodes = detailResult.fold(
       onFailure: (_) => null,
@@ -1742,7 +1746,11 @@ class _EpisodeDetailSectionState extends ConsumerState<_EpisodeDetailSection> {
                 streams: <ResolvedStream>[ResolvedStream(url: file.uri)],
               ),
               totalEpisodes: widget.detail.anime.totalEpisodes,
-              nextAiringEpisodeNumber: widget.detail.anime.nextAiringEpisodeNumber?.toDouble(),
+              nextAiringEpisodeNumber: widget
+                  .detail
+                  .anime
+                  .nextAiringEpisodeNumber
+                  ?.toDouble(),
             ),
           ),
         );
@@ -1785,7 +1793,8 @@ class _EpisodeDetailSectionState extends ConsumerState<_EpisodeDetailSection> {
       routeMode: widget.routeMode,
       decision: decision,
       totalEpisodes: widget.detail.anime.totalEpisodes,
-      nextAiringEpisodeNumber: widget.detail.anime.nextAiringEpisodeNumber?.toDouble(),
+      nextAiringEpisodeNumber: widget.detail.anime.nextAiringEpisodeNumber
+          ?.toDouble(),
     );
   }
 

@@ -189,9 +189,10 @@ final downloadStatusChangeStreamProvider =
 /// download status changes.
 final downloadStatusChangeForAnimeProvider = StreamProvider.autoDispose
     .family<DownloadStatusChange, int>((ref, anilistId) {
-      return ref.watch(downloadManagerProvider).statusChangeStream.where(
-        (e) => e.anilistId == null || e.anilistId == anilistId,
-      );
+      return ref
+          .watch(downloadManagerProvider)
+          .statusChangeStream
+          .where((e) => e.anilistId == null || e.anilistId == anilistId);
     });
 
 // ─── Per-tab status change streams ──────────────────────────────────────────
@@ -228,25 +229,28 @@ bool _isRelevantToTab(DownloadStatusChange e, Set<DownloadStatus> tabStatuses) {
 /// Fires only when the completed tab's data may have changed.
 final completedTabStatusChangeProvider =
     StreamProvider.autoDispose<DownloadStatusChange>((ref) {
-      return ref.watch(downloadManagerProvider).statusChangeStream.where(
-        (e) => _isRelevantToTab(e, _completedStatuses),
-      );
+      return ref
+          .watch(downloadManagerProvider)
+          .statusChangeStream
+          .where((e) => _isRelevantToTab(e, _completedStatuses));
     });
 
 /// Fires only when the active (downloading/paused) tab's data may have changed.
 final activeTabStatusChangeProvider =
     StreamProvider.autoDispose<DownloadStatusChange>((ref) {
-      return ref.watch(downloadManagerProvider).statusChangeStream.where(
-        (e) => _isRelevantToTab(e, _activeStatuses),
-      );
+      return ref
+          .watch(downloadManagerProvider)
+          .statusChangeStream
+          .where((e) => _isRelevantToTab(e, _activeStatuses));
     });
 
 /// Fires only when the queue (pending/failed) tab's data may have changed.
 final queueTabStatusChangeProvider =
     StreamProvider.autoDispose<DownloadStatusChange>((ref) {
-      return ref.watch(downloadManagerProvider).statusChangeStream.where(
-        (e) => _isRelevantToTab(e, _queueStatuses),
-      );
+      return ref
+          .watch(downloadManagerProvider)
+          .statusChangeStream
+          .where((e) => _isRelevantToTab(e, _queueStatuses));
     });
 
 // ─── Download list providers ─────────────────────────────────────────────────

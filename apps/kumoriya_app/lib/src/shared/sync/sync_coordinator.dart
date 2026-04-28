@@ -139,7 +139,8 @@ final class SyncCoordinator {
     if (!_isAuthenticated()) return;
 
     final last = await _loadLastSyncAt();
-    final stale = last == null ||
+    final stale =
+        last == null ||
         DateTime.now().difference(last) > _resumeFullSyncThreshold;
 
     if (stale) {
@@ -149,7 +150,8 @@ final class SyncCoordinator {
     }
 
     // Pull remote changes if we have not pulled very recently.
-    final pullRecent = _lastPullAt != null &&
+    final pullRecent =
+        _lastPullAt != null &&
         DateTime.now().difference(_lastPullAt!) < _resumePullMinInterval;
     if (!pullRecent) {
       await _runPull(bypassBackoff: true);
@@ -193,9 +195,7 @@ final class SyncCoordinator {
   Future<void> flushBeforeLogout() async {
     if (!_isAuthenticated()) return;
     try {
-      await _syncService
-          .pushPending()
-          .timeout(_preLogoutTimeout);
+      await _syncService.pushPending().timeout(_preLogoutTimeout);
     } catch (e, st) {
       developer.log(
         'SyncCoordinator: flushBeforeLogout timed out or failed: $e',
@@ -256,8 +256,8 @@ final class SyncCoordinator {
         _wasOffline = true;
         return;
       }
-      final since = (await _loadLastSyncAt()) ??
-          DateTime.fromMillisecondsSinceEpoch(0);
+      final since =
+          (await _loadLastSyncAt()) ?? DateTime.fromMillisecondsSinceEpoch(0);
       final result = await _syncService.pullSince(since);
       result.fold<void>(
         onSuccess: (_) {
@@ -349,8 +349,7 @@ final class SyncCoordinator {
   }
 
   void _armBackoff() {
-    final idx =
-        (_consecutiveFailures - 1).clamp(0, _backoffSteps.length - 1);
+    final idx = (_consecutiveFailures - 1).clamp(0, _backoffSteps.length - 1);
     final wait = _backoffSteps[idx];
     _backoffTimer?.cancel();
     _backoffTimer = Timer(wait, () {

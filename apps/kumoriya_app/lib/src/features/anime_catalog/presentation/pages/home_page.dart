@@ -663,7 +663,9 @@ class _ContinueWatchingCardWrapperState
         return;
       }
 
-      final detailResult = await ref.read(animeDetailProvider(widget.entry.anilistId).future);
+      final detailResult = await ref.read(
+        animeDetailProvider(widget.entry.anilistId).future,
+      );
       if (!mounted) return;
       final totalEpisodes = detailResult.fold(
         onFailure: (_) => null,
@@ -725,7 +727,9 @@ class _ContinueWatchingCardWrapperState
     }
 
     // Fetch totalEpisodes for next episode button
-    final detailResult = await ref.read(animeDetailProvider(widget.entry.anilistId).future);
+    final detailResult = await ref.read(
+      animeDetailProvider(widget.entry.anilistId).future,
+    );
     final totalEpisodes = detailResult.fold(
       onFailure: (_) => null,
       onSuccess: (detail) => detail.anime.totalEpisodes,

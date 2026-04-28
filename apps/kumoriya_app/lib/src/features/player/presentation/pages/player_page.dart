@@ -163,7 +163,7 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
     if (total == null) return false;
     final current = double.tryParse(widget.episodeNumber) ?? 0;
     if (current >= total) return false;
-    
+
     // For airing anime, verify the next episode has been released
     final nextAiring = widget.nextAiringEpisodeNumber;
     if (nextAiring != null) {
@@ -171,7 +171,7 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
       // Next episode is available only if it's before the next airing episode
       return nextEpisode < nextAiring;
     }
-    
+
     // If no nextAiringEpisodeNumber, assume all episodes up to total are available
     return true;
   }
@@ -1865,9 +1865,16 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
                       },
                 onBack: () => _handleExit(context),
                 onRetry: _retryPlayback,
-                onOpenEpisodes: (partyMemberLocked ? null : (_hasNextEpisode ? () => unawaited(_openEpisodeSelectorFromPlayer()) : null)),
-                onPreviousEpisode:
-                    (partyMemberLocked ? null : ((int.tryParse(widget.episodeNumber) ?? 0) > 1 ? () => unawaited(_openPreviousEpisode()) : null)),
+                onOpenEpisodes: (partyMemberLocked
+                    ? null
+                    : (_hasNextEpisode
+                          ? () => unawaited(_openEpisodeSelectorFromPlayer())
+                          : null)),
+                onPreviousEpisode: (partyMemberLocked
+                    ? null
+                    : ((int.tryParse(widget.episodeNumber) ?? 0) > 1
+                          ? () => unawaited(_openPreviousEpisode())
+                          : null)),
                 onQuality: () => unawaited(_showQualityPicker(context)),
                 onAudio: _embeddedTracks.hasMultipleAudio
                     ? () => unawaited(_showAudioTrackPicker(context))

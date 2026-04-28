@@ -84,7 +84,6 @@ class ServerQualityRegistry {
     // dav1d-perf decoder tuning in media_kit_playback_engine is no
     // longer the bottleneck.
     'player.zilla-networks.com': ServerQualityTier.premium, // 34/34 @ 1082 ms
-
     // ── Good (70 %–84 % success) ─────────────────────────────────────
     // UPNShare (animeav1.uns.bio): 24/34 = 71 % @ 2848 ms. openP75 is
     // 5054 ms (right at the timeout) so it's a borderline good; if the
@@ -119,8 +118,8 @@ class ServerQualityRegistry {
     'embedwish.com': ServerQualityTier.average, // no data
     'vidhide.com': ServerQualityTier.average, // no data
     'vidhidepro.com': ServerQualityTier.average, // no data
-    'upnshare.com': ServerQualityTier.average, // no data (animeav1.uns.bio is the live path)
-
+    'upnshare.com': ServerQualityTier
+        .average, // no data (animeav1.uns.bio is the live path)
     // ── Low (<50 % success or openMed > 4 s) ─────────────────────────
     // vidhidevip: SR 41 % + openMed 5021 ms (10 open_timeouts) — P75 is
     // literally at the 5 s playground timeout, so in practice half of

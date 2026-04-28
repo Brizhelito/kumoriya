@@ -85,7 +85,8 @@ class AppUpdateService {
     String? platformOverride,
   }) async {
     try {
-      final currentVersion_ = currentVersion ?? (await PackageInfo.fromPlatform()).version;
+      final currentVersion_ =
+          currentVersion ?? (await PackageInfo.fromPlatform()).version;
 
       final response = await _client
           .get(Uri.parse(_manifestUrl))
@@ -126,7 +127,9 @@ class AppUpdateService {
       final String? resolvedUrl;
       final int? resolvedSize;
       if (platformKey == 'android') {
-        (resolvedUrl, resolvedSize) = await _resolveAndroidDownloadUrl(platformData);
+        (resolvedUrl, resolvedSize) = await _resolveAndroidDownloadUrl(
+          platformData,
+        );
       } else {
         resolvedUrl = platformData['url'] as String?;
         resolvedSize = null;

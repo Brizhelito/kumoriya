@@ -410,8 +410,9 @@ class DownloadManagerService implements DownloadBackend {
     // state and the soft-error `disconnected` state — both need the same
     // "retry all" UX affordance.
     final failedResult = await _store.getTasksByStatus(DownloadStatus.failed);
-    final disconnectedResult =
-        await _store.getTasksByStatus(DownloadStatus.disconnected);
+    final disconnectedResult = await _store.getTasksByStatus(
+      DownloadStatus.disconnected,
+    );
     final tasks = <DownloadTask>[
       ...failedResult.fold(onSuccess: (v) => v, onFailure: (_) => const []),
       ...disconnectedResult.fold(
@@ -693,11 +694,7 @@ class DownloadManagerService implements DownloadBackend {
         final finalStatus = errorKind == DownloadErrorKind.networkError
             ? DownloadStatus.disconnected
             : DownloadStatus.failed;
-        await _updateStatus(
-          task.id,
-          finalStatus,
-          errorMessage: message,
-        );
+        await _updateStatus(task.id, finalStatus, errorMessage: message);
       }
     } finally {
       _activeDownloads.remove(task.id);
