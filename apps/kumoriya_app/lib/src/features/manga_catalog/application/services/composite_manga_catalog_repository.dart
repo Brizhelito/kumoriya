@@ -1,7 +1,10 @@
+import 'package:flutter/foundation.dart';
 import 'package:kumoriya_core/kumoriya_core.dart';
 import 'package:kumoriya_manga_domain/kumoriya_manga_domain.dart';
 import 'package:kumoriya_manga_plugins/kumoriya_manga_plugins.dart';
 import 'package:kumoriya_storage/kumoriya_storage.dart';
+
+import '../../../../shared/cache/fallback_reason.dart';
 
 /// Composes the AniList-backed `MangaCatalogRepository` with a
 /// `MangaSourcePlugin` to materialize the chapter list AniList itself
@@ -39,6 +42,14 @@ final class CompositeMangaCatalogRepository implements MangaCatalogRepository {
   final MangaCacheStore _cacheStore;
   final List<String> Function() _preferredLanguages;
 
+  /// Indicates why the most recent catalog fetch fell back to locally
+  /// cached data, or [FallbackReason.none] when operating normally.
+  /// Mirrors the same notifier pattern as `CachedAnimeCatalogRepository`
+  /// so the navigation shell can collapse both signals into one banner.
+  final ValueNotifier<FallbackReason> fallbackReason = ValueNotifier(
+    FallbackReason.none,
+  );
+
   /// In-memory map from AniList id to the source plugin's
   /// `sourceMangaId`. Null entries memoize "we tried and didn't match"
   /// so the same negative resolution is not repeated within a session.
@@ -59,6 +70,7 @@ final class CompositeMangaCatalogRepository implements MangaCatalogRepository {
       perPage: perPage,
     );
     if (result.isSuccess) {
+      fallbackReason.value = FallbackReason.none;
       await _persistList(result);
       return result;
     }
@@ -78,6 +90,7 @@ final class CompositeMangaCatalogRepository implements MangaCatalogRepository {
       perPage: perPage,
     );
     if (result is Success<MangaHomeSections, KumoriyaError>) {
+      fallbackReason.value = FallbackReason.none;
       // Write-through every shelf so cold-launch / offline still
       // populates the carousels with the most recently seen catalog.
       final sections = result.value;
@@ -91,8 +104,39 @@ final class CompositeMangaCatalogRepository implements MangaCatalogRepository {
           await _persistManga(manga);
         }
       }
+      return result;
     }
-    return result;
+
+    // Offline / AniList-down fallback: serve whatever the local cache
+    // has so the home stays useful. We pull a generous slice and split
+    // it across the four shelves; if the cache has fewer than 4*perPage
+    // entries the trailing shelves end up empty rather than duplicating.
+    final reason = _classifyTransportError(result);
+    if (reason == null) return result;
+
+    final cached = await _cacheStore.getRecent(limit: perPage * 4);
+    return cached.fold<Result<MangaHomeSections, KumoriyaError>>(
+      onSuccess: (entries) {
+        if (entries.isEmpty) return result;
+        fallbackReason.value = reason;
+        final mangas = entries.map(_entryToManga).toList(growable: false);
+        List<Manga> slice(int start) {
+          if (start >= mangas.length) return const <Manga>[];
+          final end = (start + perPage).clamp(0, mangas.length);
+          return mangas.sublist(start, end);
+        }
+
+        return Success(
+          MangaHomeSections(
+            trending: slice(0),
+            popular: slice(perPage),
+            latest: slice(perPage * 2),
+            topRated: slice(perPage * 3),
+          ),
+        );
+      },
+      onFailure: (_) => result,
+    );
   }
 
   @override
@@ -131,10 +175,29 @@ final class CompositeMangaCatalogRepository implements MangaCatalogRepository {
   ) async {
     final result = await _delegate.fetchMangaDetail(anilistId);
     if (result.isSuccess) {
+      fallbackReason.value = FallbackReason.none;
       final detail = (result as Success<MangaDetail, KumoriyaError>).value;
       await _persistManga(detail.manga);
+      return result;
     }
-    return result;
+
+    // Offline / AniList-down fallback: synthesize a minimal MangaDetail
+    // from the cached entry so the UI can still navigate to the manga
+    // page (chapters list will populate independently from the source
+    // plugin, which is its own network domain — MangaDex is up even when
+    // AniList is down).
+    final reason = _classifyTransportError(result);
+    if (reason == null) return result;
+
+    final cached = await _cacheStore.get(anilistId);
+    return cached.fold<Result<MangaDetail, KumoriyaError>>(
+      onSuccess: (entry) {
+        if (entry == null) return result;
+        fallbackReason.value = reason;
+        return Success(MangaDetail(manga: _entryToManga(entry)));
+      },
+      onFailure: (_) => result,
+    );
   }
 
   @override
@@ -320,20 +383,36 @@ final class CompositeMangaCatalogRepository implements MangaCatalogRepository {
     Result<List<Manga>, KumoriyaError> networkResult,
     Future<Result<List<MangaCacheEntry>, KumoriyaError>> Function() cacheQuery,
   ) async {
-    if (networkResult is! Failure<List<Manga>, KumoriyaError>) {
-      return networkResult;
-    }
-    if (networkResult.error.kind != KumoriyaErrorKind.transport) {
-      return networkResult;
-    }
+    final reason = _classifyTransportError(networkResult);
+    if (reason == null) return networkResult;
     final cached = await cacheQuery();
     return cached.fold(
       onSuccess: (entries) {
         if (entries.isEmpty) return networkResult;
+        fallbackReason.value = reason;
         return Success(entries.map(_entryToManga).toList(growable: false));
       },
       onFailure: (_) => networkResult,
     );
+  }
+
+  /// Classifies a failure into [FallbackReason.offline] (device has no
+  /// connectivity, e.g. SocketException / timeout) vs
+  /// [FallbackReason.anilistDown] (reachable upstream returning errors).
+  /// Returns `null` when the failure isn't a candidate for cache fallback
+  /// (e.g. NotFound, mapping errors).
+  ///
+  /// Mirrors `CachedAnimeCatalogRepository._classifyTransportError`.
+  FallbackReason? _classifyTransportError(
+    Result<dynamic, KumoriyaError> result,
+  ) {
+    if (result is! Failure<dynamic, KumoriyaError>) return null;
+    if (result.error.kind != KumoriyaErrorKind.transport) return null;
+    return switch (result.error.code) {
+      'anilist.service_unavailable' ||
+      'anilist.rate_limit' => FallbackReason.anilistDown,
+      _ => FallbackReason.offline,
+    };
   }
 
   // ---------------------------------------------------------------------------

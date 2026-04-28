@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kumoriya_app/src/features/manga_catalog/application/services/composite_manga_catalog_repository.dart';
+import 'package:kumoriya_app/src/shared/cache/fallback_reason.dart';
 import 'package:kumoriya_core/kumoriya_core.dart';
 import 'package:kumoriya_manga_domain/kumoriya_manga_domain.dart';
 import 'package:kumoriya_manga_plugins/kumoriya_manga_plugins.dart';
@@ -544,14 +545,206 @@ void main() {
         preferredLanguages: () => const <String>['en'],
       );
 
+      // Cache is empty → cannot fall back, must propagate failure.
       final result = await repo.fetchHomeSections();
       expect(result.isFailure, isTrue);
-      // No persistence on failure.
       final cached = await cache.getRecent();
       expect(
         (cached as Success<List<MangaCacheEntry>, KumoriyaError>).value,
         isEmpty,
       );
     });
+
+    test(
+      'falls back to local cache and signals offline on transport failure',
+      () async {
+        final cache = _InMemoryMangaCacheStore();
+        // Pre-seed the cache with 25 entries so the fallback can populate
+        // trending (20) + the start of popular (5).
+        for (var i = 0; i < 25; i++) {
+          await cache.upsert(_cacheEntry(id: 100 + i, romaji: 'Cached $i'));
+        }
+        final delegate = _FakeAnilistMangaRepo(
+          failSectionsWith: const SimpleError(
+            code: 'unreachable',
+            message: 'offline',
+            kind: KumoriyaErrorKind.transport,
+          ),
+        );
+        final repo = CompositeMangaCatalogRepository(
+          delegate: delegate,
+          sourcePlugin: _FakeMangaSourcePlugin(),
+          cacheStore: cache,
+          preferredLanguages: () => const <String>['en'],
+        );
+
+        final result = await repo.fetchHomeSections();
+        expect(result.isSuccess, isTrue);
+        final sections =
+            (result as Success<MangaHomeSections, KumoriyaError>).value;
+        expect(sections.trending, hasLength(20));
+        expect(sections.popular, hasLength(5));
+        expect(sections.latest, isEmpty);
+        expect(sections.topRated, isEmpty);
+        expect(repo.fallbackReason.value, FallbackReason.offline);
+      },
+    );
+
+    test(
+      'classifies upstream 503 / rate-limit as anilistDown rather than offline',
+      () async {
+        final cache = _InMemoryMangaCacheStore();
+        await cache.upsert(_cacheEntry(id: 1, romaji: 'X'));
+        final delegate = _FakeAnilistMangaRepo(
+          failSectionsWith: const SimpleError(
+            code: 'anilist.service_unavailable',
+            message: '503',
+            kind: KumoriyaErrorKind.transport,
+          ),
+        );
+        final repo = CompositeMangaCatalogRepository(
+          delegate: delegate,
+          sourcePlugin: _FakeMangaSourcePlugin(),
+          cacheStore: cache,
+          preferredLanguages: () => const <String>['en'],
+        );
+
+        final result = await repo.fetchHomeSections();
+        expect(result.isSuccess, isTrue);
+        expect(repo.fallbackReason.value, FallbackReason.anilistDown);
+      },
+    );
+
+    test('successful fetch resets fallbackReason back to none', () async {
+      final cache = _InMemoryMangaCacheStore();
+      final delegate = _FakeAnilistMangaRepo(
+        sections: const MangaHomeSections(),
+      );
+      final repo = CompositeMangaCatalogRepository(
+        delegate: delegate,
+        sourcePlugin: _FakeMangaSourcePlugin(),
+        cacheStore: cache,
+        preferredLanguages: () => const <String>['en'],
+      );
+
+      // Force the notifier into a degraded state first so we can verify
+      // the next successful fetch clears it.
+      repo.fallbackReason.value = FallbackReason.anilistDown;
+      await repo.fetchHomeSections();
+      expect(repo.fallbackReason.value, FallbackReason.none);
+    });
   });
+
+  group('CompositeMangaCatalogRepository.fetchMangaDetail (offline)', () {
+    test(
+      'synthesizes a minimal MangaDetail from cache when AniList is unreachable',
+      () async {
+        final cache = _InMemoryMangaCacheStore();
+        await cache.upsert(_cacheEntry(id: 99, romaji: 'Cached Title'));
+
+        final delegate = _FakeAnilistMangaRepo();
+        // Force fetchMangaDetail to fail with a transport error (default
+        // fake returns fake.detail.missing/notFound which is not a
+        // candidate for fallback). We do this via a thin subclass.
+        final failing = _FailingDetailRepo(
+          underlying: delegate,
+          error: const SimpleError(
+            code: 'unreachable',
+            message: 'offline',
+            kind: KumoriyaErrorKind.transport,
+          ),
+        );
+        final repo = CompositeMangaCatalogRepository(
+          delegate: failing,
+          sourcePlugin: _FakeMangaSourcePlugin(),
+          cacheStore: cache,
+          preferredLanguages: () => const <String>['en'],
+        );
+
+        final result = await repo.fetchMangaDetail(99);
+        expect(result.isSuccess, isTrue);
+        final detail = (result as Success<MangaDetail, KumoriyaError>).value;
+        expect(detail.manga.anilistId, 99);
+        expect(detail.manga.title.romaji, 'Cached Title');
+        expect(repo.fallbackReason.value, FallbackReason.offline);
+      },
+    );
+  });
+}
+
+MangaCacheEntry _cacheEntry({required int id, required String romaji}) {
+  return MangaCacheEntry(
+    anilistId: id,
+    titleRomaji: romaji,
+    titleEnglish: null,
+    titleNative: null,
+    synonyms: null,
+    coverImageUrl: null,
+    bannerImageUrl: null,
+    status: 'FINISHED',
+    format: 'MANGA',
+    countryOfOrigin: 'JP',
+    releaseYear: 2020,
+    totalChapters: null,
+    totalVolumes: null,
+    averageScore: null,
+    popularity: null,
+    genres: null,
+    synopsis: null,
+    updatedAt: DateTime.now(),
+  );
+}
+
+/// Wraps another `MangaCatalogRepository` but forces `fetchMangaDetail`
+/// to return a controlled failure. Used to drive the offline-fallback
+/// path of the composite without rewiring the larger fake.
+class _FailingDetailRepo implements MangaCatalogRepository {
+  _FailingDetailRepo({required this.underlying, required this.error});
+
+  final MangaCatalogRepository underlying;
+  final KumoriyaError error;
+
+  @override
+  Future<Result<MangaDetail, KumoriyaError>> fetchMangaDetail(int anilistId) =>
+      Future.value(Failure(error));
+
+  @override
+  Future<Result<List<Manga>, KumoriyaError>> fetchHomeCatalog({
+    int page = 1,
+    int perPage = 20,
+  }) => underlying.fetchHomeCatalog(page: page, perPage: perPage);
+
+  @override
+  Future<Result<MangaHomeSections, KumoriyaError>> fetchHomeSections({
+    int page = 1,
+    int perPage = 20,
+  }) => underlying.fetchHomeSections(page: page, perPage: perPage);
+
+  @override
+  Future<Result<List<Manga>, KumoriyaError>> searchManga(
+    MangaSearchRequest request,
+  ) => underlying.searchManga(request);
+
+  @override
+  Future<Result<List<Manga>, KumoriyaError>> browseManga(
+    MangaBrowseRequest request,
+  ) => underlying.browseManga(request);
+
+  @override
+  Future<Result<List<MangaChapter>, KumoriyaError>> fetchMangaChapters(
+    int anilistId,
+  ) => underlying.fetchMangaChapters(anilistId);
+
+  @override
+  Future<Result<List<Manga>, KumoriyaError>> fetchBatchMangaByIds(
+    List<int> ids,
+  ) => underlying.fetchBatchMangaByIds(ids);
+
+  @override
+  Future<Result<List<String>, KumoriyaError>> fetchGenreCollection() =>
+      underlying.fetchGenreCollection();
+
+  @override
+  Future<Result<List<MangaTag>, KumoriyaError>> fetchTagCollection() =>
+      underlying.fetchTagCollection();
 }

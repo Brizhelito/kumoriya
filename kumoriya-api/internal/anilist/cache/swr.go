@@ -34,6 +34,12 @@ type entry struct {
 	// refreshing guards the single-flight contract: only one in-flight
 	// refresh per key at any time.
 	refreshing bool
+	// consecutiveRefreshFailures counts how many background or sync
+	// refreshes in a row failed for this key. Reset to 0 on any
+	// successful load. Used to surface an Outage signal so the handler
+	// (and downstream clients) know the payload is stale because
+	// upstream is unreachable, not just because TTL elapsed.
+	consecutiveRefreshFailures int
 }
 
 // SWR is a stale-while-revalidate cache.
@@ -73,12 +79,23 @@ func New(cfg Config) *SWR {
 	}
 }
 
+// OutageThreshold is the number of consecutive refresh failures past
+// which a stale payload is treated as served because upstream is down
+// rather than because its fresh window simply expired.
+const OutageThreshold = 3
+
 // Result describes what Get returned.
 type Result struct {
 	Data    json.RawMessage
 	Age     time.Duration // time since fetchedAt
 	Stale   bool          // true if payload is past Fresh but within Stale
 	FromAge bool          // true if payload was served from cache (hit of any kind)
+	// Outage is true when the payload was served from cache *and* the
+	// last few refresh attempts have failed (>= OutageThreshold). It is
+	// also true when the entry is past Fresh+Stale and a synchronous
+	// load just failed but a prior payload existed. Callers can use this
+	// to advertise an offline / degraded mode in the UI.
+	Outage bool
 }
 
 // Get returns a cached payload, refreshing according to SWR rules.
@@ -98,16 +115,29 @@ func (c *SWR) Get(ctx context.Context, key string, loader Loader) (Result, error
 
 	if ok {
 		age := now.Sub(e.fetchedAt)
+		outage := e.consecutiveRefreshFailures >= OutageThreshold
 
 		switch {
 		case age < c.fresh:
 			// Fresh hit.
-			res := Result{Data: e.data, Age: age, Stale: false, FromAge: true}
+			res := Result{
+				Data:    e.data,
+				Age:     age,
+				Stale:   false,
+				FromAge: true,
+				Outage:  outage,
+			}
 			c.mu.Unlock()
 			return res, nil
 		case age < c.fresh+c.stale:
 			// Stale hit → serve + spawn background refresh.
-			res := Result{Data: e.data, Age: age, Stale: true, FromAge: true}
+			res := Result{
+				Data:    e.data,
+				Age:     age,
+				Stale:   true,
+				FromAge: true,
+				Outage:  outage,
+			}
 			if !e.refreshing {
 				e.refreshing = true
 				c.mu.Unlock()
@@ -136,6 +166,7 @@ func (c *SWR) Set(key string, data json.RawMessage) {
 	e.data = data
 	e.fetchedAt = time.Now()
 	e.refreshing = false
+	e.consecutiveRefreshFailures = 0
 }
 
 // Peek returns a cached payload without triggering refresh; used for
@@ -159,11 +190,16 @@ func (c *SWR) loadSync(ctx context.Context, key string, loader Loader) (Result, 
 		c.mu.Lock()
 		defer c.mu.Unlock()
 		if e, ok := c.entries[key]; ok && len(e.data) > 0 {
+			e.consecutiveRefreshFailures++
 			return Result{
 				Data:    e.data,
 				Age:     time.Since(e.fetchedAt),
 				Stale:   true,
 				FromAge: true,
+				// Sync load failed against an expired entry → always
+				// outage, regardless of consecutive count: by definition
+				// upstream is unreachable for this caller right now.
+				Outage: true,
 			}, nil
 		}
 		return Result{}, err
@@ -189,13 +225,26 @@ func (c *SWR) refreshAsync(key string, loader Loader) {
 
 	data, err := loader(ctx)
 	if err != nil {
+		c.bumpRefreshFailure(key)
 		log.Warn().Err(err).Str("key", key).Msg("anilist cache: background refresh failed; keeping stale payload")
 		return
 	}
 	if len(data) == 0 {
+		c.bumpRefreshFailure(key)
 		log.Warn().Str("key", key).Msg("anilist cache: background refresh returned empty payload; keeping stale")
 		return
 	}
 	c.Set(key, data)
 	log.Debug().Str("key", key).Msg("anilist cache: background refresh complete")
+}
+
+// bumpRefreshFailure increments the per-entry consecutive failure
+// counter. Once it crosses OutageThreshold, subsequent reads of the
+// (still serveable) cached payload carry Result.Outage=true.
+func (c *SWR) bumpRefreshFailure(key string) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if e, ok := c.entries[key]; ok {
+		e.consecutiveRefreshFailures++
+	}
 }

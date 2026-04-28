@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -13,7 +14,6 @@ import '../features/anime_catalog/presentation/pages/downloads_page.dart';
 import '../features/anime_catalog/presentation/pages/home_page.dart';
 import '../features/anime_catalog/presentation/pages/library_page.dart';
 import '../features/anime_catalog/presentation/pages/search_page.dart';
-import '../features/anime_catalog/presentation/providers/anime_catalog_providers.dart';
 import '../features/manga_catalog/presentation/pages/manga_downloads_page.dart';
 import '../features/manga_catalog/presentation/pages/manga_home_page.dart';
 import '../features/manga_catalog/presentation/pages/manga_library_page.dart';
@@ -30,7 +30,10 @@ import '../features/downloads/presentation/widgets/download_path_dialog.dart';
 import '../features/player/presentation/pages/player_performance_benchmark_page.dart';
 import '../shared/auth/auth_providers.dart';
 import '../shared/auth/deep_link_handler.dart';
+import '../shared/cache/combined_fallback_reason_provider.dart';
+import '../shared/dev/dev_cache_seeder.dart';
 import '../shared/navigation/app_navigation_shell.dart';
+import '../shared/storage_providers.dart';
 import '../shared/sync/sync_providers.dart';
 import '../shared/theme/kumoriya_theme.dart';
 import '../shared/universe/active_universe_providers.dart';
@@ -121,12 +124,26 @@ class _FirstLaunchGateState extends ConsumerState<_FirstLaunchGate> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) async {
+      await _seedDevFixturesIfDebug();
       await _checkDownloadPath();
       await _requestNotificationPermission();
       await _showReleaseNotesIfNeeded();
       await _checkForStartupUpdate();
       await _showLoginPromptIfNeeded();
     });
+  }
+
+  /// In debug builds, populate the local anime/manga caches with a
+  /// small set of well-known titles so the home / search screens have
+  /// content to render even when AniList is unreachable. No-op in
+  /// release.
+  Future<void> _seedDevFixturesIfDebug() async {
+    if (!kDebugMode || !mounted) return;
+    final seeder = DevCacheSeeder(
+      animeStore: ref.read(anilistCacheStoreProvider),
+      mangaStore: ref.read(mangaCacheStoreProvider),
+    );
+    await seeder.seedIfEmpty();
   }
 
   /// On Android 13+ request POST_NOTIFICATIONS permission once. The flag
@@ -307,7 +324,7 @@ class _FirstLaunchGateState extends ConsumerState<_FirstLaunchGate> {
   @override
   Widget build(BuildContext context) {
     return AppNavigationShell(
-      fallbackReasonNotifier: ref.watch(anilistCacheFallbackReasonProvider),
+      fallbackReasonNotifier: ref.watch(combinedFallbackReasonProvider),
       animeTabBuilders: <KumoriyaAnimeTab, WidgetBuilder>{
         KumoriyaAnimeTab.home: (_) => const HomePage(),
         KumoriyaAnimeTab.search: (_) => const SearchPage(),

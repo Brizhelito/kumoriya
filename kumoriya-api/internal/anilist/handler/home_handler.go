@@ -102,6 +102,7 @@ func writeCached(c fiber.Ctx, res cache.Result) error {
 	// Public because these payloads are identical across users.
 	c.Set("Cache-Control", "public, max-age=60, stale-while-revalidate=600")
 	c.Set("X-Cache-Stale", boolToStr(res.Stale))
+	c.Set("X-Cache-Outage", boolToStr(res.Outage))
 	c.Set("X-Cache-Age", durationMillisStr(res.Age))
 	return c.Send(res.Data)
 }

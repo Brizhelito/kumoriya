@@ -8,6 +8,7 @@ import 'package:kumoriya_manga_domain/kumoriya_manga_domain.dart';
 import 'package:kumoriya_manga_plugins/kumoriya_manga_plugins.dart';
 import 'package:kumoriya_source_mangadex/kumoriya_source_mangadex.dart';
 
+import '../../../../shared/cache/fallback_reason.dart';
 import '../../../../shared/storage_providers.dart';
 import '../../../anime_catalog/presentation/providers/anime_catalog_providers.dart';
 import '../../application/services/composite_manga_catalog_repository.dart';
@@ -53,16 +54,30 @@ final mangaPreferredLanguagesProvider = Provider<List<String> Function()>((
   };
 });
 
+final _compositeMangaCatalogRepositoryProvider =
+    Provider<CompositeMangaCatalogRepository>((ref) {
+      final gateway = ref.watch(anilistMetadataGatewayProvider);
+      final delegate = AnilistMangaCatalogRepository(gateway: gateway);
+      return CompositeMangaCatalogRepository(
+        delegate: delegate,
+        sourcePlugin: ref.watch(mangaSourcePluginProvider),
+        cacheStore: ref.watch(mangaCacheStoreProvider),
+        preferredLanguages: ref.watch(mangaPreferredLanguagesProvider),
+      );
+    });
+
 final mangaCatalogRepositoryProvider = Provider<MangaCatalogRepository>((ref) {
-  final gateway = ref.watch(anilistMetadataGatewayProvider);
-  final delegate = AnilistMangaCatalogRepository(gateway: gateway);
-  return CompositeMangaCatalogRepository(
-    delegate: delegate,
-    sourcePlugin: ref.watch(mangaSourcePluginProvider),
-    cacheStore: ref.watch(mangaCacheStoreProvider),
-    preferredLanguages: ref.watch(mangaPreferredLanguagesProvider),
-  );
+  return ref.watch(_compositeMangaCatalogRepositoryProvider);
 });
+
+/// Indicates why the most recent manga catalog fetch fell back to
+/// locally-cached data, or [FallbackReason.none] when operating
+/// normally. Exposed alongside the anime equivalent so the navigation
+/// shell can collapse both into one banner.
+final mangaCacheFallbackReasonProvider =
+    Provider<ValueNotifier<FallbackReason>>((ref) {
+      return ref.watch(_compositeMangaCatalogRepositoryProvider).fallbackReason;
+    });
 
 // ---------------------------------------------------------------------------
 // Catalog reads

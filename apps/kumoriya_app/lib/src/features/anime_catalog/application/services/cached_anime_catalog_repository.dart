@@ -5,7 +5,12 @@ import 'package:kumoriya_core/kumoriya_core.dart';
 import 'package:kumoriya_domain/kumoriya_domain.dart';
 import 'package:kumoriya_storage/kumoriya_storage.dart';
 
-enum FallbackReason { none, offline, anilistDown }
+import '../../../../shared/cache/fallback_reason.dart';
+
+// FallbackReason is now defined in shared/cache/fallback_reason.dart so
+// the manga decorator can expose the same signal without duplicating the
+// enum. Re-exported here so existing imports keep resolving.
+export '../../../../shared/cache/fallback_reason.dart' show FallbackReason;
 
 final class CachedAnimeCatalogRepository implements AnimeCatalogRepository {
   CachedAnimeCatalogRepository({
