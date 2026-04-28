@@ -1,0 +1,43 @@
+{
+  "result": "ok",
+  "response": "collection",
+  "data": [
+    {
+      "id": "latest-1",
+      "type": "manga",
+      "attributes": {
+        "title": {"en": "Solo Leveling"},
+        "altTitles": [],
+        "year": 2018,
+        "status": "completed",
+        "originalLanguage": "ko",
+        "tags": [
+          {"attributes": {"name": {"en": "Long Strip"}}}
+        ]
+      },
+      "relationships": [
+        {
+          "id": "cover-2",
+          "type": "cover_art",
+          "attributes": {"fileName": "solo.jpg"}
+        }
+      ]
+    },
+    {
+      "id": "latest-2",
+      "type": "manga",
+      "attributes": {
+        "title": {"en": "Tower of God"},
+        "altTitles": [],
+        "year": 2010,
+        "status": "ongoing",
+        "originalLanguage": "ko",
+        "tags": []
+      },
+      "relationships": []
+    }
+  ],
+  "limit": 20,
+  "offset": 0,
+  "total": 2
+}

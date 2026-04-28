@@ -1,0 +1,47 @@
+{
+  "result": "ok",
+  "response": "collection",
+  "data": [
+    {
+      "id": "a96676e5-8ae2-425e-b549-7f15dd34a6d8",
+      "type": "manga",
+      "attributes": {
+        "title": {"en": "Chainsaw Man"},
+        "altTitles": [
+          {"ja-ro": "Chainsaw Man"},
+          {"ja": "チェンソーマン"}
+        ],
+        "year": 2018,
+        "status": "ongoing",
+        "originalLanguage": "ja",
+        "tags": [
+          {"attributes": {"name": {"en": "Action"}}}
+        ]
+      },
+      "relationships": [
+        {
+          "id": "cover-1",
+          "type": "cover_art",
+          "attributes": {"fileName": "chainsaw-cover.jpg"}
+        },
+        {"id": "auth-1", "type": "author", "attributes": {"name": "Tatsuki Fujimoto"}}
+      ]
+    },
+    {
+      "id": "no-cover-id",
+      "type": "manga",
+      "attributes": {
+        "title": {},
+        "altTitles": [{"en": "Backup Title"}],
+        "year": null,
+        "status": "ongoing",
+        "originalLanguage": "ja",
+        "tags": []
+      },
+      "relationships": []
+    }
+  ],
+  "limit": 20,
+  "offset": 0,
+  "total": 2
+}

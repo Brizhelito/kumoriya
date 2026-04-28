@@ -1,0 +1,79 @@
+{
+  "result": "ok",
+  "response": "collection",
+  "data": [
+    {
+      "id": "ch-1",
+      "type": "chapter",
+      "attributes": {
+        "volume": "1",
+        "chapter": "1",
+        "title": "Dog and Chainsaw",
+        "translatedLanguage": "en",
+        "pages": 52,
+        "publishAt": "2020-12-01T00:00:00+00:00"
+      },
+      "relationships": [
+        {
+          "id": "scan-1",
+          "type": "scanlation_group",
+          "attributes": {"name": "Awesome Scans"}
+        }
+      ]
+    },
+    {
+      "id": "ch-1-5",
+      "type": "chapter",
+      "attributes": {
+        "volume": "1",
+        "chapter": "1.5",
+        "title": "Bonus",
+        "translatedLanguage": "en",
+        "pages": 8,
+        "publishAt": "2020-12-08T00:00:00+00:00"
+      },
+      "relationships": [
+        {
+          "id": "scan-2",
+          "type": "scanlation_group",
+          "attributes": {"name": "Other Scans"}
+        }
+      ]
+    },
+    {
+      "id": "ch-2-es",
+      "type": "chapter",
+      "attributes": {
+        "volume": "1",
+        "chapter": "2",
+        "title": null,
+        "translatedLanguage": "es",
+        "pages": 20,
+        "publishAt": "2020-12-15T00:00:00+00:00"
+      },
+      "relationships": [
+        {
+          "id": "scan-1",
+          "type": "scanlation_group",
+          "attributes": {"name": "Awesome Scans"}
+        }
+      ]
+    },
+    {
+      "id": "ch-null-number",
+      "type": "chapter",
+      "attributes": {
+        "volume": null,
+        "chapter": null,
+        "title": "Prologue",
+        "translatedLanguage": "en",
+        "pages": 4,
+        "publishAt": "2020-11-01T00:00:00+00:00"
+      },
+      "relationships": []
+    }
+  ],
+  "limit": 500,
+  "offset": 0,
+  "total": 4
+}

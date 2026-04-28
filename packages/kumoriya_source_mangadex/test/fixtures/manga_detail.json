@@ -1,0 +1,35 @@
+{
+  "result": "ok",
+  "response": "entity",
+  "data": {
+    "id": "a96676e5-8ae2-425e-b549-7f15dd34a6d8",
+    "type": "manga",
+    "attributes": {
+      "title": {"en": "Chainsaw Man"},
+      "altTitles": [
+        {"ja-ro": "Chensoo Man"},
+        {"ja": "チェンソーマン"}
+      ],
+      "description": {
+        "en": "A young man who is also part chainsaw devil.",
+        "es": "Un joven que también es parte demonio sierra mecánica."
+      },
+      "year": 2018,
+      "status": "ongoing",
+      "originalLanguage": "ja",
+      "tags": [
+        {"attributes": {"name": {"en": "Action"}}},
+        {"attributes": {"name": {"en": "Demons"}}}
+      ]
+    },
+    "relationships": [
+      {"id": "auth-1", "type": "author", "attributes": {"name": "Tatsuki Fujimoto"}},
+      {"id": "art-1", "type": "artist", "attributes": {"name": "Tatsuki Fujimoto"}},
+      {
+        "id": "cover-1",
+        "type": "cover_art",
+        "attributes": {"fileName": "chainsaw-cover.jpg"}
+      }
+    ]
+  }
+}
