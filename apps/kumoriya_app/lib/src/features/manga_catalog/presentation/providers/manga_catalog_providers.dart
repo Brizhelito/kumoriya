@@ -1,3 +1,5 @@
+import 'dart:developer' as developer;
+
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kumoriya_anilist/kumoriya_anilist.dart';
@@ -93,35 +95,53 @@ final mangaHomeProvider = FutureProvider.autoDispose<MangaHomeData>((
 
   // Trending == default sort. The other sections come from `browseManga`
   // with explicit sorts so each row has a distinct flavor.
+  //
+  // We run the four calls SEQUENTIALLY rather than via `Future.wait`:
+  // AniList rate-limits at 90 req/min and aggressively rejects bursts,
+  // so 4 parallel queries from a cold cache often return 429 for the
+  // last 2-3, leaving the user with only "Trending" populated. Sequential
+  // adds ~1-2s of latency but keeps every shelf reliable. We also log
+  // failures (instead of swallowing them silently) so missing sections
+  // are diagnosable via logcat.
   Future<List<Manga>> readBrowse(MangaSortType sort) async {
     final result = await repo.browseManga(
       MangaBrowseRequest(sort: sort, perPage: _kHomeSectionPerPage),
     );
     return result.fold(
       onSuccess: (list) => list,
-      onFailure: (_) => const <Manga>[],
+      onFailure: (err) {
+        developer.log(
+          'mangaHome[${sort.name}] failed: ${err.code} ${err.message}',
+          name: 'mangaHomeProvider',
+        );
+        return const <Manga>[];
+      },
     );
   }
 
-  final results = await Future.wait<List<Manga>>(<Future<List<Manga>>>[
-    repo
-        .fetchHomeCatalog(perPage: _kHomeSectionPerPage)
-        .then(
-          (r) => r.fold(
-            onSuccess: (list) => list,
-            onFailure: (_) => const <Manga>[],
-          ),
+  final trending = await repo
+      .fetchHomeCatalog(perPage: _kHomeSectionPerPage)
+      .then(
+        (r) => r.fold(
+          onSuccess: (list) => list,
+          onFailure: (err) {
+            developer.log(
+              'mangaHome[trending] failed: ${err.code} ${err.message}',
+              name: 'mangaHomeProvider',
+            );
+            return const <Manga>[];
+          },
         ),
-    readBrowse(MangaSortType.popularity),
-    readBrowse(MangaSortType.startDate),
-    readBrowse(MangaSortType.score),
-  ]);
+      );
+  final popular = await readBrowse(MangaSortType.popularity);
+  final latest = await readBrowse(MangaSortType.startDate);
+  final topRated = await readBrowse(MangaSortType.score);
 
   return MangaHomeData(
-    trending: results[0],
-    popular: results[1],
-    latest: results[2],
-    topRated: results[3],
+    trending: trending,
+    popular: popular,
+    latest: latest,
+    topRated: topRated,
   );
 });
 

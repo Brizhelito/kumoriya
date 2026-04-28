@@ -29,7 +29,12 @@ class MangaHeroCard extends StatelessWidget {
       child: ClipRRect(
         borderRadius: BorderRadius.circular(KumoriyaRadius.xxl),
         child: AspectRatio(
-          aspectRatio: 16 / 9,
+          // 21:9 (cinema) keeps the hero impactful but ~30% shorter than
+          // 16:9, so on a 360dp phone roughly 1.5 carousels are visible
+          // below the hero without scrolling — the previous 16:9 left
+          // only the first carousel above the fold and made the home
+          // feel half-empty.
+          aspectRatio: 21 / 9,
           child: Stack(
             fit: StackFit.expand,
             children: <Widget>[
