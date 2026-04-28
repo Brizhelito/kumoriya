@@ -1907,6 +1907,14 @@ class AppLocalizationsEs extends AppLocalizations {
   String get partyInviteLinkCopied => '¡Enlace de invitación copiado!';
 
   @override
+  String get partyShareInviteSubject => 'Únete a mi watch party de Kumoriya';
+
+  @override
+  String partyShareInviteMessage(String title, String link) {
+    return 'Únete a mi watch party de Kumoriya para $title: $link';
+  }
+
+  @override
   String partyMembersCount(int current, int max) {
     return 'Miembros ($current/$max)';
   }

@@ -3,6 +3,7 @@ import 'dart:developer' as dev;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:share_plus/share_plus.dart';
 
 import '../../../../app/l10n.dart';
 import '../../../../shared/storage_providers.dart';
@@ -551,26 +552,15 @@ class _ConnectedView extends ConsumerWidget {
                         );
                       },
                     ),
-                    IconButton(
-                      icon: const Icon(
-                        Icons.share,
-                        color: KumoriyaColors.primary,
+                    Builder(
+                      builder: (btnContext) => IconButton(
+                        icon: const Icon(
+                          Icons.share,
+                          color: KumoriyaColors.primary,
+                        ),
+                        tooltip: context.l10n.partyShareInviteLinkTooltip,
+                        onPressed: () => _shareInviteLink(btnContext, room),
                       ),
-                      tooltip: context.l10n.partyShareInviteLinkTooltip,
-                      onPressed: () {
-                        // Universal https link — opens the app via verified
-                        // Android App Link, falls back to the landing page
-                        // when the app is not installed.
-                        final link =
-                            'https://join.kumoriya.online/${room.inviteCode}';
-                        Clipboard.setData(ClipboardData(text: link));
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text(context.l10n.partyInviteLinkCopied),
-                            duration: Duration(seconds: 2),
-                          ),
-                        );
-                      },
                     ),
                   ],
                 ),
@@ -663,6 +653,42 @@ class _ConnectedView extends ConsumerWidget {
         ],
       ),
     );
+  }
+
+  /// Open the OS share sheet so the host can send the invite link to
+  /// WhatsApp, Telegram, email, etc. without going through the clipboard.
+  /// On platforms where a share sheet isn't available (or the call fails)
+  /// we fall back to copying the link to the clipboard so the user always
+  /// has a working option.
+  Future<void> _shareInviteLink(BuildContext context, PartyRoom room) async {
+    // Universal https link — opens the app via verified Android App Link,
+    // falls back to the landing page when the app is not installed.
+    final link = 'https://join.kumoriya.online/${room.inviteCode}';
+    final messenger = ScaffoldMessenger.of(context);
+    final l10n = context.l10n;
+    final message = l10n.partyShareInviteMessage(room.animeTitle, link);
+    final subject = l10n.partyShareInviteSubject;
+
+    // Anchor the share sheet to the button's bounds. Required for iPad
+    // popovers and harmless on every other platform.
+    final box = context.findRenderObject() as RenderBox?;
+    final origin = box != null && box.hasSize
+        ? box.localToGlobal(Offset.zero) & box.size
+        : null;
+
+    try {
+      await Share.share(message, subject: subject, sharePositionOrigin: origin);
+    } catch (e) {
+      dev.log('share_plus failed: $e', name: 'PartyLobby');
+      await Clipboard.setData(ClipboardData(text: link));
+      if (!context.mounted) return;
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(l10n.partyInviteLinkCopied),
+          duration: const Duration(seconds: 2),
+        ),
+      );
+    }
   }
 
   /// Host picks a different anime — just pop back to browse.

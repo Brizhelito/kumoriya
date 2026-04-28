@@ -10,6 +10,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:kumoriya_app/src/features/anime_catalog/application/models/resolved_server_link_result.dart';
 import 'package:kumoriya_plugins/kumoriya_plugins.dart';
+import 'package:battery_plus/battery_plus.dart';
 import 'package:screen_brightness/screen_brightness.dart';
 import 'package:volume_controller/volume_controller.dart';
 import 'package:window_manager/window_manager.dart';
@@ -2669,9 +2670,6 @@ class _ImmersivePlayerViewState extends State<_ImmersivePlayerView>
   Timer? _rapidSeekTimer;
   static const Duration _rapidSeekWindow = Duration(seconds: 1);
 
-  // Brightness restore
-  double? _initialBrightness;
-
   // Controls lock
   bool _controlsLocked = false;
 
@@ -2692,6 +2690,13 @@ class _ImmersivePlayerViewState extends State<_ImmersivePlayerView>
   Timer? _clockTimer;
   DateTime _currentTime = DateTime.now();
 
+  // Battery indicator (top-right HUD).
+  final Battery _battery = Battery();
+  StreamSubscription<BatteryState>? _batteryStateSub;
+  Timer? _batteryLevelTimer;
+  int? _batteryLevel;
+  BatteryState _batteryState = BatteryState.unknown;
+
   @override
   void initState() {
     super.initState();
@@ -2710,7 +2715,35 @@ class _ImmersivePlayerViewState extends State<_ImmersivePlayerView>
     unawaited(_initBrightness());
     unawaited(_initVolume());
     _startClockTicker();
+    _startBatteryWatcher();
     _startHideTimer();
+  }
+
+  void _startBatteryWatcher() {
+    // Initial fetch + periodic refresh. battery_plus does not expose a
+    // level stream on every platform, so we poll at a low frequency in
+    // addition to subscribing to charging-state changes.
+    unawaited(_refreshBatteryLevel());
+    _batteryLevelTimer?.cancel();
+    _batteryLevelTimer = Timer.periodic(
+      const Duration(seconds: 60),
+      (_) => unawaited(_refreshBatteryLevel()),
+    );
+    try {
+      _batteryStateSub = _battery.onBatteryStateChanged.listen((state) {
+        if (!mounted) return;
+        setState(() => _batteryState = state);
+        unawaited(_refreshBatteryLevel());
+      });
+    } catch (_) {}
+  }
+
+  Future<void> _refreshBatteryLevel() async {
+    try {
+      final level = await _battery.batteryLevel;
+      if (!mounted) return;
+      setState(() => _batteryLevel = level);
+    } catch (_) {}
   }
 
   void _startClockTicker() {
@@ -2759,8 +2792,12 @@ class _ImmersivePlayerViewState extends State<_ImmersivePlayerView>
 
   Future<void> _initBrightness() async {
     try {
-      final current = await ScreenBrightness().application;
-      _initialBrightness = current;
+      // Read the current SYSTEM brightness so the slider starts in sync
+      // with the device's actual on-screen level. Reading `application`
+      // returns the per-app override (often -1 if unset), which would
+      // cause the slider to jump on first drag.
+      final brightness = ScreenBrightness();
+      final current = await brightness.system;
       if (mounted) {
         setState(() => _brightnessLevel = current);
       }
@@ -2786,19 +2823,19 @@ class _ImmersivePlayerViewState extends State<_ImmersivePlayerView>
     _mouseIdleTimer?.cancel();
     _skipButtonHideTimer?.cancel();
     _clockTimer?.cancel();
+    _batteryLevelTimer?.cancel();
+    _batteryStateSub?.cancel();
     _skipProgressController.dispose();
     _vsyncPump.dispose();
     _doubleTapTimer?.cancel();
     _rapidSeekTimer?.cancel();
-    if (_initialBrightness != null) {
-      try {
-        unawaited(
-          ScreenBrightness().setApplicationScreenBrightness(
-            _initialBrightness!,
-          ),
-        );
-      } catch (_) {}
-    }
+    // Always release the application-level brightness override so the
+    // system brightness takes over again when leaving the player. Setting
+    // it back to `_initialBrightness` would keep the override active for
+    // the rest of the app session.
+    try {
+      unawaited(ScreenBrightness().resetApplicationScreenBrightness());
+    } catch (_) {}
     super.dispose();
   }
 
@@ -3167,6 +3204,29 @@ class _ImmersivePlayerViewState extends State<_ImmersivePlayerView>
   String _formatCurrentTime(BuildContext context) {
     final locale = Localizations.localeOf(context).toLanguageTag();
     return DateFormat.Hm(locale).format(_currentTime);
+  }
+
+  IconData _batteryIcon(int level, BatteryState state) {
+    if (state == BatteryState.charging || state == BatteryState.full) {
+      return Icons.battery_charging_full_rounded;
+    }
+    if (level >= 95) return Icons.battery_full_rounded;
+    if (level >= 85) return Icons.battery_6_bar_rounded;
+    if (level >= 70) return Icons.battery_5_bar_rounded;
+    if (level >= 55) return Icons.battery_4_bar_rounded;
+    if (level >= 40) return Icons.battery_3_bar_rounded;
+    if (level >= 25) return Icons.battery_2_bar_rounded;
+    if (level >= 10) return Icons.battery_1_bar_rounded;
+    return Icons.battery_alert_rounded;
+  }
+
+  Color _batteryIconColor(int level, BatteryState state) {
+    if (state == BatteryState.charging || state == BatteryState.full) {
+      return KumoriyaColors.accentMint;
+    }
+    if (level <= 15) return KumoriyaColors.accentRose;
+    if (level <= 30) return KumoriyaColors.accentAmber;
+    return KumoriyaColors.textSecondary;
   }
 
   void _showSpeedSelector(BuildContext context) {
@@ -3596,6 +3656,31 @@ class _ImmersivePlayerViewState extends State<_ImmersivePlayerView>
                                             fontWeight: FontWeight.w700,
                                           ),
                                     ),
+                                    if (_batteryLevel != null) ...<Widget>[
+                                      const SizedBox(width: 10),
+                                      Icon(
+                                        _batteryIcon(
+                                          _batteryLevel!,
+                                          _batteryState,
+                                        ),
+                                        size: 14,
+                                        color: _batteryIconColor(
+                                          _batteryLevel!,
+                                          _batteryState,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        '${_batteryLevel!}%',
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .labelMedium
+                                            ?.copyWith(
+                                              color: KumoriyaColors.textPrimary,
+                                              fontWeight: FontWeight.w700,
+                                            ),
+                                      ),
+                                    ],
                                   ],
                                 ),
                               ),

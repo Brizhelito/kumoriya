@@ -4,6 +4,7 @@
 
 list(APPEND FLUTTER_PLUGIN_LIST
   app_links
+  battery_plus
   connectivity_plus
   firebase_core
   flutter_secure_storage_windows
@@ -14,6 +15,7 @@ list(APPEND FLUTTER_PLUGIN_LIST
   screen_brightness_windows
   screen_retriever_windows
   sentry_flutter
+  share_plus
   url_launcher_windows
   volume_controller
   window_manager

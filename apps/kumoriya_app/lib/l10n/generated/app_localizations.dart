@@ -3415,6 +3415,18 @@ abstract class AppLocalizations {
   /// **'Invite link copied!'**
   String get partyInviteLinkCopied;
 
+  /// No description provided for @partyShareInviteSubject.
+  ///
+  /// In en, this message translates to:
+  /// **'Join my Kumoriya watch party'**
+  String get partyShareInviteSubject;
+
+  /// No description provided for @partyShareInviteMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Join my Kumoriya watch party for {title}: {link}'**
+  String partyShareInviteMessage(String title, String link);
+
   /// No description provided for @partyMembersCount.
   ///
   /// In en, this message translates to:

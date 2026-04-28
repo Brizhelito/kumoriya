@@ -932,6 +932,14 @@
   "partyInviteCodeCopied": "¡Código de invitación copiado!",
   "partyShareInviteLinkTooltip": "Compartir enlace de invitación",
   "partyInviteLinkCopied": "¡Enlace de invitación copiado!",
+  "partyShareInviteSubject": "Únete a mi watch party de Kumoriya",
+  "partyShareInviteMessage": "Únete a mi watch party de Kumoriya para {title}: {link}",
+  "@partyShareInviteMessage": {
+    "placeholders": {
+      "title": { "type": "String" },
+      "link": { "type": "String" }
+    }
+  },
   "partyMembersCount": "Miembros ({current}/{max})",
   "@partyMembersCount": {
     "placeholders": {
