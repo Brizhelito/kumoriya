@@ -15,6 +15,7 @@ final class SourceMangaMatch {
     this.releaseYear,
     this.format = MangaFormat.unknown,
     this.country,
+    this.externalIds = const <String, String>{},
   });
 
   /// Source-side opaque identifier. Stable across detail/chapter calls.
@@ -31,4 +32,18 @@ final class SourceMangaMatch {
   final int? releaseYear;
   final MangaFormat format;
   final MangaCountryOfOrigin? country;
+
+  /// Cross-database identifiers exposed by the source, keyed by short
+  /// database codes that match the wire format the source uses.
+  ///
+  /// Common keys:
+  ///
+  /// - `'al'`  — AniList numeric id (as string)
+  /// - `'mu'`  — MangaUpdates id
+  /// - `'mal'` — MyAnimeList numeric id
+  ///
+  /// The map is intentionally untyped to accommodate future databases
+  /// without growing the contract. Callers MUST treat missing keys as
+  /// "unknown", never as "no match".
+  final Map<String, String> externalIds;
 }

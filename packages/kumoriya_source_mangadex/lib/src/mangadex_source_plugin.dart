@@ -410,7 +410,23 @@ final class MangaDexSourcePlugin implements MangaSourcePlugin {
       releaseYear: _readInt(attributes['year']),
       format: _parseFormat(attributes),
       country: _parseCountry(attributes['originalLanguage']),
+      externalIds: _parseExternalIds(attributes['links']),
     );
+  }
+
+  /// Extract cross-database links from the MangaDex `attributes.links`
+  /// map. Only string values are kept; non-string entries are ignored
+  /// defensively (MangaDex has historically returned arrays / nulls
+  /// for some entries on partial records).
+  Map<String, String> _parseExternalIds(Object? raw) {
+    if (raw is! Map<String, dynamic>) return const <String, String>{};
+    final out = <String, String>{};
+    raw.forEach((key, value) {
+      if (value is String && value.isNotEmpty) {
+        out[key] = value;
+      }
+    });
+    return Map<String, String>.unmodifiable(out);
   }
 
   SourceMangaDetail _parseMangaDetail(Map<String, dynamic> row) {

@@ -96,11 +96,18 @@ void main() {
       contains('chainsaw-cover.jpg.256.jpg'),
     );
 
+    // attributes.links is parsed into externalIds keyed by short db code.
+    expect(first.externalIds['al'], '105778');
+    expect(first.externalIds['mal'], '116778');
+    expect(first.externalIds['mu'], '171848');
+
     final second = matches[1];
     // No `title` and no cover; falls back to altTitle and null thumbnail.
     expect(second.title, 'Backup Title');
     expect(second.thumbnailUrl, isNull);
     expect(second.releaseYear, isNull);
+    // No links block → externalIds stays empty.
+    expect(second.externalIds, isEmpty);
   });
 
   test('search forwards languages as availableTranslatedLanguage[]', () async {

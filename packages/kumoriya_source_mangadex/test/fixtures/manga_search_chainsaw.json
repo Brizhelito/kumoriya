@@ -14,6 +14,11 @@
         "year": 2018,
         "status": "ongoing",
         "originalLanguage": "ja",
+        "links": {
+          "al": "105778",
+          "mal": "116778",
+          "mu": "171848"
+        },
         "tags": [
           {"attributes": {"name": {"en": "Action"}}}
         ]
