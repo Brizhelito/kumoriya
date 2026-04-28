@@ -1,23 +1,36 @@
 import 'package:drift/drift.dart';
 
 import 'daos/aniskip_cache_dao.dart';
+import 'daos/chapter_page_cache_dao.dart';
 import 'daos/episode_cache_dao.dart';
 import 'daos/anilist_cache_dao.dart';
 import 'daos/download_task_dao.dart';
 import 'daos/hls_segment_dao.dart';
 import 'daos/library_entry_dao.dart';
+import 'daos/manga_cache_dao.dart';
+import 'daos/manga_chapter_dao.dart';
+import 'daos/manga_download_dao.dart';
+import 'daos/manga_library_dao.dart';
+import 'daos/manga_progress_dao.dart';
 import 'daos/playback_preference_dao.dart';
 import 'daos/progress_dao.dart';
 import 'daos/source_availability_cache_dao.dart';
 import 'daos/translation_cache_dao.dart';
 import 'daos/watch_history_dao.dart';
 import 'tables/aniskip_cache_table.dart';
+import 'tables/chapter_page_cache_table.dart';
 import 'tables/episode_catalog_cache_table.dart';
 import 'tables/anilist_cache_table.dart';
 import 'tables/download_task_table.dart';
 import 'tables/hls_segment_table.dart';
 import 'tables/episode_progress_table.dart';
 import 'tables/library_entry_table.dart';
+import 'tables/manga_cache_table.dart';
+import 'tables/manga_chapter_table.dart';
+import 'tables/manga_download_table.dart';
+import 'tables/manga_history_table.dart';
+import 'tables/manga_library_table.dart';
+import 'tables/manga_progress_table.dart';
 import 'tables/playback_preference_table.dart';
 import 'tables/source_availability_cache_table.dart';
 import 'tables/translation_cache_table.dart';
@@ -38,6 +51,13 @@ part 'app_database.g.dart';
     AnilistCacheTable,
     TranslationCacheTable,
     EpisodeCatalogCacheTable,
+    MangaCacheTable,
+    MangaChapterTable,
+    MangaProgressTable,
+    MangaHistoryTable,
+    MangaLibraryTable,
+    ChapterPageCacheTable,
+    MangaDownloadTable,
   ],
   daos: [
     ProgressDao,
@@ -51,13 +71,19 @@ part 'app_database.g.dart';
     AnilistCacheDao,
     TranslationCacheDao,
     EpisodeCacheDao,
+    MangaCacheDao,
+    MangaChapterDao,
+    MangaProgressDao,
+    MangaLibraryDao,
+    ChapterPageCacheDao,
+    MangaDownloadDao,
   ],
 )
 class AppDatabase extends _$AppDatabase {
   AppDatabase(super.e);
 
   @override
-  int get schemaVersion => 19;
+  int get schemaVersion => 20;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -192,11 +218,45 @@ class AppDatabase extends _$AppDatabase {
           sqlDefinition: 'TEXT',
         );
       }
+      if (from < 20) {
+        // Slice 5 (manga storage). Strictly additive: six new tables for
+        // the manga universe, no anime tables touched.
+        await _createTableIfMissing(
+          tableName: 'manga_cache',
+          createTable: () => m.createTable(mangaCacheTable),
+        );
+        await _createTableIfMissing(
+          tableName: 'manga_chapter',
+          createTable: () => m.createTable(mangaChapterTable),
+        );
+        await _createTableIfMissing(
+          tableName: 'manga_progress',
+          createTable: () => m.createTable(mangaProgressTable),
+        );
+        await _createTableIfMissing(
+          tableName: 'manga_history',
+          createTable: () => m.createTable(mangaHistoryTable),
+        );
+        await _createTableIfMissing(
+          tableName: 'manga_library',
+          createTable: () => m.createTable(mangaLibraryTable),
+        );
+        await _createTableIfMissing(
+          tableName: 'chapter_page_cache',
+          createTable: () => m.createTable(chapterPageCacheTable),
+        );
+        await _createTableIfMissing(
+          tableName: 'manga_download',
+          createTable: () => m.createTable(mangaDownloadTable),
+        );
+        await _createMangaIndices();
+      }
     },
     beforeOpen: (details) async {
       if (details.wasCreated) {
         // For fresh databases, create all indices immediately.
         await _createIndices();
+        await _createMangaIndices();
       }
 
       // sync_queue is managed via custom SQL to keep storage decoupled from
@@ -358,6 +418,53 @@ class AppDatabase extends _$AppDatabase {
     await customStatement(
       'CREATE INDEX IF NOT EXISTS idx_episode_catalog_cache_updated '
       'ON episode_catalog_cache (updated_at)',
+    );
+  }
+
+  Future<void> _createMangaIndices() async {
+    await customStatement(
+      'CREATE INDEX IF NOT EXISTS idx_manga_cache_updated '
+      'ON manga_cache (updated_at)',
+    );
+    await customStatement(
+      'CREATE INDEX IF NOT EXISTS idx_manga_chapter_anime_number '
+      'ON manga_chapter (manga_anilist_id, number)',
+    );
+    await customStatement(
+      'CREATE INDEX IF NOT EXISTS idx_manga_chapter_source_lang '
+      'ON manga_chapter (source_id, source_manga_id, language)',
+    );
+    await customStatement(
+      'CREATE INDEX IF NOT EXISTS idx_manga_progress_manga_updated '
+      'ON manga_progress (manga_anilist_id, updated_at DESC)',
+    );
+    await customStatement(
+      'CREATE INDEX IF NOT EXISTS idx_manga_history_last_accessed '
+      'ON manga_history (last_accessed_at DESC)',
+    );
+    await customStatement(
+      'CREATE INDEX IF NOT EXISTS idx_manga_library_notify '
+      'ON manga_library (notify_new_chapters) WHERE notify_new_chapters = 1',
+    );
+    await customStatement(
+      'CREATE INDEX IF NOT EXISTS idx_manga_library_auto_download '
+      'ON manga_library (auto_download_new_chapters) WHERE auto_download_new_chapters = 1',
+    );
+    await customStatement(
+      'CREATE INDEX IF NOT EXISTS idx_chapter_page_cache_expires '
+      'ON chapter_page_cache (expires_at)',
+    );
+    await customStatement(
+      'CREATE INDEX IF NOT EXISTS idx_manga_download_manga '
+      'ON manga_download (manga_anilist_id, created_at DESC)',
+    );
+    await customStatement(
+      'CREATE INDEX IF NOT EXISTS idx_manga_download_status '
+      'ON manga_download (status, created_at DESC)',
+    );
+    await customStatement(
+      'CREATE INDEX IF NOT EXISTS idx_manga_download_status_manga '
+      'ON manga_download (status, manga_anilist_id)',
     );
   }
 

@@ -135,8 +135,7 @@ void main() {
           AnilistCacheEntry(
             anilistId: 500,
             titleRomaji: 'Otonari no Tenshi-sama 2',
-            relationsJson:
-                '[{"id":998,"type":"prequel"}]',
+            relationsJson: '[{"id":998,"type":"prequel"}]',
             updatedAt: DateTime(2025, 6, 1),
           ),
         );
@@ -154,42 +153,36 @@ void main() {
         final result = await store.get(500);
         final saved =
             (result as Success<AnilistCacheEntry?, KumoriyaError>).value!;
-        expect(
-          saved.relationsJson,
-          '[{"id":998,"type":"prequel"}]',
-        );
+        expect(saved.relationsJson, '[{"id":998,"type":"prequel"}]');
       },
     );
 
-    test(
-      'upsert with empty relations JSON array clears previously-cached '
-      'relations (detail-level persistence must be able to express "no '
-      'relations" intentionally)',
-      () async {
-        await store.upsert(
-          AnilistCacheEntry(
-            anilistId: 501,
-            titleRomaji: 'Has Relations',
-            relationsJson: '[{"id":1,"type":"prequel"}]',
-            updatedAt: DateTime(2025, 6, 1),
-          ),
-        );
+    test('upsert with empty relations JSON array clears previously-cached '
+        'relations (detail-level persistence must be able to express "no '
+        'relations" intentionally)', () async {
+      await store.upsert(
+        AnilistCacheEntry(
+          anilistId: 501,
+          titleRomaji: 'Has Relations',
+          relationsJson: '[{"id":1,"type":"prequel"}]',
+          updatedAt: DateTime(2025, 6, 1),
+        ),
+      );
 
-        await store.upsert(
-          AnilistCacheEntry(
-            anilistId: 501,
-            titleRomaji: 'Has Relations',
-            relationsJson: '[]',
-            updatedAt: DateTime(2025, 6, 2),
-          ),
-        );
+      await store.upsert(
+        AnilistCacheEntry(
+          anilistId: 501,
+          titleRomaji: 'Has Relations',
+          relationsJson: '[]',
+          updatedAt: DateTime(2025, 6, 2),
+        ),
+      );
 
-        final result = await store.get(501);
-        final saved =
-            (result as Success<AnilistCacheEntry?, KumoriyaError>).value!;
-        expect(saved.relationsJson, '[]');
-      },
-    );
+      final result = await store.get(501);
+      final saved =
+          (result as Success<AnilistCacheEntry?, KumoriyaError>).value!;
+      expect(saved.relationsJson, '[]');
+    });
 
     test('genres round-trip with null', () async {
       await store.upsert(makeEntry(anilistId: 300, genresNull: true));

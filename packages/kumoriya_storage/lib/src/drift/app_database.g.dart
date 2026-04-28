@@ -2838,7 +2838,7 @@ class DownloadTaskTableData extends DataClass
   final int createdAt;
   final int? updatedAt;
 
-  /// JSON-encoded Map<String, String> of HTTP headers (referer, origin, etc.)
+  /// JSON-encoded `Map<String, String>` of HTTP headers (referer, origin, etc.)
   final String? headers;
 
   /// Whether this download is an HLS stream requiring segment download.
@@ -6444,6 +6444,5310 @@ class EpisodeCatalogCacheTableCompanion
   }
 }
 
+class $MangaCacheTableTable extends MangaCacheTable
+    with TableInfo<$MangaCacheTableTable, MangaCacheTableData> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $MangaCacheTableTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _anilistIdMeta = const VerificationMeta(
+    'anilistId',
+  );
+  @override
+  late final GeneratedColumn<int> anilistId = GeneratedColumn<int>(
+    'anilist_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _titleRomajiMeta = const VerificationMeta(
+    'titleRomaji',
+  );
+  @override
+  late final GeneratedColumn<String> titleRomaji = GeneratedColumn<String>(
+    'title_romaji',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _titleEnglishMeta = const VerificationMeta(
+    'titleEnglish',
+  );
+  @override
+  late final GeneratedColumn<String> titleEnglish = GeneratedColumn<String>(
+    'title_english',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _titleNativeMeta = const VerificationMeta(
+    'titleNative',
+  );
+  @override
+  late final GeneratedColumn<String> titleNative = GeneratedColumn<String>(
+    'title_native',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _synonymsMeta = const VerificationMeta(
+    'synonyms',
+  );
+  @override
+  late final GeneratedColumn<String> synonyms = GeneratedColumn<String>(
+    'synonyms',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _coverImageUrlMeta = const VerificationMeta(
+    'coverImageUrl',
+  );
+  @override
+  late final GeneratedColumn<String> coverImageUrl = GeneratedColumn<String>(
+    'cover_image_url',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _bannerImageUrlMeta = const VerificationMeta(
+    'bannerImageUrl',
+  );
+  @override
+  late final GeneratedColumn<String> bannerImageUrl = GeneratedColumn<String>(
+    'banner_image_url',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _statusMeta = const VerificationMeta('status');
+  @override
+  late final GeneratedColumn<String> status = GeneratedColumn<String>(
+    'status',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _formatMeta = const VerificationMeta('format');
+  @override
+  late final GeneratedColumn<String> format = GeneratedColumn<String>(
+    'format',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _countryOfOriginMeta = const VerificationMeta(
+    'countryOfOrigin',
+  );
+  @override
+  late final GeneratedColumn<String> countryOfOrigin = GeneratedColumn<String>(
+    'country_of_origin',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _originalLanguageMeta = const VerificationMeta(
+    'originalLanguage',
+  );
+  @override
+  late final GeneratedColumn<String> originalLanguage = GeneratedColumn<String>(
+    'original_language',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _releaseYearMeta = const VerificationMeta(
+    'releaseYear',
+  );
+  @override
+  late final GeneratedColumn<int> releaseYear = GeneratedColumn<int>(
+    'release_year',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _totalChaptersMeta = const VerificationMeta(
+    'totalChapters',
+  );
+  @override
+  late final GeneratedColumn<int> totalChapters = GeneratedColumn<int>(
+    'total_chapters',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _totalVolumesMeta = const VerificationMeta(
+    'totalVolumes',
+  );
+  @override
+  late final GeneratedColumn<int> totalVolumes = GeneratedColumn<int>(
+    'total_volumes',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _averageScoreMeta = const VerificationMeta(
+    'averageScore',
+  );
+  @override
+  late final GeneratedColumn<int> averageScore = GeneratedColumn<int>(
+    'average_score',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _popularityMeta = const VerificationMeta(
+    'popularity',
+  );
+  @override
+  late final GeneratedColumn<int> popularity = GeneratedColumn<int>(
+    'popularity',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _genresMeta = const VerificationMeta('genres');
+  @override
+  late final GeneratedColumn<String> genres = GeneratedColumn<String>(
+    'genres',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _tagsMeta = const VerificationMeta('tags');
+  @override
+  late final GeneratedColumn<String> tags = GeneratedColumn<String>(
+    'tags',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _synopsisMeta = const VerificationMeta(
+    'synopsis',
+  );
+  @override
+  late final GeneratedColumn<String> synopsis = GeneratedColumn<String>(
+    'synopsis',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _relationsMeta = const VerificationMeta(
+    'relations',
+  );
+  @override
+  late final GeneratedColumn<String> relations = GeneratedColumn<String>(
+    'relations',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<int> updatedAt = GeneratedColumn<int>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    anilistId,
+    titleRomaji,
+    titleEnglish,
+    titleNative,
+    synonyms,
+    coverImageUrl,
+    bannerImageUrl,
+    status,
+    format,
+    countryOfOrigin,
+    originalLanguage,
+    releaseYear,
+    totalChapters,
+    totalVolumes,
+    averageScore,
+    popularity,
+    genres,
+    tags,
+    synopsis,
+    relations,
+    updatedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'manga_cache';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<MangaCacheTableData> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('anilist_id')) {
+      context.handle(
+        _anilistIdMeta,
+        anilistId.isAcceptableOrUnknown(data['anilist_id']!, _anilistIdMeta),
+      );
+    }
+    if (data.containsKey('title_romaji')) {
+      context.handle(
+        _titleRomajiMeta,
+        titleRomaji.isAcceptableOrUnknown(
+          data['title_romaji']!,
+          _titleRomajiMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_titleRomajiMeta);
+    }
+    if (data.containsKey('title_english')) {
+      context.handle(
+        _titleEnglishMeta,
+        titleEnglish.isAcceptableOrUnknown(
+          data['title_english']!,
+          _titleEnglishMeta,
+        ),
+      );
+    }
+    if (data.containsKey('title_native')) {
+      context.handle(
+        _titleNativeMeta,
+        titleNative.isAcceptableOrUnknown(
+          data['title_native']!,
+          _titleNativeMeta,
+        ),
+      );
+    }
+    if (data.containsKey('synonyms')) {
+      context.handle(
+        _synonymsMeta,
+        synonyms.isAcceptableOrUnknown(data['synonyms']!, _synonymsMeta),
+      );
+    }
+    if (data.containsKey('cover_image_url')) {
+      context.handle(
+        _coverImageUrlMeta,
+        coverImageUrl.isAcceptableOrUnknown(
+          data['cover_image_url']!,
+          _coverImageUrlMeta,
+        ),
+      );
+    }
+    if (data.containsKey('banner_image_url')) {
+      context.handle(
+        _bannerImageUrlMeta,
+        bannerImageUrl.isAcceptableOrUnknown(
+          data['banner_image_url']!,
+          _bannerImageUrlMeta,
+        ),
+      );
+    }
+    if (data.containsKey('status')) {
+      context.handle(
+        _statusMeta,
+        status.isAcceptableOrUnknown(data['status']!, _statusMeta),
+      );
+    }
+    if (data.containsKey('format')) {
+      context.handle(
+        _formatMeta,
+        format.isAcceptableOrUnknown(data['format']!, _formatMeta),
+      );
+    }
+    if (data.containsKey('country_of_origin')) {
+      context.handle(
+        _countryOfOriginMeta,
+        countryOfOrigin.isAcceptableOrUnknown(
+          data['country_of_origin']!,
+          _countryOfOriginMeta,
+        ),
+      );
+    }
+    if (data.containsKey('original_language')) {
+      context.handle(
+        _originalLanguageMeta,
+        originalLanguage.isAcceptableOrUnknown(
+          data['original_language']!,
+          _originalLanguageMeta,
+        ),
+      );
+    }
+    if (data.containsKey('release_year')) {
+      context.handle(
+        _releaseYearMeta,
+        releaseYear.isAcceptableOrUnknown(
+          data['release_year']!,
+          _releaseYearMeta,
+        ),
+      );
+    }
+    if (data.containsKey('total_chapters')) {
+      context.handle(
+        _totalChaptersMeta,
+        totalChapters.isAcceptableOrUnknown(
+          data['total_chapters']!,
+          _totalChaptersMeta,
+        ),
+      );
+    }
+    if (data.containsKey('total_volumes')) {
+      context.handle(
+        _totalVolumesMeta,
+        totalVolumes.isAcceptableOrUnknown(
+          data['total_volumes']!,
+          _totalVolumesMeta,
+        ),
+      );
+    }
+    if (data.containsKey('average_score')) {
+      context.handle(
+        _averageScoreMeta,
+        averageScore.isAcceptableOrUnknown(
+          data['average_score']!,
+          _averageScoreMeta,
+        ),
+      );
+    }
+    if (data.containsKey('popularity')) {
+      context.handle(
+        _popularityMeta,
+        popularity.isAcceptableOrUnknown(data['popularity']!, _popularityMeta),
+      );
+    }
+    if (data.containsKey('genres')) {
+      context.handle(
+        _genresMeta,
+        genres.isAcceptableOrUnknown(data['genres']!, _genresMeta),
+      );
+    }
+    if (data.containsKey('tags')) {
+      context.handle(
+        _tagsMeta,
+        tags.isAcceptableOrUnknown(data['tags']!, _tagsMeta),
+      );
+    }
+    if (data.containsKey('synopsis')) {
+      context.handle(
+        _synopsisMeta,
+        synopsis.isAcceptableOrUnknown(data['synopsis']!, _synopsisMeta),
+      );
+    }
+    if (data.containsKey('relations')) {
+      context.handle(
+        _relationsMeta,
+        relations.isAcceptableOrUnknown(data['relations']!, _relationsMeta),
+      );
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_updatedAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {anilistId};
+  @override
+  MangaCacheTableData map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return MangaCacheTableData(
+      anilistId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}anilist_id'],
+      )!,
+      titleRomaji: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}title_romaji'],
+      )!,
+      titleEnglish: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}title_english'],
+      ),
+      titleNative: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}title_native'],
+      ),
+      synonyms: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}synonyms'],
+      ),
+      coverImageUrl: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}cover_image_url'],
+      ),
+      bannerImageUrl: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}banner_image_url'],
+      ),
+      status: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}status'],
+      ),
+      format: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}format'],
+      ),
+      countryOfOrigin: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}country_of_origin'],
+      ),
+      originalLanguage: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}original_language'],
+      ),
+      releaseYear: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}release_year'],
+      ),
+      totalChapters: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}total_chapters'],
+      ),
+      totalVolumes: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}total_volumes'],
+      ),
+      averageScore: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}average_score'],
+      ),
+      popularity: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}popularity'],
+      ),
+      genres: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}genres'],
+      ),
+      tags: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}tags'],
+      ),
+      synopsis: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}synopsis'],
+      ),
+      relations: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}relations'],
+      ),
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}updated_at'],
+      )!,
+    );
+  }
+
+  @override
+  $MangaCacheTableTable createAlias(String alias) {
+    return $MangaCacheTableTable(attachedDatabase, alias);
+  }
+}
+
+class MangaCacheTableData extends DataClass
+    implements Insertable<MangaCacheTableData> {
+  final int anilistId;
+  final String titleRomaji;
+  final String? titleEnglish;
+  final String? titleNative;
+
+  /// JSON-encoded `List<String>`.
+  final String? synonyms;
+  final String? coverImageUrl;
+  final String? bannerImageUrl;
+
+  /// AniList release status string (`RELEASING`, `FINISHED`, `HIATUS`,
+  /// `CANCELLED`, `NOT_YET_RELEASED`).
+  final String? status;
+
+  /// AniList format string (`MANGA`, `MANHWA`, `MANHUA`, `ONE_SHOT`,
+  /// `DOUJINSHI`, `NOVEL`).
+  final String? format;
+
+  /// ISO 3166 country code: `JP`, `KR`, `CN`, `TW`.
+  final String? countryOfOrigin;
+
+  /// BCP-47 language tag of the original publication when known
+  /// (`ja`, `ko`, `zh`).
+  final String? originalLanguage;
+  final int? releaseYear;
+  final int? totalChapters;
+  final int? totalVolumes;
+  final int? averageScore;
+  final int? popularity;
+
+  /// JSON-encoded `List<String>`.
+  final String? genres;
+
+  /// JSON-encoded `List<{name, rank?, isAdult?}>`.
+  final String? tags;
+  final String? synopsis;
+
+  /// JSON-encoded `List<{id, type, mediaKind}>` of relations.
+  final String? relations;
+  final int updatedAt;
+  const MangaCacheTableData({
+    required this.anilistId,
+    required this.titleRomaji,
+    this.titleEnglish,
+    this.titleNative,
+    this.synonyms,
+    this.coverImageUrl,
+    this.bannerImageUrl,
+    this.status,
+    this.format,
+    this.countryOfOrigin,
+    this.originalLanguage,
+    this.releaseYear,
+    this.totalChapters,
+    this.totalVolumes,
+    this.averageScore,
+    this.popularity,
+    this.genres,
+    this.tags,
+    this.synopsis,
+    this.relations,
+    required this.updatedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['anilist_id'] = Variable<int>(anilistId);
+    map['title_romaji'] = Variable<String>(titleRomaji);
+    if (!nullToAbsent || titleEnglish != null) {
+      map['title_english'] = Variable<String>(titleEnglish);
+    }
+    if (!nullToAbsent || titleNative != null) {
+      map['title_native'] = Variable<String>(titleNative);
+    }
+    if (!nullToAbsent || synonyms != null) {
+      map['synonyms'] = Variable<String>(synonyms);
+    }
+    if (!nullToAbsent || coverImageUrl != null) {
+      map['cover_image_url'] = Variable<String>(coverImageUrl);
+    }
+    if (!nullToAbsent || bannerImageUrl != null) {
+      map['banner_image_url'] = Variable<String>(bannerImageUrl);
+    }
+    if (!nullToAbsent || status != null) {
+      map['status'] = Variable<String>(status);
+    }
+    if (!nullToAbsent || format != null) {
+      map['format'] = Variable<String>(format);
+    }
+    if (!nullToAbsent || countryOfOrigin != null) {
+      map['country_of_origin'] = Variable<String>(countryOfOrigin);
+    }
+    if (!nullToAbsent || originalLanguage != null) {
+      map['original_language'] = Variable<String>(originalLanguage);
+    }
+    if (!nullToAbsent || releaseYear != null) {
+      map['release_year'] = Variable<int>(releaseYear);
+    }
+    if (!nullToAbsent || totalChapters != null) {
+      map['total_chapters'] = Variable<int>(totalChapters);
+    }
+    if (!nullToAbsent || totalVolumes != null) {
+      map['total_volumes'] = Variable<int>(totalVolumes);
+    }
+    if (!nullToAbsent || averageScore != null) {
+      map['average_score'] = Variable<int>(averageScore);
+    }
+    if (!nullToAbsent || popularity != null) {
+      map['popularity'] = Variable<int>(popularity);
+    }
+    if (!nullToAbsent || genres != null) {
+      map['genres'] = Variable<String>(genres);
+    }
+    if (!nullToAbsent || tags != null) {
+      map['tags'] = Variable<String>(tags);
+    }
+    if (!nullToAbsent || synopsis != null) {
+      map['synopsis'] = Variable<String>(synopsis);
+    }
+    if (!nullToAbsent || relations != null) {
+      map['relations'] = Variable<String>(relations);
+    }
+    map['updated_at'] = Variable<int>(updatedAt);
+    return map;
+  }
+
+  MangaCacheTableCompanion toCompanion(bool nullToAbsent) {
+    return MangaCacheTableCompanion(
+      anilistId: Value(anilistId),
+      titleRomaji: Value(titleRomaji),
+      titleEnglish: titleEnglish == null && nullToAbsent
+          ? const Value.absent()
+          : Value(titleEnglish),
+      titleNative: titleNative == null && nullToAbsent
+          ? const Value.absent()
+          : Value(titleNative),
+      synonyms: synonyms == null && nullToAbsent
+          ? const Value.absent()
+          : Value(synonyms),
+      coverImageUrl: coverImageUrl == null && nullToAbsent
+          ? const Value.absent()
+          : Value(coverImageUrl),
+      bannerImageUrl: bannerImageUrl == null && nullToAbsent
+          ? const Value.absent()
+          : Value(bannerImageUrl),
+      status: status == null && nullToAbsent
+          ? const Value.absent()
+          : Value(status),
+      format: format == null && nullToAbsent
+          ? const Value.absent()
+          : Value(format),
+      countryOfOrigin: countryOfOrigin == null && nullToAbsent
+          ? const Value.absent()
+          : Value(countryOfOrigin),
+      originalLanguage: originalLanguage == null && nullToAbsent
+          ? const Value.absent()
+          : Value(originalLanguage),
+      releaseYear: releaseYear == null && nullToAbsent
+          ? const Value.absent()
+          : Value(releaseYear),
+      totalChapters: totalChapters == null && nullToAbsent
+          ? const Value.absent()
+          : Value(totalChapters),
+      totalVolumes: totalVolumes == null && nullToAbsent
+          ? const Value.absent()
+          : Value(totalVolumes),
+      averageScore: averageScore == null && nullToAbsent
+          ? const Value.absent()
+          : Value(averageScore),
+      popularity: popularity == null && nullToAbsent
+          ? const Value.absent()
+          : Value(popularity),
+      genres: genres == null && nullToAbsent
+          ? const Value.absent()
+          : Value(genres),
+      tags: tags == null && nullToAbsent ? const Value.absent() : Value(tags),
+      synopsis: synopsis == null && nullToAbsent
+          ? const Value.absent()
+          : Value(synopsis),
+      relations: relations == null && nullToAbsent
+          ? const Value.absent()
+          : Value(relations),
+      updatedAt: Value(updatedAt),
+    );
+  }
+
+  factory MangaCacheTableData.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return MangaCacheTableData(
+      anilistId: serializer.fromJson<int>(json['anilistId']),
+      titleRomaji: serializer.fromJson<String>(json['titleRomaji']),
+      titleEnglish: serializer.fromJson<String?>(json['titleEnglish']),
+      titleNative: serializer.fromJson<String?>(json['titleNative']),
+      synonyms: serializer.fromJson<String?>(json['synonyms']),
+      coverImageUrl: serializer.fromJson<String?>(json['coverImageUrl']),
+      bannerImageUrl: serializer.fromJson<String?>(json['bannerImageUrl']),
+      status: serializer.fromJson<String?>(json['status']),
+      format: serializer.fromJson<String?>(json['format']),
+      countryOfOrigin: serializer.fromJson<String?>(json['countryOfOrigin']),
+      originalLanguage: serializer.fromJson<String?>(json['originalLanguage']),
+      releaseYear: serializer.fromJson<int?>(json['releaseYear']),
+      totalChapters: serializer.fromJson<int?>(json['totalChapters']),
+      totalVolumes: serializer.fromJson<int?>(json['totalVolumes']),
+      averageScore: serializer.fromJson<int?>(json['averageScore']),
+      popularity: serializer.fromJson<int?>(json['popularity']),
+      genres: serializer.fromJson<String?>(json['genres']),
+      tags: serializer.fromJson<String?>(json['tags']),
+      synopsis: serializer.fromJson<String?>(json['synopsis']),
+      relations: serializer.fromJson<String?>(json['relations']),
+      updatedAt: serializer.fromJson<int>(json['updatedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'anilistId': serializer.toJson<int>(anilistId),
+      'titleRomaji': serializer.toJson<String>(titleRomaji),
+      'titleEnglish': serializer.toJson<String?>(titleEnglish),
+      'titleNative': serializer.toJson<String?>(titleNative),
+      'synonyms': serializer.toJson<String?>(synonyms),
+      'coverImageUrl': serializer.toJson<String?>(coverImageUrl),
+      'bannerImageUrl': serializer.toJson<String?>(bannerImageUrl),
+      'status': serializer.toJson<String?>(status),
+      'format': serializer.toJson<String?>(format),
+      'countryOfOrigin': serializer.toJson<String?>(countryOfOrigin),
+      'originalLanguage': serializer.toJson<String?>(originalLanguage),
+      'releaseYear': serializer.toJson<int?>(releaseYear),
+      'totalChapters': serializer.toJson<int?>(totalChapters),
+      'totalVolumes': serializer.toJson<int?>(totalVolumes),
+      'averageScore': serializer.toJson<int?>(averageScore),
+      'popularity': serializer.toJson<int?>(popularity),
+      'genres': serializer.toJson<String?>(genres),
+      'tags': serializer.toJson<String?>(tags),
+      'synopsis': serializer.toJson<String?>(synopsis),
+      'relations': serializer.toJson<String?>(relations),
+      'updatedAt': serializer.toJson<int>(updatedAt),
+    };
+  }
+
+  MangaCacheTableData copyWith({
+    int? anilistId,
+    String? titleRomaji,
+    Value<String?> titleEnglish = const Value.absent(),
+    Value<String?> titleNative = const Value.absent(),
+    Value<String?> synonyms = const Value.absent(),
+    Value<String?> coverImageUrl = const Value.absent(),
+    Value<String?> bannerImageUrl = const Value.absent(),
+    Value<String?> status = const Value.absent(),
+    Value<String?> format = const Value.absent(),
+    Value<String?> countryOfOrigin = const Value.absent(),
+    Value<String?> originalLanguage = const Value.absent(),
+    Value<int?> releaseYear = const Value.absent(),
+    Value<int?> totalChapters = const Value.absent(),
+    Value<int?> totalVolumes = const Value.absent(),
+    Value<int?> averageScore = const Value.absent(),
+    Value<int?> popularity = const Value.absent(),
+    Value<String?> genres = const Value.absent(),
+    Value<String?> tags = const Value.absent(),
+    Value<String?> synopsis = const Value.absent(),
+    Value<String?> relations = const Value.absent(),
+    int? updatedAt,
+  }) => MangaCacheTableData(
+    anilistId: anilistId ?? this.anilistId,
+    titleRomaji: titleRomaji ?? this.titleRomaji,
+    titleEnglish: titleEnglish.present ? titleEnglish.value : this.titleEnglish,
+    titleNative: titleNative.present ? titleNative.value : this.titleNative,
+    synonyms: synonyms.present ? synonyms.value : this.synonyms,
+    coverImageUrl: coverImageUrl.present
+        ? coverImageUrl.value
+        : this.coverImageUrl,
+    bannerImageUrl: bannerImageUrl.present
+        ? bannerImageUrl.value
+        : this.bannerImageUrl,
+    status: status.present ? status.value : this.status,
+    format: format.present ? format.value : this.format,
+    countryOfOrigin: countryOfOrigin.present
+        ? countryOfOrigin.value
+        : this.countryOfOrigin,
+    originalLanguage: originalLanguage.present
+        ? originalLanguage.value
+        : this.originalLanguage,
+    releaseYear: releaseYear.present ? releaseYear.value : this.releaseYear,
+    totalChapters: totalChapters.present
+        ? totalChapters.value
+        : this.totalChapters,
+    totalVolumes: totalVolumes.present ? totalVolumes.value : this.totalVolumes,
+    averageScore: averageScore.present ? averageScore.value : this.averageScore,
+    popularity: popularity.present ? popularity.value : this.popularity,
+    genres: genres.present ? genres.value : this.genres,
+    tags: tags.present ? tags.value : this.tags,
+    synopsis: synopsis.present ? synopsis.value : this.synopsis,
+    relations: relations.present ? relations.value : this.relations,
+    updatedAt: updatedAt ?? this.updatedAt,
+  );
+  MangaCacheTableData copyWithCompanion(MangaCacheTableCompanion data) {
+    return MangaCacheTableData(
+      anilistId: data.anilistId.present ? data.anilistId.value : this.anilistId,
+      titleRomaji: data.titleRomaji.present
+          ? data.titleRomaji.value
+          : this.titleRomaji,
+      titleEnglish: data.titleEnglish.present
+          ? data.titleEnglish.value
+          : this.titleEnglish,
+      titleNative: data.titleNative.present
+          ? data.titleNative.value
+          : this.titleNative,
+      synonyms: data.synonyms.present ? data.synonyms.value : this.synonyms,
+      coverImageUrl: data.coverImageUrl.present
+          ? data.coverImageUrl.value
+          : this.coverImageUrl,
+      bannerImageUrl: data.bannerImageUrl.present
+          ? data.bannerImageUrl.value
+          : this.bannerImageUrl,
+      status: data.status.present ? data.status.value : this.status,
+      format: data.format.present ? data.format.value : this.format,
+      countryOfOrigin: data.countryOfOrigin.present
+          ? data.countryOfOrigin.value
+          : this.countryOfOrigin,
+      originalLanguage: data.originalLanguage.present
+          ? data.originalLanguage.value
+          : this.originalLanguage,
+      releaseYear: data.releaseYear.present
+          ? data.releaseYear.value
+          : this.releaseYear,
+      totalChapters: data.totalChapters.present
+          ? data.totalChapters.value
+          : this.totalChapters,
+      totalVolumes: data.totalVolumes.present
+          ? data.totalVolumes.value
+          : this.totalVolumes,
+      averageScore: data.averageScore.present
+          ? data.averageScore.value
+          : this.averageScore,
+      popularity: data.popularity.present
+          ? data.popularity.value
+          : this.popularity,
+      genres: data.genres.present ? data.genres.value : this.genres,
+      tags: data.tags.present ? data.tags.value : this.tags,
+      synopsis: data.synopsis.present ? data.synopsis.value : this.synopsis,
+      relations: data.relations.present ? data.relations.value : this.relations,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('MangaCacheTableData(')
+          ..write('anilistId: $anilistId, ')
+          ..write('titleRomaji: $titleRomaji, ')
+          ..write('titleEnglish: $titleEnglish, ')
+          ..write('titleNative: $titleNative, ')
+          ..write('synonyms: $synonyms, ')
+          ..write('coverImageUrl: $coverImageUrl, ')
+          ..write('bannerImageUrl: $bannerImageUrl, ')
+          ..write('status: $status, ')
+          ..write('format: $format, ')
+          ..write('countryOfOrigin: $countryOfOrigin, ')
+          ..write('originalLanguage: $originalLanguage, ')
+          ..write('releaseYear: $releaseYear, ')
+          ..write('totalChapters: $totalChapters, ')
+          ..write('totalVolumes: $totalVolumes, ')
+          ..write('averageScore: $averageScore, ')
+          ..write('popularity: $popularity, ')
+          ..write('genres: $genres, ')
+          ..write('tags: $tags, ')
+          ..write('synopsis: $synopsis, ')
+          ..write('relations: $relations, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hashAll([
+    anilistId,
+    titleRomaji,
+    titleEnglish,
+    titleNative,
+    synonyms,
+    coverImageUrl,
+    bannerImageUrl,
+    status,
+    format,
+    countryOfOrigin,
+    originalLanguage,
+    releaseYear,
+    totalChapters,
+    totalVolumes,
+    averageScore,
+    popularity,
+    genres,
+    tags,
+    synopsis,
+    relations,
+    updatedAt,
+  ]);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is MangaCacheTableData &&
+          other.anilistId == this.anilistId &&
+          other.titleRomaji == this.titleRomaji &&
+          other.titleEnglish == this.titleEnglish &&
+          other.titleNative == this.titleNative &&
+          other.synonyms == this.synonyms &&
+          other.coverImageUrl == this.coverImageUrl &&
+          other.bannerImageUrl == this.bannerImageUrl &&
+          other.status == this.status &&
+          other.format == this.format &&
+          other.countryOfOrigin == this.countryOfOrigin &&
+          other.originalLanguage == this.originalLanguage &&
+          other.releaseYear == this.releaseYear &&
+          other.totalChapters == this.totalChapters &&
+          other.totalVolumes == this.totalVolumes &&
+          other.averageScore == this.averageScore &&
+          other.popularity == this.popularity &&
+          other.genres == this.genres &&
+          other.tags == this.tags &&
+          other.synopsis == this.synopsis &&
+          other.relations == this.relations &&
+          other.updatedAt == this.updatedAt);
+}
+
+class MangaCacheTableCompanion extends UpdateCompanion<MangaCacheTableData> {
+  final Value<int> anilistId;
+  final Value<String> titleRomaji;
+  final Value<String?> titleEnglish;
+  final Value<String?> titleNative;
+  final Value<String?> synonyms;
+  final Value<String?> coverImageUrl;
+  final Value<String?> bannerImageUrl;
+  final Value<String?> status;
+  final Value<String?> format;
+  final Value<String?> countryOfOrigin;
+  final Value<String?> originalLanguage;
+  final Value<int?> releaseYear;
+  final Value<int?> totalChapters;
+  final Value<int?> totalVolumes;
+  final Value<int?> averageScore;
+  final Value<int?> popularity;
+  final Value<String?> genres;
+  final Value<String?> tags;
+  final Value<String?> synopsis;
+  final Value<String?> relations;
+  final Value<int> updatedAt;
+  const MangaCacheTableCompanion({
+    this.anilistId = const Value.absent(),
+    this.titleRomaji = const Value.absent(),
+    this.titleEnglish = const Value.absent(),
+    this.titleNative = const Value.absent(),
+    this.synonyms = const Value.absent(),
+    this.coverImageUrl = const Value.absent(),
+    this.bannerImageUrl = const Value.absent(),
+    this.status = const Value.absent(),
+    this.format = const Value.absent(),
+    this.countryOfOrigin = const Value.absent(),
+    this.originalLanguage = const Value.absent(),
+    this.releaseYear = const Value.absent(),
+    this.totalChapters = const Value.absent(),
+    this.totalVolumes = const Value.absent(),
+    this.averageScore = const Value.absent(),
+    this.popularity = const Value.absent(),
+    this.genres = const Value.absent(),
+    this.tags = const Value.absent(),
+    this.synopsis = const Value.absent(),
+    this.relations = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+  });
+  MangaCacheTableCompanion.insert({
+    this.anilistId = const Value.absent(),
+    required String titleRomaji,
+    this.titleEnglish = const Value.absent(),
+    this.titleNative = const Value.absent(),
+    this.synonyms = const Value.absent(),
+    this.coverImageUrl = const Value.absent(),
+    this.bannerImageUrl = const Value.absent(),
+    this.status = const Value.absent(),
+    this.format = const Value.absent(),
+    this.countryOfOrigin = const Value.absent(),
+    this.originalLanguage = const Value.absent(),
+    this.releaseYear = const Value.absent(),
+    this.totalChapters = const Value.absent(),
+    this.totalVolumes = const Value.absent(),
+    this.averageScore = const Value.absent(),
+    this.popularity = const Value.absent(),
+    this.genres = const Value.absent(),
+    this.tags = const Value.absent(),
+    this.synopsis = const Value.absent(),
+    this.relations = const Value.absent(),
+    required int updatedAt,
+  }) : titleRomaji = Value(titleRomaji),
+       updatedAt = Value(updatedAt);
+  static Insertable<MangaCacheTableData> custom({
+    Expression<int>? anilistId,
+    Expression<String>? titleRomaji,
+    Expression<String>? titleEnglish,
+    Expression<String>? titleNative,
+    Expression<String>? synonyms,
+    Expression<String>? coverImageUrl,
+    Expression<String>? bannerImageUrl,
+    Expression<String>? status,
+    Expression<String>? format,
+    Expression<String>? countryOfOrigin,
+    Expression<String>? originalLanguage,
+    Expression<int>? releaseYear,
+    Expression<int>? totalChapters,
+    Expression<int>? totalVolumes,
+    Expression<int>? averageScore,
+    Expression<int>? popularity,
+    Expression<String>? genres,
+    Expression<String>? tags,
+    Expression<String>? synopsis,
+    Expression<String>? relations,
+    Expression<int>? updatedAt,
+  }) {
+    return RawValuesInsertable({
+      if (anilistId != null) 'anilist_id': anilistId,
+      if (titleRomaji != null) 'title_romaji': titleRomaji,
+      if (titleEnglish != null) 'title_english': titleEnglish,
+      if (titleNative != null) 'title_native': titleNative,
+      if (synonyms != null) 'synonyms': synonyms,
+      if (coverImageUrl != null) 'cover_image_url': coverImageUrl,
+      if (bannerImageUrl != null) 'banner_image_url': bannerImageUrl,
+      if (status != null) 'status': status,
+      if (format != null) 'format': format,
+      if (countryOfOrigin != null) 'country_of_origin': countryOfOrigin,
+      if (originalLanguage != null) 'original_language': originalLanguage,
+      if (releaseYear != null) 'release_year': releaseYear,
+      if (totalChapters != null) 'total_chapters': totalChapters,
+      if (totalVolumes != null) 'total_volumes': totalVolumes,
+      if (averageScore != null) 'average_score': averageScore,
+      if (popularity != null) 'popularity': popularity,
+      if (genres != null) 'genres': genres,
+      if (tags != null) 'tags': tags,
+      if (synopsis != null) 'synopsis': synopsis,
+      if (relations != null) 'relations': relations,
+      if (updatedAt != null) 'updated_at': updatedAt,
+    });
+  }
+
+  MangaCacheTableCompanion copyWith({
+    Value<int>? anilistId,
+    Value<String>? titleRomaji,
+    Value<String?>? titleEnglish,
+    Value<String?>? titleNative,
+    Value<String?>? synonyms,
+    Value<String?>? coverImageUrl,
+    Value<String?>? bannerImageUrl,
+    Value<String?>? status,
+    Value<String?>? format,
+    Value<String?>? countryOfOrigin,
+    Value<String?>? originalLanguage,
+    Value<int?>? releaseYear,
+    Value<int?>? totalChapters,
+    Value<int?>? totalVolumes,
+    Value<int?>? averageScore,
+    Value<int?>? popularity,
+    Value<String?>? genres,
+    Value<String?>? tags,
+    Value<String?>? synopsis,
+    Value<String?>? relations,
+    Value<int>? updatedAt,
+  }) {
+    return MangaCacheTableCompanion(
+      anilistId: anilistId ?? this.anilistId,
+      titleRomaji: titleRomaji ?? this.titleRomaji,
+      titleEnglish: titleEnglish ?? this.titleEnglish,
+      titleNative: titleNative ?? this.titleNative,
+      synonyms: synonyms ?? this.synonyms,
+      coverImageUrl: coverImageUrl ?? this.coverImageUrl,
+      bannerImageUrl: bannerImageUrl ?? this.bannerImageUrl,
+      status: status ?? this.status,
+      format: format ?? this.format,
+      countryOfOrigin: countryOfOrigin ?? this.countryOfOrigin,
+      originalLanguage: originalLanguage ?? this.originalLanguage,
+      releaseYear: releaseYear ?? this.releaseYear,
+      totalChapters: totalChapters ?? this.totalChapters,
+      totalVolumes: totalVolumes ?? this.totalVolumes,
+      averageScore: averageScore ?? this.averageScore,
+      popularity: popularity ?? this.popularity,
+      genres: genres ?? this.genres,
+      tags: tags ?? this.tags,
+      synopsis: synopsis ?? this.synopsis,
+      relations: relations ?? this.relations,
+      updatedAt: updatedAt ?? this.updatedAt,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (anilistId.present) {
+      map['anilist_id'] = Variable<int>(anilistId.value);
+    }
+    if (titleRomaji.present) {
+      map['title_romaji'] = Variable<String>(titleRomaji.value);
+    }
+    if (titleEnglish.present) {
+      map['title_english'] = Variable<String>(titleEnglish.value);
+    }
+    if (titleNative.present) {
+      map['title_native'] = Variable<String>(titleNative.value);
+    }
+    if (synonyms.present) {
+      map['synonyms'] = Variable<String>(synonyms.value);
+    }
+    if (coverImageUrl.present) {
+      map['cover_image_url'] = Variable<String>(coverImageUrl.value);
+    }
+    if (bannerImageUrl.present) {
+      map['banner_image_url'] = Variable<String>(bannerImageUrl.value);
+    }
+    if (status.present) {
+      map['status'] = Variable<String>(status.value);
+    }
+    if (format.present) {
+      map['format'] = Variable<String>(format.value);
+    }
+    if (countryOfOrigin.present) {
+      map['country_of_origin'] = Variable<String>(countryOfOrigin.value);
+    }
+    if (originalLanguage.present) {
+      map['original_language'] = Variable<String>(originalLanguage.value);
+    }
+    if (releaseYear.present) {
+      map['release_year'] = Variable<int>(releaseYear.value);
+    }
+    if (totalChapters.present) {
+      map['total_chapters'] = Variable<int>(totalChapters.value);
+    }
+    if (totalVolumes.present) {
+      map['total_volumes'] = Variable<int>(totalVolumes.value);
+    }
+    if (averageScore.present) {
+      map['average_score'] = Variable<int>(averageScore.value);
+    }
+    if (popularity.present) {
+      map['popularity'] = Variable<int>(popularity.value);
+    }
+    if (genres.present) {
+      map['genres'] = Variable<String>(genres.value);
+    }
+    if (tags.present) {
+      map['tags'] = Variable<String>(tags.value);
+    }
+    if (synopsis.present) {
+      map['synopsis'] = Variable<String>(synopsis.value);
+    }
+    if (relations.present) {
+      map['relations'] = Variable<String>(relations.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<int>(updatedAt.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('MangaCacheTableCompanion(')
+          ..write('anilistId: $anilistId, ')
+          ..write('titleRomaji: $titleRomaji, ')
+          ..write('titleEnglish: $titleEnglish, ')
+          ..write('titleNative: $titleNative, ')
+          ..write('synonyms: $synonyms, ')
+          ..write('coverImageUrl: $coverImageUrl, ')
+          ..write('bannerImageUrl: $bannerImageUrl, ')
+          ..write('status: $status, ')
+          ..write('format: $format, ')
+          ..write('countryOfOrigin: $countryOfOrigin, ')
+          ..write('originalLanguage: $originalLanguage, ')
+          ..write('releaseYear: $releaseYear, ')
+          ..write('totalChapters: $totalChapters, ')
+          ..write('totalVolumes: $totalVolumes, ')
+          ..write('averageScore: $averageScore, ')
+          ..write('popularity: $popularity, ')
+          ..write('genres: $genres, ')
+          ..write('tags: $tags, ')
+          ..write('synopsis: $synopsis, ')
+          ..write('relations: $relations, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $MangaChapterTableTable extends MangaChapterTable
+    with TableInfo<$MangaChapterTableTable, MangaChapterTableData> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $MangaChapterTableTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _sourceIdMeta = const VerificationMeta(
+    'sourceId',
+  );
+  @override
+  late final GeneratedColumn<String> sourceId = GeneratedColumn<String>(
+    'source_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _sourceChapterIdMeta = const VerificationMeta(
+    'sourceChapterId',
+  );
+  @override
+  late final GeneratedColumn<String> sourceChapterId = GeneratedColumn<String>(
+    'source_chapter_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _mangaAnilistIdMeta = const VerificationMeta(
+    'mangaAnilistId',
+  );
+  @override
+  late final GeneratedColumn<int> mangaAnilistId = GeneratedColumn<int>(
+    'manga_anilist_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _sourceMangaIdMeta = const VerificationMeta(
+    'sourceMangaId',
+  );
+  @override
+  late final GeneratedColumn<String> sourceMangaId = GeneratedColumn<String>(
+    'source_manga_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _numberMeta = const VerificationMeta('number');
+  @override
+  late final GeneratedColumn<double> number = GeneratedColumn<double>(
+    'number',
+    aliasedName,
+    false,
+    type: DriftSqlType.double,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _titleMeta = const VerificationMeta('title');
+  @override
+  late final GeneratedColumn<String> title = GeneratedColumn<String>(
+    'title',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _volumeMeta = const VerificationMeta('volume');
+  @override
+  late final GeneratedColumn<int> volume = GeneratedColumn<int>(
+    'volume',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _languageMeta = const VerificationMeta(
+    'language',
+  );
+  @override
+  late final GeneratedColumn<String> language = GeneratedColumn<String>(
+    'language',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('en'),
+  );
+  static const VerificationMeta _scanlatorMeta = const VerificationMeta(
+    'scanlator',
+  );
+  @override
+  late final GeneratedColumn<String> scanlator = GeneratedColumn<String>(
+    'scanlator',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _publishedAtMeta = const VerificationMeta(
+    'publishedAt',
+  );
+  @override
+  late final GeneratedColumn<int> publishedAt = GeneratedColumn<int>(
+    'published_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _pageCountMeta = const VerificationMeta(
+    'pageCount',
+  );
+  @override
+  late final GeneratedColumn<int> pageCount = GeneratedColumn<int>(
+    'page_count',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<int> updatedAt = GeneratedColumn<int>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    sourceId,
+    sourceChapterId,
+    mangaAnilistId,
+    sourceMangaId,
+    number,
+    title,
+    volume,
+    language,
+    scanlator,
+    publishedAt,
+    pageCount,
+    updatedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'manga_chapter';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<MangaChapterTableData> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('source_id')) {
+      context.handle(
+        _sourceIdMeta,
+        sourceId.isAcceptableOrUnknown(data['source_id']!, _sourceIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_sourceIdMeta);
+    }
+    if (data.containsKey('source_chapter_id')) {
+      context.handle(
+        _sourceChapterIdMeta,
+        sourceChapterId.isAcceptableOrUnknown(
+          data['source_chapter_id']!,
+          _sourceChapterIdMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_sourceChapterIdMeta);
+    }
+    if (data.containsKey('manga_anilist_id')) {
+      context.handle(
+        _mangaAnilistIdMeta,
+        mangaAnilistId.isAcceptableOrUnknown(
+          data['manga_anilist_id']!,
+          _mangaAnilistIdMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_mangaAnilistIdMeta);
+    }
+    if (data.containsKey('source_manga_id')) {
+      context.handle(
+        _sourceMangaIdMeta,
+        sourceMangaId.isAcceptableOrUnknown(
+          data['source_manga_id']!,
+          _sourceMangaIdMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_sourceMangaIdMeta);
+    }
+    if (data.containsKey('number')) {
+      context.handle(
+        _numberMeta,
+        number.isAcceptableOrUnknown(data['number']!, _numberMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_numberMeta);
+    }
+    if (data.containsKey('title')) {
+      context.handle(
+        _titleMeta,
+        title.isAcceptableOrUnknown(data['title']!, _titleMeta),
+      );
+    }
+    if (data.containsKey('volume')) {
+      context.handle(
+        _volumeMeta,
+        volume.isAcceptableOrUnknown(data['volume']!, _volumeMeta),
+      );
+    }
+    if (data.containsKey('language')) {
+      context.handle(
+        _languageMeta,
+        language.isAcceptableOrUnknown(data['language']!, _languageMeta),
+      );
+    }
+    if (data.containsKey('scanlator')) {
+      context.handle(
+        _scanlatorMeta,
+        scanlator.isAcceptableOrUnknown(data['scanlator']!, _scanlatorMeta),
+      );
+    }
+    if (data.containsKey('published_at')) {
+      context.handle(
+        _publishedAtMeta,
+        publishedAt.isAcceptableOrUnknown(
+          data['published_at']!,
+          _publishedAtMeta,
+        ),
+      );
+    }
+    if (data.containsKey('page_count')) {
+      context.handle(
+        _pageCountMeta,
+        pageCount.isAcceptableOrUnknown(data['page_count']!, _pageCountMeta),
+      );
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_updatedAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {sourceId, sourceChapterId};
+  @override
+  MangaChapterTableData map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return MangaChapterTableData(
+      sourceId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}source_id'],
+      )!,
+      sourceChapterId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}source_chapter_id'],
+      )!,
+      mangaAnilistId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}manga_anilist_id'],
+      )!,
+      sourceMangaId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}source_manga_id'],
+      )!,
+      number: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}number'],
+      )!,
+      title: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}title'],
+      ),
+      volume: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}volume'],
+      ),
+      language: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}language'],
+      )!,
+      scanlator: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}scanlator'],
+      ),
+      publishedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}published_at'],
+      ),
+      pageCount: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}page_count'],
+      ),
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}updated_at'],
+      )!,
+    );
+  }
+
+  @override
+  $MangaChapterTableTable createAlias(String alias) {
+    return $MangaChapterTableTable(attachedDatabase, alias);
+  }
+}
+
+class MangaChapterTableData extends DataClass
+    implements Insertable<MangaChapterTableData> {
+  final String sourceId;
+  final String sourceChapterId;
+  final int mangaAnilistId;
+
+  /// Source-side opaque manga id (matches the value used by the source
+  /// plugin's `getMangaDetail`/`getChapters`). Stored separately from
+  /// `mangaAnilistId` so chapter rows survive matching corrections.
+  final String sourceMangaId;
+  final double number;
+  final String? title;
+  final int? volume;
+  final String language;
+  final String? scanlator;
+  final int? publishedAt;
+  final int? pageCount;
+  final int updatedAt;
+  const MangaChapterTableData({
+    required this.sourceId,
+    required this.sourceChapterId,
+    required this.mangaAnilistId,
+    required this.sourceMangaId,
+    required this.number,
+    this.title,
+    this.volume,
+    required this.language,
+    this.scanlator,
+    this.publishedAt,
+    this.pageCount,
+    required this.updatedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['source_id'] = Variable<String>(sourceId);
+    map['source_chapter_id'] = Variable<String>(sourceChapterId);
+    map['manga_anilist_id'] = Variable<int>(mangaAnilistId);
+    map['source_manga_id'] = Variable<String>(sourceMangaId);
+    map['number'] = Variable<double>(number);
+    if (!nullToAbsent || title != null) {
+      map['title'] = Variable<String>(title);
+    }
+    if (!nullToAbsent || volume != null) {
+      map['volume'] = Variable<int>(volume);
+    }
+    map['language'] = Variable<String>(language);
+    if (!nullToAbsent || scanlator != null) {
+      map['scanlator'] = Variable<String>(scanlator);
+    }
+    if (!nullToAbsent || publishedAt != null) {
+      map['published_at'] = Variable<int>(publishedAt);
+    }
+    if (!nullToAbsent || pageCount != null) {
+      map['page_count'] = Variable<int>(pageCount);
+    }
+    map['updated_at'] = Variable<int>(updatedAt);
+    return map;
+  }
+
+  MangaChapterTableCompanion toCompanion(bool nullToAbsent) {
+    return MangaChapterTableCompanion(
+      sourceId: Value(sourceId),
+      sourceChapterId: Value(sourceChapterId),
+      mangaAnilistId: Value(mangaAnilistId),
+      sourceMangaId: Value(sourceMangaId),
+      number: Value(number),
+      title: title == null && nullToAbsent
+          ? const Value.absent()
+          : Value(title),
+      volume: volume == null && nullToAbsent
+          ? const Value.absent()
+          : Value(volume),
+      language: Value(language),
+      scanlator: scanlator == null && nullToAbsent
+          ? const Value.absent()
+          : Value(scanlator),
+      publishedAt: publishedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(publishedAt),
+      pageCount: pageCount == null && nullToAbsent
+          ? const Value.absent()
+          : Value(pageCount),
+      updatedAt: Value(updatedAt),
+    );
+  }
+
+  factory MangaChapterTableData.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return MangaChapterTableData(
+      sourceId: serializer.fromJson<String>(json['sourceId']),
+      sourceChapterId: serializer.fromJson<String>(json['sourceChapterId']),
+      mangaAnilistId: serializer.fromJson<int>(json['mangaAnilistId']),
+      sourceMangaId: serializer.fromJson<String>(json['sourceMangaId']),
+      number: serializer.fromJson<double>(json['number']),
+      title: serializer.fromJson<String?>(json['title']),
+      volume: serializer.fromJson<int?>(json['volume']),
+      language: serializer.fromJson<String>(json['language']),
+      scanlator: serializer.fromJson<String?>(json['scanlator']),
+      publishedAt: serializer.fromJson<int?>(json['publishedAt']),
+      pageCount: serializer.fromJson<int?>(json['pageCount']),
+      updatedAt: serializer.fromJson<int>(json['updatedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'sourceId': serializer.toJson<String>(sourceId),
+      'sourceChapterId': serializer.toJson<String>(sourceChapterId),
+      'mangaAnilistId': serializer.toJson<int>(mangaAnilistId),
+      'sourceMangaId': serializer.toJson<String>(sourceMangaId),
+      'number': serializer.toJson<double>(number),
+      'title': serializer.toJson<String?>(title),
+      'volume': serializer.toJson<int?>(volume),
+      'language': serializer.toJson<String>(language),
+      'scanlator': serializer.toJson<String?>(scanlator),
+      'publishedAt': serializer.toJson<int?>(publishedAt),
+      'pageCount': serializer.toJson<int?>(pageCount),
+      'updatedAt': serializer.toJson<int>(updatedAt),
+    };
+  }
+
+  MangaChapterTableData copyWith({
+    String? sourceId,
+    String? sourceChapterId,
+    int? mangaAnilistId,
+    String? sourceMangaId,
+    double? number,
+    Value<String?> title = const Value.absent(),
+    Value<int?> volume = const Value.absent(),
+    String? language,
+    Value<String?> scanlator = const Value.absent(),
+    Value<int?> publishedAt = const Value.absent(),
+    Value<int?> pageCount = const Value.absent(),
+    int? updatedAt,
+  }) => MangaChapterTableData(
+    sourceId: sourceId ?? this.sourceId,
+    sourceChapterId: sourceChapterId ?? this.sourceChapterId,
+    mangaAnilistId: mangaAnilistId ?? this.mangaAnilistId,
+    sourceMangaId: sourceMangaId ?? this.sourceMangaId,
+    number: number ?? this.number,
+    title: title.present ? title.value : this.title,
+    volume: volume.present ? volume.value : this.volume,
+    language: language ?? this.language,
+    scanlator: scanlator.present ? scanlator.value : this.scanlator,
+    publishedAt: publishedAt.present ? publishedAt.value : this.publishedAt,
+    pageCount: pageCount.present ? pageCount.value : this.pageCount,
+    updatedAt: updatedAt ?? this.updatedAt,
+  );
+  MangaChapterTableData copyWithCompanion(MangaChapterTableCompanion data) {
+    return MangaChapterTableData(
+      sourceId: data.sourceId.present ? data.sourceId.value : this.sourceId,
+      sourceChapterId: data.sourceChapterId.present
+          ? data.sourceChapterId.value
+          : this.sourceChapterId,
+      mangaAnilistId: data.mangaAnilistId.present
+          ? data.mangaAnilistId.value
+          : this.mangaAnilistId,
+      sourceMangaId: data.sourceMangaId.present
+          ? data.sourceMangaId.value
+          : this.sourceMangaId,
+      number: data.number.present ? data.number.value : this.number,
+      title: data.title.present ? data.title.value : this.title,
+      volume: data.volume.present ? data.volume.value : this.volume,
+      language: data.language.present ? data.language.value : this.language,
+      scanlator: data.scanlator.present ? data.scanlator.value : this.scanlator,
+      publishedAt: data.publishedAt.present
+          ? data.publishedAt.value
+          : this.publishedAt,
+      pageCount: data.pageCount.present ? data.pageCount.value : this.pageCount,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('MangaChapterTableData(')
+          ..write('sourceId: $sourceId, ')
+          ..write('sourceChapterId: $sourceChapterId, ')
+          ..write('mangaAnilistId: $mangaAnilistId, ')
+          ..write('sourceMangaId: $sourceMangaId, ')
+          ..write('number: $number, ')
+          ..write('title: $title, ')
+          ..write('volume: $volume, ')
+          ..write('language: $language, ')
+          ..write('scanlator: $scanlator, ')
+          ..write('publishedAt: $publishedAt, ')
+          ..write('pageCount: $pageCount, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    sourceId,
+    sourceChapterId,
+    mangaAnilistId,
+    sourceMangaId,
+    number,
+    title,
+    volume,
+    language,
+    scanlator,
+    publishedAt,
+    pageCount,
+    updatedAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is MangaChapterTableData &&
+          other.sourceId == this.sourceId &&
+          other.sourceChapterId == this.sourceChapterId &&
+          other.mangaAnilistId == this.mangaAnilistId &&
+          other.sourceMangaId == this.sourceMangaId &&
+          other.number == this.number &&
+          other.title == this.title &&
+          other.volume == this.volume &&
+          other.language == this.language &&
+          other.scanlator == this.scanlator &&
+          other.publishedAt == this.publishedAt &&
+          other.pageCount == this.pageCount &&
+          other.updatedAt == this.updatedAt);
+}
+
+class MangaChapterTableCompanion
+    extends UpdateCompanion<MangaChapterTableData> {
+  final Value<String> sourceId;
+  final Value<String> sourceChapterId;
+  final Value<int> mangaAnilistId;
+  final Value<String> sourceMangaId;
+  final Value<double> number;
+  final Value<String?> title;
+  final Value<int?> volume;
+  final Value<String> language;
+  final Value<String?> scanlator;
+  final Value<int?> publishedAt;
+  final Value<int?> pageCount;
+  final Value<int> updatedAt;
+  final Value<int> rowid;
+  const MangaChapterTableCompanion({
+    this.sourceId = const Value.absent(),
+    this.sourceChapterId = const Value.absent(),
+    this.mangaAnilistId = const Value.absent(),
+    this.sourceMangaId = const Value.absent(),
+    this.number = const Value.absent(),
+    this.title = const Value.absent(),
+    this.volume = const Value.absent(),
+    this.language = const Value.absent(),
+    this.scanlator = const Value.absent(),
+    this.publishedAt = const Value.absent(),
+    this.pageCount = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  MangaChapterTableCompanion.insert({
+    required String sourceId,
+    required String sourceChapterId,
+    required int mangaAnilistId,
+    required String sourceMangaId,
+    required double number,
+    this.title = const Value.absent(),
+    this.volume = const Value.absent(),
+    this.language = const Value.absent(),
+    this.scanlator = const Value.absent(),
+    this.publishedAt = const Value.absent(),
+    this.pageCount = const Value.absent(),
+    required int updatedAt,
+    this.rowid = const Value.absent(),
+  }) : sourceId = Value(sourceId),
+       sourceChapterId = Value(sourceChapterId),
+       mangaAnilistId = Value(mangaAnilistId),
+       sourceMangaId = Value(sourceMangaId),
+       number = Value(number),
+       updatedAt = Value(updatedAt);
+  static Insertable<MangaChapterTableData> custom({
+    Expression<String>? sourceId,
+    Expression<String>? sourceChapterId,
+    Expression<int>? mangaAnilistId,
+    Expression<String>? sourceMangaId,
+    Expression<double>? number,
+    Expression<String>? title,
+    Expression<int>? volume,
+    Expression<String>? language,
+    Expression<String>? scanlator,
+    Expression<int>? publishedAt,
+    Expression<int>? pageCount,
+    Expression<int>? updatedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (sourceId != null) 'source_id': sourceId,
+      if (sourceChapterId != null) 'source_chapter_id': sourceChapterId,
+      if (mangaAnilistId != null) 'manga_anilist_id': mangaAnilistId,
+      if (sourceMangaId != null) 'source_manga_id': sourceMangaId,
+      if (number != null) 'number': number,
+      if (title != null) 'title': title,
+      if (volume != null) 'volume': volume,
+      if (language != null) 'language': language,
+      if (scanlator != null) 'scanlator': scanlator,
+      if (publishedAt != null) 'published_at': publishedAt,
+      if (pageCount != null) 'page_count': pageCount,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  MangaChapterTableCompanion copyWith({
+    Value<String>? sourceId,
+    Value<String>? sourceChapterId,
+    Value<int>? mangaAnilistId,
+    Value<String>? sourceMangaId,
+    Value<double>? number,
+    Value<String?>? title,
+    Value<int?>? volume,
+    Value<String>? language,
+    Value<String?>? scanlator,
+    Value<int?>? publishedAt,
+    Value<int?>? pageCount,
+    Value<int>? updatedAt,
+    Value<int>? rowid,
+  }) {
+    return MangaChapterTableCompanion(
+      sourceId: sourceId ?? this.sourceId,
+      sourceChapterId: sourceChapterId ?? this.sourceChapterId,
+      mangaAnilistId: mangaAnilistId ?? this.mangaAnilistId,
+      sourceMangaId: sourceMangaId ?? this.sourceMangaId,
+      number: number ?? this.number,
+      title: title ?? this.title,
+      volume: volume ?? this.volume,
+      language: language ?? this.language,
+      scanlator: scanlator ?? this.scanlator,
+      publishedAt: publishedAt ?? this.publishedAt,
+      pageCount: pageCount ?? this.pageCount,
+      updatedAt: updatedAt ?? this.updatedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (sourceId.present) {
+      map['source_id'] = Variable<String>(sourceId.value);
+    }
+    if (sourceChapterId.present) {
+      map['source_chapter_id'] = Variable<String>(sourceChapterId.value);
+    }
+    if (mangaAnilistId.present) {
+      map['manga_anilist_id'] = Variable<int>(mangaAnilistId.value);
+    }
+    if (sourceMangaId.present) {
+      map['source_manga_id'] = Variable<String>(sourceMangaId.value);
+    }
+    if (number.present) {
+      map['number'] = Variable<double>(number.value);
+    }
+    if (title.present) {
+      map['title'] = Variable<String>(title.value);
+    }
+    if (volume.present) {
+      map['volume'] = Variable<int>(volume.value);
+    }
+    if (language.present) {
+      map['language'] = Variable<String>(language.value);
+    }
+    if (scanlator.present) {
+      map['scanlator'] = Variable<String>(scanlator.value);
+    }
+    if (publishedAt.present) {
+      map['published_at'] = Variable<int>(publishedAt.value);
+    }
+    if (pageCount.present) {
+      map['page_count'] = Variable<int>(pageCount.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<int>(updatedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('MangaChapterTableCompanion(')
+          ..write('sourceId: $sourceId, ')
+          ..write('sourceChapterId: $sourceChapterId, ')
+          ..write('mangaAnilistId: $mangaAnilistId, ')
+          ..write('sourceMangaId: $sourceMangaId, ')
+          ..write('number: $number, ')
+          ..write('title: $title, ')
+          ..write('volume: $volume, ')
+          ..write('language: $language, ')
+          ..write('scanlator: $scanlator, ')
+          ..write('publishedAt: $publishedAt, ')
+          ..write('pageCount: $pageCount, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $MangaProgressTableTable extends MangaProgressTable
+    with TableInfo<$MangaProgressTableTable, MangaProgressTableData> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $MangaProgressTableTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _mangaAnilistIdMeta = const VerificationMeta(
+    'mangaAnilistId',
+  );
+  @override
+  late final GeneratedColumn<int> mangaAnilistId = GeneratedColumn<int>(
+    'manga_anilist_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _sourceIdMeta = const VerificationMeta(
+    'sourceId',
+  );
+  @override
+  late final GeneratedColumn<String> sourceId = GeneratedColumn<String>(
+    'source_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _sourceChapterIdMeta = const VerificationMeta(
+    'sourceChapterId',
+  );
+  @override
+  late final GeneratedColumn<String> sourceChapterId = GeneratedColumn<String>(
+    'source_chapter_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _chapterNumberMeta = const VerificationMeta(
+    'chapterNumber',
+  );
+  @override
+  late final GeneratedColumn<double> chapterNumber = GeneratedColumn<double>(
+    'chapter_number',
+    aliasedName,
+    false,
+    type: DriftSqlType.double,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _pageIndexMeta = const VerificationMeta(
+    'pageIndex',
+  );
+  @override
+  late final GeneratedColumn<int> pageIndex = GeneratedColumn<int>(
+    'page_index',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _scrollOffsetMeta = const VerificationMeta(
+    'scrollOffset',
+  );
+  @override
+  late final GeneratedColumn<double> scrollOffset = GeneratedColumn<double>(
+    'scroll_offset',
+    aliasedName,
+    true,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _readStateMeta = const VerificationMeta(
+    'readState',
+  );
+  @override
+  late final GeneratedColumn<String> readState = GeneratedColumn<String>(
+    'read_state',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('unread'),
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<int> updatedAt = GeneratedColumn<int>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    mangaAnilistId,
+    sourceId,
+    sourceChapterId,
+    chapterNumber,
+    pageIndex,
+    scrollOffset,
+    readState,
+    updatedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'manga_progress';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<MangaProgressTableData> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('manga_anilist_id')) {
+      context.handle(
+        _mangaAnilistIdMeta,
+        mangaAnilistId.isAcceptableOrUnknown(
+          data['manga_anilist_id']!,
+          _mangaAnilistIdMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_mangaAnilistIdMeta);
+    }
+    if (data.containsKey('source_id')) {
+      context.handle(
+        _sourceIdMeta,
+        sourceId.isAcceptableOrUnknown(data['source_id']!, _sourceIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_sourceIdMeta);
+    }
+    if (data.containsKey('source_chapter_id')) {
+      context.handle(
+        _sourceChapterIdMeta,
+        sourceChapterId.isAcceptableOrUnknown(
+          data['source_chapter_id']!,
+          _sourceChapterIdMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_sourceChapterIdMeta);
+    }
+    if (data.containsKey('chapter_number')) {
+      context.handle(
+        _chapterNumberMeta,
+        chapterNumber.isAcceptableOrUnknown(
+          data['chapter_number']!,
+          _chapterNumberMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_chapterNumberMeta);
+    }
+    if (data.containsKey('page_index')) {
+      context.handle(
+        _pageIndexMeta,
+        pageIndex.isAcceptableOrUnknown(data['page_index']!, _pageIndexMeta),
+      );
+    }
+    if (data.containsKey('scroll_offset')) {
+      context.handle(
+        _scrollOffsetMeta,
+        scrollOffset.isAcceptableOrUnknown(
+          data['scroll_offset']!,
+          _scrollOffsetMeta,
+        ),
+      );
+    }
+    if (data.containsKey('read_state')) {
+      context.handle(
+        _readStateMeta,
+        readState.isAcceptableOrUnknown(data['read_state']!, _readStateMeta),
+      );
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_updatedAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {
+    mangaAnilistId,
+    sourceId,
+    sourceChapterId,
+  };
+  @override
+  MangaProgressTableData map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return MangaProgressTableData(
+      mangaAnilistId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}manga_anilist_id'],
+      )!,
+      sourceId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}source_id'],
+      )!,
+      sourceChapterId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}source_chapter_id'],
+      )!,
+      chapterNumber: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}chapter_number'],
+      )!,
+      pageIndex: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}page_index'],
+      )!,
+      scrollOffset: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}scroll_offset'],
+      ),
+      readState: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}read_state'],
+      )!,
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}updated_at'],
+      )!,
+    );
+  }
+
+  @override
+  $MangaProgressTableTable createAlias(String alias) {
+    return $MangaProgressTableTable(attachedDatabase, alias);
+  }
+}
+
+class MangaProgressTableData extends DataClass
+    implements Insertable<MangaProgressTableData> {
+  final int mangaAnilistId;
+  final String sourceId;
+  final String sourceChapterId;
+  final double chapterNumber;
+  final int pageIndex;
+  final double? scrollOffset;
+
+  /// `unread` / `reading` / `completed`.
+  final String readState;
+  final int updatedAt;
+  const MangaProgressTableData({
+    required this.mangaAnilistId,
+    required this.sourceId,
+    required this.sourceChapterId,
+    required this.chapterNumber,
+    required this.pageIndex,
+    this.scrollOffset,
+    required this.readState,
+    required this.updatedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['manga_anilist_id'] = Variable<int>(mangaAnilistId);
+    map['source_id'] = Variable<String>(sourceId);
+    map['source_chapter_id'] = Variable<String>(sourceChapterId);
+    map['chapter_number'] = Variable<double>(chapterNumber);
+    map['page_index'] = Variable<int>(pageIndex);
+    if (!nullToAbsent || scrollOffset != null) {
+      map['scroll_offset'] = Variable<double>(scrollOffset);
+    }
+    map['read_state'] = Variable<String>(readState);
+    map['updated_at'] = Variable<int>(updatedAt);
+    return map;
+  }
+
+  MangaProgressTableCompanion toCompanion(bool nullToAbsent) {
+    return MangaProgressTableCompanion(
+      mangaAnilistId: Value(mangaAnilistId),
+      sourceId: Value(sourceId),
+      sourceChapterId: Value(sourceChapterId),
+      chapterNumber: Value(chapterNumber),
+      pageIndex: Value(pageIndex),
+      scrollOffset: scrollOffset == null && nullToAbsent
+          ? const Value.absent()
+          : Value(scrollOffset),
+      readState: Value(readState),
+      updatedAt: Value(updatedAt),
+    );
+  }
+
+  factory MangaProgressTableData.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return MangaProgressTableData(
+      mangaAnilistId: serializer.fromJson<int>(json['mangaAnilistId']),
+      sourceId: serializer.fromJson<String>(json['sourceId']),
+      sourceChapterId: serializer.fromJson<String>(json['sourceChapterId']),
+      chapterNumber: serializer.fromJson<double>(json['chapterNumber']),
+      pageIndex: serializer.fromJson<int>(json['pageIndex']),
+      scrollOffset: serializer.fromJson<double?>(json['scrollOffset']),
+      readState: serializer.fromJson<String>(json['readState']),
+      updatedAt: serializer.fromJson<int>(json['updatedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'mangaAnilistId': serializer.toJson<int>(mangaAnilistId),
+      'sourceId': serializer.toJson<String>(sourceId),
+      'sourceChapterId': serializer.toJson<String>(sourceChapterId),
+      'chapterNumber': serializer.toJson<double>(chapterNumber),
+      'pageIndex': serializer.toJson<int>(pageIndex),
+      'scrollOffset': serializer.toJson<double?>(scrollOffset),
+      'readState': serializer.toJson<String>(readState),
+      'updatedAt': serializer.toJson<int>(updatedAt),
+    };
+  }
+
+  MangaProgressTableData copyWith({
+    int? mangaAnilistId,
+    String? sourceId,
+    String? sourceChapterId,
+    double? chapterNumber,
+    int? pageIndex,
+    Value<double?> scrollOffset = const Value.absent(),
+    String? readState,
+    int? updatedAt,
+  }) => MangaProgressTableData(
+    mangaAnilistId: mangaAnilistId ?? this.mangaAnilistId,
+    sourceId: sourceId ?? this.sourceId,
+    sourceChapterId: sourceChapterId ?? this.sourceChapterId,
+    chapterNumber: chapterNumber ?? this.chapterNumber,
+    pageIndex: pageIndex ?? this.pageIndex,
+    scrollOffset: scrollOffset.present ? scrollOffset.value : this.scrollOffset,
+    readState: readState ?? this.readState,
+    updatedAt: updatedAt ?? this.updatedAt,
+  );
+  MangaProgressTableData copyWithCompanion(MangaProgressTableCompanion data) {
+    return MangaProgressTableData(
+      mangaAnilistId: data.mangaAnilistId.present
+          ? data.mangaAnilistId.value
+          : this.mangaAnilistId,
+      sourceId: data.sourceId.present ? data.sourceId.value : this.sourceId,
+      sourceChapterId: data.sourceChapterId.present
+          ? data.sourceChapterId.value
+          : this.sourceChapterId,
+      chapterNumber: data.chapterNumber.present
+          ? data.chapterNumber.value
+          : this.chapterNumber,
+      pageIndex: data.pageIndex.present ? data.pageIndex.value : this.pageIndex,
+      scrollOffset: data.scrollOffset.present
+          ? data.scrollOffset.value
+          : this.scrollOffset,
+      readState: data.readState.present ? data.readState.value : this.readState,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('MangaProgressTableData(')
+          ..write('mangaAnilistId: $mangaAnilistId, ')
+          ..write('sourceId: $sourceId, ')
+          ..write('sourceChapterId: $sourceChapterId, ')
+          ..write('chapterNumber: $chapterNumber, ')
+          ..write('pageIndex: $pageIndex, ')
+          ..write('scrollOffset: $scrollOffset, ')
+          ..write('readState: $readState, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    mangaAnilistId,
+    sourceId,
+    sourceChapterId,
+    chapterNumber,
+    pageIndex,
+    scrollOffset,
+    readState,
+    updatedAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is MangaProgressTableData &&
+          other.mangaAnilistId == this.mangaAnilistId &&
+          other.sourceId == this.sourceId &&
+          other.sourceChapterId == this.sourceChapterId &&
+          other.chapterNumber == this.chapterNumber &&
+          other.pageIndex == this.pageIndex &&
+          other.scrollOffset == this.scrollOffset &&
+          other.readState == this.readState &&
+          other.updatedAt == this.updatedAt);
+}
+
+class MangaProgressTableCompanion
+    extends UpdateCompanion<MangaProgressTableData> {
+  final Value<int> mangaAnilistId;
+  final Value<String> sourceId;
+  final Value<String> sourceChapterId;
+  final Value<double> chapterNumber;
+  final Value<int> pageIndex;
+  final Value<double?> scrollOffset;
+  final Value<String> readState;
+  final Value<int> updatedAt;
+  final Value<int> rowid;
+  const MangaProgressTableCompanion({
+    this.mangaAnilistId = const Value.absent(),
+    this.sourceId = const Value.absent(),
+    this.sourceChapterId = const Value.absent(),
+    this.chapterNumber = const Value.absent(),
+    this.pageIndex = const Value.absent(),
+    this.scrollOffset = const Value.absent(),
+    this.readState = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  MangaProgressTableCompanion.insert({
+    required int mangaAnilistId,
+    required String sourceId,
+    required String sourceChapterId,
+    required double chapterNumber,
+    this.pageIndex = const Value.absent(),
+    this.scrollOffset = const Value.absent(),
+    this.readState = const Value.absent(),
+    required int updatedAt,
+    this.rowid = const Value.absent(),
+  }) : mangaAnilistId = Value(mangaAnilistId),
+       sourceId = Value(sourceId),
+       sourceChapterId = Value(sourceChapterId),
+       chapterNumber = Value(chapterNumber),
+       updatedAt = Value(updatedAt);
+  static Insertable<MangaProgressTableData> custom({
+    Expression<int>? mangaAnilistId,
+    Expression<String>? sourceId,
+    Expression<String>? sourceChapterId,
+    Expression<double>? chapterNumber,
+    Expression<int>? pageIndex,
+    Expression<double>? scrollOffset,
+    Expression<String>? readState,
+    Expression<int>? updatedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (mangaAnilistId != null) 'manga_anilist_id': mangaAnilistId,
+      if (sourceId != null) 'source_id': sourceId,
+      if (sourceChapterId != null) 'source_chapter_id': sourceChapterId,
+      if (chapterNumber != null) 'chapter_number': chapterNumber,
+      if (pageIndex != null) 'page_index': pageIndex,
+      if (scrollOffset != null) 'scroll_offset': scrollOffset,
+      if (readState != null) 'read_state': readState,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  MangaProgressTableCompanion copyWith({
+    Value<int>? mangaAnilistId,
+    Value<String>? sourceId,
+    Value<String>? sourceChapterId,
+    Value<double>? chapterNumber,
+    Value<int>? pageIndex,
+    Value<double?>? scrollOffset,
+    Value<String>? readState,
+    Value<int>? updatedAt,
+    Value<int>? rowid,
+  }) {
+    return MangaProgressTableCompanion(
+      mangaAnilistId: mangaAnilistId ?? this.mangaAnilistId,
+      sourceId: sourceId ?? this.sourceId,
+      sourceChapterId: sourceChapterId ?? this.sourceChapterId,
+      chapterNumber: chapterNumber ?? this.chapterNumber,
+      pageIndex: pageIndex ?? this.pageIndex,
+      scrollOffset: scrollOffset ?? this.scrollOffset,
+      readState: readState ?? this.readState,
+      updatedAt: updatedAt ?? this.updatedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (mangaAnilistId.present) {
+      map['manga_anilist_id'] = Variable<int>(mangaAnilistId.value);
+    }
+    if (sourceId.present) {
+      map['source_id'] = Variable<String>(sourceId.value);
+    }
+    if (sourceChapterId.present) {
+      map['source_chapter_id'] = Variable<String>(sourceChapterId.value);
+    }
+    if (chapterNumber.present) {
+      map['chapter_number'] = Variable<double>(chapterNumber.value);
+    }
+    if (pageIndex.present) {
+      map['page_index'] = Variable<int>(pageIndex.value);
+    }
+    if (scrollOffset.present) {
+      map['scroll_offset'] = Variable<double>(scrollOffset.value);
+    }
+    if (readState.present) {
+      map['read_state'] = Variable<String>(readState.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<int>(updatedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('MangaProgressTableCompanion(')
+          ..write('mangaAnilistId: $mangaAnilistId, ')
+          ..write('sourceId: $sourceId, ')
+          ..write('sourceChapterId: $sourceChapterId, ')
+          ..write('chapterNumber: $chapterNumber, ')
+          ..write('pageIndex: $pageIndex, ')
+          ..write('scrollOffset: $scrollOffset, ')
+          ..write('readState: $readState, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $MangaHistoryTableTable extends MangaHistoryTable
+    with TableInfo<$MangaHistoryTableTable, MangaHistoryTableData> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $MangaHistoryTableTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _mangaAnilistIdMeta = const VerificationMeta(
+    'mangaAnilistId',
+  );
+  @override
+  late final GeneratedColumn<int> mangaAnilistId = GeneratedColumn<int>(
+    'manga_anilist_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _lastChapterNumberMeta = const VerificationMeta(
+    'lastChapterNumber',
+  );
+  @override
+  late final GeneratedColumn<double> lastChapterNumber =
+      GeneratedColumn<double>(
+        'last_chapter_number',
+        aliasedName,
+        false,
+        type: DriftSqlType.double,
+        requiredDuringInsert: true,
+      );
+  static const VerificationMeta _lastSourceIdMeta = const VerificationMeta(
+    'lastSourceId',
+  );
+  @override
+  late final GeneratedColumn<String> lastSourceId = GeneratedColumn<String>(
+    'last_source_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _lastSourceChapterIdMeta =
+      const VerificationMeta('lastSourceChapterId');
+  @override
+  late final GeneratedColumn<String> lastSourceChapterId =
+      GeneratedColumn<String>(
+        'last_source_chapter_id',
+        aliasedName,
+        true,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+      );
+  static const VerificationMeta _lastPageIndexMeta = const VerificationMeta(
+    'lastPageIndex',
+  );
+  @override
+  late final GeneratedColumn<int> lastPageIndex = GeneratedColumn<int>(
+    'last_page_index',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _lastAccessedAtMeta = const VerificationMeta(
+    'lastAccessedAt',
+  );
+  @override
+  late final GeneratedColumn<int> lastAccessedAt = GeneratedColumn<int>(
+    'last_accessed_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    mangaAnilistId,
+    lastChapterNumber,
+    lastSourceId,
+    lastSourceChapterId,
+    lastPageIndex,
+    lastAccessedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'manga_history';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<MangaHistoryTableData> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('manga_anilist_id')) {
+      context.handle(
+        _mangaAnilistIdMeta,
+        mangaAnilistId.isAcceptableOrUnknown(
+          data['manga_anilist_id']!,
+          _mangaAnilistIdMeta,
+        ),
+      );
+    }
+    if (data.containsKey('last_chapter_number')) {
+      context.handle(
+        _lastChapterNumberMeta,
+        lastChapterNumber.isAcceptableOrUnknown(
+          data['last_chapter_number']!,
+          _lastChapterNumberMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_lastChapterNumberMeta);
+    }
+    if (data.containsKey('last_source_id')) {
+      context.handle(
+        _lastSourceIdMeta,
+        lastSourceId.isAcceptableOrUnknown(
+          data['last_source_id']!,
+          _lastSourceIdMeta,
+        ),
+      );
+    }
+    if (data.containsKey('last_source_chapter_id')) {
+      context.handle(
+        _lastSourceChapterIdMeta,
+        lastSourceChapterId.isAcceptableOrUnknown(
+          data['last_source_chapter_id']!,
+          _lastSourceChapterIdMeta,
+        ),
+      );
+    }
+    if (data.containsKey('last_page_index')) {
+      context.handle(
+        _lastPageIndexMeta,
+        lastPageIndex.isAcceptableOrUnknown(
+          data['last_page_index']!,
+          _lastPageIndexMeta,
+        ),
+      );
+    }
+    if (data.containsKey('last_accessed_at')) {
+      context.handle(
+        _lastAccessedAtMeta,
+        lastAccessedAt.isAcceptableOrUnknown(
+          data['last_accessed_at']!,
+          _lastAccessedAtMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_lastAccessedAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {mangaAnilistId};
+  @override
+  MangaHistoryTableData map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return MangaHistoryTableData(
+      mangaAnilistId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}manga_anilist_id'],
+      )!,
+      lastChapterNumber: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}last_chapter_number'],
+      )!,
+      lastSourceId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}last_source_id'],
+      ),
+      lastSourceChapterId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}last_source_chapter_id'],
+      ),
+      lastPageIndex: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}last_page_index'],
+      ),
+      lastAccessedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}last_accessed_at'],
+      )!,
+    );
+  }
+
+  @override
+  $MangaHistoryTableTable createAlias(String alias) {
+    return $MangaHistoryTableTable(attachedDatabase, alias);
+  }
+}
+
+class MangaHistoryTableData extends DataClass
+    implements Insertable<MangaHistoryTableData> {
+  final int mangaAnilistId;
+  final double lastChapterNumber;
+  final String? lastSourceId;
+  final String? lastSourceChapterId;
+  final int? lastPageIndex;
+  final int lastAccessedAt;
+  const MangaHistoryTableData({
+    required this.mangaAnilistId,
+    required this.lastChapterNumber,
+    this.lastSourceId,
+    this.lastSourceChapterId,
+    this.lastPageIndex,
+    required this.lastAccessedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['manga_anilist_id'] = Variable<int>(mangaAnilistId);
+    map['last_chapter_number'] = Variable<double>(lastChapterNumber);
+    if (!nullToAbsent || lastSourceId != null) {
+      map['last_source_id'] = Variable<String>(lastSourceId);
+    }
+    if (!nullToAbsent || lastSourceChapterId != null) {
+      map['last_source_chapter_id'] = Variable<String>(lastSourceChapterId);
+    }
+    if (!nullToAbsent || lastPageIndex != null) {
+      map['last_page_index'] = Variable<int>(lastPageIndex);
+    }
+    map['last_accessed_at'] = Variable<int>(lastAccessedAt);
+    return map;
+  }
+
+  MangaHistoryTableCompanion toCompanion(bool nullToAbsent) {
+    return MangaHistoryTableCompanion(
+      mangaAnilistId: Value(mangaAnilistId),
+      lastChapterNumber: Value(lastChapterNumber),
+      lastSourceId: lastSourceId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(lastSourceId),
+      lastSourceChapterId: lastSourceChapterId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(lastSourceChapterId),
+      lastPageIndex: lastPageIndex == null && nullToAbsent
+          ? const Value.absent()
+          : Value(lastPageIndex),
+      lastAccessedAt: Value(lastAccessedAt),
+    );
+  }
+
+  factory MangaHistoryTableData.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return MangaHistoryTableData(
+      mangaAnilistId: serializer.fromJson<int>(json['mangaAnilistId']),
+      lastChapterNumber: serializer.fromJson<double>(json['lastChapterNumber']),
+      lastSourceId: serializer.fromJson<String?>(json['lastSourceId']),
+      lastSourceChapterId: serializer.fromJson<String?>(
+        json['lastSourceChapterId'],
+      ),
+      lastPageIndex: serializer.fromJson<int?>(json['lastPageIndex']),
+      lastAccessedAt: serializer.fromJson<int>(json['lastAccessedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'mangaAnilistId': serializer.toJson<int>(mangaAnilistId),
+      'lastChapterNumber': serializer.toJson<double>(lastChapterNumber),
+      'lastSourceId': serializer.toJson<String?>(lastSourceId),
+      'lastSourceChapterId': serializer.toJson<String?>(lastSourceChapterId),
+      'lastPageIndex': serializer.toJson<int?>(lastPageIndex),
+      'lastAccessedAt': serializer.toJson<int>(lastAccessedAt),
+    };
+  }
+
+  MangaHistoryTableData copyWith({
+    int? mangaAnilistId,
+    double? lastChapterNumber,
+    Value<String?> lastSourceId = const Value.absent(),
+    Value<String?> lastSourceChapterId = const Value.absent(),
+    Value<int?> lastPageIndex = const Value.absent(),
+    int? lastAccessedAt,
+  }) => MangaHistoryTableData(
+    mangaAnilistId: mangaAnilistId ?? this.mangaAnilistId,
+    lastChapterNumber: lastChapterNumber ?? this.lastChapterNumber,
+    lastSourceId: lastSourceId.present ? lastSourceId.value : this.lastSourceId,
+    lastSourceChapterId: lastSourceChapterId.present
+        ? lastSourceChapterId.value
+        : this.lastSourceChapterId,
+    lastPageIndex: lastPageIndex.present
+        ? lastPageIndex.value
+        : this.lastPageIndex,
+    lastAccessedAt: lastAccessedAt ?? this.lastAccessedAt,
+  );
+  MangaHistoryTableData copyWithCompanion(MangaHistoryTableCompanion data) {
+    return MangaHistoryTableData(
+      mangaAnilistId: data.mangaAnilistId.present
+          ? data.mangaAnilistId.value
+          : this.mangaAnilistId,
+      lastChapterNumber: data.lastChapterNumber.present
+          ? data.lastChapterNumber.value
+          : this.lastChapterNumber,
+      lastSourceId: data.lastSourceId.present
+          ? data.lastSourceId.value
+          : this.lastSourceId,
+      lastSourceChapterId: data.lastSourceChapterId.present
+          ? data.lastSourceChapterId.value
+          : this.lastSourceChapterId,
+      lastPageIndex: data.lastPageIndex.present
+          ? data.lastPageIndex.value
+          : this.lastPageIndex,
+      lastAccessedAt: data.lastAccessedAt.present
+          ? data.lastAccessedAt.value
+          : this.lastAccessedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('MangaHistoryTableData(')
+          ..write('mangaAnilistId: $mangaAnilistId, ')
+          ..write('lastChapterNumber: $lastChapterNumber, ')
+          ..write('lastSourceId: $lastSourceId, ')
+          ..write('lastSourceChapterId: $lastSourceChapterId, ')
+          ..write('lastPageIndex: $lastPageIndex, ')
+          ..write('lastAccessedAt: $lastAccessedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    mangaAnilistId,
+    lastChapterNumber,
+    lastSourceId,
+    lastSourceChapterId,
+    lastPageIndex,
+    lastAccessedAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is MangaHistoryTableData &&
+          other.mangaAnilistId == this.mangaAnilistId &&
+          other.lastChapterNumber == this.lastChapterNumber &&
+          other.lastSourceId == this.lastSourceId &&
+          other.lastSourceChapterId == this.lastSourceChapterId &&
+          other.lastPageIndex == this.lastPageIndex &&
+          other.lastAccessedAt == this.lastAccessedAt);
+}
+
+class MangaHistoryTableCompanion
+    extends UpdateCompanion<MangaHistoryTableData> {
+  final Value<int> mangaAnilistId;
+  final Value<double> lastChapterNumber;
+  final Value<String?> lastSourceId;
+  final Value<String?> lastSourceChapterId;
+  final Value<int?> lastPageIndex;
+  final Value<int> lastAccessedAt;
+  const MangaHistoryTableCompanion({
+    this.mangaAnilistId = const Value.absent(),
+    this.lastChapterNumber = const Value.absent(),
+    this.lastSourceId = const Value.absent(),
+    this.lastSourceChapterId = const Value.absent(),
+    this.lastPageIndex = const Value.absent(),
+    this.lastAccessedAt = const Value.absent(),
+  });
+  MangaHistoryTableCompanion.insert({
+    this.mangaAnilistId = const Value.absent(),
+    required double lastChapterNumber,
+    this.lastSourceId = const Value.absent(),
+    this.lastSourceChapterId = const Value.absent(),
+    this.lastPageIndex = const Value.absent(),
+    required int lastAccessedAt,
+  }) : lastChapterNumber = Value(lastChapterNumber),
+       lastAccessedAt = Value(lastAccessedAt);
+  static Insertable<MangaHistoryTableData> custom({
+    Expression<int>? mangaAnilistId,
+    Expression<double>? lastChapterNumber,
+    Expression<String>? lastSourceId,
+    Expression<String>? lastSourceChapterId,
+    Expression<int>? lastPageIndex,
+    Expression<int>? lastAccessedAt,
+  }) {
+    return RawValuesInsertable({
+      if (mangaAnilistId != null) 'manga_anilist_id': mangaAnilistId,
+      if (lastChapterNumber != null) 'last_chapter_number': lastChapterNumber,
+      if (lastSourceId != null) 'last_source_id': lastSourceId,
+      if (lastSourceChapterId != null)
+        'last_source_chapter_id': lastSourceChapterId,
+      if (lastPageIndex != null) 'last_page_index': lastPageIndex,
+      if (lastAccessedAt != null) 'last_accessed_at': lastAccessedAt,
+    });
+  }
+
+  MangaHistoryTableCompanion copyWith({
+    Value<int>? mangaAnilistId,
+    Value<double>? lastChapterNumber,
+    Value<String?>? lastSourceId,
+    Value<String?>? lastSourceChapterId,
+    Value<int?>? lastPageIndex,
+    Value<int>? lastAccessedAt,
+  }) {
+    return MangaHistoryTableCompanion(
+      mangaAnilistId: mangaAnilistId ?? this.mangaAnilistId,
+      lastChapterNumber: lastChapterNumber ?? this.lastChapterNumber,
+      lastSourceId: lastSourceId ?? this.lastSourceId,
+      lastSourceChapterId: lastSourceChapterId ?? this.lastSourceChapterId,
+      lastPageIndex: lastPageIndex ?? this.lastPageIndex,
+      lastAccessedAt: lastAccessedAt ?? this.lastAccessedAt,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (mangaAnilistId.present) {
+      map['manga_anilist_id'] = Variable<int>(mangaAnilistId.value);
+    }
+    if (lastChapterNumber.present) {
+      map['last_chapter_number'] = Variable<double>(lastChapterNumber.value);
+    }
+    if (lastSourceId.present) {
+      map['last_source_id'] = Variable<String>(lastSourceId.value);
+    }
+    if (lastSourceChapterId.present) {
+      map['last_source_chapter_id'] = Variable<String>(
+        lastSourceChapterId.value,
+      );
+    }
+    if (lastPageIndex.present) {
+      map['last_page_index'] = Variable<int>(lastPageIndex.value);
+    }
+    if (lastAccessedAt.present) {
+      map['last_accessed_at'] = Variable<int>(lastAccessedAt.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('MangaHistoryTableCompanion(')
+          ..write('mangaAnilistId: $mangaAnilistId, ')
+          ..write('lastChapterNumber: $lastChapterNumber, ')
+          ..write('lastSourceId: $lastSourceId, ')
+          ..write('lastSourceChapterId: $lastSourceChapterId, ')
+          ..write('lastPageIndex: $lastPageIndex, ')
+          ..write('lastAccessedAt: $lastAccessedAt')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $MangaLibraryTableTable extends MangaLibraryTable
+    with TableInfo<$MangaLibraryTableTable, MangaLibraryTableData> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $MangaLibraryTableTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _mangaAnilistIdMeta = const VerificationMeta(
+    'mangaAnilistId',
+  );
+  @override
+  late final GeneratedColumn<int> mangaAnilistId = GeneratedColumn<int>(
+    'manga_anilist_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _addedAtMeta = const VerificationMeta(
+    'addedAt',
+  );
+  @override
+  late final GeneratedColumn<int> addedAt = GeneratedColumn<int>(
+    'added_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _notifyNewChaptersMeta = const VerificationMeta(
+    'notifyNewChapters',
+  );
+  @override
+  late final GeneratedColumn<bool> notifyNewChapters = GeneratedColumn<bool>(
+    'notify_new_chapters',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("notify_new_chapters" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  static const VerificationMeta _lastNotifiedChapterMeta =
+      const VerificationMeta('lastNotifiedChapter');
+  @override
+  late final GeneratedColumn<double> lastNotifiedChapter =
+      GeneratedColumn<double>(
+        'last_notified_chapter',
+        aliasedName,
+        true,
+        type: DriftSqlType.double,
+        requiredDuringInsert: false,
+      );
+  static const VerificationMeta _autoDownloadNewChaptersMeta =
+      const VerificationMeta('autoDownloadNewChapters');
+  @override
+  late final GeneratedColumn<bool> autoDownloadNewChapters =
+      GeneratedColumn<bool>(
+        'auto_download_new_chapters',
+        aliasedName,
+        false,
+        type: DriftSqlType.bool,
+        requiredDuringInsert: false,
+        defaultConstraints: GeneratedColumn.constraintIsAlways(
+          'CHECK ("auto_download_new_chapters" IN (0, 1))',
+        ),
+        defaultValue: const Constant(false),
+      );
+  static const VerificationMeta _preferredLanguageMeta = const VerificationMeta(
+    'preferredLanguage',
+  );
+  @override
+  late final GeneratedColumn<String> preferredLanguage =
+      GeneratedColumn<String>(
+        'preferred_language',
+        aliasedName,
+        true,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+      );
+  static const VerificationMeta _preferredScanlatorMeta =
+      const VerificationMeta('preferredScanlator');
+  @override
+  late final GeneratedColumn<String> preferredScanlator =
+      GeneratedColumn<String>(
+        'preferred_scanlator',
+        aliasedName,
+        true,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+      );
+  @override
+  List<GeneratedColumn> get $columns => [
+    mangaAnilistId,
+    addedAt,
+    notifyNewChapters,
+    lastNotifiedChapter,
+    autoDownloadNewChapters,
+    preferredLanguage,
+    preferredScanlator,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'manga_library';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<MangaLibraryTableData> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('manga_anilist_id')) {
+      context.handle(
+        _mangaAnilistIdMeta,
+        mangaAnilistId.isAcceptableOrUnknown(
+          data['manga_anilist_id']!,
+          _mangaAnilistIdMeta,
+        ),
+      );
+    }
+    if (data.containsKey('added_at')) {
+      context.handle(
+        _addedAtMeta,
+        addedAt.isAcceptableOrUnknown(data['added_at']!, _addedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_addedAtMeta);
+    }
+    if (data.containsKey('notify_new_chapters')) {
+      context.handle(
+        _notifyNewChaptersMeta,
+        notifyNewChapters.isAcceptableOrUnknown(
+          data['notify_new_chapters']!,
+          _notifyNewChaptersMeta,
+        ),
+      );
+    }
+    if (data.containsKey('last_notified_chapter')) {
+      context.handle(
+        _lastNotifiedChapterMeta,
+        lastNotifiedChapter.isAcceptableOrUnknown(
+          data['last_notified_chapter']!,
+          _lastNotifiedChapterMeta,
+        ),
+      );
+    }
+    if (data.containsKey('auto_download_new_chapters')) {
+      context.handle(
+        _autoDownloadNewChaptersMeta,
+        autoDownloadNewChapters.isAcceptableOrUnknown(
+          data['auto_download_new_chapters']!,
+          _autoDownloadNewChaptersMeta,
+        ),
+      );
+    }
+    if (data.containsKey('preferred_language')) {
+      context.handle(
+        _preferredLanguageMeta,
+        preferredLanguage.isAcceptableOrUnknown(
+          data['preferred_language']!,
+          _preferredLanguageMeta,
+        ),
+      );
+    }
+    if (data.containsKey('preferred_scanlator')) {
+      context.handle(
+        _preferredScanlatorMeta,
+        preferredScanlator.isAcceptableOrUnknown(
+          data['preferred_scanlator']!,
+          _preferredScanlatorMeta,
+        ),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {mangaAnilistId};
+  @override
+  MangaLibraryTableData map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return MangaLibraryTableData(
+      mangaAnilistId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}manga_anilist_id'],
+      )!,
+      addedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}added_at'],
+      )!,
+      notifyNewChapters: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}notify_new_chapters'],
+      )!,
+      lastNotifiedChapter: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}last_notified_chapter'],
+      ),
+      autoDownloadNewChapters: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}auto_download_new_chapters'],
+      )!,
+      preferredLanguage: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}preferred_language'],
+      ),
+      preferredScanlator: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}preferred_scanlator'],
+      ),
+    );
+  }
+
+  @override
+  $MangaLibraryTableTable createAlias(String alias) {
+    return $MangaLibraryTableTable(attachedDatabase, alias);
+  }
+}
+
+class MangaLibraryTableData extends DataClass
+    implements Insertable<MangaLibraryTableData> {
+  final int mangaAnilistId;
+  final int addedAt;
+  final bool notifyNewChapters;
+
+  /// Last chapter number for which a notification was sent (null = never).
+  final double? lastNotifiedChapter;
+  final bool autoDownloadNewChapters;
+
+  /// BCP-47 preferred language for chapter listings of this manga.
+  final String? preferredLanguage;
+
+  /// Preferred scanlator name/id for chapter listings of this manga.
+  final String? preferredScanlator;
+  const MangaLibraryTableData({
+    required this.mangaAnilistId,
+    required this.addedAt,
+    required this.notifyNewChapters,
+    this.lastNotifiedChapter,
+    required this.autoDownloadNewChapters,
+    this.preferredLanguage,
+    this.preferredScanlator,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['manga_anilist_id'] = Variable<int>(mangaAnilistId);
+    map['added_at'] = Variable<int>(addedAt);
+    map['notify_new_chapters'] = Variable<bool>(notifyNewChapters);
+    if (!nullToAbsent || lastNotifiedChapter != null) {
+      map['last_notified_chapter'] = Variable<double>(lastNotifiedChapter);
+    }
+    map['auto_download_new_chapters'] = Variable<bool>(autoDownloadNewChapters);
+    if (!nullToAbsent || preferredLanguage != null) {
+      map['preferred_language'] = Variable<String>(preferredLanguage);
+    }
+    if (!nullToAbsent || preferredScanlator != null) {
+      map['preferred_scanlator'] = Variable<String>(preferredScanlator);
+    }
+    return map;
+  }
+
+  MangaLibraryTableCompanion toCompanion(bool nullToAbsent) {
+    return MangaLibraryTableCompanion(
+      mangaAnilistId: Value(mangaAnilistId),
+      addedAt: Value(addedAt),
+      notifyNewChapters: Value(notifyNewChapters),
+      lastNotifiedChapter: lastNotifiedChapter == null && nullToAbsent
+          ? const Value.absent()
+          : Value(lastNotifiedChapter),
+      autoDownloadNewChapters: Value(autoDownloadNewChapters),
+      preferredLanguage: preferredLanguage == null && nullToAbsent
+          ? const Value.absent()
+          : Value(preferredLanguage),
+      preferredScanlator: preferredScanlator == null && nullToAbsent
+          ? const Value.absent()
+          : Value(preferredScanlator),
+    );
+  }
+
+  factory MangaLibraryTableData.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return MangaLibraryTableData(
+      mangaAnilistId: serializer.fromJson<int>(json['mangaAnilistId']),
+      addedAt: serializer.fromJson<int>(json['addedAt']),
+      notifyNewChapters: serializer.fromJson<bool>(json['notifyNewChapters']),
+      lastNotifiedChapter: serializer.fromJson<double?>(
+        json['lastNotifiedChapter'],
+      ),
+      autoDownloadNewChapters: serializer.fromJson<bool>(
+        json['autoDownloadNewChapters'],
+      ),
+      preferredLanguage: serializer.fromJson<String?>(
+        json['preferredLanguage'],
+      ),
+      preferredScanlator: serializer.fromJson<String?>(
+        json['preferredScanlator'],
+      ),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'mangaAnilistId': serializer.toJson<int>(mangaAnilistId),
+      'addedAt': serializer.toJson<int>(addedAt),
+      'notifyNewChapters': serializer.toJson<bool>(notifyNewChapters),
+      'lastNotifiedChapter': serializer.toJson<double?>(lastNotifiedChapter),
+      'autoDownloadNewChapters': serializer.toJson<bool>(
+        autoDownloadNewChapters,
+      ),
+      'preferredLanguage': serializer.toJson<String?>(preferredLanguage),
+      'preferredScanlator': serializer.toJson<String?>(preferredScanlator),
+    };
+  }
+
+  MangaLibraryTableData copyWith({
+    int? mangaAnilistId,
+    int? addedAt,
+    bool? notifyNewChapters,
+    Value<double?> lastNotifiedChapter = const Value.absent(),
+    bool? autoDownloadNewChapters,
+    Value<String?> preferredLanguage = const Value.absent(),
+    Value<String?> preferredScanlator = const Value.absent(),
+  }) => MangaLibraryTableData(
+    mangaAnilistId: mangaAnilistId ?? this.mangaAnilistId,
+    addedAt: addedAt ?? this.addedAt,
+    notifyNewChapters: notifyNewChapters ?? this.notifyNewChapters,
+    lastNotifiedChapter: lastNotifiedChapter.present
+        ? lastNotifiedChapter.value
+        : this.lastNotifiedChapter,
+    autoDownloadNewChapters:
+        autoDownloadNewChapters ?? this.autoDownloadNewChapters,
+    preferredLanguage: preferredLanguage.present
+        ? preferredLanguage.value
+        : this.preferredLanguage,
+    preferredScanlator: preferredScanlator.present
+        ? preferredScanlator.value
+        : this.preferredScanlator,
+  );
+  MangaLibraryTableData copyWithCompanion(MangaLibraryTableCompanion data) {
+    return MangaLibraryTableData(
+      mangaAnilistId: data.mangaAnilistId.present
+          ? data.mangaAnilistId.value
+          : this.mangaAnilistId,
+      addedAt: data.addedAt.present ? data.addedAt.value : this.addedAt,
+      notifyNewChapters: data.notifyNewChapters.present
+          ? data.notifyNewChapters.value
+          : this.notifyNewChapters,
+      lastNotifiedChapter: data.lastNotifiedChapter.present
+          ? data.lastNotifiedChapter.value
+          : this.lastNotifiedChapter,
+      autoDownloadNewChapters: data.autoDownloadNewChapters.present
+          ? data.autoDownloadNewChapters.value
+          : this.autoDownloadNewChapters,
+      preferredLanguage: data.preferredLanguage.present
+          ? data.preferredLanguage.value
+          : this.preferredLanguage,
+      preferredScanlator: data.preferredScanlator.present
+          ? data.preferredScanlator.value
+          : this.preferredScanlator,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('MangaLibraryTableData(')
+          ..write('mangaAnilistId: $mangaAnilistId, ')
+          ..write('addedAt: $addedAt, ')
+          ..write('notifyNewChapters: $notifyNewChapters, ')
+          ..write('lastNotifiedChapter: $lastNotifiedChapter, ')
+          ..write('autoDownloadNewChapters: $autoDownloadNewChapters, ')
+          ..write('preferredLanguage: $preferredLanguage, ')
+          ..write('preferredScanlator: $preferredScanlator')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    mangaAnilistId,
+    addedAt,
+    notifyNewChapters,
+    lastNotifiedChapter,
+    autoDownloadNewChapters,
+    preferredLanguage,
+    preferredScanlator,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is MangaLibraryTableData &&
+          other.mangaAnilistId == this.mangaAnilistId &&
+          other.addedAt == this.addedAt &&
+          other.notifyNewChapters == this.notifyNewChapters &&
+          other.lastNotifiedChapter == this.lastNotifiedChapter &&
+          other.autoDownloadNewChapters == this.autoDownloadNewChapters &&
+          other.preferredLanguage == this.preferredLanguage &&
+          other.preferredScanlator == this.preferredScanlator);
+}
+
+class MangaLibraryTableCompanion
+    extends UpdateCompanion<MangaLibraryTableData> {
+  final Value<int> mangaAnilistId;
+  final Value<int> addedAt;
+  final Value<bool> notifyNewChapters;
+  final Value<double?> lastNotifiedChapter;
+  final Value<bool> autoDownloadNewChapters;
+  final Value<String?> preferredLanguage;
+  final Value<String?> preferredScanlator;
+  const MangaLibraryTableCompanion({
+    this.mangaAnilistId = const Value.absent(),
+    this.addedAt = const Value.absent(),
+    this.notifyNewChapters = const Value.absent(),
+    this.lastNotifiedChapter = const Value.absent(),
+    this.autoDownloadNewChapters = const Value.absent(),
+    this.preferredLanguage = const Value.absent(),
+    this.preferredScanlator = const Value.absent(),
+  });
+  MangaLibraryTableCompanion.insert({
+    this.mangaAnilistId = const Value.absent(),
+    required int addedAt,
+    this.notifyNewChapters = const Value.absent(),
+    this.lastNotifiedChapter = const Value.absent(),
+    this.autoDownloadNewChapters = const Value.absent(),
+    this.preferredLanguage = const Value.absent(),
+    this.preferredScanlator = const Value.absent(),
+  }) : addedAt = Value(addedAt);
+  static Insertable<MangaLibraryTableData> custom({
+    Expression<int>? mangaAnilistId,
+    Expression<int>? addedAt,
+    Expression<bool>? notifyNewChapters,
+    Expression<double>? lastNotifiedChapter,
+    Expression<bool>? autoDownloadNewChapters,
+    Expression<String>? preferredLanguage,
+    Expression<String>? preferredScanlator,
+  }) {
+    return RawValuesInsertable({
+      if (mangaAnilistId != null) 'manga_anilist_id': mangaAnilistId,
+      if (addedAt != null) 'added_at': addedAt,
+      if (notifyNewChapters != null) 'notify_new_chapters': notifyNewChapters,
+      if (lastNotifiedChapter != null)
+        'last_notified_chapter': lastNotifiedChapter,
+      if (autoDownloadNewChapters != null)
+        'auto_download_new_chapters': autoDownloadNewChapters,
+      if (preferredLanguage != null) 'preferred_language': preferredLanguage,
+      if (preferredScanlator != null) 'preferred_scanlator': preferredScanlator,
+    });
+  }
+
+  MangaLibraryTableCompanion copyWith({
+    Value<int>? mangaAnilistId,
+    Value<int>? addedAt,
+    Value<bool>? notifyNewChapters,
+    Value<double?>? lastNotifiedChapter,
+    Value<bool>? autoDownloadNewChapters,
+    Value<String?>? preferredLanguage,
+    Value<String?>? preferredScanlator,
+  }) {
+    return MangaLibraryTableCompanion(
+      mangaAnilistId: mangaAnilistId ?? this.mangaAnilistId,
+      addedAt: addedAt ?? this.addedAt,
+      notifyNewChapters: notifyNewChapters ?? this.notifyNewChapters,
+      lastNotifiedChapter: lastNotifiedChapter ?? this.lastNotifiedChapter,
+      autoDownloadNewChapters:
+          autoDownloadNewChapters ?? this.autoDownloadNewChapters,
+      preferredLanguage: preferredLanguage ?? this.preferredLanguage,
+      preferredScanlator: preferredScanlator ?? this.preferredScanlator,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (mangaAnilistId.present) {
+      map['manga_anilist_id'] = Variable<int>(mangaAnilistId.value);
+    }
+    if (addedAt.present) {
+      map['added_at'] = Variable<int>(addedAt.value);
+    }
+    if (notifyNewChapters.present) {
+      map['notify_new_chapters'] = Variable<bool>(notifyNewChapters.value);
+    }
+    if (lastNotifiedChapter.present) {
+      map['last_notified_chapter'] = Variable<double>(
+        lastNotifiedChapter.value,
+      );
+    }
+    if (autoDownloadNewChapters.present) {
+      map['auto_download_new_chapters'] = Variable<bool>(
+        autoDownloadNewChapters.value,
+      );
+    }
+    if (preferredLanguage.present) {
+      map['preferred_language'] = Variable<String>(preferredLanguage.value);
+    }
+    if (preferredScanlator.present) {
+      map['preferred_scanlator'] = Variable<String>(preferredScanlator.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('MangaLibraryTableCompanion(')
+          ..write('mangaAnilistId: $mangaAnilistId, ')
+          ..write('addedAt: $addedAt, ')
+          ..write('notifyNewChapters: $notifyNewChapters, ')
+          ..write('lastNotifiedChapter: $lastNotifiedChapter, ')
+          ..write('autoDownloadNewChapters: $autoDownloadNewChapters, ')
+          ..write('preferredLanguage: $preferredLanguage, ')
+          ..write('preferredScanlator: $preferredScanlator')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $ChapterPageCacheTableTable extends ChapterPageCacheTable
+    with TableInfo<$ChapterPageCacheTableTable, ChapterPageCacheTableData> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $ChapterPageCacheTableTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _sourceIdMeta = const VerificationMeta(
+    'sourceId',
+  );
+  @override
+  late final GeneratedColumn<String> sourceId = GeneratedColumn<String>(
+    'source_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _sourceChapterIdMeta = const VerificationMeta(
+    'sourceChapterId',
+  );
+  @override
+  late final GeneratedColumn<String> sourceChapterId = GeneratedColumn<String>(
+    'source_chapter_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _pageIndexMeta = const VerificationMeta(
+    'pageIndex',
+  );
+  @override
+  late final GeneratedColumn<int> pageIndex = GeneratedColumn<int>(
+    'page_index',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _imageUrlMeta = const VerificationMeta(
+    'imageUrl',
+  );
+  @override
+  late final GeneratedColumn<String> imageUrl = GeneratedColumn<String>(
+    'image_url',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _headersMeta = const VerificationMeta(
+    'headers',
+  );
+  @override
+  late final GeneratedColumn<String> headers = GeneratedColumn<String>(
+    'headers',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _localPathMeta = const VerificationMeta(
+    'localPath',
+  );
+  @override
+  late final GeneratedColumn<String> localPath = GeneratedColumn<String>(
+    'local_path',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _bytesMeta = const VerificationMeta('bytes');
+  @override
+  late final GeneratedColumn<int> bytes = GeneratedColumn<int>(
+    'bytes',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _widthMeta = const VerificationMeta('width');
+  @override
+  late final GeneratedColumn<int> width = GeneratedColumn<int>(
+    'width',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _heightMeta = const VerificationMeta('height');
+  @override
+  late final GeneratedColumn<int> height = GeneratedColumn<int>(
+    'height',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _expiresAtMeta = const VerificationMeta(
+    'expiresAt',
+  );
+  @override
+  late final GeneratedColumn<int> expiresAt = GeneratedColumn<int>(
+    'expires_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<int> updatedAt = GeneratedColumn<int>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    sourceId,
+    sourceChapterId,
+    pageIndex,
+    imageUrl,
+    headers,
+    localPath,
+    bytes,
+    width,
+    height,
+    expiresAt,
+    updatedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'chapter_page_cache';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<ChapterPageCacheTableData> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('source_id')) {
+      context.handle(
+        _sourceIdMeta,
+        sourceId.isAcceptableOrUnknown(data['source_id']!, _sourceIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_sourceIdMeta);
+    }
+    if (data.containsKey('source_chapter_id')) {
+      context.handle(
+        _sourceChapterIdMeta,
+        sourceChapterId.isAcceptableOrUnknown(
+          data['source_chapter_id']!,
+          _sourceChapterIdMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_sourceChapterIdMeta);
+    }
+    if (data.containsKey('page_index')) {
+      context.handle(
+        _pageIndexMeta,
+        pageIndex.isAcceptableOrUnknown(data['page_index']!, _pageIndexMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_pageIndexMeta);
+    }
+    if (data.containsKey('image_url')) {
+      context.handle(
+        _imageUrlMeta,
+        imageUrl.isAcceptableOrUnknown(data['image_url']!, _imageUrlMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_imageUrlMeta);
+    }
+    if (data.containsKey('headers')) {
+      context.handle(
+        _headersMeta,
+        headers.isAcceptableOrUnknown(data['headers']!, _headersMeta),
+      );
+    }
+    if (data.containsKey('local_path')) {
+      context.handle(
+        _localPathMeta,
+        localPath.isAcceptableOrUnknown(data['local_path']!, _localPathMeta),
+      );
+    }
+    if (data.containsKey('bytes')) {
+      context.handle(
+        _bytesMeta,
+        bytes.isAcceptableOrUnknown(data['bytes']!, _bytesMeta),
+      );
+    }
+    if (data.containsKey('width')) {
+      context.handle(
+        _widthMeta,
+        width.isAcceptableOrUnknown(data['width']!, _widthMeta),
+      );
+    }
+    if (data.containsKey('height')) {
+      context.handle(
+        _heightMeta,
+        height.isAcceptableOrUnknown(data['height']!, _heightMeta),
+      );
+    }
+    if (data.containsKey('expires_at')) {
+      context.handle(
+        _expiresAtMeta,
+        expiresAt.isAcceptableOrUnknown(data['expires_at']!, _expiresAtMeta),
+      );
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_updatedAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {
+    sourceId,
+    sourceChapterId,
+    pageIndex,
+  };
+  @override
+  ChapterPageCacheTableData map(
+    Map<String, dynamic> data, {
+    String? tablePrefix,
+  }) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return ChapterPageCacheTableData(
+      sourceId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}source_id'],
+      )!,
+      sourceChapterId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}source_chapter_id'],
+      )!,
+      pageIndex: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}page_index'],
+      )!,
+      imageUrl: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}image_url'],
+      )!,
+      headers: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}headers'],
+      ),
+      localPath: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}local_path'],
+      ),
+      bytes: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}bytes'],
+      ),
+      width: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}width'],
+      ),
+      height: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}height'],
+      ),
+      expiresAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}expires_at'],
+      ),
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}updated_at'],
+      )!,
+    );
+  }
+
+  @override
+  $ChapterPageCacheTableTable createAlias(String alias) {
+    return $ChapterPageCacheTableTable(attachedDatabase, alias);
+  }
+}
+
+class ChapterPageCacheTableData extends DataClass
+    implements Insertable<ChapterPageCacheTableData> {
+  final String sourceId;
+  final String sourceChapterId;
+  final int pageIndex;
+  final String imageUrl;
+
+  /// JSON-encoded `Map<String, String>` of HTTP headers required to
+  /// fetch the image (Referer, Origin, Cookie pinning, etc.).
+  final String? headers;
+
+  /// Path to the cached file relative to the app cache dir, when
+  /// downloaded. Null while only the URL is known.
+  final String? localPath;
+  final int? bytes;
+  final int? width;
+  final int? height;
+
+  /// Epoch ms after which the cache row should be evicted; null means
+  /// no TTL.
+  final int? expiresAt;
+  final int updatedAt;
+  const ChapterPageCacheTableData({
+    required this.sourceId,
+    required this.sourceChapterId,
+    required this.pageIndex,
+    required this.imageUrl,
+    this.headers,
+    this.localPath,
+    this.bytes,
+    this.width,
+    this.height,
+    this.expiresAt,
+    required this.updatedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['source_id'] = Variable<String>(sourceId);
+    map['source_chapter_id'] = Variable<String>(sourceChapterId);
+    map['page_index'] = Variable<int>(pageIndex);
+    map['image_url'] = Variable<String>(imageUrl);
+    if (!nullToAbsent || headers != null) {
+      map['headers'] = Variable<String>(headers);
+    }
+    if (!nullToAbsent || localPath != null) {
+      map['local_path'] = Variable<String>(localPath);
+    }
+    if (!nullToAbsent || bytes != null) {
+      map['bytes'] = Variable<int>(bytes);
+    }
+    if (!nullToAbsent || width != null) {
+      map['width'] = Variable<int>(width);
+    }
+    if (!nullToAbsent || height != null) {
+      map['height'] = Variable<int>(height);
+    }
+    if (!nullToAbsent || expiresAt != null) {
+      map['expires_at'] = Variable<int>(expiresAt);
+    }
+    map['updated_at'] = Variable<int>(updatedAt);
+    return map;
+  }
+
+  ChapterPageCacheTableCompanion toCompanion(bool nullToAbsent) {
+    return ChapterPageCacheTableCompanion(
+      sourceId: Value(sourceId),
+      sourceChapterId: Value(sourceChapterId),
+      pageIndex: Value(pageIndex),
+      imageUrl: Value(imageUrl),
+      headers: headers == null && nullToAbsent
+          ? const Value.absent()
+          : Value(headers),
+      localPath: localPath == null && nullToAbsent
+          ? const Value.absent()
+          : Value(localPath),
+      bytes: bytes == null && nullToAbsent
+          ? const Value.absent()
+          : Value(bytes),
+      width: width == null && nullToAbsent
+          ? const Value.absent()
+          : Value(width),
+      height: height == null && nullToAbsent
+          ? const Value.absent()
+          : Value(height),
+      expiresAt: expiresAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(expiresAt),
+      updatedAt: Value(updatedAt),
+    );
+  }
+
+  factory ChapterPageCacheTableData.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return ChapterPageCacheTableData(
+      sourceId: serializer.fromJson<String>(json['sourceId']),
+      sourceChapterId: serializer.fromJson<String>(json['sourceChapterId']),
+      pageIndex: serializer.fromJson<int>(json['pageIndex']),
+      imageUrl: serializer.fromJson<String>(json['imageUrl']),
+      headers: serializer.fromJson<String?>(json['headers']),
+      localPath: serializer.fromJson<String?>(json['localPath']),
+      bytes: serializer.fromJson<int?>(json['bytes']),
+      width: serializer.fromJson<int?>(json['width']),
+      height: serializer.fromJson<int?>(json['height']),
+      expiresAt: serializer.fromJson<int?>(json['expiresAt']),
+      updatedAt: serializer.fromJson<int>(json['updatedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'sourceId': serializer.toJson<String>(sourceId),
+      'sourceChapterId': serializer.toJson<String>(sourceChapterId),
+      'pageIndex': serializer.toJson<int>(pageIndex),
+      'imageUrl': serializer.toJson<String>(imageUrl),
+      'headers': serializer.toJson<String?>(headers),
+      'localPath': serializer.toJson<String?>(localPath),
+      'bytes': serializer.toJson<int?>(bytes),
+      'width': serializer.toJson<int?>(width),
+      'height': serializer.toJson<int?>(height),
+      'expiresAt': serializer.toJson<int?>(expiresAt),
+      'updatedAt': serializer.toJson<int>(updatedAt),
+    };
+  }
+
+  ChapterPageCacheTableData copyWith({
+    String? sourceId,
+    String? sourceChapterId,
+    int? pageIndex,
+    String? imageUrl,
+    Value<String?> headers = const Value.absent(),
+    Value<String?> localPath = const Value.absent(),
+    Value<int?> bytes = const Value.absent(),
+    Value<int?> width = const Value.absent(),
+    Value<int?> height = const Value.absent(),
+    Value<int?> expiresAt = const Value.absent(),
+    int? updatedAt,
+  }) => ChapterPageCacheTableData(
+    sourceId: sourceId ?? this.sourceId,
+    sourceChapterId: sourceChapterId ?? this.sourceChapterId,
+    pageIndex: pageIndex ?? this.pageIndex,
+    imageUrl: imageUrl ?? this.imageUrl,
+    headers: headers.present ? headers.value : this.headers,
+    localPath: localPath.present ? localPath.value : this.localPath,
+    bytes: bytes.present ? bytes.value : this.bytes,
+    width: width.present ? width.value : this.width,
+    height: height.present ? height.value : this.height,
+    expiresAt: expiresAt.present ? expiresAt.value : this.expiresAt,
+    updatedAt: updatedAt ?? this.updatedAt,
+  );
+  ChapterPageCacheTableData copyWithCompanion(
+    ChapterPageCacheTableCompanion data,
+  ) {
+    return ChapterPageCacheTableData(
+      sourceId: data.sourceId.present ? data.sourceId.value : this.sourceId,
+      sourceChapterId: data.sourceChapterId.present
+          ? data.sourceChapterId.value
+          : this.sourceChapterId,
+      pageIndex: data.pageIndex.present ? data.pageIndex.value : this.pageIndex,
+      imageUrl: data.imageUrl.present ? data.imageUrl.value : this.imageUrl,
+      headers: data.headers.present ? data.headers.value : this.headers,
+      localPath: data.localPath.present ? data.localPath.value : this.localPath,
+      bytes: data.bytes.present ? data.bytes.value : this.bytes,
+      width: data.width.present ? data.width.value : this.width,
+      height: data.height.present ? data.height.value : this.height,
+      expiresAt: data.expiresAt.present ? data.expiresAt.value : this.expiresAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ChapterPageCacheTableData(')
+          ..write('sourceId: $sourceId, ')
+          ..write('sourceChapterId: $sourceChapterId, ')
+          ..write('pageIndex: $pageIndex, ')
+          ..write('imageUrl: $imageUrl, ')
+          ..write('headers: $headers, ')
+          ..write('localPath: $localPath, ')
+          ..write('bytes: $bytes, ')
+          ..write('width: $width, ')
+          ..write('height: $height, ')
+          ..write('expiresAt: $expiresAt, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    sourceId,
+    sourceChapterId,
+    pageIndex,
+    imageUrl,
+    headers,
+    localPath,
+    bytes,
+    width,
+    height,
+    expiresAt,
+    updatedAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is ChapterPageCacheTableData &&
+          other.sourceId == this.sourceId &&
+          other.sourceChapterId == this.sourceChapterId &&
+          other.pageIndex == this.pageIndex &&
+          other.imageUrl == this.imageUrl &&
+          other.headers == this.headers &&
+          other.localPath == this.localPath &&
+          other.bytes == this.bytes &&
+          other.width == this.width &&
+          other.height == this.height &&
+          other.expiresAt == this.expiresAt &&
+          other.updatedAt == this.updatedAt);
+}
+
+class ChapterPageCacheTableCompanion
+    extends UpdateCompanion<ChapterPageCacheTableData> {
+  final Value<String> sourceId;
+  final Value<String> sourceChapterId;
+  final Value<int> pageIndex;
+  final Value<String> imageUrl;
+  final Value<String?> headers;
+  final Value<String?> localPath;
+  final Value<int?> bytes;
+  final Value<int?> width;
+  final Value<int?> height;
+  final Value<int?> expiresAt;
+  final Value<int> updatedAt;
+  final Value<int> rowid;
+  const ChapterPageCacheTableCompanion({
+    this.sourceId = const Value.absent(),
+    this.sourceChapterId = const Value.absent(),
+    this.pageIndex = const Value.absent(),
+    this.imageUrl = const Value.absent(),
+    this.headers = const Value.absent(),
+    this.localPath = const Value.absent(),
+    this.bytes = const Value.absent(),
+    this.width = const Value.absent(),
+    this.height = const Value.absent(),
+    this.expiresAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  ChapterPageCacheTableCompanion.insert({
+    required String sourceId,
+    required String sourceChapterId,
+    required int pageIndex,
+    required String imageUrl,
+    this.headers = const Value.absent(),
+    this.localPath = const Value.absent(),
+    this.bytes = const Value.absent(),
+    this.width = const Value.absent(),
+    this.height = const Value.absent(),
+    this.expiresAt = const Value.absent(),
+    required int updatedAt,
+    this.rowid = const Value.absent(),
+  }) : sourceId = Value(sourceId),
+       sourceChapterId = Value(sourceChapterId),
+       pageIndex = Value(pageIndex),
+       imageUrl = Value(imageUrl),
+       updatedAt = Value(updatedAt);
+  static Insertable<ChapterPageCacheTableData> custom({
+    Expression<String>? sourceId,
+    Expression<String>? sourceChapterId,
+    Expression<int>? pageIndex,
+    Expression<String>? imageUrl,
+    Expression<String>? headers,
+    Expression<String>? localPath,
+    Expression<int>? bytes,
+    Expression<int>? width,
+    Expression<int>? height,
+    Expression<int>? expiresAt,
+    Expression<int>? updatedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (sourceId != null) 'source_id': sourceId,
+      if (sourceChapterId != null) 'source_chapter_id': sourceChapterId,
+      if (pageIndex != null) 'page_index': pageIndex,
+      if (imageUrl != null) 'image_url': imageUrl,
+      if (headers != null) 'headers': headers,
+      if (localPath != null) 'local_path': localPath,
+      if (bytes != null) 'bytes': bytes,
+      if (width != null) 'width': width,
+      if (height != null) 'height': height,
+      if (expiresAt != null) 'expires_at': expiresAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  ChapterPageCacheTableCompanion copyWith({
+    Value<String>? sourceId,
+    Value<String>? sourceChapterId,
+    Value<int>? pageIndex,
+    Value<String>? imageUrl,
+    Value<String?>? headers,
+    Value<String?>? localPath,
+    Value<int?>? bytes,
+    Value<int?>? width,
+    Value<int?>? height,
+    Value<int?>? expiresAt,
+    Value<int>? updatedAt,
+    Value<int>? rowid,
+  }) {
+    return ChapterPageCacheTableCompanion(
+      sourceId: sourceId ?? this.sourceId,
+      sourceChapterId: sourceChapterId ?? this.sourceChapterId,
+      pageIndex: pageIndex ?? this.pageIndex,
+      imageUrl: imageUrl ?? this.imageUrl,
+      headers: headers ?? this.headers,
+      localPath: localPath ?? this.localPath,
+      bytes: bytes ?? this.bytes,
+      width: width ?? this.width,
+      height: height ?? this.height,
+      expiresAt: expiresAt ?? this.expiresAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (sourceId.present) {
+      map['source_id'] = Variable<String>(sourceId.value);
+    }
+    if (sourceChapterId.present) {
+      map['source_chapter_id'] = Variable<String>(sourceChapterId.value);
+    }
+    if (pageIndex.present) {
+      map['page_index'] = Variable<int>(pageIndex.value);
+    }
+    if (imageUrl.present) {
+      map['image_url'] = Variable<String>(imageUrl.value);
+    }
+    if (headers.present) {
+      map['headers'] = Variable<String>(headers.value);
+    }
+    if (localPath.present) {
+      map['local_path'] = Variable<String>(localPath.value);
+    }
+    if (bytes.present) {
+      map['bytes'] = Variable<int>(bytes.value);
+    }
+    if (width.present) {
+      map['width'] = Variable<int>(width.value);
+    }
+    if (height.present) {
+      map['height'] = Variable<int>(height.value);
+    }
+    if (expiresAt.present) {
+      map['expires_at'] = Variable<int>(expiresAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<int>(updatedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ChapterPageCacheTableCompanion(')
+          ..write('sourceId: $sourceId, ')
+          ..write('sourceChapterId: $sourceChapterId, ')
+          ..write('pageIndex: $pageIndex, ')
+          ..write('imageUrl: $imageUrl, ')
+          ..write('headers: $headers, ')
+          ..write('localPath: $localPath, ')
+          ..write('bytes: $bytes, ')
+          ..write('width: $width, ')
+          ..write('height: $height, ')
+          ..write('expiresAt: $expiresAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $MangaDownloadTableTable extends MangaDownloadTable
+    with TableInfo<$MangaDownloadTableTable, MangaDownloadTableData> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $MangaDownloadTableTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _mangaAnilistIdMeta = const VerificationMeta(
+    'mangaAnilistId',
+  );
+  @override
+  late final GeneratedColumn<int> mangaAnilistId = GeneratedColumn<int>(
+    'manga_anilist_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _sourceIdMeta = const VerificationMeta(
+    'sourceId',
+  );
+  @override
+  late final GeneratedColumn<String> sourceId = GeneratedColumn<String>(
+    'source_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _sourceMangaIdMeta = const VerificationMeta(
+    'sourceMangaId',
+  );
+  @override
+  late final GeneratedColumn<String> sourceMangaId = GeneratedColumn<String>(
+    'source_manga_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _sourceChapterIdMeta = const VerificationMeta(
+    'sourceChapterId',
+  );
+  @override
+  late final GeneratedColumn<String> sourceChapterId = GeneratedColumn<String>(
+    'source_chapter_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _chapterNumberMeta = const VerificationMeta(
+    'chapterNumber',
+  );
+  @override
+  late final GeneratedColumn<double> chapterNumber = GeneratedColumn<double>(
+    'chapter_number',
+    aliasedName,
+    false,
+    type: DriftSqlType.double,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _volumeMeta = const VerificationMeta('volume');
+  @override
+  late final GeneratedColumn<int> volume = GeneratedColumn<int>(
+    'volume',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _languageMeta = const VerificationMeta(
+    'language',
+  );
+  @override
+  late final GeneratedColumn<String> language = GeneratedColumn<String>(
+    'language',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('en'),
+  );
+  static const VerificationMeta _scanlatorMeta = const VerificationMeta(
+    'scanlator',
+  );
+  @override
+  late final GeneratedColumn<String> scanlator = GeneratedColumn<String>(
+    'scanlator',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _mangaTitleMeta = const VerificationMeta(
+    'mangaTitle',
+  );
+  @override
+  late final GeneratedColumn<String> mangaTitle = GeneratedColumn<String>(
+    'manga_title',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _chapterTitleMeta = const VerificationMeta(
+    'chapterTitle',
+  );
+  @override
+  late final GeneratedColumn<String> chapterTitle = GeneratedColumn<String>(
+    'chapter_title',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _statusMeta = const VerificationMeta('status');
+  @override
+  late final GeneratedColumn<String> status = GeneratedColumn<String>(
+    'status',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('pending'),
+  );
+  static const VerificationMeta _pageCountMeta = const VerificationMeta(
+    'pageCount',
+  );
+  @override
+  late final GeneratedColumn<int> pageCount = GeneratedColumn<int>(
+    'page_count',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _pagesDownloadedMeta = const VerificationMeta(
+    'pagesDownloaded',
+  );
+  @override
+  late final GeneratedColumn<int> pagesDownloaded = GeneratedColumn<int>(
+    'pages_downloaded',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _totalBytesMeta = const VerificationMeta(
+    'totalBytes',
+  );
+  @override
+  late final GeneratedColumn<int> totalBytes = GeneratedColumn<int>(
+    'total_bytes',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _downloadedBytesMeta = const VerificationMeta(
+    'downloadedBytes',
+  );
+  @override
+  late final GeneratedColumn<int> downloadedBytes = GeneratedColumn<int>(
+    'downloaded_bytes',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _cbzPathMeta = const VerificationMeta(
+    'cbzPath',
+  );
+  @override
+  late final GeneratedColumn<String> cbzPath = GeneratedColumn<String>(
+    'cbz_path',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _errorMessageMeta = const VerificationMeta(
+    'errorMessage',
+  );
+  @override
+  late final GeneratedColumn<String> errorMessage = GeneratedColumn<String>(
+    'error_message',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<int> createdAt = GeneratedColumn<int>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<int> updatedAt = GeneratedColumn<int>(
+    'updated_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    mangaAnilistId,
+    sourceId,
+    sourceMangaId,
+    sourceChapterId,
+    chapterNumber,
+    volume,
+    language,
+    scanlator,
+    mangaTitle,
+    chapterTitle,
+    status,
+    pageCount,
+    pagesDownloaded,
+    totalBytes,
+    downloadedBytes,
+    cbzPath,
+    errorMessage,
+    createdAt,
+    updatedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'manga_download';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<MangaDownloadTableData> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('manga_anilist_id')) {
+      context.handle(
+        _mangaAnilistIdMeta,
+        mangaAnilistId.isAcceptableOrUnknown(
+          data['manga_anilist_id']!,
+          _mangaAnilistIdMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_mangaAnilistIdMeta);
+    }
+    if (data.containsKey('source_id')) {
+      context.handle(
+        _sourceIdMeta,
+        sourceId.isAcceptableOrUnknown(data['source_id']!, _sourceIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_sourceIdMeta);
+    }
+    if (data.containsKey('source_manga_id')) {
+      context.handle(
+        _sourceMangaIdMeta,
+        sourceMangaId.isAcceptableOrUnknown(
+          data['source_manga_id']!,
+          _sourceMangaIdMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_sourceMangaIdMeta);
+    }
+    if (data.containsKey('source_chapter_id')) {
+      context.handle(
+        _sourceChapterIdMeta,
+        sourceChapterId.isAcceptableOrUnknown(
+          data['source_chapter_id']!,
+          _sourceChapterIdMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_sourceChapterIdMeta);
+    }
+    if (data.containsKey('chapter_number')) {
+      context.handle(
+        _chapterNumberMeta,
+        chapterNumber.isAcceptableOrUnknown(
+          data['chapter_number']!,
+          _chapterNumberMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_chapterNumberMeta);
+    }
+    if (data.containsKey('volume')) {
+      context.handle(
+        _volumeMeta,
+        volume.isAcceptableOrUnknown(data['volume']!, _volumeMeta),
+      );
+    }
+    if (data.containsKey('language')) {
+      context.handle(
+        _languageMeta,
+        language.isAcceptableOrUnknown(data['language']!, _languageMeta),
+      );
+    }
+    if (data.containsKey('scanlator')) {
+      context.handle(
+        _scanlatorMeta,
+        scanlator.isAcceptableOrUnknown(data['scanlator']!, _scanlatorMeta),
+      );
+    }
+    if (data.containsKey('manga_title')) {
+      context.handle(
+        _mangaTitleMeta,
+        mangaTitle.isAcceptableOrUnknown(data['manga_title']!, _mangaTitleMeta),
+      );
+    }
+    if (data.containsKey('chapter_title')) {
+      context.handle(
+        _chapterTitleMeta,
+        chapterTitle.isAcceptableOrUnknown(
+          data['chapter_title']!,
+          _chapterTitleMeta,
+        ),
+      );
+    }
+    if (data.containsKey('status')) {
+      context.handle(
+        _statusMeta,
+        status.isAcceptableOrUnknown(data['status']!, _statusMeta),
+      );
+    }
+    if (data.containsKey('page_count')) {
+      context.handle(
+        _pageCountMeta,
+        pageCount.isAcceptableOrUnknown(data['page_count']!, _pageCountMeta),
+      );
+    }
+    if (data.containsKey('pages_downloaded')) {
+      context.handle(
+        _pagesDownloadedMeta,
+        pagesDownloaded.isAcceptableOrUnknown(
+          data['pages_downloaded']!,
+          _pagesDownloadedMeta,
+        ),
+      );
+    }
+    if (data.containsKey('total_bytes')) {
+      context.handle(
+        _totalBytesMeta,
+        totalBytes.isAcceptableOrUnknown(data['total_bytes']!, _totalBytesMeta),
+      );
+    }
+    if (data.containsKey('downloaded_bytes')) {
+      context.handle(
+        _downloadedBytesMeta,
+        downloadedBytes.isAcceptableOrUnknown(
+          data['downloaded_bytes']!,
+          _downloadedBytesMeta,
+        ),
+      );
+    }
+    if (data.containsKey('cbz_path')) {
+      context.handle(
+        _cbzPathMeta,
+        cbzPath.isAcceptableOrUnknown(data['cbz_path']!, _cbzPathMeta),
+      );
+    }
+    if (data.containsKey('error_message')) {
+      context.handle(
+        _errorMessageMeta,
+        errorMessage.isAcceptableOrUnknown(
+          data['error_message']!,
+          _errorMessageMeta,
+        ),
+      );
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  MangaDownloadTableData map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return MangaDownloadTableData(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      mangaAnilistId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}manga_anilist_id'],
+      )!,
+      sourceId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}source_id'],
+      )!,
+      sourceMangaId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}source_manga_id'],
+      )!,
+      sourceChapterId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}source_chapter_id'],
+      )!,
+      chapterNumber: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}chapter_number'],
+      )!,
+      volume: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}volume'],
+      ),
+      language: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}language'],
+      )!,
+      scanlator: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}scanlator'],
+      ),
+      mangaTitle: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}manga_title'],
+      ),
+      chapterTitle: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}chapter_title'],
+      ),
+      status: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}status'],
+      )!,
+      pageCount: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}page_count'],
+      ),
+      pagesDownloaded: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}pages_downloaded'],
+      ),
+      totalBytes: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}total_bytes'],
+      ),
+      downloadedBytes: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}downloaded_bytes'],
+      ),
+      cbzPath: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}cbz_path'],
+      ),
+      errorMessage: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}error_message'],
+      ),
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}created_at'],
+      )!,
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}updated_at'],
+      ),
+    );
+  }
+
+  @override
+  $MangaDownloadTableTable createAlias(String alias) {
+    return $MangaDownloadTableTable(attachedDatabase, alias);
+  }
+}
+
+class MangaDownloadTableData extends DataClass
+    implements Insertable<MangaDownloadTableData> {
+  final String id;
+  final int mangaAnilistId;
+  final String sourceId;
+  final String sourceMangaId;
+  final String sourceChapterId;
+  final double chapterNumber;
+  final int? volume;
+  final String language;
+  final String? scanlator;
+
+  /// Human-readable manga title (used for folder name and UI).
+  final String? mangaTitle;
+
+  /// Human-readable chapter title from the source.
+  final String? chapterTitle;
+  final String status;
+  final int? pageCount;
+  final int? pagesDownloaded;
+  final int? totalBytes;
+  final int? downloadedBytes;
+
+  /// Final CBZ path on disk once the chapter is fully downloaded.
+  final String? cbzPath;
+  final String? errorMessage;
+  final int createdAt;
+  final int? updatedAt;
+  const MangaDownloadTableData({
+    required this.id,
+    required this.mangaAnilistId,
+    required this.sourceId,
+    required this.sourceMangaId,
+    required this.sourceChapterId,
+    required this.chapterNumber,
+    this.volume,
+    required this.language,
+    this.scanlator,
+    this.mangaTitle,
+    this.chapterTitle,
+    required this.status,
+    this.pageCount,
+    this.pagesDownloaded,
+    this.totalBytes,
+    this.downloadedBytes,
+    this.cbzPath,
+    this.errorMessage,
+    required this.createdAt,
+    this.updatedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['manga_anilist_id'] = Variable<int>(mangaAnilistId);
+    map['source_id'] = Variable<String>(sourceId);
+    map['source_manga_id'] = Variable<String>(sourceMangaId);
+    map['source_chapter_id'] = Variable<String>(sourceChapterId);
+    map['chapter_number'] = Variable<double>(chapterNumber);
+    if (!nullToAbsent || volume != null) {
+      map['volume'] = Variable<int>(volume);
+    }
+    map['language'] = Variable<String>(language);
+    if (!nullToAbsent || scanlator != null) {
+      map['scanlator'] = Variable<String>(scanlator);
+    }
+    if (!nullToAbsent || mangaTitle != null) {
+      map['manga_title'] = Variable<String>(mangaTitle);
+    }
+    if (!nullToAbsent || chapterTitle != null) {
+      map['chapter_title'] = Variable<String>(chapterTitle);
+    }
+    map['status'] = Variable<String>(status);
+    if (!nullToAbsent || pageCount != null) {
+      map['page_count'] = Variable<int>(pageCount);
+    }
+    if (!nullToAbsent || pagesDownloaded != null) {
+      map['pages_downloaded'] = Variable<int>(pagesDownloaded);
+    }
+    if (!nullToAbsent || totalBytes != null) {
+      map['total_bytes'] = Variable<int>(totalBytes);
+    }
+    if (!nullToAbsent || downloadedBytes != null) {
+      map['downloaded_bytes'] = Variable<int>(downloadedBytes);
+    }
+    if (!nullToAbsent || cbzPath != null) {
+      map['cbz_path'] = Variable<String>(cbzPath);
+    }
+    if (!nullToAbsent || errorMessage != null) {
+      map['error_message'] = Variable<String>(errorMessage);
+    }
+    map['created_at'] = Variable<int>(createdAt);
+    if (!nullToAbsent || updatedAt != null) {
+      map['updated_at'] = Variable<int>(updatedAt);
+    }
+    return map;
+  }
+
+  MangaDownloadTableCompanion toCompanion(bool nullToAbsent) {
+    return MangaDownloadTableCompanion(
+      id: Value(id),
+      mangaAnilistId: Value(mangaAnilistId),
+      sourceId: Value(sourceId),
+      sourceMangaId: Value(sourceMangaId),
+      sourceChapterId: Value(sourceChapterId),
+      chapterNumber: Value(chapterNumber),
+      volume: volume == null && nullToAbsent
+          ? const Value.absent()
+          : Value(volume),
+      language: Value(language),
+      scanlator: scanlator == null && nullToAbsent
+          ? const Value.absent()
+          : Value(scanlator),
+      mangaTitle: mangaTitle == null && nullToAbsent
+          ? const Value.absent()
+          : Value(mangaTitle),
+      chapterTitle: chapterTitle == null && nullToAbsent
+          ? const Value.absent()
+          : Value(chapterTitle),
+      status: Value(status),
+      pageCount: pageCount == null && nullToAbsent
+          ? const Value.absent()
+          : Value(pageCount),
+      pagesDownloaded: pagesDownloaded == null && nullToAbsent
+          ? const Value.absent()
+          : Value(pagesDownloaded),
+      totalBytes: totalBytes == null && nullToAbsent
+          ? const Value.absent()
+          : Value(totalBytes),
+      downloadedBytes: downloadedBytes == null && nullToAbsent
+          ? const Value.absent()
+          : Value(downloadedBytes),
+      cbzPath: cbzPath == null && nullToAbsent
+          ? const Value.absent()
+          : Value(cbzPath),
+      errorMessage: errorMessage == null && nullToAbsent
+          ? const Value.absent()
+          : Value(errorMessage),
+      createdAt: Value(createdAt),
+      updatedAt: updatedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(updatedAt),
+    );
+  }
+
+  factory MangaDownloadTableData.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return MangaDownloadTableData(
+      id: serializer.fromJson<String>(json['id']),
+      mangaAnilistId: serializer.fromJson<int>(json['mangaAnilistId']),
+      sourceId: serializer.fromJson<String>(json['sourceId']),
+      sourceMangaId: serializer.fromJson<String>(json['sourceMangaId']),
+      sourceChapterId: serializer.fromJson<String>(json['sourceChapterId']),
+      chapterNumber: serializer.fromJson<double>(json['chapterNumber']),
+      volume: serializer.fromJson<int?>(json['volume']),
+      language: serializer.fromJson<String>(json['language']),
+      scanlator: serializer.fromJson<String?>(json['scanlator']),
+      mangaTitle: serializer.fromJson<String?>(json['mangaTitle']),
+      chapterTitle: serializer.fromJson<String?>(json['chapterTitle']),
+      status: serializer.fromJson<String>(json['status']),
+      pageCount: serializer.fromJson<int?>(json['pageCount']),
+      pagesDownloaded: serializer.fromJson<int?>(json['pagesDownloaded']),
+      totalBytes: serializer.fromJson<int?>(json['totalBytes']),
+      downloadedBytes: serializer.fromJson<int?>(json['downloadedBytes']),
+      cbzPath: serializer.fromJson<String?>(json['cbzPath']),
+      errorMessage: serializer.fromJson<String?>(json['errorMessage']),
+      createdAt: serializer.fromJson<int>(json['createdAt']),
+      updatedAt: serializer.fromJson<int?>(json['updatedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'mangaAnilistId': serializer.toJson<int>(mangaAnilistId),
+      'sourceId': serializer.toJson<String>(sourceId),
+      'sourceMangaId': serializer.toJson<String>(sourceMangaId),
+      'sourceChapterId': serializer.toJson<String>(sourceChapterId),
+      'chapterNumber': serializer.toJson<double>(chapterNumber),
+      'volume': serializer.toJson<int?>(volume),
+      'language': serializer.toJson<String>(language),
+      'scanlator': serializer.toJson<String?>(scanlator),
+      'mangaTitle': serializer.toJson<String?>(mangaTitle),
+      'chapterTitle': serializer.toJson<String?>(chapterTitle),
+      'status': serializer.toJson<String>(status),
+      'pageCount': serializer.toJson<int?>(pageCount),
+      'pagesDownloaded': serializer.toJson<int?>(pagesDownloaded),
+      'totalBytes': serializer.toJson<int?>(totalBytes),
+      'downloadedBytes': serializer.toJson<int?>(downloadedBytes),
+      'cbzPath': serializer.toJson<String?>(cbzPath),
+      'errorMessage': serializer.toJson<String?>(errorMessage),
+      'createdAt': serializer.toJson<int>(createdAt),
+      'updatedAt': serializer.toJson<int?>(updatedAt),
+    };
+  }
+
+  MangaDownloadTableData copyWith({
+    String? id,
+    int? mangaAnilistId,
+    String? sourceId,
+    String? sourceMangaId,
+    String? sourceChapterId,
+    double? chapterNumber,
+    Value<int?> volume = const Value.absent(),
+    String? language,
+    Value<String?> scanlator = const Value.absent(),
+    Value<String?> mangaTitle = const Value.absent(),
+    Value<String?> chapterTitle = const Value.absent(),
+    String? status,
+    Value<int?> pageCount = const Value.absent(),
+    Value<int?> pagesDownloaded = const Value.absent(),
+    Value<int?> totalBytes = const Value.absent(),
+    Value<int?> downloadedBytes = const Value.absent(),
+    Value<String?> cbzPath = const Value.absent(),
+    Value<String?> errorMessage = const Value.absent(),
+    int? createdAt,
+    Value<int?> updatedAt = const Value.absent(),
+  }) => MangaDownloadTableData(
+    id: id ?? this.id,
+    mangaAnilistId: mangaAnilistId ?? this.mangaAnilistId,
+    sourceId: sourceId ?? this.sourceId,
+    sourceMangaId: sourceMangaId ?? this.sourceMangaId,
+    sourceChapterId: sourceChapterId ?? this.sourceChapterId,
+    chapterNumber: chapterNumber ?? this.chapterNumber,
+    volume: volume.present ? volume.value : this.volume,
+    language: language ?? this.language,
+    scanlator: scanlator.present ? scanlator.value : this.scanlator,
+    mangaTitle: mangaTitle.present ? mangaTitle.value : this.mangaTitle,
+    chapterTitle: chapterTitle.present ? chapterTitle.value : this.chapterTitle,
+    status: status ?? this.status,
+    pageCount: pageCount.present ? pageCount.value : this.pageCount,
+    pagesDownloaded: pagesDownloaded.present
+        ? pagesDownloaded.value
+        : this.pagesDownloaded,
+    totalBytes: totalBytes.present ? totalBytes.value : this.totalBytes,
+    downloadedBytes: downloadedBytes.present
+        ? downloadedBytes.value
+        : this.downloadedBytes,
+    cbzPath: cbzPath.present ? cbzPath.value : this.cbzPath,
+    errorMessage: errorMessage.present ? errorMessage.value : this.errorMessage,
+    createdAt: createdAt ?? this.createdAt,
+    updatedAt: updatedAt.present ? updatedAt.value : this.updatedAt,
+  );
+  MangaDownloadTableData copyWithCompanion(MangaDownloadTableCompanion data) {
+    return MangaDownloadTableData(
+      id: data.id.present ? data.id.value : this.id,
+      mangaAnilistId: data.mangaAnilistId.present
+          ? data.mangaAnilistId.value
+          : this.mangaAnilistId,
+      sourceId: data.sourceId.present ? data.sourceId.value : this.sourceId,
+      sourceMangaId: data.sourceMangaId.present
+          ? data.sourceMangaId.value
+          : this.sourceMangaId,
+      sourceChapterId: data.sourceChapterId.present
+          ? data.sourceChapterId.value
+          : this.sourceChapterId,
+      chapterNumber: data.chapterNumber.present
+          ? data.chapterNumber.value
+          : this.chapterNumber,
+      volume: data.volume.present ? data.volume.value : this.volume,
+      language: data.language.present ? data.language.value : this.language,
+      scanlator: data.scanlator.present ? data.scanlator.value : this.scanlator,
+      mangaTitle: data.mangaTitle.present
+          ? data.mangaTitle.value
+          : this.mangaTitle,
+      chapterTitle: data.chapterTitle.present
+          ? data.chapterTitle.value
+          : this.chapterTitle,
+      status: data.status.present ? data.status.value : this.status,
+      pageCount: data.pageCount.present ? data.pageCount.value : this.pageCount,
+      pagesDownloaded: data.pagesDownloaded.present
+          ? data.pagesDownloaded.value
+          : this.pagesDownloaded,
+      totalBytes: data.totalBytes.present
+          ? data.totalBytes.value
+          : this.totalBytes,
+      downloadedBytes: data.downloadedBytes.present
+          ? data.downloadedBytes.value
+          : this.downloadedBytes,
+      cbzPath: data.cbzPath.present ? data.cbzPath.value : this.cbzPath,
+      errorMessage: data.errorMessage.present
+          ? data.errorMessage.value
+          : this.errorMessage,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('MangaDownloadTableData(')
+          ..write('id: $id, ')
+          ..write('mangaAnilistId: $mangaAnilistId, ')
+          ..write('sourceId: $sourceId, ')
+          ..write('sourceMangaId: $sourceMangaId, ')
+          ..write('sourceChapterId: $sourceChapterId, ')
+          ..write('chapterNumber: $chapterNumber, ')
+          ..write('volume: $volume, ')
+          ..write('language: $language, ')
+          ..write('scanlator: $scanlator, ')
+          ..write('mangaTitle: $mangaTitle, ')
+          ..write('chapterTitle: $chapterTitle, ')
+          ..write('status: $status, ')
+          ..write('pageCount: $pageCount, ')
+          ..write('pagesDownloaded: $pagesDownloaded, ')
+          ..write('totalBytes: $totalBytes, ')
+          ..write('downloadedBytes: $downloadedBytes, ')
+          ..write('cbzPath: $cbzPath, ')
+          ..write('errorMessage: $errorMessage, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    mangaAnilistId,
+    sourceId,
+    sourceMangaId,
+    sourceChapterId,
+    chapterNumber,
+    volume,
+    language,
+    scanlator,
+    mangaTitle,
+    chapterTitle,
+    status,
+    pageCount,
+    pagesDownloaded,
+    totalBytes,
+    downloadedBytes,
+    cbzPath,
+    errorMessage,
+    createdAt,
+    updatedAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is MangaDownloadTableData &&
+          other.id == this.id &&
+          other.mangaAnilistId == this.mangaAnilistId &&
+          other.sourceId == this.sourceId &&
+          other.sourceMangaId == this.sourceMangaId &&
+          other.sourceChapterId == this.sourceChapterId &&
+          other.chapterNumber == this.chapterNumber &&
+          other.volume == this.volume &&
+          other.language == this.language &&
+          other.scanlator == this.scanlator &&
+          other.mangaTitle == this.mangaTitle &&
+          other.chapterTitle == this.chapterTitle &&
+          other.status == this.status &&
+          other.pageCount == this.pageCount &&
+          other.pagesDownloaded == this.pagesDownloaded &&
+          other.totalBytes == this.totalBytes &&
+          other.downloadedBytes == this.downloadedBytes &&
+          other.cbzPath == this.cbzPath &&
+          other.errorMessage == this.errorMessage &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt);
+}
+
+class MangaDownloadTableCompanion
+    extends UpdateCompanion<MangaDownloadTableData> {
+  final Value<String> id;
+  final Value<int> mangaAnilistId;
+  final Value<String> sourceId;
+  final Value<String> sourceMangaId;
+  final Value<String> sourceChapterId;
+  final Value<double> chapterNumber;
+  final Value<int?> volume;
+  final Value<String> language;
+  final Value<String?> scanlator;
+  final Value<String?> mangaTitle;
+  final Value<String?> chapterTitle;
+  final Value<String> status;
+  final Value<int?> pageCount;
+  final Value<int?> pagesDownloaded;
+  final Value<int?> totalBytes;
+  final Value<int?> downloadedBytes;
+  final Value<String?> cbzPath;
+  final Value<String?> errorMessage;
+  final Value<int> createdAt;
+  final Value<int?> updatedAt;
+  final Value<int> rowid;
+  const MangaDownloadTableCompanion({
+    this.id = const Value.absent(),
+    this.mangaAnilistId = const Value.absent(),
+    this.sourceId = const Value.absent(),
+    this.sourceMangaId = const Value.absent(),
+    this.sourceChapterId = const Value.absent(),
+    this.chapterNumber = const Value.absent(),
+    this.volume = const Value.absent(),
+    this.language = const Value.absent(),
+    this.scanlator = const Value.absent(),
+    this.mangaTitle = const Value.absent(),
+    this.chapterTitle = const Value.absent(),
+    this.status = const Value.absent(),
+    this.pageCount = const Value.absent(),
+    this.pagesDownloaded = const Value.absent(),
+    this.totalBytes = const Value.absent(),
+    this.downloadedBytes = const Value.absent(),
+    this.cbzPath = const Value.absent(),
+    this.errorMessage = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  MangaDownloadTableCompanion.insert({
+    required String id,
+    required int mangaAnilistId,
+    required String sourceId,
+    required String sourceMangaId,
+    required String sourceChapterId,
+    required double chapterNumber,
+    this.volume = const Value.absent(),
+    this.language = const Value.absent(),
+    this.scanlator = const Value.absent(),
+    this.mangaTitle = const Value.absent(),
+    this.chapterTitle = const Value.absent(),
+    this.status = const Value.absent(),
+    this.pageCount = const Value.absent(),
+    this.pagesDownloaded = const Value.absent(),
+    this.totalBytes = const Value.absent(),
+    this.downloadedBytes = const Value.absent(),
+    this.cbzPath = const Value.absent(),
+    this.errorMessage = const Value.absent(),
+    required int createdAt,
+    this.updatedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       mangaAnilistId = Value(mangaAnilistId),
+       sourceId = Value(sourceId),
+       sourceMangaId = Value(sourceMangaId),
+       sourceChapterId = Value(sourceChapterId),
+       chapterNumber = Value(chapterNumber),
+       createdAt = Value(createdAt);
+  static Insertable<MangaDownloadTableData> custom({
+    Expression<String>? id,
+    Expression<int>? mangaAnilistId,
+    Expression<String>? sourceId,
+    Expression<String>? sourceMangaId,
+    Expression<String>? sourceChapterId,
+    Expression<double>? chapterNumber,
+    Expression<int>? volume,
+    Expression<String>? language,
+    Expression<String>? scanlator,
+    Expression<String>? mangaTitle,
+    Expression<String>? chapterTitle,
+    Expression<String>? status,
+    Expression<int>? pageCount,
+    Expression<int>? pagesDownloaded,
+    Expression<int>? totalBytes,
+    Expression<int>? downloadedBytes,
+    Expression<String>? cbzPath,
+    Expression<String>? errorMessage,
+    Expression<int>? createdAt,
+    Expression<int>? updatedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (mangaAnilistId != null) 'manga_anilist_id': mangaAnilistId,
+      if (sourceId != null) 'source_id': sourceId,
+      if (sourceMangaId != null) 'source_manga_id': sourceMangaId,
+      if (sourceChapterId != null) 'source_chapter_id': sourceChapterId,
+      if (chapterNumber != null) 'chapter_number': chapterNumber,
+      if (volume != null) 'volume': volume,
+      if (language != null) 'language': language,
+      if (scanlator != null) 'scanlator': scanlator,
+      if (mangaTitle != null) 'manga_title': mangaTitle,
+      if (chapterTitle != null) 'chapter_title': chapterTitle,
+      if (status != null) 'status': status,
+      if (pageCount != null) 'page_count': pageCount,
+      if (pagesDownloaded != null) 'pages_downloaded': pagesDownloaded,
+      if (totalBytes != null) 'total_bytes': totalBytes,
+      if (downloadedBytes != null) 'downloaded_bytes': downloadedBytes,
+      if (cbzPath != null) 'cbz_path': cbzPath,
+      if (errorMessage != null) 'error_message': errorMessage,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  MangaDownloadTableCompanion copyWith({
+    Value<String>? id,
+    Value<int>? mangaAnilistId,
+    Value<String>? sourceId,
+    Value<String>? sourceMangaId,
+    Value<String>? sourceChapterId,
+    Value<double>? chapterNumber,
+    Value<int?>? volume,
+    Value<String>? language,
+    Value<String?>? scanlator,
+    Value<String?>? mangaTitle,
+    Value<String?>? chapterTitle,
+    Value<String>? status,
+    Value<int?>? pageCount,
+    Value<int?>? pagesDownloaded,
+    Value<int?>? totalBytes,
+    Value<int?>? downloadedBytes,
+    Value<String?>? cbzPath,
+    Value<String?>? errorMessage,
+    Value<int>? createdAt,
+    Value<int?>? updatedAt,
+    Value<int>? rowid,
+  }) {
+    return MangaDownloadTableCompanion(
+      id: id ?? this.id,
+      mangaAnilistId: mangaAnilistId ?? this.mangaAnilistId,
+      sourceId: sourceId ?? this.sourceId,
+      sourceMangaId: sourceMangaId ?? this.sourceMangaId,
+      sourceChapterId: sourceChapterId ?? this.sourceChapterId,
+      chapterNumber: chapterNumber ?? this.chapterNumber,
+      volume: volume ?? this.volume,
+      language: language ?? this.language,
+      scanlator: scanlator ?? this.scanlator,
+      mangaTitle: mangaTitle ?? this.mangaTitle,
+      chapterTitle: chapterTitle ?? this.chapterTitle,
+      status: status ?? this.status,
+      pageCount: pageCount ?? this.pageCount,
+      pagesDownloaded: pagesDownloaded ?? this.pagesDownloaded,
+      totalBytes: totalBytes ?? this.totalBytes,
+      downloadedBytes: downloadedBytes ?? this.downloadedBytes,
+      cbzPath: cbzPath ?? this.cbzPath,
+      errorMessage: errorMessage ?? this.errorMessage,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (mangaAnilistId.present) {
+      map['manga_anilist_id'] = Variable<int>(mangaAnilistId.value);
+    }
+    if (sourceId.present) {
+      map['source_id'] = Variable<String>(sourceId.value);
+    }
+    if (sourceMangaId.present) {
+      map['source_manga_id'] = Variable<String>(sourceMangaId.value);
+    }
+    if (sourceChapterId.present) {
+      map['source_chapter_id'] = Variable<String>(sourceChapterId.value);
+    }
+    if (chapterNumber.present) {
+      map['chapter_number'] = Variable<double>(chapterNumber.value);
+    }
+    if (volume.present) {
+      map['volume'] = Variable<int>(volume.value);
+    }
+    if (language.present) {
+      map['language'] = Variable<String>(language.value);
+    }
+    if (scanlator.present) {
+      map['scanlator'] = Variable<String>(scanlator.value);
+    }
+    if (mangaTitle.present) {
+      map['manga_title'] = Variable<String>(mangaTitle.value);
+    }
+    if (chapterTitle.present) {
+      map['chapter_title'] = Variable<String>(chapterTitle.value);
+    }
+    if (status.present) {
+      map['status'] = Variable<String>(status.value);
+    }
+    if (pageCount.present) {
+      map['page_count'] = Variable<int>(pageCount.value);
+    }
+    if (pagesDownloaded.present) {
+      map['pages_downloaded'] = Variable<int>(pagesDownloaded.value);
+    }
+    if (totalBytes.present) {
+      map['total_bytes'] = Variable<int>(totalBytes.value);
+    }
+    if (downloadedBytes.present) {
+      map['downloaded_bytes'] = Variable<int>(downloadedBytes.value);
+    }
+    if (cbzPath.present) {
+      map['cbz_path'] = Variable<String>(cbzPath.value);
+    }
+    if (errorMessage.present) {
+      map['error_message'] = Variable<String>(errorMessage.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<int>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<int>(updatedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('MangaDownloadTableCompanion(')
+          ..write('id: $id, ')
+          ..write('mangaAnilistId: $mangaAnilistId, ')
+          ..write('sourceId: $sourceId, ')
+          ..write('sourceMangaId: $sourceMangaId, ')
+          ..write('sourceChapterId: $sourceChapterId, ')
+          ..write('chapterNumber: $chapterNumber, ')
+          ..write('volume: $volume, ')
+          ..write('language: $language, ')
+          ..write('scanlator: $scanlator, ')
+          ..write('mangaTitle: $mangaTitle, ')
+          ..write('chapterTitle: $chapterTitle, ')
+          ..write('status: $status, ')
+          ..write('pageCount: $pageCount, ')
+          ..write('pagesDownloaded: $pagesDownloaded, ')
+          ..write('totalBytes: $totalBytes, ')
+          ..write('downloadedBytes: $downloadedBytes, ')
+          ..write('cbzPath: $cbzPath, ')
+          ..write('errorMessage: $errorMessage, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -6470,6 +11774,21 @@ abstract class _$AppDatabase extends GeneratedDatabase {
       $TranslationCacheTableTable(this);
   late final $EpisodeCatalogCacheTableTable episodeCatalogCacheTable =
       $EpisodeCatalogCacheTableTable(this);
+  late final $MangaCacheTableTable mangaCacheTable = $MangaCacheTableTable(
+    this,
+  );
+  late final $MangaChapterTableTable mangaChapterTable =
+      $MangaChapterTableTable(this);
+  late final $MangaProgressTableTable mangaProgressTable =
+      $MangaProgressTableTable(this);
+  late final $MangaHistoryTableTable mangaHistoryTable =
+      $MangaHistoryTableTable(this);
+  late final $MangaLibraryTableTable mangaLibraryTable =
+      $MangaLibraryTableTable(this);
+  late final $ChapterPageCacheTableTable chapterPageCacheTable =
+      $ChapterPageCacheTableTable(this);
+  late final $MangaDownloadTableTable mangaDownloadTable =
+      $MangaDownloadTableTable(this);
   late final ProgressDao progressDao = ProgressDao(this as AppDatabase);
   late final WatchHistoryDao watchHistoryDao = WatchHistoryDao(
     this as AppDatabase,
@@ -6497,6 +11816,22 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final EpisodeCacheDao episodeCacheDao = EpisodeCacheDao(
     this as AppDatabase,
   );
+  late final MangaCacheDao mangaCacheDao = MangaCacheDao(this as AppDatabase);
+  late final MangaChapterDao mangaChapterDao = MangaChapterDao(
+    this as AppDatabase,
+  );
+  late final MangaProgressDao mangaProgressDao = MangaProgressDao(
+    this as AppDatabase,
+  );
+  late final MangaLibraryDao mangaLibraryDao = MangaLibraryDao(
+    this as AppDatabase,
+  );
+  late final ChapterPageCacheDao chapterPageCacheDao = ChapterPageCacheDao(
+    this as AppDatabase,
+  );
+  late final MangaDownloadDao mangaDownloadDao = MangaDownloadDao(
+    this as AppDatabase,
+  );
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -6513,6 +11848,13 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     anilistCacheTable,
     translationCacheTable,
     episodeCatalogCacheTable,
+    mangaCacheTable,
+    mangaChapterTable,
+    mangaProgressTable,
+    mangaHistoryTable,
+    mangaLibraryTable,
+    chapterPageCacheTable,
+    mangaDownloadTable,
   ];
 }
 
@@ -9729,6 +15071,2518 @@ typedef $$EpisodeCatalogCacheTableTableProcessedTableManager =
       EpisodeCatalogCacheTableData,
       PrefetchHooks Function()
     >;
+typedef $$MangaCacheTableTableCreateCompanionBuilder =
+    MangaCacheTableCompanion Function({
+      Value<int> anilistId,
+      required String titleRomaji,
+      Value<String?> titleEnglish,
+      Value<String?> titleNative,
+      Value<String?> synonyms,
+      Value<String?> coverImageUrl,
+      Value<String?> bannerImageUrl,
+      Value<String?> status,
+      Value<String?> format,
+      Value<String?> countryOfOrigin,
+      Value<String?> originalLanguage,
+      Value<int?> releaseYear,
+      Value<int?> totalChapters,
+      Value<int?> totalVolumes,
+      Value<int?> averageScore,
+      Value<int?> popularity,
+      Value<String?> genres,
+      Value<String?> tags,
+      Value<String?> synopsis,
+      Value<String?> relations,
+      required int updatedAt,
+    });
+typedef $$MangaCacheTableTableUpdateCompanionBuilder =
+    MangaCacheTableCompanion Function({
+      Value<int> anilistId,
+      Value<String> titleRomaji,
+      Value<String?> titleEnglish,
+      Value<String?> titleNative,
+      Value<String?> synonyms,
+      Value<String?> coverImageUrl,
+      Value<String?> bannerImageUrl,
+      Value<String?> status,
+      Value<String?> format,
+      Value<String?> countryOfOrigin,
+      Value<String?> originalLanguage,
+      Value<int?> releaseYear,
+      Value<int?> totalChapters,
+      Value<int?> totalVolumes,
+      Value<int?> averageScore,
+      Value<int?> popularity,
+      Value<String?> genres,
+      Value<String?> tags,
+      Value<String?> synopsis,
+      Value<String?> relations,
+      Value<int> updatedAt,
+    });
+
+class $$MangaCacheTableTableFilterComposer
+    extends Composer<_$AppDatabase, $MangaCacheTableTable> {
+  $$MangaCacheTableTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get anilistId => $composableBuilder(
+    column: $table.anilistId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get titleRomaji => $composableBuilder(
+    column: $table.titleRomaji,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get titleEnglish => $composableBuilder(
+    column: $table.titleEnglish,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get titleNative => $composableBuilder(
+    column: $table.titleNative,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get synonyms => $composableBuilder(
+    column: $table.synonyms,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get coverImageUrl => $composableBuilder(
+    column: $table.coverImageUrl,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get bannerImageUrl => $composableBuilder(
+    column: $table.bannerImageUrl,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get status => $composableBuilder(
+    column: $table.status,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get format => $composableBuilder(
+    column: $table.format,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get countryOfOrigin => $composableBuilder(
+    column: $table.countryOfOrigin,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get originalLanguage => $composableBuilder(
+    column: $table.originalLanguage,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get releaseYear => $composableBuilder(
+    column: $table.releaseYear,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get totalChapters => $composableBuilder(
+    column: $table.totalChapters,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get totalVolumes => $composableBuilder(
+    column: $table.totalVolumes,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get averageScore => $composableBuilder(
+    column: $table.averageScore,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get popularity => $composableBuilder(
+    column: $table.popularity,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get genres => $composableBuilder(
+    column: $table.genres,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get tags => $composableBuilder(
+    column: $table.tags,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get synopsis => $composableBuilder(
+    column: $table.synopsis,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get relations => $composableBuilder(
+    column: $table.relations,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$MangaCacheTableTableOrderingComposer
+    extends Composer<_$AppDatabase, $MangaCacheTableTable> {
+  $$MangaCacheTableTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get anilistId => $composableBuilder(
+    column: $table.anilistId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get titleRomaji => $composableBuilder(
+    column: $table.titleRomaji,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get titleEnglish => $composableBuilder(
+    column: $table.titleEnglish,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get titleNative => $composableBuilder(
+    column: $table.titleNative,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get synonyms => $composableBuilder(
+    column: $table.synonyms,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get coverImageUrl => $composableBuilder(
+    column: $table.coverImageUrl,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get bannerImageUrl => $composableBuilder(
+    column: $table.bannerImageUrl,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get status => $composableBuilder(
+    column: $table.status,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get format => $composableBuilder(
+    column: $table.format,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get countryOfOrigin => $composableBuilder(
+    column: $table.countryOfOrigin,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get originalLanguage => $composableBuilder(
+    column: $table.originalLanguage,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get releaseYear => $composableBuilder(
+    column: $table.releaseYear,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get totalChapters => $composableBuilder(
+    column: $table.totalChapters,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get totalVolumes => $composableBuilder(
+    column: $table.totalVolumes,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get averageScore => $composableBuilder(
+    column: $table.averageScore,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get popularity => $composableBuilder(
+    column: $table.popularity,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get genres => $composableBuilder(
+    column: $table.genres,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get tags => $composableBuilder(
+    column: $table.tags,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get synopsis => $composableBuilder(
+    column: $table.synopsis,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get relations => $composableBuilder(
+    column: $table.relations,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$MangaCacheTableTableAnnotationComposer
+    extends Composer<_$AppDatabase, $MangaCacheTableTable> {
+  $$MangaCacheTableTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get anilistId =>
+      $composableBuilder(column: $table.anilistId, builder: (column) => column);
+
+  GeneratedColumn<String> get titleRomaji => $composableBuilder(
+    column: $table.titleRomaji,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get titleEnglish => $composableBuilder(
+    column: $table.titleEnglish,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get titleNative => $composableBuilder(
+    column: $table.titleNative,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get synonyms =>
+      $composableBuilder(column: $table.synonyms, builder: (column) => column);
+
+  GeneratedColumn<String> get coverImageUrl => $composableBuilder(
+    column: $table.coverImageUrl,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get bannerImageUrl => $composableBuilder(
+    column: $table.bannerImageUrl,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get status =>
+      $composableBuilder(column: $table.status, builder: (column) => column);
+
+  GeneratedColumn<String> get format =>
+      $composableBuilder(column: $table.format, builder: (column) => column);
+
+  GeneratedColumn<String> get countryOfOrigin => $composableBuilder(
+    column: $table.countryOfOrigin,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get originalLanguage => $composableBuilder(
+    column: $table.originalLanguage,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get releaseYear => $composableBuilder(
+    column: $table.releaseYear,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get totalChapters => $composableBuilder(
+    column: $table.totalChapters,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get totalVolumes => $composableBuilder(
+    column: $table.totalVolumes,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get averageScore => $composableBuilder(
+    column: $table.averageScore,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get popularity => $composableBuilder(
+    column: $table.popularity,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get genres =>
+      $composableBuilder(column: $table.genres, builder: (column) => column);
+
+  GeneratedColumn<String> get tags =>
+      $composableBuilder(column: $table.tags, builder: (column) => column);
+
+  GeneratedColumn<String> get synopsis =>
+      $composableBuilder(column: $table.synopsis, builder: (column) => column);
+
+  GeneratedColumn<String> get relations =>
+      $composableBuilder(column: $table.relations, builder: (column) => column);
+
+  GeneratedColumn<int> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+}
+
+class $$MangaCacheTableTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $MangaCacheTableTable,
+          MangaCacheTableData,
+          $$MangaCacheTableTableFilterComposer,
+          $$MangaCacheTableTableOrderingComposer,
+          $$MangaCacheTableTableAnnotationComposer,
+          $$MangaCacheTableTableCreateCompanionBuilder,
+          $$MangaCacheTableTableUpdateCompanionBuilder,
+          (
+            MangaCacheTableData,
+            BaseReferences<
+              _$AppDatabase,
+              $MangaCacheTableTable,
+              MangaCacheTableData
+            >,
+          ),
+          MangaCacheTableData,
+          PrefetchHooks Function()
+        > {
+  $$MangaCacheTableTableTableManager(
+    _$AppDatabase db,
+    $MangaCacheTableTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$MangaCacheTableTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$MangaCacheTableTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$MangaCacheTableTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<int> anilistId = const Value.absent(),
+                Value<String> titleRomaji = const Value.absent(),
+                Value<String?> titleEnglish = const Value.absent(),
+                Value<String?> titleNative = const Value.absent(),
+                Value<String?> synonyms = const Value.absent(),
+                Value<String?> coverImageUrl = const Value.absent(),
+                Value<String?> bannerImageUrl = const Value.absent(),
+                Value<String?> status = const Value.absent(),
+                Value<String?> format = const Value.absent(),
+                Value<String?> countryOfOrigin = const Value.absent(),
+                Value<String?> originalLanguage = const Value.absent(),
+                Value<int?> releaseYear = const Value.absent(),
+                Value<int?> totalChapters = const Value.absent(),
+                Value<int?> totalVolumes = const Value.absent(),
+                Value<int?> averageScore = const Value.absent(),
+                Value<int?> popularity = const Value.absent(),
+                Value<String?> genres = const Value.absent(),
+                Value<String?> tags = const Value.absent(),
+                Value<String?> synopsis = const Value.absent(),
+                Value<String?> relations = const Value.absent(),
+                Value<int> updatedAt = const Value.absent(),
+              }) => MangaCacheTableCompanion(
+                anilistId: anilistId,
+                titleRomaji: titleRomaji,
+                titleEnglish: titleEnglish,
+                titleNative: titleNative,
+                synonyms: synonyms,
+                coverImageUrl: coverImageUrl,
+                bannerImageUrl: bannerImageUrl,
+                status: status,
+                format: format,
+                countryOfOrigin: countryOfOrigin,
+                originalLanguage: originalLanguage,
+                releaseYear: releaseYear,
+                totalChapters: totalChapters,
+                totalVolumes: totalVolumes,
+                averageScore: averageScore,
+                popularity: popularity,
+                genres: genres,
+                tags: tags,
+                synopsis: synopsis,
+                relations: relations,
+                updatedAt: updatedAt,
+              ),
+          createCompanionCallback:
+              ({
+                Value<int> anilistId = const Value.absent(),
+                required String titleRomaji,
+                Value<String?> titleEnglish = const Value.absent(),
+                Value<String?> titleNative = const Value.absent(),
+                Value<String?> synonyms = const Value.absent(),
+                Value<String?> coverImageUrl = const Value.absent(),
+                Value<String?> bannerImageUrl = const Value.absent(),
+                Value<String?> status = const Value.absent(),
+                Value<String?> format = const Value.absent(),
+                Value<String?> countryOfOrigin = const Value.absent(),
+                Value<String?> originalLanguage = const Value.absent(),
+                Value<int?> releaseYear = const Value.absent(),
+                Value<int?> totalChapters = const Value.absent(),
+                Value<int?> totalVolumes = const Value.absent(),
+                Value<int?> averageScore = const Value.absent(),
+                Value<int?> popularity = const Value.absent(),
+                Value<String?> genres = const Value.absent(),
+                Value<String?> tags = const Value.absent(),
+                Value<String?> synopsis = const Value.absent(),
+                Value<String?> relations = const Value.absent(),
+                required int updatedAt,
+              }) => MangaCacheTableCompanion.insert(
+                anilistId: anilistId,
+                titleRomaji: titleRomaji,
+                titleEnglish: titleEnglish,
+                titleNative: titleNative,
+                synonyms: synonyms,
+                coverImageUrl: coverImageUrl,
+                bannerImageUrl: bannerImageUrl,
+                status: status,
+                format: format,
+                countryOfOrigin: countryOfOrigin,
+                originalLanguage: originalLanguage,
+                releaseYear: releaseYear,
+                totalChapters: totalChapters,
+                totalVolumes: totalVolumes,
+                averageScore: averageScore,
+                popularity: popularity,
+                genres: genres,
+                tags: tags,
+                synopsis: synopsis,
+                relations: relations,
+                updatedAt: updatedAt,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$MangaCacheTableTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $MangaCacheTableTable,
+      MangaCacheTableData,
+      $$MangaCacheTableTableFilterComposer,
+      $$MangaCacheTableTableOrderingComposer,
+      $$MangaCacheTableTableAnnotationComposer,
+      $$MangaCacheTableTableCreateCompanionBuilder,
+      $$MangaCacheTableTableUpdateCompanionBuilder,
+      (
+        MangaCacheTableData,
+        BaseReferences<
+          _$AppDatabase,
+          $MangaCacheTableTable,
+          MangaCacheTableData
+        >,
+      ),
+      MangaCacheTableData,
+      PrefetchHooks Function()
+    >;
+typedef $$MangaChapterTableTableCreateCompanionBuilder =
+    MangaChapterTableCompanion Function({
+      required String sourceId,
+      required String sourceChapterId,
+      required int mangaAnilistId,
+      required String sourceMangaId,
+      required double number,
+      Value<String?> title,
+      Value<int?> volume,
+      Value<String> language,
+      Value<String?> scanlator,
+      Value<int?> publishedAt,
+      Value<int?> pageCount,
+      required int updatedAt,
+      Value<int> rowid,
+    });
+typedef $$MangaChapterTableTableUpdateCompanionBuilder =
+    MangaChapterTableCompanion Function({
+      Value<String> sourceId,
+      Value<String> sourceChapterId,
+      Value<int> mangaAnilistId,
+      Value<String> sourceMangaId,
+      Value<double> number,
+      Value<String?> title,
+      Value<int?> volume,
+      Value<String> language,
+      Value<String?> scanlator,
+      Value<int?> publishedAt,
+      Value<int?> pageCount,
+      Value<int> updatedAt,
+      Value<int> rowid,
+    });
+
+class $$MangaChapterTableTableFilterComposer
+    extends Composer<_$AppDatabase, $MangaChapterTableTable> {
+  $$MangaChapterTableTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get sourceId => $composableBuilder(
+    column: $table.sourceId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get sourceChapterId => $composableBuilder(
+    column: $table.sourceChapterId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get mangaAnilistId => $composableBuilder(
+    column: $table.mangaAnilistId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get sourceMangaId => $composableBuilder(
+    column: $table.sourceMangaId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get number => $composableBuilder(
+    column: $table.number,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get title => $composableBuilder(
+    column: $table.title,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get volume => $composableBuilder(
+    column: $table.volume,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get language => $composableBuilder(
+    column: $table.language,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get scanlator => $composableBuilder(
+    column: $table.scanlator,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get publishedAt => $composableBuilder(
+    column: $table.publishedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get pageCount => $composableBuilder(
+    column: $table.pageCount,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$MangaChapterTableTableOrderingComposer
+    extends Composer<_$AppDatabase, $MangaChapterTableTable> {
+  $$MangaChapterTableTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get sourceId => $composableBuilder(
+    column: $table.sourceId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get sourceChapterId => $composableBuilder(
+    column: $table.sourceChapterId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get mangaAnilistId => $composableBuilder(
+    column: $table.mangaAnilistId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get sourceMangaId => $composableBuilder(
+    column: $table.sourceMangaId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get number => $composableBuilder(
+    column: $table.number,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get title => $composableBuilder(
+    column: $table.title,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get volume => $composableBuilder(
+    column: $table.volume,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get language => $composableBuilder(
+    column: $table.language,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get scanlator => $composableBuilder(
+    column: $table.scanlator,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get publishedAt => $composableBuilder(
+    column: $table.publishedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get pageCount => $composableBuilder(
+    column: $table.pageCount,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$MangaChapterTableTableAnnotationComposer
+    extends Composer<_$AppDatabase, $MangaChapterTableTable> {
+  $$MangaChapterTableTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get sourceId =>
+      $composableBuilder(column: $table.sourceId, builder: (column) => column);
+
+  GeneratedColumn<String> get sourceChapterId => $composableBuilder(
+    column: $table.sourceChapterId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get mangaAnilistId => $composableBuilder(
+    column: $table.mangaAnilistId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get sourceMangaId => $composableBuilder(
+    column: $table.sourceMangaId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<double> get number =>
+      $composableBuilder(column: $table.number, builder: (column) => column);
+
+  GeneratedColumn<String> get title =>
+      $composableBuilder(column: $table.title, builder: (column) => column);
+
+  GeneratedColumn<int> get volume =>
+      $composableBuilder(column: $table.volume, builder: (column) => column);
+
+  GeneratedColumn<String> get language =>
+      $composableBuilder(column: $table.language, builder: (column) => column);
+
+  GeneratedColumn<String> get scanlator =>
+      $composableBuilder(column: $table.scanlator, builder: (column) => column);
+
+  GeneratedColumn<int> get publishedAt => $composableBuilder(
+    column: $table.publishedAt,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get pageCount =>
+      $composableBuilder(column: $table.pageCount, builder: (column) => column);
+
+  GeneratedColumn<int> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+}
+
+class $$MangaChapterTableTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $MangaChapterTableTable,
+          MangaChapterTableData,
+          $$MangaChapterTableTableFilterComposer,
+          $$MangaChapterTableTableOrderingComposer,
+          $$MangaChapterTableTableAnnotationComposer,
+          $$MangaChapterTableTableCreateCompanionBuilder,
+          $$MangaChapterTableTableUpdateCompanionBuilder,
+          (
+            MangaChapterTableData,
+            BaseReferences<
+              _$AppDatabase,
+              $MangaChapterTableTable,
+              MangaChapterTableData
+            >,
+          ),
+          MangaChapterTableData,
+          PrefetchHooks Function()
+        > {
+  $$MangaChapterTableTableTableManager(
+    _$AppDatabase db,
+    $MangaChapterTableTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$MangaChapterTableTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$MangaChapterTableTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$MangaChapterTableTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<String> sourceId = const Value.absent(),
+                Value<String> sourceChapterId = const Value.absent(),
+                Value<int> mangaAnilistId = const Value.absent(),
+                Value<String> sourceMangaId = const Value.absent(),
+                Value<double> number = const Value.absent(),
+                Value<String?> title = const Value.absent(),
+                Value<int?> volume = const Value.absent(),
+                Value<String> language = const Value.absent(),
+                Value<String?> scanlator = const Value.absent(),
+                Value<int?> publishedAt = const Value.absent(),
+                Value<int?> pageCount = const Value.absent(),
+                Value<int> updatedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => MangaChapterTableCompanion(
+                sourceId: sourceId,
+                sourceChapterId: sourceChapterId,
+                mangaAnilistId: mangaAnilistId,
+                sourceMangaId: sourceMangaId,
+                number: number,
+                title: title,
+                volume: volume,
+                language: language,
+                scanlator: scanlator,
+                publishedAt: publishedAt,
+                pageCount: pageCount,
+                updatedAt: updatedAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String sourceId,
+                required String sourceChapterId,
+                required int mangaAnilistId,
+                required String sourceMangaId,
+                required double number,
+                Value<String?> title = const Value.absent(),
+                Value<int?> volume = const Value.absent(),
+                Value<String> language = const Value.absent(),
+                Value<String?> scanlator = const Value.absent(),
+                Value<int?> publishedAt = const Value.absent(),
+                Value<int?> pageCount = const Value.absent(),
+                required int updatedAt,
+                Value<int> rowid = const Value.absent(),
+              }) => MangaChapterTableCompanion.insert(
+                sourceId: sourceId,
+                sourceChapterId: sourceChapterId,
+                mangaAnilistId: mangaAnilistId,
+                sourceMangaId: sourceMangaId,
+                number: number,
+                title: title,
+                volume: volume,
+                language: language,
+                scanlator: scanlator,
+                publishedAt: publishedAt,
+                pageCount: pageCount,
+                updatedAt: updatedAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$MangaChapterTableTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $MangaChapterTableTable,
+      MangaChapterTableData,
+      $$MangaChapterTableTableFilterComposer,
+      $$MangaChapterTableTableOrderingComposer,
+      $$MangaChapterTableTableAnnotationComposer,
+      $$MangaChapterTableTableCreateCompanionBuilder,
+      $$MangaChapterTableTableUpdateCompanionBuilder,
+      (
+        MangaChapterTableData,
+        BaseReferences<
+          _$AppDatabase,
+          $MangaChapterTableTable,
+          MangaChapterTableData
+        >,
+      ),
+      MangaChapterTableData,
+      PrefetchHooks Function()
+    >;
+typedef $$MangaProgressTableTableCreateCompanionBuilder =
+    MangaProgressTableCompanion Function({
+      required int mangaAnilistId,
+      required String sourceId,
+      required String sourceChapterId,
+      required double chapterNumber,
+      Value<int> pageIndex,
+      Value<double?> scrollOffset,
+      Value<String> readState,
+      required int updatedAt,
+      Value<int> rowid,
+    });
+typedef $$MangaProgressTableTableUpdateCompanionBuilder =
+    MangaProgressTableCompanion Function({
+      Value<int> mangaAnilistId,
+      Value<String> sourceId,
+      Value<String> sourceChapterId,
+      Value<double> chapterNumber,
+      Value<int> pageIndex,
+      Value<double?> scrollOffset,
+      Value<String> readState,
+      Value<int> updatedAt,
+      Value<int> rowid,
+    });
+
+class $$MangaProgressTableTableFilterComposer
+    extends Composer<_$AppDatabase, $MangaProgressTableTable> {
+  $$MangaProgressTableTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get mangaAnilistId => $composableBuilder(
+    column: $table.mangaAnilistId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get sourceId => $composableBuilder(
+    column: $table.sourceId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get sourceChapterId => $composableBuilder(
+    column: $table.sourceChapterId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get chapterNumber => $composableBuilder(
+    column: $table.chapterNumber,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get pageIndex => $composableBuilder(
+    column: $table.pageIndex,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get scrollOffset => $composableBuilder(
+    column: $table.scrollOffset,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get readState => $composableBuilder(
+    column: $table.readState,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$MangaProgressTableTableOrderingComposer
+    extends Composer<_$AppDatabase, $MangaProgressTableTable> {
+  $$MangaProgressTableTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get mangaAnilistId => $composableBuilder(
+    column: $table.mangaAnilistId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get sourceId => $composableBuilder(
+    column: $table.sourceId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get sourceChapterId => $composableBuilder(
+    column: $table.sourceChapterId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get chapterNumber => $composableBuilder(
+    column: $table.chapterNumber,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get pageIndex => $composableBuilder(
+    column: $table.pageIndex,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get scrollOffset => $composableBuilder(
+    column: $table.scrollOffset,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get readState => $composableBuilder(
+    column: $table.readState,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$MangaProgressTableTableAnnotationComposer
+    extends Composer<_$AppDatabase, $MangaProgressTableTable> {
+  $$MangaProgressTableTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get mangaAnilistId => $composableBuilder(
+    column: $table.mangaAnilistId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get sourceId =>
+      $composableBuilder(column: $table.sourceId, builder: (column) => column);
+
+  GeneratedColumn<String> get sourceChapterId => $composableBuilder(
+    column: $table.sourceChapterId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<double> get chapterNumber => $composableBuilder(
+    column: $table.chapterNumber,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get pageIndex =>
+      $composableBuilder(column: $table.pageIndex, builder: (column) => column);
+
+  GeneratedColumn<double> get scrollOffset => $composableBuilder(
+    column: $table.scrollOffset,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get readState =>
+      $composableBuilder(column: $table.readState, builder: (column) => column);
+
+  GeneratedColumn<int> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+}
+
+class $$MangaProgressTableTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $MangaProgressTableTable,
+          MangaProgressTableData,
+          $$MangaProgressTableTableFilterComposer,
+          $$MangaProgressTableTableOrderingComposer,
+          $$MangaProgressTableTableAnnotationComposer,
+          $$MangaProgressTableTableCreateCompanionBuilder,
+          $$MangaProgressTableTableUpdateCompanionBuilder,
+          (
+            MangaProgressTableData,
+            BaseReferences<
+              _$AppDatabase,
+              $MangaProgressTableTable,
+              MangaProgressTableData
+            >,
+          ),
+          MangaProgressTableData,
+          PrefetchHooks Function()
+        > {
+  $$MangaProgressTableTableTableManager(
+    _$AppDatabase db,
+    $MangaProgressTableTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$MangaProgressTableTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$MangaProgressTableTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$MangaProgressTableTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<int> mangaAnilistId = const Value.absent(),
+                Value<String> sourceId = const Value.absent(),
+                Value<String> sourceChapterId = const Value.absent(),
+                Value<double> chapterNumber = const Value.absent(),
+                Value<int> pageIndex = const Value.absent(),
+                Value<double?> scrollOffset = const Value.absent(),
+                Value<String> readState = const Value.absent(),
+                Value<int> updatedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => MangaProgressTableCompanion(
+                mangaAnilistId: mangaAnilistId,
+                sourceId: sourceId,
+                sourceChapterId: sourceChapterId,
+                chapterNumber: chapterNumber,
+                pageIndex: pageIndex,
+                scrollOffset: scrollOffset,
+                readState: readState,
+                updatedAt: updatedAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required int mangaAnilistId,
+                required String sourceId,
+                required String sourceChapterId,
+                required double chapterNumber,
+                Value<int> pageIndex = const Value.absent(),
+                Value<double?> scrollOffset = const Value.absent(),
+                Value<String> readState = const Value.absent(),
+                required int updatedAt,
+                Value<int> rowid = const Value.absent(),
+              }) => MangaProgressTableCompanion.insert(
+                mangaAnilistId: mangaAnilistId,
+                sourceId: sourceId,
+                sourceChapterId: sourceChapterId,
+                chapterNumber: chapterNumber,
+                pageIndex: pageIndex,
+                scrollOffset: scrollOffset,
+                readState: readState,
+                updatedAt: updatedAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$MangaProgressTableTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $MangaProgressTableTable,
+      MangaProgressTableData,
+      $$MangaProgressTableTableFilterComposer,
+      $$MangaProgressTableTableOrderingComposer,
+      $$MangaProgressTableTableAnnotationComposer,
+      $$MangaProgressTableTableCreateCompanionBuilder,
+      $$MangaProgressTableTableUpdateCompanionBuilder,
+      (
+        MangaProgressTableData,
+        BaseReferences<
+          _$AppDatabase,
+          $MangaProgressTableTable,
+          MangaProgressTableData
+        >,
+      ),
+      MangaProgressTableData,
+      PrefetchHooks Function()
+    >;
+typedef $$MangaHistoryTableTableCreateCompanionBuilder =
+    MangaHistoryTableCompanion Function({
+      Value<int> mangaAnilistId,
+      required double lastChapterNumber,
+      Value<String?> lastSourceId,
+      Value<String?> lastSourceChapterId,
+      Value<int?> lastPageIndex,
+      required int lastAccessedAt,
+    });
+typedef $$MangaHistoryTableTableUpdateCompanionBuilder =
+    MangaHistoryTableCompanion Function({
+      Value<int> mangaAnilistId,
+      Value<double> lastChapterNumber,
+      Value<String?> lastSourceId,
+      Value<String?> lastSourceChapterId,
+      Value<int?> lastPageIndex,
+      Value<int> lastAccessedAt,
+    });
+
+class $$MangaHistoryTableTableFilterComposer
+    extends Composer<_$AppDatabase, $MangaHistoryTableTable> {
+  $$MangaHistoryTableTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get mangaAnilistId => $composableBuilder(
+    column: $table.mangaAnilistId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get lastChapterNumber => $composableBuilder(
+    column: $table.lastChapterNumber,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get lastSourceId => $composableBuilder(
+    column: $table.lastSourceId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get lastSourceChapterId => $composableBuilder(
+    column: $table.lastSourceChapterId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get lastPageIndex => $composableBuilder(
+    column: $table.lastPageIndex,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get lastAccessedAt => $composableBuilder(
+    column: $table.lastAccessedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$MangaHistoryTableTableOrderingComposer
+    extends Composer<_$AppDatabase, $MangaHistoryTableTable> {
+  $$MangaHistoryTableTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get mangaAnilistId => $composableBuilder(
+    column: $table.mangaAnilistId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get lastChapterNumber => $composableBuilder(
+    column: $table.lastChapterNumber,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get lastSourceId => $composableBuilder(
+    column: $table.lastSourceId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get lastSourceChapterId => $composableBuilder(
+    column: $table.lastSourceChapterId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get lastPageIndex => $composableBuilder(
+    column: $table.lastPageIndex,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get lastAccessedAt => $composableBuilder(
+    column: $table.lastAccessedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$MangaHistoryTableTableAnnotationComposer
+    extends Composer<_$AppDatabase, $MangaHistoryTableTable> {
+  $$MangaHistoryTableTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get mangaAnilistId => $composableBuilder(
+    column: $table.mangaAnilistId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<double> get lastChapterNumber => $composableBuilder(
+    column: $table.lastChapterNumber,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get lastSourceId => $composableBuilder(
+    column: $table.lastSourceId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get lastSourceChapterId => $composableBuilder(
+    column: $table.lastSourceChapterId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get lastPageIndex => $composableBuilder(
+    column: $table.lastPageIndex,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get lastAccessedAt => $composableBuilder(
+    column: $table.lastAccessedAt,
+    builder: (column) => column,
+  );
+}
+
+class $$MangaHistoryTableTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $MangaHistoryTableTable,
+          MangaHistoryTableData,
+          $$MangaHistoryTableTableFilterComposer,
+          $$MangaHistoryTableTableOrderingComposer,
+          $$MangaHistoryTableTableAnnotationComposer,
+          $$MangaHistoryTableTableCreateCompanionBuilder,
+          $$MangaHistoryTableTableUpdateCompanionBuilder,
+          (
+            MangaHistoryTableData,
+            BaseReferences<
+              _$AppDatabase,
+              $MangaHistoryTableTable,
+              MangaHistoryTableData
+            >,
+          ),
+          MangaHistoryTableData,
+          PrefetchHooks Function()
+        > {
+  $$MangaHistoryTableTableTableManager(
+    _$AppDatabase db,
+    $MangaHistoryTableTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$MangaHistoryTableTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$MangaHistoryTableTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$MangaHistoryTableTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<int> mangaAnilistId = const Value.absent(),
+                Value<double> lastChapterNumber = const Value.absent(),
+                Value<String?> lastSourceId = const Value.absent(),
+                Value<String?> lastSourceChapterId = const Value.absent(),
+                Value<int?> lastPageIndex = const Value.absent(),
+                Value<int> lastAccessedAt = const Value.absent(),
+              }) => MangaHistoryTableCompanion(
+                mangaAnilistId: mangaAnilistId,
+                lastChapterNumber: lastChapterNumber,
+                lastSourceId: lastSourceId,
+                lastSourceChapterId: lastSourceChapterId,
+                lastPageIndex: lastPageIndex,
+                lastAccessedAt: lastAccessedAt,
+              ),
+          createCompanionCallback:
+              ({
+                Value<int> mangaAnilistId = const Value.absent(),
+                required double lastChapterNumber,
+                Value<String?> lastSourceId = const Value.absent(),
+                Value<String?> lastSourceChapterId = const Value.absent(),
+                Value<int?> lastPageIndex = const Value.absent(),
+                required int lastAccessedAt,
+              }) => MangaHistoryTableCompanion.insert(
+                mangaAnilistId: mangaAnilistId,
+                lastChapterNumber: lastChapterNumber,
+                lastSourceId: lastSourceId,
+                lastSourceChapterId: lastSourceChapterId,
+                lastPageIndex: lastPageIndex,
+                lastAccessedAt: lastAccessedAt,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$MangaHistoryTableTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $MangaHistoryTableTable,
+      MangaHistoryTableData,
+      $$MangaHistoryTableTableFilterComposer,
+      $$MangaHistoryTableTableOrderingComposer,
+      $$MangaHistoryTableTableAnnotationComposer,
+      $$MangaHistoryTableTableCreateCompanionBuilder,
+      $$MangaHistoryTableTableUpdateCompanionBuilder,
+      (
+        MangaHistoryTableData,
+        BaseReferences<
+          _$AppDatabase,
+          $MangaHistoryTableTable,
+          MangaHistoryTableData
+        >,
+      ),
+      MangaHistoryTableData,
+      PrefetchHooks Function()
+    >;
+typedef $$MangaLibraryTableTableCreateCompanionBuilder =
+    MangaLibraryTableCompanion Function({
+      Value<int> mangaAnilistId,
+      required int addedAt,
+      Value<bool> notifyNewChapters,
+      Value<double?> lastNotifiedChapter,
+      Value<bool> autoDownloadNewChapters,
+      Value<String?> preferredLanguage,
+      Value<String?> preferredScanlator,
+    });
+typedef $$MangaLibraryTableTableUpdateCompanionBuilder =
+    MangaLibraryTableCompanion Function({
+      Value<int> mangaAnilistId,
+      Value<int> addedAt,
+      Value<bool> notifyNewChapters,
+      Value<double?> lastNotifiedChapter,
+      Value<bool> autoDownloadNewChapters,
+      Value<String?> preferredLanguage,
+      Value<String?> preferredScanlator,
+    });
+
+class $$MangaLibraryTableTableFilterComposer
+    extends Composer<_$AppDatabase, $MangaLibraryTableTable> {
+  $$MangaLibraryTableTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get mangaAnilistId => $composableBuilder(
+    column: $table.mangaAnilistId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get addedAt => $composableBuilder(
+    column: $table.addedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get notifyNewChapters => $composableBuilder(
+    column: $table.notifyNewChapters,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get lastNotifiedChapter => $composableBuilder(
+    column: $table.lastNotifiedChapter,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get autoDownloadNewChapters => $composableBuilder(
+    column: $table.autoDownloadNewChapters,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get preferredLanguage => $composableBuilder(
+    column: $table.preferredLanguage,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get preferredScanlator => $composableBuilder(
+    column: $table.preferredScanlator,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$MangaLibraryTableTableOrderingComposer
+    extends Composer<_$AppDatabase, $MangaLibraryTableTable> {
+  $$MangaLibraryTableTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get mangaAnilistId => $composableBuilder(
+    column: $table.mangaAnilistId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get addedAt => $composableBuilder(
+    column: $table.addedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get notifyNewChapters => $composableBuilder(
+    column: $table.notifyNewChapters,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get lastNotifiedChapter => $composableBuilder(
+    column: $table.lastNotifiedChapter,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get autoDownloadNewChapters => $composableBuilder(
+    column: $table.autoDownloadNewChapters,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get preferredLanguage => $composableBuilder(
+    column: $table.preferredLanguage,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get preferredScanlator => $composableBuilder(
+    column: $table.preferredScanlator,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$MangaLibraryTableTableAnnotationComposer
+    extends Composer<_$AppDatabase, $MangaLibraryTableTable> {
+  $$MangaLibraryTableTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get mangaAnilistId => $composableBuilder(
+    column: $table.mangaAnilistId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get addedAt =>
+      $composableBuilder(column: $table.addedAt, builder: (column) => column);
+
+  GeneratedColumn<bool> get notifyNewChapters => $composableBuilder(
+    column: $table.notifyNewChapters,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<double> get lastNotifiedChapter => $composableBuilder(
+    column: $table.lastNotifiedChapter,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<bool> get autoDownloadNewChapters => $composableBuilder(
+    column: $table.autoDownloadNewChapters,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get preferredLanguage => $composableBuilder(
+    column: $table.preferredLanguage,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get preferredScanlator => $composableBuilder(
+    column: $table.preferredScanlator,
+    builder: (column) => column,
+  );
+}
+
+class $$MangaLibraryTableTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $MangaLibraryTableTable,
+          MangaLibraryTableData,
+          $$MangaLibraryTableTableFilterComposer,
+          $$MangaLibraryTableTableOrderingComposer,
+          $$MangaLibraryTableTableAnnotationComposer,
+          $$MangaLibraryTableTableCreateCompanionBuilder,
+          $$MangaLibraryTableTableUpdateCompanionBuilder,
+          (
+            MangaLibraryTableData,
+            BaseReferences<
+              _$AppDatabase,
+              $MangaLibraryTableTable,
+              MangaLibraryTableData
+            >,
+          ),
+          MangaLibraryTableData,
+          PrefetchHooks Function()
+        > {
+  $$MangaLibraryTableTableTableManager(
+    _$AppDatabase db,
+    $MangaLibraryTableTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$MangaLibraryTableTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$MangaLibraryTableTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$MangaLibraryTableTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<int> mangaAnilistId = const Value.absent(),
+                Value<int> addedAt = const Value.absent(),
+                Value<bool> notifyNewChapters = const Value.absent(),
+                Value<double?> lastNotifiedChapter = const Value.absent(),
+                Value<bool> autoDownloadNewChapters = const Value.absent(),
+                Value<String?> preferredLanguage = const Value.absent(),
+                Value<String?> preferredScanlator = const Value.absent(),
+              }) => MangaLibraryTableCompanion(
+                mangaAnilistId: mangaAnilistId,
+                addedAt: addedAt,
+                notifyNewChapters: notifyNewChapters,
+                lastNotifiedChapter: lastNotifiedChapter,
+                autoDownloadNewChapters: autoDownloadNewChapters,
+                preferredLanguage: preferredLanguage,
+                preferredScanlator: preferredScanlator,
+              ),
+          createCompanionCallback:
+              ({
+                Value<int> mangaAnilistId = const Value.absent(),
+                required int addedAt,
+                Value<bool> notifyNewChapters = const Value.absent(),
+                Value<double?> lastNotifiedChapter = const Value.absent(),
+                Value<bool> autoDownloadNewChapters = const Value.absent(),
+                Value<String?> preferredLanguage = const Value.absent(),
+                Value<String?> preferredScanlator = const Value.absent(),
+              }) => MangaLibraryTableCompanion.insert(
+                mangaAnilistId: mangaAnilistId,
+                addedAt: addedAt,
+                notifyNewChapters: notifyNewChapters,
+                lastNotifiedChapter: lastNotifiedChapter,
+                autoDownloadNewChapters: autoDownloadNewChapters,
+                preferredLanguage: preferredLanguage,
+                preferredScanlator: preferredScanlator,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$MangaLibraryTableTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $MangaLibraryTableTable,
+      MangaLibraryTableData,
+      $$MangaLibraryTableTableFilterComposer,
+      $$MangaLibraryTableTableOrderingComposer,
+      $$MangaLibraryTableTableAnnotationComposer,
+      $$MangaLibraryTableTableCreateCompanionBuilder,
+      $$MangaLibraryTableTableUpdateCompanionBuilder,
+      (
+        MangaLibraryTableData,
+        BaseReferences<
+          _$AppDatabase,
+          $MangaLibraryTableTable,
+          MangaLibraryTableData
+        >,
+      ),
+      MangaLibraryTableData,
+      PrefetchHooks Function()
+    >;
+typedef $$ChapterPageCacheTableTableCreateCompanionBuilder =
+    ChapterPageCacheTableCompanion Function({
+      required String sourceId,
+      required String sourceChapterId,
+      required int pageIndex,
+      required String imageUrl,
+      Value<String?> headers,
+      Value<String?> localPath,
+      Value<int?> bytes,
+      Value<int?> width,
+      Value<int?> height,
+      Value<int?> expiresAt,
+      required int updatedAt,
+      Value<int> rowid,
+    });
+typedef $$ChapterPageCacheTableTableUpdateCompanionBuilder =
+    ChapterPageCacheTableCompanion Function({
+      Value<String> sourceId,
+      Value<String> sourceChapterId,
+      Value<int> pageIndex,
+      Value<String> imageUrl,
+      Value<String?> headers,
+      Value<String?> localPath,
+      Value<int?> bytes,
+      Value<int?> width,
+      Value<int?> height,
+      Value<int?> expiresAt,
+      Value<int> updatedAt,
+      Value<int> rowid,
+    });
+
+class $$ChapterPageCacheTableTableFilterComposer
+    extends Composer<_$AppDatabase, $ChapterPageCacheTableTable> {
+  $$ChapterPageCacheTableTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get sourceId => $composableBuilder(
+    column: $table.sourceId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get sourceChapterId => $composableBuilder(
+    column: $table.sourceChapterId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get pageIndex => $composableBuilder(
+    column: $table.pageIndex,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get imageUrl => $composableBuilder(
+    column: $table.imageUrl,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get headers => $composableBuilder(
+    column: $table.headers,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get localPath => $composableBuilder(
+    column: $table.localPath,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get bytes => $composableBuilder(
+    column: $table.bytes,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get width => $composableBuilder(
+    column: $table.width,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get height => $composableBuilder(
+    column: $table.height,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get expiresAt => $composableBuilder(
+    column: $table.expiresAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$ChapterPageCacheTableTableOrderingComposer
+    extends Composer<_$AppDatabase, $ChapterPageCacheTableTable> {
+  $$ChapterPageCacheTableTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get sourceId => $composableBuilder(
+    column: $table.sourceId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get sourceChapterId => $composableBuilder(
+    column: $table.sourceChapterId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get pageIndex => $composableBuilder(
+    column: $table.pageIndex,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get imageUrl => $composableBuilder(
+    column: $table.imageUrl,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get headers => $composableBuilder(
+    column: $table.headers,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get localPath => $composableBuilder(
+    column: $table.localPath,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get bytes => $composableBuilder(
+    column: $table.bytes,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get width => $composableBuilder(
+    column: $table.width,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get height => $composableBuilder(
+    column: $table.height,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get expiresAt => $composableBuilder(
+    column: $table.expiresAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$ChapterPageCacheTableTableAnnotationComposer
+    extends Composer<_$AppDatabase, $ChapterPageCacheTableTable> {
+  $$ChapterPageCacheTableTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get sourceId =>
+      $composableBuilder(column: $table.sourceId, builder: (column) => column);
+
+  GeneratedColumn<String> get sourceChapterId => $composableBuilder(
+    column: $table.sourceChapterId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get pageIndex =>
+      $composableBuilder(column: $table.pageIndex, builder: (column) => column);
+
+  GeneratedColumn<String> get imageUrl =>
+      $composableBuilder(column: $table.imageUrl, builder: (column) => column);
+
+  GeneratedColumn<String> get headers =>
+      $composableBuilder(column: $table.headers, builder: (column) => column);
+
+  GeneratedColumn<String> get localPath =>
+      $composableBuilder(column: $table.localPath, builder: (column) => column);
+
+  GeneratedColumn<int> get bytes =>
+      $composableBuilder(column: $table.bytes, builder: (column) => column);
+
+  GeneratedColumn<int> get width =>
+      $composableBuilder(column: $table.width, builder: (column) => column);
+
+  GeneratedColumn<int> get height =>
+      $composableBuilder(column: $table.height, builder: (column) => column);
+
+  GeneratedColumn<int> get expiresAt =>
+      $composableBuilder(column: $table.expiresAt, builder: (column) => column);
+
+  GeneratedColumn<int> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+}
+
+class $$ChapterPageCacheTableTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $ChapterPageCacheTableTable,
+          ChapterPageCacheTableData,
+          $$ChapterPageCacheTableTableFilterComposer,
+          $$ChapterPageCacheTableTableOrderingComposer,
+          $$ChapterPageCacheTableTableAnnotationComposer,
+          $$ChapterPageCacheTableTableCreateCompanionBuilder,
+          $$ChapterPageCacheTableTableUpdateCompanionBuilder,
+          (
+            ChapterPageCacheTableData,
+            BaseReferences<
+              _$AppDatabase,
+              $ChapterPageCacheTableTable,
+              ChapterPageCacheTableData
+            >,
+          ),
+          ChapterPageCacheTableData,
+          PrefetchHooks Function()
+        > {
+  $$ChapterPageCacheTableTableTableManager(
+    _$AppDatabase db,
+    $ChapterPageCacheTableTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$ChapterPageCacheTableTableFilterComposer(
+                $db: db,
+                $table: table,
+              ),
+          createOrderingComposer: () =>
+              $$ChapterPageCacheTableTableOrderingComposer(
+                $db: db,
+                $table: table,
+              ),
+          createComputedFieldComposer: () =>
+              $$ChapterPageCacheTableTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<String> sourceId = const Value.absent(),
+                Value<String> sourceChapterId = const Value.absent(),
+                Value<int> pageIndex = const Value.absent(),
+                Value<String> imageUrl = const Value.absent(),
+                Value<String?> headers = const Value.absent(),
+                Value<String?> localPath = const Value.absent(),
+                Value<int?> bytes = const Value.absent(),
+                Value<int?> width = const Value.absent(),
+                Value<int?> height = const Value.absent(),
+                Value<int?> expiresAt = const Value.absent(),
+                Value<int> updatedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => ChapterPageCacheTableCompanion(
+                sourceId: sourceId,
+                sourceChapterId: sourceChapterId,
+                pageIndex: pageIndex,
+                imageUrl: imageUrl,
+                headers: headers,
+                localPath: localPath,
+                bytes: bytes,
+                width: width,
+                height: height,
+                expiresAt: expiresAt,
+                updatedAt: updatedAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String sourceId,
+                required String sourceChapterId,
+                required int pageIndex,
+                required String imageUrl,
+                Value<String?> headers = const Value.absent(),
+                Value<String?> localPath = const Value.absent(),
+                Value<int?> bytes = const Value.absent(),
+                Value<int?> width = const Value.absent(),
+                Value<int?> height = const Value.absent(),
+                Value<int?> expiresAt = const Value.absent(),
+                required int updatedAt,
+                Value<int> rowid = const Value.absent(),
+              }) => ChapterPageCacheTableCompanion.insert(
+                sourceId: sourceId,
+                sourceChapterId: sourceChapterId,
+                pageIndex: pageIndex,
+                imageUrl: imageUrl,
+                headers: headers,
+                localPath: localPath,
+                bytes: bytes,
+                width: width,
+                height: height,
+                expiresAt: expiresAt,
+                updatedAt: updatedAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$ChapterPageCacheTableTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $ChapterPageCacheTableTable,
+      ChapterPageCacheTableData,
+      $$ChapterPageCacheTableTableFilterComposer,
+      $$ChapterPageCacheTableTableOrderingComposer,
+      $$ChapterPageCacheTableTableAnnotationComposer,
+      $$ChapterPageCacheTableTableCreateCompanionBuilder,
+      $$ChapterPageCacheTableTableUpdateCompanionBuilder,
+      (
+        ChapterPageCacheTableData,
+        BaseReferences<
+          _$AppDatabase,
+          $ChapterPageCacheTableTable,
+          ChapterPageCacheTableData
+        >,
+      ),
+      ChapterPageCacheTableData,
+      PrefetchHooks Function()
+    >;
+typedef $$MangaDownloadTableTableCreateCompanionBuilder =
+    MangaDownloadTableCompanion Function({
+      required String id,
+      required int mangaAnilistId,
+      required String sourceId,
+      required String sourceMangaId,
+      required String sourceChapterId,
+      required double chapterNumber,
+      Value<int?> volume,
+      Value<String> language,
+      Value<String?> scanlator,
+      Value<String?> mangaTitle,
+      Value<String?> chapterTitle,
+      Value<String> status,
+      Value<int?> pageCount,
+      Value<int?> pagesDownloaded,
+      Value<int?> totalBytes,
+      Value<int?> downloadedBytes,
+      Value<String?> cbzPath,
+      Value<String?> errorMessage,
+      required int createdAt,
+      Value<int?> updatedAt,
+      Value<int> rowid,
+    });
+typedef $$MangaDownloadTableTableUpdateCompanionBuilder =
+    MangaDownloadTableCompanion Function({
+      Value<String> id,
+      Value<int> mangaAnilistId,
+      Value<String> sourceId,
+      Value<String> sourceMangaId,
+      Value<String> sourceChapterId,
+      Value<double> chapterNumber,
+      Value<int?> volume,
+      Value<String> language,
+      Value<String?> scanlator,
+      Value<String?> mangaTitle,
+      Value<String?> chapterTitle,
+      Value<String> status,
+      Value<int?> pageCount,
+      Value<int?> pagesDownloaded,
+      Value<int?> totalBytes,
+      Value<int?> downloadedBytes,
+      Value<String?> cbzPath,
+      Value<String?> errorMessage,
+      Value<int> createdAt,
+      Value<int?> updatedAt,
+      Value<int> rowid,
+    });
+
+class $$MangaDownloadTableTableFilterComposer
+    extends Composer<_$AppDatabase, $MangaDownloadTableTable> {
+  $$MangaDownloadTableTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get mangaAnilistId => $composableBuilder(
+    column: $table.mangaAnilistId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get sourceId => $composableBuilder(
+    column: $table.sourceId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get sourceMangaId => $composableBuilder(
+    column: $table.sourceMangaId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get sourceChapterId => $composableBuilder(
+    column: $table.sourceChapterId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get chapterNumber => $composableBuilder(
+    column: $table.chapterNumber,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get volume => $composableBuilder(
+    column: $table.volume,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get language => $composableBuilder(
+    column: $table.language,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get scanlator => $composableBuilder(
+    column: $table.scanlator,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get mangaTitle => $composableBuilder(
+    column: $table.mangaTitle,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get chapterTitle => $composableBuilder(
+    column: $table.chapterTitle,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get status => $composableBuilder(
+    column: $table.status,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get pageCount => $composableBuilder(
+    column: $table.pageCount,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get pagesDownloaded => $composableBuilder(
+    column: $table.pagesDownloaded,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get totalBytes => $composableBuilder(
+    column: $table.totalBytes,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get downloadedBytes => $composableBuilder(
+    column: $table.downloadedBytes,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get cbzPath => $composableBuilder(
+    column: $table.cbzPath,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get errorMessage => $composableBuilder(
+    column: $table.errorMessage,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$MangaDownloadTableTableOrderingComposer
+    extends Composer<_$AppDatabase, $MangaDownloadTableTable> {
+  $$MangaDownloadTableTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get mangaAnilistId => $composableBuilder(
+    column: $table.mangaAnilistId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get sourceId => $composableBuilder(
+    column: $table.sourceId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get sourceMangaId => $composableBuilder(
+    column: $table.sourceMangaId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get sourceChapterId => $composableBuilder(
+    column: $table.sourceChapterId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get chapterNumber => $composableBuilder(
+    column: $table.chapterNumber,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get volume => $composableBuilder(
+    column: $table.volume,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get language => $composableBuilder(
+    column: $table.language,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get scanlator => $composableBuilder(
+    column: $table.scanlator,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get mangaTitle => $composableBuilder(
+    column: $table.mangaTitle,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get chapterTitle => $composableBuilder(
+    column: $table.chapterTitle,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get status => $composableBuilder(
+    column: $table.status,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get pageCount => $composableBuilder(
+    column: $table.pageCount,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get pagesDownloaded => $composableBuilder(
+    column: $table.pagesDownloaded,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get totalBytes => $composableBuilder(
+    column: $table.totalBytes,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get downloadedBytes => $composableBuilder(
+    column: $table.downloadedBytes,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get cbzPath => $composableBuilder(
+    column: $table.cbzPath,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get errorMessage => $composableBuilder(
+    column: $table.errorMessage,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$MangaDownloadTableTableAnnotationComposer
+    extends Composer<_$AppDatabase, $MangaDownloadTableTable> {
+  $$MangaDownloadTableTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<int> get mangaAnilistId => $composableBuilder(
+    column: $table.mangaAnilistId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get sourceId =>
+      $composableBuilder(column: $table.sourceId, builder: (column) => column);
+
+  GeneratedColumn<String> get sourceMangaId => $composableBuilder(
+    column: $table.sourceMangaId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get sourceChapterId => $composableBuilder(
+    column: $table.sourceChapterId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<double> get chapterNumber => $composableBuilder(
+    column: $table.chapterNumber,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get volume =>
+      $composableBuilder(column: $table.volume, builder: (column) => column);
+
+  GeneratedColumn<String> get language =>
+      $composableBuilder(column: $table.language, builder: (column) => column);
+
+  GeneratedColumn<String> get scanlator =>
+      $composableBuilder(column: $table.scanlator, builder: (column) => column);
+
+  GeneratedColumn<String> get mangaTitle => $composableBuilder(
+    column: $table.mangaTitle,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get chapterTitle => $composableBuilder(
+    column: $table.chapterTitle,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get status =>
+      $composableBuilder(column: $table.status, builder: (column) => column);
+
+  GeneratedColumn<int> get pageCount =>
+      $composableBuilder(column: $table.pageCount, builder: (column) => column);
+
+  GeneratedColumn<int> get pagesDownloaded => $composableBuilder(
+    column: $table.pagesDownloaded,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get totalBytes => $composableBuilder(
+    column: $table.totalBytes,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get downloadedBytes => $composableBuilder(
+    column: $table.downloadedBytes,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get cbzPath =>
+      $composableBuilder(column: $table.cbzPath, builder: (column) => column);
+
+  GeneratedColumn<String> get errorMessage => $composableBuilder(
+    column: $table.errorMessage,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<int> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+}
+
+class $$MangaDownloadTableTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $MangaDownloadTableTable,
+          MangaDownloadTableData,
+          $$MangaDownloadTableTableFilterComposer,
+          $$MangaDownloadTableTableOrderingComposer,
+          $$MangaDownloadTableTableAnnotationComposer,
+          $$MangaDownloadTableTableCreateCompanionBuilder,
+          $$MangaDownloadTableTableUpdateCompanionBuilder,
+          (
+            MangaDownloadTableData,
+            BaseReferences<
+              _$AppDatabase,
+              $MangaDownloadTableTable,
+              MangaDownloadTableData
+            >,
+          ),
+          MangaDownloadTableData,
+          PrefetchHooks Function()
+        > {
+  $$MangaDownloadTableTableTableManager(
+    _$AppDatabase db,
+    $MangaDownloadTableTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$MangaDownloadTableTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$MangaDownloadTableTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$MangaDownloadTableTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<int> mangaAnilistId = const Value.absent(),
+                Value<String> sourceId = const Value.absent(),
+                Value<String> sourceMangaId = const Value.absent(),
+                Value<String> sourceChapterId = const Value.absent(),
+                Value<double> chapterNumber = const Value.absent(),
+                Value<int?> volume = const Value.absent(),
+                Value<String> language = const Value.absent(),
+                Value<String?> scanlator = const Value.absent(),
+                Value<String?> mangaTitle = const Value.absent(),
+                Value<String?> chapterTitle = const Value.absent(),
+                Value<String> status = const Value.absent(),
+                Value<int?> pageCount = const Value.absent(),
+                Value<int?> pagesDownloaded = const Value.absent(),
+                Value<int?> totalBytes = const Value.absent(),
+                Value<int?> downloadedBytes = const Value.absent(),
+                Value<String?> cbzPath = const Value.absent(),
+                Value<String?> errorMessage = const Value.absent(),
+                Value<int> createdAt = const Value.absent(),
+                Value<int?> updatedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => MangaDownloadTableCompanion(
+                id: id,
+                mangaAnilistId: mangaAnilistId,
+                sourceId: sourceId,
+                sourceMangaId: sourceMangaId,
+                sourceChapterId: sourceChapterId,
+                chapterNumber: chapterNumber,
+                volume: volume,
+                language: language,
+                scanlator: scanlator,
+                mangaTitle: mangaTitle,
+                chapterTitle: chapterTitle,
+                status: status,
+                pageCount: pageCount,
+                pagesDownloaded: pagesDownloaded,
+                totalBytes: totalBytes,
+                downloadedBytes: downloadedBytes,
+                cbzPath: cbzPath,
+                errorMessage: errorMessage,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required int mangaAnilistId,
+                required String sourceId,
+                required String sourceMangaId,
+                required String sourceChapterId,
+                required double chapterNumber,
+                Value<int?> volume = const Value.absent(),
+                Value<String> language = const Value.absent(),
+                Value<String?> scanlator = const Value.absent(),
+                Value<String?> mangaTitle = const Value.absent(),
+                Value<String?> chapterTitle = const Value.absent(),
+                Value<String> status = const Value.absent(),
+                Value<int?> pageCount = const Value.absent(),
+                Value<int?> pagesDownloaded = const Value.absent(),
+                Value<int?> totalBytes = const Value.absent(),
+                Value<int?> downloadedBytes = const Value.absent(),
+                Value<String?> cbzPath = const Value.absent(),
+                Value<String?> errorMessage = const Value.absent(),
+                required int createdAt,
+                Value<int?> updatedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => MangaDownloadTableCompanion.insert(
+                id: id,
+                mangaAnilistId: mangaAnilistId,
+                sourceId: sourceId,
+                sourceMangaId: sourceMangaId,
+                sourceChapterId: sourceChapterId,
+                chapterNumber: chapterNumber,
+                volume: volume,
+                language: language,
+                scanlator: scanlator,
+                mangaTitle: mangaTitle,
+                chapterTitle: chapterTitle,
+                status: status,
+                pageCount: pageCount,
+                pagesDownloaded: pagesDownloaded,
+                totalBytes: totalBytes,
+                downloadedBytes: downloadedBytes,
+                cbzPath: cbzPath,
+                errorMessage: errorMessage,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$MangaDownloadTableTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $MangaDownloadTableTable,
+      MangaDownloadTableData,
+      $$MangaDownloadTableTableFilterComposer,
+      $$MangaDownloadTableTableOrderingComposer,
+      $$MangaDownloadTableTableAnnotationComposer,
+      $$MangaDownloadTableTableCreateCompanionBuilder,
+      $$MangaDownloadTableTableUpdateCompanionBuilder,
+      (
+        MangaDownloadTableData,
+        BaseReferences<
+          _$AppDatabase,
+          $MangaDownloadTableTable,
+          MangaDownloadTableData
+        >,
+      ),
+      MangaDownloadTableData,
+      PrefetchHooks Function()
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -9765,4 +17619,18 @@ class $AppDatabaseManager {
         _db,
         _db.episodeCatalogCacheTable,
       );
+  $$MangaCacheTableTableTableManager get mangaCacheTable =>
+      $$MangaCacheTableTableTableManager(_db, _db.mangaCacheTable);
+  $$MangaChapterTableTableTableManager get mangaChapterTable =>
+      $$MangaChapterTableTableTableManager(_db, _db.mangaChapterTable);
+  $$MangaProgressTableTableTableManager get mangaProgressTable =>
+      $$MangaProgressTableTableTableManager(_db, _db.mangaProgressTable);
+  $$MangaHistoryTableTableTableManager get mangaHistoryTable =>
+      $$MangaHistoryTableTableTableManager(_db, _db.mangaHistoryTable);
+  $$MangaLibraryTableTableTableManager get mangaLibraryTable =>
+      $$MangaLibraryTableTableTableManager(_db, _db.mangaLibraryTable);
+  $$ChapterPageCacheTableTableTableManager get chapterPageCacheTable =>
+      $$ChapterPageCacheTableTableTableManager(_db, _db.chapterPageCacheTable);
+  $$MangaDownloadTableTableTableManager get mangaDownloadTable =>
+      $$MangaDownloadTableTableTableManager(_db, _db.mangaDownloadTable);
 }

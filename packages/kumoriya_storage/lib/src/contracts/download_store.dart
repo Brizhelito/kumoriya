@@ -11,6 +11,7 @@ enum DownloadStatus {
   downloading,
   paused,
   remuxing,
+
   /// Network dropped mid-download (not a server error, not a user pause).
   /// Distinct from [paused] so the UI can show "Sin conexión" and from
   /// [failed] so the user doesn't feel punished for something outside

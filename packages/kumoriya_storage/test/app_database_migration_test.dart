@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:drift/drift.dart' show Variable;
 import 'package:drift/native.dart';
 import 'package:sqlite3/sqlite3.dart' as sqlite;
 import 'package:test/test.dart';
@@ -92,7 +93,7 @@ void main() {
       final versionRow = await db
           .customSelect('PRAGMA user_version')
           .getSingle();
-      expect(versionRow.read<int>('user_version'), 18);
+      expect(versionRow.read<int>('user_version'), 20);
 
       final translationTables = await db
           .customSelect(
@@ -107,6 +108,132 @@ void main() {
           )
           .get();
       expect(syncQueueTables, isNotEmpty);
+    },
+  );
+
+  test(
+    'v19 → v20 migration creates manga tables and indices without touching anime',
+    () async {
+      final tempDir = await Directory.systemTemp.createTemp(
+        'kumoriya-db-migration-v20-',
+      );
+      final dbFile = File(
+        '${tempDir.path}${Platform.pathSeparator}kumoriya_test.db',
+      );
+
+      // Open at the current schema then forcibly downgrade user_version to
+      // 19, dropping the v20 tables to simulate a pre-Slice-5 install.
+      var db = AppDatabase(NativeDatabase(dbFile));
+      await db.customSelect('SELECT 1').get();
+      await db.customStatement('DROP TABLE IF EXISTS manga_cache');
+      await db.customStatement('DROP TABLE IF EXISTS manga_chapter');
+      await db.customStatement('DROP TABLE IF EXISTS manga_progress');
+      await db.customStatement('DROP TABLE IF EXISTS manga_history');
+      await db.customStatement('DROP TABLE IF EXISTS manga_library');
+      await db.customStatement('DROP TABLE IF EXISTS chapter_page_cache');
+      await db.customStatement('DROP TABLE IF EXISTS manga_download');
+      await db.customStatement('PRAGMA user_version = 19');
+      await db.close();
+
+      // Snapshot the anime tables before migration so we can prove they
+      // were not touched.
+      final preDb = sqlite.sqlite3.open(dbFile.path);
+      final animeTables = <String>[
+        'episode_progress',
+        'watch_history',
+        'library_entry',
+        'anilist_cache',
+        'download_task',
+        'aniskip_cache',
+        'hls_segment',
+        'translation_cache',
+        'episode_catalog_cache',
+      ];
+      final preAnimeSchemas = {
+        for (final t in animeTables)
+          t: preDb
+              .select(
+                "SELECT sql FROM sqlite_master WHERE type='table' AND name = ?",
+                [t],
+              )
+              .map((row) => row['sql'] as String?)
+              .toList(),
+      };
+      preDb.close();
+
+      // Reopen — triggers v19 → v20 migration.
+      db = AppDatabase(NativeDatabase(dbFile));
+      addTearDown(() async {
+        await db.close();
+        if (dbFile.existsSync()) {
+          dbFile.deleteSync();
+        }
+        if (tempDir.existsSync()) {
+          await tempDir.delete(recursive: true);
+        }
+      });
+
+      final version = (await db.customSelect('PRAGMA user_version').getSingle())
+          .read<int>('user_version');
+      expect(version, 20);
+
+      final mangaTables = <String>[
+        'manga_cache',
+        'manga_chapter',
+        'manga_progress',
+        'manga_history',
+        'manga_library',
+        'chapter_page_cache',
+        'manga_download',
+      ];
+      for (final t in mangaTables) {
+        final found = await db
+            .customSelect(
+              "SELECT name FROM sqlite_master WHERE type='table' AND name = ?",
+              variables: [Variable.withString(t)],
+            )
+            .get();
+        expect(found, isNotEmpty, reason: 'missing manga table $t');
+      }
+
+      final mangaIndices = <String>[
+        'idx_manga_cache_updated',
+        'idx_manga_chapter_anime_number',
+        'idx_manga_chapter_source_lang',
+        'idx_manga_progress_manga_updated',
+        'idx_manga_history_last_accessed',
+        'idx_manga_library_notify',
+        'idx_manga_library_auto_download',
+        'idx_chapter_page_cache_expires',
+        'idx_manga_download_manga',
+        'idx_manga_download_status',
+        'idx_manga_download_status_manga',
+      ];
+      for (final ix in mangaIndices) {
+        final found = await db
+            .customSelect(
+              "SELECT name FROM sqlite_master WHERE type='index' AND name = ?",
+              variables: [Variable.withString(ix)],
+            )
+            .get();
+        expect(found, isNotEmpty, reason: 'missing manga index $ix');
+      }
+
+      // Anime schemas must be byte-identical post-migration.
+      for (final t in animeTables) {
+        final post = await db
+            .customSelect(
+              "SELECT sql FROM sqlite_master WHERE type='table' AND name = ?",
+              variables: [Variable.withString(t)],
+            )
+            .map((row) => row.read<String?>('sql'))
+            .get();
+        expect(
+          post,
+          equals(preAnimeSchemas[t]),
+          reason: 'anime table $t schema changed during v20 migration',
+        );
+      }
     },
   );
 }
