@@ -8,7 +8,28 @@ import '../../../../shared/widgets/kumoriya_cached_image.dart';
 ///
 /// Tap surfaces the detail page (caller wires `onTap`). The cover uses
 /// the standard cached image bucket so artwork is shared with anime.
+///
+/// The card has a deterministic intrinsic height — `posterHeight(width)`
+/// — so callers (carousels, grids) can size their viewport without
+/// guess-work or empirical cushions:
+///
+///     final h = MangaCard.heightFor(width);
 class MangaCard extends StatelessWidget {
+  /// Height of the title block (2 lines @ labelLarge).
+  static const double _titleBlockHeight = 38;
+
+  /// Height of the year block (1 line @ bodySmall).
+  static const double _yearBlockHeight = 16;
+
+  /// Vertical gap between poster and title.
+  static const double _posterGap = 8;
+
+  /// Total height the card occupies for a given poster `width`.
+  /// Always reserves the year row so cards align inside a carousel
+  /// regardless of which entries have a `releaseYear`.
+  static double heightFor(double width) =>
+      width * (4 / 3) + _posterGap + _titleBlockHeight + _yearBlockHeight;
+
   const MangaCard({
     super.key,
     required this.manga,
@@ -48,24 +69,32 @@ class MangaCard extends StatelessWidget {
             ),
           ),
         ),
-        const SizedBox(height: 8),
-        Text(
-          manga.title.romaji,
-          maxLines: 2,
-          overflow: TextOverflow.ellipsis,
-          style: textTheme.labelLarge!.copyWith(
-            color: KumoriyaColors.textPrimary,
-          ),
-        ),
-        if (manga.releaseYear != null)
-          Text(
-            manga.releaseYear!.toString(),
-            maxLines: 1,
+        const SizedBox(height: _posterGap),
+        SizedBox(
+          height: _titleBlockHeight,
+          child: Text(
+            manga.title.romaji,
+            maxLines: 2,
             overflow: TextOverflow.ellipsis,
-            style: textTheme.bodySmall!.copyWith(
-              color: KumoriyaColors.textMuted,
+            style: textTheme.labelLarge!.copyWith(
+              color: KumoriyaColors.textPrimary,
+              height: 1.15,
             ),
           ),
+        ),
+        SizedBox(
+          height: _yearBlockHeight,
+          child: manga.releaseYear == null
+              ? null
+              : Text(
+                  manga.releaseYear!.toString(),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: textTheme.bodySmall!.copyWith(
+                    color: KumoriyaColors.textMuted,
+                  ),
+                ),
+        ),
       ],
     );
     final tappable = InkWell(
