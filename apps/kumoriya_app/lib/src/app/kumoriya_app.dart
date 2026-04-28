@@ -30,6 +30,7 @@ import '../features/downloads/presentation/widgets/download_path_dialog.dart';
 import '../features/player/presentation/pages/player_performance_benchmark_page.dart';
 import '../shared/auth/auth_providers.dart';
 import '../shared/auth/deep_link_handler.dart';
+import '../shared/cache/anilist_recovery_watcher.dart';
 import '../shared/cache/combined_fallback_reason_provider.dart';
 import '../shared/dev/dev_cache_seeder.dart';
 import '../shared/navigation/app_navigation_shell.dart';
@@ -323,21 +324,24 @@ class _FirstLaunchGateState extends ConsumerState<_FirstLaunchGate> {
 
   @override
   Widget build(BuildContext context) {
-    return AppNavigationShell(
-      fallbackReasonNotifier: ref.watch(combinedFallbackReasonProvider),
-      animeTabBuilders: <KumoriyaAnimeTab, WidgetBuilder>{
-        KumoriyaAnimeTab.home: (_) => const HomePage(),
-        KumoriyaAnimeTab.search: (_) => const SearchPage(),
-        KumoriyaAnimeTab.calendar: (_) => const CalendarPage(),
-        KumoriyaAnimeTab.library: (_) => const LibraryPage(),
-        KumoriyaAnimeTab.downloads: (_) => const DownloadsPage(),
-      },
-      mangaTabBuilders: <KumoriyaMangaTab, WidgetBuilder>{
-        KumoriyaMangaTab.home: (_) => const MangaHomePage(),
-        KumoriyaMangaTab.search: (_) => const MangaSearchPage(),
-        KumoriyaMangaTab.library: (_) => const MangaLibraryPage(),
-        KumoriyaMangaTab.downloads: (_) => const MangaDownloadsPage(),
-      },
+    return AnilistRecoveryWatcher(
+      child: AppNavigationShell(
+        fallbackReasonNotifier: ref.watch(combinedFallbackReasonProvider),
+        onTapRetry: () => invalidateCatalogProviders(ref),
+        animeTabBuilders: <KumoriyaAnimeTab, WidgetBuilder>{
+          KumoriyaAnimeTab.home: (_) => const HomePage(),
+          KumoriyaAnimeTab.search: (_) => const SearchPage(),
+          KumoriyaAnimeTab.calendar: (_) => const CalendarPage(),
+          KumoriyaAnimeTab.library: (_) => const LibraryPage(),
+          KumoriyaAnimeTab.downloads: (_) => const DownloadsPage(),
+        },
+        mangaTabBuilders: <KumoriyaMangaTab, WidgetBuilder>{
+          KumoriyaMangaTab.home: (_) => const MangaHomePage(),
+          KumoriyaMangaTab.search: (_) => const MangaSearchPage(),
+          KumoriyaMangaTab.library: (_) => const MangaLibraryPage(),
+          KumoriyaMangaTab.downloads: (_) => const MangaDownloadsPage(),
+        },
+      ),
     );
   }
 }

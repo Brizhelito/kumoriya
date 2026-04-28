@@ -25,6 +25,7 @@ class AppNavigationShell extends ConsumerStatefulWidget {
     required this.animeTabBuilders,
     required this.mangaTabBuilders,
     this.fallbackReasonNotifier,
+    this.onTapRetry,
   });
 
   final Map<KumoriyaAnimeTab, WidgetBuilder> animeTabBuilders;
@@ -33,6 +34,12 @@ class AppNavigationShell extends ConsumerStatefulWidget {
   /// When non-null, a persistent banner is shown to indicate the fallback
   /// reason ([FallbackReason.offline] or [FallbackReason.anilistDown]).
   final ValueNotifier<FallbackReason>? fallbackReasonNotifier;
+
+  /// When non-null, the offline banner becomes tappable and invokes
+  /// this callback. Wired to a "retry now" gesture that invalidates the
+  /// catalog providers so the user can manually trigger a refresh
+  /// without waiting for the background recovery poller.
+  final VoidCallback? onTapRetry;
 
   @override
   ConsumerState<AppNavigationShell> createState() => _AppNavigationShellState();
@@ -145,20 +152,44 @@ class _AppNavigationShellState extends ConsumerState<AppNavigationShell> {
             if (reason != FallbackReason.none)
               SafeArea(
                 bottom: false,
-                child: Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.symmetric(vertical: 4),
+                child: Material(
                   color: reason == FallbackReason.offline
                       ? KumoriyaColors.statusWarning
                       : KumoriyaColors.statusDanger,
-                  child: Text(
-                    reason == FallbackReason.offline
-                        ? context.l10n.offlineBanner
-                        : context.l10n.anilistDownBanner,
-                    textAlign: TextAlign.center,
-                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w600,
+                  child: InkWell(
+                    onTap: widget.onTapRetry,
+                    child: Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(
+                        vertical: 4,
+                        horizontal: 12,
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: <Widget>[
+                          Flexible(
+                            child: Text(
+                              reason == FallbackReason.offline
+                                  ? context.l10n.offlineBanner
+                                  : context.l10n.anilistDownBanner,
+                              textAlign: TextAlign.center,
+                              style: Theme.of(context).textTheme.labelSmall
+                                  ?.copyWith(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                            ),
+                          ),
+                          if (widget.onTapRetry != null) ...<Widget>[
+                            const SizedBox(width: 6),
+                            const Icon(
+                              Icons.refresh,
+                              size: 14,
+                              color: Colors.white,
+                            ),
+                          ],
+                        ],
+                      ),
                     ),
                   ),
                 ),

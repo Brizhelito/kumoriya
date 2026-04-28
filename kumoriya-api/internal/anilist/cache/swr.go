@@ -248,3 +248,35 @@ func (c *SWR) bumpRefreshFailure(key string) {
 		e.consecutiveRefreshFailures++
 	}
 }
+
+// Stats summarizes the current SWR state for the health endpoint.
+type Stats struct {
+	// TotalEntries is how many keys live in the cache right now.
+	TotalEntries int
+	// OutageEntries is how many entries are past OutageThreshold —
+	// i.e. their last few background refreshes all failed.
+	OutageEntries int
+	// OldestFetchedAt is the fetchedAt of the oldest entry. Zero value
+	// when the cache is empty. Useful for sanity-checking that the
+	// scheduler is keeping things warm.
+	OldestFetchedAt time.Time
+}
+
+// Snapshot returns a point-in-time summary of the cache.
+//
+// Cheap to call (single mutex acquire, O(N) over entries). Used by the
+// health handler to expose AniList reachability to clients.
+func (c *SWR) Snapshot() Stats {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	out := Stats{TotalEntries: len(c.entries)}
+	for _, e := range c.entries {
+		if e.consecutiveRefreshFailures >= OutageThreshold {
+			out.OutageEntries++
+		}
+		if out.OldestFetchedAt.IsZero() || e.fetchedAt.Before(out.OldestFetchedAt) {
+			out.OldestFetchedAt = e.fetchedAt
+		}
+	}
+	return out
+}

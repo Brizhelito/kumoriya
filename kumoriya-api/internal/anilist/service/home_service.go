@@ -69,6 +69,18 @@ func NewHomeService(gc GraphQLClient, cfg Config) *HomeService {
 	}
 }
 
+// Snapshot returns a per-bucket point-in-time summary of all SWR caches
+// owned by this service. Used by the health endpoint to expose AniList
+// reachability to clients.
+func (s *HomeService) Snapshot() map[string]cache.Stats {
+	return map[string]cache.Stats{
+		"trending":   s.trending.Snapshot(),
+		"season":     s.season.Snapshot(),
+		"calendar":   s.calendar.Snapshot(),
+		"manga-home": s.mangaHome.Snapshot(),
+	}
+}
+
 // TrendingRequest parameters for trending/current-season Home catalog.
 type TrendingRequest struct {
 	Page    int

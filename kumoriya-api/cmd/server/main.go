@@ -87,6 +87,7 @@ func main() {
 	anilistClient := client.New()
 	anilistHome := anilistservice.NewHomeService(anilistClient, anilistservice.DefaultConfig())
 	anilisthandler.NewHomeHandler(anilistHome).Register(app)
+	anilisthandler.NewHealthHandler(anilistHome).Register(app)
 	anilistPrewarm := scheduler.New(anilistHome, scheduler.DefaultConfig())
 	go anilistPrewarm.Run(anilistCtx)
 
