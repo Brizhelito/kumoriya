@@ -9,6 +9,7 @@ workspace:
   - packages/kumoriya_core
   - packages/kumoriya_domain
   - packages/kumoriya_manga_domain
+  - packages/kumoriya_manga_plugins
   - packages/kumoriya_plugins
   - packages/kumoriya_anilist
   - packages/kumoriya_source_jkanime

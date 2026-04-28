@@ -1,0 +1,18 @@
+name: kumoriya_manga_plugins
+description: Plugin contracts for manga source plugins (search, detail, chapters, pages).
+version: 0.1.0
+publish_to: none
+
+resolution: workspace
+
+environment:
+  sdk: ^3.11.1
+
+dependencies:
+  kumoriya_core:
+  kumoriya_manga_domain:
+  kumoriya_plugins:
+
+dev_dependencies:
+  lints: ^6.0.0
+  test: ^1.25.6
