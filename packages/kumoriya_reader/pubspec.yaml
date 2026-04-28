@@ -1,0 +1,27 @@
+name: kumoriya_reader
+description: |
+  Manga reader engine + UI. Vertical (webtoon) and paginated modes,
+  prefetch, zoom, resume hooks. No coupling to source plugins or
+  storage — consumers feed it a fully-resolved ChapterSession and an
+  optional ReaderProgressSink for resume.
+version: 0.1.0
+publish_to: none
+
+resolution: workspace
+
+environment:
+  sdk: ^3.11.1
+  flutter: ">=3.27.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  kumoriya_core:
+  kumoriya_manga_domain:
+  cached_network_image: ^3.3.1
+  photo_view: ^0.15.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  lints: ^6.0.0

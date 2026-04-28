@@ -104,6 +104,11 @@ final mangaCacheStoreProvider = Provider<MangaCacheStore>((ref) {
   return DriftMangaCacheStore(db);
 });
 
+final mangaProgressStoreProvider = Provider<MangaProgressStore>((ref) {
+  final db = ref.watch(appDatabaseProvider);
+  return DriftMangaProgressStore(db);
+});
+
 final translationCacheStoreProvider = Provider<TranslationCacheStore>((ref) {
   final db = ref.watch(appDatabaseProvider);
   return DriftTranslationCacheStore(db);

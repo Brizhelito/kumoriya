@@ -41,4 +41,5 @@ workspace:
   - packages/kumoriya_matching
   - packages/kumoriya_resolver_common
   - packages/kumoriya_exoplayer
+  - packages/kumoriya_reader
   - tools/resolver_cli

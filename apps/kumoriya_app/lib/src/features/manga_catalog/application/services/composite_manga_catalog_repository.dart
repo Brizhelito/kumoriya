@@ -56,6 +56,19 @@ final class CompositeMangaCatalogRepository implements MangaCatalogRepository {
   /// Persisting this across launches is a follow-up — see Slice 8 plan.
   final Map<int, String?> _sourceMangaIdCache = <int, String?>{};
 
+  /// Per-manga snapshot of the last `SourceChapter` list returned by
+  /// the plugin during `fetchMangaChapters`. Indexed by AniList id;
+  /// inner key is `${number}|${language}|${scanlator ?? ''}` so the
+  /// reader can look up the exact `SourceChapter` it needs to call
+  /// `getChapterPages` without re-fetching the chapter list.
+  ///
+  /// Lifetime: per-session (not persisted). When the user navigates
+  /// out of the detail page and back, the next `fetchMangaChapters`
+  /// call refreshes this cache; in between, the reader can open any
+  /// chapter the user previously saw without an extra round-trip.
+  final Map<int, Map<String, SourceChapter>> _sourceChaptersByManga =
+      <int, Map<String, SourceChapter>>{};
+
   // ---------------------------------------------------------------------------
   // Catalog metadata (delegate + write-through)
   // ---------------------------------------------------------------------------
@@ -268,8 +281,89 @@ final class CompositeMangaCatalogRepository implements MangaCatalogRepository {
     }
     final source =
         (chaptersResult as Success<List<SourceChapter>, KumoriyaError>).value;
+
+    // Snapshot the SourceChapter list keyed by (number|language|scanlator)
+    // so the reader can resolve a MangaChapter back to its source-side
+    // counterpart without re-fetching.
+    _sourceChaptersByManga[anilistId] = <String, SourceChapter>{
+      for (final c in source)
+        _sourceChapterKey(c.number, c.language, c.scanlator): c,
+    };
+
     final chapters = source.map(_toDomainChapter).toList(growable: false);
     return Success(chapters);
+  }
+
+  /// Resolves a domain `MangaChapter` back to its plugin-level
+  /// `SourceChapter` and asks the plugin for the page list. Returns a
+  /// `Failure` when the chapter is not in the per-manga cache (the
+  /// caller should call `fetchMangaChapters` first) or when the plugin
+  /// fails.
+  ///
+  /// Returned `MangaPage` list is index-ordered ascending and includes
+  /// any per-page headers the plugin requires.
+  ///
+  /// Also exposes the `sourceChapterId` so the caller can persist
+  /// resume state via `MangaProgressStore` (which keys on it).
+  Future<
+    Result<({String sourceChapterId, List<MangaPage> pages}), KumoriyaError>
+  >
+  openChapter({
+    required int mangaAnilistId,
+    required MangaChapter chapter,
+  }) async {
+    final cached = _sourceChaptersByManga[mangaAnilistId];
+    final key = _sourceChapterKey(
+      chapter.number,
+      chapter.language,
+      chapter.scanlator,
+    );
+    final source = cached?[key];
+    if (source == null) {
+      return Failure(
+        const SimpleError(
+          code: 'reader.chapter_not_resolved',
+          message:
+              'Chapter is not in the per-manga cache; '
+              'fetch the chapter list before opening the reader.',
+          kind: KumoriyaErrorKind.notFound,
+        ),
+      );
+    }
+    final pagesResult = await _sourcePlugin.getChapterPages(source);
+    if (pagesResult.isFailure) {
+      return Failure(
+        (pagesResult as Failure<List<SourcePage>, KumoriyaError>).error,
+      );
+    }
+    final sourcePages =
+        (pagesResult as Success<List<SourcePage>, KumoriyaError>).value;
+    final mangaPages = sourcePages
+        .map(
+          (p) => MangaPage(
+            index: p.index,
+            imageUrl: p.imageUrl,
+            headers: p.headers,
+          ),
+        )
+        .toList(growable: false);
+    return Success((
+      sourceChapterId: source.sourceChapterId,
+      pages: mangaPages,
+    ));
+  }
+
+  /// Composite key for the per-manga `SourceChapter` cache. Mirrors
+  /// the disambiguators users see in the chapter list: a scanlator
+  /// translation in language X is a different chapter from another
+  /// scanlator's translation of the same number, even though both
+  /// share `MangaChapter.number`.
+  static String _sourceChapterKey(
+    double number,
+    String? language,
+    String? scanlator,
+  ) {
+    return '$number|${language ?? ''}|${scanlator ?? ''}';
   }
 
   /// Resolves an AniList id to the source plugin's manga id.

@@ -104,12 +104,15 @@ class _FakeMangaSourcePlugin implements MangaSourcePlugin {
   _FakeMangaSourcePlugin({
     this.searchResults = const <SourceMangaMatch>[],
     this.chaptersById = const <String, List<SourceChapter>>{},
+    this.pagesByChapterId = const <String, List<SourcePage>>{},
   });
 
   List<SourceMangaMatch> searchResults;
   Map<String, List<SourceChapter>> chaptersById;
+  Map<String, List<SourcePage>> pagesByChapterId;
   int searchCalls = 0;
   int chaptersCalls = 0;
+  int pageCalls = 0;
 
   @override
   PluginManifest get manifest => const PluginManifest(
@@ -171,7 +174,18 @@ class _FakeMangaSourcePlugin implements MangaSourcePlugin {
   Future<Result<List<SourcePage>, KumoriyaError>> getChapterPages(
     SourceChapter chapter,
   ) async {
-    return const Success(<SourcePage>[]);
+    pageCalls++;
+    final pages = pagesByChapterId[chapter.sourceChapterId];
+    if (pages == null) {
+      return Failure(
+        const SimpleError(
+          code: 'fake.pages.missing',
+          message: 'no fixture for chapter',
+          kind: KumoriyaErrorKind.notFound,
+        ),
+      );
+    }
+    return Success(pages);
   }
 }
 
@@ -633,6 +647,100 @@ void main() {
       await repo.fetchHomeSections();
       expect(repo.fallbackReason.value, FallbackReason.none);
     });
+  });
+
+  group('CompositeMangaCatalogRepository.openChapter', () {
+    test(
+      'fails with reader.chapter_not_resolved when chapter list never fetched',
+      () async {
+        final cache = _InMemoryMangaCacheStore();
+        final repo = CompositeMangaCatalogRepository(
+          delegate: _FakeAnilistMangaRepo(),
+          sourcePlugin: _FakeMangaSourcePlugin(),
+          cacheStore: cache,
+          preferredLanguages: () => const <String>['en'],
+        );
+
+        final res = await repo.openChapter(
+          mangaAnilistId: 1,
+          chapter: const MangaChapter(
+            number: 1,
+            title: 'X',
+            language: 'en',
+          ),
+        );
+        expect(res.isFailure, isTrue);
+        expect(
+          (res as Failure).error.code,
+          'reader.chapter_not_resolved',
+        );
+      },
+    );
+
+    test(
+      'returns mapped pages and sourceChapterId after fetchMangaChapters',
+      () async {
+        final manga = _manga(id: 42);
+        final delegate = _FakeAnilistMangaRepo(detail: _detail(manga));
+        final source = _FakeMangaSourcePlugin(
+          searchResults: const <SourceMangaMatch>[
+            SourceMangaMatch(
+              sourceId: 'src-42',
+              title: 'Same',
+              externalIds: <String, String>{'al': '42'},
+            ),
+          ],
+          chaptersById: <String, List<SourceChapter>>{
+            'src-42': <SourceChapter>[
+              const SourceChapter(
+                sourceMangaId: 'src-42',
+                sourceChapterId: 'ch-1',
+                number: 1,
+                language: 'en',
+                scanlator: 'Group',
+              ),
+            ],
+          },
+          pagesByChapterId: <String, List<SourcePage>>{
+            'ch-1': <SourcePage>[
+              SourcePage(index: 0, imageUrl: Uri.parse('https://x/p0.jpg')),
+              SourcePage(index: 1, imageUrl: Uri.parse('https://x/p1.jpg')),
+            ],
+          },
+        );
+        final repo = CompositeMangaCatalogRepository(
+          delegate: delegate,
+          sourcePlugin: source,
+          cacheStore: _InMemoryMangaCacheStore(),
+          preferredLanguages: () => const <String>['en'],
+        );
+
+        // Prime the per-manga SourceChapter cache.
+        final chaptersRes = await repo.fetchMangaChapters(42);
+        expect(chaptersRes.isSuccess, isTrue);
+
+        final res = await repo.openChapter(
+          mangaAnilistId: 42,
+          chapter: const MangaChapter(
+            number: 1,
+            title: '',
+            language: 'en',
+            scanlator: 'Group',
+          ),
+        );
+        expect(res.isSuccess, isTrue);
+        final value =
+            (res
+                    as Success<
+                      ({String sourceChapterId, List<MangaPage> pages}),
+                      KumoriyaError
+                    >)
+                .value;
+        expect(value.sourceChapterId, 'ch-1');
+        expect(value.pages, hasLength(2));
+        expect(value.pages[0].imageUrl.toString(), 'https://x/p0.jpg');
+      },
+    );
   });
 
   group('CompositeMangaCatalogRepository.fetchMangaDetail (offline)', () {

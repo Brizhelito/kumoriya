@@ -6,6 +6,7 @@ import '../../../../app/l10n.dart';
 import '../../../../shared/theme/kumoriya_theme.dart';
 import '../../../../shared/widgets/kumoriya_cached_image.dart';
 import '../providers/manga_catalog_providers.dart';
+import 'manga_reader_route.dart';
 
 /// Detail screen for a single manga. Loads metadata via
 /// [mangaDetailProvider] and the (lazy) chapter list via
@@ -270,7 +271,8 @@ class _ChaptersSliver extends ConsumerWidget {
         }
         return SliverList(
           delegate: SliverChildBuilderDelegate(
-            (ctx, i) => _ChapterRow(chapter: chapters[i]),
+            (ctx, i) =>
+                _ChapterRow(chapter: chapters[i], mangaAnilistId: anilistId),
             childCount: chapters.length,
           ),
         );
@@ -279,12 +281,31 @@ class _ChaptersSliver extends ConsumerWidget {
   }
 }
 
-class _ChapterRow extends StatelessWidget {
-  const _ChapterRow({required this.chapter});
+class _ChapterRow extends ConsumerWidget {
+  const _ChapterRow({required this.chapter, required this.mangaAnilistId});
   final MangaChapter chapter;
+  final int mangaAnilistId;
+
+  Future<void> _openReader(BuildContext context, WidgetRef ref) async {
+    // Resolve the manga format from the in-flight detail provider so
+    // the reader picks the right default mode (vertical for manhwa).
+    // Falls back to `unknown` (paginated) if the detail isn't ready
+    // yet, which is harmless — the user can scroll to override.
+    final detailAsync = ref.read(mangaDetailProvider(mangaAnilistId));
+    final format = detailAsync.value?.manga.format ?? MangaFormat.unknown;
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => MangaReaderRoute(
+          mangaAnilistId: mangaAnilistId,
+          chapter: chapter,
+          format: format,
+        ),
+      ),
+    );
+  }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final l10n = context.l10n;
     final volumeLabel = chapter.volume != null
         ? '${l10n.mangaDetailVolumeLabel(chapter.volume!)} · '
@@ -297,14 +318,7 @@ class _ChapterRow extends StatelessWidget {
         ? '$volumeLabel${l10n.mangaDetailChapterLabel(chapterNum)} · $scanlator'
         : '$volumeLabel${l10n.mangaDetailChapterLabel(chapterNum)}';
     return InkWell(
-      onTap: () {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(l10n.mangaDetailReaderComingSoon),
-            duration: const Duration(seconds: 2),
-          ),
-        );
-      },
+      onTap: () => _openReader(context, ref),
       child: Padding(
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
         child: Row(
