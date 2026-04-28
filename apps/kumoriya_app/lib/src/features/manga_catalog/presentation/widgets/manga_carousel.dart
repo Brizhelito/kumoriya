@@ -38,10 +38,13 @@ class MangaCarousel extends StatelessWidget {
           ),
         ),
         SizedBox(
-          // Poster (cardWidth * 4/3) + 8px gap + 2-line title (~44) +
-          // year row (~16) + small bottom margin so the card never
-          // collides with the carousel bottom edge.
-          height: cardWidth * (4 / 3) + 76,
+          // Poster (cardWidth * 4/3) + 8px gap + 2-line title +
+          // year row + safety margin. Empirical: at cardWidth=132 the
+          // measured content height is ~248-250px (titleLarge line
+          // height + bodySmall combined under the app's text theme
+          // overshoot the nominal Material values by a few pixels);
+          // a `+96` cushion absorbs that without forcing maxLines:1.
+          height: cardWidth * (4 / 3) + 96,
           child: ListView.separated(
             scrollDirection: Axis.horizontal,
             padding: const EdgeInsets.symmetric(horizontal: 16),

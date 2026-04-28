@@ -110,14 +110,19 @@ class _ResultsGrid extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final width = MediaQuery.sizeOf(context).width;
-    final columns = width >= 900 ? 5 : (width >= 600 ? 4 : 3);
+    // Phone (<600): 2 cols, big posters. Tablet (<900): 3. Wider: 4.
+    // The previous 3/4/5 split squeezed posters under ~115px on 360dp
+    // phones, which combined with the 2-line title overflowed the
+    // grid cell vertically. The current ratio (~0.62) keeps the cell
+    // taller than the card content for every column count.
+    final columns = width >= 900 ? 4 : (width >= 600 ? 3 : 2);
     return GridView.builder(
       padding: const EdgeInsets.all(16),
       gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: columns,
         mainAxisSpacing: 16,
         crossAxisSpacing: 12,
-        childAspectRatio: 0.55,
+        childAspectRatio: 0.62,
       ),
       itemBuilder: (_, i) => MangaCard(
         manga: results[i],
