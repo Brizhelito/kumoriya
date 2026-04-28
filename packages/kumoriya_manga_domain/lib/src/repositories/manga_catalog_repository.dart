@@ -4,6 +4,7 @@ import '../manga/manga.dart';
 import '../manga/manga_browse_request.dart';
 import '../manga/manga_chapter.dart';
 import '../manga/manga_detail.dart';
+import '../manga/manga_home_sections.dart';
 import '../manga/manga_tag.dart';
 
 final class MangaSearchRequest {
@@ -26,6 +27,15 @@ final class MangaSearchRequest {
 abstract interface class MangaCatalogRepository {
   /// Trending + popular mix for the manga Home tab.
   Future<Result<List<Manga>, KumoriyaError>> fetchHomeCatalog({
+    int page = 1,
+    int perPage = 20,
+  });
+
+  /// Aggregate manga Home: four shelves (trending / popular / latest /
+  /// top-rated) in a single call. Backed by an aliased AniList query
+  /// served from the Kumoriya Go backend cache when available, with
+  /// fallback to direct AniList.
+  Future<Result<MangaHomeSections, KumoriyaError>> fetchHomeSections({
     int page = 1,
     int perPage = 20,
   });

@@ -269,11 +269,33 @@ final class BackendFirstAnilistMetadataGateway
   fetchTagCollection() => _inner.fetchTagCollection();
 
   // ---------------------------------------------------------------------------
-  // Manga pass-through. The Kumoriya Go backend does not yet proxy any
-  // manga-shaped surfaces; once it does, the relevant overrides should
-  // route through `_backend` with the same fall-back-to-inner pattern as
-  // `fetchHomeCatalog` / `fetchSeasonDiscovery` above.
+  // Manga. Backend-first for the aggregate Home surface, pass-through
+  // for everything else (search, detail, batch-by-id, browse) — those
+  // are per-user and not worth caching on the Go side.
   // ---------------------------------------------------------------------------
+
+  @override
+  Future<Result<Map<String, List<Map<String, dynamic>>>, KumoriyaError>>
+  fetchMangaHomeSections({int page = 1, int perPage = 20}) async {
+    final result = await _backend.fetchMangaHome(page: page, perPage: perPage);
+    return result.fold(
+      onSuccess: (data) {
+        final sections = _extractMangaHomeSections(data);
+        if (sections == null) {
+          _log(
+            'manga-home',
+            'payload missing aliased Page blocks, falling back',
+          );
+          return _inner.fetchMangaHomeSections(page: page, perPage: perPage);
+        }
+        return Success(sections);
+      },
+      onFailure: (err) {
+        _log('manga-home', 'backend failure (${err.code}), falling back');
+        return _inner.fetchMangaHomeSections(page: page, perPage: perPage);
+      },
+    );
+  }
 
   @override
   Future<Result<List<Map<String, dynamic>>, KumoriyaError>>
@@ -337,6 +359,34 @@ final class BackendFirstAnilistMetadataGateway
       for (final item in media)
         if (item is Map<String, dynamic>) item,
     ];
+  }
+
+  /// Extracts the aliased trending/popular/latest/topRated sections from
+  /// a manga-home combo payload. Returns null only when no recognised
+  /// alias is present (the payload shape was unrecoverable); a partial
+  /// result with one or more shelves is still returned so the user sees
+  /// what AniList managed to deliver.
+  static Map<String, List<Map<String, dynamic>>>? _extractMangaHomeSections(
+    Map<String, dynamic> data,
+  ) {
+    final sections = <String, List<Map<String, dynamic>>>{};
+    for (final alias in const <String>[
+      'trending',
+      'popular',
+      'latest',
+      'topRated',
+    ]) {
+      final entry = data[alias];
+      if (entry is! Map<String, dynamic>) continue;
+      final media = entry['media'];
+      if (media is! List) continue;
+      sections[alias] = <Map<String, dynamic>>[
+        for (final item in media)
+          if (item is Map<String, dynamic>) item,
+      ];
+    }
+    if (sections.isEmpty) return null;
+    return sections;
   }
 
   /// Extracts the aliased current/upcoming/recommended/carryover sections

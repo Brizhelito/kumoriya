@@ -29,6 +29,43 @@ final class AnilistMangaCatalogRepository implements MangaCatalogRepository {
   }
 
   @override
+  Future<Result<MangaHomeSections, KumoriyaError>> fetchHomeSections({
+    int page = 1,
+    int perPage = 20,
+  }) async {
+    final result = await _gateway.fetchMangaHomeSections(
+      page: page,
+      perPage: perPage,
+    );
+    return result.fold(
+      onSuccess: (sections) {
+        try {
+          return Success(
+            MangaHomeSections(
+              trending: _mapShelf(sections['trending']),
+              popular: _mapShelf(sections['popular']),
+              latest: _mapShelf(sections['latest']),
+              topRated: _mapShelf(sections['topRated']),
+            ),
+          );
+        } on FormatException catch (error) {
+          return Failure(
+            AnilistMappingError(
+              message: 'Failed to map manga home sections: $error',
+            ),
+          );
+        }
+      },
+      onFailure: Failure.new,
+    );
+  }
+
+  static List<Manga> _mapShelf(List<Map<String, dynamic>>? shelf) {
+    if (shelf == null || shelf.isEmpty) return const <Manga>[];
+    return shelf.map(AnilistMangaMapper.mapManga).toList(growable: false);
+  }
+
+  @override
   Future<Result<List<Manga>, KumoriyaError>> searchManga(
     MangaSearchRequest request,
   ) async {

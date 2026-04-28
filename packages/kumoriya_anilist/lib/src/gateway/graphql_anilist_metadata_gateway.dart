@@ -846,6 +846,52 @@ final class GraphqlAnilistMetadataGateway implements AnilistMetadataGateway {
   }
 
   @override
+  Future<Result<Map<String, List<Map<String, dynamic>>>, KumoriyaError>>
+  fetchMangaHomeSections({int page = 1, int perPage = 20}) async {
+    final result = await _client.execute(
+      query: mangaHomeQuery,
+      variables: <String, dynamic>{'page': page, 'perPage': perPage},
+    );
+
+    return result.fold(
+      onSuccess: (data) {
+        final sections = <String, List<Map<String, dynamic>>>{};
+        for (final alias in const <String>[
+          'trending',
+          'popular',
+          'latest',
+          'topRated',
+        ]) {
+          final entry = data[alias];
+          if (entry is! Map<String, dynamic>) continue;
+          final media = entry['media'];
+          if (media is! List) continue;
+          sections[alias] = <Map<String, dynamic>>[
+            for (final item in media)
+              if (item is Map<String, dynamic>) item,
+          ];
+        }
+        if (sections.isEmpty) {
+          return const Failure(
+            AnilistMappingError(
+              message:
+                  'Manga home payload contains no recognised aliased Page blocks.',
+            ),
+          );
+        }
+        return Success(sections);
+      },
+      onFailure: (err) {
+        developer.log(
+          'fetchMangaHomeSections error [${err.code}/${err.kind.name}]: ${err.message}',
+          name: 'GraphqlAnilistMetadataGateway',
+        );
+        return Failure(err);
+      },
+    );
+  }
+
+  @override
   Future<Result<List<Map<String, dynamic>>, KumoriyaError>> searchManga({
     required String query,
     int page = 1,

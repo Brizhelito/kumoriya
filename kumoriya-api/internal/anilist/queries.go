@@ -124,6 +124,66 @@ fragment MediaFields on Media {
   coverImage { large medium }
 }`
 
+// MangaHomeQuery fetches the four manga Home shelves
+// (trending / popular / latest / top-rated) in a single request via
+// aliased Page blocks. Mirrors the Dart-side fields verbatim so the
+// existing manga mapper consumes the payload unchanged.
+//
+// `latest` filters out NOT_YET_RELEASED so the row is not dominated by
+// announcements with no chapters. `topRated` requires popularity ≥ 5000
+// so freshly-rated one-shots with 9.0+ scores from a handful of users
+// don't outrank the actual cult classics.
+const MangaHomeQuery = `query MangaHome($page: Int, $perPage: Int) {
+  trending: Page(page: $page, perPage: $perPage) {
+    media(
+      type: MANGA,
+      sort: [TRENDING_DESC, POPULARITY_DESC],
+      isAdult: false
+    ) { ...MangaFields }
+  }
+  popular: Page(page: $page, perPage: $perPage) {
+    media(
+      type: MANGA,
+      sort: [POPULARITY_DESC],
+      isAdult: false
+    ) { ...MangaFields }
+  }
+  latest: Page(page: $page, perPage: $perPage) {
+    media(
+      type: MANGA,
+      status_in: [RELEASING, FINISHED],
+      sort: [START_DATE_DESC],
+      isAdult: false
+    ) { ...MangaFields }
+  }
+  topRated: Page(page: $page, perPage: $perPage) {
+    media(
+      type: MANGA,
+      sort: [SCORE_DESC],
+      popularity_greater: 5000,
+      isAdult: false
+    ) { ...MangaFields }
+  }
+}
+
+fragment MangaFields on Media {
+  id
+  title { romaji english native }
+  synonyms
+  format
+  chapters
+  volumes
+  averageScore
+  popularity
+  status
+  description(asHtml: false)
+  genres
+  bannerImage
+  countryOfOrigin
+  startDate { year }
+  coverImage { large medium }
+}`
+
 // AiringCalendarQuery fetches airing schedules within a timestamp window.
 // Paginated by the caller.
 const AiringCalendarQuery = `query AiringCalendar(

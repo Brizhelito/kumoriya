@@ -14,11 +14,16 @@ class _FakeAnilistMangaRepo implements MangaCatalogRepository {
     this.detail,
     this.home = const <Manga>[],
     this.failHomeWith,
+    this.sections,
+    this.failSectionsWith,
   });
 
   MangaDetail? detail;
   List<Manga> home;
   KumoriyaError? failHomeWith;
+  MangaHomeSections? sections;
+  KumoriyaError? failSectionsWith;
+  int homeSectionsCalls = 0;
 
   @override
   Future<Result<List<Manga>, KumoriyaError>> fetchHomeCatalog({
@@ -27,6 +32,16 @@ class _FakeAnilistMangaRepo implements MangaCatalogRepository {
   }) async {
     if (failHomeWith != null) return Failure(failHomeWith!);
     return Success(home);
+  }
+
+  @override
+  Future<Result<MangaHomeSections, KumoriyaError>> fetchHomeSections({
+    int page = 1,
+    int perPage = 20,
+  }) async {
+    homeSectionsCalls += 1;
+    if (failSectionsWith != null) return Failure(failSectionsWith!);
+    return Success(sections ?? const MangaHomeSections());
   }
 
   @override
@@ -301,8 +316,8 @@ void main() {
 
       final result = await repo.fetchMangaChapters(105778);
       expect(result.isSuccess, isTrue);
-      final chapters = (result as Success<List<MangaChapter>, KumoriyaError>)
-          .value;
+      final chapters =
+          (result as Success<List<MangaChapter>, KumoriyaError>).value;
       expect(chapters, hasLength(2));
       expect(chapters.first.number, 1);
     });
@@ -397,35 +412,38 @@ void main() {
   });
 
   group('CompositeMangaCatalogRepository catalog fallbacks', () {
-    test('serves from cache when AniList home returns transport failure', () async {
-      final cache = _InMemoryMangaCacheStore();
-      await cache.upsert(
-        MangaCacheEntry(
-          anilistId: 1,
-          titleRomaji: 'Cached Manga',
-          updatedAt: DateTime.now(),
-        ),
-      );
-      final delegate = _FakeAnilistMangaRepo(
-        failHomeWith: SimpleError(
-          code: 'anilist.service_unavailable',
-          message: 'down',
-          kind: KumoriyaErrorKind.transport,
-        ),
-      );
-      final repo = CompositeMangaCatalogRepository(
-        delegate: delegate,
-        sourcePlugin: _FakeMangaSourcePlugin(),
-        cacheStore: cache,
-        preferredLanguages: () => const <String>['en'],
-      );
+    test(
+      'serves from cache when AniList home returns transport failure',
+      () async {
+        final cache = _InMemoryMangaCacheStore();
+        await cache.upsert(
+          MangaCacheEntry(
+            anilistId: 1,
+            titleRomaji: 'Cached Manga',
+            updatedAt: DateTime.now(),
+          ),
+        );
+        final delegate = _FakeAnilistMangaRepo(
+          failHomeWith: SimpleError(
+            code: 'anilist.service_unavailable',
+            message: 'down',
+            kind: KumoriyaErrorKind.transport,
+          ),
+        );
+        final repo = CompositeMangaCatalogRepository(
+          delegate: delegate,
+          sourcePlugin: _FakeMangaSourcePlugin(),
+          cacheStore: cache,
+          preferredLanguages: () => const <String>['en'],
+        );
 
-      final result = await repo.fetchHomeCatalog();
-      expect(result.isSuccess, isTrue);
-      final manga = (result as Success<List<Manga>, KumoriyaError>).value;
-      expect(manga, hasLength(1));
-      expect(manga.first.title.romaji, 'Cached Manga');
-    });
+        final result = await repo.fetchHomeCatalog();
+        expect(result.isSuccess, isTrue);
+        final manga = (result as Success<List<Manga>, KumoriyaError>).value;
+        expect(manga, hasLength(1));
+        expect(manga.first.title.romaji, 'Cached Manga');
+      },
+    );
 
     test('writes through to cache on successful home read', () async {
       final cache = _InMemoryMangaCacheStore();
@@ -445,6 +463,94 @@ void main() {
       expect(
         (cached as Success<MangaCacheEntry?, KumoriyaError>).value,
         isNotNull,
+      );
+    });
+  });
+
+  group('CompositeMangaCatalogRepository.fetchHomeSections', () {
+    test(
+      'delegates to inner repo and returns the four-shelf payload as-is',
+      () async {
+        final cache = _InMemoryMangaCacheStore();
+        final delegate = _FakeAnilistMangaRepo(
+          sections: MangaHomeSections(
+            trending: <Manga>[_manga(id: 1, romaji: 'Trending Pick')],
+            popular: <Manga>[_manga(id: 2, romaji: 'Popular Pick')],
+            latest: <Manga>[_manga(id: 3, romaji: 'Latest Pick')],
+            topRated: <Manga>[_manga(id: 4, romaji: 'Top Pick')],
+          ),
+        );
+        final repo = CompositeMangaCatalogRepository(
+          delegate: delegate,
+          sourcePlugin: _FakeMangaSourcePlugin(),
+          cacheStore: cache,
+          preferredLanguages: () => const <String>['en'],
+        );
+
+        final result = await repo.fetchHomeSections();
+        expect(result.isSuccess, isTrue);
+        final sections =
+            (result as Success<MangaHomeSections, KumoriyaError>).value;
+        expect(sections.trending.single.anilistId, 1);
+        expect(sections.popular.single.anilistId, 2);
+        expect(sections.latest.single.anilistId, 3);
+        expect(sections.topRated.single.anilistId, 4);
+        expect(delegate.homeSectionsCalls, 1);
+      },
+    );
+
+    test('writes every shelf through to the cache', () async {
+      final cache = _InMemoryMangaCacheStore();
+      final delegate = _FakeAnilistMangaRepo(
+        sections: MangaHomeSections(
+          trending: <Manga>[_manga(id: 10, romaji: 'A')],
+          popular: <Manga>[_manga(id: 20, romaji: 'B')],
+          latest: <Manga>[_manga(id: 30, romaji: 'C')],
+          topRated: <Manga>[_manga(id: 40, romaji: 'D')],
+        ),
+      );
+      final repo = CompositeMangaCatalogRepository(
+        delegate: delegate,
+        sourcePlugin: _FakeMangaSourcePlugin(),
+        cacheStore: cache,
+        preferredLanguages: () => const <String>['en'],
+      );
+
+      await repo.fetchHomeSections();
+
+      for (final id in const <int>[10, 20, 30, 40]) {
+        final cached = await cache.get(id);
+        expect(
+          (cached as Success<MangaCacheEntry?, KumoriyaError>).value,
+          isNotNull,
+          reason: 'expected manga $id to be cached',
+        );
+      }
+    });
+
+    test('propagates upstream failure without writing to cache', () async {
+      final cache = _InMemoryMangaCacheStore();
+      final delegate = _FakeAnilistMangaRepo(
+        failSectionsWith: const SimpleError(
+          code: 'fake.network',
+          message: 'down',
+          kind: KumoriyaErrorKind.transport,
+        ),
+      );
+      final repo = CompositeMangaCatalogRepository(
+        delegate: delegate,
+        sourcePlugin: _FakeMangaSourcePlugin(),
+        cacheStore: cache,
+        preferredLanguages: () => const <String>['en'],
+      );
+
+      final result = await repo.fetchHomeSections();
+      expect(result.isFailure, isTrue);
+      // No persistence on failure.
+      final cached = await cache.getRecent();
+      expect(
+        (cached as Success<List<MangaCacheEntry>, KumoriyaError>).value,
+        isEmpty,
       );
     });
   });

@@ -61,6 +61,20 @@ final class AnilistHomeBackendClient {
     });
   }
 
+  /// `GET /v1/anilist/home/manga?page=&perPage=`.
+  ///
+  /// Returns the aliased manga payload with `trending` / `popular` /
+  /// `latest` / `topRated` keys, each carrying a `Page.media` list.
+  Future<Result<Map<String, dynamic>, KumoriyaError>> fetchMangaHome({
+    int page = 1,
+    int perPage = 20,
+  }) {
+    return _get('/v1/anilist/home/manga', {
+      'page': '$page',
+      'perPage': '$perPage',
+    });
+  }
+
   /// `GET /v1/anilist/home/airing-calendar?airingAtGreater=&airingAtLesser=&page=&perPage=`.
   ///
   /// Uses the explicit-window form of the backend endpoint so that

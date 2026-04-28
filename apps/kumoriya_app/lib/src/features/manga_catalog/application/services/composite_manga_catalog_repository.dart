@@ -69,6 +69,33 @@ final class CompositeMangaCatalogRepository implements MangaCatalogRepository {
   }
 
   @override
+  Future<Result<MangaHomeSections, KumoriyaError>> fetchHomeSections({
+    int page = 1,
+    int perPage = 20,
+  }) async {
+    final result = await _delegate.fetchHomeSections(
+      page: page,
+      perPage: perPage,
+    );
+    if (result is Success<MangaHomeSections, KumoriyaError>) {
+      // Write-through every shelf so cold-launch / offline still
+      // populates the carousels with the most recently seen catalog.
+      final sections = result.value;
+      for (final shelf in <List<Manga>>[
+        sections.trending,
+        sections.popular,
+        sections.latest,
+        sections.topRated,
+      ]) {
+        for (final manga in shelf) {
+          await _persistManga(manga);
+        }
+      }
+    }
+    return result;
+  }
+
+  @override
   Future<Result<List<Manga>, KumoriyaError>> searchManga(
     MangaSearchRequest request,
   ) async {

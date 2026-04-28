@@ -33,6 +33,7 @@ func TestHomeService_Trending_CachesAcrossCalls(t *testing.T) {
 		TrendingFresh: time.Minute, TrendingStale: time.Minute,
 		SeasonFresh: time.Minute, SeasonStale: time.Minute,
 		CalendarFresh: time.Minute, CalendarStale: time.Minute,
+		MangaHomeFresh: time.Minute, MangaHomeStale: time.Minute,
 	})
 
 	for i := 0; i < 3; i++ {
@@ -92,6 +93,41 @@ func TestHomeService_AiringCalendar_WindowIsUnixSeconds(t *testing.T) {
 	}
 	if lesser-greater != int64(7*24*3600) {
 		t.Errorf("expected 7-day window in seconds, got %d", lesser-greater)
+	}
+}
+
+func TestHomeService_MangaHome_CachesAcrossCallsAndForwardsPaging(t *testing.T) {
+	fake := &fakeClient{response: json.RawMessage(`{"trending":{"media":[]},"popular":{"media":[]},"latest":{"media":[]},"topRated":{"media":[]}}`)}
+	svc := NewHomeService(fake, DefaultConfig())
+
+	for i := 0; i < 3; i++ {
+		if _, err := svc.MangaHome(context.Background(), MangaHomeRequest{Page: 1, PerPage: 20}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if got := atomic.LoadInt32(&fake.calls); got != 1 {
+		t.Errorf("expected 1 upstream call (cached), got %d", got)
+	}
+	if fake.lastVars["page"].(int) != 1 {
+		t.Errorf("expected page=1, got %v", fake.lastVars["page"])
+	}
+	if fake.lastVars["perPage"].(int) != 20 {
+		t.Errorf("expected perPage=20, got %v", fake.lastVars["perPage"])
+	}
+}
+
+func TestHomeService_MangaHome_NormalizesInvalidPaging(t *testing.T) {
+	fake := &fakeClient{response: json.RawMessage(`{"trending":{"media":[]}}`)}
+	svc := NewHomeService(fake, DefaultConfig())
+
+	if _, err := svc.MangaHome(context.Background(), MangaHomeRequest{Page: 0, PerPage: 999}); err != nil {
+		t.Fatal(err)
+	}
+	if fake.lastVars["page"].(int) != 1 {
+		t.Errorf("expected normalized page=1, got %v", fake.lastVars["page"])
+	}
+	if fake.lastVars["perPage"].(int) != 20 {
+		t.Errorf("expected normalized perPage=20, got %v", fake.lastVars["perPage"])
 	}
 }
 

@@ -29,6 +29,22 @@ func (h *HomeHandler) Register(app *fiber.App) {
 	g.Get("/trending", h.Trending)
 	g.Get("/season-discovery", h.SeasonDiscovery)
 	g.Get("/airing-calendar", h.AiringCalendar)
+	g.Get("/manga", h.MangaHome)
+}
+
+// MangaHome returns the aliased trending/popular/latest/topRated manga
+// payload — the four shelves of the manga Home tab in one round-trip.
+func (h *HomeHandler) MangaHome(c fiber.Ctx) error {
+	req := service.MangaHomeRequest{
+		Page:    intQuery(c, "page", 1),
+		PerPage: intQuery(c, "perPage", 20),
+	}
+	res, err := h.svc.MangaHome(c.Context(), req)
+	if err != nil {
+		log.Warn().Err(err).Msg("anilist home: manga home failed")
+		return fiber.NewError(fiber.StatusBadGateway, "anilist upstream failed")
+	}
+	return writeCached(c, res)
 }
 
 // Trending returns the trending / current-season catalog.

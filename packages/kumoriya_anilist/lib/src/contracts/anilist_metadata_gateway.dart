@@ -88,6 +88,19 @@ abstract interface class AnilistMetadataGateway {
   Future<Result<List<Map<String, dynamic>>, KumoriyaError>>
   fetchMangaHomeCatalog({int page = 1, int perPage = 20});
 
+  /// Aggregate manga Home payload — four aliased shelves
+  /// (`trending`, `popular`, `latest`, `topRated`) returned in a single
+  /// AniList request. The Kumoriya Go backend caches this surface; the
+  /// direct-AniList implementation produces the same shape so callers
+  /// don't care which path served them.
+  ///
+  /// Each value list is the `Page.media` array for that shelf. Missing
+  /// keys mean that shelf was either filtered out by AniList (no
+  /// matches) or the upstream alias rejected the variables — callers
+  /// must defensively treat absent keys as empty lists.
+  Future<Result<Map<String, List<Map<String, dynamic>>>, KumoriyaError>>
+  fetchMangaHomeSections({int page = 1, int perPage = 20});
+
   /// Free-text search against the manga catalog.
   Future<Result<List<Map<String, dynamic>>, KumoriyaError>> searchManga({
     required String query,

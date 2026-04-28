@@ -594,6 +594,47 @@ query TrendingManga($page: Int, $perPage: Int) {
 
 const String trendingMangaQuery = _trendingMangaBody + _mangaFragment;
 
+/// Fetches the four manga Home shelves (trending / popular / latest /
+/// top-rated) in a single request via aliased Page blocks. Mirrors the
+/// Kumoriya Go backend's `MangaHomeQuery` so the direct-AniList fallback
+/// path produces a payload of the exact same shape the backend returns.
+const String _mangaHomeBody = r'''
+query MangaHome($page: Int, $perPage: Int) {
+  trending: Page(page: $page, perPage: $perPage) {
+    media(
+      type: MANGA,
+      sort: [TRENDING_DESC, POPULARITY_DESC],
+      isAdult: false
+    ) { ...MangaFields }
+  }
+  popular: Page(page: $page, perPage: $perPage) {
+    media(
+      type: MANGA,
+      sort: [POPULARITY_DESC],
+      isAdult: false
+    ) { ...MangaFields }
+  }
+  latest: Page(page: $page, perPage: $perPage) {
+    media(
+      type: MANGA,
+      status_in: [RELEASING, FINISHED],
+      sort: [START_DATE_DESC],
+      isAdult: false
+    ) { ...MangaFields }
+  }
+  topRated: Page(page: $page, perPage: $perPage) {
+    media(
+      type: MANGA,
+      sort: [SCORE_DESC],
+      popularity_greater: 5000,
+      isAdult: false
+    ) { ...MangaFields }
+  }
+}
+''';
+
+const String mangaHomeQuery = _mangaHomeBody + _mangaFragment;
+
 const String _searchMangaBody = r'''
 query SearchManga($query: String, $page: Int, $perPage: Int) {
   Page(page: $page, perPage: $perPage) {

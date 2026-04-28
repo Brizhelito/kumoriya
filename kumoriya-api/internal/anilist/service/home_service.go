@@ -22,20 +22,23 @@ type GraphQLClient interface {
 
 // HomeService serves cached AniList Home surfaces.
 type HomeService struct {
-	client   GraphQLClient
-	trending *cache.SWR
-	season   *cache.SWR
-	calendar *cache.SWR
+	client    GraphQLClient
+	trending  *cache.SWR
+	season    *cache.SWR
+	calendar  *cache.SWR
+	mangaHome *cache.SWR
 }
 
 // Config configures HomeService cache TTLs.
 type Config struct {
-	TrendingFresh time.Duration
-	TrendingStale time.Duration
-	SeasonFresh   time.Duration
-	SeasonStale   time.Duration
-	CalendarFresh time.Duration
-	CalendarStale time.Duration
+	TrendingFresh  time.Duration
+	TrendingStale  time.Duration
+	SeasonFresh    time.Duration
+	SeasonStale    time.Duration
+	CalendarFresh  time.Duration
+	CalendarStale  time.Duration
+	MangaHomeFresh time.Duration
+	MangaHomeStale time.Duration
 }
 
 // DefaultConfig returns production-tuned TTLs. These are conservative:
@@ -48,16 +51,21 @@ func DefaultConfig() Config {
 		SeasonStale:   90 * time.Minute,
 		CalendarFresh: 5 * time.Minute,
 		CalendarStale: 25 * time.Minute,
+		// Manga shelves change slower than anime trending — chapter
+		// drops shift popularity gradually rather than dramatically.
+		MangaHomeFresh: 30 * time.Minute,
+		MangaHomeStale: 120 * time.Minute,
 	}
 }
 
 // NewHomeService builds a HomeService.
 func NewHomeService(gc GraphQLClient, cfg Config) *HomeService {
 	return &HomeService{
-		client:   gc,
-		trending: cache.New(cache.Config{Fresh: cfg.TrendingFresh, Stale: cfg.TrendingStale}),
-		season:   cache.New(cache.Config{Fresh: cfg.SeasonFresh, Stale: cfg.SeasonStale}),
-		calendar: cache.New(cache.Config{Fresh: cfg.CalendarFresh, Stale: cfg.CalendarStale}),
+		client:    gc,
+		trending:  cache.New(cache.Config{Fresh: cfg.TrendingFresh, Stale: cfg.TrendingStale}),
+		season:    cache.New(cache.Config{Fresh: cfg.SeasonFresh, Stale: cfg.SeasonStale}),
+		calendar:  cache.New(cache.Config{Fresh: cfg.CalendarFresh, Stale: cfg.CalendarStale}),
+		mangaHome: cache.New(cache.Config{Fresh: cfg.MangaHomeFresh, Stale: cfg.MangaHomeStale}),
 	}
 }
 
@@ -230,6 +238,40 @@ func (s *HomeService) AiringCalendar(ctx context.Context, req AiringCalendarRequ
 		})
 	}
 	return s.calendar.Get(ctx, req.cacheKey(), loader)
+}
+
+// MangaHomeRequest parameters for the manga Home aggregate (4 shelves
+// in a single round-trip).
+type MangaHomeRequest struct {
+	Page    int
+	PerPage int
+}
+
+func (r MangaHomeRequest) normalized() MangaHomeRequest {
+	if r.Page <= 0 {
+		r.Page = 1
+	}
+	if r.PerPage <= 0 || r.PerPage > 50 {
+		r.PerPage = 20
+	}
+	return r
+}
+
+func (r MangaHomeRequest) cacheKey() string {
+	return fmt.Sprintf("manga-home:p%d:n%d", r.Page, r.PerPage)
+}
+
+// MangaHome returns the aliased trending/popular/latest/topRated payload
+// for the manga Home tab in a single AniList request.
+func (s *HomeService) MangaHome(ctx context.Context, req MangaHomeRequest) (cache.Result, error) {
+	req = req.normalized()
+	loader := func(ctx context.Context) (json.RawMessage, error) {
+		return s.client.Execute(ctx, anilist.MangaHomeQuery, map[string]interface{}{
+			"page":    req.Page,
+			"perPage": req.PerPage,
+		})
+	}
+	return s.mangaHome.Get(ctx, req.cacheKey(), loader)
 }
 
 // currentSeasonWindow mirrors the Dart gateway logic so clients and server

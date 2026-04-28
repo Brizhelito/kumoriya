@@ -278,6 +278,12 @@ final class _FakeGateway implements AnilistMetadataGateway {
   }
 
   @override
+  Future<Result<Map<String, List<Map<String, dynamic>>>, KumoriyaError>>
+  fetchMangaHomeSections({int page = 1, int perPage = 20}) async {
+    return const Success(<String, List<Map<String, dynamic>>>{});
+  }
+
+  @override
   Future<Result<List<Map<String, dynamic>>, KumoriyaError>> searchManga({
     required String query,
     int page = 1,

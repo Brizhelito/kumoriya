@@ -6,6 +6,7 @@ export 'src/manga/manga_chapter.dart';
 export 'src/manga/manga_country_of_origin.dart';
 export 'src/manga/manga_detail.dart';
 export 'src/manga/manga_format.dart';
+export 'src/manga/manga_home_sections.dart';
 export 'src/manga/manga_page.dart';
 export 'src/manga/manga_relation.dart';
 export 'src/manga/manga_sort.dart';

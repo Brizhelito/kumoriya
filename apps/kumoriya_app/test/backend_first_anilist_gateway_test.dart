@@ -134,6 +134,20 @@ class _FakeInnerGateway implements AnilistMetadataGateway {
   fetchMangaHomeCatalog({int page = 1, int perPage = 20}) async =>
       const Success([]);
 
+  int mangaHomeSectionsCalls = 0;
+
+  @override
+  Future<Result<Map<String, List<Map<String, dynamic>>>, KumoriyaError>>
+  fetchMangaHomeSections({int page = 1, int perPage = 20}) async {
+    mangaHomeSectionsCalls += 1;
+    return const Success(<String, List<Map<String, dynamic>>>{
+      'trending': <Map<String, dynamic>>[],
+      'popular': <Map<String, dynamic>>[],
+      'latest': <Map<String, dynamic>>[],
+      'topRated': <Map<String, dynamic>>[],
+    });
+  }
+
   @override
   Future<Result<List<Map<String, dynamic>>, KumoriyaError>> searchManga({
     required String query,
