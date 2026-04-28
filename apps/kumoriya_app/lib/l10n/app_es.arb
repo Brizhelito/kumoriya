@@ -527,6 +527,37 @@
   "mangaLibraryTitle": "Biblioteca Manga",
   "mangaDownloadsTitle": "Descargas Manga",
   "mangaComingSoonSlice8": "El descubrimiento y los detalles llegan en el próximo slice. Mientras tanto, vuelve al universo anime.",
+  "mangaHomeFeaturedTag": "DESTACADO",
+  "mangaHomeReadAction": "Ver detalle",
+  "mangaHomeTrending": "Tendencia ahora",
+  "mangaHomePopular": "Más populares",
+  "mangaHomeLatest": "Recién actualizados",
+  "mangaHomeTopRated": "Mejor puntuados",
+  "mangaHomeEmpty": "Aún no hay manga para mostrar. Desliza para actualizar cuando vuelvas a estar conectado.",
+  "mangaHomeError": "No se pudo cargar el manga",
+  "mangaHomeRetry": "Reintentar",
+  "mangaSearchHint": "Busca manga, manhwa, manhua…",
+  "mangaSearchEmptyTitle": "Encuentra tu próxima lectura",
+  "mangaSearchEmptyHint": "Escribe un título — AniList cubre manga, manhwa, manhua y one-shots.",
+  "mangaSearchNoResults": "Sin resultados",
+  "mangaCardChapterCountLabel": "{count, plural, one{1 capítulo} other{{count} capítulos}}",
+  "@mangaCardChapterCountLabel": {
+    "placeholders": {"count": {"type": "int"}}
+  },
+  "mangaDetailSynopsis": "Sinopsis",
+  "mangaDetailNoSynopsis": "Sin sinopsis disponible.",
+  "mangaDetailGenres": "Géneros",
+  "mangaDetailChapters": "Capítulos",
+  "mangaDetailNoChaptersInLanguage": "No hay capítulos disponibles en tu idioma.",
+  "mangaDetailReaderComingSoon": "El lector llega en el Slice 9",
+  "mangaDetailVolumeLabel": "Vol. {number}",
+  "@mangaDetailVolumeLabel": {
+    "placeholders": {"number": {"type": "int"}}
+  },
+  "mangaDetailChapterLabel": "Cap. {number}",
+  "@mangaDetailChapterLabel": {
+    "placeholders": {"number": {"type": "String"}}
+  },
   "mangaComingSoonSlice10": "Tu biblioteca de manga vivirá aquí cuando llegue el Slice 10.",
   "mangaComingSoonSlice11": "Las descargas de manga (CBZ) llegarán en el Slice 11.",
   "calendarTitle": "Calendario",

@@ -529,6 +529,37 @@
   "mangaComingSoonSlice8": "Discovery and details land in the next slice. Switch back to anime in the meantime.",
   "mangaComingSoonSlice10": "Your manga library will live here once Slice 10 lands.",
   "mangaComingSoonSlice11": "Manga downloads (CBZ) arrive in Slice 11.",
+  "mangaHomeFeaturedTag": "FEATURED",
+  "mangaHomeReadAction": "View details",
+  "mangaHomeTrending": "Trending now",
+  "mangaHomePopular": "Popular all time",
+  "mangaHomeLatest": "Recently updated",
+  "mangaHomeTopRated": "Top rated",
+  "mangaHomeEmpty": "No manga to show yet. Pull to refresh once you are online.",
+  "mangaHomeError": "Could not load manga",
+  "mangaHomeRetry": "Retry",
+  "mangaSearchHint": "Search manga, manhwa, manhua…",
+  "mangaSearchEmptyTitle": "Find your next read",
+  "mangaSearchEmptyHint": "Type a title — AniList covers manga, manhwa, manhua, and one-shots.",
+  "mangaSearchNoResults": "No results",
+  "mangaCardChapterCountLabel": "{count, plural, one{1 chapter} other{{count} chapters}}",
+  "@mangaCardChapterCountLabel": {
+    "placeholders": {"count": {"type": "int"}}
+  },
+  "mangaDetailSynopsis": "Synopsis",
+  "mangaDetailNoSynopsis": "No synopsis available.",
+  "mangaDetailGenres": "Genres",
+  "mangaDetailChapters": "Chapters",
+  "mangaDetailNoChaptersInLanguage": "No chapters available in your language.",
+  "mangaDetailReaderComingSoon": "Reader coming in Slice 9",
+  "mangaDetailVolumeLabel": "Vol. {number}",
+  "@mangaDetailVolumeLabel": {
+    "placeholders": {"number": {"type": "int"}}
+  },
+  "mangaDetailChapterLabel": "Ch. {number}",
+  "@mangaDetailChapterLabel": {
+    "placeholders": {"number": {"type": "String"}}
+  },
   "calendarTitle": "Calendar",
   "calendarSubtitle": "Airing schedule by date",
   "calendarNoAiring": "No airing anime found.",

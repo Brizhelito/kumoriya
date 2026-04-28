@@ -57,6 +57,9 @@ dependencies:
   kumoriya_resolver_upnshare:
   kumoriya_resolver_anime_nexus:
   kumoriya_resolver_mediafire:
+  kumoriya_manga_domain:
+  kumoriya_manga_plugins:
+  kumoriya_source_mangadex:
   kumoriya_storage:
   kumoriya_sync:
   kumoriya_auth:

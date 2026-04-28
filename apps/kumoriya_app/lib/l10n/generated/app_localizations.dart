@@ -1639,6 +1639,138 @@ abstract class AppLocalizations {
   /// **'Manga downloads (CBZ) arrive in Slice 11.'**
   String get mangaComingSoonSlice11;
 
+  /// No description provided for @mangaHomeFeaturedTag.
+  ///
+  /// In en, this message translates to:
+  /// **'FEATURED'**
+  String get mangaHomeFeaturedTag;
+
+  /// No description provided for @mangaHomeReadAction.
+  ///
+  /// In en, this message translates to:
+  /// **'View details'**
+  String get mangaHomeReadAction;
+
+  /// No description provided for @mangaHomeTrending.
+  ///
+  /// In en, this message translates to:
+  /// **'Trending now'**
+  String get mangaHomeTrending;
+
+  /// No description provided for @mangaHomePopular.
+  ///
+  /// In en, this message translates to:
+  /// **'Popular all time'**
+  String get mangaHomePopular;
+
+  /// No description provided for @mangaHomeLatest.
+  ///
+  /// In en, this message translates to:
+  /// **'Recently updated'**
+  String get mangaHomeLatest;
+
+  /// No description provided for @mangaHomeTopRated.
+  ///
+  /// In en, this message translates to:
+  /// **'Top rated'**
+  String get mangaHomeTopRated;
+
+  /// No description provided for @mangaHomeEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No manga to show yet. Pull to refresh once you are online.'**
+  String get mangaHomeEmpty;
+
+  /// No description provided for @mangaHomeError.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not load manga'**
+  String get mangaHomeError;
+
+  /// No description provided for @mangaHomeRetry.
+  ///
+  /// In en, this message translates to:
+  /// **'Retry'**
+  String get mangaHomeRetry;
+
+  /// No description provided for @mangaSearchHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Search manga, manhwa, manhua…'**
+  String get mangaSearchHint;
+
+  /// No description provided for @mangaSearchEmptyTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Find your next read'**
+  String get mangaSearchEmptyTitle;
+
+  /// No description provided for @mangaSearchEmptyHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Type a title — AniList covers manga, manhwa, manhua, and one-shots.'**
+  String get mangaSearchEmptyHint;
+
+  /// No description provided for @mangaSearchNoResults.
+  ///
+  /// In en, this message translates to:
+  /// **'No results'**
+  String get mangaSearchNoResults;
+
+  /// No description provided for @mangaCardChapterCountLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, one{1 chapter} other{{count} chapters}}'**
+  String mangaCardChapterCountLabel(int count);
+
+  /// No description provided for @mangaDetailSynopsis.
+  ///
+  /// In en, this message translates to:
+  /// **'Synopsis'**
+  String get mangaDetailSynopsis;
+
+  /// No description provided for @mangaDetailNoSynopsis.
+  ///
+  /// In en, this message translates to:
+  /// **'No synopsis available.'**
+  String get mangaDetailNoSynopsis;
+
+  /// No description provided for @mangaDetailGenres.
+  ///
+  /// In en, this message translates to:
+  /// **'Genres'**
+  String get mangaDetailGenres;
+
+  /// No description provided for @mangaDetailChapters.
+  ///
+  /// In en, this message translates to:
+  /// **'Chapters'**
+  String get mangaDetailChapters;
+
+  /// No description provided for @mangaDetailNoChaptersInLanguage.
+  ///
+  /// In en, this message translates to:
+  /// **'No chapters available in your language.'**
+  String get mangaDetailNoChaptersInLanguage;
+
+  /// No description provided for @mangaDetailReaderComingSoon.
+  ///
+  /// In en, this message translates to:
+  /// **'Reader coming in Slice 9'**
+  String get mangaDetailReaderComingSoon;
+
+  /// No description provided for @mangaDetailVolumeLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Vol. {number}'**
+  String mangaDetailVolumeLabel(int number);
+
+  /// No description provided for @mangaDetailChapterLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Ch. {number}'**
+  String mangaDetailChapterLabel(String number);
+
   /// No description provided for @calendarTitle.
   ///
   /// In en, this message translates to:

@@ -939,6 +939,87 @@ class AppLocalizationsEn extends AppLocalizations {
       'Manga downloads (CBZ) arrive in Slice 11.';
 
   @override
+  String get mangaHomeFeaturedTag => 'FEATURED';
+
+  @override
+  String get mangaHomeReadAction => 'View details';
+
+  @override
+  String get mangaHomeTrending => 'Trending now';
+
+  @override
+  String get mangaHomePopular => 'Popular all time';
+
+  @override
+  String get mangaHomeLatest => 'Recently updated';
+
+  @override
+  String get mangaHomeTopRated => 'Top rated';
+
+  @override
+  String get mangaHomeEmpty =>
+      'No manga to show yet. Pull to refresh once you are online.';
+
+  @override
+  String get mangaHomeError => 'Could not load manga';
+
+  @override
+  String get mangaHomeRetry => 'Retry';
+
+  @override
+  String get mangaSearchHint => 'Search manga, manhwa, manhua…';
+
+  @override
+  String get mangaSearchEmptyTitle => 'Find your next read';
+
+  @override
+  String get mangaSearchEmptyHint =>
+      'Type a title — AniList covers manga, manhwa, manhua, and one-shots.';
+
+  @override
+  String get mangaSearchNoResults => 'No results';
+
+  @override
+  String mangaCardChapterCountLabel(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count chapters',
+      one: '1 chapter',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get mangaDetailSynopsis => 'Synopsis';
+
+  @override
+  String get mangaDetailNoSynopsis => 'No synopsis available.';
+
+  @override
+  String get mangaDetailGenres => 'Genres';
+
+  @override
+  String get mangaDetailChapters => 'Chapters';
+
+  @override
+  String get mangaDetailNoChaptersInLanguage =>
+      'No chapters available in your language.';
+
+  @override
+  String get mangaDetailReaderComingSoon => 'Reader coming in Slice 9';
+
+  @override
+  String mangaDetailVolumeLabel(int number) {
+    return 'Vol. $number';
+  }
+
+  @override
+  String mangaDetailChapterLabel(String number) {
+    return 'Ch. $number';
+  }
+
+  @override
   String get calendarTitle => 'Calendar';
 
   @override

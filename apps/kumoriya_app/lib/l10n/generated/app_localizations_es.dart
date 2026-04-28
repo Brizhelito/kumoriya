@@ -951,6 +951,87 @@ class AppLocalizationsEs extends AppLocalizations {
       'Las descargas de manga (CBZ) llegarán en el Slice 11.';
 
   @override
+  String get mangaHomeFeaturedTag => 'DESTACADO';
+
+  @override
+  String get mangaHomeReadAction => 'Ver detalle';
+
+  @override
+  String get mangaHomeTrending => 'Tendencia ahora';
+
+  @override
+  String get mangaHomePopular => 'Más populares';
+
+  @override
+  String get mangaHomeLatest => 'Recién actualizados';
+
+  @override
+  String get mangaHomeTopRated => 'Mejor puntuados';
+
+  @override
+  String get mangaHomeEmpty =>
+      'Aún no hay manga para mostrar. Desliza para actualizar cuando vuelvas a estar conectado.';
+
+  @override
+  String get mangaHomeError => 'No se pudo cargar el manga';
+
+  @override
+  String get mangaHomeRetry => 'Reintentar';
+
+  @override
+  String get mangaSearchHint => 'Busca manga, manhwa, manhua…';
+
+  @override
+  String get mangaSearchEmptyTitle => 'Encuentra tu próxima lectura';
+
+  @override
+  String get mangaSearchEmptyHint =>
+      'Escribe un título — AniList cubre manga, manhwa, manhua y one-shots.';
+
+  @override
+  String get mangaSearchNoResults => 'Sin resultados';
+
+  @override
+  String mangaCardChapterCountLabel(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count capítulos',
+      one: '1 capítulo',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get mangaDetailSynopsis => 'Sinopsis';
+
+  @override
+  String get mangaDetailNoSynopsis => 'Sin sinopsis disponible.';
+
+  @override
+  String get mangaDetailGenres => 'Géneros';
+
+  @override
+  String get mangaDetailChapters => 'Capítulos';
+
+  @override
+  String get mangaDetailNoChaptersInLanguage =>
+      'No hay capítulos disponibles en tu idioma.';
+
+  @override
+  String get mangaDetailReaderComingSoon => 'El lector llega en el Slice 9';
+
+  @override
+  String mangaDetailVolumeLabel(int number) {
+    return 'Vol. $number';
+  }
+
+  @override
+  String mangaDetailChapterLabel(String number) {
+    return 'Cap. $number';
+  }
+
+  @override
   String get calendarTitle => 'Calendario';
 
   @override

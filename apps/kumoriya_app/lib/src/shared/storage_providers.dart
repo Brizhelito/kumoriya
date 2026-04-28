@@ -99,6 +99,11 @@ final episodeCacheStoreProvider = Provider<EpisodeCacheStore>((ref) {
   return DriftEpisodeCacheStore(db);
 });
 
+final mangaCacheStoreProvider = Provider<MangaCacheStore>((ref) {
+  final db = ref.watch(appDatabaseProvider);
+  return DriftMangaCacheStore(db);
+});
+
 final translationCacheStoreProvider = Provider<TranslationCacheStore>((ref) {
   final db = ref.watch(appDatabaseProvider);
   return DriftTranslationCacheStore(db);
