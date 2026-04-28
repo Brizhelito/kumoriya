@@ -33,6 +33,7 @@ import '../shared/auth/deep_link_handler.dart';
 import '../shared/navigation/app_navigation_shell.dart';
 import '../shared/sync/sync_providers.dart';
 import '../shared/theme/kumoriya_theme.dart';
+import '../shared/universe/active_universe_providers.dart';
 import 'l10n.dart';
 
 class KumoriyaApp extends ConsumerStatefulWidget {
@@ -77,6 +78,12 @@ class _KumoriyaAppState extends ConsumerState<KumoriyaApp> {
 
   @override
   Widget build(BuildContext context) {
+    // Active universe drives the accent that flows through MaterialApp's
+    // ThemeData. Watching the provider here means the whole app rebuilds
+    // its theme with the new primary on every universe switch — and
+    // MaterialApp's implicit AnimatedTheme cross-fades the change.
+    final accent = ref.watch(universeAccentProvider);
+    final themeData = KumoriyaTheme.forUniverse(accent);
     return MaterialApp(
       navigatorKey: _navigatorKey,
       onGenerateTitle: (context) => context.l10n.appTitle,
@@ -88,8 +95,8 @@ class _KumoriyaAppState extends ConsumerState<KumoriyaApp> {
         GlobalCupertinoLocalizations.delegate,
       ],
       supportedLocales: AppLocalizations.supportedLocales,
-      theme: KumoriyaTheme.dark,
-      darkTheme: KumoriyaTheme.dark,
+      theme: themeData,
+      darkTheme: themeData,
       themeMode: ThemeMode.dark,
       home: kPlayerPerfBenchmarkMode
           ? const PlayerPerformanceBenchmarkPage()

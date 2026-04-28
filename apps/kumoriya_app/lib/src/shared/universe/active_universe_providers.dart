@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kumoriya_core/kumoriya_core.dart';
 
+import '../theme/kumoriya_theme.dart';
 import 'active_universe_store.dart';
 
 /// Singleton provider for the on-disk universe store.
@@ -50,3 +51,14 @@ class ActiveUniverseNotifier extends Notifier<MediaKind> {
     set(state == MediaKind.anime ? MediaKind.manga : MediaKind.anime);
   }
 }
+
+/// Accent tokens for the active universe. Drives the `MaterialApp.theme`
+/// override, so reading `Theme.of(context).colorScheme.primary` returns
+/// the universe-correct color.
+final universeAccentProvider = Provider<UniverseAccent>((ref) {
+  final universe = ref.watch(activeUniverseProvider);
+  return switch (universe) {
+    MediaKind.anime => UniverseAccent.anime,
+    MediaKind.manga => UniverseAccent.manga,
+  };
+});

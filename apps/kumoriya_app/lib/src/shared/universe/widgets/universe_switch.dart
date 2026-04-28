@@ -71,6 +71,7 @@ class _Segment extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final primary = Theme.of(context).colorScheme.primary;
     final fg = selected ? KumoriyaColors.textPrimary : KumoriyaColors.textMuted;
     return Semantics(
       button: true,
@@ -84,7 +85,7 @@ class _Segment extends StatelessWidget {
           curve: Curves.easeOut,
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
           decoration: BoxDecoration(
-            color: selected ? KumoriyaColors.primary : Colors.transparent,
+            color: selected ? primary : Colors.transparent,
             borderRadius: BorderRadius.circular(KumoriyaRadius.md),
           ),
           child: Row(

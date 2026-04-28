@@ -348,6 +348,7 @@ class _MobileBottomNav extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final specs = _tabSpecsFor(universe, AppL10nProxy.of(context));
+    final primary = Theme.of(context).colorScheme.primary;
     return Container(
       decoration: const BoxDecoration(
         border: Border(top: BorderSide(color: KumoriyaColors.borderSubtle)),
@@ -363,7 +364,7 @@ class _MobileBottomNav extends StatelessWidget {
         },
         backgroundColor: KumoriyaColors.navBackground,
         selectedItemColor: KumoriyaColors.textPrimary,
-        selectedIconTheme: const IconThemeData(color: KumoriyaColors.primary),
+        selectedIconTheme: IconThemeData(color: primary),
         unselectedItemColor: KumoriyaColors.navInactive,
         type: BottomNavigationBarType.fixed,
         elevation: 0,
@@ -470,6 +471,7 @@ class _RailUtilityButtonState extends State<_RailUtilityButton> {
 
   @override
   Widget build(BuildContext context) {
+    final primary = Theme.of(context).colorScheme.primary;
     return Tooltip(
       message: widget.tooltip,
       preferBelow: false,
@@ -480,14 +482,14 @@ class _RailUtilityButtonState extends State<_RailUtilityButton> {
         child: InkWell(
           borderRadius: BorderRadius.circular(KumoriyaRadius.lg),
           onTap: widget.onTap,
-          splashColor: KumoriyaColors.primary.withValues(alpha: 0.10),
+          splashColor: primary.withValues(alpha: 0.10),
           child: Container(
             width: 56,
             height: 56,
             margin: const EdgeInsets.only(bottom: 8),
             decoration: BoxDecoration(
               color: _hovered
-                  ? KumoriyaColors.navIndicator
+                  ? primary.withValues(alpha: 0.20)
                   : Colors.transparent,
               borderRadius: BorderRadius.circular(KumoriyaRadius.lg),
             ),
@@ -508,15 +510,16 @@ class _RailUtilityButtonState extends State<_RailUtilityButton> {
 class _KumoriyaLogoMark extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
+    final primary = Theme.of(context).colorScheme.primary;
     return Container(
       width: 40,
       height: 40,
       decoration: BoxDecoration(
-        color: KumoriyaColors.primary,
+        color: primary,
         shape: BoxShape.circle,
         boxShadow: <BoxShadow>[
           BoxShadow(
-            color: KumoriyaColors.primary.withValues(alpha: 0.35),
+            color: primary.withValues(alpha: 0.35),
             blurRadius: 12,
             offset: const Offset(0, 4),
           ),
@@ -554,10 +557,9 @@ class _RailItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final primary = Theme.of(context).colorScheme.primary;
     final isActive = index == currentIndex;
-    final color = isActive
-        ? KumoriyaColors.primary
-        : KumoriyaColors.navInactive;
+    final color = isActive ? primary : KumoriyaColors.navInactive;
 
     return Tooltip(
       message: label,
@@ -567,14 +569,14 @@ class _RailItem extends StatelessWidget {
         child: InkWell(
           borderRadius: BorderRadius.circular(KumoriyaRadius.lg),
           onTap: () => onTap(index),
-          splashColor: KumoriyaColors.primary.withValues(alpha: 0.10),
+          splashColor: primary.withValues(alpha: 0.10),
           child: Container(
             width: 88,
             height: 56,
             margin: const EdgeInsets.symmetric(vertical: 2),
             decoration: BoxDecoration(
               color: isActive
-                  ? KumoriyaColors.navIndicator
+                  ? primary.withValues(alpha: 0.20)
                   : Colors.transparent,
               borderRadius: BorderRadius.circular(KumoriyaRadius.lg),
             ),

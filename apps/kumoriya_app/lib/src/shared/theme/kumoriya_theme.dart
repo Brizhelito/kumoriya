@@ -7,10 +7,28 @@ abstract final class KumoriyaColors {
   static const Color navBackground = Color(0xFF171121);
   static const Color navInactive = Color(0xFF9EACC2);
   static const Color navIndicator = Color(0x337C3BED);
-  static const Color primary = Color(0xFF7C3BED);
-  static const Color primaryDark = Color(0xFF6831C9);
-  static const Color primaryLight = Color(0xFF9055EB);
-  static const Color primaryContainer = Color(0xFF2A1654);
+
+  // Anime accent (the historical "primary"). Aliased below as `primary*`
+  // so the ~200 hard-coded usages in anime-only screens keep compiling
+  // and keep their original hue.
+  static const Color primaryAnime = Color(0xFF7C3BED);
+  static const Color primaryAnimeDark = Color(0xFF6831C9);
+  static const Color primaryAnimeLight = Color(0xFF9055EB);
+  static const Color primaryAnimeContainer = Color(0xFF2A1654);
+
+  // Manga accent (warm orange). Used by the manga universe via
+  // `UniverseAccent.manga` and the active `Theme.of(context).colorScheme`.
+  static const Color primaryManga = Color(0xFFF0782B);
+  static const Color primaryMangaDark = Color(0xFFC95F1A);
+  static const Color primaryMangaLight = Color(0xFFF69549);
+  static const Color primaryMangaContainer = Color(0xFF4D2410);
+
+  // Backwards-compatible aliases. The bulk of the codebase uses these;
+  // they stay pinned to the anime hue so anime-only pages don't shift.
+  static const Color primary = primaryAnime;
+  static const Color primaryDark = primaryAnimeDark;
+  static const Color primaryLight = primaryAnimeLight;
+  static const Color primaryContainer = primaryAnimeContainer;
   static const Color accentSky = Color(0xFF56B8FF);
   static const Color accentMint = Color(0xFF40D8B3);
   static const Color accentAmber = Color(0xFFF6BE4C);
@@ -68,8 +86,51 @@ abstract final class KumoriyaSpacing {
   static const double xxxl = 32.0;
 }
 
+/// Per-universe accent tokens. Anime is the historical purple; manga is
+/// warm orange. The active accent flows through `Theme.of(context)` —
+/// pages that should follow the universe must read
+/// `Theme.of(context).colorScheme.primary` rather than the hard-coded
+/// `KumoriyaColors.primary*` constants.
+class UniverseAccent {
+  const UniverseAccent({
+    required this.primary,
+    required this.primaryDark,
+    required this.primaryLight,
+    required this.primaryContainer,
+  });
+
+  final Color primary;
+  final Color primaryDark;
+  final Color primaryLight;
+  final Color primaryContainer;
+
+  /// Translucent indicator/hover color (~20% alpha) derived from the
+  /// primary. Used by nav rail / bottom nav / segmented selectors so the
+  /// indicator follows the universe.
+  Color get indicator => primary.withValues(alpha: 0.20);
+
+  static const UniverseAccent anime = UniverseAccent(
+    primary: KumoriyaColors.primaryAnime,
+    primaryDark: KumoriyaColors.primaryAnimeDark,
+    primaryLight: KumoriyaColors.primaryAnimeLight,
+    primaryContainer: KumoriyaColors.primaryAnimeContainer,
+  );
+
+  static const UniverseAccent manga = UniverseAccent(
+    primary: KumoriyaColors.primaryManga,
+    primaryDark: KumoriyaColors.primaryMangaDark,
+    primaryLight: KumoriyaColors.primaryMangaLight,
+    primaryContainer: KumoriyaColors.primaryMangaContainer,
+  );
+}
+
 abstract final class KumoriyaTheme {
-  static ThemeData get dark {
+  /// Backwards-compatible default — the anime universe theme. Kept so
+  /// non-app entry points (tests, isolated previews) can still grab a
+  /// theme without having to thread an accent.
+  static ThemeData get dark => forUniverse(UniverseAccent.anime);
+
+  static ThemeData forUniverse(UniverseAccent accent) {
     final bool desktop = switch (defaultTargetPlatform) {
       TargetPlatform.linux ||
       TargetPlatform.macOS ||
@@ -79,11 +140,11 @@ abstract final class KumoriyaTheme {
       TargetPlatform.fuchsia => false,
     };
 
-    const ColorScheme colorScheme = ColorScheme(
+    final ColorScheme colorScheme = ColorScheme(
       brightness: Brightness.dark,
-      primary: KumoriyaColors.primary,
+      primary: accent.primary,
       onPrimary: KumoriyaColors.textPrimary,
-      primaryContainer: KumoriyaColors.primaryContainer,
+      primaryContainer: accent.primaryContainer,
       onPrimaryContainer: KumoriyaColors.textPrimary,
       secondary: KumoriyaColors.accentSky,
       onSecondary: KumoriyaColors.textPrimary,
@@ -129,7 +190,7 @@ abstract final class KumoriyaTheme {
       bottomNavigationBarTheme: BottomNavigationBarThemeData(
         backgroundColor: KumoriyaColors.navBackground.withValues(alpha: 0.95),
         selectedItemColor: KumoriyaColors.textPrimary,
-        selectedIconTheme: const IconThemeData(color: KumoriyaColors.primary),
+        selectedIconTheme: IconThemeData(color: accent.primary),
         unselectedItemColor: KumoriyaColors.navInactive,
         type: BottomNavigationBarType.fixed,
         elevation: 0,
@@ -145,10 +206,7 @@ abstract final class KumoriyaTheme {
       ),
       navigationRailTheme: NavigationRailThemeData(
         backgroundColor: KumoriyaColors.navBackground.withValues(alpha: 0.95),
-        selectedIconTheme: const IconThemeData(
-          color: KumoriyaColors.primary,
-          size: 24,
-        ),
+        selectedIconTheme: IconThemeData(color: accent.primary, size: 24),
         unselectedIconTheme: const IconThemeData(
           color: KumoriyaColors.navInactive,
           size: 24,
@@ -163,7 +221,7 @@ abstract final class KumoriyaTheme {
           color: KumoriyaColors.navInactive,
           fontSize: 10,
         ),
-        indicatorColor: KumoriyaColors.navIndicator,
+        indicatorColor: accent.indicator,
         elevation: 0,
         minWidth: 88,
       ),
@@ -186,10 +244,10 @@ abstract final class KumoriyaTheme {
         space: 1,
       ),
       searchBarTheme: SearchBarThemeData(
-        backgroundColor: WidgetStatePropertyAll(KumoriyaColors.surface),
+        backgroundColor: const WidgetStatePropertyAll(KumoriyaColors.surface),
         elevation: const WidgetStatePropertyAll(0),
         overlayColor: WidgetStatePropertyAll(
-          KumoriyaColors.primary.withValues(alpha: 0.08),
+          accent.primary.withValues(alpha: 0.08),
         ),
         side: const WidgetStatePropertyAll(
           BorderSide(color: KumoriyaColors.borderSubtle),
@@ -213,14 +271,14 @@ abstract final class KumoriyaTheme {
         style: ButtonStyle(
           backgroundColor: WidgetStateProperty.resolveWith((states) {
             if (states.contains(WidgetState.pressed)) {
-              return KumoriyaColors.primaryDark;
+              return accent.primaryDark;
             }
-            return KumoriyaColors.primary;
+            return accent.primary;
           }),
           foregroundColor: const WidgetStatePropertyAll(Colors.white),
           elevation: const WidgetStatePropertyAll(0),
           shadowColor: WidgetStatePropertyAll(
-            KumoriyaColors.primary.withValues(alpha: 0.4),
+            accent.primary.withValues(alpha: 0.4),
           ),
           shape: WidgetStatePropertyAll(
             RoundedRectangleBorder(
@@ -258,7 +316,7 @@ abstract final class KumoriyaTheme {
             ),
           ),
           overlayColor: WidgetStatePropertyAll(
-            KumoriyaColors.primary.withValues(alpha: 0.08),
+            accent.primary.withValues(alpha: 0.08),
           ),
         ),
       ),
@@ -284,7 +342,7 @@ abstract final class KumoriyaTheme {
             ),
           ),
           overlayColor: WidgetStatePropertyAll(
-            KumoriyaColors.primary.withValues(alpha: 0.08),
+            accent.primary.withValues(alpha: 0.08),
           ),
         ),
       ),
@@ -296,7 +354,7 @@ abstract final class KumoriyaTheme {
           minimumSize: WidgetStatePropertyAll(Size.square(desktop ? 40 : 48)),
           padding: WidgetStatePropertyAll(EdgeInsets.all(desktop ? 8 : 12)),
           overlayColor: WidgetStatePropertyAll(
-            KumoriyaColors.primary.withValues(alpha: 0.1),
+            accent.primary.withValues(alpha: 0.1),
           ),
         ),
       ),
@@ -305,14 +363,15 @@ abstract final class KumoriyaTheme {
         iconColor: KumoriyaColors.textMuted,
         textColor: KumoriyaColors.textPrimary,
       ),
-      progressIndicatorTheme: const ProgressIndicatorThemeData(
-        color: KumoriyaColors.primary,
+      progressIndicatorTheme: ProgressIndicatorThemeData(
+        color: accent.primary,
         linearTrackColor: KumoriyaColors.borderSubtle,
         circularTrackColor: KumoriyaColors.borderSubtle,
       ),
       snackBarTheme: SnackBarThemeData(
         backgroundColor: KumoriyaColors.surface,
         contentTextStyle: const TextStyle(color: KumoriyaColors.textPrimary),
+        actionTextColor: accent.primary,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(KumoriyaRadius.lg),
         ),
@@ -332,16 +391,13 @@ abstract final class KumoriyaTheme {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(KumoriyaRadius.xl),
-          borderSide: const BorderSide(
-            color: KumoriyaColors.primary,
-            width: 1.5,
-          ),
+          borderSide: BorderSide(color: accent.primary, width: 1.5),
         ),
       ),
       textSelectionTheme: TextSelectionThemeData(
-        cursorColor: KumoriyaColors.primary,
-        selectionColor: KumoriyaColors.primary.withValues(alpha: 0.30),
-        selectionHandleColor: KumoriyaColors.primary,
+        cursorColor: accent.primary,
+        selectionColor: accent.primary.withValues(alpha: 0.30),
+        selectionHandleColor: accent.primary,
       ),
     );
   }
