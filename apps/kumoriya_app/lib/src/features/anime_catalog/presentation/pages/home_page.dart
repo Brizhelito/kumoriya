@@ -18,6 +18,7 @@ import '../../../../shared/widgets/continue_watching_card.dart';
 import '../../../../shared/widgets/kumoriya_cached_image.dart';
 import '../../../../shared/widgets/section_header.dart';
 import '../../../../shared/widgets/state_views.dart';
+import '../../../../shared/universe/widgets/universe_switch.dart';
 import '../../application/models/episode_playback.dart';
 import '../../application/models/resolved_server_link_result.dart';
 import '../../application/models/source_availability.dart';
@@ -253,6 +254,7 @@ class _MobileHeader extends StatelessWidget {
             ],
           ),
           const Spacer(),
+          const UniverseSwitch(),
           if (kDebugMode)
             IconButton(
               tooltip: 'Anime Nexus playground',

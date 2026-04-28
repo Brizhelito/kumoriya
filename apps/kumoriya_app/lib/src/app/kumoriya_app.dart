@@ -14,6 +14,10 @@ import '../features/anime_catalog/presentation/pages/home_page.dart';
 import '../features/anime_catalog/presentation/pages/library_page.dart';
 import '../features/anime_catalog/presentation/pages/search_page.dart';
 import '../features/anime_catalog/presentation/providers/anime_catalog_providers.dart';
+import '../features/manga_catalog/presentation/pages/manga_downloads_page.dart';
+import '../features/manga_catalog/presentation/pages/manga_home_page.dart';
+import '../features/manga_catalog/presentation/pages/manga_library_page.dart';
+import '../features/manga_catalog/presentation/pages/manga_search_page.dart';
 import '../features/app_update/application/release_notes_catalog.dart';
 import '../features/app_update/application/seen_app_version_store.dart';
 import '../features/app_update/presentation/widgets/update_available_dialog.dart';
@@ -297,12 +301,18 @@ class _FirstLaunchGateState extends ConsumerState<_FirstLaunchGate> {
   Widget build(BuildContext context) {
     return AppNavigationShell(
       fallbackReasonNotifier: ref.watch(anilistCacheFallbackReasonProvider),
-      tabBuilders: <KumoriyaTab, WidgetBuilder>{
-        KumoriyaTab.home: (_) => const HomePage(),
-        KumoriyaTab.search: (_) => const SearchPage(),
-        KumoriyaTab.calendar: (_) => const CalendarPage(),
-        KumoriyaTab.library: (_) => const LibraryPage(),
-        KumoriyaTab.downloads: (_) => const DownloadsPage(),
+      animeTabBuilders: <KumoriyaAnimeTab, WidgetBuilder>{
+        KumoriyaAnimeTab.home: (_) => const HomePage(),
+        KumoriyaAnimeTab.search: (_) => const SearchPage(),
+        KumoriyaAnimeTab.calendar: (_) => const CalendarPage(),
+        KumoriyaAnimeTab.library: (_) => const LibraryPage(),
+        KumoriyaAnimeTab.downloads: (_) => const DownloadsPage(),
+      },
+      mangaTabBuilders: <KumoriyaMangaTab, WidgetBuilder>{
+        KumoriyaMangaTab.home: (_) => const MangaHomePage(),
+        KumoriyaMangaTab.search: (_) => const MangaSearchPage(),
+        KumoriyaMangaTab.library: (_) => const MangaLibraryPage(),
+        KumoriyaMangaTab.downloads: (_) => const MangaDownloadsPage(),
       },
     );
   }

@@ -1579,6 +1579,66 @@ abstract class AppLocalizations {
   /// **'Downloads'**
   String get navDownloads;
 
+  /// No description provided for @universeAnime.
+  ///
+  /// In en, this message translates to:
+  /// **'Anime'**
+  String get universeAnime;
+
+  /// No description provided for @universeManga.
+  ///
+  /// In en, this message translates to:
+  /// **'Manga'**
+  String get universeManga;
+
+  /// No description provided for @universeSwitchLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Switch universe'**
+  String get universeSwitchLabel;
+
+  /// No description provided for @mangaHomeTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Manga Home'**
+  String get mangaHomeTitle;
+
+  /// No description provided for @mangaSearchTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Manga Search'**
+  String get mangaSearchTitle;
+
+  /// No description provided for @mangaLibraryTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Manga Library'**
+  String get mangaLibraryTitle;
+
+  /// No description provided for @mangaDownloadsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Manga Downloads'**
+  String get mangaDownloadsTitle;
+
+  /// No description provided for @mangaComingSoonSlice8.
+  ///
+  /// In en, this message translates to:
+  /// **'Discovery and details land in the next slice. Switch back to anime in the meantime.'**
+  String get mangaComingSoonSlice8;
+
+  /// No description provided for @mangaComingSoonSlice10.
+  ///
+  /// In en, this message translates to:
+  /// **'Your manga library will live here once Slice 10 lands.'**
+  String get mangaComingSoonSlice10;
+
+  /// No description provided for @mangaComingSoonSlice11.
+  ///
+  /// In en, this message translates to:
+  /// **'Manga downloads (CBZ) arrive in Slice 11.'**
+  String get mangaComingSoonSlice11;
+
   /// No description provided for @calendarTitle.
   ///
   /// In en, this message translates to:

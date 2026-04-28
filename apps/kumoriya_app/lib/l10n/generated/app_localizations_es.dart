@@ -918,6 +918,39 @@ class AppLocalizationsEs extends AppLocalizations {
   String get navDownloads => 'Descargas';
 
   @override
+  String get universeAnime => 'Anime';
+
+  @override
+  String get universeManga => 'Manga';
+
+  @override
+  String get universeSwitchLabel => 'Cambiar universo';
+
+  @override
+  String get mangaHomeTitle => 'Inicio Manga';
+
+  @override
+  String get mangaSearchTitle => 'Buscar Manga';
+
+  @override
+  String get mangaLibraryTitle => 'Biblioteca Manga';
+
+  @override
+  String get mangaDownloadsTitle => 'Descargas Manga';
+
+  @override
+  String get mangaComingSoonSlice8 =>
+      'El descubrimiento y los detalles llegan en el próximo slice. Mientras tanto, vuelve al universo anime.';
+
+  @override
+  String get mangaComingSoonSlice10 =>
+      'Tu biblioteca de manga vivirá aquí cuando llegue el Slice 10.';
+
+  @override
+  String get mangaComingSoonSlice11 =>
+      'Las descargas de manga (CBZ) llegarán en el Slice 11.';
+
+  @override
   String get calendarTitle => 'Calendario';
 
   @override

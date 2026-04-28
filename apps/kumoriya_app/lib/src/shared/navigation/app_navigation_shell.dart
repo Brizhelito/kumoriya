@@ -1,44 +1,71 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:kumoriya_core/kumoriya_core.dart';
 
+import '../../app/l10n.dart';
 import '../../features/anime_catalog/application/services/cached_anime_catalog_repository.dart';
 import '../../features/settings/presentation/pages/settings_page.dart';
-import '../../app/l10n.dart';
 import '../icons/kumoriya_icons.dart';
 import '../theme/kumoriya_theme.dart';
+import '../universe/active_universe_providers.dart';
 
-enum KumoriyaTab { home, search, calendar, library, downloads }
+/// Tabs available in the anime universe. Order is the canonical
+/// bottom-nav / rail order.
+enum KumoriyaAnimeTab { home, search, calendar, library, downloads }
 
-class AppNavigationShell extends StatefulWidget {
+/// Tabs available in the manga universe. Order is the canonical
+/// bottom-nav / rail order. No Calendar (anime-only) and no dedicated
+/// Latest tab — Latest lives inside Manga Home (see plan §8).
+enum KumoriyaMangaTab { home, search, library, downloads }
+
+class AppNavigationShell extends ConsumerStatefulWidget {
   const AppNavigationShell({
     super.key,
-    required this.tabBuilders,
+    required this.animeTabBuilders,
+    required this.mangaTabBuilders,
     this.fallbackReasonNotifier,
   });
 
-  final Map<KumoriyaTab, WidgetBuilder> tabBuilders;
+  final Map<KumoriyaAnimeTab, WidgetBuilder> animeTabBuilders;
+  final Map<KumoriyaMangaTab, WidgetBuilder> mangaTabBuilders;
 
   /// When non-null, a persistent banner is shown to indicate the fallback
   /// reason ([FallbackReason.offline] or [FallbackReason.anilistDown]).
   final ValueNotifier<FallbackReason>? fallbackReasonNotifier;
 
   @override
-  State<AppNavigationShell> createState() => _AppNavigationShellState();
+  ConsumerState<AppNavigationShell> createState() => _AppNavigationShellState();
 }
 
-class _AppNavigationShellState extends State<AppNavigationShell> {
-  KumoriyaTab _currentTab = KumoriyaTab.home;
-
-  /// Tabs that have been visited at least once and should remain in the tree.
-  final Set<KumoriyaTab> _visitedTabs = {KumoriyaTab.home};
-
-  final Map<KumoriyaTab, GlobalKey<NavigatorState>> _navigatorKeys = {
-    KumoriyaTab.home: GlobalKey<NavigatorState>(),
-    KumoriyaTab.search: GlobalKey<NavigatorState>(),
-    KumoriyaTab.calendar: GlobalKey<NavigatorState>(),
-    KumoriyaTab.library: GlobalKey<NavigatorState>(),
-    KumoriyaTab.downloads: GlobalKey<NavigatorState>(),
+class _AppNavigationShellState extends ConsumerState<AppNavigationShell> {
+  /// Current tab index per universe. Each universe keeps its own
+  /// selection so switching back lands on the last-viewed tab.
+  final Map<MediaKind, int> _currentTabIndex = <MediaKind, int>{
+    MediaKind.anime: 0,
+    MediaKind.manga: 0,
   };
+
+  /// Tabs that have been visited at least once per universe. Drives the
+  /// lazy `Offstage` build of inactive tabs.
+  final Map<MediaKind, Set<int>> _visitedTabs = <MediaKind, Set<int>>{
+    MediaKind.anime: <int>{0},
+    MediaKind.manga: <int>{0},
+  };
+
+  /// Per-(universe, tab) navigator keys so each tab keeps its own
+  /// navigation stack across universe switches.
+  final Map<MediaKind, Map<int, GlobalKey<NavigatorState>>> _navigatorKeys =
+      <MediaKind, Map<int, GlobalKey<NavigatorState>>>{
+        MediaKind.anime: <int, GlobalKey<NavigatorState>>{
+          for (var i = 0; i < KumoriyaAnimeTab.values.length; i++)
+            i: GlobalKey<NavigatorState>(),
+        },
+        MediaKind.manga: <int, GlobalKey<NavigatorState>>{
+          for (var i = 0; i < KumoriyaMangaTab.values.length; i++)
+            i: GlobalKey<NavigatorState>(),
+        },
+      };
 
   static bool get _isDesktop {
     return switch (defaultTargetPlatform) {
@@ -49,26 +76,33 @@ class _AppNavigationShellState extends State<AppNavigationShell> {
     };
   }
 
-  void _onTabSelected(int index) {
-    final tab = KumoriyaTab.values[index];
-    if (tab == _currentTab) {
-      _navigatorKeys[tab]?.currentState?.popUntil((route) => route.isFirst);
+  int _tabCountFor(MediaKind universe) => switch (universe) {
+    MediaKind.anime => KumoriyaAnimeTab.values.length,
+    MediaKind.manga => KumoriyaMangaTab.values.length,
+  };
+
+  void _onTabSelected(MediaKind universe, int index) {
+    if (index == _currentTabIndex[universe]) {
+      _navigatorKeys[universe]?[index]?.currentState?.popUntil(
+        (route) => route.isFirst,
+      );
       return;
     }
     setState(() {
-      _visitedTabs.add(tab);
-      _currentTab = tab;
+      _visitedTabs[universe]!.add(index);
+      _currentTabIndex[universe] = index;
     });
   }
 
-  Future<bool> _handlePopScope() async {
-    final nav = _navigatorKeys[_currentTab]?.currentState;
+  Future<bool> _handlePopScope(MediaKind universe) async {
+    final currentIndex = _currentTabIndex[universe]!;
+    final nav = _navigatorKeys[universe]?[currentIndex]?.currentState;
     if (nav != null && nav.canPop()) {
       nav.pop();
       return false;
     }
-    if (_currentTab != KumoriyaTab.home) {
-      setState(() => _currentTab = KumoriyaTab.home);
+    if (currentIndex != 0) {
+      setState(() => _currentTabIndex[universe] = 0);
       return false;
     }
     return true;
@@ -81,14 +115,23 @@ class _AppNavigationShellState extends State<AppNavigationShell> {
     ).push(MaterialPageRoute<void>(builder: (_) => const SettingsPage()));
   }
 
-  Widget _buildTabNavigator(KumoriyaTab tab) {
+  Widget _buildTabNavigator(MediaKind universe, int index) {
     return Navigator(
-      key: _navigatorKeys[tab],
+      key: _navigatorKeys[universe]![index],
       onGenerateRoute: (settings) => MaterialPageRoute<void>(
         settings: settings,
-        builder: widget.tabBuilders[tab]!,
+        builder: (ctx) => _builderFor(universe, index)(ctx),
       ),
     );
+  }
+
+  WidgetBuilder _builderFor(MediaKind universe, int index) {
+    return switch (universe) {
+      MediaKind.anime =>
+        widget.animeTabBuilders[KumoriyaAnimeTab.values[index]]!,
+      MediaKind.manga =>
+        widget.mangaTabBuilders[KumoriyaMangaTab.values[index]]!,
+    };
   }
 
   Widget _buildOfflineBanner(Widget body) {
@@ -130,17 +173,21 @@ class _AppNavigationShellState extends State<AppNavigationShell> {
 
   @override
   Widget build(BuildContext context) {
-    final currentIndex = _currentTab.index;
+    final universe = ref.watch(activeUniverseProvider);
+    final currentIndex = _currentTabIndex[universe]!;
+    final tabCount = _tabCountFor(universe);
 
-    // Only build navigators for tabs visited at least once; hide non-active
-    // ones with Offstage so they keep their state without consuming layout.
+    // Build navigators only for visited tabs of the active universe;
+    // tabs of the inactive universe are not built at all so the inactive
+    // tree stays cheap. When the user switches back, the visited-set is
+    // preserved and the navigator keys keep the stacks alive.
     final body = Stack(
       children: <Widget>[
-        for (final tab in KumoriyaTab.values)
-          if (_visitedTabs.contains(tab))
+        for (var i = 0; i < tabCount; i++)
+          if (_visitedTabs[universe]!.contains(i))
             Offstage(
-              offstage: tab != _currentTab,
-              child: _buildTabNavigator(tab),
+              offstage: i != currentIndex,
+              child: _buildTabNavigator(universe, i),
             ),
       ],
     );
@@ -151,15 +198,16 @@ class _AppNavigationShellState extends State<AppNavigationShell> {
       return PopScope(
         canPop: false,
         onPopInvokedWithResult: (didPop, _) async {
-          if (!didPop) await _handlePopScope();
+          if (!didPop) await _handlePopScope(universe);
         },
         child: Scaffold(
           backgroundColor: KumoriyaColors.background,
           body: Row(
             children: <Widget>[
               _DesktopRail(
+                universe: universe,
                 currentIndex: currentIndex,
-                onTap: _onTabSelected,
+                onTap: (i) => _onTabSelected(universe, i),
                 onOpenSettings: () => _openSettings(context),
               ),
               Expanded(child: bodyWithBanner),
@@ -172,14 +220,15 @@ class _AppNavigationShellState extends State<AppNavigationShell> {
     return PopScope(
       canPop: false,
       onPopInvokedWithResult: (didPop, _) async {
-        if (!didPop) await _handlePopScope();
+        if (!didPop) await _handlePopScope(universe);
       },
       child: Scaffold(
         backgroundColor: KumoriyaColors.background,
         body: bodyWithBanner,
         bottomNavigationBar: _MobileBottomNav(
+          universe: universe,
           currentIndex: currentIndex,
-          onTap: _onTabSelected,
+          onTap: (i) => _onTabSelected(universe, i),
           onSettingsTap: () => _openSettings(context),
         ),
       ),
@@ -187,19 +236,118 @@ class _AppNavigationShellState extends State<AppNavigationShell> {
   }
 }
 
+class _TabSpec {
+  const _TabSpec({
+    required this.icon,
+    required this.activeIcon,
+    required this.label,
+  });
+
+  final IconData icon;
+  final IconData activeIcon;
+  final String label;
+}
+
+List<_TabSpec> _tabSpecsFor(MediaKind universe, AppL10nProxy l10n) {
+  return switch (universe) {
+    MediaKind.anime => <_TabSpec>[
+      _TabSpec(
+        icon: KumoriyaIcons.navHome,
+        activeIcon: KumoriyaIcons.navHomeActive,
+        label: l10n.navHome,
+      ),
+      _TabSpec(
+        icon: KumoriyaIcons.navSearch,
+        activeIcon: KumoriyaIcons.navSearchActive,
+        label: l10n.navSearch,
+      ),
+      _TabSpec(
+        icon: KumoriyaIcons.navCalendar,
+        activeIcon: KumoriyaIcons.navCalendarActive,
+        label: l10n.navCalendar,
+      ),
+      _TabSpec(
+        icon: KumoriyaIcons.navLibrary,
+        activeIcon: KumoriyaIcons.navLibraryActive,
+        label: l10n.navLibrary,
+      ),
+      _TabSpec(
+        icon: KumoriyaIcons.navDownloads,
+        activeIcon: KumoriyaIcons.navDownloadsActive,
+        label: l10n.navDownloads,
+      ),
+    ],
+    MediaKind.manga => <_TabSpec>[
+      _TabSpec(
+        icon: KumoriyaIcons.navHome,
+        activeIcon: KumoriyaIcons.navHomeActive,
+        label: l10n.navHome,
+      ),
+      _TabSpec(
+        icon: KumoriyaIcons.navSearch,
+        activeIcon: KumoriyaIcons.navSearchActive,
+        label: l10n.navSearch,
+      ),
+      _TabSpec(
+        icon: KumoriyaIcons.navLibrary,
+        activeIcon: KumoriyaIcons.navLibraryActive,
+        label: l10n.navLibrary,
+      ),
+      _TabSpec(
+        icon: KumoriyaIcons.navDownloads,
+        activeIcon: KumoriyaIcons.navDownloadsActive,
+        label: l10n.navDownloads,
+      ),
+    ],
+  };
+}
+
+/// Adapter so [_tabSpecsFor] does not have to take a `BuildContext`. The
+/// intent is just to keep the spec list build side-effect-free and easy
+/// to unit-test.
+class AppL10nProxy {
+  const AppL10nProxy({
+    required this.navHome,
+    required this.navSearch,
+    required this.navCalendar,
+    required this.navLibrary,
+    required this.navDownloads,
+  });
+
+  factory AppL10nProxy.of(BuildContext context) {
+    final l10n = context.l10n;
+    return AppL10nProxy(
+      navHome: l10n.navHome,
+      navSearch: l10n.navSearch,
+      navCalendar: l10n.navCalendar,
+      navLibrary: l10n.navLibrary,
+      navDownloads: l10n.navDownloads,
+    );
+  }
+
+  final String navHome;
+  final String navSearch;
+  final String navCalendar;
+  final String navLibrary;
+  final String navDownloads;
+}
+
 class _MobileBottomNav extends StatelessWidget {
   const _MobileBottomNav({
+    required this.universe,
     required this.currentIndex,
     required this.onTap,
     required this.onSettingsTap,
   });
 
+  final MediaKind universe;
   final int currentIndex;
   final ValueChanged<int> onTap;
   final VoidCallback onSettingsTap;
 
   @override
   Widget build(BuildContext context) {
+    final specs = _tabSpecsFor(universe, AppL10nProxy.of(context));
     return Container(
       decoration: const BoxDecoration(
         border: Border(top: BorderSide(color: KumoriyaColors.borderSubtle)),
@@ -207,7 +355,7 @@ class _MobileBottomNav extends StatelessWidget {
       child: BottomNavigationBar(
         currentIndex: currentIndex,
         onTap: (index) {
-          if (index == KumoriyaTab.values.length) {
+          if (index == specs.length) {
             onSettingsTap();
             return;
           }
@@ -223,31 +371,12 @@ class _MobileBottomNav extends StatelessWidget {
         unselectedFontSize: 10,
         iconSize: 24,
         items: <BottomNavigationBarItem>[
-          BottomNavigationBarItem(
-            icon: const Icon(KumoriyaIcons.navHome),
-            activeIcon: const Icon(KumoriyaIcons.navHomeActive),
-            label: context.l10n.navHome,
-          ),
-          BottomNavigationBarItem(
-            icon: const Icon(KumoriyaIcons.navSearch),
-            activeIcon: const Icon(KumoriyaIcons.navSearchActive),
-            label: context.l10n.navSearch,
-          ),
-          BottomNavigationBarItem(
-            icon: const Icon(KumoriyaIcons.navCalendar),
-            activeIcon: const Icon(KumoriyaIcons.navCalendarActive),
-            label: context.l10n.navCalendar,
-          ),
-          BottomNavigationBarItem(
-            icon: const Icon(KumoriyaIcons.navLibrary),
-            activeIcon: const Icon(KumoriyaIcons.navLibraryActive),
-            label: context.l10n.navLibrary,
-          ),
-          BottomNavigationBarItem(
-            icon: const Icon(KumoriyaIcons.navDownloads),
-            activeIcon: const Icon(KumoriyaIcons.navDownloadsActive),
-            label: context.l10n.navDownloads,
-          ),
+          for (final spec in specs)
+            BottomNavigationBarItem(
+              icon: Icon(spec.icon),
+              activeIcon: Icon(spec.activeIcon),
+              label: spec.label,
+            ),
           BottomNavigationBarItem(
             icon: const Icon(KumoriyaIcons.navSettings),
             activeIcon: const Icon(KumoriyaIcons.navSettingsActive),
@@ -261,17 +390,20 @@ class _MobileBottomNav extends StatelessWidget {
 
 class _DesktopRail extends StatelessWidget {
   const _DesktopRail({
+    required this.universe,
     required this.currentIndex,
     required this.onTap,
     required this.onOpenSettings,
   });
 
+  final MediaKind universe;
   final int currentIndex;
   final ValueChanged<int> onTap;
   final VoidCallback onOpenSettings;
 
   @override
   Widget build(BuildContext context) {
+    final specs = _tabSpecsFor(universe, AppL10nProxy.of(context));
     return Container(
       width: 88,
       decoration: const BoxDecoration(
@@ -292,47 +424,16 @@ class _DesktopRail extends StatelessWidget {
           Expanded(
             child: SingleChildScrollView(
               child: Column(
-                children: <_RailItem>[
-                  _RailItem(
-                    icon: KumoriyaIcons.navHome,
-                    activeIcon: KumoriyaIcons.navHomeActive,
-                    label: context.l10n.navHome,
-                    index: 0,
-                    currentIndex: currentIndex,
-                    onTap: onTap,
-                  ),
-                  _RailItem(
-                    icon: KumoriyaIcons.navSearch,
-                    activeIcon: KumoriyaIcons.navSearchActive,
-                    label: context.l10n.navSearch,
-                    index: 1,
-                    currentIndex: currentIndex,
-                    onTap: onTap,
-                  ),
-                  _RailItem(
-                    icon: KumoriyaIcons.navCalendar,
-                    activeIcon: KumoriyaIcons.navCalendarActive,
-                    label: context.l10n.navCalendar,
-                    index: 2,
-                    currentIndex: currentIndex,
-                    onTap: onTap,
-                  ),
-                  _RailItem(
-                    icon: KumoriyaIcons.navLibrary,
-                    activeIcon: KumoriyaIcons.navLibraryActive,
-                    label: context.l10n.navLibrary,
-                    index: 3,
-                    currentIndex: currentIndex,
-                    onTap: onTap,
-                  ),
-                  _RailItem(
-                    icon: KumoriyaIcons.navDownloads,
-                    activeIcon: KumoriyaIcons.navDownloadsActive,
-                    label: context.l10n.navDownloads,
-                    index: 4,
-                    currentIndex: currentIndex,
-                    onTap: onTap,
-                  ),
+                children: <Widget>[
+                  for (var i = 0; i < specs.length; i++)
+                    _RailItem(
+                      icon: specs[i].icon,
+                      activeIcon: specs[i].activeIcon,
+                      label: specs[i].label,
+                      index: i,
+                      currentIndex: currentIndex,
+                      onTap: onTap,
+                    ),
                 ],
               ),
             ),
