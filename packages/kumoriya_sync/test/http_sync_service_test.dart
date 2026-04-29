@@ -281,16 +281,20 @@ void main() {
   );
 
   test(
-    'pushPending skips manga entries entirely (Slice 10C-2 backend rollout)',
+    'pushPending sends manga entries in the dedicated payload buckets',
     () async {
-      // Three manga writes that the local queue happily stores but the
-      // Go backend cannot accept yet.
       await queueStore.enqueue(
         SyncQueueEntry(
           id: 0,
           entityType: SyncEntityType.mangaLibraryEntry,
           entityKey: jsonEncode({'mangaAnilistId': 1}),
-          payload: jsonEncode({'manga_anilist_id': 1, 'updated_at': 1000}),
+          payload: jsonEncode({
+            'manga_anilist_id': 1,
+            'added_at': 1000,
+            'notify_new_chapters': false,
+            'auto_download_new_chapters': false,
+            'updated_at': 1000,
+          }),
           createdAt: DateTime.fromMillisecondsSinceEpoch(1000),
           status: SyncQueueEntryStatus.pending,
         ),
@@ -306,7 +310,11 @@ void main() {
           }),
           payload: jsonEncode({
             'manga_anilist_id': 1,
+            'source_id': 'mangadex',
+            'source_chapter_id': 'ch-1',
             'chapter_number': 1.0,
+            'page_index': 5,
+            'read_state': 'reading',
             'updated_at': 1100,
           }),
           createdAt: DateTime.fromMillisecondsSinceEpoch(1100),
@@ -328,12 +336,22 @@ void main() {
         ),
       );
 
-      // The HTTP client must NOT be invoked: with only manga entries in
-      // the queue, `pushPending` short-circuits to idle.
-      var calls = 0;
+      late Map<String, dynamic> pushedBody;
       final client = MockClient((request) async {
-        calls++;
-        return http.Response('{}', 200);
+        pushedBody = jsonDecode(request.body) as Map<String, dynamic>;
+        return http.Response(
+          jsonEncode({
+            'applied': 3,
+            'conflicts': const [],
+            'durable_until': {
+              'manga_library_entry': 1000,
+              'manga_chapter_progress': 1100,
+              'manga_read_history': 1200,
+            },
+          }),
+          200,
+          headers: {'content-type': 'application/json'},
+        );
       });
 
       final service = HttpSyncService(
@@ -346,19 +364,20 @@ void main() {
 
       final result = await service.pushPending();
       expect(result.isSuccess, isTrue);
-      expect(calls, 0, reason: 'no push when queue holds only manga entries');
 
-      // Manga entries remain pending — the backend will drain them
-      // once the endpoints land (Slice 10C-2).
+      // Backend (Slice 10C-2) accepts manga in named buckets.
+      expect(pushedBody['manga_library_entries'], hasLength(1));
+      expect(pushedBody['manga_chapter_progress'], hasLength(1));
+      expect(pushedBody['manga_read_history'], hasLength(1));
+
+      // After durable_until is honoured, no manga entries should remain
+      // pending — they were confirmed in the same response cycle.
       final stillPending = await queueStore.getPendingEntries();
       stillPending.fold(
         onSuccess: (entries) {
-          expect(entries, hasLength(3));
           expect(
-            entries.every(
-              (e) => e.status == SyncQueueEntryStatus.pending,
-            ),
-            isTrue,
+            entries.where((e) => e.entityType.name.startsWith('manga')),
+            isEmpty,
           );
         },
         onFailure: (_) => fail('queue read failed'),

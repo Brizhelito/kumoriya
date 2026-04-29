@@ -55,6 +55,57 @@ type LibraryEntry struct {
 	UpdatedAt int64 `json:"updated_at"`
 }
 
+// MangaLibraryEntry mirrors `LibraryEntry` for the manga universe.
+// `AddedAt = 0` is the wire signal for "not favorite", same convention
+// the anime table uses post-012.
+type MangaLibraryEntry struct {
+	UserID                  uuid.UUID `json:"user_id"`
+	MangaAnilistID          int       `json:"manga_anilist_id"`
+	AddedAt                 int64     `json:"added_at"`
+	NotifyNewChapters       bool      `json:"notify_new_chapters"`
+	AutoDownloadNewChapters bool      `json:"auto_download_new_chapters"`
+	PreferredLanguage       *string   `json:"preferred_language,omitempty"`
+	PreferredScanlator      *string   `json:"preferred_scanlator,omitempty"`
+	LastNotifiedChapter     *float64  `json:"last_notified_chapter,omitempty"`
+	UpdatedAt               int64     `json:"updated_at"`
+}
+
+// MangaChapterProgress is the per-chapter resume + read-state row.
+type MangaChapterProgress struct {
+	UserID          uuid.UUID `json:"user_id"`
+	MangaAnilistID  int       `json:"manga_anilist_id"`
+	SourceID        string    `json:"source_id"`
+	SourceChapterID string    `json:"source_chapter_id"`
+	ChapterNumber   float64   `json:"chapter_number"`
+	PageIndex       int       `json:"page_index"`
+	ScrollOffset    *float64  `json:"scroll_offset,omitempty"`
+	ReadState       string    `json:"read_state"`
+	UpdatedAt       int64     `json:"updated_at"`
+}
+
+// MangaReadHistory is the most-recently-read chapter, one row per manga.
+type MangaReadHistory struct {
+	UserID              uuid.UUID `json:"user_id"`
+	MangaAnilistID      int       `json:"manga_anilist_id"`
+	LastChapterNumber   float64   `json:"last_chapter_number"`
+	LastSourceID        *string   `json:"last_source_id,omitempty"`
+	LastSourceChapterID *string   `json:"last_source_chapter_id,omitempty"`
+	LastPageIndex       *int      `json:"last_page_index,omitempty"`
+	LastAccessedAt      int64     `json:"last_accessed_at"`
+}
+
+// MangaLibraryEntryDeletion mirrors `LibraryEntryDeletion` for manga.
+type MangaLibraryEntryDeletion struct {
+	MangaAnilistID int   `json:"manga_anilist_id"`
+	UpdatedAt      int64 `json:"updated_at"`
+}
+
+// MangaReadHistoryDeletion mirrors `WatchHistoryDeletion` for manga.
+type MangaReadHistoryDeletion struct {
+	MangaAnilistID int   `json:"manga_anilist_id"`
+	UpdatedAt      int64 `json:"updated_at,omitempty"`
+}
+
 // DurableUntil is the per-entity cursor signalling which client-assigned
 // timestamps are already persisted to Neon for the current user. Clients use
 // it to prune their local sync queue. Any value of 0 means "not yet known",
@@ -64,6 +115,13 @@ type DurableUntil struct {
 	WatchHistory       int64 `json:"watch_history"`
 	PlaybackPreference int64 `json:"playback_preference"`
 	LibraryEntry       int64 `json:"library_entry"`
+
+	// Manga universe (Slice 10C-2). Zero on clients that have not yet
+	// observed a successful manga push, which keeps the
+	// safe-to-prune semantics the anime side already relies on.
+	MangaLibraryEntry    int64 `json:"manga_library_entry"`
+	MangaChapterProgress int64 `json:"manga_chapter_progress"`
+	MangaReadHistory     int64 `json:"manga_read_history"`
 }
 
 // SyncPullResponse is the response for GET /api/v1/sync/pull
@@ -73,7 +131,13 @@ type SyncPullResponse struct {
 	WatchHistory        []WatchHistory       `json:"watch_history"`
 	PlaybackPreferences []PlaybackPreference `json:"playback_preferences"`
 	LibraryEntries      []LibraryEntry       `json:"library_entries"`
-	DurableUntil        DurableUntil         `json:"durable_until"`
+
+	// Manga universe (Slice 10C-2).
+	MangaLibraryEntries  []MangaLibraryEntry    `json:"manga_library_entries"`
+	MangaChapterProgress []MangaChapterProgress `json:"manga_chapter_progress"`
+	MangaReadHistory     []MangaReadHistory     `json:"manga_read_history"`
+
+	DurableUntil DurableUntil `json:"durable_until"`
 }
 
 // SyncPushRequest is the body for POST /api/v1/sync/push
@@ -84,6 +148,16 @@ type SyncPushRequest struct {
 	LibraryEntries        []LibraryEntry         `json:"library_entries"`
 	WatchHistoryDeletions []WatchHistoryDeletion `json:"watch_history_deletions"`
 	LibraryEntryDeletions []LibraryEntryDeletion `json:"library_entry_deletions"`
+
+	// Manga universe (Slice 10C-2). Older clients will not send these
+	// keys; Go's json decoder leaves the slices nil, which the
+	// validate/normalize pipeline treats as zero-length and lets
+	// existing tests pass unchanged.
+	MangaLibraryEntries        []MangaLibraryEntry         `json:"manga_library_entries"`
+	MangaChapterProgress       []MangaChapterProgress      `json:"manga_chapter_progress"`
+	MangaReadHistory           []MangaReadHistory          `json:"manga_read_history"`
+	MangaLibraryEntryDeletions []MangaLibraryEntryDeletion `json:"manga_library_entry_deletions"`
+	MangaReadHistoryDeletions  []MangaReadHistoryDeletion  `json:"manga_read_history_deletions"`
 }
 
 // WatchHistoryDeletion requests deletion of a watch history entry.
@@ -165,6 +239,41 @@ func (r *SyncPushRequest) Normalize(nowMs int64) {
 			r.LibraryEntryDeletions[i].UpdatedAt = clamp(r.LibraryEntryDeletions[i].UpdatedAt)
 		}
 	}
+
+	// Manga (Slice 10C-2).
+	for i := range r.MangaLibraryEntries {
+		if r.MangaLibraryEntries[i].UpdatedAt == 0 {
+			if r.MangaLibraryEntries[i].AddedAt > 0 {
+				r.MangaLibraryEntries[i].UpdatedAt = r.MangaLibraryEntries[i].AddedAt
+			} else {
+				r.MangaLibraryEntries[i].UpdatedAt = nowMs
+			}
+		}
+		r.MangaLibraryEntries[i].UpdatedAt = clamp(r.MangaLibraryEntries[i].UpdatedAt)
+		if r.MangaLibraryEntries[i].AddedAt > 0 {
+			r.MangaLibraryEntries[i].AddedAt = clamp(r.MangaLibraryEntries[i].AddedAt)
+		}
+	}
+	for i := range r.MangaChapterProgress {
+		r.MangaChapterProgress[i].UpdatedAt = clamp(r.MangaChapterProgress[i].UpdatedAt)
+	}
+	for i := range r.MangaReadHistory {
+		r.MangaReadHistory[i].LastAccessedAt = clamp(r.MangaReadHistory[i].LastAccessedAt)
+	}
+	for i := range r.MangaLibraryEntryDeletions {
+		if r.MangaLibraryEntryDeletions[i].UpdatedAt == 0 {
+			r.MangaLibraryEntryDeletions[i].UpdatedAt = nowMs
+		} else {
+			r.MangaLibraryEntryDeletions[i].UpdatedAt = clamp(r.MangaLibraryEntryDeletions[i].UpdatedAt)
+		}
+	}
+	for i := range r.MangaReadHistoryDeletions {
+		if r.MangaReadHistoryDeletions[i].UpdatedAt == 0 {
+			r.MangaReadHistoryDeletions[i].UpdatedAt = nowMs
+		} else {
+			r.MangaReadHistoryDeletions[i].UpdatedAt = clamp(r.MangaReadHistoryDeletions[i].UpdatedAt)
+		}
+	}
 }
 
 // NowMillis returns the current wall-clock time in Unix milliseconds.
@@ -174,7 +283,9 @@ func NowMillis() int64 { return time.Now().UnixMilli() }
 // It rejects malformed records early to avoid persisting invalid state.
 func (r *SyncPushRequest) Validate() error {
 	total := len(r.EpisodeProgress) + len(r.WatchHistory) + len(r.PlaybackPreferences) +
-		len(r.LibraryEntries) + len(r.WatchHistoryDeletions) + len(r.LibraryEntryDeletions)
+		len(r.LibraryEntries) + len(r.WatchHistoryDeletions) + len(r.LibraryEntryDeletions) +
+		len(r.MangaLibraryEntries) + len(r.MangaChapterProgress) + len(r.MangaReadHistory) +
+		len(r.MangaLibraryEntryDeletions) + len(r.MangaReadHistoryDeletions)
 	if total == 0 {
 		return fmt.Errorf("sync payload is empty")
 	}
@@ -186,7 +297,12 @@ func (r *SyncPushRequest) Validate() error {
 		len(r.PlaybackPreferences) > maxSyncBatchPerEntity ||
 		len(r.LibraryEntries) > maxSyncBatchPerEntity ||
 		len(r.WatchHistoryDeletions) > maxSyncBatchPerEntity ||
-		len(r.LibraryEntryDeletions) > maxSyncBatchPerEntity {
+		len(r.LibraryEntryDeletions) > maxSyncBatchPerEntity ||
+		len(r.MangaLibraryEntries) > maxSyncBatchPerEntity ||
+		len(r.MangaChapterProgress) > maxSyncBatchPerEntity ||
+		len(r.MangaReadHistory) > maxSyncBatchPerEntity ||
+		len(r.MangaLibraryEntryDeletions) > maxSyncBatchPerEntity ||
+		len(r.MangaReadHistoryDeletions) > maxSyncBatchPerEntity {
 		return fmt.Errorf("sync payload exceeds per-entity limit")
 	}
 
@@ -261,6 +377,67 @@ func (r *SyncPushRequest) Validate() error {
 		}
 		if d.UpdatedAt <= 0 {
 			return fmt.Errorf("invalid library_entry_deletions updated_at")
+		}
+	}
+
+	// --- Manga (Slice 10C-2) ---
+
+	for _, le := range r.MangaLibraryEntries {
+		if le.MangaAnilistID <= 0 || le.UpdatedAt <= 0 {
+			return fmt.Errorf("invalid manga_library_entries identity or updated_at")
+		}
+		if le.AddedAt < 0 {
+			return fmt.Errorf("invalid manga_library_entries added_at")
+		}
+		if le.LastNotifiedChapter != nil && *le.LastNotifiedChapter < 0 {
+			return fmt.Errorf("invalid manga_library_entries last_notified_chapter")
+		}
+	}
+
+	for _, cp := range r.MangaChapterProgress {
+		if cp.MangaAnilistID <= 0 || cp.UpdatedAt <= 0 {
+			return fmt.Errorf("invalid manga_chapter_progress identity or timestamp")
+		}
+		if cp.SourceID == "" || cp.SourceChapterID == "" {
+			return fmt.Errorf("invalid manga_chapter_progress source identity")
+		}
+		if cp.ChapterNumber < 0 {
+			return fmt.Errorf("invalid manga_chapter_progress chapter_number")
+		}
+		if cp.PageIndex < 0 {
+			return fmt.Errorf("invalid manga_chapter_progress page_index")
+		}
+		switch cp.ReadState {
+		case "unread", "reading", "completed":
+		default:
+			return fmt.Errorf("invalid manga_chapter_progress read_state")
+		}
+	}
+
+	for _, rh := range r.MangaReadHistory {
+		if rh.MangaAnilistID <= 0 || rh.LastAccessedAt <= 0 {
+			return fmt.Errorf("invalid manga_read_history identity or timestamp")
+		}
+		if rh.LastChapterNumber < 0 {
+			return fmt.Errorf("invalid manga_read_history last_chapter_number")
+		}
+		if rh.LastPageIndex != nil && *rh.LastPageIndex < 0 {
+			return fmt.Errorf("invalid manga_read_history last_page_index")
+		}
+	}
+
+	for _, d := range r.MangaLibraryEntryDeletions {
+		if d.MangaAnilistID <= 0 {
+			return fmt.Errorf("invalid manga_library_entry_deletions manga_anilist_id")
+		}
+		if d.UpdatedAt <= 0 {
+			return fmt.Errorf("invalid manga_library_entry_deletions updated_at")
+		}
+	}
+
+	for _, d := range r.MangaReadHistoryDeletions {
+		if d.MangaAnilistID <= 0 {
+			return fmt.Errorf("invalid manga_read_history_deletions manga_anilist_id")
 		}
 	}
 

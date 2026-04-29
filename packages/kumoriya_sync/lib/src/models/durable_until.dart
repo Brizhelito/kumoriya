@@ -13,12 +13,21 @@ final class DurableUntil {
     this.watchHistory = 0,
     this.playbackPreference = 0,
     this.libraryEntry = 0,
+    this.mangaLibraryEntry = 0,
+    this.mangaChapterProgress = 0,
+    this.mangaReadHistory = 0,
   });
 
   final int episodeProgress;
   final int watchHistory;
   final int playbackPreference;
   final int libraryEntry;
+
+  /// Manga universe cursors. Default 0 keeps backwards compatibility
+  /// with backend rollouts that have not yet shipped Slice 10C-2.
+  final int mangaLibraryEntry;
+  final int mangaChapterProgress;
+  final int mangaReadHistory;
 
   static const empty = DurableUntil();
 
@@ -30,6 +39,9 @@ final class DurableUntil {
       watchHistory: read('watch_history'),
       playbackPreference: read('playback_preference'),
       libraryEntry: read('library_entry'),
+      mangaLibraryEntry: read('manga_library_entry'),
+      mangaChapterProgress: read('manga_chapter_progress'),
+      mangaReadHistory: read('manga_read_history'),
     );
   }
 }

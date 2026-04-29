@@ -320,15 +320,14 @@ final class HttpSyncService implements SyncService {
       case SyncEntityType.libraryEntry:
       case SyncEntityType.libraryEntryDeletion:
         return d.libraryEntry;
-      // Manga cursors are not exposed by the backend yet (Slice 10C-2).
-      // Return 0 so prune-by-durability never matches a manga entry,
-      // which is the desired behaviour: keep them pending.
       case SyncEntityType.mangaChapterProgress:
+        return d.mangaChapterProgress;
       case SyncEntityType.mangaReadHistory:
       case SyncEntityType.mangaReadHistoryDeletion:
+        return d.mangaReadHistory;
       case SyncEntityType.mangaLibraryEntry:
       case SyncEntityType.mangaLibraryEntryDeletion:
-        return 0;
+        return d.mangaLibraryEntry;
     }
   }
 
@@ -367,9 +366,12 @@ final class HttpSyncService implements SyncService {
     }
   }
 
-  /// Anime entity types that the Kumoriya Go backend currently accepts.
-  /// Manga entity types stay in the local queue with `pending` status
-  /// until the backend exposes their endpoints (Slice 10C-2).
+  /// Entity types the Kumoriya Go backend accepts.
+  ///
+  /// As of Slice 10C-2 the backend ships manga endpoints, so all known
+  /// types are pushable. The helper is kept (instead of inlined as a
+  /// constant `true`) so a future "queue this kind locally only" path
+  /// has a single switch-statement seam to flip.
   static bool _isBackendPushable(SyncEntityType type) {
     switch (type) {
       case SyncEntityType.episodeProgress:
@@ -378,13 +380,12 @@ final class HttpSyncService implements SyncService {
       case SyncEntityType.playbackPreference:
       case SyncEntityType.libraryEntry:
       case SyncEntityType.libraryEntryDeletion:
-        return true;
       case SyncEntityType.mangaChapterProgress:
       case SyncEntityType.mangaReadHistory:
       case SyncEntityType.mangaReadHistoryDeletion:
       case SyncEntityType.mangaLibraryEntry:
       case SyncEntityType.mangaLibraryEntryDeletion:
-        return false;
+        return true;
     }
   }
 
@@ -395,6 +396,11 @@ final class HttpSyncService implements SyncService {
     final playbackPreferences = <Map<String, dynamic>>[];
     final libraryEntries = <Map<String, dynamic>>[];
     final libraryEntryDeletions = <Map<String, dynamic>>[];
+    final mangaLibraryEntries = <Map<String, dynamic>>[];
+    final mangaLibraryEntryDeletions = <Map<String, dynamic>>[];
+    final mangaChapterProgress = <Map<String, dynamic>>[];
+    final mangaReadHistory = <Map<String, dynamic>>[];
+    final mangaReadHistoryDeletions = <Map<String, dynamic>>[];
 
     for (final entry in entries) {
       final decoded = jsonDecode(entry.payload) as Map<String, dynamic>;
@@ -411,18 +417,16 @@ final class HttpSyncService implements SyncService {
           libraryEntries.add(decoded);
         case SyncEntityType.libraryEntryDeletion:
           libraryEntryDeletions.add(decoded);
-        // Manga entries should never reach this method — they are
-        // filtered out by `_isBackendPushable` upstream. Treat them as
-        // a programming error.
-        case SyncEntityType.mangaChapterProgress:
-        case SyncEntityType.mangaReadHistory:
-        case SyncEntityType.mangaReadHistoryDeletion:
         case SyncEntityType.mangaLibraryEntry:
+          mangaLibraryEntries.add(decoded);
         case SyncEntityType.mangaLibraryEntryDeletion:
-          throw StateError(
-            'Manga sync entry leaked into _buildPushPayload: '
-            '${entry.entityType}',
-          );
+          mangaLibraryEntryDeletions.add(decoded);
+        case SyncEntityType.mangaChapterProgress:
+          mangaChapterProgress.add(decoded);
+        case SyncEntityType.mangaReadHistory:
+          mangaReadHistory.add(decoded);
+        case SyncEntityType.mangaReadHistoryDeletion:
+          mangaReadHistoryDeletions.add(decoded);
       }
     }
 
@@ -433,6 +437,11 @@ final class HttpSyncService implements SyncService {
       'playback_preferences': playbackPreferences,
       'library_entries': libraryEntries,
       'library_entry_deletions': libraryEntryDeletions,
+      'manga_library_entries': mangaLibraryEntries,
+      'manga_library_entry_deletions': mangaLibraryEntryDeletions,
+      'manga_chapter_progress': mangaChapterProgress,
+      'manga_read_history': mangaReadHistory,
+      'manga_read_history_deletions': mangaReadHistoryDeletions,
     };
   }
 

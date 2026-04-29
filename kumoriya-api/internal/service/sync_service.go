@@ -68,7 +68,7 @@ func (d *durableCursors) get(ctx context.Context, repo *repository.SyncRepo, use
 
 // advance monotonically bumps the cursors for a user with observed timestamps
 // that have just been upserted.
-func (d *durableCursors) advance(userID uuid.UUID, ep, wh, pp, le int64) {
+func (d *durableCursors) advance(userID uuid.UUID, ep, wh, pp, le, mle, mcp, mrh int64) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	cur, ok := d.perUser[userID]
@@ -87,6 +87,15 @@ func (d *durableCursors) advance(userID uuid.UUID, ep, wh, pp, le int64) {
 	}
 	if le > cur.LibraryEntry {
 		cur.LibraryEntry = le
+	}
+	if mle > cur.MangaLibraryEntry {
+		cur.MangaLibraryEntry = mle
+	}
+	if mcp > cur.MangaChapterProgress {
+		cur.MangaChapterProgress = mcp
+	}
+	if mrh > cur.MangaReadHistory {
+		cur.MangaReadHistory = mrh
 	}
 }
 
@@ -110,6 +119,15 @@ func mergeDurable(dst *model.DurableUntil, src model.DurableUntil) {
 	}
 	if src.LibraryEntry > dst.LibraryEntry {
 		dst.LibraryEntry = src.LibraryEntry
+	}
+	if src.MangaLibraryEntry > dst.MangaLibraryEntry {
+		dst.MangaLibraryEntry = src.MangaLibraryEntry
+	}
+	if src.MangaChapterProgress > dst.MangaChapterProgress {
+		dst.MangaChapterProgress = src.MangaChapterProgress
+	}
+	if src.MangaReadHistory > dst.MangaReadHistory {
+		dst.MangaReadHistory = src.MangaReadHistory
 	}
 }
 
@@ -202,6 +220,18 @@ func (s *SyncService) pullFromDB(ctx context.Context, userID uuid.UUID, since in
 	if err != nil {
 		return nil, err
 	}
+	mle, err := s.repo.PullMangaLibraryEntries(ctx, userID, since)
+	if err != nil {
+		return nil, err
+	}
+	mcp, err := s.repo.PullMangaChapterProgress(ctx, userID, since)
+	if err != nil {
+		return nil, err
+	}
+	mrh, err := s.repo.PullMangaReadHistory(ctx, userID, since)
+	if err != nil {
+		return nil, err
+	}
 
 	if ep == nil {
 		ep = []model.EpisodeProgress{}
@@ -215,13 +245,25 @@ func (s *SyncService) pullFromDB(ctx context.Context, userID uuid.UUID, since in
 	if le == nil {
 		le = []model.LibraryEntry{}
 	}
+	if mle == nil {
+		mle = []model.MangaLibraryEntry{}
+	}
+	if mcp == nil {
+		mcp = []model.MangaChapterProgress{}
+	}
+	if mrh == nil {
+		mrh = []model.MangaReadHistory{}
+	}
 
 	return &model.SyncPullResponse{
-		ServerTime:          nowMillis(),
-		EpisodeProgress:     ep,
-		WatchHistory:        wh,
-		PlaybackPreferences: pp,
-		LibraryEntries:      le,
+		ServerTime:           nowMillis(),
+		EpisodeProgress:      ep,
+		WatchHistory:         wh,
+		PlaybackPreferences:  pp,
+		LibraryEntries:       le,
+		MangaLibraryEntries:  mle,
+		MangaChapterProgress: mcp,
+		MangaReadHistory:     mrh,
 	}, nil
 }
 
@@ -270,6 +312,7 @@ func (s *SyncService) Flush(ctx context.Context) {
 
 	for userID, bp := range dirty {
 		var maxEP, maxWH, maxPP, maxLE int64
+		var maxMLE, maxMCP, maxMRH int64
 
 		for _, ep := range bp.Episodes {
 			if _, err := s.repo.UpsertEpisodeProgress(ctx, userID, ep); err != nil {
@@ -338,7 +381,64 @@ func (s *SyncService) Flush(ctx context.Context) {
 			totalOps++
 		}
 
-		s.durable.advance(userID, maxEP, maxWH, maxPP, maxLE)
+		// --- Manga universe (Slice 10C-2) ---
+		for _, le := range bp.MangaLibrary {
+			if _, err := s.repo.UpsertMangaLibraryEntry(ctx, userID, le); err != nil {
+				log.Error().Err(err).Str("user_id", userID.String()).Msg("sync flush: manga_library_entry error")
+				totalErrs++
+				continue
+			}
+			if le.UpdatedAt > maxMLE {
+				maxMLE = le.UpdatedAt
+			}
+			totalOps++
+		}
+		for _, cp := range bp.MangaProgress {
+			if _, err := s.repo.UpsertMangaChapterProgress(ctx, userID, cp); err != nil {
+				log.Error().Err(err).Str("user_id", userID.String()).Msg("sync flush: manga_chapter_progress error")
+				totalErrs++
+				continue
+			}
+			if cp.UpdatedAt > maxMCP {
+				maxMCP = cp.UpdatedAt
+			}
+			totalOps++
+		}
+		for _, rh := range bp.MangaHistory {
+			if _, err := s.repo.UpsertMangaReadHistory(ctx, userID, rh); err != nil {
+				log.Error().Err(err).Str("user_id", userID.String()).Msg("sync flush: manga_read_history error")
+				totalErrs++
+				continue
+			}
+			if rh.LastAccessedAt > maxMRH {
+				maxMRH = rh.LastAccessedAt
+			}
+			totalOps++
+		}
+		for _, d := range bp.MangaLibraryDel {
+			if err := s.repo.DeleteMangaLibraryEntry(ctx, userID, d.MangaAnilistID, d.UpdatedAt); err != nil {
+				log.Error().Err(err).Str("user_id", userID.String()).Msg("sync flush: manga_library_entry deletion error")
+				totalErrs++
+				continue
+			}
+			if d.UpdatedAt > maxMLE {
+				maxMLE = d.UpdatedAt
+			}
+			totalOps++
+		}
+		for _, d := range bp.MangaHistoryDel {
+			if err := s.repo.DeleteMangaReadHistory(ctx, userID, d.MangaAnilistID, d.UpdatedAt); err != nil {
+				log.Error().Err(err).Str("user_id", userID.String()).Msg("sync flush: manga_read_history deletion error")
+				totalErrs++
+				continue
+			}
+			if d.UpdatedAt > maxMRH {
+				maxMRH = d.UpdatedAt
+			}
+			totalOps++
+		}
+
+		s.durable.advance(userID, maxEP, maxWH, maxPP, maxLE, maxMLE, maxMCP, maxMRH)
 	}
 
 	log.Info().Int("ops", totalOps).Int("errors", totalErrs).Msg("sync flush: completed")
@@ -366,12 +466,17 @@ func (s *SyncService) FlushLoop(ctx context.Context, flushInterval time.Duration
 // for use with cache.merge().
 func bufferedPushToRequest(bp *bufferedPush) *model.SyncPushRequest {
 	req := &model.SyncPushRequest{
-		EpisodeProgress:       make([]model.EpisodeProgress, 0, len(bp.Episodes)),
-		WatchHistory:          make([]model.WatchHistory, 0, len(bp.History)),
-		PlaybackPreferences:   make([]model.PlaybackPreference, 0, len(bp.Prefs)),
-		LibraryEntries:        make([]model.LibraryEntry, 0, len(bp.Library)),
-		WatchHistoryDeletions: make([]model.WatchHistoryDeletion, 0, len(bp.HistoryDel)),
-		LibraryEntryDeletions: make([]model.LibraryEntryDeletion, 0, len(bp.LibraryDel)),
+		EpisodeProgress:            make([]model.EpisodeProgress, 0, len(bp.Episodes)),
+		WatchHistory:               make([]model.WatchHistory, 0, len(bp.History)),
+		PlaybackPreferences:        make([]model.PlaybackPreference, 0, len(bp.Prefs)),
+		LibraryEntries:             make([]model.LibraryEntry, 0, len(bp.Library)),
+		WatchHistoryDeletions:      make([]model.WatchHistoryDeletion, 0, len(bp.HistoryDel)),
+		LibraryEntryDeletions:      make([]model.LibraryEntryDeletion, 0, len(bp.LibraryDel)),
+		MangaLibraryEntries:        make([]model.MangaLibraryEntry, 0, len(bp.MangaLibrary)),
+		MangaChapterProgress:       make([]model.MangaChapterProgress, 0, len(bp.MangaProgress)),
+		MangaReadHistory:           make([]model.MangaReadHistory, 0, len(bp.MangaHistory)),
+		MangaLibraryEntryDeletions: make([]model.MangaLibraryEntryDeletion, 0, len(bp.MangaLibraryDel)),
+		MangaReadHistoryDeletions:  make([]model.MangaReadHistoryDeletion, 0, len(bp.MangaHistoryDel)),
 	}
 	for _, ep := range bp.Episodes {
 		req.EpisodeProgress = append(req.EpisodeProgress, ep)
@@ -390,6 +495,23 @@ func bufferedPushToRequest(bp *bufferedPush) *model.SyncPushRequest {
 	}
 	for _, d := range bp.LibraryDel {
 		req.LibraryEntryDeletions = append(req.LibraryEntryDeletions, model.LibraryEntryDeletion{AnilistID: d.AnilistID, UpdatedAt: d.UpdatedAt})
+	}
+	for _, le := range bp.MangaLibrary {
+		req.MangaLibraryEntries = append(req.MangaLibraryEntries, le)
+	}
+	for _, cp := range bp.MangaProgress {
+		req.MangaChapterProgress = append(req.MangaChapterProgress, cp)
+	}
+	for _, rh := range bp.MangaHistory {
+		req.MangaReadHistory = append(req.MangaReadHistory, rh)
+	}
+	for _, d := range bp.MangaLibraryDel {
+		req.MangaLibraryEntryDeletions = append(req.MangaLibraryEntryDeletions,
+			model.MangaLibraryEntryDeletion{MangaAnilistID: d.MangaAnilistID, UpdatedAt: d.UpdatedAt})
+	}
+	for _, d := range bp.MangaHistoryDel {
+		req.MangaReadHistoryDeletions = append(req.MangaReadHistoryDeletions,
+			model.MangaReadHistoryDeletion{MangaAnilistID: d.MangaAnilistID, UpdatedAt: d.UpdatedAt})
 	}
 	return req
 }

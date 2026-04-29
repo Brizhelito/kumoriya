@@ -14,6 +14,16 @@ type epKey struct {
 	EpisodeNumber float32
 }
 
+// mcpKey uniquely identifies a manga-chapter progress entry. The
+// per-source key matches the `sync_manga_chapter_progress` PRIMARY KEY
+// so the buffer collapses LWW per (user, manga, source, chapter) the
+// same way the database does.
+type mcpKey struct {
+	MangaAnilistID  int
+	SourceID        string
+	SourceChapterID string
+}
+
 // whDeletion carries an LWW-tagged deletion for a watch-history row.
 type whDeletion struct {
 	AnilistID int
@@ -26,24 +36,50 @@ type libDeletion struct {
 	UpdatedAt int64
 }
 
+// mangaLibDeletion carries an LWW-tagged deletion for a manga library row.
+type mangaLibDeletion struct {
+	MangaAnilistID int
+	UpdatedAt      int64
+}
+
+// mangaHistDeletion carries an LWW-tagged deletion for a manga history row.
+type mangaHistDeletion struct {
+	MangaAnilistID int
+	UpdatedAt      int64
+}
+
 // bufferedPush holds merged push data for a single user.
 type bufferedPush struct {
-	Episodes     map[epKey]model.EpisodeProgress
-	History      map[int]model.WatchHistory
-	Prefs        map[int]model.PlaybackPreference
-	Library      map[int]model.LibraryEntry
-	HistoryDel   map[int]whDeletion
-	LibraryDel   map[int]libDeletion
+	Episodes   map[epKey]model.EpisodeProgress
+	History    map[int]model.WatchHistory
+	Prefs      map[int]model.PlaybackPreference
+	Library    map[int]model.LibraryEntry
+	HistoryDel map[int]whDeletion
+	LibraryDel map[int]libDeletion
+
+	// Manga universe (Slice 10C-2). Keyed by manga AniList id (or by
+	// composite key for chapter progress) so LWW collapse mirrors the
+	// database PRIMARY KEY shape.
+	MangaLibrary    map[int]model.MangaLibraryEntry
+	MangaProgress   map[mcpKey]model.MangaChapterProgress
+	MangaHistory    map[int]model.MangaReadHistory
+	MangaLibraryDel map[int]mangaLibDeletion
+	MangaHistoryDel map[int]mangaHistDeletion
 }
 
 func newBufferedPush() *bufferedPush {
 	return &bufferedPush{
-		Episodes:   make(map[epKey]model.EpisodeProgress),
-		History:    make(map[int]model.WatchHistory),
-		Prefs:      make(map[int]model.PlaybackPreference),
-		Library:    make(map[int]model.LibraryEntry),
-		HistoryDel: make(map[int]whDeletion),
-		LibraryDel: make(map[int]libDeletion),
+		Episodes:        make(map[epKey]model.EpisodeProgress),
+		History:         make(map[int]model.WatchHistory),
+		Prefs:           make(map[int]model.PlaybackPreference),
+		Library:         make(map[int]model.LibraryEntry),
+		HistoryDel:      make(map[int]whDeletion),
+		LibraryDel:      make(map[int]libDeletion),
+		MangaLibrary:    make(map[int]model.MangaLibraryEntry),
+		MangaProgress:   make(map[mcpKey]model.MangaChapterProgress),
+		MangaHistory:    make(map[int]model.MangaReadHistory),
+		MangaLibraryDel: make(map[int]mangaLibDeletion),
+		MangaHistoryDel: make(map[int]mangaHistDeletion),
 	}
 }
 
@@ -148,6 +184,74 @@ func (b *writeBuffer) absorb(userID uuid.UUID, req *model.SyncPushRequest) int {
 		bp.LibraryDel[d.AnilistID] = libDeletion{AnilistID: d.AnilistID, UpdatedAt: d.UpdatedAt}
 		if le, ok := bp.Library[d.AnilistID]; ok && le.UpdatedAt <= d.UpdatedAt {
 			delete(bp.Library, d.AnilistID)
+		}
+		absorbed++
+	}
+
+	// --- Manga universe (Slice 10C-2) ---
+
+	for _, le := range req.MangaLibraryEntries {
+		if d, ok := bp.MangaLibraryDel[le.MangaAnilistID]; ok && d.UpdatedAt < le.UpdatedAt {
+			delete(bp.MangaLibraryDel, le.MangaAnilistID)
+		}
+		if d, ok := bp.MangaLibraryDel[le.MangaAnilistID]; ok && d.UpdatedAt >= le.UpdatedAt {
+			continue
+		}
+		if existing, exists := bp.MangaLibrary[le.MangaAnilistID]; !exists || le.UpdatedAt > existing.UpdatedAt {
+			bp.MangaLibrary[le.MangaAnilistID] = le
+			absorbed++
+		}
+	}
+
+	for _, cp := range req.MangaChapterProgress {
+		key := mcpKey{cp.MangaAnilistID, cp.SourceID, cp.SourceChapterID}
+		if existing, exists := bp.MangaProgress[key]; !exists || cp.UpdatedAt > existing.UpdatedAt {
+			bp.MangaProgress[key] = cp
+			absorbed++
+		}
+	}
+
+	for _, rh := range req.MangaReadHistory {
+		if d, ok := bp.MangaHistoryDel[rh.MangaAnilistID]; ok && d.UpdatedAt < rh.LastAccessedAt {
+			delete(bp.MangaHistoryDel, rh.MangaAnilistID)
+		}
+		if d, ok := bp.MangaHistoryDel[rh.MangaAnilistID]; ok && d.UpdatedAt >= rh.LastAccessedAt {
+			continue
+		}
+		if existing, exists := bp.MangaHistory[rh.MangaAnilistID]; !exists || rh.LastAccessedAt > existing.LastAccessedAt {
+			bp.MangaHistory[rh.MangaAnilistID] = rh
+			absorbed++
+		}
+	}
+
+	for _, d := range req.MangaLibraryEntryDeletions {
+		if existing, exists := bp.MangaLibraryDel[d.MangaAnilistID]; exists && d.UpdatedAt <= existing.UpdatedAt {
+			continue
+		}
+		if le, ok := bp.MangaLibrary[d.MangaAnilistID]; ok && le.UpdatedAt > d.UpdatedAt {
+			continue
+		}
+		bp.MangaLibraryDel[d.MangaAnilistID] = mangaLibDeletion{
+			MangaAnilistID: d.MangaAnilistID, UpdatedAt: d.UpdatedAt,
+		}
+		if le, ok := bp.MangaLibrary[d.MangaAnilistID]; ok && le.UpdatedAt <= d.UpdatedAt {
+			delete(bp.MangaLibrary, d.MangaAnilistID)
+		}
+		absorbed++
+	}
+
+	for _, d := range req.MangaReadHistoryDeletions {
+		if existing, exists := bp.MangaHistoryDel[d.MangaAnilistID]; exists && d.UpdatedAt <= existing.UpdatedAt {
+			continue
+		}
+		if rh, ok := bp.MangaHistory[d.MangaAnilistID]; ok && rh.LastAccessedAt > d.UpdatedAt {
+			continue
+		}
+		bp.MangaHistoryDel[d.MangaAnilistID] = mangaHistDeletion{
+			MangaAnilistID: d.MangaAnilistID, UpdatedAt: d.UpdatedAt,
+		}
+		if rh, ok := bp.MangaHistory[d.MangaAnilistID]; ok && rh.LastAccessedAt <= d.UpdatedAt {
+			delete(bp.MangaHistory, d.MangaAnilistID)
 		}
 		absorbed++
 	}

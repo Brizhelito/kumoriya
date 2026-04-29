@@ -283,6 +283,210 @@ func (r *SyncRepo) DeleteLibraryEntry(ctx context.Context, userID uuid.UUID, ani
 	return err
 }
 
+// --- Manga library entries (Slice 10C-2) ---
+
+func (r *SyncRepo) PullMangaLibraryEntries(ctx context.Context, userID uuid.UUID, since int64) ([]model.MangaLibraryEntry, error) {
+	rows, err := r.pool.Query(ctx,
+		`SELECT user_id, manga_anilist_id, added_at, notify_new_chapters,
+		        auto_download_new_chapters, preferred_language, preferred_scanlator,
+		        last_notified_chapter, updated_at
+		 FROM sync_manga_library_entry
+		 WHERE user_id = $1 AND updated_at > $2`,
+		userID, since,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var items []model.MangaLibraryEntry
+	for rows.Next() {
+		var le model.MangaLibraryEntry
+		if err := rows.Scan(&le.UserID, &le.MangaAnilistID, &le.AddedAt,
+			&le.NotifyNewChapters, &le.AutoDownloadNewChapters,
+			&le.PreferredLanguage, &le.PreferredScanlator,
+			&le.LastNotifiedChapter, &le.UpdatedAt); err != nil {
+			return nil, err
+		}
+		items = append(items, le)
+	}
+	return items, rows.Err()
+}
+
+// UpsertMangaLibraryEntry mirrors UpsertLibraryEntry: full-row replacement
+// when EXCLUDED.updated_at is strictly newer. Lets unfavorite (added_at=0)
+// win over previous favorite states.
+func (r *SyncRepo) UpsertMangaLibraryEntry(ctx context.Context, userID uuid.UUID, le model.MangaLibraryEntry) (bool, error) {
+	tag, err := r.pool.Exec(ctx,
+		`INSERT INTO sync_manga_library_entry
+		   (user_id, manga_anilist_id, added_at, notify_new_chapters,
+		    auto_download_new_chapters, preferred_language, preferred_scanlator,
+		    last_notified_chapter, updated_at)
+		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+		 ON CONFLICT (user_id, manga_anilist_id)
+		 DO UPDATE SET
+		   added_at                   = EXCLUDED.added_at,
+		   notify_new_chapters        = EXCLUDED.notify_new_chapters,
+		   auto_download_new_chapters = EXCLUDED.auto_download_new_chapters,
+		   preferred_language         = EXCLUDED.preferred_language,
+		   preferred_scanlator        = EXCLUDED.preferred_scanlator,
+		   last_notified_chapter      = CASE
+		     WHEN sync_manga_library_entry.last_notified_chapter IS NULL THEN EXCLUDED.last_notified_chapter
+		     WHEN EXCLUDED.last_notified_chapter IS NULL THEN sync_manga_library_entry.last_notified_chapter
+		     ELSE GREATEST(sync_manga_library_entry.last_notified_chapter, EXCLUDED.last_notified_chapter)
+		   END,
+		   updated_at                 = EXCLUDED.updated_at
+		 WHERE EXCLUDED.updated_at > sync_manga_library_entry.updated_at`,
+		userID, le.MangaAnilistID, le.AddedAt, le.NotifyNewChapters,
+		le.AutoDownloadNewChapters, le.PreferredLanguage, le.PreferredScanlator,
+		le.LastNotifiedChapter, le.UpdatedAt,
+	)
+	if err != nil {
+		return false, err
+	}
+	return tag.RowsAffected() > 0, nil
+}
+
+func (r *SyncRepo) DeleteMangaLibraryEntry(ctx context.Context, userID uuid.UUID, mangaAnilistID int, tsMs int64) error {
+	_, err := r.pool.Exec(ctx,
+		`DELETE FROM sync_manga_library_entry
+		 WHERE user_id = $1 AND manga_anilist_id = $2 AND updated_at <= $3`,
+		userID, mangaAnilistID, tsMs,
+	)
+	return err
+}
+
+// --- Manga chapter progress ---
+
+func (r *SyncRepo) PullMangaChapterProgress(ctx context.Context, userID uuid.UUID, since int64) ([]model.MangaChapterProgress, error) {
+	rows, err := r.pool.Query(ctx,
+		`SELECT user_id, manga_anilist_id, source_id, source_chapter_id,
+		        chapter_number, page_index, scroll_offset, read_state, updated_at
+		 FROM sync_manga_chapter_progress
+		 WHERE user_id = $1 AND updated_at > $2`,
+		userID, since,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var items []model.MangaChapterProgress
+	for rows.Next() {
+		var cp model.MangaChapterProgress
+		if err := rows.Scan(&cp.UserID, &cp.MangaAnilistID, &cp.SourceID, &cp.SourceChapterID,
+			&cp.ChapterNumber, &cp.PageIndex, &cp.ScrollOffset,
+			&cp.ReadState, &cp.UpdatedAt); err != nil {
+			return nil, err
+		}
+		items = append(items, cp)
+	}
+	return items, rows.Err()
+}
+
+// UpsertMangaChapterProgress mirrors UpsertEpisodeProgress: LWW on
+// updated_at, with a no-regress guard on page_index when the read_state
+// is unchanged. Mirrors anime's `position_seconds` guard.
+func (r *SyncRepo) UpsertMangaChapterProgress(ctx context.Context, userID uuid.UUID, cp model.MangaChapterProgress) (bool, error) {
+	tag, err := r.pool.Exec(ctx,
+		`INSERT INTO sync_manga_chapter_progress
+		   (user_id, manga_anilist_id, source_id, source_chapter_id,
+		    chapter_number, page_index, scroll_offset, read_state, updated_at)
+		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+		 ON CONFLICT (user_id, manga_anilist_id, source_id, source_chapter_id)
+		 DO UPDATE SET
+		   chapter_number = CASE
+		     WHEN EXCLUDED.updated_at > sync_manga_chapter_progress.updated_at THEN EXCLUDED.chapter_number
+		     ELSE sync_manga_chapter_progress.chapter_number
+		   END,
+		   page_index = CASE
+		     WHEN EXCLUDED.updated_at > sync_manga_chapter_progress.updated_at
+		       AND (
+		         EXCLUDED.read_state <> sync_manga_chapter_progress.read_state
+		         OR EXCLUDED.page_index >= sync_manga_chapter_progress.page_index
+		       )
+		       THEN EXCLUDED.page_index
+		     ELSE sync_manga_chapter_progress.page_index
+		   END,
+		   scroll_offset = CASE
+		     WHEN EXCLUDED.updated_at > sync_manga_chapter_progress.updated_at THEN EXCLUDED.scroll_offset
+		     ELSE sync_manga_chapter_progress.scroll_offset
+		   END,
+		   read_state = CASE
+		     WHEN EXCLUDED.updated_at > sync_manga_chapter_progress.updated_at THEN EXCLUDED.read_state
+		     ELSE sync_manga_chapter_progress.read_state
+		   END,
+		   updated_at = GREATEST(EXCLUDED.updated_at, sync_manga_chapter_progress.updated_at)
+		 WHERE EXCLUDED.updated_at > sync_manga_chapter_progress.updated_at`,
+		userID, cp.MangaAnilistID, cp.SourceID, cp.SourceChapterID,
+		cp.ChapterNumber, cp.PageIndex, cp.ScrollOffset, cp.ReadState, cp.UpdatedAt,
+	)
+	if err != nil {
+		return false, err
+	}
+	return tag.RowsAffected() > 0, nil
+}
+
+// --- Manga read history ---
+
+func (r *SyncRepo) PullMangaReadHistory(ctx context.Context, userID uuid.UUID, since int64) ([]model.MangaReadHistory, error) {
+	rows, err := r.pool.Query(ctx,
+		`SELECT user_id, manga_anilist_id, last_chapter_number, last_source_id,
+		        last_source_chapter_id, last_page_index, last_accessed_at
+		 FROM sync_manga_read_history
+		 WHERE user_id = $1 AND last_accessed_at > $2`,
+		userID, since,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var items []model.MangaReadHistory
+	for rows.Next() {
+		var rh model.MangaReadHistory
+		if err := rows.Scan(&rh.UserID, &rh.MangaAnilistID, &rh.LastChapterNumber,
+			&rh.LastSourceID, &rh.LastSourceChapterID, &rh.LastPageIndex,
+			&rh.LastAccessedAt); err != nil {
+			return nil, err
+		}
+		items = append(items, rh)
+	}
+	return items, rows.Err()
+}
+
+func (r *SyncRepo) UpsertMangaReadHistory(ctx context.Context, userID uuid.UUID, rh model.MangaReadHistory) (bool, error) {
+	tag, err := r.pool.Exec(ctx,
+		`INSERT INTO sync_manga_read_history
+		   (user_id, manga_anilist_id, last_chapter_number, last_source_id,
+		    last_source_chapter_id, last_page_index, last_accessed_at)
+		 VALUES ($1, $2, $3, $4, $5, $6, $7)
+		 ON CONFLICT (user_id, manga_anilist_id)
+		 DO UPDATE SET
+		   last_chapter_number    = EXCLUDED.last_chapter_number,
+		   last_source_id         = EXCLUDED.last_source_id,
+		   last_source_chapter_id = EXCLUDED.last_source_chapter_id,
+		   last_page_index        = EXCLUDED.last_page_index,
+		   last_accessed_at       = EXCLUDED.last_accessed_at
+		 WHERE EXCLUDED.last_accessed_at > sync_manga_read_history.last_accessed_at`,
+		userID, rh.MangaAnilistID, rh.LastChapterNumber, rh.LastSourceID,
+		rh.LastSourceChapterID, rh.LastPageIndex, rh.LastAccessedAt,
+	)
+	if err != nil {
+		return false, err
+	}
+	return tag.RowsAffected() > 0, nil
+}
+
+func (r *SyncRepo) DeleteMangaReadHistory(ctx context.Context, userID uuid.UUID, mangaAnilistID int, tsMs int64) error {
+	_, err := r.pool.Exec(ctx,
+		`DELETE FROM sync_manga_read_history
+		 WHERE user_id = $1 AND manga_anilist_id = $2 AND last_accessed_at <= $3`,
+		userID, mangaAnilistID, tsMs,
+	)
+	return err
+}
+
 // --- Durability cursors ---
 
 // MaxDurableTimestamps reads the current max client-assigned timestamp per
@@ -292,14 +496,18 @@ func (r *SyncRepo) DeleteLibraryEntry(ctx context.Context, userID uuid.UUID, ani
 func (r *SyncRepo) MaxDurableTimestamps(ctx context.Context, userID uuid.UUID) (model.DurableUntil, error) {
 	var d model.DurableUntil
 	var ep, wh, pp, le sql.NullInt64
+	var mle, mcp, mrh sql.NullInt64
 	err := r.pool.QueryRow(ctx,
 		`SELECT
-		   (SELECT MAX(updated_at)      FROM sync_episode_progress    WHERE user_id = $1),
-		   (SELECT MAX(last_accessed_at) FROM sync_watch_history       WHERE user_id = $1),
-		   (SELECT MAX(updated_at)      FROM sync_playback_preference WHERE user_id = $1),
-		   (SELECT MAX(updated_at)      FROM sync_library_entry       WHERE user_id = $1)`,
+		   (SELECT MAX(updated_at)      FROM sync_episode_progress       WHERE user_id = $1),
+		   (SELECT MAX(last_accessed_at) FROM sync_watch_history          WHERE user_id = $1),
+		   (SELECT MAX(updated_at)      FROM sync_playback_preference    WHERE user_id = $1),
+		   (SELECT MAX(updated_at)      FROM sync_library_entry          WHERE user_id = $1),
+		   (SELECT MAX(updated_at)      FROM sync_manga_library_entry    WHERE user_id = $1),
+		   (SELECT MAX(updated_at)      FROM sync_manga_chapter_progress WHERE user_id = $1),
+		   (SELECT MAX(last_accessed_at) FROM sync_manga_read_history     WHERE user_id = $1)`,
 		userID,
-	).Scan(&ep, &wh, &pp, &le)
+	).Scan(&ep, &wh, &pp, &le, &mle, &mcp, &mrh)
 	if err != nil {
 		return d, err
 	}
@@ -314,6 +522,15 @@ func (r *SyncRepo) MaxDurableTimestamps(ctx context.Context, userID uuid.UUID) (
 	}
 	if le.Valid {
 		d.LibraryEntry = le.Int64
+	}
+	if mle.Valid {
+		d.MangaLibraryEntry = mle.Int64
+	}
+	if mcp.Valid {
+		d.MangaChapterProgress = mcp.Int64
+	}
+	if mrh.Valid {
+		d.MangaReadHistory = mrh.Int64
 	}
 	return d, nil
 }

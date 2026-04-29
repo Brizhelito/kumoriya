@@ -111,11 +111,14 @@ func (c *pullCache) merge(userID uuid.UUID, req *model.SyncPushRequest) {
 		// persisted into the seed; they only matter once there is a cached
 		// row to remove.
 		resp := &model.SyncPullResponse{
-			ServerTime:          time.Now().UnixMilli(),
-			EpisodeProgress:     append([]model.EpisodeProgress{}, req.EpisodeProgress...),
-			WatchHistory:        append([]model.WatchHistory{}, req.WatchHistory...),
-			PlaybackPreferences: append([]model.PlaybackPreference{}, req.PlaybackPreferences...),
-			LibraryEntries:      append([]model.LibraryEntry{}, req.LibraryEntries...),
+			ServerTime:           time.Now().UnixMilli(),
+			EpisodeProgress:      append([]model.EpisodeProgress{}, req.EpisodeProgress...),
+			WatchHistory:         append([]model.WatchHistory{}, req.WatchHistory...),
+			PlaybackPreferences:  append([]model.PlaybackPreference{}, req.PlaybackPreferences...),
+			LibraryEntries:       append([]model.LibraryEntry{}, req.LibraryEntries...),
+			MangaLibraryEntries:  append([]model.MangaLibraryEntry{}, req.MangaLibraryEntries...),
+			MangaChapterProgress: append([]model.MangaChapterProgress{}, req.MangaChapterProgress...),
+			MangaReadHistory:     append([]model.MangaReadHistory{}, req.MangaReadHistory...),
 		}
 		if len(c.snapshots) >= cacheMaxEntries {
 			c.evictOldestLocked()
@@ -214,6 +217,76 @@ func (c *pullCache) merge(userID uuid.UUID, req *model.SyncPushRequest) {
 		}
 	}
 
+	// --- Manga universe (Slice 10C-2) ---
+
+	for _, le := range req.MangaLibraryEntries {
+		found := false
+		for i, ex := range resp.MangaLibraryEntries {
+			if ex.MangaAnilistID == le.MangaAnilistID {
+				if le.UpdatedAt > ex.UpdatedAt {
+					resp.MangaLibraryEntries[i] = le
+				}
+				found = true
+				break
+			}
+		}
+		if !found {
+			resp.MangaLibraryEntries = append(resp.MangaLibraryEntries, le)
+		}
+	}
+
+	for _, cp := range req.MangaChapterProgress {
+		found := false
+		for i, ex := range resp.MangaChapterProgress {
+			if ex.MangaAnilistID == cp.MangaAnilistID &&
+				ex.SourceID == cp.SourceID &&
+				ex.SourceChapterID == cp.SourceChapterID {
+				if cp.UpdatedAt > ex.UpdatedAt {
+					resp.MangaChapterProgress[i] = cp
+				}
+				found = true
+				break
+			}
+		}
+		if !found {
+			resp.MangaChapterProgress = append(resp.MangaChapterProgress, cp)
+		}
+	}
+
+	for _, rh := range req.MangaReadHistory {
+		found := false
+		for i, ex := range resp.MangaReadHistory {
+			if ex.MangaAnilistID == rh.MangaAnilistID {
+				if rh.LastAccessedAt > ex.LastAccessedAt {
+					resp.MangaReadHistory[i] = rh
+				}
+				found = true
+				break
+			}
+		}
+		if !found {
+			resp.MangaReadHistory = append(resp.MangaReadHistory, rh)
+		}
+	}
+
+	for _, d := range req.MangaLibraryEntryDeletions {
+		for i, ex := range resp.MangaLibraryEntries {
+			if ex.MangaAnilistID == d.MangaAnilistID && ex.UpdatedAt <= d.UpdatedAt {
+				resp.MangaLibraryEntries = append(resp.MangaLibraryEntries[:i], resp.MangaLibraryEntries[i+1:]...)
+				break
+			}
+		}
+	}
+
+	for _, d := range req.MangaReadHistoryDeletions {
+		for i, ex := range resp.MangaReadHistory {
+			if ex.MangaAnilistID == d.MangaAnilistID && ex.LastAccessedAt <= d.UpdatedAt {
+				resp.MangaReadHistory = append(resp.MangaReadHistory[:i], resp.MangaReadHistory[i+1:]...)
+				break
+			}
+		}
+	}
+
 	snap.fetchedAt = time.Now()
 }
 
@@ -222,12 +295,15 @@ func (c *pullCache) merge(userID uuid.UUID, req *model.SyncPushRequest) {
 // updated_at, matching the server-side LWW key.
 func filterBySince(full *model.SyncPullResponse, since int64) *model.SyncPullResponse {
 	out := &model.SyncPullResponse{
-		ServerTime:          time.Now().UnixMilli(),
-		EpisodeProgress:     make([]model.EpisodeProgress, 0),
-		WatchHistory:        make([]model.WatchHistory, 0),
-		PlaybackPreferences: make([]model.PlaybackPreference, 0),
-		LibraryEntries:      make([]model.LibraryEntry, 0),
-		DurableUntil:        full.DurableUntil,
+		ServerTime:           time.Now().UnixMilli(),
+		EpisodeProgress:      make([]model.EpisodeProgress, 0),
+		WatchHistory:         make([]model.WatchHistory, 0),
+		PlaybackPreferences:  make([]model.PlaybackPreference, 0),
+		LibraryEntries:       make([]model.LibraryEntry, 0),
+		MangaLibraryEntries:  make([]model.MangaLibraryEntry, 0),
+		MangaChapterProgress: make([]model.MangaChapterProgress, 0),
+		MangaReadHistory:     make([]model.MangaReadHistory, 0),
+		DurableUntil:         full.DurableUntil,
 	}
 	for _, ep := range full.EpisodeProgress {
 		if ep.UpdatedAt > since {
@@ -247,6 +323,21 @@ func filterBySince(full *model.SyncPullResponse, since int64) *model.SyncPullRes
 	for _, le := range full.LibraryEntries {
 		if le.UpdatedAt > since {
 			out.LibraryEntries = append(out.LibraryEntries, le)
+		}
+	}
+	for _, le := range full.MangaLibraryEntries {
+		if le.UpdatedAt > since {
+			out.MangaLibraryEntries = append(out.MangaLibraryEntries, le)
+		}
+	}
+	for _, cp := range full.MangaChapterProgress {
+		if cp.UpdatedAt > since {
+			out.MangaChapterProgress = append(out.MangaChapterProgress, cp)
+		}
+	}
+	for _, rh := range full.MangaReadHistory {
+		if rh.LastAccessedAt > since {
+			out.MangaReadHistory = append(out.MangaReadHistory, rh)
 		}
 	}
 	return out
