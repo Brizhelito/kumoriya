@@ -353,6 +353,25 @@ final class CompositeMangaCatalogRepository implements MangaCatalogRepository {
     ));
   }
 
+  /// Looks up the cached `SourceChapter` for a domain `MangaChapter`
+  /// without going to the network. Used by the downloads slice to read
+  /// `sourceMangaId` / `sourceChapterId` ids before queuing a CBZ
+  /// download. Returns `null` when the per-manga cache has not been
+  /// warmed yet — the caller is expected to have triggered
+  /// `fetchMangaChapters` already (e.g. by viewing the detail screen).
+  SourceChapter? lookupSourceChapter({
+    required int mangaAnilistId,
+    required MangaChapter chapter,
+  }) {
+    final cache = _sourceChaptersByManga[mangaAnilistId];
+    if (cache == null) return null;
+    return cache[_sourceChapterKey(
+      chapter.number,
+      chapter.language,
+      chapter.scanlator,
+    )];
+  }
+
   /// Composite key for the per-manga `SourceChapter` cache. Mirrors
   /// the disambiguators users see in the chapter list: a scanlator
   /// translation in language X is a different chapter from another

@@ -1,8 +1,9 @@
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:kumoriya_manga_domain/kumoriya_manga_domain.dart';
 import 'package:photo_view/photo_view.dart';
 import 'package:photo_view/photo_view_gallery.dart';
+
+import 'manga_page_image.dart';
 
 /// Page-at-a-time reader with horizontal swipes and per-page zoom.
 ///
@@ -62,23 +63,7 @@ class _PaginatedReaderState extends State<PaginatedReader> {
               minScale: PhotoViewComputedScale.contained,
               maxScale: PhotoViewComputedScale.covered * 4,
               initialScale: PhotoViewComputedScale.contained,
-              child: CachedNetworkImage(
-                imageUrl: page.imageUrl.toString(),
-                httpHeaders: page.headers,
-                fit: BoxFit.contain,
-                placeholder: (_, _) => const Center(
-                  child: CircularProgressIndicator(color: Colors.white54),
-                ),
-                errorWidget: (_, _, _) => const Center(
-                  child: Padding(
-                    padding: EdgeInsets.all(24),
-                    child: Text(
-                      'Failed to load page',
-                      style: TextStyle(color: Colors.white),
-                    ),
-                  ),
-                ),
-              ),
+              child: MangaPageImage(page: page, fit: BoxFit.contain),
             );
           },
           loadingBuilder: (context, _) => const Center(

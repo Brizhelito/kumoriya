@@ -6,6 +6,7 @@ import '../../../../app/l10n.dart';
 import '../../../../shared/storage_providers.dart';
 import '../../../../shared/theme/kumoriya_theme.dart';
 import '../../../../shared/widgets/kumoriya_cached_image.dart';
+import '../../../manga_downloads/presentation/widgets/chapter_download_button.dart';
 import '../providers/manga_catalog_providers.dart';
 import 'manga_reader_route.dart';
 
@@ -450,6 +451,17 @@ class _ChapterRow extends ConsumerWidget {
                   ),
                 ],
               ),
+            ),
+            Builder(
+              builder: (_) {
+                final detail = ref.read(mangaDetailProvider(mangaAnilistId));
+                final t = detail.value?.manga.title;
+                return ChapterDownloadButton(
+                  mangaAnilistId: mangaAnilistId,
+                  mangaTitle: t?.english ?? t?.romaji,
+                  chapter: chapter,
+                );
+              },
             ),
             const Icon(
               Icons.chevron_right_rounded,

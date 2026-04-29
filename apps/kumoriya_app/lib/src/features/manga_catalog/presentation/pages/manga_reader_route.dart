@@ -1,10 +1,15 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kumoriya_manga_domain/kumoriya_manga_domain.dart';
 import 'package:kumoriya_reader/kumoriya_reader.dart';
 import 'package:kumoriya_storage/kumoriya_storage.dart';
+import 'package:path/path.dart' as p;
 
 import '../../../../shared/storage_providers.dart';
+import '../../../manga_downloads/domain/cbz_unpacker.dart';
+import '../../../manga_downloads/presentation/providers/manga_download_providers.dart';
 import '../../application/services/composite_manga_catalog_repository.dart';
 import '../providers/manga_catalog_providers.dart';
 
@@ -130,17 +135,66 @@ final _chapterSessionProvider = FutureProvider.autoDispose
         );
       }
 
-      final openResult = await repo.openChapter(
+      // Slice 11: prefer the local CBZ when the chapter has a
+      // completed download. Falls back to the network path otherwise.
+      // We still need `sourceChapterId` for resume persistence; resolve
+      // it from the cached SourceChapter (cheap, no I/O) — and only go
+      // to the network when the local file is absent.
+      final cachedSource = repo.lookupSourceChapter(
         mangaAnilistId: args.mangaAnilistId,
         chapter: args.chapter,
       );
-      final opened = openResult
-          .fold<({String sourceChapterId, List<MangaPage> pages})?>(
-            onSuccess: (v) => v,
-            onFailure: (err) {
-              throw Exception('${err.code}: ${err.message}');
+      List<MangaPage>? localPages;
+      String? localSourceChapterId;
+      if (cachedSource != null) {
+        final downloadStore = ref.read(mangaDownloadStoreProvider);
+        final taskRes = await downloadStore.getTaskByChapter(
+          mangaAnilistId: args.mangaAnilistId,
+          sourceId: 'mangadex',
+          sourceChapterId: cachedSource.sourceChapterId,
+        );
+        final task = taskRes.fold(onSuccess: (v) => v, onFailure: (_) => null);
+        if (task != null &&
+            task.status == MangaDownloadStatus.completed &&
+            task.cbzPath != null &&
+            await File(task.cbzPath!).exists()) {
+          final rootDirFn = ref.read(mangaDownloadsRootDirProvider);
+          final root = await rootDirFn();
+          final extractDir = Directory(
+            p.join(root.path, '_extracted', task.id),
+          );
+          final unpack = await CbzUnpacker.extract(
+            cbzFile: File(task.cbzPath!),
+            extractDir: extractDir,
+          );
+          unpack.fold(
+            onSuccess: (pages) {
+              localPages = pages;
+              localSourceChapterId = cachedSource.sourceChapterId;
             },
-          )!;
+            onFailure: (_) {
+              /* fall back to network */
+            },
+          );
+        }
+      }
+
+      final ({String sourceChapterId, List<MangaPage> pages}) opened;
+      if (localPages != null && localSourceChapterId != null) {
+        opened = (sourceChapterId: localSourceChapterId!, pages: localPages!);
+      } else {
+        final openResult = await repo.openChapter(
+          mangaAnilistId: args.mangaAnilistId,
+          chapter: args.chapter,
+        );
+        opened = openResult
+            .fold<({String sourceChapterId, List<MangaPage> pages})?>(
+              onSuccess: (v) => v,
+              onFailure: (err) {
+                throw Exception('${err.code}: ${err.message}');
+              },
+            )!;
+      }
 
       // Resume position (best effort; missing → start at page 0).
       int initialPage = 0;

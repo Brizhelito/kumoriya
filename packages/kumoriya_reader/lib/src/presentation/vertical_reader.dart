@@ -1,6 +1,7 @@
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:kumoriya_manga_domain/kumoriya_manga_domain.dart';
+
+import 'manga_page_image.dart';
 
 /// Continuous-scroll reader for manhwa / webtoon.
 ///
@@ -108,27 +109,6 @@ class _ReaderImage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return CachedNetworkImage(
-      imageUrl: page.imageUrl.toString(),
-      httpHeaders: page.headers,
-      fit: BoxFit.fitWidth,
-      // Reasonable placeholder so the layout doesn't jump while
-      // images stream in — gives the scroll position a stable
-      // anchor as the user scrolls.
-      placeholder: (context, _) =>
-          const SizedBox(height: 600, child: ColoredBox(color: Colors.black12)),
-      errorWidget: (context, _, _) => Container(
-        height: 200,
-        color: Colors.black54,
-        alignment: Alignment.center,
-        child: const Padding(
-          padding: EdgeInsets.all(16),
-          child: Text(
-            'Failed to load page',
-            style: TextStyle(color: Colors.white),
-          ),
-        ),
-      ),
-    );
+    return MangaPageImage(page: page, fit: BoxFit.fitWidth);
   }
 }

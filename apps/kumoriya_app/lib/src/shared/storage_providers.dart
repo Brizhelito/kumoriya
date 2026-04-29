@@ -199,12 +199,20 @@ final isSubscribedMangaProvider = FutureProvider.autoDispose.family<bool, int>((
 /// Recent manga read history (most-recently-accessed first), capped at
 /// 20 entries. Mirrors anime's recent watch history surface.
 final mangaRecentHistoryProvider =
-    FutureProvider.autoDispose<
-      Result<List<MangaReadHistory>, KumoriyaError>
-    >((ref) async {
+    FutureProvider.autoDispose<Result<List<MangaReadHistory>, KumoriyaError>>((
+      ref,
+    ) async {
       ref.watch(syncDataRefreshEpochProvider);
       return ref.watch(mangaProgressStoreProvider).getRecentHistory();
     });
+
+/// Drift-backed durable store for manga downloads (Slice 11). The
+/// download manager reads/writes through this; UI surfaces query
+/// status and progress through the same store.
+final mangaDownloadStoreProvider = Provider<MangaDownloadStore>((ref) {
+  final db = ref.watch(appDatabaseProvider);
+  return DriftMangaDownloadStore(db);
+});
 
 final translationCacheStoreProvider = Provider<TranslationCacheStore>((ref) {
   final db = ref.watch(appDatabaseProvider);
