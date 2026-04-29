@@ -169,7 +169,7 @@ Each slice is atomic, testable, and ships green before the next starts. Sub-slic
 |---|---|---|---|---|
 | **S0** | Recon (Cloudflare, MangaBaka API, source landscape) | — | — | ✅ done |
 | **S1.A** | `kumoriya_mangabaka` package (client + gateway + tests) | — | 0.5d | ✅ done |
-| **S1.B** | `kumoriya_mangaupdates` package (client + gateway + tests) | — | 0.5d | ⏳ pending |
+| **S1.B** | `kumoriya_mangaupdates` package (client + gateway + tests) | — | 0.5d | ✅ done |
 | **S1.C** | Composite repo v2: `List<MangaSourcePlugin>` + parallel fan-out + dedup | — | 1d | ⏳ pending |
 | **S1.D** | Wire MangaBaka corpus into composite v2 matching | S1.A + S1.C | 0.5d | ⏳ pending |
 | **S1.E** | UI: extend picker with "source" dimension + l10n | S1.C | 0.5d | ⏳ pending |
@@ -260,18 +260,17 @@ S10 wraps up:
 
 - ✅ **S0 — Recon** (no commit; documented here)
 - ✅ **S1.A — MangaBaka client** (commit `92714c2`, diary 2026-04-29)
+- ✅ **S1.B — MangaUpdates client** (diary 2026-04-29 second entry)
 
 ### 5.2 In progress
 
-_None as of 2026-04-29 08:00._
+_None as of 2026-04-29 08:30._
 
 ### 5.3 Next up
 
-**S1.B — MangaUpdates client.** Independent of S1.A and S1.C, so it can run in parallel with the composite refactor if there are two workers, or sequentially if solo.
+**S1.C — Composite repository v2.** Both metadata gateways (MangaBaka + MangaUpdates) are now ready as leaf packages. The next slice refactors `composite_manga_catalog_repository.dart` to accept `List<MangaSourcePlugin>` with parallel fan-out, per-plugin timeout, and `(chapterNumber, language, sourceId)` dedup. No metadata gateway wiring yet — that lands in S1.D.
 
-Alternative ordering: **S1.C first** (composite refactor without MangaBaka wiring), then S1.B and S1.D in parallel. Trade-off:
-- **S1.B first** (recommended): finishes the metadata foundation completely before touching app code. Lower risk of refactor churn.
-- **S1.C first**: ships user-visible behaviour (multi-source merge) sooner but requires more app-side test rework.
+This refactor will likely conflict with the **uncommitted scanlator-picker work** sitting in `apps/kumoriya_app/...` (see §5.4). Recommend committing or stashing that work before starting S1.C.
 
 ### 5.4 Existing local work to be aware of
 
