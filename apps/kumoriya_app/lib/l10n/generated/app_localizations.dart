@@ -1633,6 +1633,54 @@ abstract class AppLocalizations {
   /// **'Your manga library will live here once Slice 10 lands.'**
   String get mangaComingSoonSlice10;
 
+  /// No description provided for @mangaLibraryHistoryEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No reading history yet.'**
+  String get mangaLibraryHistoryEmpty;
+
+  /// No description provided for @mangaLibraryFavoritesEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No favorites yet. Tap the heart on any manga to save it.'**
+  String get mangaLibraryFavoritesEmpty;
+
+  /// No description provided for @mangaLibrarySubscribedEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No subscriptions yet. Subscribe to a manga to get notified of new chapters.'**
+  String get mangaLibrarySubscribedEmpty;
+
+  /// No description provided for @mangaLibraryHistoryChapterLine.
+  ///
+  /// In en, this message translates to:
+  /// **'Last read: Ch. {number}'**
+  String mangaLibraryHistoryChapterLine(String number);
+
+  /// No description provided for @mangaDetailAddFavorite.
+  ///
+  /// In en, this message translates to:
+  /// **'Add to favorites'**
+  String get mangaDetailAddFavorite;
+
+  /// No description provided for @mangaDetailRemoveFavorite.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove from favorites'**
+  String get mangaDetailRemoveFavorite;
+
+  /// No description provided for @mangaDetailSubscribe.
+  ///
+  /// In en, this message translates to:
+  /// **'Notify new chapters'**
+  String get mangaDetailSubscribe;
+
+  /// No description provided for @mangaDetailUnsubscribe.
+  ///
+  /// In en, this message translates to:
+  /// **'Stop notifying'**
+  String get mangaDetailUnsubscribe;
+
   /// No description provided for @mangaComingSoonSlice11.
   ///
   /// In en, this message translates to:

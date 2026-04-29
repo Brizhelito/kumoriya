@@ -528,6 +528,17 @@
   "mangaDownloadsTitle": "Manga Downloads",
   "mangaComingSoonSlice8": "Discovery and details land in the next slice. Switch back to anime in the meantime.",
   "mangaComingSoonSlice10": "Your manga library will live here once Slice 10 lands.",
+  "mangaLibraryHistoryEmpty": "No reading history yet.",
+  "mangaLibraryFavoritesEmpty": "No favorites yet. Tap the heart on any manga to save it.",
+  "mangaLibrarySubscribedEmpty": "No subscriptions yet. Subscribe to a manga to get notified of new chapters.",
+  "mangaLibraryHistoryChapterLine": "Last read: Ch. {number}",
+  "@mangaLibraryHistoryChapterLine": {
+    "placeholders": {"number": {"type": "String"}}
+  },
+  "mangaDetailAddFavorite": "Add to favorites",
+  "mangaDetailRemoveFavorite": "Remove from favorites",
+  "mangaDetailSubscribe": "Notify new chapters",
+  "mangaDetailUnsubscribe": "Stop notifying",
   "mangaComingSoonSlice11": "Manga downloads (CBZ) arrive in Slice 11.",
   "mangaHomeFeaturedTag": "FEATURED",
   "mangaHomeReadAction": "View details",

@@ -150,6 +150,21 @@ final mangaDetailProvider = FutureProvider.autoDispose.family<MangaDetail, int>(
   },
 );
 
+/// Resolves a batch of AniList ids to `Manga` records, used by the
+/// Library tabs (favorites / subscribed / history) to render covers.
+/// Empty input short-circuits to `<Manga>[]` so callers can pass in
+/// `ids.isEmpty` lists without an extra branch.
+final mangaBatchByIdsProvider = FutureProvider.autoDispose
+    .family<List<Manga>, List<int>>((ref, ids) async {
+      if (ids.isEmpty) return const <Manga>[];
+      final repo = ref.watch(mangaCatalogRepositoryProvider);
+      final result = await repo.fetchBatchMangaByIds(ids);
+      return result.fold(
+        onSuccess: (list) => list,
+        onFailure: (err) => throw _toException(err),
+      );
+    });
+
 final mangaChaptersProvider = FutureProvider.autoDispose
     .family<List<MangaChapter>, int>((ref, anilistId) async {
       final repo = ref.watch(mangaCatalogRepositoryProvider);

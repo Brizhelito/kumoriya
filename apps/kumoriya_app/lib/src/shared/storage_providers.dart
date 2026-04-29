@@ -109,6 +109,68 @@ final mangaProgressStoreProvider = Provider<MangaProgressStore>((ref) {
   return DriftMangaProgressStore(db);
 });
 
+final mangaLibraryStoreProvider = Provider<MangaLibraryStore>((ref) {
+  final db = ref.watch(appDatabaseProvider);
+  return DriftMangaLibraryStore(db);
+});
+
+/// Set of AniList ids the user has marked as favorite manga. Mirrors
+/// `favoriteAnimeIdsProvider`. Invalidated when sync data refreshes.
+final favoriteMangaIdsProvider =
+    FutureProvider.autoDispose<Result<Set<int>, KumoriyaError>>((ref) async {
+      ref.watch(syncDataRefreshEpochProvider);
+      return ref.watch(mangaLibraryStoreProvider).getFavoriteMangaIds();
+    });
+
+/// Set of AniList ids the user has subscribed to (chapter notifications).
+final subscribedMangaIdsProvider =
+    FutureProvider.autoDispose<Result<Set<int>, KumoriyaError>>((ref) async {
+      ref.watch(syncDataRefreshEpochProvider);
+      return ref.watch(mangaLibraryStoreProvider).getSubscribedMangaIds();
+    });
+
+/// `true` when [anilistId] is in the user's manga favorites.
+/// Selects from [favoriteMangaIdsProvider] so a single fetch backs all
+/// per-id checks.
+final isFavoriteMangaProvider = FutureProvider.autoDispose.family<bool, int>((
+  ref,
+  anilistId,
+) async {
+  return ref.watch(
+    favoriteMangaIdsProvider.selectAsync(
+      (result) => result.fold(
+        onFailure: (_) => false,
+        onSuccess: (ids) => ids.contains(anilistId),
+      ),
+    ),
+  );
+});
+
+/// `true` when [anilistId] is subscribed for new-chapter notifications.
+final isSubscribedMangaProvider = FutureProvider.autoDispose.family<bool, int>((
+  ref,
+  anilistId,
+) async {
+  return ref.watch(
+    subscribedMangaIdsProvider.selectAsync(
+      (result) => result.fold(
+        onFailure: (_) => false,
+        onSuccess: (ids) => ids.contains(anilistId),
+      ),
+    ),
+  );
+});
+
+/// Recent manga read history (most-recently-accessed first), capped at
+/// 20 entries. Mirrors anime's recent watch history surface.
+final mangaRecentHistoryProvider =
+    FutureProvider.autoDispose<
+      Result<List<MangaReadHistory>, KumoriyaError>
+    >((ref) async {
+      ref.watch(syncDataRefreshEpochProvider);
+      return ref.watch(mangaProgressStoreProvider).getRecentHistory();
+    });
+
 final translationCacheStoreProvider = Provider<TranslationCacheStore>((ref) {
   final db = ref.watch(appDatabaseProvider);
   return DriftTranslationCacheStore(db);

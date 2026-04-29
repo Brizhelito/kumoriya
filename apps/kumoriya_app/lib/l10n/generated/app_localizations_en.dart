@@ -935,6 +935,34 @@ class AppLocalizationsEn extends AppLocalizations {
       'Your manga library will live here once Slice 10 lands.';
 
   @override
+  String get mangaLibraryHistoryEmpty => 'No reading history yet.';
+
+  @override
+  String get mangaLibraryFavoritesEmpty =>
+      'No favorites yet. Tap the heart on any manga to save it.';
+
+  @override
+  String get mangaLibrarySubscribedEmpty =>
+      'No subscriptions yet. Subscribe to a manga to get notified of new chapters.';
+
+  @override
+  String mangaLibraryHistoryChapterLine(String number) {
+    return 'Last read: Ch. $number';
+  }
+
+  @override
+  String get mangaDetailAddFavorite => 'Add to favorites';
+
+  @override
+  String get mangaDetailRemoveFavorite => 'Remove from favorites';
+
+  @override
+  String get mangaDetailSubscribe => 'Notify new chapters';
+
+  @override
+  String get mangaDetailUnsubscribe => 'Stop notifying';
+
+  @override
   String get mangaComingSoonSlice11 =>
       'Manga downloads (CBZ) arrive in Slice 11.';
 

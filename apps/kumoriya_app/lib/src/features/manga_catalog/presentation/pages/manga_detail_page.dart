@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kumoriya_manga_domain/kumoriya_manga_domain.dart';
 
 import '../../../../app/l10n.dart';
+import '../../../../shared/storage_providers.dart';
 import '../../../../shared/theme/kumoriya_theme.dart';
 import '../../../../shared/widgets/kumoriya_cached_image.dart';
 import '../providers/manga_catalog_providers.dart';
@@ -102,7 +103,9 @@ class _DetailContent extends ConsumerWidget {
                   ),
                 const SizedBox(height: 12),
                 _HeaderChips(manga: manga),
-                const SizedBox(height: 20),
+                const SizedBox(height: 16),
+                _LibraryActionsRow(anilistId: manga.anilistId),
+                const SizedBox(height: 16),
                 Text(
                   l10n.mangaDetailSynopsis,
                   style: theme.textTheme.titleMedium!.copyWith(
@@ -228,6 +231,102 @@ class _Chip extends StatelessWidget {
           color: KumoriyaColors.textSecondary,
           fontSize: 12,
           fontWeight: FontWeight.w600,
+        ),
+      ),
+    );
+  }
+}
+
+/// Toggle row for Favorite + Subscribe. Mirrors the anime detail
+/// pattern but reads/writes the manga library store. Both toggles are
+/// optimistic: the storage call is fire-and-forget, then the relevant
+/// providers are invalidated so the new state propagates everywhere
+/// (Library tab, this row, any other manga card).
+class _LibraryActionsRow extends ConsumerWidget {
+  const _LibraryActionsRow({required this.anilistId});
+  final int anilistId;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final isFavAsync = ref.watch(isFavoriteMangaProvider(anilistId));
+    final isSubAsync = ref.watch(isSubscribedMangaProvider(anilistId));
+    final isFav = isFavAsync.value ?? false;
+    final isSub = isSubAsync.value ?? false;
+    final l10n = context.l10n;
+    return Row(
+      children: <Widget>[
+        _ActionPill(
+          icon: isFav ? Icons.favorite_rounded : Icons.favorite_border_rounded,
+          label: isFav
+              ? l10n.mangaDetailRemoveFavorite
+              : l10n.mangaDetailAddFavorite,
+          active: isFav,
+          onTap: () async {
+            await ref
+                .read(mangaLibraryStoreProvider)
+                .setFavorite(anilistId, isFavorite: !isFav);
+            ref.invalidate(favoriteMangaIdsProvider);
+          },
+        ),
+        const SizedBox(width: 12),
+        _ActionPill(
+          icon: isSub
+              ? Icons.notifications_active_rounded
+              : Icons.notifications_none_rounded,
+          label: isSub
+              ? l10n.mangaDetailUnsubscribe
+              : l10n.mangaDetailSubscribe,
+          active: isSub,
+          onTap: () async {
+            await ref
+                .read(mangaLibraryStoreProvider)
+                .setSubscription(anilistId, notify: !isSub);
+            ref.invalidate(subscribedMangaIdsProvider);
+          },
+        ),
+      ],
+    );
+  }
+}
+
+class _ActionPill extends StatelessWidget {
+  const _ActionPill({
+    required this.icon,
+    required this.label,
+    required this.active,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String label;
+  final bool active;
+  final Future<void> Function() onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = active ? KumoriyaColors.primary : KumoriyaColors.textMuted;
+    return InkWell(
+      borderRadius: BorderRadius.circular(20),
+      onTap: () {
+        // ignore: discarded_futures
+        onTap();
+      },
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            Icon(icon, color: color, size: 20),
+            const SizedBox(width: 6),
+            Text(
+              label,
+              style: TextStyle(
+                color: color,
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
         ),
       ),
     );

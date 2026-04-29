@@ -559,6 +559,17 @@
     "placeholders": {"number": {"type": "String"}}
   },
   "mangaComingSoonSlice10": "Tu biblioteca de manga vivirá aquí cuando llegue el Slice 10.",
+  "mangaLibraryHistoryEmpty": "Aún no hay historial de lectura.",
+  "mangaLibraryFavoritesEmpty": "Aún no hay favoritos. Toca el corazón en cualquier manga para guardarlo.",
+  "mangaLibrarySubscribedEmpty": "Aún no hay suscripciones. Suscríbete a un manga para recibir notificaciones de nuevos capítulos.",
+  "mangaLibraryHistoryChapterLine": "Último leído: Cap. {number}",
+  "@mangaLibraryHistoryChapterLine": {
+    "placeholders": {"number": {"type": "String"}}
+  },
+  "mangaDetailAddFavorite": "Añadir a favoritos",
+  "mangaDetailRemoveFavorite": "Quitar de favoritos",
+  "mangaDetailSubscribe": "Notificar nuevos capítulos",
+  "mangaDetailUnsubscribe": "Dejar de notificar",
   "mangaComingSoonSlice11": "Las descargas de manga (CBZ) llegarán en el Slice 11.",
   "calendarTitle": "Calendario",
   "calendarSubtitle": "Calendario de emisión por fecha",
