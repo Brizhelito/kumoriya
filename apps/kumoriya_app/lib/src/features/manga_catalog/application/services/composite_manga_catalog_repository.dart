@@ -6,6 +6,12 @@ import 'package:kumoriya_storage/kumoriya_storage.dart';
 
 import '../../../../shared/cache/fallback_reason.dart';
 
+/// One row of the "Fuente" picker on the manga detail screen. Carries
+/// the scanlator's display name and how many chapters of the current
+/// manga it has uploaded. Used to render the picker sorted by
+/// coverage so the user can pick the most-complete option first.
+typedef ScanlatorOption = ({String name, int chapterCount});
+
 /// Composes the AniList-backed `MangaCatalogRepository` with a
 /// `MangaSourcePlugin` to materialize the chapter list AniList itself
 /// does not expose.
@@ -68,6 +74,19 @@ final class CompositeMangaCatalogRepository implements MangaCatalogRepository {
   /// chapter the user previously saw without an extra round-trip.
   final Map<int, Map<String, SourceChapter>> _sourceChaptersByManga =
       <int, Map<String, SourceChapter>>{};
+
+  /// Per-manga catalog of distinct scanlator names sourced from the
+  /// last `fetchMangaChapters` call's *raw* (pre-dedup) playable list,
+  /// alongside how many chapters each scanlator contributes. Sorted
+  /// by `chapterCount` desc, then alphabetically.
+  ///
+  /// Used by the detail page's "Fuente" picker. Externals are not
+  /// counted because the user can't pick them as a per-manga
+  /// preferred scanlator — they are always rendered separately.
+  ///
+  /// Lifetime mirrors `_sourceChaptersByManga` (per-session).
+  final Map<int, List<ScanlatorOption>> _scanlatorsByManga =
+      <int, List<ScanlatorOption>>{};
 
   // ---------------------------------------------------------------------------
   // Catalog metadata (delegate + write-through)
@@ -242,7 +261,26 @@ final class CompositeMangaCatalogRepository implements MangaCatalogRepository {
   @override
   Future<Result<List<MangaChapter>, KumoriyaError>> fetchMangaChapters(
     int anilistId,
-  ) async {
+  ) {
+    return fetchMangaChaptersWithPreference(anilistId);
+  }
+
+  /// Composite-only extension of [fetchMangaChapters] that lets the
+  /// caller pick a preferred scanlator for the playable bucket.
+  ///
+  /// When [preferredScanlator] is non-null, the per-`(number, language)`
+  /// dedup picks the row whose `scanlator` matches. Numbers where the
+  /// preferred scanlator has no release fall back to the auto-pick
+  /// rule documented on [_dedupByNumberLanguage] — so the user never
+  /// sees gaps just because their preferred group skipped a chapter.
+  ///
+  /// Externals are not affected by [preferredScanlator] (they are
+  /// rendered in their own bucket regardless of preference).
+  Future<Result<List<MangaChapter>, KumoriyaError>>
+  fetchMangaChaptersWithPreference(
+    int anilistId, {
+    String? preferredScanlator,
+  }) async {
     // 1. Need the canonical AniList manga to drive matching.
     final detailResult = await _delegate.fetchMangaDetail(anilistId);
     if (detailResult.isFailure) {
@@ -282,16 +320,158 @@ final class CompositeMangaCatalogRepository implements MangaCatalogRepository {
     final source =
         (chaptersResult as Success<List<SourceChapter>, KumoriyaError>).value;
 
+    // Split into "playable" (in-app reader works) and "external"
+    // (re-publications hosted by MangaPlus / Viz / ComiXology / etc.
+    // that we can only link out to). Then dedup each bucket
+    // independently by (number, language) — same chapter uploaded by
+    // different scanlators is the source of the "Cap. 1 repetido"
+    // disaster in the UI.
+    final playableRaw = <SourceChapter>[];
+    final externalRaw = <SourceChapter>[];
+    for (final c in source) {
+      if (c.externalUrl != null) {
+        externalRaw.add(c);
+      } else {
+        playableRaw.add(c);
+      }
+    }
+    // Catalog the available scanlators across the *raw* playable list
+    // so the picker shows MangaReworks (45), Asura (12), … even after
+    // dedup collapses the list to one row per (number, language).
+    // Externals are excluded because they aren't selectable as a
+    // per-manga preferred scanlator.
+    _scanlatorsByManga[anilistId] = _computeScanlatorOptions(playableRaw);
+
+    // When the user has picked a preferred scanlator, the playable
+    // list is **strictly filtered** to that scanlator. Chapters that
+    // scanlator did not translate are intentionally absent — the
+    // picker is a hard filter, not a tie-break hint, because the
+    // fallback behaviour ("show another group's release for the
+    // missing chapter") was confusing in practice (the user thought
+    // the filter was broken when other groups' chapters kept
+    // appearing). Switching back to "Auto" lifts the filter.
+    final playableFiltered = preferredScanlator == null
+        ? playableRaw
+        : playableRaw
+              .where((c) => c.scanlator == preferredScanlator)
+              .toList(growable: false);
+
+    final playable = _dedupByNumberLanguage(playableFiltered);
+    final external = _dedupByNumberLanguage(externalRaw);
+
+    // Suppress an external entry when the same (number, language) is
+    // already playable in-app — the reader version always wins.
+    final playableKeys = <String>{
+      for (final c in playable) _numberLanguageKey(c.number, c.language),
+    };
+    final externalFiltered = external
+        .where(
+          (c) =>
+              !playableKeys.contains(_numberLanguageKey(c.number, c.language)),
+        )
+        .toList(growable: false);
+
+    final all = <SourceChapter>[...playable, ...externalFiltered];
+
     // Snapshot the SourceChapter list keyed by (number|language|scanlator)
     // so the reader can resolve a MangaChapter back to its source-side
-    // counterpart without re-fetching.
+    // counterpart without re-fetching the chapter list. Only playable
+    // chapters need to be addressable from the reader, but we store
+    // externals too so `lookupSourceChapter` can return the row for
+    // the downloads slice / "open external" UI.
     _sourceChaptersByManga[anilistId] = <String, SourceChapter>{
-      for (final c in source)
+      for (final c in all)
         _sourceChapterKey(c.number, c.language, c.scanlator): c,
     };
 
-    final chapters = source.map(_toDomainChapter).toList(growable: false);
+    final chapters = all.map(_toDomainChapter).toList(growable: false);
     return Success(chapters);
+  }
+
+  /// Deduplicates a chapter list by `(number, language)` keeping the
+  /// "best" candidate per key. Tie-breaking, in order:
+  ///
+  /// 1. Higher `pageCount` (treats null as 0).
+  /// 2. More recent `publishedAt` (treats null as `DateTime(0)`).
+  /// 3. Non-null `scanlator` over null.
+  ///
+  /// Output preserves the *first occurrence* order of each unique key
+  /// in the input — i.e. if the source returned chapters in
+  /// `(volume asc, chapter asc)` order, the dedup'd list keeps that
+  /// order.
+  static List<SourceChapter> _dedupByNumberLanguage(
+    List<SourceChapter> chapters,
+  ) {
+    final best = <String, SourceChapter>{};
+    for (final c in chapters) {
+      final key = _numberLanguageKey(c.number, c.language);
+      final existing = best[key];
+      if (existing == null || _isBetterChapter(c, existing)) {
+        best[key] = c;
+      }
+    }
+    final emitted = <String>{};
+    final out = <SourceChapter>[];
+    for (final c in chapters) {
+      final key = _numberLanguageKey(c.number, c.language);
+      if (emitted.add(key)) {
+        out.add(best[key]!);
+      }
+    }
+    return out;
+  }
+
+  /// Reads the raw playable chapter list and returns one
+  /// [ScanlatorOption] per distinct non-empty scanlator, sorted by
+  /// chapter count desc, then alphabetically (stable across rebuilds).
+  static List<ScanlatorOption> _computeScanlatorOptions(
+    List<SourceChapter> rawPlayable,
+  ) {
+    final counts = <String, int>{};
+    for (final c in rawPlayable) {
+      final s = c.scanlator;
+      if (s == null || s.isEmpty) continue;
+      counts[s] = (counts[s] ?? 0) + 1;
+    }
+    final entries = counts.entries.toList(growable: false)
+      ..sort((a, b) {
+        final byCount = b.value.compareTo(a.value);
+        if (byCount != 0) return byCount;
+        return a.key.toLowerCase().compareTo(b.key.toLowerCase());
+      });
+    return <ScanlatorOption>[
+      for (final e in entries) (name: e.key, chapterCount: e.value),
+    ];
+  }
+
+  /// Available scanlators (with chapter counts) for a manga whose
+  /// chapter list has already been fetched. Returns an empty list
+  /// when the per-manga cache has not been warmed yet.
+  List<ScanlatorOption> availableScanlators(int anilistId) {
+    return _scanlatorsByManga[anilistId] ?? const <ScanlatorOption>[];
+  }
+
+  /// `true` when [candidate] should replace [current] under the dedup
+  /// rule documented on [_dedupByNumberLanguage].
+  static bool _isBetterChapter(SourceChapter candidate, SourceChapter current) {
+    final candPages = candidate.pageCount ?? 0;
+    final currPages = current.pageCount ?? 0;
+    if (candPages != currPages) return candPages > currPages;
+    final candAt =
+        candidate.publishedAt ?? DateTime.fromMillisecondsSinceEpoch(0);
+    final currAt =
+        current.publishedAt ?? DateTime.fromMillisecondsSinceEpoch(0);
+    if (candAt != currAt) return candAt.isAfter(currAt);
+    final candHasScanlator =
+        candidate.scanlator != null && candidate.scanlator!.isNotEmpty;
+    final currHasScanlator =
+        current.scanlator != null && current.scanlator!.isNotEmpty;
+    if (candHasScanlator != currHasScanlator) return candHasScanlator;
+    return false;
+  }
+
+  static String _numberLanguageKey(double number, String language) {
+    return '$number|$language';
   }
 
   /// Resolves a domain `MangaChapter` back to its plugin-level
@@ -565,6 +745,7 @@ final class CompositeMangaCatalogRepository implements MangaCatalogRepository {
       scanlator: chapter.scanlator,
       publishedAt: chapter.publishedAt,
       pageCount: chapter.pageCount,
+      externalUrl: chapter.externalUrl,
     );
   }
 

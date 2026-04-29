@@ -67,8 +67,7 @@ void main() {
       // (not Deletion) because the subscription keeps the row alive.
       expect(entries, isNotEmpty);
       expect(entries.last.entityType, SyncEntityType.mangaLibraryEntry);
-      final payload =
-          jsonDecode(entries.last.payload) as Map<String, dynamic>;
+      final payload = jsonDecode(entries.last.payload) as Map<String, dynamic>;
       expect(payload['added_at'], 0);
       expect(payload['notify_new_chapters'], isTrue);
     },
@@ -155,24 +154,18 @@ void main() {
     expect(payload['last_page_index'], 22);
   });
 
-  test(
-    'deleteHistoryEntry enqueues a mangaReadHistoryDeletion',
-    () async {
-      await progress.upsertReadHistory(
-        mangaAnilistId: 9,
-        chapterNumber: 1.0,
-      );
-      await progress.deleteHistoryEntry(9);
+  test('deleteHistoryEntry enqueues a mangaReadHistoryDeletion', () async {
+    await progress.upsertReadHistory(mangaAnilistId: 9, chapterNumber: 1.0);
+    await progress.deleteHistoryEntry(9);
 
-      final entries = await readPending();
-      // Collapse may drop the upsert when it sees a deletion targeting
-      // the same key; either way a deletion must be present.
-      expect(
-        entries.any(
-          (e) => e.entityType == SyncEntityType.mangaReadHistoryDeletion,
-        ),
-        isTrue,
-      );
-    },
-  );
+    final entries = await readPending();
+    // Collapse may drop the upsert when it sees a deletion targeting
+    // the same key; either way a deletion must be present.
+    expect(
+      entries.any(
+        (e) => e.entityType == SyncEntityType.mangaReadHistoryDeletion,
+      ),
+      isTrue,
+    );
+  });
 }

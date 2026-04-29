@@ -282,19 +282,52 @@ void main() {
 
       final chapters =
           (result as Success<List<SourceChapter>, KumoriyaError>).value;
-      // Skips the null-numbered "Prologue" chapter.
+      // Skips the null-numbered "Prologue" chapter and the empty
+      // (pages=0, no externalUrl) "ch-empty" placeholder; preserves
+      // the MangaPlus mirror because it carries an externalUrl the
+      // composite layer can route to "open in browser".
       expect(chapters.map((c) => c.sourceChapterId), [
         'ch-1',
         'ch-1-5',
         'ch-2-es',
+        'ch-3-mangaplus',
       ]);
       final firstHalf = chapters[1];
       expect(firstHalf.number, 1.5);
       expect(firstHalf.scanlator, 'Other Scans');
       expect(chapters.first.publishedAt?.year, 2020);
       expect(chapters.first.volume, 1);
+
+      // External chapter parsing: externalUrl is preserved verbatim,
+      // pageCount stays 0 (the renderer never sees it because the UI
+      // routes externals to url_launcher).
+      final external = chapters.last;
+      expect(external.sourceChapterId, 'ch-3-mangaplus');
+      expect(external.externalUrl, isNotNull);
+      expect(external.externalUrl!.host, 'mangaplus.shueisha.co.jp');
+      expect(external.pageCount, 0);
+
+      // In-app chapters never carry an externalUrl.
+      expect(chapters.take(3).every((c) => c.externalUrl == null), isTrue);
     },
   );
+
+  test('getChapters drops chapters with 0 pages and no externalUrl', () async {
+    final plugin = MangaDexSourcePlugin(
+      httpClient: MockClient((_) async => _ok(feedFixture)),
+    );
+    final result = await plugin.getChapters(
+      const MangaChapterQuery(sourceMangaId: 'm-1'),
+    );
+    final ids = (result as Success<List<SourceChapter>, KumoriyaError>).value
+        .map((c) => c.sourceChapterId)
+        .toList();
+    expect(
+      ids,
+      isNot(contains('ch-empty')),
+      reason: 'empty placeholder must be filtered out',
+    );
+  });
 
   test('getChapters scanlator filter keeps only matching rows', () async {
     final plugin = MangaDexSourcePlugin(

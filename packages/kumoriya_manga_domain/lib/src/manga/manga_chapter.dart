@@ -16,6 +16,7 @@ final class MangaChapter {
     this.scanlator,
     this.publishedAt,
     this.pageCount,
+    this.externalUrl,
   });
 
   final double number;
@@ -25,4 +26,10 @@ final class MangaChapter {
   final String? scanlator;
   final DateTime? publishedAt;
   final int? pageCount;
+
+  /// When non-null, the chapter is hosted by an external publisher
+  /// (MangaPlus, Viz Media, ComiXology, …) and is **not playable
+  /// inside the app reader**. The UI surfaces these in a separate
+  /// section with an "open in browser" action.
+  final Uri? externalUrl;
 }

@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kumoriya_manga_domain/kumoriya_manga_domain.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../app/l10n.dart';
 import '../../../../shared/storage_providers.dart';
 import '../../../../shared/theme/kumoriya_theme.dart';
 import '../../../../shared/widgets/kumoriya_cached_image.dart';
 import '../../../manga_downloads/presentation/widgets/chapter_download_button.dart';
+import '../../application/services/composite_manga_catalog_repository.dart';
 import '../providers/manga_catalog_providers.dart';
 import 'manga_reader_route.dart';
 
@@ -143,12 +145,19 @@ class _DetailContent extends ConsumerWidget {
                   ),
                 ],
                 const SizedBox(height: 24),
-                Text(
-                  l10n.mangaDetailChapters,
-                  style: theme.textTheme.titleMedium!.copyWith(
-                    color: KumoriyaColors.textPrimary,
-                    fontWeight: FontWeight.w800,
-                  ),
+                Row(
+                  children: <Widget>[
+                    Expanded(
+                      child: Text(
+                        l10n.mangaDetailChapters,
+                        style: theme.textTheme.titleMedium!.copyWith(
+                          color: KumoriyaColors.textPrimary,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ),
+                    _ScanlatorPicker(anilistId: manga.anilistId),
+                  ],
                 ),
               ],
             ),
@@ -369,14 +378,332 @@ class _ChaptersSliver extends ConsumerWidget {
             ),
           );
         }
+
+        // Partition into in-app playable (top of the list) and
+        // external publisher mirrors (bottom). External chapters
+        // can't be opened by the reader — the row taps url_launcher
+        // instead. Order within each bucket is preserved from the
+        // composite repository.
+        final playable = chapters
+            .where((c) => c.externalUrl == null)
+            .toList(growable: false);
+        final external = chapters
+            .where((c) => c.externalUrl != null)
+            .toList(growable: false);
+
+        final l10n = context.l10n;
         return SliverList(
           delegate: SliverChildBuilderDelegate(
-            (ctx, i) =>
-                _ChapterRow(chapter: chapters[i], mangaAnilistId: anilistId),
-            childCount: chapters.length,
+            (ctx, i) {
+              if (i < playable.length) {
+                return _ChapterRow(
+                  chapter: playable[i],
+                  mangaAnilistId: anilistId,
+                );
+              }
+              if (external.isEmpty) return null;
+              if (i == playable.length) {
+                return Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 24, 16, 4),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: <Widget>[
+                      Text(
+                        l10n.mangaDetailExternalChaptersTitle,
+                        style: const TextStyle(
+                          color: KumoriyaColors.textPrimary,
+                          fontWeight: FontWeight.w800,
+                          fontSize: 16,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        l10n.mangaDetailExternalChaptersHint,
+                        style: const TextStyle(
+                          color: KumoriyaColors.textMuted,
+                          fontSize: 12,
+                          height: 1.4,
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }
+              final extIdx = i - playable.length - 1;
+              return _ExternalChapterRow(chapter: external[extIdx]);
+            },
+            childCount:
+                playable.length +
+                (external.isNotEmpty ? 1 + external.length : 0),
           ),
         );
       },
+    );
+  }
+}
+
+/// Compact chip beside the "Capítulos" header that opens a modal
+/// sheet listing the scanlators that uploaded this manga, with one
+/// "Auto" option that resets to the default dedup rule.
+///
+/// Hidden when the chapter cache has not been warmed yet (e.g. first
+/// frame after navigation) or when the source returned chapters with
+/// no scanlator metadata at all.
+class _ScanlatorPicker extends ConsumerWidget {
+  const _ScanlatorPicker({required this.anilistId});
+  final int anilistId;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final options = ref.watch(availableScanlatorsProvider(anilistId));
+    final preferredAsync = ref.watch(preferredScanlatorProvider(anilistId));
+    if (options.isEmpty) return const SizedBox.shrink();
+    final preferred = preferredAsync.value;
+    final l10n = context.l10n;
+    final label = preferred ?? l10n.mangaDetailScanlatorAuto;
+    return InkWell(
+      borderRadius: BorderRadius.circular(KumoriyaRadius.full),
+      onTap: () => _openSheet(context, ref, options, preferred),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+        decoration: BoxDecoration(
+          color: KumoriyaColors.surface,
+          border: Border.all(color: KumoriyaColors.borderSubtle),
+          borderRadius: BorderRadius.circular(KumoriyaRadius.full),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            const Icon(
+              Icons.tune_rounded,
+              size: 14,
+              color: KumoriyaColors.textSecondary,
+            ),
+            const SizedBox(width: 6),
+            ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 140),
+              child: Text(
+                '${l10n.mangaDetailScanlatorLabel}: $label',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: KumoriyaColors.textSecondary,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+            const SizedBox(width: 4),
+            const Icon(
+              Icons.expand_more_rounded,
+              size: 14,
+              color: KumoriyaColors.textSecondary,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _openSheet(
+    BuildContext context,
+    WidgetRef ref,
+    List<ScanlatorOption> options,
+    String? current,
+  ) async {
+    final l10n = context.l10n;
+    final picked = await showModalBottomSheet<_PickResult?>(
+      context: context,
+      backgroundColor: KumoriyaColors.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (ctx) {
+        return SafeArea(
+          child: ListView(
+            shrinkWrap: true,
+            children: <Widget>[
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                child: Text(
+                  l10n.mangaDetailScanlatorPickerTitle,
+                  style: const TextStyle(
+                    color: KumoriyaColors.textPrimary,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 16,
+                  ),
+                ),
+              ),
+              ListTile(
+                leading: Icon(
+                  current == null
+                      ? Icons.radio_button_checked_rounded
+                      : Icons.radio_button_unchecked_rounded,
+                  color: current == null
+                      ? KumoriyaColors.primary
+                      : KumoriyaColors.textMuted,
+                ),
+                title: Text(
+                  l10n.mangaDetailScanlatorAuto,
+                  style: const TextStyle(
+                    color: KumoriyaColors.textPrimary,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                subtitle: Text(
+                  l10n.mangaDetailScanlatorAutoHint,
+                  style: const TextStyle(
+                    color: KumoriyaColors.textMuted,
+                    fontSize: 12,
+                  ),
+                ),
+                onTap: () =>
+                    Navigator.of(ctx).pop(const _PickResult(scanlator: null)),
+              ),
+              const Divider(height: 1, color: KumoriyaColors.borderSubtle),
+              for (final opt in options)
+                ListTile(
+                  leading: Icon(
+                    current == opt.name
+                        ? Icons.radio_button_checked_rounded
+                        : Icons.radio_button_unchecked_rounded,
+                    color: current == opt.name
+                        ? KumoriyaColors.primary
+                        : KumoriyaColors.textMuted,
+                  ),
+                  title: Text(
+                    opt.name,
+                    style: const TextStyle(
+                      color: KumoriyaColors.textPrimary,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  trailing: Text(
+                    l10n.mangaDetailScanlatorChapterCount(opt.chapterCount),
+                    style: const TextStyle(
+                      color: KumoriyaColors.textMuted,
+                      fontSize: 12,
+                    ),
+                  ),
+                  onTap: () =>
+                      Navigator.of(ctx).pop(_PickResult(scanlator: opt.name)),
+                ),
+              const SizedBox(height: 8),
+            ],
+          ),
+        );
+      },
+    );
+    if (picked == null) return;
+    if (picked.scanlator == current) return;
+    await ref
+        .read(mangaLibraryStoreProvider)
+        .setPreferredScanlator(anilistId, picked.scanlator);
+    ref.invalidate(preferredScanlatorProvider(anilistId));
+    ref.invalidate(mangaChaptersProvider(anilistId));
+  }
+}
+
+/// Internal value object used to differentiate "user picked Auto"
+/// (`scanlator == null`) from "user dismissed the sheet" (`null` from
+/// `showModalBottomSheet`).
+class _PickResult {
+  const _PickResult({required this.scanlator});
+  final String? scanlator;
+}
+
+/// Renders a chapter that lives on an official external publisher
+/// (MangaPlus, Viz, ComiXology, …). Tapping launches the system
+/// browser via `url_launcher`. The reader is never engaged.
+class _ExternalChapterRow extends StatelessWidget {
+  const _ExternalChapterRow({required this.chapter});
+  final MangaChapter chapter;
+
+  Future<void> _open(BuildContext context) async {
+    final url = chapter.externalUrl;
+    if (url == null) return;
+    final messenger = ScaffoldMessenger.of(context);
+    final l10n = context.l10n;
+    final ok = await launchUrl(url, mode: LaunchMode.externalApplication);
+    if (!ok) {
+      messenger.showSnackBar(
+        SnackBar(content: Text(l10n.mangaDetailOpenExternalFailed)),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final chapterNum = chapter.number == chapter.number.truncateToDouble()
+        ? chapter.number.toInt().toString()
+        : chapter.number.toStringAsFixed(1);
+    final volumeLabel = chapter.volume != null
+        ? '${l10n.mangaDetailVolumeLabel(chapter.volume!)} · '
+        : '';
+    final providerLabel = chapter.scanlator?.isNotEmpty == true
+        ? chapter.scanlator!
+        : (chapter.externalUrl?.host ?? 'external');
+    final subtitle =
+        '$volumeLabel${l10n.mangaDetailChapterLabel(chapterNum)} · $providerLabel';
+    return InkWell(
+      onTap: () {
+        // ignore: discarded_futures
+        _open(context);
+      },
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+        child: Row(
+          children: <Widget>[
+            const Icon(
+              Icons.open_in_new_rounded,
+              color: KumoriyaColors.textMuted,
+              size: 18,
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  Text(
+                    chapter.title.isNotEmpty
+                        ? chapter.title
+                        : l10n.mangaDetailChapterLabel(chapterNum),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: KumoriyaColors.textPrimary,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 14,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    subtitle,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: KumoriyaColors.textMuted,
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.only(left: 8),
+              child: Text(
+                l10n.mangaDetailOpenExternal,
+                style: const TextStyle(
+                  color: KumoriyaColors.textSecondary,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

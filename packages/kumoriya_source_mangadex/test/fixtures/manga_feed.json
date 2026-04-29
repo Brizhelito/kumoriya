@@ -71,9 +71,42 @@
         "publishAt": "2020-11-01T00:00:00+00:00"
       },
       "relationships": []
+    },
+    {
+      "id": "ch-3-mangaplus",
+      "type": "chapter",
+      "attributes": {
+        "volume": "1",
+        "chapter": "3",
+        "title": "MangaPlus mirror",
+        "translatedLanguage": "en",
+        "pages": 0,
+        "externalUrl": "https://mangaplus.shueisha.co.jp/viewer/1234567",
+        "publishAt": "2020-12-22T00:00:00+00:00"
+      },
+      "relationships": [
+        {
+          "id": "scan-mp",
+          "type": "scanlation_group",
+          "attributes": {"name": "MangaPlus"}
+        }
+      ]
+    },
+    {
+      "id": "ch-empty",
+      "type": "chapter",
+      "attributes": {
+        "volume": "1",
+        "chapter": "4",
+        "title": "Empty placeholder",
+        "translatedLanguage": "en",
+        "pages": 0,
+        "publishAt": "2020-12-29T00:00:00+00:00"
+      },
+      "relationships": []
     }
   ],
   "limit": 500,
   "offset": 0,
-  "total": 4
+  "total": 6
 }

@@ -200,6 +200,13 @@ final class MangaDexSourcePlugin implements MangaSourcePlugin {
                 (row) => _parseChapter(row, sourceMangaId: query.sourceMangaId),
               )
               .whereType<SourceChapter>()
+              // Drop chapters that are neither hosted on MD@Home nor
+              // re-published externally — the source advertises 0
+              // pages and no externalUrl, which means there's nothing
+              // to render and nothing to link to. Per Kumoriya rule
+              // #2 (no chapter > wrong chapter), better to omit than
+              // to surface an empty entry.
+              .where((c) => c.externalUrl != null || (c.pageCount ?? 0) > 0)
               .toList();
 
           if (query.scanlators.isEmpty) {
@@ -513,6 +520,17 @@ final class MangaDexSourcePlugin implements MangaSourcePlugin {
       key: 'name',
     );
 
+    // Chapters with `externalUrl` are re-publications hosted by
+    // official partners (MangaPlus, Viz, ComiXology, Bilibili, …).
+    // MangaDex does not stream pages for them — `at-home/server`
+    // returns nothing useful — so we surface them as external so the
+    // composite layer can offer "open in browser" instead of breaking
+    // the reader.
+    final externalUrlRaw = _readString(attributes['externalUrl']);
+    final externalUrl = externalUrlRaw == null
+        ? null
+        : Uri.tryParse(externalUrlRaw);
+
     return SourceChapter(
       sourceMangaId: sourceMangaId,
       sourceChapterId: id,
@@ -523,6 +541,7 @@ final class MangaDexSourcePlugin implements MangaSourcePlugin {
       scanlator: scanlator,
       publishedAt: publishedAt,
       pageCount: pageCount,
+      externalUrl: externalUrl,
     );
   }
 

@@ -10,6 +10,7 @@ import 'package:kumoriya_source_mangadex/kumoriya_source_mangadex.dart';
 
 import '../../../../shared/cache/fallback_reason.dart';
 import '../../../../shared/storage_providers.dart';
+import '../../../../shared/sync/sync_refresh.dart';
 import '../../../anime_catalog/presentation/providers/anime_catalog_providers.dart';
 import '../../application/services/composite_manga_catalog_repository.dart';
 
@@ -167,12 +168,49 @@ final mangaBatchByIdsProvider = FutureProvider.autoDispose
 
 final mangaChaptersProvider = FutureProvider.autoDispose
     .family<List<MangaChapter>, int>((ref, anilistId) async {
-      final repo = ref.watch(mangaCatalogRepositoryProvider);
-      final result = await repo.fetchMangaChapters(anilistId);
+      // Re-fetch when the user toggles preferred scanlator (or any
+      // other library row mutation propagates a sync refresh).
+      ref.watch(syncDataRefreshEpochProvider);
+      final composite = ref.watch(_compositeMangaCatalogRepositoryProvider);
+      final preferred = await ref.watch(
+        preferredScanlatorProvider(anilistId).future,
+      );
+      final result = await composite.fetchMangaChaptersWithPreference(
+        anilistId,
+        preferredScanlator: preferred,
+      );
       return result.fold(
         onSuccess: (chapters) => chapters,
         onFailure: (err) => throw _toException(err),
       );
+    });
+
+/// Per-manga preferred scanlator stored in `MangaLibraryStore`. `null`
+/// means "Auto" (apply the default dedup rule). Watched by
+/// [mangaChaptersProvider] so flipping the preference re-fetches the
+/// list, and by the picker UI so the chip reflects the active choice.
+final preferredScanlatorProvider = FutureProvider.autoDispose
+    .family<String?, int>((ref, anilistId) async {
+      ref.watch(syncDataRefreshEpochProvider);
+      final store = ref.watch(mangaLibraryStoreProvider);
+      final entry = await store.getEntrySnapshot(anilistId);
+      return entry?.preferredScanlator;
+    });
+
+/// Scanlator catalog for a manga whose chapter list has been fetched
+/// at least once this session. Empty before the first fetch.
+///
+/// Depends on [mangaChaptersProvider] so the catalog is refreshed in
+/// lockstep with the chapter list (the composite populates the cache
+/// during `fetchMangaChaptersWithPreference`).
+final availableScanlatorsProvider = Provider.autoDispose
+    .family<List<ScanlatorOption>, int>((ref, anilistId) {
+      // Force a dependency on the chapter fetch so this provider
+      // recomputes once the cache is populated.
+      ref.watch(mangaChaptersProvider(anilistId));
+      return ref
+          .watch(_compositeMangaCatalogRepositoryProvider)
+          .availableScanlators(anilistId);
     });
 
 Exception _toException(KumoriyaError err) =>

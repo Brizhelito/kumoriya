@@ -424,6 +424,284 @@ void main() {
       );
       expect(source.chaptersCalls, 2);
     });
+
+    test(
+      'dedups (number, language) keeping the chapter with more pages',
+      () async {
+        final manga = _manga(id: 200);
+        final delegate = _FakeAnilistMangaRepo(detail: _detail(manga));
+        final source = _FakeMangaSourcePlugin(
+          searchResults: const <SourceMangaMatch>[
+            SourceMangaMatch(
+              sourceId: 'src-200',
+              title: 'Chainsaw Man',
+              externalIds: <String, String>{'al': '200'},
+            ),
+          ],
+          chaptersById: <String, List<SourceChapter>>{
+            'src-200': <SourceChapter>[
+              // Same number+language uploaded by three different
+              // scanlators with different page counts → only the
+              // 22-page version must survive (best pageCount).
+              SourceChapter(
+                sourceMangaId: 'src-200',
+                sourceChapterId: 'a',
+                number: 1,
+                title: 'cap. 1 lower',
+                language: 'en',
+                scanlator: 'Scans A',
+                pageCount: 18,
+              ),
+              SourceChapter(
+                sourceMangaId: 'src-200',
+                sourceChapterId: 'b',
+                number: 1,
+                title: 'CAP. 1 UPPER',
+                language: 'en',
+                scanlator: 'Scans B',
+                pageCount: 22,
+              ),
+              SourceChapter(
+                sourceMangaId: 'src-200',
+                sourceChapterId: 'c',
+                number: 1,
+                title: 'partial',
+                language: 'en',
+                scanlator: 'Scans C',
+                pageCount: 12,
+              ),
+            ],
+          },
+        );
+        final repo = CompositeMangaCatalogRepository(
+          delegate: delegate,
+          sourcePlugin: source,
+          cacheStore: _InMemoryMangaCacheStore(),
+          preferredLanguages: () => const <String>['en'],
+        );
+
+        final result = await repo.fetchMangaChapters(200);
+        final chapters =
+            (result as Success<List<MangaChapter>, KumoriyaError>).value;
+        expect(chapters, hasLength(1));
+        expect(chapters.single.scanlator, 'Scans B');
+        expect(chapters.single.pageCount, 22);
+      },
+    );
+
+    test('splits external chapters into a trailing bucket and suppresses '
+        'externals already covered by a playable entry', () async {
+      final manga = _manga(id: 300);
+      final delegate = _FakeAnilistMangaRepo(detail: _detail(manga));
+      final source = _FakeMangaSourcePlugin(
+        searchResults: const <SourceMangaMatch>[
+          SourceMangaMatch(
+            sourceId: 'src-300',
+            title: 'Jujutsu Kaisen',
+            externalIds: <String, String>{'al': '300'},
+          ),
+        ],
+        chaptersById: <String, List<SourceChapter>>{
+          'src-300': <SourceChapter>[
+            // Playable cap 1 from a scanlation group.
+            SourceChapter(
+              sourceMangaId: 'src-300',
+              sourceChapterId: 'p1',
+              number: 1,
+              title: 'Bonus',
+              language: 'en',
+              scanlator: 'Scans X',
+              pageCount: 20,
+            ),
+            // External cap 1 from MangaPlus — must be suppressed
+            // because the playable version covers (1, en).
+            SourceChapter(
+              sourceMangaId: 'src-300',
+              sourceChapterId: 'mp1',
+              number: 1,
+              title: 'MangaPlus',
+              language: 'en',
+              externalUrl: Uri.parse('https://mangaplus.example/1'),
+            ),
+            // External cap 5 with no playable counterpart — kept.
+            SourceChapter(
+              sourceMangaId: 'src-300',
+              sourceChapterId: 'mp5',
+              number: 5,
+              title: 'MangaPlus 5',
+              language: 'en',
+              externalUrl: Uri.parse('https://mangaplus.example/5'),
+            ),
+            // Two external duplicates of cap 5 — only one survives
+            // and the externalUrl carries through.
+            SourceChapter(
+              sourceMangaId: 'src-300',
+              sourceChapterId: 'viz5',
+              number: 5,
+              title: 'Viz 5',
+              language: 'en',
+              externalUrl: Uri.parse('https://viz.example/5'),
+            ),
+          ],
+        },
+      );
+      final repo = CompositeMangaCatalogRepository(
+        delegate: delegate,
+        sourcePlugin: source,
+        cacheStore: _InMemoryMangaCacheStore(),
+        preferredLanguages: () => const <String>['en'],
+      );
+
+      final result = await repo.fetchMangaChapters(300);
+      final chapters =
+          (result as Success<List<MangaChapter>, KumoriyaError>).value;
+
+      // Playable first, externals trailing.
+      expect(chapters, hasLength(2));
+      expect(chapters[0].number, 1);
+      expect(chapters[0].externalUrl, isNull);
+      expect(chapters[0].scanlator, 'Scans X');
+      expect(chapters[1].number, 5);
+      expect(chapters[1].externalUrl, isNotNull);
+    });
+
+    test('preferredScanlator strictly filters playable chapters to that '
+        'scanlator (no fallback)', () async {
+      final manga = _manga(id: 400);
+      final delegate = _FakeAnilistMangaRepo(detail: _detail(manga));
+      final source = _FakeMangaSourcePlugin(
+        searchResults: const <SourceMangaMatch>[
+          SourceMangaMatch(
+            sourceId: 'src-400',
+            title: 'Same',
+            externalIds: <String, String>{'al': '400'},
+          ),
+        ],
+        chaptersById: <String, List<SourceChapter>>{
+          'src-400': const <SourceChapter>[
+            // Cap. 1 has both MangaReworks (12 pgs) and Asura (20
+            // pgs). Auto-pick prefers Asura (more pages); with
+            // preferredScanlator='MangaReworks' the picker must
+            // override and return MangaReworks.
+            SourceChapter(
+              sourceMangaId: 'src-400',
+              sourceChapterId: 'mr-1',
+              number: 1,
+              language: 'en',
+              scanlator: 'MangaReworks',
+              pageCount: 12,
+            ),
+            SourceChapter(
+              sourceMangaId: 'src-400',
+              sourceChapterId: 'as-1',
+              number: 1,
+              language: 'en',
+              scanlator: 'Asura',
+              pageCount: 20,
+            ),
+            // Cap. 2 only Asura — preferred fallback must surface
+            // Asura's release so there's no gap.
+            SourceChapter(
+              sourceMangaId: 'src-400',
+              sourceChapterId: 'as-2',
+              number: 2,
+              language: 'en',
+              scanlator: 'Asura',
+              pageCount: 18,
+            ),
+          ],
+        },
+      );
+      final repo = CompositeMangaCatalogRepository(
+        delegate: delegate,
+        sourcePlugin: source,
+        cacheStore: _InMemoryMangaCacheStore(),
+        preferredLanguages: () => const <String>['en'],
+      );
+
+      final result = await repo.fetchMangaChaptersWithPreference(
+        400,
+        preferredScanlator: 'MangaReworks',
+      );
+      final chapters =
+          (result as Success<List<MangaChapter>, KumoriyaError>).value;
+      // Strict filter: only MangaReworks releases survive. Cap. 2
+      // (only Asura) is intentionally absent — switching back to
+      // "Auto" lifts the filter.
+      expect(chapters, hasLength(1));
+      expect(chapters.single.number, 1);
+      expect(chapters.single.scanlator, 'MangaReworks');
+
+      // Sanity: with no preference, both chapters render and Asura
+      // wins cap. 1 by page-count tie-break.
+      final auto =
+          (await repo.fetchMangaChaptersWithPreference(400)
+                  as Success<List<MangaChapter>, KumoriyaError>)
+              .value;
+      expect(auto.map((c) => (c.number, c.scanlator)), <(double, String?)>[
+        (1, 'Asura'),
+        (2, 'Asura'),
+      ]);
+    });
+
+    test(
+      'availableScanlators reports counts ordered by coverage desc',
+      () async {
+        final manga = _manga(id: 500);
+        final delegate = _FakeAnilistMangaRepo(detail: _detail(manga));
+        final source = _FakeMangaSourcePlugin(
+          searchResults: const <SourceMangaMatch>[
+            SourceMangaMatch(
+              sourceId: 'src-500',
+              title: 'Same',
+              externalIds: <String, String>{'al': '500'},
+            ),
+          ],
+          chaptersById: <String, List<SourceChapter>>{
+            'src-500': <SourceChapter>[
+              for (var n = 1; n <= 5; n++)
+                SourceChapter(
+                  sourceMangaId: 'src-500',
+                  sourceChapterId: 'a-$n',
+                  number: n.toDouble(),
+                  language: 'en',
+                  scanlator: 'Asura',
+                ),
+              for (var n = 1; n <= 2; n++)
+                SourceChapter(
+                  sourceMangaId: 'src-500',
+                  sourceChapterId: 'b-$n',
+                  number: n.toDouble(),
+                  language: 'en',
+                  scanlator: 'MangaReworks',
+                ),
+              const SourceChapter(
+                sourceMangaId: 'src-500',
+                sourceChapterId: 'orphan',
+                number: 99,
+                language: 'en',
+                pageCount: 5,
+              ),
+            ],
+          },
+        );
+        final repo = CompositeMangaCatalogRepository(
+          delegate: delegate,
+          sourcePlugin: source,
+          cacheStore: _InMemoryMangaCacheStore(),
+          preferredLanguages: () => const <String>['en'],
+        );
+
+        // Empty before warm-up.
+        expect(repo.availableScanlators(500), isEmpty);
+
+        await repo.fetchMangaChapters(500);
+        final options = repo.availableScanlators(500);
+        expect(options.map((o) => o.name), <String>['Asura', 'MangaReworks']);
+        expect(options[0].chapterCount, 5);
+        expect(options[1].chapterCount, 2);
+      },
+    );
   });
 
   group('CompositeMangaCatalogRepository catalog fallbacks', () {
@@ -663,17 +941,10 @@ void main() {
 
         final res = await repo.openChapter(
           mangaAnilistId: 1,
-          chapter: const MangaChapter(
-            number: 1,
-            title: 'X',
-            language: 'en',
-          ),
+          chapter: const MangaChapter(number: 1, title: 'X', language: 'en'),
         );
         expect(res.isFailure, isTrue);
-        expect(
-          (res as Failure).error.code,
-          'reader.chapter_not_resolved',
-        );
+        expect((res as Failure).error.code, 'reader.chapter_not_resolved');
       },
     );
 

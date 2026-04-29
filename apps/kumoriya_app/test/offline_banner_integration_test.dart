@@ -55,17 +55,14 @@ Widget _buildShell(ValueNotifier<FallbackReason> reason) {
 
 void main() {
   group('AppNavigationShell offline banner', () {
-    testWidgets(
-      'is hidden when fallbackReason is none',
-      (tester) async {
-        final reason = ValueNotifier(FallbackReason.none);
-        await tester.pumpWidget(_buildShell(reason));
-        await tester.pump();
+    testWidgets('is hidden when fallbackReason is none', (tester) async {
+      final reason = ValueNotifier(FallbackReason.none);
+      await tester.pumpWidget(_buildShell(reason));
+      await tester.pump();
 
-        expect(find.text('Offline'), findsNothing);
-        expect(find.text('AniList is down'), findsNothing);
-      },
-    );
+      expect(find.text('Offline'), findsNothing);
+      expect(find.text('AniList is down'), findsNothing);
+    });
 
     testWidgets(
       'shows the offline banner when fallbackReason flips to offline',
@@ -98,42 +95,38 @@ void main() {
       },
     );
 
-    testWidgets(
-      'banner disappears when fallbackReason returns to none',
-      (tester) async {
-        final reason = ValueNotifier(FallbackReason.offline);
-        await tester.pumpWidget(_buildShell(reason));
-        await tester.pump();
-        expect(find.text('Offline'), findsOneWidget);
+    testWidgets('banner disappears when fallbackReason returns to none', (
+      tester,
+    ) async {
+      final reason = ValueNotifier(FallbackReason.offline);
+      await tester.pumpWidget(_buildShell(reason));
+      await tester.pump();
+      expect(find.text('Offline'), findsOneWidget);
 
-        reason.value = FallbackReason.none;
-        await tester.pump();
+      reason.value = FallbackReason.none;
+      await tester.pump();
 
-        expect(find.text('Offline'), findsNothing);
-        expect(find.text('AniList is down'), findsNothing);
-      },
-    );
+      expect(find.text('Offline'), findsNothing);
+      expect(find.text('AniList is down'), findsNothing);
+    });
 
-    testWidgets(
-      'banner stays visible across tab switches',
-      (tester) async {
-        final reason = ValueNotifier(FallbackReason.anilistDown);
-        await tester.pumpWidget(_buildShell(reason));
-        await tester.pump();
+    testWidgets('banner stays visible across tab switches', (tester) async {
+      final reason = ValueNotifier(FallbackReason.anilistDown);
+      await tester.pumpWidget(_buildShell(reason));
+      await tester.pump();
 
+      expect(find.text('AniList is down'), findsOneWidget);
+      expect(find.byKey(const Key('content:anime-home')), findsOneWidget);
+
+      // Tap into the search tab. The exact tap target depends on
+      // shell layout; finding the tab by label is more robust.
+      final searchTab = find.text('Search').first;
+      if (searchTab.evaluate().isNotEmpty) {
+        await tester.tap(searchTab);
+        await tester.pumpAndSettle();
+        // Banner must still be there on a different tab.
         expect(find.text('AniList is down'), findsOneWidget);
-        expect(find.byKey(const Key('content:anime-home')), findsOneWidget);
-
-        // Tap into the search tab. The exact tap target depends on
-        // shell layout; finding the tab by label is more robust.
-        final searchTab = find.text('Search').first;
-        if (searchTab.evaluate().isNotEmpty) {
-          await tester.tap(searchTab);
-          await tester.pumpAndSettle();
-          // Banner must still be there on a different tab.
-          expect(find.text('AniList is down'), findsOneWidget);
-        }
-      },
-    );
+      }
+    });
   });
 }

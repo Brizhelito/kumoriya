@@ -572,6 +572,18 @@
   "@mangaDetailChapterLabel": {
     "placeholders": {"number": {"type": "String"}}
   },
+  "mangaDetailExternalChaptersTitle": "Official external chapters",
+  "mangaDetailExternalChaptersHint": "Hosted by publishers (MangaPlus, Viz, …). Opens in your browser; not playable in-app.",
+  "mangaDetailOpenExternal": "Open in browser",
+  "mangaDetailOpenExternalFailed": "Could not open the external link.",
+  "mangaDetailScanlatorLabel": "Source",
+  "mangaDetailScanlatorAuto": "Auto",
+  "mangaDetailScanlatorAutoHint": "Pick the most complete release per chapter.",
+  "mangaDetailScanlatorPickerTitle": "Pick a scanlator",
+  "mangaDetailScanlatorChapterCount": "{count, plural, one{1 chapter} other{{count} chapters}}",
+  "@mangaDetailScanlatorChapterCount": {
+    "placeholders": {"count": {"type": "int"}}
+  },
   "calendarTitle": "Calendar",
   "calendarSubtitle": "Airing schedule by date",
   "calendarNoAiring": "No airing anime found.",

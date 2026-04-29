@@ -54,52 +54,44 @@ void main() {
     },
   );
 
-  test(
-    'isFavoriteMangaProvider returns true only for favorited ids',
-    () async {
-      final store = container.read(mangaLibraryStoreProvider);
-      await store.setFavorite(7, isFavorite: true);
+  test('isFavoriteMangaProvider returns true only for favorited ids', () async {
+    final store = container.read(mangaLibraryStoreProvider);
+    await store.setFavorite(7, isFavorite: true);
 
-      container.invalidate(favoriteMangaIdsProvider);
-      final isFav7 = await container.read(isFavoriteMangaProvider(7).future);
-      final isFav8 = await container.read(isFavoriteMangaProvider(8).future);
+    container.invalidate(favoriteMangaIdsProvider);
+    final isFav7 = await container.read(isFavoriteMangaProvider(7).future);
+    final isFav8 = await container.read(isFavoriteMangaProvider(8).future);
 
-      expect(isFav7, isTrue);
-      expect(isFav8, isFalse);
-    },
-  );
+    expect(isFav7, isTrue);
+    expect(isFav8, isFalse);
+  });
 
-  test(
-    'mangaRecentHistoryProvider returns rows ordered by recency',
-    () async {
-      final progress = container.read(mangaProgressStoreProvider);
-      await progress.upsertReadHistory(
-        mangaAnilistId: 101,
-        chapterNumber: 1.0,
-        lastSourceId: 'mangadex',
-        lastSourceChapterId: 'ch-101-1',
-        lastPageIndex: 0,
-      );
-      await Future<void>.delayed(const Duration(milliseconds: 10));
-      await progress.upsertReadHistory(
-        mangaAnilistId: 202,
-        chapterNumber: 3.5,
-        lastSourceId: 'mangadex',
-        lastSourceChapterId: 'ch-202-3.5',
-        lastPageIndex: 12,
-      );
+  test('mangaRecentHistoryProvider returns rows ordered by recency', () async {
+    final progress = container.read(mangaProgressStoreProvider);
+    await progress.upsertReadHistory(
+      mangaAnilistId: 101,
+      chapterNumber: 1.0,
+      lastSourceId: 'mangadex',
+      lastSourceChapterId: 'ch-101-1',
+      lastPageIndex: 0,
+    );
+    await Future<void>.delayed(const Duration(milliseconds: 10));
+    await progress.upsertReadHistory(
+      mangaAnilistId: 202,
+      chapterNumber: 3.5,
+      lastSourceId: 'mangadex',
+      lastSourceChapterId: 'ch-202-3.5',
+      lastPageIndex: 12,
+    );
 
-      container.invalidate(mangaRecentHistoryProvider);
-      final result = await container.read(
-        mangaRecentHistoryProvider.future,
-      );
-      final history =
-          (result as Success<List<MangaReadHistory>, KumoriyaError>).value;
+    container.invalidate(mangaRecentHistoryProvider);
+    final result = await container.read(mangaRecentHistoryProvider.future);
+    final history =
+        (result as Success<List<MangaReadHistory>, KumoriyaError>).value;
 
-      expect(history, hasLength(2));
-      expect(history.first.mangaAnilistId, 202);
-      expect(history.first.lastChapterNumber, 3.5);
-      expect(history.last.mangaAnilistId, 101);
-    },
-  );
+    expect(history, hasLength(2));
+    expect(history.first.mangaAnilistId, 202);
+    expect(history.first.lastChapterNumber, 3.5);
+    expect(history.last.mangaAnilistId, 101);
+  });
 }

@@ -1825,6 +1825,60 @@ abstract class AppLocalizations {
   /// **'Ch. {number}'**
   String mangaDetailChapterLabel(String number);
 
+  /// No description provided for @mangaDetailExternalChaptersTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Official external chapters'**
+  String get mangaDetailExternalChaptersTitle;
+
+  /// No description provided for @mangaDetailExternalChaptersHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Hosted by publishers (MangaPlus, Viz, …). Opens in your browser; not playable in-app.'**
+  String get mangaDetailExternalChaptersHint;
+
+  /// No description provided for @mangaDetailOpenExternal.
+  ///
+  /// In en, this message translates to:
+  /// **'Open in browser'**
+  String get mangaDetailOpenExternal;
+
+  /// No description provided for @mangaDetailOpenExternalFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not open the external link.'**
+  String get mangaDetailOpenExternalFailed;
+
+  /// No description provided for @mangaDetailScanlatorLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Source'**
+  String get mangaDetailScanlatorLabel;
+
+  /// No description provided for @mangaDetailScanlatorAuto.
+  ///
+  /// In en, this message translates to:
+  /// **'Auto'**
+  String get mangaDetailScanlatorAuto;
+
+  /// No description provided for @mangaDetailScanlatorAutoHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Pick the most complete release per chapter.'**
+  String get mangaDetailScanlatorAutoHint;
+
+  /// No description provided for @mangaDetailScanlatorPickerTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Pick a scanlator'**
+  String get mangaDetailScanlatorPickerTitle;
+
+  /// No description provided for @mangaDetailScanlatorChapterCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, one{1 chapter} other{{count} chapters}}'**
+  String mangaDetailScanlatorChapterCount(int count);
+
   /// No description provided for @calendarTitle.
   ///
   /// In en, this message translates to:

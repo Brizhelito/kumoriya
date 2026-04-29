@@ -558,6 +558,18 @@
   "@mangaDetailChapterLabel": {
     "placeholders": {"number": {"type": "String"}}
   },
+  "mangaDetailExternalChaptersTitle": "Capítulos oficiales externos",
+  "mangaDetailExternalChaptersHint": "Alojados por las editoriales (MangaPlus, Viz, …). Abren en tu navegador; no se leen dentro de la app.",
+  "mangaDetailOpenExternal": "Abrir en navegador",
+  "mangaDetailOpenExternalFailed": "No se pudo abrir el enlace externo.",
+  "mangaDetailScanlatorLabel": "Fuente",
+  "mangaDetailScanlatorAuto": "Auto",
+  "mangaDetailScanlatorAutoHint": "Elige la versión más completa por capítulo.",
+  "mangaDetailScanlatorPickerTitle": "Elige scanlator",
+  "mangaDetailScanlatorChapterCount": "{count, plural, one{1 capítulo} other{{count} capítulos}}",
+  "@mangaDetailScanlatorChapterCount": {
+    "placeholders": {"count": {"type": "int"}}
+  },
   "mangaComingSoonSlice10": "Tu biblioteca de manga vivirá aquí cuando llegue el Slice 10.",
   "mangaLibraryHistoryEmpty": "Aún no hay historial de lectura.",
   "mangaLibraryFavoritesEmpty": "Aún no hay favoritos. Toca el corazón en cualquier manga para guardarlo.",

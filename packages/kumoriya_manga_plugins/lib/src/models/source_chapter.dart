@@ -18,6 +18,7 @@ final class SourceChapter {
     this.scanlator,
     this.publishedAt,
     this.pageCount,
+    this.externalUrl,
   });
 
   final String sourceMangaId;
@@ -45,4 +46,15 @@ final class SourceChapter {
 
   /// Number of pages in the chapter, when the source exposes it.
   final int? pageCount;
+
+  /// When non-null, the chapter is hosted by an external publisher
+  /// (MangaPlus, Viz Media, ComiXology, …) and the source plugin
+  /// cannot stream pages for it. The composite layer routes these
+  /// chapters to a separate "external" bucket so the UI can offer an
+  /// "open in browser" action instead of opening the in-app reader.
+  ///
+  /// Plugins that always serve their own pages (e.g. a future native
+  /// MangaPlus plugin) MUST leave this null even if the upstream URL
+  /// is known.
+  final Uri? externalUrl;
 }

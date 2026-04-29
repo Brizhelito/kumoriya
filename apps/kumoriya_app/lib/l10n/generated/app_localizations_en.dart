@@ -1051,6 +1051,44 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get mangaDetailExternalChaptersTitle => 'Official external chapters';
+
+  @override
+  String get mangaDetailExternalChaptersHint =>
+      'Hosted by publishers (MangaPlus, Viz, …). Opens in your browser; not playable in-app.';
+
+  @override
+  String get mangaDetailOpenExternal => 'Open in browser';
+
+  @override
+  String get mangaDetailOpenExternalFailed =>
+      'Could not open the external link.';
+
+  @override
+  String get mangaDetailScanlatorLabel => 'Source';
+
+  @override
+  String get mangaDetailScanlatorAuto => 'Auto';
+
+  @override
+  String get mangaDetailScanlatorAutoHint =>
+      'Pick the most complete release per chapter.';
+
+  @override
+  String get mangaDetailScanlatorPickerTitle => 'Pick a scanlator';
+
+  @override
+  String mangaDetailScanlatorChapterCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count chapters',
+      one: '1 chapter',
+    );
+    return '$_temp0';
+  }
+
+  @override
   String get calendarTitle => 'Calendar';
 
   @override
