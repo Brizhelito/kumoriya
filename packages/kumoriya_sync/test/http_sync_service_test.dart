@@ -280,6 +280,92 @@ void main() {
     },
   );
 
+  test(
+    'pushPending skips manga entries entirely (Slice 10C-2 backend rollout)',
+    () async {
+      // Three manga writes that the local queue happily stores but the
+      // Go backend cannot accept yet.
+      await queueStore.enqueue(
+        SyncQueueEntry(
+          id: 0,
+          entityType: SyncEntityType.mangaLibraryEntry,
+          entityKey: jsonEncode({'mangaAnilistId': 1}),
+          payload: jsonEncode({'manga_anilist_id': 1, 'updated_at': 1000}),
+          createdAt: DateTime.fromMillisecondsSinceEpoch(1000),
+          status: SyncQueueEntryStatus.pending,
+        ),
+      );
+      await queueStore.enqueue(
+        SyncQueueEntry(
+          id: 0,
+          entityType: SyncEntityType.mangaChapterProgress,
+          entityKey: jsonEncode({
+            'mangaAnilistId': 1,
+            'sourceId': 'mangadex',
+            'sourceChapterId': 'ch-1',
+          }),
+          payload: jsonEncode({
+            'manga_anilist_id': 1,
+            'chapter_number': 1.0,
+            'updated_at': 1100,
+          }),
+          createdAt: DateTime.fromMillisecondsSinceEpoch(1100),
+          status: SyncQueueEntryStatus.pending,
+        ),
+      );
+      await queueStore.enqueue(
+        SyncQueueEntry(
+          id: 0,
+          entityType: SyncEntityType.mangaReadHistory,
+          entityKey: jsonEncode({'mangaAnilistId': 1}),
+          payload: jsonEncode({
+            'manga_anilist_id': 1,
+            'last_chapter_number': 1.0,
+            'last_accessed_at': 1200,
+          }),
+          createdAt: DateTime.fromMillisecondsSinceEpoch(1200),
+          status: SyncQueueEntryStatus.pending,
+        ),
+      );
+
+      // The HTTP client must NOT be invoked: with only manga entries in
+      // the queue, `pushPending` short-circuits to idle.
+      var calls = 0;
+      final client = MockClient((request) async {
+        calls++;
+        return http.Response('{}', 200);
+      });
+
+      final service = HttpSyncService(
+        httpClient: client,
+        queueStore: queueStore,
+        progressStore: progressStore,
+        libraryStore: libraryStore,
+        baseUrl: 'https://api.kumoriya.online',
+      );
+
+      final result = await service.pushPending();
+      expect(result.isSuccess, isTrue);
+      expect(calls, 0, reason: 'no push when queue holds only manga entries');
+
+      // Manga entries remain pending — the backend will drain them
+      // once the endpoints land (Slice 10C-2).
+      final stillPending = await queueStore.getPendingEntries();
+      stillPending.fold(
+        onSuccess: (entries) {
+          expect(entries, hasLength(3));
+          expect(
+            entries.every(
+              (e) => e.status == SyncQueueEntryStatus.pending,
+            ),
+            isTrue,
+          );
+        },
+        onFailure: (_) => fail('queue read failed'),
+      );
+    },
+  );
+
   test('pushPending includes watch history deletions in payload', () async {
     await queueStore.enqueue(
       SyncQueueEntry(

@@ -73,8 +73,20 @@ final class HttpSyncService implements SyncService {
             return const Success(SyncPushResult(applied: 0, conflicts: []));
           }
 
+          // Manga entities are tracked locally but the backend does not
+          // accept them yet (Slice 10C-2). They stay in `pending` so the
+          // server can drain them once the endpoints land — without a
+          // local migration. Anime entities go through the normal path.
+          final pushable = entries
+              .where((e) => _isBackendPushable(e.entityType))
+              .toList(growable: false);
+          if (pushable.isEmpty) {
+            _currentStatus = SyncStatus.idle;
+            return const Success(SyncPushResult(applied: 0, conflicts: []));
+          }
+
           // Mark all as syncing.
-          for (final entry in entries) {
+          for (final entry in pushable) {
             await queueStore.updateStatus(
               id: entry.id,
               status: SyncQueueEntryStatus.syncing,
@@ -82,7 +94,7 @@ final class HttpSyncService implements SyncService {
           }
 
           // Group by entity type and build payload.
-          final payload = _buildPushPayload(entries);
+          final payload = _buildPushPayload(pushable);
 
           try {
             final response = await httpClient.post(
@@ -112,7 +124,7 @@ final class HttpSyncService implements SyncService {
               final durable = DurableUntil.fromJson(
                 data['durable_until'] as Map<String, dynamic>?,
               );
-              await _pruneByDurability(entries, durable);
+              await _pruneByDurability(pushable, durable);
 
               _currentStatus = SyncStatus.success;
               return Success(
@@ -127,7 +139,7 @@ final class HttpSyncService implements SyncService {
                 response.statusCode < 500 &&
                 response.statusCode != 429;
 
-            for (final entry in entries) {
+            for (final entry in pushable) {
               final nextRetry = entry.retryCount + 1;
               final exhausted = nextRetry >= _maxRetryCount;
               await queueStore.updateStatus(
@@ -149,7 +161,7 @@ final class HttpSyncService implements SyncService {
               ),
             );
           } catch (e) {
-            for (final entry in entries) {
+            for (final entry in pushable) {
               final nextRetry = entry.retryCount + 1;
               final exhausted = nextRetry >= _maxRetryCount;
               await queueStore.updateStatus(
@@ -308,6 +320,15 @@ final class HttpSyncService implements SyncService {
       case SyncEntityType.libraryEntry:
       case SyncEntityType.libraryEntryDeletion:
         return d.libraryEntry;
+      // Manga cursors are not exposed by the backend yet (Slice 10C-2).
+      // Return 0 so prune-by-durability never matches a manga entry,
+      // which is the desired behaviour: keep them pending.
+      case SyncEntityType.mangaChapterProgress:
+      case SyncEntityType.mangaReadHistory:
+      case SyncEntityType.mangaReadHistoryDeletion:
+      case SyncEntityType.mangaLibraryEntry:
+      case SyncEntityType.mangaLibraryEntryDeletion:
+        return 0;
     }
   }
 
@@ -330,9 +351,40 @@ final class HttpSyncService implements SyncService {
         case SyncEntityType.libraryEntry:
         case SyncEntityType.libraryEntryDeletion:
           return (decoded['updated_at'] as num?)?.toInt();
+        // Manga payloads carry the same `updated_at` shape; reading
+        // them keeps `_pruneByDurability` consistent if a future cursor
+        // gets wired without touching this method again.
+        case SyncEntityType.mangaChapterProgress:
+        case SyncEntityType.mangaLibraryEntry:
+        case SyncEntityType.mangaLibraryEntryDeletion:
+        case SyncEntityType.mangaReadHistoryDeletion:
+          return (decoded['updated_at'] as num?)?.toInt();
+        case SyncEntityType.mangaReadHistory:
+          return (decoded['last_accessed_at'] as num?)?.toInt();
       }
     } catch (_) {
       return null;
+    }
+  }
+
+  /// Anime entity types that the Kumoriya Go backend currently accepts.
+  /// Manga entity types stay in the local queue with `pending` status
+  /// until the backend exposes their endpoints (Slice 10C-2).
+  static bool _isBackendPushable(SyncEntityType type) {
+    switch (type) {
+      case SyncEntityType.episodeProgress:
+      case SyncEntityType.watchHistory:
+      case SyncEntityType.watchHistoryDeletion:
+      case SyncEntityType.playbackPreference:
+      case SyncEntityType.libraryEntry:
+      case SyncEntityType.libraryEntryDeletion:
+        return true;
+      case SyncEntityType.mangaChapterProgress:
+      case SyncEntityType.mangaReadHistory:
+      case SyncEntityType.mangaReadHistoryDeletion:
+      case SyncEntityType.mangaLibraryEntry:
+      case SyncEntityType.mangaLibraryEntryDeletion:
+        return false;
     }
   }
 
@@ -359,6 +411,18 @@ final class HttpSyncService implements SyncService {
           libraryEntries.add(decoded);
         case SyncEntityType.libraryEntryDeletion:
           libraryEntryDeletions.add(decoded);
+        // Manga entries should never reach this method — they are
+        // filtered out by `_isBackendPushable` upstream. Treat them as
+        // a programming error.
+        case SyncEntityType.mangaChapterProgress:
+        case SyncEntityType.mangaReadHistory:
+        case SyncEntityType.mangaReadHistoryDeletion:
+        case SyncEntityType.mangaLibraryEntry:
+        case SyncEntityType.mangaLibraryEntryDeletion:
+          throw StateError(
+            'Manga sync entry leaked into _buildPushPayload: '
+            '${entry.entityType}',
+          );
       }
     }
 

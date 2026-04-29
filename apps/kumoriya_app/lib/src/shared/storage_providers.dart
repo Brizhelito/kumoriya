@@ -13,6 +13,8 @@ import 'notifications/fcm_providers.dart';
 import 'sync/sync_providers.dart';
 import 'sync/sync_refresh.dart';
 import 'sync/sync_aware_library_store.dart';
+import 'sync/sync_aware_manga_library_store.dart';
+import 'sync/sync_aware_manga_progress_store.dart';
 import 'sync/sync_aware_progress_store.dart';
 
 final appDatabaseProvider = Provider<AppDatabase>((ref) {
@@ -104,14 +106,47 @@ final mangaCacheStoreProvider = Provider<MangaCacheStore>((ref) {
   return DriftMangaCacheStore(db);
 });
 
-final mangaProgressStoreProvider = Provider<MangaProgressStore>((ref) {
+/// Raw Drift-backed manga progress store. Tests and the sync coordinator
+/// read from this directly to bypass the sync-queue enqueue side effect.
+final rawMangaProgressStoreProvider = Provider<MangaProgressStore>((ref) {
   final db = ref.watch(appDatabaseProvider);
   return DriftMangaProgressStore(db);
 });
 
-final mangaLibraryStoreProvider = Provider<MangaLibraryStore>((ref) {
+/// Sync-aware manga progress store: every successful write also lands
+/// in the sync queue when the user is authenticated. The HTTP sync
+/// service filters manga entries out of the push payload until the
+/// backend ships manga endpoints (Slice 10C-2).
+final mangaProgressStoreProvider = Provider<MangaProgressStore>((ref) {
+  final inner = ref.watch(rawMangaProgressStoreProvider);
+  final syncQueue = ref.watch(syncQueueStoreProvider);
+  return SyncAwareMangaProgressStore(
+    inner: inner,
+    syncQueue: syncQueue,
+    isAuthenticated: () => ref.read(isAuthenticatedProvider),
+    onEnqueued: () => ref.read(syncCoordinatorProvider).notifyLocalWrite(),
+  );
+});
+
+/// Raw Drift-backed manga library store. Same role as
+/// `rawLibraryStoreProvider` for the anime side.
+final rawMangaLibraryStoreProvider = Provider<MangaLibraryStore>((ref) {
   final db = ref.watch(appDatabaseProvider);
   return DriftMangaLibraryStore(db);
+});
+
+/// Sync-aware manga library store. See `mangaProgressStoreProvider`
+/// for the rationale on how manga entries are queued but not pushed
+/// yet (Slice 10C-2).
+final mangaLibraryStoreProvider = Provider<MangaLibraryStore>((ref) {
+  final inner = ref.watch(rawMangaLibraryStoreProvider);
+  final syncQueue = ref.watch(syncQueueStoreProvider);
+  return SyncAwareMangaLibraryStore(
+    inner: inner,
+    syncQueue: syncQueue,
+    isAuthenticated: () => ref.read(isAuthenticatedProvider),
+    onEnqueued: () => ref.read(syncCoordinatorProvider).notifyLocalWrite(),
+  );
 });
 
 /// Set of AniList ids the user has marked as favorite manga. Mirrors

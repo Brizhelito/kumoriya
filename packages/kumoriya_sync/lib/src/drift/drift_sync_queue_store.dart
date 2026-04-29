@@ -340,6 +340,16 @@ final class DriftSyncQueueStore implements SyncQueueStore {
         return 'library_entry';
       case SyncEntityType.libraryEntryDeletion:
         return 'library_entry_deletion';
+      case SyncEntityType.mangaChapterProgress:
+        return 'manga_chapter_progress';
+      case SyncEntityType.mangaReadHistory:
+        return 'manga_read_history';
+      case SyncEntityType.mangaReadHistoryDeletion:
+        return 'manga_read_history_deletion';
+      case SyncEntityType.mangaLibraryEntry:
+        return 'manga_library_entry';
+      case SyncEntityType.mangaLibraryEntryDeletion:
+        return 'manga_library_entry_deletion';
     }
   }
 
@@ -357,6 +367,16 @@ final class DriftSyncQueueStore implements SyncQueueStore {
         return SyncEntityType.libraryEntry;
       case 'library_entry_deletion':
         return SyncEntityType.libraryEntryDeletion;
+      case 'manga_chapter_progress':
+        return SyncEntityType.mangaChapterProgress;
+      case 'manga_read_history':
+        return SyncEntityType.mangaReadHistory;
+      case 'manga_read_history_deletion':
+        return SyncEntityType.mangaReadHistoryDeletion;
+      case 'manga_library_entry':
+        return SyncEntityType.mangaLibraryEntry;
+      case 'manga_library_entry_deletion':
+        return SyncEntityType.mangaLibraryEntryDeletion;
       default:
         return SyncEntityType.episodeProgress;
     }
@@ -375,8 +395,17 @@ final class DriftSyncQueueStore implements SyncQueueStore {
         return SyncEntityType.libraryEntryDeletion;
       case SyncEntityType.libraryEntryDeletion:
         return SyncEntityType.libraryEntry;
+      case SyncEntityType.mangaReadHistory:
+        return SyncEntityType.mangaReadHistoryDeletion;
+      case SyncEntityType.mangaReadHistoryDeletion:
+        return SyncEntityType.mangaReadHistory;
+      case SyncEntityType.mangaLibraryEntry:
+        return SyncEntityType.mangaLibraryEntryDeletion;
+      case SyncEntityType.mangaLibraryEntryDeletion:
+        return SyncEntityType.mangaLibraryEntry;
       case SyncEntityType.episodeProgress:
       case SyncEntityType.playbackPreference:
+      case SyncEntityType.mangaChapterProgress:
         return null;
     }
   }

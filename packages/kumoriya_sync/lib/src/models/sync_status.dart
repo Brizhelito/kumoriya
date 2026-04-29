@@ -13,10 +13,22 @@ enum SyncStatus { idle, pushing, pulling, success, failed }
 enum SyncQueueEntryStatus { pending, syncing, synced, failed, poisoned }
 
 enum SyncEntityType {
+  // Anime universe (existing).
   episodeProgress,
   watchHistory,
   watchHistoryDeletion,
   playbackPreference,
   libraryEntry,
   libraryEntryDeletion,
+
+  // Manga universe. Added in Slice 10C. The HTTP sync service does
+  // not push these to the backend yet — they accumulate locally so
+  // the user's writes survive logout/login round-trips and so the
+  // service-side rollout (10C-2 / backend) can drain a populated
+  // queue. Skipping is gated explicitly in `HttpSyncService`.
+  mangaChapterProgress,
+  mangaReadHistory,
+  mangaReadHistoryDeletion,
+  mangaLibraryEntry,
+  mangaLibraryEntryDeletion,
 }
