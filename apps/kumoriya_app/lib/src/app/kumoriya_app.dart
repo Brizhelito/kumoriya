@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kumoriya_app/l10n/generated/app_localizations.dart';
+import 'package:kumoriya_core/kumoriya_core.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -14,9 +15,9 @@ import '../features/anime_catalog/presentation/pages/downloads_page.dart';
 import '../features/anime_catalog/presentation/pages/home_page.dart';
 import '../features/anime_catalog/presentation/pages/library_page.dart';
 import '../features/anime_catalog/presentation/pages/search_page.dart';
+import '../features/library/presentation/pages/unified_library_page.dart';
 import '../features/manga_catalog/presentation/pages/manga_downloads_page.dart';
 import '../features/manga_catalog/presentation/pages/manga_home_page.dart';
-import '../features/manga_catalog/presentation/pages/manga_library_page.dart';
 import '../features/manga_catalog/presentation/pages/manga_search_page.dart';
 import '../features/app_update/application/release_notes_catalog.dart';
 import '../features/app_update/application/seen_app_version_store.dart';
@@ -338,7 +339,8 @@ class _FirstLaunchGateState extends ConsumerState<_FirstLaunchGate> {
         mangaTabBuilders: <KumoriyaMangaTab, WidgetBuilder>{
           KumoriyaMangaTab.home: (_) => const MangaHomePage(),
           KumoriyaMangaTab.search: (_) => const MangaSearchPage(),
-          KumoriyaMangaTab.library: (_) => const MangaLibraryPage(),
+          KumoriyaMangaTab.library: (_) =>
+              const UnifiedLibraryPage(initialFilter: MediaKind.manga),
           KumoriyaMangaTab.downloads: (_) => const MangaDownloadsPage(),
         },
       ),

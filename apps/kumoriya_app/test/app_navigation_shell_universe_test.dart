@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kumoriya_app/l10n/generated/app_localizations.dart';
 import 'package:kumoriya_app/src/features/manga_catalog/presentation/pages/manga_downloads_page.dart';
-import 'package:kumoriya_app/src/features/manga_catalog/presentation/pages/manga_library_page.dart';
 import 'package:kumoriya_app/src/shared/navigation/app_navigation_shell.dart';
 import 'package:kumoriya_app/src/shared/universe/active_universe_providers.dart';
 import 'package:kumoriya_app/src/shared/universe/active_universe_store.dart';
@@ -62,7 +61,7 @@ Widget _buildShell({MediaKind? initial}) {
           // stubs so the shell can render without network/database.
           KumoriyaMangaTab.home: (_) => tab('manga-home'),
           KumoriyaMangaTab.search: (_) => tab('manga-search'),
-          KumoriyaMangaTab.library: (_) => const MangaLibraryPage(),
+          KumoriyaMangaTab.library: (_) => tab('manga-library'),
           KumoriyaMangaTab.downloads: (_) => const MangaDownloadsPage(),
         },
       ),

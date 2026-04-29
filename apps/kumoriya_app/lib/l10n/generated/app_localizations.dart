@@ -1681,6 +1681,12 @@ abstract class AppLocalizations {
   /// **'Stop notifying'**
   String get mangaDetailUnsubscribe;
 
+  /// No description provided for @libraryFilterAll.
+  ///
+  /// In en, this message translates to:
+  /// **'All'**
+  String get libraryFilterAll;
+
   /// No description provided for @mangaComingSoonSlice11.
   ///
   /// In en, this message translates to:

@@ -975,6 +975,9 @@ class AppLocalizationsEs extends AppLocalizations {
   String get mangaDetailUnsubscribe => 'Dejar de notificar';
 
   @override
+  String get libraryFilterAll => 'Todos';
+
+  @override
   String get mangaComingSoonSlice11 =>
       'Las descargas de manga (CBZ) llegarán en el Slice 11.';
 
