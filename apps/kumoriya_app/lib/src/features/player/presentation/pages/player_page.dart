@@ -13,6 +13,7 @@ import 'package:kumoriya_plugins/kumoriya_plugins.dart';
 import 'package:battery_plus/battery_plus.dart';
 import 'package:screen_brightness/screen_brightness.dart';
 import 'package:volume_controller/volume_controller.dart';
+import 'package:wakelock_plus/wakelock_plus.dart';
 import 'package:window_manager/window_manager.dart';
 import 'package:kumoriya_storage/kumoriya_storage.dart';
 import 'package:media_kit_video/media_kit_video.dart';
@@ -180,6 +181,14 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
   @override
   void initState() {
     super.initState();
+    // Hold a screen wakelock for the entire player lifetime. Without this,
+    // Android's inactivity timer (very aggressive on MIUI / Redmi devices)
+    // dims the screen to ~30 % a few seconds before the configured display
+    // timeout and then sleeps. The user sees the brightness drop on its
+    // own and a screen tap restores it — exactly the bug reported on the
+    // Redmi Note 9. Touching the screen resets the timer, which is why
+    // the controls (which the user does tap) momentarily fix it.
+    unawaited(WakelockPlus.enable());
     _saveProgress = SaveProgressUseCase(
       store: ref.read(animeProgressStoreProvider),
     );
@@ -311,6 +320,9 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
   @override
   void dispose() {
     _log('dispose');
+    // Always release the screen wakelock when leaving the player so the
+    // device returns to its normal display-timeout behavior.
+    unawaited(WakelockPlus.disable());
     _periodicSaveTimer?.cancel();
     _partyDriftTimer?.cancel();
     _partyRoomSub?.close();

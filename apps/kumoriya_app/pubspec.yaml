@@ -96,6 +96,7 @@ dependencies:
   connectivity_plus: ^6.1.0
   share_plus: ^10.1.4
   battery_plus: ^6.2.1
+  wakelock_plus: ^1.2.10
 
 dev_dependencies:
   flutter_test:
