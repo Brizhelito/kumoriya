@@ -177,18 +177,30 @@ Each slice is atomic, testable, and ships green before the next starts. Sub-slic
 | **S2 (M2)** | Configurable base URL + fallback list contract | S1.C | 1d | ✅ done |
 | **S3** | `kumoriya_source_olympus` plugin | S1.D + S2 | 1.5d | ✅ done |
 | **S4** | `kumoriya_source_inmanga` plugin | S1.D | 1d | ✅ done |
-| **S5** | `kumoriya_source_manhwaweb` plugin (JSON-native, easiest) | S1.D | 1d | ⏳ pending |
+| **S5** | `kumoriya_source_manhwaweb` plugin (JSON-native, easiest) | S1.D | 1d | ✅ done |
 | **S6** | `kumoriya_source_ikigai` plugin | S1.D + S2 | 1d | ⏳ pending |
-| **S7** | `kumoriya_source_mangaplus` plugin (gRPC + descrambling) | S1.D | 3d | ⏳ pending |
-| **S8** | `kumoriya_source_webtoons` + `kumoriya_source_comikey` plugins | S1.D | 3d | ⏳ pending |
-| **S9** | `kumoriya_source_weebcentral` + `kumoriya_source_comick` plugins | S1.D + S2 | 1.5d | ⏳ pending |
-| **S10** | M4 (plugin health probes) + M5 (lang-aware ranking) + M8 polish | All sources | 3d | ⏳ pending |
+| **S7** | `kumoriya_source_lectortmo` plugin (TMO heir, ES core) | S1.D + S2 | 1.5d | ⏳ pending |
+| **S8** | `kumoriya_source_lectormanga` plugin (ES, active) | S1.D + S2 | 1d | ⏳ pending |
+| **S9** | `kumoriya_source_nekoscan` plugin (ES manhwa) | S1.D + S2 | 1d | ⏳ pending |
+| **S10** | `kumoriya_source_visormanhwas` plugin (ES manhwa) | S1.D + S2 | 1d | ⏳ pending |
+| **S11** | `kumoriya_source_webtoons_es` plugin (legal, `es.webtoons.com`) | S1.D | 1.5d | ⏳ pending |
+| **S12** | `kumoriya_source_mangaplus` plugin (Shueisha, ES filter) | S1.D | 3d | ⏳ pending |
+| **S13** | M4 (plugin health probes) + M5 (lang-aware ranking) + M8 polish | All sources | 3d | ⏳ pending |
 
-**Totals**
-- LatAm coverage core (S1 + S2 + S3-S6): ~9.5 days → solves the post-TMO gap
-- Legal + backbone (S7 + S8 + S9): ~7.5 days → adds publisher catalogs
-- Production polish (S10): ~3 days
-- **Grand total: ~20 days** to reach ~95% manga coverage
+**Out of scope** (cut from earlier draft as part of the ES-first rescope on 2026-04-30):
+
+| Slice | Source | Reason |
+|---|---|---|
+| ~~S8b~~ | `kumoriya_source_comikey` | EN-first; ES catalog too thin to justify a full plugin. |
+| ~~S9a~~ | `kumoriya_source_weebcentral` | EN-only aggregator. |
+| ~~S9b~~ | `kumoriya_source_comick` | Multi-language aggregator, but ES tier overlaps almost entirely with MangaDex + Olympus + LectorTMO; deliberate redundancy with low signal. |
+
+**Totals (ES-first rescope)**
+- ✅ Done: S0 + S1.* + S2 + S3-S5 (~9d delivered).
+- LatAm core remaining (S6 + S7 + S8 + S9 + S10): ~5.5 days → covers the active LatAm ecosystem post-TMO.
+- Legal long-tail (S11 + S12): ~4.5 days → official publishers with ES support.
+- Production polish (S13): ~3 days.
+- **Grand total remaining: ~13 days** to reach ~95% **ES manga/manhwa** coverage.
 
 ### 4.1 Slice S1.A — MangaBaka client foundation ✅ DONE
 
@@ -280,7 +292,21 @@ _None as of 2026-04-30 00:30._
 
 **S5 (`kumoriya_source_manhwaweb`) ✅ done (2026-04-30).** Third LatAm source. JSON-native REST on a Railway-hosted backend; detail + chapter list in a single `/manhwa/see/{slug}` call, ordered image URLs in `chapter.img[]`. The Railway host is the explicit reason S2.C exists — users can pin a working backend through the Settings UI when the deployment URL rotates. 12/12 tests.
 
-**S6 — `kumoriya_source_ikigai`.** Cloudflare-protected on some endpoints per recon; budget 1d.
+### 5.4 Rescope decision — 2026-04-30 (ES-first)
+
+Tesis explícita: **especializar el catálogo de manga/manhwa al ecosistema en español (LatAm + España)**. Las fuentes EN-only o que no aportan delta sobre MangaDex en español salen del scope.
+
+**Cambios en el plan**:
+
+- ➕ **Agregadas como slices de primera clase**: LectorTMO (heredero TMO, prioridad alta), LectorManga, NekoScan, VisorManhwas. Las cuatro son ES-first, scanlation activa post-TMO, y cubren el long-tail manhwa que MangaDex no tiene.
+- ➖ **Removidas**: WeebCentral (EN-only), Comikey (EN-first, catálogo ES marginal), Comick (overlapping con MangaDex en ES).
+- ✂️ **Reducidas**: Webtoons-ES queda como slice independiente (legal, gigante en LatAm); Comikey desaparece. MangaPlus se mantiene pero con filtro estricto a `es-419`/`es` para no inflar el catálogo con chapters EN duplicados.
+
+### 5.5 Next up
+
+**S6 — `kumoriya_source_ikigai`.** Cloudflare-protected on some endpoints per recon; budget 1d. Primer slice donde S2.C URL override probablemente sea necesario en producción para usuarios con CF challenges agresivos.
+
+**S7 — `kumoriya_source_lectortmo` (NUEVO).** Heredero directo de TuMangaOnline. Sigue siendo la referencia para manga ES. Probable Cloudflare; recon antes de presupuestar pero 1.5d esperado.
 
 ---
 
