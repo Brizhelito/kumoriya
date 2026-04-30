@@ -12,8 +12,10 @@ import 'package:kumoriya_source_inmanga/kumoriya_source_inmanga.dart';
 import 'package:kumoriya_source_lectortmo/kumoriya_source_lectortmo.dart';
 import 'package:kumoriya_source_mangadex/kumoriya_source_mangadex.dart';
 import 'package:kumoriya_source_manhwaweb/kumoriya_source_manhwaweb.dart';
+import 'package:kumoriya_source_nekoscan/kumoriya_source_nekoscan.dart';
 import 'package:kumoriya_source_olympus/kumoriya_source_olympus.dart';
 import 'package:kumoriya_source_runtime/kumoriya_source_runtime.dart';
+import 'package:kumoriya_source_visormanga/kumoriya_source_visormanga.dart';
 
 import '../../../../shared/cache/fallback_reason.dart';
 import '../../../../shared/storage_providers.dart';
@@ -57,6 +59,8 @@ final mangaSourcePluginsProvider = Provider<List<MangaSourcePlugin>>((ref) {
     _buildInManga(overrides),
     _buildManhwaWeb(overrides),
     _buildLectorTmo(overrides),
+    _buildNekoScan(overrides),
+    _buildVisorManga(overrides),
   ];
 });
 
@@ -139,6 +143,32 @@ MangaSourcePlugin _buildLectorTmo(Map<String, Uri> overrides) {
   }
   return LectorTmoSourcePlugin(
     mirrors: MirrorList(<Uri>[override, _lectorTmoDefaultBaseUri]),
+  );
+}
+
+final Uri _nekoScanDefaultBaseUri = Uri.parse('https://nekoproject.org/');
+
+MangaSourcePlugin _buildNekoScan(Map<String, Uri> overrides) {
+  const pluginId = 'kumoriya.source.nekoscan';
+  final override = overrides[pluginId];
+  if (override == null) {
+    return NekoScanSourcePlugin();
+  }
+  return NekoScanSourcePlugin(
+    mirrors: MirrorList(<Uri>[override, _nekoScanDefaultBaseUri]),
+  );
+}
+
+final Uri _visorMangaDefaultBaseUri = Uri.parse('https://visormanga.com/');
+
+MangaSourcePlugin _buildVisorManga(Map<String, Uri> overrides) {
+  const pluginId = 'kumoriya.source.visormanga';
+  final override = overrides[pluginId];
+  if (override == null) {
+    return VisorMangaSourcePlugin();
+  }
+  return VisorMangaSourcePlugin(
+    mirrors: MirrorList(<Uri>[override, _visorMangaDefaultBaseUri]),
   );
 }
 

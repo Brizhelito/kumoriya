@@ -181,7 +181,7 @@ Each slice is atomic, testable, and ships green before the next starts. Sub-slic
 | **S6** | `kumoriya_source_ikigai` plugin | S1.D + S2 | 1d | ⏸ deferred |
 | **S7** | `kumoriya_source_lectortmo` plugin (TMO heir, ES core) | S1.D + S2 | 1.5d | ✅ done |
 | **S8** | `kumoriya_source_lectormanga` plugin (ES, active) | S1.D + S2 | 1d | ⏸ deferred |
-| **S9** | `kumoriya_source_nekoscan` plugin (ES manhwa) | S1.D + S2 | 1d | ⏳ pending |
+| **S9** | `kumoriya_source_nekoscan` plugin (ES manga) | S1.D + S2 | 1d | ✅ done |
 | **S10** | `kumoriya_source_visormanhwas` plugin (ES manhwa) | S1.D + S2 | 1d | ⏳ pending |
 | **S11** | `kumoriya_source_webtoons_es` plugin (legal, `es.webtoons.com`) | S1.D | 1.5d | ⏳ pending |
 | **S12** | `kumoriya_source_mangaplus` plugin (Shueisha, ES filter) | S1.D | 3d | ⏳ pending |
@@ -321,6 +321,8 @@ Conclusion: do **not** ship a normal `http.Client` source plugin for LectorManga
 3. Kumoriya later introduces an explicit user-managed cookie/session override for sources (not planned for this slice).
 
 **S9 — `kumoriya_source_nekoscan`** (1d). Next active ES source. Recon first; prefer JSON/REST/HTML paths that work from a clean non-browser HTTP client.
+
+Delivered 2026-04-30. Active domain is `https://nekoproject.org/` (Neko Scans). Site is WordPress + `mangareader` theme: manga series are categories, chapters are posts. Plugin uses open WP REST for search (`/wp-json/wp/v2/categories`) and chapter pages (`/wp-json/wp/v2/posts?slug=...`), plus HTML scrape of `/manga/{slug}/` for detail metadata and the `<div class="eplister" id="chapterlist">` chapter list. One non-numeric row (`Secuela`) is intentionally dropped because the contract requires numeric `double` chapter numbers. 8/8 package tests; app provider registration includes URL override support.
 
 ---
 

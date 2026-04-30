@@ -66,7 +66,9 @@ dependencies:
   kumoriya_source_lectortmo:
   kumoriya_source_mangadex:
   kumoriya_source_manhwaweb:
+  kumoriya_source_nekoscan:
   kumoriya_source_olympus:
+  kumoriya_source_visormanga:
   kumoriya_source_runtime:
   kumoriya_storage:
   kumoriya_sync:
