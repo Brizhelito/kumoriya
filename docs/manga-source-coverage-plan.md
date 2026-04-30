@@ -178,8 +178,8 @@ Each slice is atomic, testable, and ships green before the next starts. Sub-slic
 | **S3** | `kumoriya_source_olympus` plugin | S1.D + S2 | 1.5d | ✅ done |
 | **S4** | `kumoriya_source_inmanga` plugin | S1.D | 1d | ✅ done |
 | **S5** | `kumoriya_source_manhwaweb` plugin (JSON-native, easiest) | S1.D | 1d | ✅ done |
-| **S6** | `kumoriya_source_ikigai` plugin | S1.D + S2 | 1d | ⏳ pending |
-| **S7** | `kumoriya_source_lectortmo` plugin (TMO heir, ES core) | S1.D + S2 | 1.5d | ⏳ pending |
+| **S6** | `kumoriya_source_ikigai` plugin | S1.D + S2 | 1d | ⏸ deferred |
+| **S7** | `kumoriya_source_lectortmo` plugin (TMO heir, ES core) | S1.D + S2 | 1.5d | ✅ done |
 | **S8** | `kumoriya_source_lectormanga` plugin (ES, active) | S1.D + S2 | 1d | ⏳ pending |
 | **S9** | `kumoriya_source_nekoscan` plugin (ES manhwa) | S1.D + S2 | 1d | ⏳ pending |
 | **S10** | `kumoriya_source_visormanhwas` plugin (ES manhwa) | S1.D + S2 | 1d | ⏳ pending |
@@ -304,9 +304,11 @@ Tesis explícita: **especializar el catálogo de manga/manhwa al ecosistema en e
 
 ### 5.5 Next up
 
-**S6 — `kumoriya_source_ikigai`.** Cloudflare-protected on some endpoints per recon; budget 1d. Primer slice donde S2.C URL override probablemente sea necesario en producción para usuarios con CF challenges agresivos.
+**S6 — `kumoriya_source_ikigai` (⏸ deferred 2026-04-30).** Recon revealed Ikigai migrated from `ikigaimangas.com` to `visorikigai.yomod.xyz` and now runs **Qwik SSR** with no public REST API, a **rotating reader subdomain** (currently `simsownerdetails.com`, expected to rotate), Cloudflare on both layers, and an imgproxy-signed image CDN. The original 1d budget is unrealistic for the current architecture (~2-3d minimum, with high regression risk every time the rotator changes). Deferred until S7-S10 land — by then the Madara/WP scraper utility from LectorTMO et al. may make the Ikigai DOM-scrape simpler, and the upstream may have stabilized post-migration.
 
-**S7 — `kumoriya_source_lectortmo` (NUEVO).** Heredero directo de TuMangaOnline. Sigue siendo la referencia para manga ES. Probable Cloudflare; recon antes de presupuestar pero 1.5d esperado.
+**S7 (`kumoriya_source_lectortmo`) ✅ done (2026-04-30).** Heredero TMO. WordPress + custom post type `manga` + custom REST namespace `eastmanga/v1`. Endpoints: `wp/v2/manga` (search + detail con `_embed=wp:featuredmedia`), `eastmanga/v1/chapters?manga_id={id}` (lista de capítulos — el `meta_query` de WP no filtra sin auth, este endpoint custom es la solución oficial), `wp/v2/posts/{chapterId}` (páginas via regex sobre `content.rendered`). Default `lectortmoo.com`; sibling clone `lectortmo.vip` plumbed as manifest mirror. 14/14 tests. Diary `docs/dev-diary/2026-04-30.md`.
+
+**S8 — `kumoriya_source_lectormanga`** (1d). Probable WP + CPT; recon antes de codificar para confirmar si comparte el tema `eastmanga` (diff mínimo si sí).
 
 ---
 

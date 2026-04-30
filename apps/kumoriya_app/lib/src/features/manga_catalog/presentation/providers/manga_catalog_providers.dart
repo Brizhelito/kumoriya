@@ -9,6 +9,7 @@ import 'package:kumoriya_manga_plugins/kumoriya_manga_plugins.dart';
 import 'package:kumoriya_mangabaka/kumoriya_mangabaka.dart';
 import 'package:kumoriya_mangaupdates/kumoriya_mangaupdates.dart';
 import 'package:kumoriya_source_inmanga/kumoriya_source_inmanga.dart';
+import 'package:kumoriya_source_lectortmo/kumoriya_source_lectortmo.dart';
 import 'package:kumoriya_source_mangadex/kumoriya_source_mangadex.dart';
 import 'package:kumoriya_source_manhwaweb/kumoriya_source_manhwaweb.dart';
 import 'package:kumoriya_source_olympus/kumoriya_source_olympus.dart';
@@ -55,6 +56,7 @@ final mangaSourcePluginsProvider = Provider<List<MangaSourcePlugin>>((ref) {
     _buildOlympus(overrides),
     _buildInManga(overrides),
     _buildManhwaWeb(overrides),
+    _buildLectorTmo(overrides),
   ];
 });
 
@@ -124,6 +126,19 @@ MangaSourcePlugin _buildManhwaWeb(Map<String, Uri> overrides) {
   }
   return ManhwaWebSourcePlugin(
     mirrors: MirrorList(<Uri>[override, _manhwaWebDefaultBaseUri]),
+  );
+}
+
+final Uri _lectorTmoDefaultBaseUri = Uri.parse('https://lectortmoo.com/');
+
+MangaSourcePlugin _buildLectorTmo(Map<String, Uri> overrides) {
+  const pluginId = 'kumoriya.source.lectortmo';
+  final override = overrides[pluginId];
+  if (override == null) {
+    return LectorTmoSourcePlugin();
+  }
+  return LectorTmoSourcePlugin(
+    mirrors: MirrorList(<Uri>[override, _lectorTmoDefaultBaseUri]),
   );
 }
 

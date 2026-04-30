@@ -63,6 +63,7 @@ dependencies:
   kumoriya_mangaupdates:
   kumoriya_reader:
   kumoriya_source_inmanga:
+  kumoriya_source_lectortmo:
   kumoriya_source_mangadex:
   kumoriya_source_manhwaweb:
   kumoriya_source_olympus:
