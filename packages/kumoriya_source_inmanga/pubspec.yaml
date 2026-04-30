@@ -1,0 +1,21 @@
+name: kumoriya_source_inmanga
+description: InManga source plugin for Kumoriya. JSON quick-search + HTML scrape for detail/reader. Single-mirror; CDN at cdn1.intomanga.com.
+version: 0.1.0
+publish_to: none
+
+resolution: workspace
+
+environment:
+  sdk: ^3.11.1
+
+dependencies:
+  http: ^1.5.0
+  kumoriya_core:
+  kumoriya_manga_domain:
+  kumoriya_manga_plugins:
+  kumoriya_plugins:
+  kumoriya_source_runtime:
+
+dev_dependencies:
+  lints: ^6.0.0
+  test: ^1.25.6

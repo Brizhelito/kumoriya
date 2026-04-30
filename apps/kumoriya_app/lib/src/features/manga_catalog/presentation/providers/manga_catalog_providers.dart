@@ -8,6 +8,7 @@ import 'package:kumoriya_manga_domain/kumoriya_manga_domain.dart';
 import 'package:kumoriya_manga_plugins/kumoriya_manga_plugins.dart';
 import 'package:kumoriya_mangabaka/kumoriya_mangabaka.dart';
 import 'package:kumoriya_mangaupdates/kumoriya_mangaupdates.dart';
+import 'package:kumoriya_source_inmanga/kumoriya_source_inmanga.dart';
 import 'package:kumoriya_source_mangadex/kumoriya_source_mangadex.dart';
 import 'package:kumoriya_source_olympus/kumoriya_source_olympus.dart';
 import 'package:kumoriya_source_runtime/kumoriya_source_runtime.dart';
@@ -51,6 +52,7 @@ final mangaSourcePluginsProvider = Provider<List<MangaSourcePlugin>>((ref) {
   return <MangaSourcePlugin>[
     _buildMangaDex(overrides),
     _buildOlympus(overrides),
+    _buildInManga(overrides),
   ];
 });
 
@@ -94,6 +96,19 @@ MangaSourcePlugin _buildOlympus(Map<String, Uri> overrides) {
 }
 
 Uri _dashboardForWeb(Uri web) => web.replace(host: 'dashboard.${web.host}');
+
+final Uri _inMangaDefaultBaseUri = Uri.parse('https://inmanga.com/');
+
+MangaSourcePlugin _buildInManga(Map<String, Uri> overrides) {
+  const pluginId = 'kumoriya.source.inmanga';
+  final override = overrides[pluginId];
+  if (override == null) {
+    return InMangaSourcePlugin();
+  }
+  return InMangaSourcePlugin(
+    mirrors: MirrorList(<Uri>[override, _inMangaDefaultBaseUri]),
+  );
+}
 
 /// Preferred chapter languages, derived from the active locale at the
 /// widget tree root.

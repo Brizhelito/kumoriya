@@ -175,8 +175,8 @@ Each slice is atomic, testable, and ships green before the next starts. Sub-slic
 | **S1.E** | UI: source picker chip + Drift v21 + MangaBaka gateway provider + l10n | S1.C + S1.D | 0.5d | ✅ done |
 | **S1.F** | M8: scanlator picker enrichment via MU groups | S1.B + S1.E | 1.5d | ✅ done |
 | **S2 (M2)** | Configurable base URL + fallback list contract | S1.C | 1d | ✅ done |
-| **S3** | `kumoriya_source_olympus` plugin | S1.D + S2 | 1.5d | ⏳ pending |
-| **S4** | `kumoriya_source_inmanga` plugin | S1.D | 1d | ⏳ pending |
+| **S3** | `kumoriya_source_olympus` plugin | S1.D + S2 | 1.5d | ✅ done |
+| **S4** | `kumoriya_source_inmanga` plugin | S1.D | 1d | ✅ done |
 | **S5** | `kumoriya_source_manhwaweb` plugin (JSON-native, easiest) | S1.D | 1d | ⏳ pending |
 | **S6** | `kumoriya_source_ikigai` plugin | S1.D + S2 | 1d | ⏳ pending |
 | **S7** | `kumoriya_source_mangaplus` plugin (gRPC + descrambling) | S1.D | 3d | ⏳ pending |
@@ -276,7 +276,9 @@ _None as of 2026-04-30 00:30._
 
 **S3 (`kumoriya_source_olympus`) ✅ done (2026-04-30).** First LatAm source plugin. Olympus turned out to be Nuxt 3 SSR + an unauthenticated REST API on a paired `dashboard.*` subdomain. Plugin owns two `MirrorRotator`s (web + dashboard) so transport failures on either layer fall through to the next mirror pair. Internal `NuxtDataDecoder` decodes the `__NUXT_DATA__` flat-array deref format used to embed manga detail and reader pages in the SSR HTML. 24/24 tests (9 decoder + 15 plugin). MangaDex unchanged.
 
-**S4 — `kumoriya_source_inmanga`.** Open API per recon notes; budget 1d.
+**S4 (`kumoriya_source_inmanga`) ✅ done (2026-04-30).** Second LatAm source. ASP.NET MVC site with a quirky double-envelope JSON (`{"data":"<inner-json>"}`) for search and chapters, plus SSR HTML scrape for detail metadata and reader page UUIDs. Single mirror; rotator wired anyway so the S2.C URL override still applies. 16/16 tests with live fixtures. Composite repo unchanged.
+
+**S5 — `kumoriya_source_manhwaweb`.** Tagged as the easiest in the plan (JSON-native); budget ~1d.
 
 ---
 
