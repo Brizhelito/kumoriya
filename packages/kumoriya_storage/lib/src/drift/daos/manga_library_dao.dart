@@ -204,6 +204,28 @@ class MangaLibraryDao extends DatabaseAccessor<AppDatabase>
     });
   }
 
+  Future<void> setPreferredSourceId(int mangaAnilistId, String? sourceId) {
+    return transaction(() async {
+      final existing = await getEntry(mangaAnilistId);
+      if (existing == null) {
+        if (sourceId == null) return;
+        await into(mangaLibraryTable).insert(
+          MangaLibraryTableCompanion(
+            mangaAnilistId: Value(mangaAnilistId),
+            addedAt: const Value(0),
+            preferredSourceId: Value(sourceId),
+          ),
+        );
+        return;
+      }
+      await (update(
+        mangaLibraryTable,
+      )..where((t) => t.mangaAnilistId.equals(mangaAnilistId))).write(
+        MangaLibraryTableCompanion(preferredSourceId: Value(sourceId)),
+      );
+    });
+  }
+
   Future<int> clearAll() {
     return delete(mangaLibraryTable).go();
   }

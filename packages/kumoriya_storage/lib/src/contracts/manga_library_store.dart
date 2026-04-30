@@ -9,6 +9,7 @@ final class MangaLibraryEntrySnapshot {
     required this.autoDownloadNewChapters,
     required this.preferredLanguage,
     required this.preferredScanlator,
+    required this.preferredSourceId,
     required this.lastNotifiedChapter,
   });
 
@@ -19,6 +20,12 @@ final class MangaLibraryEntrySnapshot {
   final bool autoDownloadNewChapters;
   final String? preferredLanguage;
   final String? preferredScanlator;
+
+  /// Per-manga preferred source plugin id (`mangadex`, `olympus`, …).
+  /// `null` means "auto / fan out to every registered plugin".
+  /// See [MangaLibraryStore.setPreferredSourceId].
+  final String? preferredSourceId;
+
   final double? lastNotifiedChapter;
 }
 
@@ -64,6 +71,15 @@ abstract interface class MangaLibraryStore {
   Future<Result<void, KumoriyaError>> setPreferredScanlator(
     int mangaAnilistId,
     String? scanlator,
+  );
+
+  /// Persists the per-manga preferred source plugin id
+  /// (e.g. `mangadex`, `olympus`). Pass `null` to clear the preference
+  /// — the composite repository will then fan out to every registered
+  /// plugin again.
+  Future<Result<void, KumoriyaError>> setPreferredSourceId(
+    int mangaAnilistId,
+    String? sourceId,
   );
 
   Future<MangaLibraryEntrySnapshot?> getEntrySnapshot(int mangaAnilistId);

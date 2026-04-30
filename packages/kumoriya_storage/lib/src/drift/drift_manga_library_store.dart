@@ -197,6 +197,25 @@ final class DriftMangaLibraryStore implements MangaLibraryStore {
   }
 
   @override
+  Future<Result<void, KumoriyaError>> setPreferredSourceId(
+    int mangaAnilistId,
+    String? sourceId,
+  ) async {
+    try {
+      await _dao.setPreferredSourceId(mangaAnilistId, sourceId);
+      return const Success(null);
+    } catch (e) {
+      return Failure(
+        SimpleError(
+          code: 'storage.manga_library_set_preferred_source_id_failed',
+          message: 'Failed to set preferred source id: $e',
+          kind: KumoriyaErrorKind.unexpected,
+        ),
+      );
+    }
+  }
+
+  @override
   Future<MangaLibraryEntrySnapshot?> getEntrySnapshot(
     int mangaAnilistId,
   ) async {
@@ -212,6 +231,7 @@ final class DriftMangaLibraryStore implements MangaLibraryStore {
       autoDownloadNewChapters: row.autoDownloadNewChapters,
       preferredLanguage: row.preferredLanguage,
       preferredScanlator: row.preferredScanlator,
+      preferredSourceId: row.preferredSourceId,
       lastNotifiedChapter: row.lastNotifiedChapter,
     );
   }

@@ -9484,6 +9484,18 @@ class $MangaLibraryTableTable extends MangaLibraryTable
         type: DriftSqlType.string,
         requiredDuringInsert: false,
       );
+  static const VerificationMeta _preferredSourceIdMeta = const VerificationMeta(
+    'preferredSourceId',
+  );
+  @override
+  late final GeneratedColumn<String> preferredSourceId =
+      GeneratedColumn<String>(
+        'preferred_source_id',
+        aliasedName,
+        true,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+      );
   @override
   List<GeneratedColumn> get $columns => [
     mangaAnilistId,
@@ -9493,6 +9505,7 @@ class $MangaLibraryTableTable extends MangaLibraryTable
     autoDownloadNewChapters,
     preferredLanguage,
     preferredScanlator,
+    preferredSourceId,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -9568,6 +9581,15 @@ class $MangaLibraryTableTable extends MangaLibraryTable
         ),
       );
     }
+    if (data.containsKey('preferred_source_id')) {
+      context.handle(
+        _preferredSourceIdMeta,
+        preferredSourceId.isAcceptableOrUnknown(
+          data['preferred_source_id']!,
+          _preferredSourceIdMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -9605,6 +9627,10 @@ class $MangaLibraryTableTable extends MangaLibraryTable
         DriftSqlType.string,
         data['${effectivePrefix}preferred_scanlator'],
       ),
+      preferredSourceId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}preferred_source_id'],
+      ),
     );
   }
 
@@ -9629,6 +9655,13 @@ class MangaLibraryTableData extends DataClass
 
   /// Preferred scanlator name/id for chapter listings of this manga.
   final String? preferredScanlator;
+
+  /// Preferred source plugin id for chapter listings of this manga
+  /// (e.g. `mangadex`, `olympus`). When null, the composite repository
+  /// fans out to every registered plugin and dedupes across them. When
+  /// non-null, the composite restricts the fan-out to the picked
+  /// plugin only.
+  final String? preferredSourceId;
   const MangaLibraryTableData({
     required this.mangaAnilistId,
     required this.addedAt,
@@ -9637,6 +9670,7 @@ class MangaLibraryTableData extends DataClass
     required this.autoDownloadNewChapters,
     this.preferredLanguage,
     this.preferredScanlator,
+    this.preferredSourceId,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -9653,6 +9687,9 @@ class MangaLibraryTableData extends DataClass
     }
     if (!nullToAbsent || preferredScanlator != null) {
       map['preferred_scanlator'] = Variable<String>(preferredScanlator);
+    }
+    if (!nullToAbsent || preferredSourceId != null) {
+      map['preferred_source_id'] = Variable<String>(preferredSourceId);
     }
     return map;
   }
@@ -9672,6 +9709,9 @@ class MangaLibraryTableData extends DataClass
       preferredScanlator: preferredScanlator == null && nullToAbsent
           ? const Value.absent()
           : Value(preferredScanlator),
+      preferredSourceId: preferredSourceId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(preferredSourceId),
     );
   }
 
@@ -9696,6 +9736,9 @@ class MangaLibraryTableData extends DataClass
       preferredScanlator: serializer.fromJson<String?>(
         json['preferredScanlator'],
       ),
+      preferredSourceId: serializer.fromJson<String?>(
+        json['preferredSourceId'],
+      ),
     );
   }
   @override
@@ -9711,6 +9754,7 @@ class MangaLibraryTableData extends DataClass
       ),
       'preferredLanguage': serializer.toJson<String?>(preferredLanguage),
       'preferredScanlator': serializer.toJson<String?>(preferredScanlator),
+      'preferredSourceId': serializer.toJson<String?>(preferredSourceId),
     };
   }
 
@@ -9722,6 +9766,7 @@ class MangaLibraryTableData extends DataClass
     bool? autoDownloadNewChapters,
     Value<String?> preferredLanguage = const Value.absent(),
     Value<String?> preferredScanlator = const Value.absent(),
+    Value<String?> preferredSourceId = const Value.absent(),
   }) => MangaLibraryTableData(
     mangaAnilistId: mangaAnilistId ?? this.mangaAnilistId,
     addedAt: addedAt ?? this.addedAt,
@@ -9737,6 +9782,9 @@ class MangaLibraryTableData extends DataClass
     preferredScanlator: preferredScanlator.present
         ? preferredScanlator.value
         : this.preferredScanlator,
+    preferredSourceId: preferredSourceId.present
+        ? preferredSourceId.value
+        : this.preferredSourceId,
   );
   MangaLibraryTableData copyWithCompanion(MangaLibraryTableCompanion data) {
     return MangaLibraryTableData(
@@ -9759,6 +9807,9 @@ class MangaLibraryTableData extends DataClass
       preferredScanlator: data.preferredScanlator.present
           ? data.preferredScanlator.value
           : this.preferredScanlator,
+      preferredSourceId: data.preferredSourceId.present
+          ? data.preferredSourceId.value
+          : this.preferredSourceId,
     );
   }
 
@@ -9771,7 +9822,8 @@ class MangaLibraryTableData extends DataClass
           ..write('lastNotifiedChapter: $lastNotifiedChapter, ')
           ..write('autoDownloadNewChapters: $autoDownloadNewChapters, ')
           ..write('preferredLanguage: $preferredLanguage, ')
-          ..write('preferredScanlator: $preferredScanlator')
+          ..write('preferredScanlator: $preferredScanlator, ')
+          ..write('preferredSourceId: $preferredSourceId')
           ..write(')'))
         .toString();
   }
@@ -9785,6 +9837,7 @@ class MangaLibraryTableData extends DataClass
     autoDownloadNewChapters,
     preferredLanguage,
     preferredScanlator,
+    preferredSourceId,
   );
   @override
   bool operator ==(Object other) =>
@@ -9796,7 +9849,8 @@ class MangaLibraryTableData extends DataClass
           other.lastNotifiedChapter == this.lastNotifiedChapter &&
           other.autoDownloadNewChapters == this.autoDownloadNewChapters &&
           other.preferredLanguage == this.preferredLanguage &&
-          other.preferredScanlator == this.preferredScanlator);
+          other.preferredScanlator == this.preferredScanlator &&
+          other.preferredSourceId == this.preferredSourceId);
 }
 
 class MangaLibraryTableCompanion
@@ -9808,6 +9862,7 @@ class MangaLibraryTableCompanion
   final Value<bool> autoDownloadNewChapters;
   final Value<String?> preferredLanguage;
   final Value<String?> preferredScanlator;
+  final Value<String?> preferredSourceId;
   const MangaLibraryTableCompanion({
     this.mangaAnilistId = const Value.absent(),
     this.addedAt = const Value.absent(),
@@ -9816,6 +9871,7 @@ class MangaLibraryTableCompanion
     this.autoDownloadNewChapters = const Value.absent(),
     this.preferredLanguage = const Value.absent(),
     this.preferredScanlator = const Value.absent(),
+    this.preferredSourceId = const Value.absent(),
   });
   MangaLibraryTableCompanion.insert({
     this.mangaAnilistId = const Value.absent(),
@@ -9825,6 +9881,7 @@ class MangaLibraryTableCompanion
     this.autoDownloadNewChapters = const Value.absent(),
     this.preferredLanguage = const Value.absent(),
     this.preferredScanlator = const Value.absent(),
+    this.preferredSourceId = const Value.absent(),
   }) : addedAt = Value(addedAt);
   static Insertable<MangaLibraryTableData> custom({
     Expression<int>? mangaAnilistId,
@@ -9834,6 +9891,7 @@ class MangaLibraryTableCompanion
     Expression<bool>? autoDownloadNewChapters,
     Expression<String>? preferredLanguage,
     Expression<String>? preferredScanlator,
+    Expression<String>? preferredSourceId,
   }) {
     return RawValuesInsertable({
       if (mangaAnilistId != null) 'manga_anilist_id': mangaAnilistId,
@@ -9845,6 +9903,7 @@ class MangaLibraryTableCompanion
         'auto_download_new_chapters': autoDownloadNewChapters,
       if (preferredLanguage != null) 'preferred_language': preferredLanguage,
       if (preferredScanlator != null) 'preferred_scanlator': preferredScanlator,
+      if (preferredSourceId != null) 'preferred_source_id': preferredSourceId,
     });
   }
 
@@ -9856,6 +9915,7 @@ class MangaLibraryTableCompanion
     Value<bool>? autoDownloadNewChapters,
     Value<String?>? preferredLanguage,
     Value<String?>? preferredScanlator,
+    Value<String?>? preferredSourceId,
   }) {
     return MangaLibraryTableCompanion(
       mangaAnilistId: mangaAnilistId ?? this.mangaAnilistId,
@@ -9866,6 +9926,7 @@ class MangaLibraryTableCompanion
           autoDownloadNewChapters ?? this.autoDownloadNewChapters,
       preferredLanguage: preferredLanguage ?? this.preferredLanguage,
       preferredScanlator: preferredScanlator ?? this.preferredScanlator,
+      preferredSourceId: preferredSourceId ?? this.preferredSourceId,
     );
   }
 
@@ -9897,6 +9958,9 @@ class MangaLibraryTableCompanion
     if (preferredScanlator.present) {
       map['preferred_scanlator'] = Variable<String>(preferredScanlator.value);
     }
+    if (preferredSourceId.present) {
+      map['preferred_source_id'] = Variable<String>(preferredSourceId.value);
+    }
     return map;
   }
 
@@ -9909,7 +9973,8 @@ class MangaLibraryTableCompanion
           ..write('lastNotifiedChapter: $lastNotifiedChapter, ')
           ..write('autoDownloadNewChapters: $autoDownloadNewChapters, ')
           ..write('preferredLanguage: $preferredLanguage, ')
-          ..write('preferredScanlator: $preferredScanlator')
+          ..write('preferredScanlator: $preferredScanlator, ')
+          ..write('preferredSourceId: $preferredSourceId')
           ..write(')'))
         .toString();
   }
@@ -16482,6 +16547,7 @@ typedef $$MangaLibraryTableTableCreateCompanionBuilder =
       Value<bool> autoDownloadNewChapters,
       Value<String?> preferredLanguage,
       Value<String?> preferredScanlator,
+      Value<String?> preferredSourceId,
     });
 typedef $$MangaLibraryTableTableUpdateCompanionBuilder =
     MangaLibraryTableCompanion Function({
@@ -16492,6 +16558,7 @@ typedef $$MangaLibraryTableTableUpdateCompanionBuilder =
       Value<bool> autoDownloadNewChapters,
       Value<String?> preferredLanguage,
       Value<String?> preferredScanlator,
+      Value<String?> preferredSourceId,
     });
 
 class $$MangaLibraryTableTableFilterComposer
@@ -16535,6 +16602,11 @@ class $$MangaLibraryTableTableFilterComposer
 
   ColumnFilters<String> get preferredScanlator => $composableBuilder(
     column: $table.preferredScanlator,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get preferredSourceId => $composableBuilder(
+    column: $table.preferredSourceId,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -16582,6 +16654,11 @@ class $$MangaLibraryTableTableOrderingComposer
     column: $table.preferredScanlator,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<String> get preferredSourceId => $composableBuilder(
+    column: $table.preferredSourceId,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$MangaLibraryTableTableAnnotationComposer
@@ -16623,6 +16700,11 @@ class $$MangaLibraryTableTableAnnotationComposer
 
   GeneratedColumn<String> get preferredScanlator => $composableBuilder(
     column: $table.preferredScanlator,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get preferredSourceId => $composableBuilder(
+    column: $table.preferredSourceId,
     builder: (column) => column,
   );
 }
@@ -16674,6 +16756,7 @@ class $$MangaLibraryTableTableTableManager
                 Value<bool> autoDownloadNewChapters = const Value.absent(),
                 Value<String?> preferredLanguage = const Value.absent(),
                 Value<String?> preferredScanlator = const Value.absent(),
+                Value<String?> preferredSourceId = const Value.absent(),
               }) => MangaLibraryTableCompanion(
                 mangaAnilistId: mangaAnilistId,
                 addedAt: addedAt,
@@ -16682,6 +16765,7 @@ class $$MangaLibraryTableTableTableManager
                 autoDownloadNewChapters: autoDownloadNewChapters,
                 preferredLanguage: preferredLanguage,
                 preferredScanlator: preferredScanlator,
+                preferredSourceId: preferredSourceId,
               ),
           createCompanionCallback:
               ({
@@ -16692,6 +16776,7 @@ class $$MangaLibraryTableTableTableManager
                 Value<bool> autoDownloadNewChapters = const Value.absent(),
                 Value<String?> preferredLanguage = const Value.absent(),
                 Value<String?> preferredScanlator = const Value.absent(),
+                Value<String?> preferredSourceId = const Value.absent(),
               }) => MangaLibraryTableCompanion.insert(
                 mangaAnilistId: mangaAnilistId,
                 addedAt: addedAt,
@@ -16700,6 +16785,7 @@ class $$MangaLibraryTableTableTableManager
                 autoDownloadNewChapters: autoDownloadNewChapters,
                 preferredLanguage: preferredLanguage,
                 preferredScanlator: preferredScanlator,
+                preferredSourceId: preferredSourceId,
               ),
           withReferenceMapper: (p0) => p0
               .map((e) => (e.readTable(table), BaseReferences(db, table, e)))

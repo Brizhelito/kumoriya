@@ -25,6 +25,13 @@ class MangaLibraryTable extends Table {
   /// Preferred scanlator name/id for chapter listings of this manga.
   TextColumn get preferredScanlator => text().nullable()();
 
+  /// Preferred source plugin id for chapter listings of this manga
+  /// (e.g. `mangadex`, `olympus`). When null, the composite repository
+  /// fans out to every registered plugin and dedupes across them. When
+  /// non-null, the composite restricts the fan-out to the picked
+  /// plugin only.
+  TextColumn get preferredSourceId => text().nullable()();
+
   @override
   Set<Column<Object>> get primaryKey => {mangaAnilistId};
 }

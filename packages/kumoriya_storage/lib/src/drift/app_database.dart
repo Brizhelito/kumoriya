@@ -251,6 +251,16 @@ class AppDatabase extends _$AppDatabase {
         );
         await _createMangaIndices();
       }
+      if (from < 21) {
+        // S1.E (manga source picker): per-manga preferred source plugin
+        // id. Strictly additive on the manga_library table.
+        // Must run AFTER the from < 20 block so manga_library exists.
+        await _ensureColumn(
+          tableName: 'manga_library',
+          columnName: 'preferred_source_id',
+          sqlDefinition: 'TEXT',
+        );
+      }
     },
     beforeOpen: (details) async {
       if (details.wasCreated) {
