@@ -45,6 +45,7 @@ workspace:
   - packages/kumoriya_source_runtime
   - packages/kumoriya_source_olympus
   - packages/kumoriya_source_inmanga
+  - packages/kumoriya_source_manhwaweb
   - packages/kumoriya_exoplayer
   - packages/kumoriya_reader
   - tools/resolver_cli

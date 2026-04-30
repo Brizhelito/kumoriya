@@ -10,6 +10,7 @@ import 'package:kumoriya_mangabaka/kumoriya_mangabaka.dart';
 import 'package:kumoriya_mangaupdates/kumoriya_mangaupdates.dart';
 import 'package:kumoriya_source_inmanga/kumoriya_source_inmanga.dart';
 import 'package:kumoriya_source_mangadex/kumoriya_source_mangadex.dart';
+import 'package:kumoriya_source_manhwaweb/kumoriya_source_manhwaweb.dart';
 import 'package:kumoriya_source_olympus/kumoriya_source_olympus.dart';
 import 'package:kumoriya_source_runtime/kumoriya_source_runtime.dart';
 
@@ -53,6 +54,7 @@ final mangaSourcePluginsProvider = Provider<List<MangaSourcePlugin>>((ref) {
     _buildMangaDex(overrides),
     _buildOlympus(overrides),
     _buildInManga(overrides),
+    _buildManhwaWeb(overrides),
   ];
 });
 
@@ -107,6 +109,21 @@ MangaSourcePlugin _buildInManga(Map<String, Uri> overrides) {
   }
   return InMangaSourcePlugin(
     mirrors: MirrorList(<Uri>[override, _inMangaDefaultBaseUri]),
+  );
+}
+
+final Uri _manhwaWebDefaultBaseUri = Uri.parse(
+  'https://manhwawebbackend-production.up.railway.app/',
+);
+
+MangaSourcePlugin _buildManhwaWeb(Map<String, Uri> overrides) {
+  const pluginId = 'kumoriya.source.manhwaweb';
+  final override = overrides[pluginId];
+  if (override == null) {
+    return ManhwaWebSourcePlugin();
+  }
+  return ManhwaWebSourcePlugin(
+    mirrors: MirrorList(<Uri>[override, _manhwaWebDefaultBaseUri]),
   );
 }
 

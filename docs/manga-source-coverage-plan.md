@@ -278,7 +278,9 @@ _None as of 2026-04-30 00:30._
 
 **S4 (`kumoriya_source_inmanga`) ✅ done (2026-04-30).** Second LatAm source. ASP.NET MVC site with a quirky double-envelope JSON (`{"data":"<inner-json>"}`) for search and chapters, plus SSR HTML scrape for detail metadata and reader page UUIDs. Single mirror; rotator wired anyway so the S2.C URL override still applies. 16/16 tests with live fixtures. Composite repo unchanged.
 
-**S5 — `kumoriya_source_manhwaweb`.** Tagged as the easiest in the plan (JSON-native); budget ~1d.
+**S5 (`kumoriya_source_manhwaweb`) ✅ done (2026-04-30).** Third LatAm source. JSON-native REST on a Railway-hosted backend; detail + chapter list in a single `/manhwa/see/{slug}` call, ordered image URLs in `chapter.img[]`. The Railway host is the explicit reason S2.C exists — users can pin a working backend through the Settings UI when the deployment URL rotates. 12/12 tests.
+
+**S6 — `kumoriya_source_ikigai`.** Cloudflare-protected on some endpoints per recon; budget 1d.
 
 ---
 
