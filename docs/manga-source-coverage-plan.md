@@ -1,6 +1,6 @@
 # Manga Source Coverage — Master Plan
 
-> **Status as of 2026-04-29:** S0 (recon) ✅ · S1.A (MangaBaka) ✅ · S1.B (MangaUpdates) ✅ · S1.C (composite v2) ✅ · S1.D (MangaBaka matching wired) ✅ · S1.E onward pending
+> **Status as of 2026-04-29:** S0 (recon) ✅ · S1.A (MangaBaka) ✅ · S1.B (MangaUpdates) ✅ · S1.C (composite v2) ✅ · S1.D (MangaBaka matching wired) ✅ · S1.E (source picker + gateway provider) ✅ · S1.F onward pending
 > **Owner / driver:** brizhelito · **Plan version:** v3.1
 > **Cross-refs:** `docs/dev-diary/2026-04-29.md`, `docs/60-roadmap.md` (Phase 5)
 
@@ -172,7 +172,7 @@ Each slice is atomic, testable, and ships green before the next starts. Sub-slic
 | **S1.B** | `kumoriya_mangaupdates` package (client + gateway + tests) | — | 0.5d | ✅ done |
 | **S1.C** | Composite repo v2: `List<MangaSourcePlugin>` + parallel fan-out + dedup | — | 1d | ✅ done |
 | **S1.D** | Wire MangaBaka corpus into composite v2 matching | S1.A + S1.C | 0.5d | ✅ done |
-| **S1.E** | UI: extend picker with "source" dimension + l10n | S1.C | 0.5d | ⏳ pending |
+| **S1.E** | UI: source picker chip + Drift v21 + MangaBaka gateway provider + l10n | S1.C + S1.D | 0.5d | ✅ done |
 | **S1.F** | M8: scanlator picker enrichment via MU groups | S1.B + S1.E | 1.5d | ⏳ pending |
 | **S2 (M2)** | Configurable base URL + fallback list contract | S1.C | 1d | ⏳ pending |
 | **S3** | `kumoriya_source_olympus` plugin | S1.D + S2 | 1.5d | ⏳ pending |
@@ -263,21 +263,22 @@ S10 wraps up:
 - ✅ **S1.B — MangaUpdates client** (diary 2026-04-29 second entry)
 - ✅ **S1.C — Composite repository v2** (diary 2026-04-29 fourth entry; multi-source fan-out, sourceId tagging, per-plugin timeout, failure isolation, `availableSources` picker catalog). The scanlator-picker work was committed first to keep the diff readable.
 - ✅ **S1.D — MangaBaka matching wired** (diary 2026-04-29 fifth entry). New Strategy A2 (cross-tracker bypass via `mu`/`mal` aligned to `MangaBakaCrossIds`) and Strategy B+ (fuzzy candidate pool expanded with `titleCorpus`). Per-AniList-id memoization. Gateway transport failures are non-fatal; resolver degrades to legacy A+B path. Optional `mangaBaka: MangaBakaMetadataGateway?` constructor param keeps existing call sites unchanged.
+- ✅ **S1.E — Source picker UI + gateway provider** (diary 2026-04-29 sixth entry). Drift schema v21 adds `preferred_source_id` column. New `setPreferredSourceId` on `MangaLibraryStore` + `SyncAwareMangaLibraryStore`. Real `HttpMangaBakaMetadataGateway` provider wired into the composite — Strategies A2 / B+ active for users. `_SourcePicker` chip in `manga_detail_page` mirrors the scanlator picker layout. New l10n keys in en + es. Fan-out is now end-to-end visible to the user.
 
 ### 5.2 In progress
 
-_None as of 2026-04-29 23:00._
+_None as of 2026-04-29 23:35._
 
 ### 5.3 Next up
 
-**S1.E — Source picker UI chip.** The `availableSources(anilistId)` API on the composite already exposes everything the UI needs (sourceId, displayName, chapterCount, sorted by coverage). What's left is purely presentation:
+**S1.F — Scanlator picker enrichment via MangaUpdates groups.** With S1.E shipped, the picker UI is complete but its rows still come exclusively from the source plugins themselves. S1.F enriches each scanlator option with MangaUpdates group metadata (active flag, latest release timestamp, social links) so the user can pick a more-informed scanlator. Touch points:
 
-- Render a chip row in the chapter list header showing the contributing plugins, with the active one highlighted.
-- Wire the chip taps through `fetchMangaChaptersWithPreference(preferredSourceId: ...)`.
-- Persist the per-manga preferred source the same way the scanlator picker persists `preferredScanlator`.
-- Add l10n strings (es-MX primary, en fallback).
+- New optional `MangaUpdatesMetadataGateway` injection on the composite (mirrors S1.D's MangaBaka injection — same isolation pattern).
+- For each distinct `scanlator` name surfaced in `_computeScanlatorOptions`, look up the matching MU group via `searchGroups(name)` and attach `(activeFlag, lastReleaseAt, twitter, …)` to the `ScanlatorOption`.
+- Picker UI shows an "active / inactive" badge plus a relative-time "last release" hint. No persistence change needed — this is purely augmenting the in-memory option list.
+- Memoize per `(anilistId, scanlator)` so the lookup runs once per session.
 
-In parallel, **S1.E** is also when we wire a real `HttpMangaBakaMetadataGateway` provider and inject it into the composite. The composite already accepts the optional gateway; only the Riverpod provider + HTTP client construction is missing.
+After S1.F, the matching pipeline is feature-complete for the slice S1 family. The next hard milestone is **S2 (M2): configurable base URL + fallback list contract** so that source plugins can be switched between mirrors at runtime — a prerequisite for the upcoming S3-S9 plugin work.
 
 ---
 
