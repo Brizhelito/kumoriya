@@ -173,7 +173,7 @@ Each slice is atomic, testable, and ships green before the next starts. Sub-slic
 | **S1.C** | Composite repo v2: `List<MangaSourcePlugin>` + parallel fan-out + dedup | — | 1d | ✅ done |
 | **S1.D** | Wire MangaBaka corpus into composite v2 matching | S1.A + S1.C | 0.5d | ✅ done |
 | **S1.E** | UI: source picker chip + Drift v21 + MangaBaka gateway provider + l10n | S1.C + S1.D | 0.5d | ✅ done |
-| **S1.F** | M8: scanlator picker enrichment via MU groups | S1.B + S1.E | 1.5d | ⏳ pending |
+| **S1.F** | M8: scanlator picker enrichment via MU groups | S1.B + S1.E | 1.5d | ✅ done |
 | **S2 (M2)** | Configurable base URL + fallback list contract | S1.C | 1d | ⏳ pending |
 | **S3** | `kumoriya_source_olympus` plugin | S1.D + S2 | 1.5d | ⏳ pending |
 | **S4** | `kumoriya_source_inmanga` plugin | S1.D | 1d | ⏳ pending |
@@ -264,21 +264,22 @@ S10 wraps up:
 - ✅ **S1.C — Composite repository v2** (diary 2026-04-29 fourth entry; multi-source fan-out, sourceId tagging, per-plugin timeout, failure isolation, `availableSources` picker catalog). The scanlator-picker work was committed first to keep the diff readable.
 - ✅ **S1.D — MangaBaka matching wired** (diary 2026-04-29 fifth entry). New Strategy A2 (cross-tracker bypass via `mu`/`mal` aligned to `MangaBakaCrossIds`) and Strategy B+ (fuzzy candidate pool expanded with `titleCorpus`). Per-AniList-id memoization. Gateway transport failures are non-fatal; resolver degrades to legacy A+B path. Optional `mangaBaka: MangaBakaMetadataGateway?` constructor param keeps existing call sites unchanged.
 - ✅ **S1.E — Source picker UI + gateway provider** (diary 2026-04-29 sixth entry). Drift schema v21 adds `preferred_source_id` column. New `setPreferredSourceId` on `MangaLibraryStore` + `SyncAwareMangaLibraryStore`. Real `HttpMangaBakaMetadataGateway` provider wired into the composite — Strategies A2 / B+ active for users. `_SourcePicker` chip in `manga_detail_page` mirrors the scanlator picker layout. New l10n keys in en + es. Fan-out is now end-to-end visible to the user.
+- ✅ **S1.F — Scanlator picker enrichment via MU groups** (diary 2026-04-29 seventh entry). `ScanlatorOption.lastReleaseAt` populated from MU `searchReleases(seriesId)` (series id sourced from MB cross-ids). MU transport failures + missing cross-ids degrade silently. `mangaUpdatesMetadataGatewayProvider` wired. Picker bottom-sheet shows "Última publicación hace N días" hints. Three new l10n keys per locale.
 
 ### 5.2 In progress
 
-_None as of 2026-04-29 23:35._
+_None as of 2026-04-29 23:55._
 
 ### 5.3 Next up
 
-**S1.F — Scanlator picker enrichment via MangaUpdates groups.** With S1.E shipped, the picker UI is complete but its rows still come exclusively from the source plugins themselves. S1.F enriches each scanlator option with MangaUpdates group metadata (active flag, latest release timestamp, social links) so the user can pick a more-informed scanlator. Touch points:
+**S2 (M2) — Configurable base URL + fallback list contract.** With the matching pipeline complete (every S1 sub-slice shipped), the next blocking milestone for plugin growth is the runtime mirror-switching contract. Touch points:
 
-- New optional `MangaUpdatesMetadataGateway` injection on the composite (mirrors S1.D's MangaBaka injection — same isolation pattern).
-- For each distinct `scanlator` name surfaced in `_computeScanlatorOptions`, look up the matching MU group via `searchGroups(name)` and attach `(activeFlag, lastReleaseAt, twitter, …)` to the `ScanlatorOption`.
-- Picker UI shows an "active / inactive" badge plus a relative-time "last release" hint. No persistence change needed — this is purely augmenting the in-memory option list.
-- Memoize per `(anilistId, scanlator)` so the lookup runs once per session.
+- Source plugins expose a `List<Uri> baseUrls` instead of a single `Uri baseUri` (the manifest already has the field; the contract just needs to formalize fallback iteration).
+- New `kumoriya_source_runtime` helper that, on transport failures of a primary URL, retries against the next mirror without exposing the rotation to upstream callers.
+- Settings UI to override the active base URL per plugin (advanced section).
+- Per-plugin health probe (subset of M4) to deprioritize a mirror that has been failing recently.
 
-After S1.F, the matching pipeline is feature-complete for the slice S1 family. The next hard milestone is **S2 (M2): configurable base URL + fallback list contract** so that source plugins can be switched between mirrors at runtime — a prerequisite for the upcoming S3-S9 plugin work.
+S2 unlocks **S3 onward** (Olympus, InManga, ManhwaWeb, Ikigai, MangaPlus, Webtoons, …) since most of those sources need mirror rotation to survive geo-blocks and DDoS protection bursts.
 
 ---
 
