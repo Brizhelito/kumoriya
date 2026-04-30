@@ -180,7 +180,7 @@ Each slice is atomic, testable, and ships green before the next starts. Sub-slic
 | **S5** | `kumoriya_source_manhwaweb` plugin (JSON-native, easiest) | S1.D | 1d | ✅ done |
 | **S6** | `kumoriya_source_ikigai` plugin | S1.D + S2 | 1d | ⏸ deferred |
 | **S7** | `kumoriya_source_lectortmo` plugin (TMO heir, ES core) | S1.D + S2 | 1.5d | ✅ done |
-| **S8** | `kumoriya_source_lectormanga` plugin (ES, active) | S1.D + S2 | 1d | ⏳ pending |
+| **S8** | `kumoriya_source_lectormanga` plugin (ES, active) | S1.D + S2 | 1d | ⏸ deferred |
 | **S9** | `kumoriya_source_nekoscan` plugin (ES manhwa) | S1.D + S2 | 1d | ⏳ pending |
 | **S10** | `kumoriya_source_visormanhwas` plugin (ES manhwa) | S1.D + S2 | 1d | ⏳ pending |
 | **S11** | `kumoriya_source_webtoons_es` plugin (legal, `es.webtoons.com`) | S1.D | 1.5d | ⏳ pending |
@@ -308,7 +308,19 @@ Tesis explícita: **especializar el catálogo de manga/manhwa al ecosistema en e
 
 **S7 (`kumoriya_source_lectortmo`) ✅ done (2026-04-30).** Heredero TMO. WordPress + custom post type `manga` + custom REST namespace `eastmanga/v1`. Endpoints: `wp/v2/manga` (search + detail con `_embed=wp:featuredmedia`), `eastmanga/v1/chapters?manga_id={id}` (lista de capítulos — el `meta_query` de WP no filtra sin auth, este endpoint custom es la solución oficial), `wp/v2/posts/{chapterId}` (páginas via regex sobre `content.rendered`). Default `lectortmoo.com`; sibling clone `lectortmo.vip` plumbed as manifest mirror. 14/14 tests. Diary `docs/dev-diary/2026-04-30.md`.
 
-**S8 — `kumoriya_source_lectormanga`** (1d). Probable WP + CPT; recon antes de codificar para confirmar si comparte el tema `eastmanga` (diff mínimo si sí).
+**S8 — `kumoriya_source_lectormanga` (⏸ deferred 2026-04-30).** Recon confirmed the active domain is `https://lectormangaa.com/` and it runs WordPress + Madara (`madara` theme + `madara-core`). Frontend HTML exposes the usual Madara search AJAX (`admin-ajax.php?action=wp-manga-search-manga`) and a custom namespace `lmcomics-migration/v1` (`/manga`, `/manga/{id}/chapters`, `/page/{chapter_id}/{page}`), but:
+
+- `lmcomics-migration/v1` returns `401 {"code":"unauthorized","message":"API key required."}` without a private API key.
+- A clean browser context can load after JS challenge execution, but a non-browser client (`urllib`/Dart-like raw HTTP) receives `403` on home, REST, admin-ajax, detail and chapter endpoints.
+- The 403 response is explicitly Cloudflare-managed: `Cf-Mitigated: challenge`, `Server: cloudflare`, body title `Just a moment...`.
+
+Conclusion: do **not** ship a normal `http.Client` source plugin for LectorManga today. It would only work after a browser/completed-CF session and would violate the "WebView last-resort infra, not UX primitive" rule. Revisit only if:
+
+1. A stable non-CF mirror appears.
+2. The site exposes a public API key intentionally meant for clients.
+3. Kumoriya later introduces an explicit user-managed cookie/session override for sources (not planned for this slice).
+
+**S9 — `kumoriya_source_nekoscan`** (1d). Next active ES source. Recon first; prefer JSON/REST/HTML paths that work from a clean non-browser HTTP client.
 
 ---
 
