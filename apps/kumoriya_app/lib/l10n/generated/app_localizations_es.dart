@@ -1139,6 +1139,44 @@ class AppLocalizationsEs extends AppLocalizations {
   String get mangaDetailSourcePickerTitle => 'Elige proveedor';
 
   @override
+  String get settingsPluginBaseUrlsTitle => 'URLs base de plugins';
+
+  @override
+  String get settingsPluginBaseUrlsDescription =>
+      'Sobrescribe la URL base que usa cada plugin de fuente. Dejar vacío para usar la del manifiesto.';
+
+  @override
+  String get settingsPluginBaseUrlsAdvancedEntry =>
+      'URLs base de plugins (avanzado)';
+
+  @override
+  String get settingsPluginBaseUrlsEmpty => 'No hay plugins disponibles.';
+
+  @override
+  String get settingsPluginBaseUrlsManifestLabel => 'Predet. del manifiesto';
+
+  @override
+  String get settingsPluginBaseUrlsCurrentLabel => 'Actual';
+
+  @override
+  String get settingsPluginBaseUrlsOverrideHint => 'https://api.example.com';
+
+  @override
+  String get settingsPluginBaseUrlsSave => 'Guardar';
+
+  @override
+  String get settingsPluginBaseUrlsClear => 'Restablecer';
+
+  @override
+  String get settingsPluginBaseUrlsInvalid => 'Ingresa una URL http(s) válida.';
+
+  @override
+  String get settingsPluginBaseUrlsSaved => 'Override guardado.';
+
+  @override
+  String get settingsPluginBaseUrlsCleared => 'Override eliminado.';
+
+  @override
   String get calendarTitle => 'Calendario';
 
   @override

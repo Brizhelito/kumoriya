@@ -11813,6 +11813,286 @@ class MangaDownloadTableCompanion
   }
 }
 
+class $PluginBaseUrlOverrideTableTable extends PluginBaseUrlOverrideTable
+    with
+        TableInfo<
+          $PluginBaseUrlOverrideTableTable,
+          PluginBaseUrlOverrideTableData
+        > {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $PluginBaseUrlOverrideTableTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _pluginIdMeta = const VerificationMeta(
+    'pluginId',
+  );
+  @override
+  late final GeneratedColumn<String> pluginId = GeneratedColumn<String>(
+    'plugin_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _baseUrlMeta = const VerificationMeta(
+    'baseUrl',
+  );
+  @override
+  late final GeneratedColumn<String> baseUrl = GeneratedColumn<String>(
+    'base_url',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<int> updatedAt = GeneratedColumn<int>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [pluginId, baseUrl, updatedAt];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'plugin_base_url_override';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<PluginBaseUrlOverrideTableData> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('plugin_id')) {
+      context.handle(
+        _pluginIdMeta,
+        pluginId.isAcceptableOrUnknown(data['plugin_id']!, _pluginIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_pluginIdMeta);
+    }
+    if (data.containsKey('base_url')) {
+      context.handle(
+        _baseUrlMeta,
+        baseUrl.isAcceptableOrUnknown(data['base_url']!, _baseUrlMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_baseUrlMeta);
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_updatedAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {pluginId};
+  @override
+  PluginBaseUrlOverrideTableData map(
+    Map<String, dynamic> data, {
+    String? tablePrefix,
+  }) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return PluginBaseUrlOverrideTableData(
+      pluginId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}plugin_id'],
+      )!,
+      baseUrl: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}base_url'],
+      )!,
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}updated_at'],
+      )!,
+    );
+  }
+
+  @override
+  $PluginBaseUrlOverrideTableTable createAlias(String alias) {
+    return $PluginBaseUrlOverrideTableTable(attachedDatabase, alias);
+  }
+}
+
+class PluginBaseUrlOverrideTableData extends DataClass
+    implements Insertable<PluginBaseUrlOverrideTableData> {
+  final String pluginId;
+  final String baseUrl;
+  final int updatedAt;
+  const PluginBaseUrlOverrideTableData({
+    required this.pluginId,
+    required this.baseUrl,
+    required this.updatedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['plugin_id'] = Variable<String>(pluginId);
+    map['base_url'] = Variable<String>(baseUrl);
+    map['updated_at'] = Variable<int>(updatedAt);
+    return map;
+  }
+
+  PluginBaseUrlOverrideTableCompanion toCompanion(bool nullToAbsent) {
+    return PluginBaseUrlOverrideTableCompanion(
+      pluginId: Value(pluginId),
+      baseUrl: Value(baseUrl),
+      updatedAt: Value(updatedAt),
+    );
+  }
+
+  factory PluginBaseUrlOverrideTableData.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return PluginBaseUrlOverrideTableData(
+      pluginId: serializer.fromJson<String>(json['pluginId']),
+      baseUrl: serializer.fromJson<String>(json['baseUrl']),
+      updatedAt: serializer.fromJson<int>(json['updatedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'pluginId': serializer.toJson<String>(pluginId),
+      'baseUrl': serializer.toJson<String>(baseUrl),
+      'updatedAt': serializer.toJson<int>(updatedAt),
+    };
+  }
+
+  PluginBaseUrlOverrideTableData copyWith({
+    String? pluginId,
+    String? baseUrl,
+    int? updatedAt,
+  }) => PluginBaseUrlOverrideTableData(
+    pluginId: pluginId ?? this.pluginId,
+    baseUrl: baseUrl ?? this.baseUrl,
+    updatedAt: updatedAt ?? this.updatedAt,
+  );
+  PluginBaseUrlOverrideTableData copyWithCompanion(
+    PluginBaseUrlOverrideTableCompanion data,
+  ) {
+    return PluginBaseUrlOverrideTableData(
+      pluginId: data.pluginId.present ? data.pluginId.value : this.pluginId,
+      baseUrl: data.baseUrl.present ? data.baseUrl.value : this.baseUrl,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('PluginBaseUrlOverrideTableData(')
+          ..write('pluginId: $pluginId, ')
+          ..write('baseUrl: $baseUrl, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(pluginId, baseUrl, updatedAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is PluginBaseUrlOverrideTableData &&
+          other.pluginId == this.pluginId &&
+          other.baseUrl == this.baseUrl &&
+          other.updatedAt == this.updatedAt);
+}
+
+class PluginBaseUrlOverrideTableCompanion
+    extends UpdateCompanion<PluginBaseUrlOverrideTableData> {
+  final Value<String> pluginId;
+  final Value<String> baseUrl;
+  final Value<int> updatedAt;
+  final Value<int> rowid;
+  const PluginBaseUrlOverrideTableCompanion({
+    this.pluginId = const Value.absent(),
+    this.baseUrl = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  PluginBaseUrlOverrideTableCompanion.insert({
+    required String pluginId,
+    required String baseUrl,
+    required int updatedAt,
+    this.rowid = const Value.absent(),
+  }) : pluginId = Value(pluginId),
+       baseUrl = Value(baseUrl),
+       updatedAt = Value(updatedAt);
+  static Insertable<PluginBaseUrlOverrideTableData> custom({
+    Expression<String>? pluginId,
+    Expression<String>? baseUrl,
+    Expression<int>? updatedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (pluginId != null) 'plugin_id': pluginId,
+      if (baseUrl != null) 'base_url': baseUrl,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  PluginBaseUrlOverrideTableCompanion copyWith({
+    Value<String>? pluginId,
+    Value<String>? baseUrl,
+    Value<int>? updatedAt,
+    Value<int>? rowid,
+  }) {
+    return PluginBaseUrlOverrideTableCompanion(
+      pluginId: pluginId ?? this.pluginId,
+      baseUrl: baseUrl ?? this.baseUrl,
+      updatedAt: updatedAt ?? this.updatedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (pluginId.present) {
+      map['plugin_id'] = Variable<String>(pluginId.value);
+    }
+    if (baseUrl.present) {
+      map['base_url'] = Variable<String>(baseUrl.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<int>(updatedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('PluginBaseUrlOverrideTableCompanion(')
+          ..write('pluginId: $pluginId, ')
+          ..write('baseUrl: $baseUrl, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -11854,6 +12134,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
       $ChapterPageCacheTableTable(this);
   late final $MangaDownloadTableTable mangaDownloadTable =
       $MangaDownloadTableTable(this);
+  late final $PluginBaseUrlOverrideTableTable pluginBaseUrlOverrideTable =
+      $PluginBaseUrlOverrideTableTable(this);
   late final ProgressDao progressDao = ProgressDao(this as AppDatabase);
   late final WatchHistoryDao watchHistoryDao = WatchHistoryDao(
     this as AppDatabase,
@@ -11897,6 +12179,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final MangaDownloadDao mangaDownloadDao = MangaDownloadDao(
     this as AppDatabase,
   );
+  late final PluginBaseUrlOverrideDao pluginBaseUrlOverrideDao =
+      PluginBaseUrlOverrideDao(this as AppDatabase);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -11920,6 +12204,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     mangaLibraryTable,
     chapterPageCacheTable,
     mangaDownloadTable,
+    pluginBaseUrlOverrideTable,
   ];
 }
 
@@ -17669,6 +17954,187 @@ typedef $$MangaDownloadTableTableProcessedTableManager =
       MangaDownloadTableData,
       PrefetchHooks Function()
     >;
+typedef $$PluginBaseUrlOverrideTableTableCreateCompanionBuilder =
+    PluginBaseUrlOverrideTableCompanion Function({
+      required String pluginId,
+      required String baseUrl,
+      required int updatedAt,
+      Value<int> rowid,
+    });
+typedef $$PluginBaseUrlOverrideTableTableUpdateCompanionBuilder =
+    PluginBaseUrlOverrideTableCompanion Function({
+      Value<String> pluginId,
+      Value<String> baseUrl,
+      Value<int> updatedAt,
+      Value<int> rowid,
+    });
+
+class $$PluginBaseUrlOverrideTableTableFilterComposer
+    extends Composer<_$AppDatabase, $PluginBaseUrlOverrideTableTable> {
+  $$PluginBaseUrlOverrideTableTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get pluginId => $composableBuilder(
+    column: $table.pluginId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get baseUrl => $composableBuilder(
+    column: $table.baseUrl,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$PluginBaseUrlOverrideTableTableOrderingComposer
+    extends Composer<_$AppDatabase, $PluginBaseUrlOverrideTableTable> {
+  $$PluginBaseUrlOverrideTableTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get pluginId => $composableBuilder(
+    column: $table.pluginId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get baseUrl => $composableBuilder(
+    column: $table.baseUrl,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$PluginBaseUrlOverrideTableTableAnnotationComposer
+    extends Composer<_$AppDatabase, $PluginBaseUrlOverrideTableTable> {
+  $$PluginBaseUrlOverrideTableTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get pluginId =>
+      $composableBuilder(column: $table.pluginId, builder: (column) => column);
+
+  GeneratedColumn<String> get baseUrl =>
+      $composableBuilder(column: $table.baseUrl, builder: (column) => column);
+
+  GeneratedColumn<int> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+}
+
+class $$PluginBaseUrlOverrideTableTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $PluginBaseUrlOverrideTableTable,
+          PluginBaseUrlOverrideTableData,
+          $$PluginBaseUrlOverrideTableTableFilterComposer,
+          $$PluginBaseUrlOverrideTableTableOrderingComposer,
+          $$PluginBaseUrlOverrideTableTableAnnotationComposer,
+          $$PluginBaseUrlOverrideTableTableCreateCompanionBuilder,
+          $$PluginBaseUrlOverrideTableTableUpdateCompanionBuilder,
+          (
+            PluginBaseUrlOverrideTableData,
+            BaseReferences<
+              _$AppDatabase,
+              $PluginBaseUrlOverrideTableTable,
+              PluginBaseUrlOverrideTableData
+            >,
+          ),
+          PluginBaseUrlOverrideTableData,
+          PrefetchHooks Function()
+        > {
+  $$PluginBaseUrlOverrideTableTableTableManager(
+    _$AppDatabase db,
+    $PluginBaseUrlOverrideTableTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$PluginBaseUrlOverrideTableTableFilterComposer(
+                $db: db,
+                $table: table,
+              ),
+          createOrderingComposer: () =>
+              $$PluginBaseUrlOverrideTableTableOrderingComposer(
+                $db: db,
+                $table: table,
+              ),
+          createComputedFieldComposer: () =>
+              $$PluginBaseUrlOverrideTableTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<String> pluginId = const Value.absent(),
+                Value<String> baseUrl = const Value.absent(),
+                Value<int> updatedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => PluginBaseUrlOverrideTableCompanion(
+                pluginId: pluginId,
+                baseUrl: baseUrl,
+                updatedAt: updatedAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String pluginId,
+                required String baseUrl,
+                required int updatedAt,
+                Value<int> rowid = const Value.absent(),
+              }) => PluginBaseUrlOverrideTableCompanion.insert(
+                pluginId: pluginId,
+                baseUrl: baseUrl,
+                updatedAt: updatedAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$PluginBaseUrlOverrideTableTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $PluginBaseUrlOverrideTableTable,
+      PluginBaseUrlOverrideTableData,
+      $$PluginBaseUrlOverrideTableTableFilterComposer,
+      $$PluginBaseUrlOverrideTableTableOrderingComposer,
+      $$PluginBaseUrlOverrideTableTableAnnotationComposer,
+      $$PluginBaseUrlOverrideTableTableCreateCompanionBuilder,
+      $$PluginBaseUrlOverrideTableTableUpdateCompanionBuilder,
+      (
+        PluginBaseUrlOverrideTableData,
+        BaseReferences<
+          _$AppDatabase,
+          $PluginBaseUrlOverrideTableTable,
+          PluginBaseUrlOverrideTableData
+        >,
+      ),
+      PluginBaseUrlOverrideTableData,
+      PrefetchHooks Function()
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -17719,4 +18185,10 @@ class $AppDatabaseManager {
       $$ChapterPageCacheTableTableTableManager(_db, _db.chapterPageCacheTable);
   $$MangaDownloadTableTableTableManager get mangaDownloadTable =>
       $$MangaDownloadTableTableTableManager(_db, _db.mangaDownloadTable);
+  $$PluginBaseUrlOverrideTableTableTableManager
+  get pluginBaseUrlOverrideTable =>
+      $$PluginBaseUrlOverrideTableTableTableManager(
+        _db,
+        _db.pluginBaseUrlOverrideTable,
+      );
 }

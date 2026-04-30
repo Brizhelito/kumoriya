@@ -93,7 +93,7 @@ void main() {
       final versionRow = await db
           .customSelect('PRAGMA user_version')
           .getSingle();
-      expect(versionRow.read<int>('user_version'), 20);
+      expect(versionRow.read<int>('user_version'), 22);
 
       final translationTables = await db
           .customSelect(
@@ -175,7 +175,7 @@ void main() {
 
       final version = (await db.customSelect('PRAGMA user_version').getSingle())
           .read<int>('user_version');
-      expect(version, 20);
+      expect(version, 22);
 
       final mangaTables = <String>[
         'manga_cache',

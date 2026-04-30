@@ -9,6 +9,7 @@ import 'package:kumoriya_manga_plugins/kumoriya_manga_plugins.dart';
 import 'package:kumoriya_mangabaka/kumoriya_mangabaka.dart';
 import 'package:kumoriya_mangaupdates/kumoriya_mangaupdates.dart';
 import 'package:kumoriya_source_mangadex/kumoriya_source_mangadex.dart';
+import 'package:kumoriya_source_runtime/kumoriya_source_runtime.dart';
 
 import '../../../../shared/cache/fallback_reason.dart';
 import '../../../../shared/storage_providers.dart';
@@ -33,9 +34,32 @@ typedef MangaHomeData = MangaHomeSections;
 /// (S3-S6), append them here in priority order — earlier entries win
 /// ties in the dedup heuristic. Lifted to a list in S1.C; in S1.E the
 /// detail page surfaces this through the source picker chip.
+/// Default API base URL for MangaDex when no user override is set. Kept as
+/// a module-level constant so the override-aware provider builds a stable
+/// `MirrorList` (override-first, default-second) without re-parsing on
+/// every rebuild.
+final Uri _mangaDexDefaultBaseUri = Uri.parse('https://api.mangadex.org/');
+
 final mangaSourcePluginsProvider = Provider<List<MangaSourcePlugin>>((ref) {
-  return <MangaSourcePlugin>[MangaDexSourcePlugin()];
+  // S2: honor per-plugin user overrides. Reads the resolved snapshot, not
+  // the AsyncValue, so a missing/loading state degrades to manifest
+  // defaults instead of blocking the catalog.
+  final overrides = ref
+      .watch(pluginBaseUrlOverridesProvider)
+      .maybeWhen(data: (m) => m, orElse: () => const <String, Uri>{});
+  return <MangaSourcePlugin>[_buildMangaDex(overrides)];
 });
+
+MangaSourcePlugin _buildMangaDex(Map<String, Uri> overrides) {
+  const pluginId = 'kumoriya.source.mangadex';
+  final override = overrides[pluginId];
+  if (override == null) {
+    return MangaDexSourcePlugin();
+  }
+  return MangaDexSourcePlugin(
+    mirrors: MirrorList(<Uri>[override, _mangaDexDefaultBaseUri]),
+  );
+}
 
 /// Preferred chapter languages, derived from the active locale at the
 /// widget tree root.

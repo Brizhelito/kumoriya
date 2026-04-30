@@ -219,6 +219,33 @@ final translationCacheStoreProvider = Provider<TranslationCacheStore>((ref) {
   return DriftTranslationCacheStore(db);
 });
 
+/// Persistent store for per-plugin user overrides of the active base URL.
+/// Lands in S2 (M2 — base URL fallback contract). The composite manga
+/// repository and source plugin providers consult this store to honor a
+/// user-pinned mirror over the manifest default order.
+final pluginBaseUrlOverrideStoreProvider = Provider<PluginBaseUrlOverrideStore>(
+  (ref) {
+    final db = ref.watch(appDatabaseProvider);
+    return DriftPluginBaseUrlOverrideStore(db);
+  },
+);
+
+/// Snapshot of every persisted base-URL override, keyed by plugin id.
+/// Watching this Future keeps the source-plugin providers reactive to
+/// changes from the Settings UI.
+final pluginBaseUrlOverridesProvider = FutureProvider<Map<String, Uri>>((
+  ref,
+) async {
+  ref.watch(syncDataRefreshEpochProvider);
+  final res = await ref.watch(pluginBaseUrlOverrideStoreProvider).getAll();
+  return res.fold(
+    onFailure: (_) => const <String, Uri>{},
+    onSuccess: (overrides) => <String, Uri>{
+      for (final o in overrides) o.pluginId: o.baseUrl,
+    },
+  );
+});
+
 final favoriteAnimeIdsProvider =
     FutureProvider.autoDispose<Result<Set<int>, KumoriyaError>>((ref) async {
       ref.watch(syncDataRefreshEpochProvider);

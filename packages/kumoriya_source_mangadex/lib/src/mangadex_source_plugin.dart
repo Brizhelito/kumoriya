@@ -5,6 +5,7 @@ import 'package:kumoriya_core/kumoriya_core.dart';
 import 'package:kumoriya_manga_domain/kumoriya_manga_domain.dart';
 import 'package:kumoriya_manga_plugins/kumoriya_manga_plugins.dart';
 import 'package:kumoriya_plugins/kumoriya_plugins.dart';
+import 'package:kumoriya_source_runtime/kumoriya_source_runtime.dart';
 
 /// MangaDex (`https://api.mangadex.org`) implementation of
 /// [MangaSourcePlugin].
@@ -25,12 +26,31 @@ import 'package:kumoriya_plugins/kumoriya_plugins.dart';
 /// All MangaDex IDs are RFC-4122 UUIDs and are used verbatim as
 /// `sourceMangaId` / `sourceChapterId`.
 final class MangaDexSourcePlugin implements MangaSourcePlugin {
-  MangaDexSourcePlugin({http.Client? httpClient, Uri? baseUri})
-    : _httpClient = httpClient ?? http.Client(),
-      _baseUri = baseUri ?? Uri.parse('https://api.mangadex.org/');
+  /// Builds the plugin.
+  ///
+  /// [mirrors] is the ordered list of API base URIs to try. Defaults to
+  /// the single official endpoint `https://api.mangadex.org/`. Callers
+  /// (typically the app provider layer honoring a user override) pass a
+  /// `MirrorList.withPreferred(...)` if a different primary is desired.
+  ///
+  /// [baseUri] remains for backwards compatibility with existing tests; if
+  /// provided it is treated as a single-entry mirror list and takes
+  /// precedence over [mirrors].
+  MangaDexSourcePlugin({
+    http.Client? httpClient,
+    Uri? baseUri,
+    MirrorList? mirrors,
+  }) : _httpClient = httpClient ?? http.Client(),
+       _rotator = MirrorRotator(
+         baseUri != null
+             ? MirrorList.single(baseUri)
+             : (mirrors ?? MirrorList.single(_defaultBaseUri)),
+       );
+
+  static final Uri _defaultBaseUri = Uri.parse('https://api.mangadex.org/');
 
   final http.Client _httpClient;
-  final Uri _baseUri;
+  final MirrorRotator _rotator;
 
   static const _userAgent = 'Kumoriya/0.1 (+https://github.com/Brizhelito)';
 
@@ -292,22 +312,29 @@ final class MangaDexSourcePlugin implements MangaSourcePlugin {
     String path,
     Map<String, List<String>> params,
   ) async {
-    final uri = _buildUri(path, params);
+    Uri lastUri = _rotator.mirrors.primary;
     http.Response response;
     try {
-      response = await _httpClient.get(
-        uri,
-        headers: const {'Accept': 'application/json', 'User-Agent': _userAgent},
-      );
+      response = await _rotator.run<http.Response>((base) async {
+        lastUri = _buildUri(base, path, params);
+        return _httpClient.get(
+          lastUri,
+          headers: const {
+            'Accept': 'application/json',
+            'User-Agent': _userAgent,
+          },
+        );
+      });
     } catch (e) {
       return Failure(
         SimpleError(
           code: 'mangadex.transport_failed',
-          message: 'GET $uri failed: $e',
+          message: 'GET $lastUri failed: $e',
           kind: KumoriyaErrorKind.transport,
         ),
       );
     }
+    final uri = lastUri;
 
     if (response.statusCode == 404) {
       return Failure(
@@ -353,8 +380,7 @@ final class MangaDexSourcePlugin implements MangaSourcePlugin {
     }
   }
 
-  Uri _buildUri(String path, Map<String, List<String>> params) {
-    final base = _baseUri;
+  Uri _buildUri(Uri base, String path, Map<String, List<String>> params) {
     final basePath = base.path.isEmpty
         ? ''
         : (base.path.endsWith('/')

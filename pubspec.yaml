@@ -42,6 +42,7 @@ workspace:
   - packages/kumoriya_testing
   - packages/kumoriya_matching
   - packages/kumoriya_resolver_common
+  - packages/kumoriya_source_runtime
   - packages/kumoriya_exoplayer
   - packages/kumoriya_reader
   - tools/resolver_cli

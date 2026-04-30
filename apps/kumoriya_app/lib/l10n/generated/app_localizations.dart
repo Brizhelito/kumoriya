@@ -1921,6 +1921,78 @@ abstract class AppLocalizations {
   /// **'Pick a provider'**
   String get mangaDetailSourcePickerTitle;
 
+  /// No description provided for @settingsPluginBaseUrlsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Plugin base URLs'**
+  String get settingsPluginBaseUrlsTitle;
+
+  /// No description provided for @settingsPluginBaseUrlsDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Override the base URL each source plugin uses. Leave empty to keep the manifest default.'**
+  String get settingsPluginBaseUrlsDescription;
+
+  /// No description provided for @settingsPluginBaseUrlsAdvancedEntry.
+  ///
+  /// In en, this message translates to:
+  /// **'Plugin base URLs (advanced)'**
+  String get settingsPluginBaseUrlsAdvancedEntry;
+
+  /// No description provided for @settingsPluginBaseUrlsEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No plugins available.'**
+  String get settingsPluginBaseUrlsEmpty;
+
+  /// No description provided for @settingsPluginBaseUrlsManifestLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Manifest default'**
+  String get settingsPluginBaseUrlsManifestLabel;
+
+  /// No description provided for @settingsPluginBaseUrlsCurrentLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Current'**
+  String get settingsPluginBaseUrlsCurrentLabel;
+
+  /// No description provided for @settingsPluginBaseUrlsOverrideHint.
+  ///
+  /// In en, this message translates to:
+  /// **'https://api.example.com'**
+  String get settingsPluginBaseUrlsOverrideHint;
+
+  /// No description provided for @settingsPluginBaseUrlsSave.
+  ///
+  /// In en, this message translates to:
+  /// **'Save'**
+  String get settingsPluginBaseUrlsSave;
+
+  /// No description provided for @settingsPluginBaseUrlsClear.
+  ///
+  /// In en, this message translates to:
+  /// **'Reset'**
+  String get settingsPluginBaseUrlsClear;
+
+  /// No description provided for @settingsPluginBaseUrlsInvalid.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter a valid http(s) URL.'**
+  String get settingsPluginBaseUrlsInvalid;
+
+  /// No description provided for @settingsPluginBaseUrlsSaved.
+  ///
+  /// In en, this message translates to:
+  /// **'Override saved.'**
+  String get settingsPluginBaseUrlsSaved;
+
+  /// No description provided for @settingsPluginBaseUrlsCleared.
+  ///
+  /// In en, this message translates to:
+  /// **'Override removed.'**
+  String get settingsPluginBaseUrlsCleared;
+
   /// No description provided for @calendarTitle.
   ///
   /// In en, this message translates to:

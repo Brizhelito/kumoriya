@@ -24,6 +24,7 @@ import '../../../downloads/application/wifi_only_mode_notifier.dart';
 import '../../../player/application/models/subtitle_settings.dart';
 import 'kumoriya_exoplayer_playground_page.dart';
 import 'player_flow_playground_page.dart';
+import 'plugin_base_url_overrides_page.dart';
 import 'resolver_playground_page.dart';
 
 class SettingsPage extends ConsumerStatefulWidget {
@@ -656,6 +657,23 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                       const Divider(
                         height: 1,
                         color: KumoriyaColors.borderSubtle,
+                      ),
+                      const SizedBox(height: 12),
+                      ListTile(
+                        contentPadding: EdgeInsets.zero,
+                        leading: const Icon(Icons.link_rounded),
+                        title: Text(
+                          context.l10n.settingsPluginBaseUrlsAdvancedEntry,
+                        ),
+                        trailing: const Icon(Icons.chevron_right_rounded),
+                        onTap: () {
+                          Navigator.of(context, rootNavigator: true).push(
+                            MaterialPageRoute<void>(
+                              builder: (_) =>
+                                  const PluginBaseUrlOverridesPage(),
+                            ),
+                          );
+                        },
                       ),
                       const SizedBox(height: 12),
                       const BugReportButton(),

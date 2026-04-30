@@ -14,6 +14,7 @@ dependencies:
   kumoriya_manga_domain:
   kumoriya_manga_plugins:
   kumoriya_plugins:
+  kumoriya_source_runtime:
 
 dev_dependencies:
   lints: ^6.0.0

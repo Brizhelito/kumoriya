@@ -13,6 +13,7 @@ import 'daos/manga_download_dao.dart';
 import 'daos/manga_library_dao.dart';
 import 'daos/manga_progress_dao.dart';
 import 'daos/playback_preference_dao.dart';
+import 'daos/plugin_base_url_override_dao.dart';
 import 'daos/progress_dao.dart';
 import 'daos/source_availability_cache_dao.dart';
 import 'daos/translation_cache_dao.dart';
@@ -32,6 +33,7 @@ import 'tables/manga_history_table.dart';
 import 'tables/manga_library_table.dart';
 import 'tables/manga_progress_table.dart';
 import 'tables/playback_preference_table.dart';
+import 'tables/plugin_base_url_override_table.dart';
 import 'tables/source_availability_cache_table.dart';
 import 'tables/translation_cache_table.dart';
 import 'tables/watch_history_table.dart';
@@ -58,6 +60,7 @@ part 'app_database.g.dart';
     MangaLibraryTable,
     ChapterPageCacheTable,
     MangaDownloadTable,
+    PluginBaseUrlOverrideTable,
   ],
   daos: [
     ProgressDao,
@@ -77,13 +80,14 @@ part 'app_database.g.dart';
     MangaLibraryDao,
     ChapterPageCacheDao,
     MangaDownloadDao,
+    PluginBaseUrlOverrideDao,
   ],
 )
 class AppDatabase extends _$AppDatabase {
   AppDatabase(super.e);
 
   @override
-  int get schemaVersion => 20;
+  int get schemaVersion => 22;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -259,6 +263,14 @@ class AppDatabase extends _$AppDatabase {
           tableName: 'manga_library',
           columnName: 'preferred_source_id',
           sqlDefinition: 'TEXT',
+        );
+      }
+      if (from < 22) {
+        // S2 (M2 — base URL fallback contract): per-plugin user override
+        // of the active base URL. Strictly additive: a single new table.
+        await _createTableIfMissing(
+          tableName: 'plugin_base_url_override',
+          createTable: () => m.createTable(pluginBaseUrlOverrideTable),
         );
       }
     },

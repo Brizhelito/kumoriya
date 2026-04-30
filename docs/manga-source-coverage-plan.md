@@ -174,7 +174,7 @@ Each slice is atomic, testable, and ships green before the next starts. Sub-slic
 | **S1.D** | Wire MangaBaka corpus into composite v2 matching | S1.A + S1.C | 0.5d | ✅ done |
 | **S1.E** | UI: source picker chip + Drift v21 + MangaBaka gateway provider + l10n | S1.C + S1.D | 0.5d | ✅ done |
 | **S1.F** | M8: scanlator picker enrichment via MU groups | S1.B + S1.E | 1.5d | ✅ done |
-| **S2 (M2)** | Configurable base URL + fallback list contract | S1.C | 1d | ⏳ pending |
+| **S2 (M2)** | Configurable base URL + fallback list contract | S1.C | 1d | ✅ done |
 | **S3** | `kumoriya_source_olympus` plugin | S1.D + S2 | 1.5d | ⏳ pending |
 | **S4** | `kumoriya_source_inmanga` plugin | S1.D | 1d | ⏳ pending |
 | **S5** | `kumoriya_source_manhwaweb` plugin (JSON-native, easiest) | S1.D | 1d | ⏳ pending |
@@ -268,18 +268,13 @@ S10 wraps up:
 
 ### 5.2 In progress
 
-_None as of 2026-04-29 23:55._
+_None as of 2026-04-30 00:30._
 
 ### 5.3 Next up
 
-**S2 (M2) — Configurable base URL + fallback list contract.** With the matching pipeline complete (every S1 sub-slice shipped), the next blocking milestone for plugin growth is the runtime mirror-switching contract. Touch points:
+**S2 (M2) ✅ done (2026-04-30).** Mirror-switching contract landed: new `kumoriya_source_runtime` package (`MirrorList` + `MirrorRotator` + `TransportFailure`), MangaDex source plugin migrated to consume the rotator, Drift v22 schema with `plugin_base_url_override` table, Settings UI under "App → Plugin base URLs (advanced)", l10n in en + es. 19 + 3 + 7 = 29 new tests across runtime, MangaDex regression, and storage. Health probes deferred to S10 (M4) per plan.
 
-- Source plugins expose a `List<Uri> baseUrls` instead of a single `Uri baseUri` (the manifest already has the field; the contract just needs to formalize fallback iteration).
-- New `kumoriya_source_runtime` helper that, on transport failures of a primary URL, retries against the next mirror without exposing the rotation to upstream callers.
-- Settings UI to override the active base URL per plugin (advanced section).
-- Per-plugin health probe (subset of M4) to deprioritize a mirror that has been failing recently.
-
-S2 unlocks **S3 onward** (Olympus, InManga, ManhwaWeb, Ikigai, MangaPlus, Webtoons, …) since most of those sources need mirror rotation to survive geo-blocks and DDoS protection bursts.
+**S3 — `kumoriya_source_olympus`.** First LatAm mirror-dependent source. With S2 in place, Olympus ships its own `MirrorList` of known mirror domains as a constructor default; users pin a preferred mirror through the same Settings UI shipped in S2.C.
 
 ---
 

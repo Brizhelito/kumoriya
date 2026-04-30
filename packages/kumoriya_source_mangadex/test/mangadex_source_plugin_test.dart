@@ -7,6 +7,7 @@ import 'package:kumoriya_manga_domain/kumoriya_manga_domain.dart';
 import 'package:kumoriya_manga_plugins/kumoriya_manga_plugins.dart';
 import 'package:kumoriya_plugins/kumoriya_plugins.dart';
 import 'package:kumoriya_source_mangadex/kumoriya_source_mangadex.dart';
+import 'package:kumoriya_source_runtime/kumoriya_source_runtime.dart';
 import 'package:test/test.dart';
 
 String _readFixture(String name) =>
@@ -405,6 +406,72 @@ void main() {
       (result as Failure<List<SourcePage>, KumoriyaError>).error.code,
       'mangadex.pages_empty',
     );
+  });
+
+  // ---------------------------------------------------------------------------
+  // mirror rotation (S2)
+
+  test('rotates to fallback mirror on transport failure', () async {
+    final hits = <String>[];
+    final plugin = MangaDexSourcePlugin(
+      mirrors: MirrorList(<Uri>[
+        Uri.parse('https://primary.example/'),
+        Uri.parse('https://fallback.example/'),
+      ]),
+      httpClient: MockClient((req) async {
+        hits.add(req.url.host);
+        if (req.url.host == 'primary.example') {
+          throw const SocketException('refused');
+        }
+        return _ok(emptyFixture);
+      }),
+    );
+
+    final result = await plugin.search(const MangaSearchQuery(query: 'x'));
+    expect(result.isSuccess, isTrue);
+    expect(hits, <String>['primary.example', 'fallback.example']);
+  });
+
+  test('non-transport failure is not retried across mirrors', () async {
+    final hits = <String>[];
+    final plugin = MangaDexSourcePlugin(
+      mirrors: MirrorList(<Uri>[
+        Uri.parse('https://primary.example/'),
+        Uri.parse('https://fallback.example/'),
+      ]),
+      httpClient: MockClient((req) async {
+        hits.add(req.url.host);
+        return http.Response('not json', 200, headers: _jsonHeaders);
+      }),
+    );
+
+    final result = await plugin.search(const MangaSearchQuery(query: 'x'));
+    expect(result.isFailure, isTrue);
+    // Only the primary should have been hit; bad JSON is a non-transport
+    // application-level error, not a mirror outage.
+    expect(hits, <String>['primary.example']);
+  });
+
+  test('exhausted mirrors map to mangadex.transport_failed', () async {
+    final hits = <String>[];
+    final plugin = MangaDexSourcePlugin(
+      mirrors: MirrorList(<Uri>[
+        Uri.parse('https://a.example/'),
+        Uri.parse('https://b.example/'),
+      ]),
+      httpClient: MockClient((req) async {
+        hits.add(req.url.host);
+        throw SocketException('down on ${req.url.host}');
+      }),
+    );
+
+    final result = await plugin.search(const MangaSearchQuery(query: 'x'));
+    expect(result.isFailure, isTrue);
+    expect(
+      (result as Failure<List<SourceMangaMatch>, KumoriyaError>).error.code,
+      'mangadex.transport_failed',
+    );
+    expect(hits, <String>['a.example', 'b.example']);
   });
 
   test('result-level "error" envelope is mapped to a failure', () async {
