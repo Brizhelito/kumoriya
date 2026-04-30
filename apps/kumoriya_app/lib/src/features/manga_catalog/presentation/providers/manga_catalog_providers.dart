@@ -7,6 +7,7 @@ import 'package:kumoriya_core/kumoriya_core.dart';
 import 'package:kumoriya_manga_domain/kumoriya_manga_domain.dart';
 import 'package:kumoriya_manga_plugins/kumoriya_manga_plugins.dart';
 import 'package:kumoriya_mangabaka/kumoriya_mangabaka.dart';
+import 'package:kumoriya_mangaupdates/kumoriya_mangaupdates.dart';
 import 'package:kumoriya_source_mangadex/kumoriya_source_mangadex.dart';
 
 import '../../../../shared/cache/fallback_reason.dart';
@@ -88,6 +89,26 @@ final mangaBakaMetadataGatewayProvider = Provider<MangaBakaMetadataGateway>((
   );
 });
 
+/// Process-wide MangaUpdates HTTP client (S1.F). Same caching +
+/// rate-limit posture as the MangaBaka client. The composite uses
+/// this gateway to enrich scanlator picker options with last-release
+/// timestamps; failures are non-fatal.
+final mangaUpdatesHttpClientProvider = Provider<MangaUpdatesHttpClient>((ref) {
+  return HttpMangaUpdatesClient();
+});
+
+/// Optional MangaUpdates metadata gateway. Wired into the composite
+/// repository; when MangaBaka surfaces an `mu` cross-id for the
+/// AniList row the composite calls `searchReleases(seriesId)` once
+/// per session and tags every scanlator option with the most recent
+/// release timestamp from that group.
+final mangaUpdatesMetadataGatewayProvider =
+    Provider<MangaUpdatesMetadataGateway>((ref) {
+      return HttpMangaUpdatesMetadataGateway(
+        client: ref.watch(mangaUpdatesHttpClientProvider),
+      );
+    });
+
 final _compositeMangaCatalogRepositoryProvider =
     Provider<CompositeMangaCatalogRepository>((ref) {
       final gateway = ref.watch(anilistMetadataGatewayProvider);
@@ -98,6 +119,7 @@ final _compositeMangaCatalogRepositoryProvider =
         cacheStore: ref.watch(mangaCacheStoreProvider),
         preferredLanguages: ref.watch(mangaPreferredLanguagesProvider),
         mangaBaka: ref.watch(mangaBakaMetadataGatewayProvider),
+        mangaUpdates: ref.watch(mangaUpdatesMetadataGatewayProvider),
       );
     });
 

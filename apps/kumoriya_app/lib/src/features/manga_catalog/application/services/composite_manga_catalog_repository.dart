@@ -6,15 +6,24 @@ import 'package:kumoriya_core/kumoriya_core.dart';
 import 'package:kumoriya_manga_domain/kumoriya_manga_domain.dart';
 import 'package:kumoriya_manga_plugins/kumoriya_manga_plugins.dart';
 import 'package:kumoriya_mangabaka/kumoriya_mangabaka.dart';
+import 'package:kumoriya_mangaupdates/kumoriya_mangaupdates.dart';
 import 'package:kumoriya_storage/kumoriya_storage.dart';
 
 import '../../../../shared/cache/fallback_reason.dart';
 
-/// One row of the "Fuente" picker on the manga detail screen. Carries
-/// the scanlator's display name and how many chapters of the current
-/// manga it has uploaded. Used to render the picker sorted by
-/// coverage so the user can pick the most-complete option first.
-typedef ScanlatorOption = ({String name, int chapterCount});
+/// One row of the scanlator picker on the manga detail screen.
+/// Carries the scanlator's display name, how many chapters of the
+/// current manga it has uploaded, and (S1.F) the timestamp of its
+/// most recent release on this series as recorded by MangaUpdates.
+///
+/// `lastReleaseAt` is null when MangaUpdates did not surface a
+/// matching group (no MU series id, gateway unwired, transport
+/// failure, or simply no release attribution found).
+typedef ScanlatorOption = ({
+  String name,
+  int chapterCount,
+  DateTime? lastReleaseAt,
+});
 
 /// One row of the source picker. The picker UI itself lands in S1.E;
 /// S1.C only computes the option list and routes by `sourceId`
@@ -91,6 +100,7 @@ final class CompositeMangaCatalogRepository implements MangaCatalogRepository {
     required List<String> Function() preferredLanguages,
     Duration perPluginTimeout = const Duration(seconds: 8),
     MangaBakaMetadataGateway? mangaBaka,
+    MangaUpdatesMetadataGateway? mangaUpdates,
   }) : assert(
          sourcePlugins.length > 0, // ignore: prefer_is_empty
          'CompositeMangaCatalogRepository requires at least one source plugin.',
@@ -100,7 +110,8 @@ final class CompositeMangaCatalogRepository implements MangaCatalogRepository {
        _cacheStore = cacheStore,
        _preferredLanguages = preferredLanguages,
        _perPluginTimeout = perPluginTimeout,
-       _mangaBaka = mangaBaka {
+       _mangaBaka = mangaBaka,
+       _mangaUpdates = mangaUpdates {
     final ids = _sourcePlugins
         .map((p) => p.manifest.id)
         .toList(growable: false);
@@ -136,6 +147,25 @@ final class CompositeMangaCatalogRepository implements MangaCatalogRepository {
   /// this AniList id" — that null is itself memoized for the session.
   final Map<int, Future<MangaBakaSeries?>> _mangaBakaByAnilistId =
       <int, Future<MangaBakaSeries?>>{};
+
+  /// Optional MangaUpdates metadata gateway (S1.F). When wired, the
+  /// composite enriches each scanlator option with the timestamp of
+  /// the group's most recent release on the matched series, so the
+  /// picker can show a "last release was N days ago" hint.
+  ///
+  /// MU transport / parsing failures are non-fatal: the scanlator
+  /// options simply ship with `lastReleaseAt = null` and the picker
+  /// renders without the freshness hint.
+  final MangaUpdatesMetadataGateway? _mangaUpdates;
+
+  /// Per-AniList id memoization of MangaUpdates release lists. Same
+  /// shape and rationale as [_mangaBakaByAnilistId]. The future
+  /// completes with `null` whenever MU is not consultable for this
+  /// AniList row (gateway unwired, no MU series id from MangaBaka, or
+  /// the search itself failed).
+  final Map<int, Future<List<MangaUpdatesRelease>?>>
+  _mangaUpdatesReleasesByAnilistId =
+      <int, Future<List<MangaUpdatesRelease>?>>{};
 
   /// Read-only view over the registered source plugins, in the order
   /// supplied to the constructor. Useful for diagnostics and tests.
@@ -478,8 +508,16 @@ final class CompositeMangaCatalogRepository implements MangaCatalogRepository {
     // 7. Update picker catalogs from the raw playable list. Both
     //    aggregate across sources so the user sees one chip per
     //    distinct scanlator and one chip per contributing plugin.
+    //
+    //    The scanlator catalog is enriched with MangaUpdates release
+    //    timestamps when the gateway is wired (S1.F). This is awaited
+    //    in serial after the chapter fan-out, but the gateway call is
+    //    memoized per AniList id, so the second open of the same
+    //    series pays no extra latency.
+    final muReleases = await _resolveMangaUpdatesReleases(manga);
     _scanlatorsByManga[anilistId] = _computeScanlatorOptions(
       playableRaw.map((t) => t.chapter).toList(growable: false),
+      muReleases,
     );
     _sourcesByManga[anilistId] = _computeSourceOptions(
       activePlugins,
@@ -641,8 +679,15 @@ final class CompositeMangaCatalogRepository implements MangaCatalogRepository {
   /// Reads the raw playable chapter list and returns one
   /// [ScanlatorOption] per distinct non-empty scanlator, sorted by
   /// chapter count desc, then alphabetically (stable across rebuilds).
+  ///
+  /// When [muReleases] is non-null, each option is enriched with the
+  /// timestamp of the most recent release attributed to that group
+  /// on the matched series, looked up via case/whitespace-normalized
+  /// name match against `MangaUpdatesGroupRef.name`. Options that
+  /// don't match any MU group keep `lastReleaseAt = null`.
   static List<ScanlatorOption> _computeScanlatorOptions(
     List<SourceChapter> rawPlayable,
+    List<MangaUpdatesRelease>? muReleases,
   ) {
     final counts = <String, int>{};
     for (final c in rawPlayable) {
@@ -650,6 +695,24 @@ final class CompositeMangaCatalogRepository implements MangaCatalogRepository {
       if (s == null || s.isEmpty) continue;
       counts[s] = (counts[s] ?? 0) + 1;
     }
+
+    // Build normalized-name -> most recent release timestamp from
+    // the MU release list. A release may credit multiple groups (joint
+    // translations); each gets the same timestamp.
+    final lastReleaseByGroup = <String, DateTime>{};
+    if (muReleases != null) {
+      for (final r in muReleases) {
+        for (final g in r.groups) {
+          final key = _normalizeGroupName(g.name);
+          if (key.isEmpty) continue;
+          final existing = lastReleaseByGroup[key];
+          if (existing == null || r.timeAdded.isAfter(existing)) {
+            lastReleaseByGroup[key] = r.timeAdded;
+          }
+        }
+      }
+    }
+
     final entries = counts.entries.toList(growable: false)
       ..sort((a, b) {
         final byCount = b.value.compareTo(a.value);
@@ -657,8 +720,17 @@ final class CompositeMangaCatalogRepository implements MangaCatalogRepository {
         return a.key.toLowerCase().compareTo(b.key.toLowerCase());
       });
     return <ScanlatorOption>[
-      for (final e in entries) (name: e.key, chapterCount: e.value),
+      for (final e in entries)
+        (
+          name: e.key,
+          chapterCount: e.value,
+          lastReleaseAt: lastReleaseByGroup[_normalizeGroupName(e.key)],
+        ),
     ];
+  }
+
+  static String _normalizeGroupName(String raw) {
+    return raw.trim().toLowerCase().replaceAll(RegExp(r'\s+'), ' ');
   }
 
   /// Available scanlators (with chapter counts) for a manga whose
@@ -1020,6 +1092,64 @@ final class CompositeMangaCatalogRepository implements MangaCatalogRepository {
         return null;
       }
     });
+  }
+
+  /// Returns the recent MangaUpdates release list for the manga's
+  /// matched MU series, or `null` when MU is not consultable for this
+  /// AniList id. Memoized per AniList id for the session.
+  ///
+  /// "Not consultable" means any of:
+  ///  - [_mangaUpdates] gateway is unwired,
+  ///  - MangaBaka has no row for this AniList id (no cross-tracker bridge),
+  ///  - MangaBaka has a row but its `crossIds.mangaUpdatesId` is null
+  ///    or doesn't parse as an int,
+  ///  - MU's `searchReleases` failed.
+  ///
+  /// Failures are logged and swallowed: the picker simply ships
+  /// without the freshness hint.
+  Future<List<MangaUpdatesRelease>?> _resolveMangaUpdatesReleases(Manga manga) {
+    final gateway = _mangaUpdates;
+    if (gateway == null) {
+      return Future<List<MangaUpdatesRelease>?>.value(null);
+    }
+
+    return _mangaUpdatesReleasesByAnilistId.putIfAbsent(
+      manga.anilistId,
+      () async {
+        try {
+          final mbContext = await _resolveMangaBakaContext(manga);
+          final muIdRaw = mbContext?.crossIds.mangaUpdatesId;
+          if (muIdRaw == null || muIdRaw.isEmpty) return null;
+          final muSeriesId = int.tryParse(muIdRaw);
+          if (muSeriesId == null) return null;
+
+          final result = await gateway.searchReleases(
+            seriesId: muSeriesId,
+            perPage: 50,
+          );
+          if (result is! Success<List<MangaUpdatesRelease>, KumoriyaError>) {
+            developer.log(
+              'MangaUpdates searchReleases failed; scanlator picker '
+              'will ship without freshness hints.',
+              name: 'CompositeMangaCatalogRepository',
+              error:
+                  (result as Failure<List<MangaUpdatesRelease>, KumoriyaError>)
+                      .error,
+            );
+            return null;
+          }
+          return result.value;
+        } catch (error, stack) {
+          developer.log(
+            'MangaUpdates resolution threw; degrading scanlator options.',
+            name: 'CompositeMangaCatalogRepository',
+            error: error,
+            stackTrace: stack,
+          );
+          return null;
+        }
+      },
+    );
   }
 
   // ---------------------------------------------------------------------------

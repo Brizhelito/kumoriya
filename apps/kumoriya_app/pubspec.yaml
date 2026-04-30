@@ -60,6 +60,7 @@ dependencies:
   kumoriya_manga_domain:
   kumoriya_manga_plugins:
   kumoriya_mangabaka:
+  kumoriya_mangaupdates:
   kumoriya_reader:
   kumoriya_source_mangadex:
   kumoriya_storage:

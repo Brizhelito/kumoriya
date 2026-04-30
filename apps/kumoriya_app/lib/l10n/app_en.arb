@@ -584,6 +584,15 @@
   "@mangaDetailScanlatorChapterCount": {
     "placeholders": {"count": {"type": "int"}}
   },
+  "mangaDetailScanlatorLastReleaseToday": "Last release today",
+  "mangaDetailScanlatorLastReleaseDays": "{days, plural, one{Last release 1 day ago} other{Last release {days} days ago}}",
+  "@mangaDetailScanlatorLastReleaseDays": {
+    "placeholders": {"days": {"type": "int"}}
+  },
+  "mangaDetailScanlatorLastReleaseMonths": "{months, plural, one{Last release 1 month ago} other{Last release {months} months ago}}",
+  "@mangaDetailScanlatorLastReleaseMonths": {
+    "placeholders": {"months": {"type": "int"}}
+  },
   "mangaDetailSourceLabel": "Provider",
   "mangaDetailSourceAuto": "All",
   "mangaDetailSourceAutoHint": "Aggregate chapters from every available provider.",

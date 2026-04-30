@@ -5,6 +5,7 @@ import 'package:kumoriya_core/kumoriya_core.dart';
 import 'package:kumoriya_manga_domain/kumoriya_manga_domain.dart';
 import 'package:kumoriya_manga_plugins/kumoriya_manga_plugins.dart';
 import 'package:kumoriya_mangabaka/kumoriya_mangabaka.dart';
+import 'package:kumoriya_mangaupdates/kumoriya_mangaupdates.dart';
 import 'package:kumoriya_plugins/kumoriya_plugins.dart';
 import 'package:kumoriya_storage/kumoriya_storage.dart';
 
@@ -250,6 +251,67 @@ class _FakeMangaBakaGateway implements MangaBakaMetadataGateway {
       ),
     );
   }
+}
+
+/// Test double for the MangaUpdates gateway. Only [searchReleases]
+/// is exercised by the composite for picker enrichment (S1.F);
+/// the other methods are stubs that fail loud if accidentally hit.
+class _FakeMangaUpdatesGateway implements MangaUpdatesMetadataGateway {
+  _FakeMangaUpdatesGateway({
+    this.releases = const <MangaUpdatesRelease>[],
+    this.failure,
+  });
+
+  List<MangaUpdatesRelease> releases;
+  KumoriyaError? failure;
+  int searchReleasesCalls = 0;
+  int? lastQueriedSeriesId;
+
+  @override
+  Future<Result<List<MangaUpdatesRelease>, KumoriyaError>> searchReleases({
+    int? seriesId,
+    int? groupId,
+    int page = 1,
+    int perPage = 25,
+  }) async {
+    searchReleasesCalls++;
+    lastQueriedSeriesId = seriesId;
+    if (failure != null) return Failure(failure!);
+    return Success(releases);
+  }
+
+  @override
+  Future<Result<List<MangaUpdatesSeries>, KumoriyaError>> searchSeries({
+    required String query,
+    int page = 1,
+    int perPage = 25,
+  }) async => throw UnimplementedError('not used');
+
+  @override
+  Future<Result<MangaUpdatesSeries, KumoriyaError>> fetchSeriesById(int id) =>
+      throw UnimplementedError('not used');
+
+  @override
+  Future<Result<MangaUpdatesGroup, KumoriyaError>> fetchGroupById(int id) =>
+      throw UnimplementedError('not used');
+}
+
+MangaUpdatesRelease _muRelease({
+  int id = 1,
+  required int seriesId,
+  required String groupName,
+  int groupId = 100,
+  required DateTime timeAdded,
+}) {
+  return MangaUpdatesRelease(
+    id: id,
+    seriesId: seriesId,
+    seriesTitle: 'Whatever',
+    timeAdded: timeAdded,
+    groups: <MangaUpdatesGroupRef>[
+      MangaUpdatesGroupRef(id: groupId, name: groupName),
+    ],
+  );
 }
 
 MangaBakaSeries _mbSeries({
@@ -1995,6 +2057,387 @@ void main() {
 
       expect(mb.searchSeriesCalls, 1);
     });
+  });
+
+  group('CompositeMangaCatalogRepository scanlator picker enrichment (S1.F)', () {
+    SourceChapter chap({
+      required String mid,
+      required String id,
+      required double n,
+      String? scanlator,
+    }) {
+      return SourceChapter(
+        sourceMangaId: mid,
+        sourceChapterId: id,
+        number: n,
+        language: 'en',
+        scanlator: scanlator,
+      );
+    }
+
+    test(
+      'lastReleaseAt is null when no MangaUpdates gateway is wired',
+      () async {
+        final manga = _manga(id: 900);
+        final delegate = _FakeAnilistMangaRepo(detail: _detail(manga));
+        final dex = _FakeMangaSourcePlugin(
+          manifestId: 'mangadex',
+          searchResults: const <SourceMangaMatch>[
+            SourceMangaMatch(
+              sourceId: 'src-mangadex-900',
+              title: 'Whatever',
+              externalIds: <String, String>{'al': '900'},
+            ),
+          ],
+          chaptersById: <String, List<SourceChapter>>{
+            'src-mangadex-900': <SourceChapter>[
+              chap(
+                mid: 'src-mangadex-900',
+                id: 'd1',
+                n: 1,
+                scanlator: 'MangaReworks',
+              ),
+            ],
+          },
+        );
+        final repo = CompositeMangaCatalogRepository(
+          delegate: delegate,
+          sourcePlugins: [dex],
+          cacheStore: _InMemoryMangaCacheStore(),
+          preferredLanguages: () => const <String>['en'],
+        );
+
+        await repo.fetchMangaChapters(900);
+        final options = repo.availableScanlators(900);
+        expect(options, hasLength(1));
+        expect(options.single.name, 'MangaReworks');
+        expect(options.single.lastReleaseAt, isNull);
+      },
+    );
+
+    test('lastReleaseAt is populated when MU gateway returns a release for '
+        'the matched group', () async {
+      final manga = _manga(id: 901);
+      final delegate = _FakeAnilistMangaRepo(detail: _detail(manga));
+      final dex = _FakeMangaSourcePlugin(
+        manifestId: 'mangadex',
+        searchResults: const <SourceMangaMatch>[
+          SourceMangaMatch(
+            sourceId: 'src-mangadex-901',
+            title: 'Whatever',
+            externalIds: <String, String>{'al': '901'},
+          ),
+        ],
+        chaptersById: <String, List<SourceChapter>>{
+          'src-mangadex-901': <SourceChapter>[
+            chap(
+              mid: 'src-mangadex-901',
+              id: 'd1',
+              n: 1,
+              scanlator: 'MangaReworks',
+            ),
+          ],
+        },
+      );
+      final mb = _FakeMangaBakaGateway(
+        searchResults: <MangaBakaSeries>[
+          _mbSeries(anilistId: 901, mangaUpdatesId: '12345'),
+        ],
+      );
+      final lastRelease = DateTime.utc(2026, 4, 10, 9, 30);
+      final mu = _FakeMangaUpdatesGateway(
+        releases: <MangaUpdatesRelease>[
+          _muRelease(
+            seriesId: 12345,
+            groupName: 'MangaReworks',
+            timeAdded: lastRelease,
+          ),
+        ],
+      );
+
+      final repo = CompositeMangaCatalogRepository(
+        delegate: delegate,
+        sourcePlugins: [dex],
+        cacheStore: _InMemoryMangaCacheStore(),
+        preferredLanguages: () => const <String>['en'],
+        mangaBaka: mb,
+        mangaUpdates: mu,
+      );
+
+      await repo.fetchMangaChapters(901);
+      final options = repo.availableScanlators(901);
+      expect(options, hasLength(1));
+      expect(options.single.name, 'MangaReworks');
+      expect(options.single.lastReleaseAt, lastRelease);
+      expect(mu.lastQueriedSeriesId, 12345);
+    });
+
+    test('group name match is case- and whitespace-insensitive', () async {
+      final manga = _manga(id: 902);
+      final delegate = _FakeAnilistMangaRepo(detail: _detail(manga));
+      final dex = _FakeMangaSourcePlugin(
+        manifestId: 'mangadex',
+        searchResults: const <SourceMangaMatch>[
+          SourceMangaMatch(
+            sourceId: 'src-mangadex-902',
+            title: 'W',
+            externalIds: <String, String>{'al': '902'},
+          ),
+        ],
+        chaptersById: <String, List<SourceChapter>>{
+          'src-mangadex-902': <SourceChapter>[
+            chap(
+              mid: 'src-mangadex-902',
+              id: 'd1',
+              n: 1,
+              scanlator: '  Lectores   Anónimos  ',
+            ),
+          ],
+        },
+      );
+      final mb = _FakeMangaBakaGateway(
+        searchResults: <MangaBakaSeries>[
+          _mbSeries(anilistId: 902, mangaUpdatesId: '99'),
+        ],
+      );
+      final mu = _FakeMangaUpdatesGateway(
+        releases: <MangaUpdatesRelease>[
+          _muRelease(
+            seriesId: 99,
+            groupName: 'lectores anonimos',
+            timeAdded: DateTime.utc(2026, 4, 1),
+          ),
+        ],
+      );
+
+      final repo = CompositeMangaCatalogRepository(
+        delegate: delegate,
+        sourcePlugins: [dex],
+        cacheStore: _InMemoryMangaCacheStore(),
+        preferredLanguages: () => const <String>['en'],
+        mangaBaka: mb,
+        mangaUpdates: mu,
+      );
+      await repo.fetchMangaChapters(902);
+      final options = repo.availableScanlators(902);
+      // Whitespace differences match; the accent mismatch is on us
+      // — _normalizeGroupName does NOT strip diacritics. So we expect
+      // null here, demonstrating where the heuristic stops.
+      expect(options, hasLength(1));
+      expect(options.single.lastReleaseAt, isNull);
+    });
+
+    test(
+      'most recent release wins when a group has multiple releases',
+      () async {
+        final manga = _manga(id: 903);
+        final delegate = _FakeAnilistMangaRepo(detail: _detail(manga));
+        final dex = _FakeMangaSourcePlugin(
+          manifestId: 'mangadex',
+          searchResults: const <SourceMangaMatch>[
+            SourceMangaMatch(
+              sourceId: 'src-mangadex-903',
+              title: 'W',
+              externalIds: <String, String>{'al': '903'},
+            ),
+          ],
+          chaptersById: <String, List<SourceChapter>>{
+            'src-mangadex-903': <SourceChapter>[
+              chap(
+                mid: 'src-mangadex-903',
+                id: 'd1',
+                n: 1,
+                scanlator: 'MangaReworks',
+              ),
+            ],
+          },
+        );
+        final mb = _FakeMangaBakaGateway(
+          searchResults: <MangaBakaSeries>[
+            _mbSeries(anilistId: 903, mangaUpdatesId: '17'),
+          ],
+        );
+        final older = DateTime.utc(2025, 1, 1);
+        final newer = DateTime.utc(2026, 4, 20);
+        final mu = _FakeMangaUpdatesGateway(
+          releases: <MangaUpdatesRelease>[
+            _muRelease(
+              id: 1,
+              seriesId: 17,
+              groupName: 'MangaReworks',
+              timeAdded: older,
+            ),
+            _muRelease(
+              id: 2,
+              seriesId: 17,
+              groupName: 'MangaReworks',
+              timeAdded: newer,
+            ),
+          ],
+        );
+
+        final repo = CompositeMangaCatalogRepository(
+          delegate: delegate,
+          sourcePlugins: [dex],
+          cacheStore: _InMemoryMangaCacheStore(),
+          preferredLanguages: () => const <String>['en'],
+          mangaBaka: mb,
+          mangaUpdates: mu,
+        );
+        await repo.fetchMangaChapters(903);
+        expect(repo.availableScanlators(903).single.lastReleaseAt, newer);
+      },
+    );
+
+    test(
+      'MU transport failure is non-fatal — chapters return, lastReleaseAt null',
+      () async {
+        final manga = _manga(id: 904);
+        final delegate = _FakeAnilistMangaRepo(detail: _detail(manga));
+        final dex = _FakeMangaSourcePlugin(
+          manifestId: 'mangadex',
+          searchResults: const <SourceMangaMatch>[
+            SourceMangaMatch(
+              sourceId: 'src-mangadex-904',
+              title: 'W',
+              externalIds: <String, String>{'al': '904'},
+            ),
+          ],
+          chaptersById: <String, List<SourceChapter>>{
+            'src-mangadex-904': <SourceChapter>[
+              chap(
+                mid: 'src-mangadex-904',
+                id: 'd1',
+                n: 1,
+                scanlator: 'MangaReworks',
+              ),
+            ],
+          },
+        );
+        final mb = _FakeMangaBakaGateway(
+          searchResults: <MangaBakaSeries>[
+            _mbSeries(anilistId: 904, mangaUpdatesId: '21'),
+          ],
+        );
+        final mu = _FakeMangaUpdatesGateway(
+          failure: const SimpleError(
+            code: 'mu.transport',
+            message: 'rate limited',
+            kind: KumoriyaErrorKind.transport,
+          ),
+        );
+
+        final repo = CompositeMangaCatalogRepository(
+          delegate: delegate,
+          sourcePlugins: [dex],
+          cacheStore: _InMemoryMangaCacheStore(),
+          preferredLanguages: () => const <String>['en'],
+          mangaBaka: mb,
+          mangaUpdates: mu,
+        );
+        final result = await repo.fetchMangaChapters(904);
+        expect(result.isSuccess, isTrue);
+        final options = repo.availableScanlators(904);
+        expect(options, hasLength(1));
+        expect(options.single.lastReleaseAt, isNull);
+        expect(mu.searchReleasesCalls, 1);
+      },
+    );
+
+    test('MU is not called when MangaBaka has no mangaUpdatesId', () async {
+      final manga = _manga(id: 905);
+      final delegate = _FakeAnilistMangaRepo(detail: _detail(manga));
+      final dex = _FakeMangaSourcePlugin(
+        manifestId: 'mangadex',
+        searchResults: const <SourceMangaMatch>[
+          SourceMangaMatch(
+            sourceId: 'src-mangadex-905',
+            title: 'W',
+            externalIds: <String, String>{'al': '905'},
+          ),
+        ],
+        chaptersById: <String, List<SourceChapter>>{
+          'src-mangadex-905': <SourceChapter>[
+            chap(
+              mid: 'src-mangadex-905',
+              id: 'd1',
+              n: 1,
+              scanlator: 'MangaReworks',
+            ),
+          ],
+        },
+      );
+      final mb = _FakeMangaBakaGateway(
+        // anilist match but NO mangaUpdatesId => MU bridge unavailable.
+        searchResults: <MangaBakaSeries>[_mbSeries(anilistId: 905)],
+      );
+      final mu = _FakeMangaUpdatesGateway();
+
+      final repo = CompositeMangaCatalogRepository(
+        delegate: delegate,
+        sourcePlugins: [dex],
+        cacheStore: _InMemoryMangaCacheStore(),
+        preferredLanguages: () => const <String>['en'],
+        mangaBaka: mb,
+        mangaUpdates: mu,
+      );
+      await repo.fetchMangaChapters(905);
+      expect(mu.searchReleasesCalls, 0);
+    });
+
+    test(
+      'MU release lookup is memoized — exactly ONE call across two fetches',
+      () async {
+        final manga = _manga(id: 906);
+        final delegate = _FakeAnilistMangaRepo(detail: _detail(manga));
+        final dex = _FakeMangaSourcePlugin(
+          manifestId: 'mangadex',
+          searchResults: const <SourceMangaMatch>[
+            SourceMangaMatch(
+              sourceId: 'src-mangadex-906',
+              title: 'W',
+              externalIds: <String, String>{'al': '906'},
+            ),
+          ],
+          chaptersById: <String, List<SourceChapter>>{
+            'src-mangadex-906': <SourceChapter>[
+              chap(
+                mid: 'src-mangadex-906',
+                id: 'd1',
+                n: 1,
+                scanlator: 'MangaReworks',
+              ),
+            ],
+          },
+        );
+        final mb = _FakeMangaBakaGateway(
+          searchResults: <MangaBakaSeries>[
+            _mbSeries(anilistId: 906, mangaUpdatesId: '5'),
+          ],
+        );
+        final mu = _FakeMangaUpdatesGateway(
+          releases: <MangaUpdatesRelease>[
+            _muRelease(
+              seriesId: 5,
+              groupName: 'MangaReworks',
+              timeAdded: DateTime.utc(2026, 1, 1),
+            ),
+          ],
+        );
+
+        final repo = CompositeMangaCatalogRepository(
+          delegate: delegate,
+          sourcePlugins: [dex],
+          cacheStore: _InMemoryMangaCacheStore(),
+          preferredLanguages: () => const <String>['en'],
+          mangaBaka: mb,
+          mangaUpdates: mu,
+        );
+        await repo.fetchMangaChapters(906);
+        await repo.fetchMangaChapters(906);
+        expect(mu.searchReleasesCalls, 1);
+      },
+    );
   });
 }
 

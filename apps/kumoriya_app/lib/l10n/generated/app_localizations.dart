@@ -1879,6 +1879,24 @@ abstract class AppLocalizations {
   /// **'{count, plural, one{1 chapter} other{{count} chapters}}'**
   String mangaDetailScanlatorChapterCount(int count);
 
+  /// No description provided for @mangaDetailScanlatorLastReleaseToday.
+  ///
+  /// In en, this message translates to:
+  /// **'Last release today'**
+  String get mangaDetailScanlatorLastReleaseToday;
+
+  /// No description provided for @mangaDetailScanlatorLastReleaseDays.
+  ///
+  /// In en, this message translates to:
+  /// **'{days, plural, one{Last release 1 day ago} other{Last release {days} days ago}}'**
+  String mangaDetailScanlatorLastReleaseDays(int days);
+
+  /// No description provided for @mangaDetailScanlatorLastReleaseMonths.
+  ///
+  /// In en, this message translates to:
+  /// **'{months, plural, one{Last release 1 month ago} other{Last release {months} months ago}}'**
+  String mangaDetailScanlatorLastReleaseMonths(int months);
+
   /// No description provided for @mangaDetailSourceLabel.
   ///
   /// In en, this message translates to:

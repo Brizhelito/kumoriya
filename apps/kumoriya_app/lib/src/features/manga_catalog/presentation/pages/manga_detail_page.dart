@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:kumoriya_app/l10n/generated/app_localizations.dart';
 import 'package:kumoriya_manga_domain/kumoriya_manga_domain.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -580,6 +581,15 @@ class _ScanlatorPicker extends ConsumerWidget {
                       fontWeight: FontWeight.w600,
                     ),
                   ),
+                  subtitle: opt.lastReleaseAt != null
+                      ? Text(
+                          _formatLastRelease(l10n, opt.lastReleaseAt!),
+                          style: const TextStyle(
+                            color: KumoriyaColors.textMuted,
+                            fontSize: 11,
+                          ),
+                        )
+                      : null,
                   trailing: Text(
                     l10n.mangaDetailScanlatorChapterCount(opt.chapterCount),
                     style: const TextStyle(
@@ -612,6 +622,30 @@ class _ScanlatorPicker extends ConsumerWidget {
 class _PickResult {
   const _PickResult({required this.scanlator});
   final String? scanlator;
+}
+
+/// Formats a "last release was X ago" hint for the scanlator picker
+/// rows (S1.F). Buckets:
+///
+///  * Same calendar day  → "Last release today"
+///  * 1-30 days          → "Last release N days ago"
+///  * 31+ days           → "Last release N months ago" (rounded down)
+///
+/// We deliberately stop at months — anything older than ~12 months is
+/// still meaningful as "this group hasn't shipped in a year+", and we
+/// don't want to invent a "years ago" plural form for what is already
+/// a soft signal.
+String _formatLastRelease(AppLocalizations l10n, DateTime when) {
+  final now = DateTime.now();
+  // Compare on day boundaries so "earlier today" still reads as
+  // today even when the timestamp is N hours ago.
+  final today = DateTime(now.year, now.month, now.day);
+  final whenDay = DateTime(when.year, when.month, when.day);
+  final days = today.difference(whenDay).inDays;
+  if (days <= 0) return l10n.mangaDetailScanlatorLastReleaseToday;
+  if (days < 31) return l10n.mangaDetailScanlatorLastReleaseDays(days);
+  final months = days ~/ 30;
+  return l10n.mangaDetailScanlatorLastReleaseMonths(months);
 }
 
 /// Compact chip beside the chapters header that opens a modal sheet

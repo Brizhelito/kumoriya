@@ -1101,6 +1101,31 @@ class AppLocalizationsEs extends AppLocalizations {
   }
 
   @override
+  String get mangaDetailScanlatorLastReleaseToday => 'Última publicación hoy';
+
+  @override
+  String mangaDetailScanlatorLastReleaseDays(int days) {
+    String _temp0 = intl.Intl.pluralLogic(
+      days,
+      locale: localeName,
+      other: 'Última publicación hace $days días',
+      one: 'Última publicación hace 1 día',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String mangaDetailScanlatorLastReleaseMonths(int months) {
+    String _temp0 = intl.Intl.pluralLogic(
+      months,
+      locale: localeName,
+      other: 'Última publicación hace $months meses',
+      one: 'Última publicación hace 1 mes',
+    );
+    return '$_temp0';
+  }
+
+  @override
   String get mangaDetailSourceLabel => 'Proveedor';
 
   @override
