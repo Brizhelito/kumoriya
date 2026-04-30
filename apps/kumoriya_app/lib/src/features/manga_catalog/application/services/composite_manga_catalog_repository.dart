@@ -1,3 +1,6 @@
+import 'dart:async';
+import 'dart:developer' as developer;
+
 import 'package:flutter/foundation.dart';
 import 'package:kumoriya_core/kumoriya_core.dart';
 import 'package:kumoriya_manga_domain/kumoriya_manga_domain.dart';
@@ -12,41 +15,107 @@ import '../../../../shared/cache/fallback_reason.dart';
 /// coverage so the user can pick the most-complete option first.
 typedef ScanlatorOption = ({String name, int chapterCount});
 
-/// Composes the AniList-backed `MangaCatalogRepository` with a
-/// `MangaSourcePlugin` to materialize the chapter list AniList itself
-/// does not expose.
+/// One row of the source picker. The picker UI itself lands in S1.E;
+/// S1.C only computes the option list and routes by `sourceId`
+/// internally so multi-source dedup and reader resolution work.
+typedef SourceOption = ({
+  String sourceId,
+  String displayName,
+  int chapterCount,
+});
+
+/// Pairs a `SourceChapter` with the id of the plugin that produced
+/// it. Used both as the value type of the per-manga reader cache and
+/// as a transient tag during fan-out.
+final class _TaggedSourceChapter {
+  const _TaggedSourceChapter({required this.sourceId, required this.chapter});
+  final String sourceId;
+  final SourceChapter chapter;
+}
+
+/// Outcome of a single plugin's chapter fetch during fan-out.
+final class _PluginChapterResult {
+  const _PluginChapterResult({
+    required this.sourceId,
+    required this.attempted,
+    required this.chapters,
+    required this.failure,
+  });
+
+  /// `false` when the plugin had no `sourceMangaId` resolution and we
+  /// did not even call `getChapters` on it. Distinguishes "plugin
+  /// doesn't carry this manga" from "plugin failed for this manga".
+  final bool attempted;
+  final String sourceId;
+  final List<SourceChapter> chapters;
+  final KumoriyaError? failure;
+}
+
+/// Composes the AniList-backed `MangaCatalogRepository` with one or
+/// more `MangaSourcePlugin`s to materialize the chapter list AniList
+/// itself does not expose.
 ///
-/// Responsibilities:
+/// Multi-source (Slice S1.C):
 ///
-/// - Catalog metadata (home/search/detail/genres/tags/batch) is delegated
-///   to the AniList implementation. On transport failure we attempt a
-///   best-effort fallback from `MangaCacheStore` so the UI stays useful
-///   while the remote API is unavailable (mirrors the anime cached repo
-///   pattern, kept lean for the manga MVP).
-/// - Catalog reads write-through into the cache so the next offline open
-///   can render something.
-/// - `fetchMangaChapters(int anilistId)` resolves the AniList id to the
-///   source plugin's `sourceMangaId` (`links.al` first, fuzzy title fallback,
-///   in-memory mapping cache), then delegates to the plugin in the user's
-///   preferred languages and maps `SourceChapter` → `MangaChapter`.
+/// - Catalog metadata (home/search/detail/genres/tags/batch) is
+///   delegated to the AniList implementation. On transport failure we
+///   attempt a best-effort fallback from `MangaCacheStore` so the UI
+///   stays useful while the remote API is unavailable.
+/// - Catalog reads write-through into the cache so the next offline
+///   open can render something.
+/// - `fetchMangaChapters(int anilistId)` resolves the AniList id to a
+///   per-plugin `sourceMangaId` (memoized including memoized
+///   negatives), then fans out `getChapters` to every plugin **in
+///   parallel with a per-plugin timeout**.
+/// - Plugin failures and timeouts are isolated: one plugin failing
+///   does NOT fail the whole call. We log the failure, exclude the
+///   plugin's contribution, and surface what the others returned.
+///   Only when EVERY attempted plugin failed do we lift a failure.
+/// - The visible dedup key stays `(number, language)` — same chapter
+///   from two sources is collapsed using the existing
+///   [_isBetterChapter] heuristic. The cache snapshot also includes
+///   `sourceId` so the reader can re-resolve a `MangaChapter` to its
+///   source-side counterpart even when two plugins shipped the same
+///   number.
+/// - `availableSources(anilistId)` exposes which plugins contributed,
+///   feeding the optional source picker in S1.E.
 ///
-/// The repository is pure dart (no Flutter, no Riverpod). Wire it from
-/// the providers layer.
+/// The repository is pure dart (no Flutter widgets, no Riverpod).
+/// Wire it from the providers layer.
 final class CompositeMangaCatalogRepository implements MangaCatalogRepository {
   CompositeMangaCatalogRepository({
     required MangaCatalogRepository delegate,
-    required MangaSourcePlugin sourcePlugin,
+    required List<MangaSourcePlugin> sourcePlugins,
     required MangaCacheStore cacheStore,
     required List<String> Function() preferredLanguages,
-  }) : _delegate = delegate,
-       _sourcePlugin = sourcePlugin,
+    Duration perPluginTimeout = const Duration(seconds: 8),
+  }) : assert(
+         sourcePlugins.length > 0, // ignore: prefer_is_empty
+         'CompositeMangaCatalogRepository requires at least one source plugin.',
+       ),
+       _delegate = delegate,
+       _sourcePlugins = List<MangaSourcePlugin>.unmodifiable(sourcePlugins),
        _cacheStore = cacheStore,
-       _preferredLanguages = preferredLanguages;
+       _preferredLanguages = preferredLanguages,
+       _perPluginTimeout = perPluginTimeout {
+    final ids = _sourcePlugins
+        .map((p) => p.manifest.id)
+        .toList(growable: false);
+    assert(
+      ids.toSet().length == ids.length,
+      'CompositeMangaCatalogRepository: duplicate source plugin ids: $ids',
+    );
+  }
 
   final MangaCatalogRepository _delegate;
-  final MangaSourcePlugin _sourcePlugin;
+  final List<MangaSourcePlugin> _sourcePlugins;
   final MangaCacheStore _cacheStore;
   final List<String> Function() _preferredLanguages;
+  final Duration _perPluginTimeout;
+
+  /// Read-only view over the registered source plugins, in the order
+  /// supplied to the constructor. Useful for diagnostics and tests.
+  List<MangaSourcePlugin> get sourcePlugins => _sourcePlugins;
 
   /// Indicates why the most recent catalog fetch fell back to locally
   /// cached data, or [FallbackReason.none] when operating normally.
@@ -56,37 +125,39 @@ final class CompositeMangaCatalogRepository implements MangaCatalogRepository {
     FallbackReason.none,
   );
 
-  /// In-memory map from AniList id to the source plugin's
-  /// `sourceMangaId`. Null entries memoize "we tried and didn't match"
-  /// so the same negative resolution is not repeated within a session.
-  /// Persisting this across launches is a follow-up — see Slice 8 plan.
-  final Map<int, String?> _sourceMangaIdCache = <int, String?>{};
+  /// Per-(AniList id, plugin id) memoization of `sourceMangaId`
+  /// resolutions. Inner value `null` means "we asked that plugin and
+  /// it didn't match"; missing inner key means "we haven't asked yet".
+  /// One plugin's positive resolution and another plugin's memoized
+  /// negative cohabit naturally.
+  final Map<int, Map<String, String?>> _sourceMangaIdByPlugin =
+      <int, Map<String, String?>>{};
 
-  /// Per-manga snapshot of the last `SourceChapter` list returned by
-  /// the plugin during `fetchMangaChapters`. Indexed by AniList id;
-  /// inner key is `${number}|${language}|${scanlator ?? ''}` so the
-  /// reader can look up the exact `SourceChapter` it needs to call
-  /// `getChapterPages` without re-fetching the chapter list.
+  /// Per-manga snapshot of the last fan-out's `SourceChapter` list
+  /// keyed by composite `${number}|${language}|${scanlator}|${sourceId}`.
+  /// The `sourceId` segment keeps two plugins' chapter 1 from
+  /// colliding when both translated the same original.
   ///
-  /// Lifetime: per-session (not persisted). When the user navigates
-  /// out of the detail page and back, the next `fetchMangaChapters`
-  /// call refreshes this cache; in between, the reader can open any
-  /// chapter the user previously saw without an extra round-trip.
-  final Map<int, Map<String, SourceChapter>> _sourceChaptersByManga =
-      <int, Map<String, SourceChapter>>{};
+  /// Lifetime: per-session. Refreshed on every successful
+  /// `fetchMangaChapters` call.
+  final Map<int, Map<String, _TaggedSourceChapter>> _sourceChaptersByManga =
+      <int, Map<String, _TaggedSourceChapter>>{};
 
   /// Per-manga catalog of distinct scanlator names sourced from the
-  /// last `fetchMangaChapters` call's *raw* (pre-dedup) playable list,
-  /// alongside how many chapters each scanlator contributes. Sorted
-  /// by `chapterCount` desc, then alphabetically.
+  /// last fan-out's raw (pre-dedup) playable list. Aggregated across
+  /// all plugins. Sorted by chapter count desc, then alphabetically.
   ///
-  /// Used by the detail page's "Fuente" picker. Externals are not
-  /// counted because the user can't pick them as a per-manga
-  /// preferred scanlator — they are always rendered separately.
-  ///
-  /// Lifetime mirrors `_sourceChaptersByManga` (per-session).
+  /// Externals are not counted because the user can't pick them as a
+  /// per-manga preferred scanlator.
   final Map<int, List<ScanlatorOption>> _scanlatorsByManga =
       <int, List<ScanlatorOption>>{};
+
+  /// Per-manga catalog of source plugins that contributed at least
+  /// one playable chapter during the last fan-out. Sorted by chapter
+  /// count desc, then by source id (stable across rebuilds). Used by
+  /// the source picker (S1.E) to label and route the active source.
+  final Map<int, List<SourceOption>> _sourcesByManga =
+      <int, List<SourceOption>>{};
 
   // ---------------------------------------------------------------------------
   // Catalog metadata (delegate + write-through)
@@ -266,20 +337,27 @@ final class CompositeMangaCatalogRepository implements MangaCatalogRepository {
   }
 
   /// Composite-only extension of [fetchMangaChapters] that lets the
-  /// caller pick a preferred scanlator for the playable bucket.
+  /// caller pick a preferred scanlator and/or a preferred source for
+  /// the playable bucket.
   ///
-  /// When [preferredScanlator] is non-null, the per-`(number, language)`
-  /// dedup picks the row whose `scanlator` matches. Numbers where the
-  /// preferred scanlator has no release fall back to the auto-pick
-  /// rule documented on [_dedupByNumberLanguage] — so the user never
-  /// sees gaps just because their preferred group skipped a chapter.
+  /// When [preferredScanlator] is non-null, the playable list is
+  /// strictly filtered to chapters whose `scanlator` matches.
+  /// Chapters that scanlator did not translate are intentionally
+  /// absent — the picker is a hard filter (see 2026-04-28 dev diary).
   ///
-  /// Externals are not affected by [preferredScanlator] (they are
-  /// rendered in their own bucket regardless of preference).
+  /// When [preferredSourceId] is non-null, only the matching plugin
+  /// is consulted. Useful for the source picker (S1.E) and as an
+  /// override when a user explicitly prefers e.g. MangaDex over
+  /// Olympus for a given manga. Unknown ids resolve to an empty
+  /// chapter list (no failure).
+  ///
+  /// Externals are not affected by either filter (they are rendered
+  /// in their own bucket regardless of preference).
   Future<Result<List<MangaChapter>, KumoriyaError>>
   fetchMangaChaptersWithPreference(
     int anilistId, {
     String? preferredScanlator,
+    String? preferredSourceId,
   }) async {
     // 1. Need the canonical AniList manga to drive matching.
     final detailResult = await _delegate.fetchMangaDetail(anilistId);
@@ -291,129 +369,244 @@ final class CompositeMangaCatalogRepository implements MangaCatalogRepository {
     final manga =
         (detailResult as Success<MangaDetail, KumoriyaError>).value.manga;
 
-    // 2. Resolve / cache the source plugin's manga id.
-    final sourceIdResult = await _resolveSourceMangaId(manga);
-    if (sourceIdResult.isFailure) {
-      return Failure((sourceIdResult as Failure<String?, KumoriyaError>).error);
-    }
-    final sourceMangaId =
-        (sourceIdResult as Success<String?, KumoriyaError>).value;
-    if (sourceMangaId == null) {
-      // Per Kumoriya rule #2: no chapters > wrong chapters. The UI
-      // shows an empty-state explaining no source mapped to this manga.
+    // 2. Decide which plugins to consult.
+    final activePlugins = preferredSourceId == null
+        ? _sourcePlugins
+        : _sourcePlugins
+              .where((p) => p.manifest.id == preferredSourceId)
+              .toList(growable: false);
+    if (activePlugins.isEmpty) {
+      // User picked a source we don't have wired up. Treat as no
+      // chapters rather than a hard failure — the picker UI shows
+      // an empty-state hint (per Kumoriya rule #2).
       return const Success(<MangaChapter>[]);
     }
 
-    // 3. Ask the plugin for chapters in the user's preferred languages.
-    final query = MangaChapterQuery(
-      sourceMangaId: sourceMangaId,
-      languages: _preferredLanguages(),
-      page: 1,
-      limit: 200,
-    );
-    final chaptersResult = await _sourcePlugin.getChapters(query);
-    if (chaptersResult.isFailure) {
-      return Failure(
-        (chaptersResult as Failure<List<SourceChapter>, KumoriyaError>).error,
-      );
-    }
-    final source =
-        (chaptersResult as Success<List<SourceChapter>, KumoriyaError>).value;
+    // 3. Resolve sourceMangaId on every active plugin in parallel
+    //    (memoized including memoized negatives).
+    final mangaIdResults =
+        await Future.wait(<Future<Result<String?, KumoriyaError>>>[
+          for (final plugin in activePlugins)
+            _resolveSourceMangaIdForPlugin(plugin, manga),
+        ]);
 
-    // Split into "playable" (in-app reader works) and "external"
-    // (re-publications hosted by MangaPlus / Viz / ComiXology / etc.
-    // that we can only link out to). Then dedup each bucket
-    // independently by (number, language) — same chapter uploaded by
-    // different scanlators is the source of the "Cap. 1 repetido"
-    // disaster in the UI.
-    final playableRaw = <SourceChapter>[];
-    final externalRaw = <SourceChapter>[];
-    for (final c in source) {
-      if (c.externalUrl != null) {
-        externalRaw.add(c);
-      } else {
-        playableRaw.add(c);
+    // 4. Fan out getChapters to plugins that resolved, in parallel,
+    //    with a per-plugin timeout. Failures are tagged but never
+    //    short-circuit the call: one plugin's outage must not blank
+    //    the chapter list of the others.
+    final pluginResults = await Future.wait(<Future<_PluginChapterResult>>[
+      for (var i = 0; i < activePlugins.length; i++)
+        _fetchPluginChapters(activePlugins[i], mangaIdResults[i]),
+    ]);
+
+    // 5. Collect successful contributions; track first failure as a
+    //    fall-back to surface when EVERY attempted plugin failed.
+    final allRaw = <_TaggedSourceChapter>[];
+    KumoriyaError? firstFailure;
+    var anyAttempted = false;
+    var anySuccess = false;
+    for (final res in pluginResults) {
+      if (!res.attempted) continue;
+      anyAttempted = true;
+      final failure = res.failure;
+      if (failure != null) {
+        firstFailure ??= failure;
+        developer.log(
+          'manga plugin ${res.sourceId} failed: '
+          '${failure.code} ${failure.message}',
+          name: 'CompositeMangaCatalogRepository',
+        );
+        continue;
+      }
+      anySuccess = true;
+      for (final c in res.chapters) {
+        allRaw.add(_TaggedSourceChapter(sourceId: res.sourceId, chapter: c));
       }
     }
-    // Catalog the available scanlators across the *raw* playable list
-    // so the picker shows MangaReworks (45), Asura (12), … even after
-    // dedup collapses the list to one row per (number, language).
-    // Externals are excluded because they aren't selectable as a
-    // per-manga preferred scanlator.
-    _scanlatorsByManga[anilistId] = _computeScanlatorOptions(playableRaw);
 
-    // When the user has picked a preferred scanlator, the playable
-    // list is **strictly filtered** to that scanlator. Chapters that
-    // scanlator did not translate are intentionally absent — the
-    // picker is a hard filter, not a tie-break hint, because the
-    // fallback behaviour ("show another group's release for the
-    // missing chapter") was confusing in practice (the user thought
-    // the filter was broken when other groups' chapters kept
-    // appearing). Switching back to "Auto" lifts the filter.
+    if (!anySuccess) {
+      // Distinguish "no plugin matched" (no chapters, not an error)
+      // from "every attempted plugin failed" (lift the first error so
+      // the UI can render a proper retry banner instead of empty).
+      if (!anyAttempted) {
+        _scanlatorsByManga[anilistId] = const <ScanlatorOption>[];
+        _sourcesByManga[anilistId] = const <SourceOption>[];
+        _sourceChaptersByManga[anilistId] =
+            const <String, _TaggedSourceChapter>{};
+        return const Success(<MangaChapter>[]);
+      }
+      return Failure(firstFailure!);
+    }
+
+    // 6. Split playable vs external — same rule as the single-source
+    //    path; externals are publisher republications we can only
+    //    link out to.
+    final playableRaw = <_TaggedSourceChapter>[];
+    final externalRaw = <_TaggedSourceChapter>[];
+    for (final t in allRaw) {
+      if (t.chapter.externalUrl != null) {
+        externalRaw.add(t);
+      } else {
+        playableRaw.add(t);
+      }
+    }
+
+    // 7. Update picker catalogs from the raw playable list. Both
+    //    aggregate across sources so the user sees one chip per
+    //    distinct scanlator and one chip per contributing plugin.
+    _scanlatorsByManga[anilistId] = _computeScanlatorOptions(
+      playableRaw.map((t) => t.chapter).toList(growable: false),
+    );
+    _sourcesByManga[anilistId] = _computeSourceOptions(
+      activePlugins,
+      playableRaw,
+    );
+
+    // 8. Apply the scanlator filter (strict — see dev diary 2026-04-28).
     final playableFiltered = preferredScanlator == null
         ? playableRaw
         : playableRaw
-              .where((c) => c.scanlator == preferredScanlator)
+              .where((t) => t.chapter.scanlator == preferredScanlator)
               .toList(growable: false);
 
-    final playable = _dedupByNumberLanguage(playableFiltered);
-    final external = _dedupByNumberLanguage(externalRaw);
-
-    // Suppress an external entry when the same (number, language) is
-    // already playable in-app — the reader version always wins.
+    // 9. Dedup each bucket independently by (number, language) using
+    //    `_isBetterChapter` to pick the best across sources, then
+    //    suppress externals already covered by a playable row.
+    final playable = _dedupByNumberLanguageTagged(playableFiltered);
+    final external = _dedupByNumberLanguageTagged(externalRaw);
     final playableKeys = <String>{
-      for (final c in playable) _numberLanguageKey(c.number, c.language),
+      for (final t in playable)
+        _numberLanguageKey(t.chapter.number, t.chapter.language),
     };
     final externalFiltered = external
         .where(
-          (c) =>
-              !playableKeys.contains(_numberLanguageKey(c.number, c.language)),
+          (t) => !playableKeys.contains(
+            _numberLanguageKey(t.chapter.number, t.chapter.language),
+          ),
         )
         .toList(growable: false);
 
-    final all = <SourceChapter>[...playable, ...externalFiltered];
+    // 10. Stable order across plugins: chapter number desc, with
+    //     externals trailing playables. With a single plugin this
+    //     reproduces the previous order; with N plugins it makes the
+    //     interleaved list readable instead of "plugin1 then plugin2".
+    final all = <_TaggedSourceChapter>[...playable, ...externalFiltered]
+      ..sort((a, b) {
+        // Externals always trail playables.
+        final aExt = a.chapter.externalUrl != null;
+        final bExt = b.chapter.externalUrl != null;
+        if (aExt != bExt) return aExt ? 1 : -1;
+        return b.chapter.number.compareTo(a.chapter.number);
+      });
 
-    // Snapshot the SourceChapter list keyed by (number|language|scanlator)
-    // so the reader can resolve a MangaChapter back to its source-side
-    // counterpart without re-fetching the chapter list. Only playable
-    // chapters need to be addressable from the reader, but we store
-    // externals too so `lookupSourceChapter` can return the row for
-    // the downloads slice / "open external" UI.
-    _sourceChaptersByManga[anilistId] = <String, SourceChapter>{
-      for (final c in all)
-        _sourceChapterKey(c.number, c.language, c.scanlator): c,
+    // 11. Snapshot keyed by composite (incl. sourceId) so the reader
+    //     can re-resolve via `MangaChapter.sourceId` even when two
+    //     plugins shipped the same number.
+    _sourceChaptersByManga[anilistId] = <String, _TaggedSourceChapter>{
+      for (final t in all)
+        _sourceChapterKey(
+          t.chapter.number,
+          t.chapter.language,
+          t.chapter.scanlator,
+          t.sourceId,
+        ): t,
     };
 
     final chapters = all.map(_toDomainChapter).toList(growable: false);
     return Success(chapters);
   }
 
-  /// Deduplicates a chapter list by `(number, language)` keeping the
-  /// "best" candidate per key. Tie-breaking, in order:
+  /// Single-plugin getChapters call, lifted into a `_PluginChapterResult`
+  /// with timeout handling. The timeout converts a hung plugin into a
+  /// transport failure that the fan-out aggregator skips, instead of
+  /// stalling the whole call.
+  Future<_PluginChapterResult> _fetchPluginChapters(
+    MangaSourcePlugin plugin,
+    Result<String?, KumoriyaError> idResult,
+  ) async {
+    final sourceId = plugin.manifest.id;
+
+    if (idResult.isFailure) {
+      return _PluginChapterResult(
+        sourceId: sourceId,
+        attempted: true,
+        chapters: const <SourceChapter>[],
+        failure: (idResult as Failure<String?, KumoriyaError>).error,
+      );
+    }
+    final mangaId = (idResult as Success<String?, KumoriyaError>).value;
+    if (mangaId == null) {
+      // Plugin doesn't carry this manga — no failure, just no contribution.
+      return _PluginChapterResult(
+        sourceId: sourceId,
+        attempted: false,
+        chapters: const <SourceChapter>[],
+        failure: null,
+      );
+    }
+
+    final query = MangaChapterQuery(
+      sourceMangaId: mangaId,
+      languages: _preferredLanguages(),
+      page: 1,
+      limit: 200,
+    );
+    try {
+      final result = await plugin.getChapters(query).timeout(_perPluginTimeout);
+      return result.fold(
+        onSuccess: (chapters) => _PluginChapterResult(
+          sourceId: sourceId,
+          attempted: true,
+          chapters: chapters,
+          failure: null,
+        ),
+        onFailure: (err) => _PluginChapterResult(
+          sourceId: sourceId,
+          attempted: true,
+          chapters: const <SourceChapter>[],
+          failure: err,
+        ),
+      );
+    } on TimeoutException catch (_) {
+      return _PluginChapterResult(
+        sourceId: sourceId,
+        attempted: true,
+        chapters: const <SourceChapter>[],
+        failure: SimpleError(
+          code: 'manga.plugin.timeout',
+          message:
+              'Source plugin `$sourceId` timed out after ${_perPluginTimeout.inSeconds}s.',
+          kind: KumoriyaErrorKind.transport,
+        ),
+      );
+    }
+  }
+
+  /// Deduplicates a tagged chapter list by `(number, language)`
+  /// keeping the "best" candidate per key under the
+  /// [_isBetterChapter] heuristic (more pages > more recent >
+  /// non-null scanlator). When two sources tie on every signal, the
+  /// row from the plugin that was registered first wins — deterministic
+  /// and obvious to debug.
   ///
-  /// 1. Higher `pageCount` (treats null as 0).
-  /// 2. More recent `publishedAt` (treats null as `DateTime(0)`).
-  /// 3. Non-null `scanlator` over null.
-  ///
-  /// Output preserves the *first occurrence* order of each unique key
-  /// in the input — i.e. if the source returned chapters in
-  /// `(volume asc, chapter asc)` order, the dedup'd list keeps that
-  /// order.
-  static List<SourceChapter> _dedupByNumberLanguage(
-    List<SourceChapter> chapters,
+  /// Output preserves the first-occurrence order of each unique key
+  /// in the input. The caller is expected to apply a final stable
+  /// sort if the rendered order matters.
+  static List<_TaggedSourceChapter> _dedupByNumberLanguageTagged(
+    List<_TaggedSourceChapter> tagged,
   ) {
-    final best = <String, SourceChapter>{};
-    for (final c in chapters) {
-      final key = _numberLanguageKey(c.number, c.language);
+    final best = <String, _TaggedSourceChapter>{};
+    for (final t in tagged) {
+      final key = _numberLanguageKey(t.chapter.number, t.chapter.language);
       final existing = best[key];
-      if (existing == null || _isBetterChapter(c, existing)) {
-        best[key] = c;
+      if (existing == null || _isBetterChapter(t.chapter, existing.chapter)) {
+        best[key] = t;
       }
     }
     final emitted = <String>{};
-    final out = <SourceChapter>[];
-    for (final c in chapters) {
-      final key = _numberLanguageKey(c.number, c.language);
+    final out = <_TaggedSourceChapter>[];
+    for (final t in tagged) {
+      final key = _numberLanguageKey(t.chapter.number, t.chapter.language);
       if (emitted.add(key)) {
         out.add(best[key]!);
       }
@@ -449,6 +642,47 @@ final class CompositeMangaCatalogRepository implements MangaCatalogRepository {
   /// when the per-manga cache has not been warmed yet.
   List<ScanlatorOption> availableScanlators(int anilistId) {
     return _scanlatorsByManga[anilistId] ?? const <ScanlatorOption>[];
+  }
+
+  /// Source plugins that contributed playable chapters for a manga
+  /// during the last fan-out, sorted by chapter count desc then by
+  /// source id (stable). Returns an empty list before the first
+  /// fetch. The list never includes plugins that failed to resolve
+  /// the manga or that returned only externals.
+  List<SourceOption> availableSources(int anilistId) {
+    return _sourcesByManga[anilistId] ?? const <SourceOption>[];
+  }
+
+  /// Computes [SourceOption] entries from the raw playable list
+  /// emitted by the fan-out. The plugin set used here is the same
+  /// list passed to [fetchMangaChaptersWithPreference] (i.e. honors
+  /// `preferredSourceId` filtering).
+  static List<SourceOption> _computeSourceOptions(
+    List<MangaSourcePlugin> activePlugins,
+    List<_TaggedSourceChapter> rawPlayable,
+  ) {
+    if (rawPlayable.isEmpty) return const <SourceOption>[];
+    final counts = <String, int>{};
+    for (final t in rawPlayable) {
+      counts[t.sourceId] = (counts[t.sourceId] ?? 0) + 1;
+    }
+    final byId = <String, MangaSourcePlugin>{
+      for (final p in activePlugins) p.manifest.id: p,
+    };
+    final entries = counts.entries.toList(growable: false)
+      ..sort((a, b) {
+        final byCount = b.value.compareTo(a.value);
+        if (byCount != 0) return byCount;
+        return a.key.compareTo(b.key);
+      });
+    return <SourceOption>[
+      for (final e in entries)
+        (
+          sourceId: e.key,
+          displayName: byId[e.key]?.manifest.displayName ?? e.key,
+          chapterCount: e.value,
+        ),
+    ];
   }
 
   /// `true` when [candidate] should replace [current] under the dedup
@@ -492,14 +726,8 @@ final class CompositeMangaCatalogRepository implements MangaCatalogRepository {
     required int mangaAnilistId,
     required MangaChapter chapter,
   }) async {
-    final cached = _sourceChaptersByManga[mangaAnilistId];
-    final key = _sourceChapterKey(
-      chapter.number,
-      chapter.language,
-      chapter.scanlator,
-    );
-    final source = cached?[key];
-    if (source == null) {
+    final ref = _resolveCachedRef(mangaAnilistId, chapter);
+    if (ref == null) {
       return Failure(
         const SimpleError(
           code: 'reader.chapter_not_resolved',
@@ -510,7 +738,19 @@ final class CompositeMangaCatalogRepository implements MangaCatalogRepository {
         ),
       );
     }
-    final pagesResult = await _sourcePlugin.getChapterPages(source);
+    final plugin = _pluginById(ref.sourceId);
+    if (plugin == null) {
+      return Failure(
+        SimpleError(
+          code: 'reader.source_unavailable',
+          message:
+              'Source plugin `${ref.sourceId}` is no longer registered; '
+              're-fetch the chapter list to refresh the cache.',
+          kind: KumoriyaErrorKind.unexpected,
+        ),
+      );
+    }
+    final pagesResult = await plugin.getChapterPages(ref.chapter);
     if (pagesResult.isFailure) {
       return Failure(
         (pagesResult as Failure<List<SourcePage>, KumoriyaError>).error,
@@ -528,7 +768,7 @@ final class CompositeMangaCatalogRepository implements MangaCatalogRepository {
         )
         .toList(growable: false);
     return Success((
-      sourceChapterId: source.sourceChapterId,
+      sourceChapterId: ref.chapter.sourceChapterId,
       pages: mangaPages,
     ));
   }
@@ -543,47 +783,91 @@ final class CompositeMangaCatalogRepository implements MangaCatalogRepository {
     required int mangaAnilistId,
     required MangaChapter chapter,
   }) {
+    return _resolveCachedRef(mangaAnilistId, chapter)?.chapter;
+  }
+
+  /// Resolves a domain `MangaChapter` back to its tagged source-side
+  /// counterpart from the per-manga snapshot. Tries the precise key
+  /// first (when the chapter carries a `sourceId`); falls back to a
+  /// scan over the cache for legacy callers that constructed a
+  /// `MangaChapter` without a sourceId tag.
+  _TaggedSourceChapter? _resolveCachedRef(
+    int mangaAnilistId,
+    MangaChapter chapter,
+  ) {
     final cache = _sourceChaptersByManga[mangaAnilistId];
     if (cache == null) return null;
-    return cache[_sourceChapterKey(
-      chapter.number,
-      chapter.language,
-      chapter.scanlator,
-    )];
+    final tagged = chapter.sourceId;
+    if (tagged != null) {
+      final precise =
+          cache[_sourceChapterKey(
+            chapter.number,
+            chapter.language,
+            chapter.scanlator,
+            tagged,
+          )];
+      if (precise != null) return precise;
+    }
+    // Backward-compat: untagged MangaChapter — scan for a row that
+    // matches (number, language, scanlator) regardless of source.
+    for (final entry in cache.values) {
+      final c = entry.chapter;
+      if (c.number != chapter.number) continue;
+      if (c.language != chapter.language) continue;
+      if (c.scanlator != chapter.scanlator) continue;
+      return entry;
+    }
+    return null;
+  }
+
+  MangaSourcePlugin? _pluginById(String id) {
+    for (final p in _sourcePlugins) {
+      if (p.manifest.id == id) return p;
+    }
+    return null;
   }
 
   /// Composite key for the per-manga `SourceChapter` cache. Mirrors
   /// the disambiguators users see in the chapter list: a scanlator
   /// translation in language X is a different chapter from another
   /// scanlator's translation of the same number, even though both
-  /// share `MangaChapter.number`.
+  /// share `MangaChapter.number`. The trailing `sourceId` segment
+  /// keeps two plugins' chapter 1 from colliding.
   static String _sourceChapterKey(
     double number,
     String? language,
     String? scanlator,
+    String sourceId,
   ) {
-    return '$number|${language ?? ''}|${scanlator ?? ''}';
+    return '$number|${language ?? ''}|${scanlator ?? ''}|$sourceId';
   }
 
-  /// Resolves an AniList id to the source plugin's manga id.
+  /// Resolves an AniList id to a single plugin's `sourceMangaId`.
   ///
   /// Strategy (in order):
   ///
-  /// 1. In-memory cache — including memoized negatives.
-  /// 2. MangaDex search by canonical romaji title; accept the result whose
+  /// 1. Per-(AniList id, plugin id) memoization — including memoized
+  ///    negatives.
+  /// 2. Plugin search by canonical romaji title; accept the result whose
   ///    `externalIds['al']` matches `anilistId`.
-  /// 3. Fuzzy fallback: case/whitespace-insensitive equality between the
-  ///    AniList title (any of romaji/english/native/synonyms) and the
-  ///    source result's title or aliases. Avoids `kumoriya_matching` for
-  ///    now — the fuzzy rule is conservative and good enough until the
-  ///    Slice 8 follow-up wires the full matcher.
-  /// 4. No match → memoize `null`. Caller treats this as "no chapters".
-  Future<Result<String?, KumoriyaError>> _resolveSourceMangaId(
+  /// 3. Fuzzy fallback: case/whitespace-insensitive equality between
+  ///    the AniList title (any of romaji/english/native/synonyms) and
+  ///    the source result's title or aliases. Conservative — the full
+  ///    matcher (`kumoriya_matching`) lands in S1.D when MangaBaka's
+  ///    title corpus expands the candidate pool.
+  /// 4. No match → memoize `null`. The plugin contributes zero
+  ///    chapters for this manga in the fan-out aggregator.
+  Future<Result<String?, KumoriyaError>> _resolveSourceMangaIdForPlugin(
+    MangaSourcePlugin plugin,
     Manga manga,
   ) async {
-    final cached = _sourceMangaIdCache[manga.anilistId];
-    if (cached != null || _sourceMangaIdCache.containsKey(manga.anilistId)) {
-      return Success(cached);
+    final pluginId = plugin.manifest.id;
+    final perManga = _sourceMangaIdByPlugin.putIfAbsent(
+      manga.anilistId,
+      () => <String, String?>{},
+    );
+    if (perManga.containsKey(pluginId)) {
+      return Success(perManga[pluginId]);
     }
 
     final query = MangaSearchQuery(
@@ -592,8 +876,10 @@ final class CompositeMangaCatalogRepository implements MangaCatalogRepository {
       limit: 10,
       languages: _preferredLanguages(),
     );
-    final searchResult = await _sourcePlugin.search(query);
+    final searchResult = await plugin.search(query);
     if (searchResult.isFailure) {
+      // Don't memoize transport failures — a transient outage shouldn't
+      // poison the cache for the rest of the session.
       return Failure(
         (searchResult as Failure<List<SourceMangaMatch>, KumoriyaError>).error,
       );
@@ -632,7 +918,7 @@ final class CompositeMangaCatalogRepository implements MangaCatalogRepository {
       }
     }
 
-    _sourceMangaIdCache[manga.anilistId] = resolved;
+    perManga[pluginId] = resolved;
     return Success(resolved);
   }
 
@@ -736,7 +1022,8 @@ final class CompositeMangaCatalogRepository implements MangaCatalogRepository {
     );
   }
 
-  MangaChapter _toDomainChapter(SourceChapter chapter) {
+  MangaChapter _toDomainChapter(_TaggedSourceChapter tagged) {
+    final chapter = tagged.chapter;
     return MangaChapter(
       number: chapter.number,
       title: chapter.title ?? '',
@@ -746,6 +1033,7 @@ final class CompositeMangaCatalogRepository implements MangaCatalogRepository {
       publishedAt: chapter.publishedAt,
       pageCount: chapter.pageCount,
       externalUrl: chapter.externalUrl,
+      sourceId: tagged.sourceId,
     );
   }
 

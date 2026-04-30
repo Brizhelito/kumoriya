@@ -17,6 +17,7 @@ final class MangaChapter {
     this.publishedAt,
     this.pageCount,
     this.externalUrl,
+    this.sourceId,
   });
 
   final double number;
@@ -32,4 +33,12 @@ final class MangaChapter {
   /// inside the app reader**. The UI surfaces these in a separate
   /// section with an "open in browser" action.
   final Uri? externalUrl;
+
+  /// Identifier of the source plugin that produced this chapter
+  /// (e.g. `mangadex`, `olympus`). Null on legacy single-source code
+  /// paths and when constructed from cache rows that pre-date the
+  /// multi-source slice. Required by [CompositeMangaCatalogRepository]
+  /// to route reader/download requests to the right plugin when more
+  /// than one source contributes chapters for the same manga.
+  final String? sourceId;
 }

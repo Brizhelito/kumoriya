@@ -54,7 +54,12 @@ class ChapterDownloadButton extends ConsumerWidget {
       return const _DisabledIcon();
     }
 
-    final pluginId = ref.watch(mangaSourcePluginProvider).manifest.id;
+    // Prefer the chapter's own sourceId tag (set by the composite
+    // repo during fan-out, S1.C). Fall back to the first registered
+    // plugin's id for legacy untagged chapters.
+    final pluginId =
+        chapter.sourceId ??
+        ref.watch(mangaSourcePluginsProvider).first.manifest.id;
     final taskAsync = ref.watch(
       mangaDownloadTaskByChapterProvider(
         chapterRefKey(
@@ -81,7 +86,9 @@ class ChapterDownloadButton extends ConsumerWidget {
     required SourceChapter source,
   }) async {
     final manager = ref.read(mangaDownloadManagerProvider);
-    final pluginId = ref.read(mangaSourcePluginProvider).manifest.id;
+    final pluginId =
+        chapter.sourceId ??
+        ref.read(mangaSourcePluginsProvider).first.manifest.id;
 
     if (task == null || task.status == MangaDownloadStatus.failed) {
       // Fresh enqueue or retry.

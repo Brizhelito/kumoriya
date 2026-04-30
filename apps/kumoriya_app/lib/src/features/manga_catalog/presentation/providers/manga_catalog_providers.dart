@@ -23,11 +23,16 @@ typedef MangaHomeData = MangaHomeSections;
 // Source plugin + composite repository
 // ---------------------------------------------------------------------------
 
-final mangaSourcePluginProvider = Provider<MangaSourcePlugin>((ref) {
-  // MangaDex is the only manga source available in the MVP. When more
-  // sources land, lift this to a registry similar to anime
-  // `sourcePluginsProvider`.
-  return MangaDexSourcePlugin();
+/// Registered manga source plugins, ordered by registration priority.
+/// The composite repository fans out to every entry in parallel and
+/// dedups across them.
+///
+/// Currently single-element (MangaDex). When LatAm sources land
+/// (S3-S6), append them here in priority order — earlier entries win
+/// ties in the dedup heuristic. Lifted to a list in S1.C; in S1.E the
+/// detail page surfaces this through the source picker chip.
+final mangaSourcePluginsProvider = Provider<List<MangaSourcePlugin>>((ref) {
+  return <MangaSourcePlugin>[MangaDexSourcePlugin()];
 });
 
 /// Preferred chapter languages, derived from the active locale at the
@@ -61,7 +66,7 @@ final _compositeMangaCatalogRepositoryProvider =
       final delegate = AnilistMangaCatalogRepository(gateway: gateway);
       return CompositeMangaCatalogRepository(
         delegate: delegate,
-        sourcePlugin: ref.watch(mangaSourcePluginProvider),
+        sourcePlugins: ref.watch(mangaSourcePluginsProvider),
         cacheStore: ref.watch(mangaCacheStoreProvider),
         preferredLanguages: ref.watch(mangaPreferredLanguagesProvider),
       );

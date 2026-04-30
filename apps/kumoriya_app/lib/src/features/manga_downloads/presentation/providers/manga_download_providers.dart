@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kumoriya_core/kumoriya_core.dart';
+import 'package:kumoriya_manga_plugins/kumoriya_manga_plugins.dart';
 import 'package:kumoriya_storage/kumoriya_storage.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
@@ -28,20 +29,22 @@ final mangaDownloadsRootDirProvider = Provider<Future<Directory> Function()>((
   };
 });
 
-/// Singleton manager for manga downloads. Wired to the active manga
-/// source plugin via the existing `mangaSourcePluginProvider`. When
-/// more than one source plugin lands, lift this to a registry-based
-/// resolver (the manager already accepts `MangaSourcePluginResolver`).
+/// Singleton manager for manga downloads. Resolves source plugins
+/// from the registered list (S1.C lifted this from a single plugin
+/// to a list); the manager itself stays decoupled via the
+/// `MangaSourcePluginResolver` callback.
 final mangaDownloadManagerProvider = Provider<MangaDownloadManager>((ref) {
   final store = ref.watch(mangaDownloadStoreProvider);
   final rootDirFn = ref.watch(mangaDownloadsRootDirProvider);
-  final plugin = ref.watch(mangaSourcePluginProvider);
+  final plugins = ref.watch(mangaSourcePluginsProvider);
+  final byId = <String, MangaSourcePlugin>{
+    for (final p in plugins) p.manifest.id: p,
+  };
 
   final manager = MangaDownloadManager(
     store: store,
     downloadsRootDir: rootDirFn,
-    pluginResolver: (sourceId) =>
-        sourceId == plugin.manifest.id ? plugin : null,
+    pluginResolver: (sourceId) => byId[sourceId],
   );
   ref.onDispose(manager.dispose);
   return manager;

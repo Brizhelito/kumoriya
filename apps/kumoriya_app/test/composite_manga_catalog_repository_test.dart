@@ -105,22 +105,36 @@ class _FakeMangaSourcePlugin implements MangaSourcePlugin {
     this.searchResults = const <SourceMangaMatch>[],
     this.chaptersById = const <String, List<SourceChapter>>{},
     this.pagesByChapterId = const <String, List<SourcePage>>{},
+    this.manifestId = 'test.fake.source',
+    this.displayName = 'Fake source',
+    this.searchFailure,
+    this.chaptersFailure,
+    this.chaptersDelay,
   });
 
   List<SourceMangaMatch> searchResults;
   Map<String, List<SourceChapter>> chaptersById;
   Map<String, List<SourcePage>> pagesByChapterId;
+  final String manifestId;
+  final String displayName;
+  final KumoriyaError? searchFailure;
+  final KumoriyaError? chaptersFailure;
+
+  /// When non-null, `getChapters` waits this long before returning.
+  /// Used to drive the per-plugin timeout test.
+  final Duration? chaptersDelay;
+
   int searchCalls = 0;
   int chaptersCalls = 0;
   int pageCalls = 0;
 
   @override
-  PluginManifest get manifest => const PluginManifest(
-    id: 'test.fake.source',
-    displayName: 'Fake source',
+  PluginManifest get manifest => PluginManifest(
+    id: manifestId,
+    displayName: displayName,
     type: PluginType.source,
-    capabilities: <PluginCapability>{PluginCapability.search},
-    baseUrls: <String>['https://fake.test'],
+    capabilities: const <PluginCapability>{PluginCapability.search},
+    baseUrls: const <String>['https://fake.test'],
   );
 
   @override
@@ -137,6 +151,7 @@ class _FakeMangaSourcePlugin implements MangaSourcePlugin {
     MangaSearchQuery query,
   ) async {
     searchCalls++;
+    if (searchFailure != null) return Failure(searchFailure!);
     return Success(searchResults);
   }
 
@@ -166,6 +181,10 @@ class _FakeMangaSourcePlugin implements MangaSourcePlugin {
     MangaChapterQuery query,
   ) async {
     chaptersCalls++;
+    if (chaptersDelay != null) {
+      await Future<void>.delayed(chaptersDelay!);
+    }
+    if (chaptersFailure != null) return Failure(chaptersFailure!);
     final ch = chaptersById[query.sourceMangaId] ?? const <SourceChapter>[];
     return Success(ch);
   }
@@ -324,7 +343,7 @@ void main() {
       );
       final repo = CompositeMangaCatalogRepository(
         delegate: delegate,
-        sourcePlugin: source,
+        sourcePlugins: [source],
         cacheStore: _InMemoryMangaCacheStore(),
         preferredLanguages: () => const <String>['en'],
       );
@@ -334,7 +353,12 @@ void main() {
       final chapters =
           (result as Success<List<MangaChapter>, KumoriyaError>).value;
       expect(chapters, hasLength(2));
-      expect(chapters.first.number, 1);
+      // S1.C: composite emits chapter list sorted by number desc
+      // (latest first), with externals trailing playables.
+      expect(chapters.first.number, 2);
+      expect(chapters.last.number, 1);
+      // S1.C: every emitted chapter carries the producing plugin id.
+      expect(chapters.every((c) => c.sourceId != null), isTrue);
     });
 
     test('falls back to fuzzy title match when no externalIds["al"]', () async {
@@ -352,7 +376,7 @@ void main() {
       );
       final repo = CompositeMangaCatalogRepository(
         delegate: delegate,
-        sourcePlugin: source,
+        sourcePlugins: [source],
         cacheStore: _InMemoryMangaCacheStore(),
         preferredLanguages: () => const <String>['en'],
       );
@@ -378,7 +402,7 @@ void main() {
       );
       final repo = CompositeMangaCatalogRepository(
         delegate: delegate,
-        sourcePlugin: source,
+        sourcePlugins: [source],
         cacheStore: _InMemoryMangaCacheStore(),
         preferredLanguages: () => const <String>['en'],
       );
@@ -410,7 +434,7 @@ void main() {
       );
       final repo = CompositeMangaCatalogRepository(
         delegate: delegate,
-        sourcePlugin: source,
+        sourcePlugins: [source],
         cacheStore: _InMemoryMangaCacheStore(),
         preferredLanguages: () => const <String>['en'],
       );
@@ -475,7 +499,7 @@ void main() {
         );
         final repo = CompositeMangaCatalogRepository(
           delegate: delegate,
-          sourcePlugin: source,
+          sourcePlugins: [source],
           cacheStore: _InMemoryMangaCacheStore(),
           preferredLanguages: () => const <String>['en'],
         );
@@ -547,7 +571,7 @@ void main() {
       );
       final repo = CompositeMangaCatalogRepository(
         delegate: delegate,
-        sourcePlugin: source,
+        sourcePlugins: [source],
         cacheStore: _InMemoryMangaCacheStore(),
         preferredLanguages: () => const <String>['en'],
       );
@@ -614,7 +638,7 @@ void main() {
       );
       final repo = CompositeMangaCatalogRepository(
         delegate: delegate,
-        sourcePlugin: source,
+        sourcePlugins: [source],
         cacheStore: _InMemoryMangaCacheStore(),
         preferredLanguages: () => const <String>['en'],
       );
@@ -633,14 +657,15 @@ void main() {
       expect(chapters.single.scanlator, 'MangaReworks');
 
       // Sanity: with no preference, both chapters render and Asura
-      // wins cap. 1 by page-count tie-break.
+      // wins cap. 1 by page-count tie-break. Order is number desc
+      // (S1.C convention: latest chapter first).
       final auto =
           (await repo.fetchMangaChaptersWithPreference(400)
                   as Success<List<MangaChapter>, KumoriyaError>)
               .value;
       expect(auto.map((c) => (c.number, c.scanlator)), <(double, String?)>[
-        (1, 'Asura'),
         (2, 'Asura'),
+        (1, 'Asura'),
       ]);
     });
 
@@ -687,7 +712,7 @@ void main() {
         );
         final repo = CompositeMangaCatalogRepository(
           delegate: delegate,
-          sourcePlugin: source,
+          sourcePlugins: [source],
           cacheStore: _InMemoryMangaCacheStore(),
           preferredLanguages: () => const <String>['en'],
         );
@@ -725,7 +750,7 @@ void main() {
         );
         final repo = CompositeMangaCatalogRepository(
           delegate: delegate,
-          sourcePlugin: _FakeMangaSourcePlugin(),
+          sourcePlugins: [_FakeMangaSourcePlugin()],
           cacheStore: cache,
           preferredLanguages: () => const <String>['en'],
         );
@@ -745,7 +770,7 @@ void main() {
       );
       final repo = CompositeMangaCatalogRepository(
         delegate: delegate,
-        sourcePlugin: _FakeMangaSourcePlugin(),
+        sourcePlugins: [_FakeMangaSourcePlugin()],
         cacheStore: cache,
         preferredLanguages: () => const <String>['en'],
       );
@@ -775,7 +800,7 @@ void main() {
         );
         final repo = CompositeMangaCatalogRepository(
           delegate: delegate,
-          sourcePlugin: _FakeMangaSourcePlugin(),
+          sourcePlugins: [_FakeMangaSourcePlugin()],
           cacheStore: cache,
           preferredLanguages: () => const <String>['en'],
         );
@@ -804,7 +829,7 @@ void main() {
       );
       final repo = CompositeMangaCatalogRepository(
         delegate: delegate,
-        sourcePlugin: _FakeMangaSourcePlugin(),
+        sourcePlugins: [_FakeMangaSourcePlugin()],
         cacheStore: cache,
         preferredLanguages: () => const <String>['en'],
       );
@@ -832,7 +857,7 @@ void main() {
       );
       final repo = CompositeMangaCatalogRepository(
         delegate: delegate,
-        sourcePlugin: _FakeMangaSourcePlugin(),
+        sourcePlugins: [_FakeMangaSourcePlugin()],
         cacheStore: cache,
         preferredLanguages: () => const <String>['en'],
       );
@@ -865,7 +890,7 @@ void main() {
         );
         final repo = CompositeMangaCatalogRepository(
           delegate: delegate,
-          sourcePlugin: _FakeMangaSourcePlugin(),
+          sourcePlugins: [_FakeMangaSourcePlugin()],
           cacheStore: cache,
           preferredLanguages: () => const <String>['en'],
         );
@@ -896,7 +921,7 @@ void main() {
         );
         final repo = CompositeMangaCatalogRepository(
           delegate: delegate,
-          sourcePlugin: _FakeMangaSourcePlugin(),
+          sourcePlugins: [_FakeMangaSourcePlugin()],
           cacheStore: cache,
           preferredLanguages: () => const <String>['en'],
         );
@@ -914,7 +939,7 @@ void main() {
       );
       final repo = CompositeMangaCatalogRepository(
         delegate: delegate,
-        sourcePlugin: _FakeMangaSourcePlugin(),
+        sourcePlugins: [_FakeMangaSourcePlugin()],
         cacheStore: cache,
         preferredLanguages: () => const <String>['en'],
       );
@@ -934,7 +959,7 @@ void main() {
         final cache = _InMemoryMangaCacheStore();
         final repo = CompositeMangaCatalogRepository(
           delegate: _FakeAnilistMangaRepo(),
-          sourcePlugin: _FakeMangaSourcePlugin(),
+          sourcePlugins: [_FakeMangaSourcePlugin()],
           cacheStore: cache,
           preferredLanguages: () => const <String>['en'],
         );
@@ -981,7 +1006,7 @@ void main() {
         );
         final repo = CompositeMangaCatalogRepository(
           delegate: delegate,
-          sourcePlugin: source,
+          sourcePlugins: [source],
           cacheStore: _InMemoryMangaCacheStore(),
           preferredLanguages: () => const <String>['en'],
         );
@@ -1035,7 +1060,7 @@ void main() {
         );
         final repo = CompositeMangaCatalogRepository(
           delegate: failing,
-          sourcePlugin: _FakeMangaSourcePlugin(),
+          sourcePlugins: [_FakeMangaSourcePlugin()],
           cacheStore: cache,
           preferredLanguages: () => const <String>['en'],
         );
@@ -1046,6 +1071,540 @@ void main() {
         expect(detail.manga.anilistId, 99);
         expect(detail.manga.title.romaji, 'Cached Title');
         expect(repo.fallbackReason.value, FallbackReason.offline);
+      },
+    );
+  });
+
+  group('CompositeMangaCatalogRepository multi-source (S1.C)', () {
+    // ----- Helpers shared across the multi-source tests ---------------------
+
+    SourceMangaMatch matchFor(int anilistId, String sourceId) =>
+        SourceMangaMatch(
+          sourceId: 'src-$sourceId-$anilistId',
+          title: 'Same Manga',
+          externalIds: <String, String>{'al': '$anilistId'},
+        );
+
+    SourceChapter cap({
+      required String sourceMangaId,
+      required String id,
+      required double number,
+      String? scanlator,
+      int? pageCount,
+    }) {
+      return SourceChapter(
+        sourceMangaId: sourceMangaId,
+        sourceChapterId: id,
+        number: number,
+        language: 'en',
+        scanlator: scanlator,
+        pageCount: pageCount,
+      );
+    }
+
+    test(
+      'fans out to all plugins in parallel and tags chapters with sourceId',
+      () async {
+        final manga = _manga(id: 700);
+        final delegate = _FakeAnilistMangaRepo(detail: _detail(manga));
+        final dex = _FakeMangaSourcePlugin(
+          manifestId: 'mangadex',
+          displayName: 'MangaDex',
+          searchResults: <SourceMangaMatch>[matchFor(700, 'mangadex')],
+          chaptersById: <String, List<SourceChapter>>{
+            'src-mangadex-700': <SourceChapter>[
+              cap(sourceMangaId: 'src-mangadex-700', id: 'd1', number: 1),
+              cap(sourceMangaId: 'src-mangadex-700', id: 'd3', number: 3),
+            ],
+          },
+        );
+        final olympus = _FakeMangaSourcePlugin(
+          manifestId: 'olympus',
+          displayName: 'Olympus',
+          searchResults: <SourceMangaMatch>[matchFor(700, 'olympus')],
+          chaptersById: <String, List<SourceChapter>>{
+            'src-olympus-700': <SourceChapter>[
+              cap(sourceMangaId: 'src-olympus-700', id: 'o2', number: 2),
+              cap(sourceMangaId: 'src-olympus-700', id: 'o4', number: 4),
+            ],
+          },
+        );
+        final repo = CompositeMangaCatalogRepository(
+          delegate: delegate,
+          sourcePlugins: [dex, olympus],
+          cacheStore: _InMemoryMangaCacheStore(),
+          preferredLanguages: () => const <String>['en'],
+        );
+
+        final result = await repo.fetchMangaChapters(700);
+        expect(result.isSuccess, isTrue);
+        final chapters =
+            (result as Success<List<MangaChapter>, KumoriyaError>).value;
+
+        // 4 distinct chapters across the two plugins, sorted desc.
+        expect(chapters.map((c) => c.number), <double>[4, 3, 2, 1]);
+
+        // Each chapter is tagged with its producing plugin.
+        Map<double, String?> sourcesByNumber = {
+          for (final c in chapters) c.number: c.sourceId,
+        };
+        expect(sourcesByNumber[1], 'mangadex');
+        expect(sourcesByNumber[2], 'olympus');
+        expect(sourcesByNumber[3], 'mangadex');
+        expect(sourcesByNumber[4], 'olympus');
+
+        // Both plugins were called in this single fan-out.
+        expect(dex.chaptersCalls, 1);
+        expect(olympus.chaptersCalls, 1);
+      },
+    );
+
+    test(
+      'dedupes overlapping chapters across sources, keeping more pages',
+      () async {
+        final manga = _manga(id: 701);
+        final delegate = _FakeAnilistMangaRepo(detail: _detail(manga));
+        final dex = _FakeMangaSourcePlugin(
+          manifestId: 'mangadex',
+          displayName: 'MangaDex',
+          searchResults: <SourceMangaMatch>[matchFor(701, 'mangadex')],
+          chaptersById: <String, List<SourceChapter>>{
+            'src-mangadex-701': <SourceChapter>[
+              cap(
+                sourceMangaId: 'src-mangadex-701',
+                id: 'd1',
+                number: 1,
+                pageCount: 12,
+              ),
+            ],
+          },
+        );
+        final olympus = _FakeMangaSourcePlugin(
+          manifestId: 'olympus',
+          displayName: 'Olympus',
+          searchResults: <SourceMangaMatch>[matchFor(701, 'olympus')],
+          chaptersById: <String, List<SourceChapter>>{
+            'src-olympus-701': <SourceChapter>[
+              cap(
+                sourceMangaId: 'src-olympus-701',
+                id: 'o1',
+                number: 1,
+                pageCount: 22,
+              ),
+            ],
+          },
+        );
+        final repo = CompositeMangaCatalogRepository(
+          delegate: delegate,
+          sourcePlugins: [dex, olympus],
+          cacheStore: _InMemoryMangaCacheStore(),
+          preferredLanguages: () => const <String>['en'],
+        );
+
+        final result = await repo.fetchMangaChapters(701);
+        final chapters =
+            (result as Success<List<MangaChapter>, KumoriyaError>).value;
+        expect(chapters, hasLength(1));
+        expect(chapters.single.number, 1);
+        // Olympus wins by page count even though MangaDex was registered first.
+        expect(chapters.single.pageCount, 22);
+        expect(chapters.single.sourceId, 'olympus');
+      },
+    );
+
+    test(
+      'one plugin failing does not blank the others (failure isolation)',
+      () async {
+        final manga = _manga(id: 702);
+        final delegate = _FakeAnilistMangaRepo(detail: _detail(manga));
+        final healthy = _FakeMangaSourcePlugin(
+          manifestId: 'mangadex',
+          searchResults: <SourceMangaMatch>[matchFor(702, 'mangadex')],
+          chaptersById: <String, List<SourceChapter>>{
+            'src-mangadex-702': <SourceChapter>[
+              cap(sourceMangaId: 'src-mangadex-702', id: 'd1', number: 1),
+              cap(sourceMangaId: 'src-mangadex-702', id: 'd2', number: 2),
+            ],
+          },
+        );
+        final broken = _FakeMangaSourcePlugin(
+          manifestId: 'olympus',
+          searchResults: <SourceMangaMatch>[matchFor(702, 'olympus')],
+          chaptersFailure: const SimpleError(
+            code: 'olympus.transport',
+            message: 'CDN down',
+            kind: KumoriyaErrorKind.transport,
+          ),
+          chaptersById: <String, List<SourceChapter>>{
+            'src-olympus-702': <SourceChapter>[
+              cap(sourceMangaId: 'src-olympus-702', id: 'o1', number: 99),
+            ],
+          },
+        );
+        final repo = CompositeMangaCatalogRepository(
+          delegate: delegate,
+          sourcePlugins: [healthy, broken],
+          cacheStore: _InMemoryMangaCacheStore(),
+          preferredLanguages: () => const <String>['en'],
+        );
+
+        final result = await repo.fetchMangaChapters(702);
+        expect(result.isSuccess, isTrue);
+        final chapters =
+            (result as Success<List<MangaChapter>, KumoriyaError>).value;
+
+        // Healthy plugin's chapters surface; the failing plugin contributes
+        // nothing instead of taking the whole list down.
+        expect(chapters, hasLength(2));
+        expect(chapters.every((c) => c.sourceId == 'mangadex'), isTrue);
+      },
+    );
+
+    test('lifts a failure only when EVERY attempted plugin failed', () async {
+      final manga = _manga(id: 703);
+      final delegate = _FakeAnilistMangaRepo(detail: _detail(manga));
+      final p1 = _FakeMangaSourcePlugin(
+        manifestId: 'mangadex',
+        searchResults: <SourceMangaMatch>[matchFor(703, 'mangadex')],
+        chaptersFailure: const SimpleError(
+          code: 'mangadex.down',
+          message: 'down',
+          kind: KumoriyaErrorKind.transport,
+        ),
+      );
+      final p2 = _FakeMangaSourcePlugin(
+        manifestId: 'olympus',
+        searchResults: <SourceMangaMatch>[matchFor(703, 'olympus')],
+        chaptersFailure: const SimpleError(
+          code: 'olympus.down',
+          message: 'down',
+          kind: KumoriyaErrorKind.transport,
+        ),
+      );
+      final repo = CompositeMangaCatalogRepository(
+        delegate: delegate,
+        sourcePlugins: [p1, p2],
+        cacheStore: _InMemoryMangaCacheStore(),
+        preferredLanguages: () => const <String>['en'],
+      );
+
+      final result = await repo.fetchMangaChapters(703);
+      expect(result.isFailure, isTrue);
+      // First failure (registration order) wins.
+      expect(
+        (result as Failure<List<MangaChapter>, KumoriyaError>).error.code,
+        'mangadex.down',
+      );
+    });
+
+    test('plugin whose search fails is treated as a per-plugin failure',
+        () async {
+      // Search-time failures bubble through the same isolation path
+      // as chapter-time failures: the offending plugin contributes
+      // nothing, peers still surface their chapters.
+      final manga = _manga(id: 7041);
+      final delegate = _FakeAnilistMangaRepo(detail: _detail(manga));
+      final healthy = _FakeMangaSourcePlugin(
+        manifestId: 'mangadex',
+        searchResults: <SourceMangaMatch>[matchFor(7041, 'mangadex')],
+        chaptersById: <String, List<SourceChapter>>{
+          'src-mangadex-7041': <SourceChapter>[
+            cap(sourceMangaId: 'src-mangadex-7041', id: 'd1', number: 1),
+          ],
+        },
+      );
+      final brokenSearch = _FakeMangaSourcePlugin(
+        manifestId: 'olympus',
+        searchFailure: const SimpleError(
+          code: 'olympus.search.transport',
+          message: 'rate limited',
+          kind: KumoriyaErrorKind.transport,
+        ),
+      );
+      final repo = CompositeMangaCatalogRepository(
+        delegate: delegate,
+        sourcePlugins: [healthy, brokenSearch],
+        cacheStore: _InMemoryMangaCacheStore(),
+        preferredLanguages: () => const <String>['en'],
+      );
+
+      final result = await repo.fetchMangaChapters(7041);
+      expect(result.isSuccess, isTrue);
+      final chapters =
+          (result as Success<List<MangaChapter>, KumoriyaError>).value;
+      expect(chapters, hasLength(1));
+      expect(chapters.single.sourceId, 'mangadex');
+    });
+
+    test('plugin that does not match the manga contributes silently', () async {
+      // Plugin B has no AniList id link AND no fuzzy title match — its
+      // sourceMangaId resolves to null and we never call getChapters on it.
+      // The whole call still succeeds with plugin A's chapters.
+      final manga = _manga(id: 704, romaji: 'Specific Title');
+      final delegate = _FakeAnilistMangaRepo(detail: _detail(manga));
+      final matching = _FakeMangaSourcePlugin(
+        manifestId: 'mangadex',
+        searchResults: <SourceMangaMatch>[matchFor(704, 'mangadex')],
+        chaptersById: <String, List<SourceChapter>>{
+          'src-mangadex-704': <SourceChapter>[
+            cap(sourceMangaId: 'src-mangadex-704', id: 'd1', number: 1),
+          ],
+        },
+      );
+      final nonMatching = _FakeMangaSourcePlugin(
+        manifestId: 'olympus',
+        searchResults: const <SourceMangaMatch>[
+          SourceMangaMatch(
+            sourceId: 'unrelated',
+            title: 'Something Else Entirely',
+          ),
+        ],
+      );
+      final repo = CompositeMangaCatalogRepository(
+        delegate: delegate,
+        sourcePlugins: [matching, nonMatching],
+        cacheStore: _InMemoryMangaCacheStore(),
+        preferredLanguages: () => const <String>['en'],
+      );
+
+      final result = await repo.fetchMangaChapters(704);
+      expect(result.isSuccess, isTrue);
+      final chapters =
+          (result as Success<List<MangaChapter>, KumoriyaError>).value;
+      expect(chapters, hasLength(1));
+      expect(chapters.single.sourceId, 'mangadex');
+      // The non-matching plugin's getChapters was NOT called (only its search).
+      expect(nonMatching.searchCalls, 1);
+      expect(nonMatching.chaptersCalls, 0);
+    });
+
+    test(
+      'per-plugin timeout converts a hung plugin into a skipped failure',
+      () async {
+        final manga = _manga(id: 705);
+        final delegate = _FakeAnilistMangaRepo(detail: _detail(manga));
+        final fast = _FakeMangaSourcePlugin(
+          manifestId: 'mangadex',
+          searchResults: <SourceMangaMatch>[matchFor(705, 'mangadex')],
+          chaptersById: <String, List<SourceChapter>>{
+            'src-mangadex-705': <SourceChapter>[
+              cap(sourceMangaId: 'src-mangadex-705', id: 'd1', number: 1),
+            ],
+          },
+        );
+        final hung = _FakeMangaSourcePlugin(
+          manifestId: 'olympus',
+          searchResults: <SourceMangaMatch>[matchFor(705, 'olympus')],
+          chaptersDelay: const Duration(seconds: 5),
+          chaptersById: <String, List<SourceChapter>>{
+            'src-olympus-705': <SourceChapter>[
+              cap(sourceMangaId: 'src-olympus-705', id: 'o9', number: 9),
+            ],
+          },
+        );
+        final repo = CompositeMangaCatalogRepository(
+          delegate: delegate,
+          sourcePlugins: [fast, hung],
+          cacheStore: _InMemoryMangaCacheStore(),
+          preferredLanguages: () => const <String>['en'],
+          // Tight timeout so the test runs fast.
+          perPluginTimeout: const Duration(milliseconds: 50),
+        );
+
+        final result = await repo.fetchMangaChapters(705);
+        expect(result.isSuccess, isTrue);
+        final chapters =
+            (result as Success<List<MangaChapter>, KumoriyaError>).value;
+        // Hung plugin's chapter 9 must NOT appear.
+        expect(chapters, hasLength(1));
+        expect(chapters.single.sourceId, 'mangadex');
+        expect(chapters.single.number, 1);
+      },
+      timeout: const Timeout(Duration(seconds: 2)),
+    );
+
+    test(
+      'preferredSourceId restricts the fan-out to a single plugin',
+      () async {
+        final manga = _manga(id: 706);
+        final delegate = _FakeAnilistMangaRepo(detail: _detail(manga));
+        final dex = _FakeMangaSourcePlugin(
+          manifestId: 'mangadex',
+          searchResults: <SourceMangaMatch>[matchFor(706, 'mangadex')],
+          chaptersById: <String, List<SourceChapter>>{
+            'src-mangadex-706': <SourceChapter>[
+              cap(sourceMangaId: 'src-mangadex-706', id: 'd1', number: 1),
+            ],
+          },
+        );
+        final olympus = _FakeMangaSourcePlugin(
+          manifestId: 'olympus',
+          searchResults: <SourceMangaMatch>[matchFor(706, 'olympus')],
+          chaptersById: <String, List<SourceChapter>>{
+            'src-olympus-706': <SourceChapter>[
+              cap(sourceMangaId: 'src-olympus-706', id: 'o2', number: 2),
+            ],
+          },
+        );
+        final repo = CompositeMangaCatalogRepository(
+          delegate: delegate,
+          sourcePlugins: [dex, olympus],
+          cacheStore: _InMemoryMangaCacheStore(),
+          preferredLanguages: () => const <String>['en'],
+        );
+
+        final result = await repo.fetchMangaChaptersWithPreference(
+          706,
+          preferredSourceId: 'olympus',
+        );
+        final chapters =
+            (result as Success<List<MangaChapter>, KumoriyaError>).value;
+        expect(chapters, hasLength(1));
+        expect(chapters.single.sourceId, 'olympus');
+        expect(chapters.single.number, 2);
+        // The non-selected plugin was NOT called.
+        expect(dex.chaptersCalls, 0);
+        expect(olympus.chaptersCalls, 1);
+      },
+    );
+
+    test(
+      'preferredSourceId pointing to an unknown id returns empty success',
+      () async {
+        final manga = _manga(id: 707);
+        final delegate = _FakeAnilistMangaRepo(detail: _detail(manga));
+        final dex = _FakeMangaSourcePlugin(
+          manifestId: 'mangadex',
+          searchResults: <SourceMangaMatch>[matchFor(707, 'mangadex')],
+        );
+        final repo = CompositeMangaCatalogRepository(
+          delegate: delegate,
+          sourcePlugins: [dex],
+          cacheStore: _InMemoryMangaCacheStore(),
+          preferredLanguages: () => const <String>['en'],
+        );
+
+        final result = await repo.fetchMangaChaptersWithPreference(
+          707,
+          preferredSourceId: 'not-registered',
+        );
+        expect(result.isSuccess, isTrue);
+        expect(
+          (result as Success<List<MangaChapter>, KumoriyaError>).value,
+          isEmpty,
+        );
+        // Nothing was searched or fetched.
+        expect(dex.searchCalls, 0);
+      },
+    );
+
+    test('availableSources reports plugins by chapter coverage desc', () async {
+      final manga = _manga(id: 708);
+      final delegate = _FakeAnilistMangaRepo(detail: _detail(manga));
+      final dex = _FakeMangaSourcePlugin(
+        manifestId: 'mangadex',
+        displayName: 'MangaDex',
+        searchResults: <SourceMangaMatch>[matchFor(708, 'mangadex')],
+        chaptersById: <String, List<SourceChapter>>{
+          'src-mangadex-708': <SourceChapter>[
+            cap(sourceMangaId: 'src-mangadex-708', id: 'd1', number: 1),
+            cap(sourceMangaId: 'src-mangadex-708', id: 'd2', number: 2),
+            cap(sourceMangaId: 'src-mangadex-708', id: 'd3', number: 3),
+          ],
+        },
+      );
+      final olympus = _FakeMangaSourcePlugin(
+        manifestId: 'olympus',
+        displayName: 'Olympus',
+        searchResults: <SourceMangaMatch>[matchFor(708, 'olympus')],
+        chaptersById: <String, List<SourceChapter>>{
+          'src-olympus-708': <SourceChapter>[
+            cap(sourceMangaId: 'src-olympus-708', id: 'o5', number: 5),
+          ],
+        },
+      );
+      final repo = CompositeMangaCatalogRepository(
+        delegate: delegate,
+        sourcePlugins: [dex, olympus],
+        cacheStore: _InMemoryMangaCacheStore(),
+        preferredLanguages: () => const <String>['en'],
+      );
+
+      // Empty before warm-up.
+      expect(repo.availableSources(708), isEmpty);
+
+      await repo.fetchMangaChapters(708);
+
+      final sources = repo.availableSources(708);
+      expect(sources.map((s) => s.sourceId), <String>['mangadex', 'olympus']);
+      expect(sources.first.displayName, 'MangaDex');
+      expect(sources.first.chapterCount, 3);
+      expect(sources.last.chapterCount, 1);
+    });
+
+    test(
+      'reader routes openChapter to the plugin that produced the chapter',
+      () async {
+        final manga = _manga(id: 709);
+        final delegate = _FakeAnilistMangaRepo(detail: _detail(manga));
+        final dex = _FakeMangaSourcePlugin(
+          manifestId: 'mangadex',
+          searchResults: <SourceMangaMatch>[matchFor(709, 'mangadex')],
+          chaptersById: <String, List<SourceChapter>>{
+            'src-mangadex-709': <SourceChapter>[
+              cap(sourceMangaId: 'src-mangadex-709', id: 'd1', number: 1),
+            ],
+          },
+          pagesByChapterId: <String, List<SourcePage>>{
+            'd1': <SourcePage>[
+              SourcePage(index: 0, imageUrl: Uri.parse('https://dex/p0.jpg')),
+            ],
+          },
+        );
+        final olympus = _FakeMangaSourcePlugin(
+          manifestId: 'olympus',
+          searchResults: <SourceMangaMatch>[matchFor(709, 'olympus')],
+          chaptersById: <String, List<SourceChapter>>{
+            'src-olympus-709': <SourceChapter>[
+              cap(sourceMangaId: 'src-olympus-709', id: 'o1', number: 2),
+            ],
+          },
+          pagesByChapterId: <String, List<SourcePage>>{
+            'o1': <SourcePage>[
+              SourcePage(index: 0, imageUrl: Uri.parse('https://oly/p0.jpg')),
+            ],
+          },
+        );
+        final repo = CompositeMangaCatalogRepository(
+          delegate: delegate,
+          sourcePlugins: [dex, olympus],
+          cacheStore: _InMemoryMangaCacheStore(),
+          preferredLanguages: () => const <String>['en'],
+        );
+
+        final chapters =
+            ((await repo.fetchMangaChapters(709))
+                    as Success<List<MangaChapter>, KumoriyaError>)
+                .value;
+
+        // Chapter 2 came from olympus; the reader must hit olympus, not dex.
+        final c2 = chapters.firstWhere((c) => c.number == 2);
+        final pagesResult = await repo.openChapter(
+          mangaAnilistId: 709,
+          chapter: c2,
+        );
+        expect(pagesResult.isSuccess, isTrue);
+        expect(dex.pageCalls, 0);
+        expect(olympus.pageCalls, 1);
+        final payload =
+            (pagesResult
+                    as Success<
+                      ({String sourceChapterId, List<MangaPage> pages}),
+                      KumoriyaError
+                    >)
+                .value;
+        expect(payload.pages.single.imageUrl.toString(), 'https://oly/p0.jpg');
+        expect(payload.sourceChapterId, 'o1');
       },
     );
   });
