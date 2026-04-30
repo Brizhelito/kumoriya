@@ -1157,10 +1157,18 @@ void main() {
         final value =
             (res
                     as Success<
-                      ({String sourceChapterId, List<MangaPage> pages}),
+                      ({
+                        String sourceId,
+                        String sourceChapterId,
+                        List<MangaPage> pages,
+                      }),
                       KumoriyaError
                     >)
                 .value;
+        // S7.5: openChapter exposes sourceId so reader-side stores key
+        // progress / downloads on the originating plugin. Default fixture
+        // plugin id is `test.fake.source` (see _FakeSourcePlugin).
+        expect(value.sourceId, 'test.fake.source');
         expect(value.sourceChapterId, 'ch-1');
         expect(value.pages, hasLength(2));
         expect(value.pages[0].imageUrl.toString(), 'https://x/p0.jpg');
@@ -1730,10 +1738,17 @@ void main() {
         final payload =
             (pagesResult
                     as Success<
-                      ({String sourceChapterId, List<MangaPage> pages}),
+                      ({
+                        String sourceId,
+                        String sourceChapterId,
+                        List<MangaPage> pages,
+                      }),
                       KumoriyaError
                     >)
                 .value;
+        // S7.5: chapter 2 originated from olympus, so openChapter must
+        // surface that plugin's id (and not the legacy 'mangadex' default).
+        expect(payload.sourceId, 'olympus');
         expect(payload.pages.single.imageUrl.toString(), 'https://oly/p0.jpg');
         expect(payload.sourceChapterId, 'o1');
       },

@@ -813,10 +813,15 @@ final class CompositeMangaCatalogRepository implements MangaCatalogRepository {
   /// Returned `MangaPage` list is index-ordered ascending and includes
   /// any per-page headers the plugin requires.
   ///
-  /// Also exposes the `sourceChapterId` so the caller can persist
-  /// resume state via `MangaProgressStore` (which keys on it).
+  /// Also exposes the `sourceId` and `sourceChapterId` so the caller
+  /// can persist resume state and look up downloads scoped to the
+  /// originating plugin (`MangaProgressStore` / `MangaDownloadStore`
+  /// both key on `(sourceId, sourceChapterId)`).
   Future<
-    Result<({String sourceChapterId, List<MangaPage> pages}), KumoriyaError>
+    Result<
+      ({String sourceId, String sourceChapterId, List<MangaPage> pages}),
+      KumoriyaError
+    >
   >
   openChapter({
     required int mangaAnilistId,
@@ -864,6 +869,7 @@ final class CompositeMangaCatalogRepository implements MangaCatalogRepository {
         )
         .toList(growable: false);
     return Success((
+      sourceId: ref.sourceId,
       sourceChapterId: ref.chapter.sourceChapterId,
       pages: mangaPages,
     ));
@@ -880,6 +886,19 @@ final class CompositeMangaCatalogRepository implements MangaCatalogRepository {
     required MangaChapter chapter,
   }) {
     return _resolveCachedRef(mangaAnilistId, chapter)?.chapter;
+  }
+
+  /// Same lookup as [lookupSourceChapter], but also exposes the
+  /// `sourceId` of the plugin that produced the cached chapter. Used
+  /// by the reader route to scope progress / download queries to the
+  /// correct plugin (and avoid the legacy hardcoded `'mangadex'` key).
+  ({String sourceId, SourceChapter chapter})? lookupTaggedSourceChapter({
+    required int mangaAnilistId,
+    required MangaChapter chapter,
+  }) {
+    final ref = _resolveCachedRef(mangaAnilistId, chapter);
+    if (ref == null) return null;
+    return (sourceId: ref.sourceId, chapter: ref.chapter);
   }
 
   /// Resolves a domain `MangaChapter` back to its tagged source-side

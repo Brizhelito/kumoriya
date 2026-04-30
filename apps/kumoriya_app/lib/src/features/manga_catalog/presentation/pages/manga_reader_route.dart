@@ -140,18 +140,22 @@ final _chapterSessionProvider = FutureProvider.autoDispose
       // We still need `sourceChapterId` for resume persistence; resolve
       // it from the cached SourceChapter (cheap, no I/O) — and only go
       // to the network when the local file is absent.
-      final cachedSource = repo.lookupSourceChapter(
+      // S7.5: tagged lookup carries the originating plugin id so
+      // progress / downloads / session state are scoped per-source
+      // rather than always landing under the legacy `'mangadex'` key.
+      final cachedTagged = repo.lookupTaggedSourceChapter(
         mangaAnilistId: args.mangaAnilistId,
         chapter: args.chapter,
       );
       List<MangaPage>? localPages;
       String? localSourceChapterId;
-      if (cachedSource != null) {
+      String? localSourceId;
+      if (cachedTagged != null) {
         final downloadStore = ref.read(mangaDownloadStoreProvider);
         final taskRes = await downloadStore.getTaskByChapter(
           mangaAnilistId: args.mangaAnilistId,
-          sourceId: 'mangadex',
-          sourceChapterId: cachedSource.sourceChapterId,
+          sourceId: cachedTagged.sourceId,
+          sourceChapterId: cachedTagged.chapter.sourceChapterId,
         );
         final task = taskRes.fold(onSuccess: (v) => v, onFailure: (_) => null);
         if (task != null &&
@@ -170,7 +174,8 @@ final _chapterSessionProvider = FutureProvider.autoDispose
           unpack.fold(
             onSuccess: (pages) {
               localPages = pages;
-              localSourceChapterId = cachedSource.sourceChapterId;
+              localSourceChapterId = cachedTagged.chapter.sourceChapterId;
+              localSourceId = cachedTagged.sourceId;
             },
             onFailure: (_) {
               /* fall back to network */
@@ -179,16 +184,29 @@ final _chapterSessionProvider = FutureProvider.autoDispose
         }
       }
 
-      final ({String sourceChapterId, List<MangaPage> pages}) opened;
-      if (localPages != null && localSourceChapterId != null) {
-        opened = (sourceChapterId: localSourceChapterId!, pages: localPages!);
+      final ({String sourceId, String sourceChapterId, List<MangaPage> pages})
+      opened;
+      if (localPages != null &&
+          localSourceChapterId != null &&
+          localSourceId != null) {
+        opened = (
+          sourceId: localSourceId!,
+          sourceChapterId: localSourceChapterId!,
+          pages: localPages!,
+        );
       } else {
         final openResult = await repo.openChapter(
           mangaAnilistId: args.mangaAnilistId,
           chapter: args.chapter,
         );
         opened = openResult
-            .fold<({String sourceChapterId, List<MangaPage> pages})?>(
+            .fold<
+              ({
+                String sourceId,
+                String sourceChapterId,
+                List<MangaPage> pages,
+              })?
+            >(
               onSuccess: (v) => v,
               onFailure: (err) {
                 throw Exception('${err.code}: ${err.message}');
@@ -204,7 +222,7 @@ final _chapterSessionProvider = FutureProvider.autoDispose
             .read(mangaProgressStoreProvider)
             .getProgress(
               mangaAnilistId: args.mangaAnilistId,
-              sourceId: 'mangadex',
+              sourceId: opened.sourceId,
               sourceChapterId: opened.sourceChapterId,
             );
         progressResult.fold(
@@ -222,7 +240,7 @@ final _chapterSessionProvider = FutureProvider.autoDispose
 
       return ChapterSession(
         mangaAnilistId: args.mangaAnilistId,
-        sourceId: 'mangadex',
+        sourceId: opened.sourceId,
         chapter: args.chapter,
         pages: opened.pages,
         mode: defaultReaderModeForFormat(args.format),
