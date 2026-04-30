@@ -4,6 +4,7 @@ import 'package:kumoriya_app/src/shared/cache/fallback_reason.dart';
 import 'package:kumoriya_core/kumoriya_core.dart';
 import 'package:kumoriya_manga_domain/kumoriya_manga_domain.dart';
 import 'package:kumoriya_manga_plugins/kumoriya_manga_plugins.dart';
+import 'package:kumoriya_mangabaka/kumoriya_mangabaka.dart';
 import 'package:kumoriya_plugins/kumoriya_plugins.dart';
 import 'package:kumoriya_storage/kumoriya_storage.dart';
 
@@ -206,6 +207,72 @@ class _FakeMangaSourcePlugin implements MangaSourcePlugin {
     }
     return Success(pages);
   }
+}
+
+/// Test double for the MangaBaka metadata gateway. Tracks call counts
+/// so memoization assertions are precise; lets each test pick between
+/// "row matches AniList id", "no row matches", and "transport failure".
+class _FakeMangaBakaGateway implements MangaBakaMetadataGateway {
+  _FakeMangaBakaGateway({
+    this.searchResults = const <MangaBakaSeries>[],
+    this.failure,
+  });
+
+  /// Series returned by `searchSeries`. The composite filters them by
+  /// `crossIds.anilistId`; tests don't need to match the query text.
+  List<MangaBakaSeries> searchResults;
+  KumoriyaError? failure;
+  int searchSeriesCalls = 0;
+  int fetchSeriesByIdCalls = 0;
+
+  @override
+  Future<Result<List<MangaBakaSeries>, KumoriyaError>> searchSeries({
+    required String query,
+    int limit = 20,
+    int page = 1,
+  }) async {
+    searchSeriesCalls++;
+    if (failure != null) return Failure(failure!);
+    return Success(searchResults);
+  }
+
+  @override
+  Future<Result<MangaBakaSeries, KumoriyaError>> fetchSeriesById(
+    int id, {
+    bool followMerges = true,
+  }) async {
+    fetchSeriesByIdCalls++;
+    return Failure(
+      const SimpleError(
+        code: 'fake.mb.fetchById.unsupported',
+        message: 'not used in tests',
+        kind: KumoriyaErrorKind.unexpected,
+      ),
+    );
+  }
+}
+
+MangaBakaSeries _mbSeries({
+  int id = 9001,
+  required int? anilistId,
+  String title = 'Same Manga',
+  String? mangaUpdatesId,
+  int? myAnimeListId,
+  List<String> secondaryTitles = const <String>[],
+}) {
+  return MangaBakaSeries(
+    id: id,
+    state: MangaBakaSeriesState.active,
+    title: title,
+    type: MangaBakaSeriesType.manga,
+    status: MangaBakaSeriesStatus.releasing,
+    secondaryTitles: secondaryTitles,
+    crossIds: MangaBakaCrossIds(
+      anilistId: anilistId,
+      myAnimeListId: myAnimeListId,
+      mangaUpdatesId: mangaUpdatesId,
+    ),
+  );
 }
 
 class _InMemoryMangaCacheStore implements MangaCacheStore {
@@ -1297,44 +1364,46 @@ void main() {
       );
     });
 
-    test('plugin whose search fails is treated as a per-plugin failure',
-        () async {
-      // Search-time failures bubble through the same isolation path
-      // as chapter-time failures: the offending plugin contributes
-      // nothing, peers still surface their chapters.
-      final manga = _manga(id: 7041);
-      final delegate = _FakeAnilistMangaRepo(detail: _detail(manga));
-      final healthy = _FakeMangaSourcePlugin(
-        manifestId: 'mangadex',
-        searchResults: <SourceMangaMatch>[matchFor(7041, 'mangadex')],
-        chaptersById: <String, List<SourceChapter>>{
-          'src-mangadex-7041': <SourceChapter>[
-            cap(sourceMangaId: 'src-mangadex-7041', id: 'd1', number: 1),
-          ],
-        },
-      );
-      final brokenSearch = _FakeMangaSourcePlugin(
-        manifestId: 'olympus',
-        searchFailure: const SimpleError(
-          code: 'olympus.search.transport',
-          message: 'rate limited',
-          kind: KumoriyaErrorKind.transport,
-        ),
-      );
-      final repo = CompositeMangaCatalogRepository(
-        delegate: delegate,
-        sourcePlugins: [healthy, brokenSearch],
-        cacheStore: _InMemoryMangaCacheStore(),
-        preferredLanguages: () => const <String>['en'],
-      );
+    test(
+      'plugin whose search fails is treated as a per-plugin failure',
+      () async {
+        // Search-time failures bubble through the same isolation path
+        // as chapter-time failures: the offending plugin contributes
+        // nothing, peers still surface their chapters.
+        final manga = _manga(id: 7041);
+        final delegate = _FakeAnilistMangaRepo(detail: _detail(manga));
+        final healthy = _FakeMangaSourcePlugin(
+          manifestId: 'mangadex',
+          searchResults: <SourceMangaMatch>[matchFor(7041, 'mangadex')],
+          chaptersById: <String, List<SourceChapter>>{
+            'src-mangadex-7041': <SourceChapter>[
+              cap(sourceMangaId: 'src-mangadex-7041', id: 'd1', number: 1),
+            ],
+          },
+        );
+        final brokenSearch = _FakeMangaSourcePlugin(
+          manifestId: 'olympus',
+          searchFailure: const SimpleError(
+            code: 'olympus.search.transport',
+            message: 'rate limited',
+            kind: KumoriyaErrorKind.transport,
+          ),
+        );
+        final repo = CompositeMangaCatalogRepository(
+          delegate: delegate,
+          sourcePlugins: [healthy, brokenSearch],
+          cacheStore: _InMemoryMangaCacheStore(),
+          preferredLanguages: () => const <String>['en'],
+        );
 
-      final result = await repo.fetchMangaChapters(7041);
-      expect(result.isSuccess, isTrue);
-      final chapters =
-          (result as Success<List<MangaChapter>, KumoriyaError>).value;
-      expect(chapters, hasLength(1));
-      expect(chapters.single.sourceId, 'mangadex');
-    });
+        final result = await repo.fetchMangaChapters(7041);
+        expect(result.isSuccess, isTrue);
+        final chapters =
+            (result as Success<List<MangaChapter>, KumoriyaError>).value;
+        expect(chapters, hasLength(1));
+        expect(chapters.single.sourceId, 'mangadex');
+      },
+    );
 
     test('plugin that does not match the manga contributes silently', () async {
       // Plugin B has no AniList id link AND no fuzzy title match — its
@@ -1607,6 +1676,325 @@ void main() {
         expect(payload.sourceChapterId, 'o1');
       },
     );
+  });
+
+  group('CompositeMangaCatalogRepository MangaBaka matching (S1.D)', () {
+    // Helpers reused across these tests. The plugin's search row
+    // intentionally has NO 'al' externalId (so Strategy A fails) and a
+    // title that does NOT fuzzy-match the AniList title (so the legacy
+    // Strategy B fails). This forces every assertion into the new
+    // MangaBaka-driven paths.
+    SourceChapter cap(String mid, String id, double n) => SourceChapter(
+      sourceMangaId: mid,
+      sourceChapterId: id,
+      number: n,
+      language: 'en',
+    );
+
+    test('Strategy A2 — bypasses fuzzy match when MangaBaka.crossIds.mu '
+        'aligns with the source row mu id', () async {
+      final manga = _manga(id: 800, romaji: 'Canonical AniList Title');
+      final delegate = _FakeAnilistMangaRepo(detail: _detail(manga));
+
+      // Plugin row: no 'al', wildly different title — only 'mu' lines up.
+      final dex = _FakeMangaSourcePlugin(
+        manifestId: 'mangadex',
+        searchResults: const <SourceMangaMatch>[
+          SourceMangaMatch(
+            sourceId: 'src-mangadex-800',
+            title: 'A Completely Different Romanization',
+            externalIds: <String, String>{'mu': '171848'},
+          ),
+        ],
+        chaptersById: <String, List<SourceChapter>>{
+          'src-mangadex-800': <SourceChapter>[cap('src-mangadex-800', 'd1', 1)],
+        },
+      );
+
+      final mb = _FakeMangaBakaGateway(
+        searchResults: <MangaBakaSeries>[
+          _mbSeries(anilistId: 800, mangaUpdatesId: '171848'),
+        ],
+      );
+
+      final repo = CompositeMangaCatalogRepository(
+        delegate: delegate,
+        sourcePlugins: [dex],
+        cacheStore: _InMemoryMangaCacheStore(),
+        preferredLanguages: () => const <String>['en'],
+        mangaBaka: mb,
+      );
+
+      final result = await repo.fetchMangaChapters(800);
+      expect(result.isSuccess, isTrue);
+      final chapters =
+          (result as Success<List<MangaChapter>, KumoriyaError>).value;
+      expect(chapters, hasLength(1));
+      expect(chapters.single.sourceId, 'mangadex');
+    });
+
+    test('Strategy A2 — also accepts mal cross-tracker bypass', () async {
+      final manga = _manga(id: 801, romaji: 'Canonical AniList Title');
+      final delegate = _FakeAnilistMangaRepo(detail: _detail(manga));
+
+      final dex = _FakeMangaSourcePlugin(
+        manifestId: 'mangadex',
+        searchResults: const <SourceMangaMatch>[
+          SourceMangaMatch(
+            sourceId: 'src-mangadex-801',
+            title: 'Unrelated Title',
+            externalIds: <String, String>{'mal': '116778'},
+          ),
+        ],
+        chaptersById: <String, List<SourceChapter>>{
+          'src-mangadex-801': <SourceChapter>[cap('src-mangadex-801', 'd1', 1)],
+        },
+      );
+
+      final mb = _FakeMangaBakaGateway(
+        searchResults: <MangaBakaSeries>[
+          _mbSeries(anilistId: 801, myAnimeListId: 116778),
+        ],
+      );
+
+      final repo = CompositeMangaCatalogRepository(
+        delegate: delegate,
+        sourcePlugins: [dex],
+        cacheStore: _InMemoryMangaCacheStore(),
+        preferredLanguages: () => const <String>['en'],
+        mangaBaka: mb,
+      );
+
+      final chapters =
+          ((await repo.fetchMangaChapters(801))
+                  as Success<List<MangaChapter>, KumoriyaError>)
+              .value;
+      expect(chapters, hasLength(1));
+    });
+
+    test('Strategy B+ — MangaBaka secondary titles expand the fuzzy '
+        'candidate pool when AniList titles miss', () async {
+      // AniList only knows the romaji form; the plugin row uses an
+      // alternate fan title that lives in MangaBaka's secondaryTitles.
+      final manga = _manga(
+        id: 802,
+        romaji: 'Senpou Tenshou',
+        english: null,
+        native: null,
+      );
+      final delegate = _FakeAnilistMangaRepo(detail: _detail(manga));
+
+      final dex = _FakeMangaSourcePlugin(
+        manifestId: 'mangadex',
+        searchResults: const <SourceMangaMatch>[
+          SourceMangaMatch(
+            sourceId: 'src-mangadex-802',
+            title: 'Battle Angel Reborn',
+            externalIds: <String, String>{},
+          ),
+        ],
+        chaptersById: <String, List<SourceChapter>>{
+          'src-mangadex-802': <SourceChapter>[cap('src-mangadex-802', 'd1', 1)],
+        },
+      );
+
+      final mb = _FakeMangaBakaGateway(
+        searchResults: <MangaBakaSeries>[
+          _mbSeries(
+            anilistId: 802,
+            title: 'Senpou Tenshou',
+            secondaryTitles: const <String>['Battle Angel Reborn'],
+          ),
+        ],
+      );
+
+      final repo = CompositeMangaCatalogRepository(
+        delegate: delegate,
+        sourcePlugins: [dex],
+        cacheStore: _InMemoryMangaCacheStore(),
+        preferredLanguages: () => const <String>['en'],
+        mangaBaka: mb,
+      );
+
+      final chapters =
+          ((await repo.fetchMangaChapters(802))
+                  as Success<List<MangaChapter>, KumoriyaError>)
+              .value;
+      expect(chapters, hasLength(1));
+    });
+
+    test('without MangaBaka the same Strategy B+ scenario fails to match — '
+        'demonstrates the corpus expansion is what closed the gap', () async {
+      final manga = _manga(
+        id: 803,
+        romaji: 'Senpou Tenshou',
+        english: null,
+        native: null,
+      );
+      final delegate = _FakeAnilistMangaRepo(detail: _detail(manga));
+      final dex = _FakeMangaSourcePlugin(
+        manifestId: 'mangadex',
+        searchResults: const <SourceMangaMatch>[
+          SourceMangaMatch(
+            sourceId: 'src-mangadex-803',
+            title: 'Battle Angel Reborn',
+            externalIds: <String, String>{},
+          ),
+        ],
+        chaptersById: <String, List<SourceChapter>>{
+          'src-mangadex-803': <SourceChapter>[cap('src-mangadex-803', 'd1', 1)],
+        },
+      );
+      final repo = CompositeMangaCatalogRepository(
+        delegate: delegate,
+        sourcePlugins: [dex],
+        cacheStore: _InMemoryMangaCacheStore(),
+        preferredLanguages: () => const <String>['en'],
+        // mangaBaka not supplied.
+      );
+
+      final chapters =
+          ((await repo.fetchMangaChapters(803))
+                  as Success<List<MangaChapter>, KumoriyaError>)
+              .value;
+      // No legacy strategy could resolve this row; chapters list is
+      // empty (the plugin contributed silently, no failure).
+      expect(chapters, isEmpty);
+    });
+
+    test('MangaBaka transport failure is non-fatal — falls back to legacy '
+        'A+B path successfully', () async {
+      // The plugin's row exposes 'al' so Strategy A still resolves it
+      // even when MangaBaka is unreachable.
+      final manga = _manga(id: 804);
+      final delegate = _FakeAnilistMangaRepo(detail: _detail(manga));
+      final dex = _FakeMangaSourcePlugin(
+        manifestId: 'mangadex',
+        searchResults: const <SourceMangaMatch>[
+          SourceMangaMatch(
+            sourceId: 'src-mangadex-804',
+            title: 'Whatever',
+            externalIds: <String, String>{'al': '804'},
+          ),
+        ],
+        chaptersById: <String, List<SourceChapter>>{
+          'src-mangadex-804': <SourceChapter>[cap('src-mangadex-804', 'd1', 1)],
+        },
+      );
+      final mb = _FakeMangaBakaGateway(
+        failure: const SimpleError(
+          code: 'mb.transport',
+          message: 'unreachable',
+          kind: KumoriyaErrorKind.transport,
+        ),
+      );
+      final repo = CompositeMangaCatalogRepository(
+        delegate: delegate,
+        sourcePlugins: [dex],
+        cacheStore: _InMemoryMangaCacheStore(),
+        preferredLanguages: () => const <String>['en'],
+        mangaBaka: mb,
+      );
+
+      final result = await repo.fetchMangaChapters(804);
+      expect(result.isSuccess, isTrue);
+      final chapters =
+          (result as Success<List<MangaChapter>, KumoriyaError>).value;
+      expect(chapters, hasLength(1));
+      expect(mb.searchSeriesCalls, 1);
+    });
+
+    test(
+      'MangaBaka with no row matching the AniList id behaves like no '
+      'gateway — legacy A+B path runs and the negative is memoized',
+      () async {
+        final manga = _manga(id: 805);
+        final delegate = _FakeAnilistMangaRepo(detail: _detail(manga));
+        final dex = _FakeMangaSourcePlugin(
+          manifestId: 'mangadex',
+          searchResults: const <SourceMangaMatch>[
+            SourceMangaMatch(
+              sourceId: 'src-mangadex-805',
+              title: 'Whatever',
+              externalIds: <String, String>{'al': '805'},
+            ),
+          ],
+          chaptersById: <String, List<SourceChapter>>{
+            'src-mangadex-805': <SourceChapter>[
+              cap('src-mangadex-805', 'd1', 1),
+            ],
+          },
+        );
+        final mb = _FakeMangaBakaGateway(
+          // Returns a row, but its anilistId points at someone else.
+          searchResults: <MangaBakaSeries>[_mbSeries(anilistId: 999999)],
+        );
+        final repo = CompositeMangaCatalogRepository(
+          delegate: delegate,
+          sourcePlugins: [dex],
+          cacheStore: _InMemoryMangaCacheStore(),
+          preferredLanguages: () => const <String>['en'],
+          mangaBaka: mb,
+        );
+
+        final chapters =
+            ((await repo.fetchMangaChapters(805))
+                    as Success<List<MangaChapter>, KumoriyaError>)
+                .value;
+        expect(chapters, hasLength(1));
+        expect(mb.searchSeriesCalls, 1);
+      },
+    );
+
+    test('MangaBaka context is memoized across the fan-out — exactly ONE '
+        'searchSeries call regardless of plugin count', () async {
+      final manga = _manga(id: 806);
+      final delegate = _FakeAnilistMangaRepo(detail: _detail(manga));
+      final dex = _FakeMangaSourcePlugin(
+        manifestId: 'mangadex',
+        searchResults: const <SourceMangaMatch>[
+          SourceMangaMatch(
+            sourceId: 'src-mangadex-806',
+            title: 'Whatever',
+            externalIds: <String, String>{'al': '806'},
+          ),
+        ],
+        chaptersById: <String, List<SourceChapter>>{
+          'src-mangadex-806': <SourceChapter>[cap('src-mangadex-806', 'd1', 1)],
+        },
+      );
+      final olympus = _FakeMangaSourcePlugin(
+        manifestId: 'olympus',
+        searchResults: const <SourceMangaMatch>[
+          SourceMangaMatch(
+            sourceId: 'src-olympus-806',
+            title: 'Whatever',
+            externalIds: <String, String>{'al': '806'},
+          ),
+        ],
+        chaptersById: <String, List<SourceChapter>>{
+          'src-olympus-806': <SourceChapter>[cap('src-olympus-806', 'o1', 2)],
+        },
+      );
+      final mb = _FakeMangaBakaGateway(
+        searchResults: <MangaBakaSeries>[_mbSeries(anilistId: 806)],
+      );
+
+      final repo = CompositeMangaCatalogRepository(
+        delegate: delegate,
+        sourcePlugins: [dex, olympus],
+        cacheStore: _InMemoryMangaCacheStore(),
+        preferredLanguages: () => const <String>['en'],
+        mangaBaka: mb,
+      );
+
+      // Two fetches → MangaBaka must still have been hit only once
+      // (per-AniList-id memoization).
+      await repo.fetchMangaChapters(806);
+      await repo.fetchMangaChapters(806);
+
+      expect(mb.searchSeriesCalls, 1);
+    });
   });
 }
 

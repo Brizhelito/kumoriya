@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:kumoriya_core/kumoriya_core.dart';
 import 'package:kumoriya_manga_domain/kumoriya_manga_domain.dart';
 import 'package:kumoriya_manga_plugins/kumoriya_manga_plugins.dart';
+import 'package:kumoriya_mangabaka/kumoriya_mangabaka.dart';
 import 'package:kumoriya_storage/kumoriya_storage.dart';
 
 import '../../../../shared/cache/fallback_reason.dart';
@@ -89,6 +90,7 @@ final class CompositeMangaCatalogRepository implements MangaCatalogRepository {
     required MangaCacheStore cacheStore,
     required List<String> Function() preferredLanguages,
     Duration perPluginTimeout = const Duration(seconds: 8),
+    MangaBakaMetadataGateway? mangaBaka,
   }) : assert(
          sourcePlugins.length > 0, // ignore: prefer_is_empty
          'CompositeMangaCatalogRepository requires at least one source plugin.',
@@ -97,7 +99,8 @@ final class CompositeMangaCatalogRepository implements MangaCatalogRepository {
        _sourcePlugins = List<MangaSourcePlugin>.unmodifiable(sourcePlugins),
        _cacheStore = cacheStore,
        _preferredLanguages = preferredLanguages,
-       _perPluginTimeout = perPluginTimeout {
+       _perPluginTimeout = perPluginTimeout,
+       _mangaBaka = mangaBaka {
     final ids = _sourcePlugins
         .map((p) => p.manifest.id)
         .toList(growable: false);
@@ -112,6 +115,27 @@ final class CompositeMangaCatalogRepository implements MangaCatalogRepository {
   final MangaCacheStore _cacheStore;
   final List<String> Function() _preferredLanguages;
   final Duration _perPluginTimeout;
+
+  /// Optional MangaBaka metadata gateway. When wired, the matching
+  /// pipeline (S1.D) uses it to:
+  ///
+  ///  1. Bypass per-plugin search when a `SourceMangaMatch` exposes a
+  ///     cross-tracker id (`mu`, `mal`) that aligns with MangaBaka's
+  ///     `crossIds` for the same AniList row.
+  ///  2. Expand the fuzzy candidate pool with MangaBaka's title corpus
+  ///     (canonical + romanized + native + secondary titles).
+  ///
+  /// MangaBaka transport failures are non-fatal: the resolver falls
+  /// back to the legacy AniList-titles-only path.
+  final MangaBakaMetadataGateway? _mangaBaka;
+
+  /// Per-AniList id memoization of MangaBaka context resolutions.
+  /// Stores `Future<MangaBakaSeries?>` so concurrent fan-out calls
+  /// share a single in-flight lookup. The future may complete with
+  /// `null` to mean "MangaBaka was asked and has no row pointing at
+  /// this AniList id" — that null is itself memoized for the session.
+  final Map<int, Future<MangaBakaSeries?>> _mangaBakaByAnilistId =
+      <int, Future<MangaBakaSeries?>>{};
 
   /// Read-only view over the registered source plugins, in the order
   /// supplied to the constructor. Useful for diagnostics and tests.
@@ -848,15 +872,24 @@ final class CompositeMangaCatalogRepository implements MangaCatalogRepository {
   ///
   /// 1. Per-(AniList id, plugin id) memoization — including memoized
   ///    negatives.
-  /// 2. Plugin search by canonical romaji title; accept the result whose
-  ///    `externalIds['al']` matches `anilistId`.
-  /// 3. Fuzzy fallback: case/whitespace-insensitive equality between
-  ///    the AniList title (any of romaji/english/native/synonyms) and
-  ///    the source result's title or aliases. Conservative — the full
-  ///    matcher (`kumoriya_matching`) lands in S1.D when MangaBaka's
-  ///    title corpus expands the candidate pool.
-  /// 4. No match → memoize `null`. The plugin contributes zero
+  /// 2. **Strategy A** — plugin search by canonical romaji title; accept
+  ///    the result whose `externalIds['al']` matches `anilistId`.
+  /// 3. **Strategy A2** (S1.D) — when a MangaBaka gateway is wired and
+  ///    has a row for this AniList id, accept the result whose
+  ///    `externalIds['mu']` matches MangaBaka's `crossIds.mangaUpdatesId`
+  ///    or whose `externalIds['mal']` matches `myAnimeListId`. This
+  ///    bypasses fuzzy matching entirely for plugins that surface
+  ///    cross-tracker ids on their search rows (MangaDex, ComicK).
+  /// 4. **Strategy B** — fuzzy fallback: case/whitespace-insensitive
+  ///    equality between any AniList title (romaji/english/native/
+  ///    synonyms), expanded with MangaBaka's `titleCorpus` when
+  ///    available, and the source result's title or aliases.
+  /// 5. No match → memoize `null`. The plugin contributes zero
   ///    chapters for this manga in the fan-out aggregator.
+  ///
+  /// MangaBaka transport / parsing failures are swallowed (logged) so
+  /// that a metadata-gateway outage degrades to the legacy A+B path
+  /// instead of taking the whole resolution down.
   Future<Result<String?, KumoriyaError>> _resolveSourceMangaIdForPlugin(
     MangaSourcePlugin plugin,
     Manga manga,
@@ -869,6 +902,11 @@ final class CompositeMangaCatalogRepository implements MangaCatalogRepository {
     if (perManga.containsKey(pluginId)) {
       return Success(perManga[pluginId]);
     }
+
+    // Resolve MangaBaka context once per AniList id (memoized + shared
+    // across concurrent fan-out callers). Failures are logged and
+    // treated as "no MangaBaka context".
+    final mbContext = await _resolveMangaBakaContext(manga);
 
     final query = MangaSearchQuery(
       query: manga.title.romaji,
@@ -898,13 +936,31 @@ final class CompositeMangaCatalogRepository implements MangaCatalogRepository {
       }
     }
 
-    // Strategy B: fuzzy title equality.
+    // Strategy A2 (S1.D): cross-tracker bypass via MangaBaka.
+    if (resolved == null && mbContext != null) {
+      final mu = mbContext.crossIds.mangaUpdatesId;
+      final mal = mbContext.crossIds.myAnimeListId?.toString();
+      for (final m in matches) {
+        final mMu = m.externalIds['mu'];
+        final mMal = m.externalIds['mal'];
+        if ((mu != null && mu.isNotEmpty && mMu == mu) ||
+            (mal != null && mal.isNotEmpty && mMal == mal)) {
+          resolved = m.sourceId;
+          break;
+        }
+      }
+    }
+
+    // Strategy B: fuzzy title equality, optionally expanded with
+    // MangaBaka's title corpus.
     if (resolved == null) {
       final candidates = <String>{
         _normalize(manga.title.romaji),
         if (manga.title.english != null) _normalize(manga.title.english!),
         if (manga.title.native != null) _normalize(manga.title.native!),
         for (final s in manga.title.synonyms) _normalize(s),
+        if (mbContext != null)
+          for (final t in mbContext.titleCorpus) _normalize(t),
       }..removeWhere((s) => s.isEmpty);
       for (final m in matches) {
         final names = <String>{
@@ -920,6 +976,50 @@ final class CompositeMangaCatalogRepository implements MangaCatalogRepository {
 
     perManga[pluginId] = resolved;
     return Success(resolved);
+  }
+
+  /// Returns the MangaBaka row whose `crossIds.anilistId` matches
+  /// [manga.anilistId], or `null` when no such row exists / the gateway
+  /// is not wired / the gateway failed.
+  ///
+  /// The lookup is memoized per AniList id for the session and shared
+  /// across concurrent callers (fan-out triggers N parallel resolves
+  /// for the same manga; we want exactly one MangaBaka call).
+  Future<MangaBakaSeries?> _resolveMangaBakaContext(Manga manga) {
+    final gateway = _mangaBaka;
+    if (gateway == null) return Future<MangaBakaSeries?>.value(null);
+
+    return _mangaBakaByAnilistId.putIfAbsent(manga.anilistId, () async {
+      try {
+        final result = await gateway.searchSeries(
+          query: manga.title.romaji,
+          limit: 20,
+        );
+        if (result is! Success<List<MangaBakaSeries>, KumoriyaError>) {
+          developer.log(
+            'MangaBaka search failed; falling back to AniList titles only.',
+            name: 'CompositeMangaCatalogRepository',
+            error:
+                (result as Failure<List<MangaBakaSeries>, KumoriyaError>).error,
+          );
+          return null;
+        }
+        for (final series in result.value) {
+          if (series.crossIds.anilistId == manga.anilistId) {
+            return series;
+          }
+        }
+        return null;
+      } catch (error, stack) {
+        developer.log(
+          'MangaBaka resolution threw; degrading to legacy matching.',
+          name: 'CompositeMangaCatalogRepository',
+          error: error,
+          stackTrace: stack,
+        );
+        return null;
+      }
+    });
   }
 
   // ---------------------------------------------------------------------------
