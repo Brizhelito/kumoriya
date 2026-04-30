@@ -104,6 +104,18 @@ final class SyncAwareMangaLibraryStore implements MangaLibraryStore {
     return result;
   }
 
+  @override
+  Future<Result<void, KumoriyaError>> setPreferredSourceId(
+    int mangaAnilistId,
+    String? sourceId,
+  ) async {
+    final result = await _inner.setPreferredSourceId(mangaAnilistId, sourceId);
+    if (result.isSuccess && _isAuthenticated()) {
+      await _enqueueLibraryChange(mangaAnilistId);
+    }
+    return result;
+  }
+
   Future<void> _enqueueLibraryChange(int mangaAnilistId) async {
     final snapshot = await _inner.getEntrySnapshot(mangaAnilistId);
     final entityKey = jsonEncode({'mangaAnilistId': mangaAnilistId});

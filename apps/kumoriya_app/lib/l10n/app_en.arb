@@ -584,6 +584,10 @@
   "@mangaDetailScanlatorChapterCount": {
     "placeholders": {"count": {"type": "int"}}
   },
+  "mangaDetailSourceLabel": "Provider",
+  "mangaDetailSourceAuto": "All",
+  "mangaDetailSourceAutoHint": "Aggregate chapters from every available provider.",
+  "mangaDetailSourcePickerTitle": "Pick a provider",
   "calendarTitle": "Calendar",
   "calendarSubtitle": "Airing schedule by date",
   "calendarNoAiring": "No airing anime found.",

@@ -570,6 +570,10 @@
   "@mangaDetailScanlatorChapterCount": {
     "placeholders": {"count": {"type": "int"}}
   },
+  "mangaDetailSourceLabel": "Proveedor",
+  "mangaDetailSourceAuto": "Todos",
+  "mangaDetailSourceAutoHint": "Agrupa capítulos de todos los proveedores disponibles.",
+  "mangaDetailSourcePickerTitle": "Elige proveedor",
   "mangaComingSoonSlice10": "Tu biblioteca de manga vivirá aquí cuando llegue el Slice 10.",
   "mangaLibraryHistoryEmpty": "Aún no hay historial de lectura.",
   "mangaLibraryFavoritesEmpty": "Aún no hay favoritos. Toca el corazón en cualquier manga para guardarlo.",

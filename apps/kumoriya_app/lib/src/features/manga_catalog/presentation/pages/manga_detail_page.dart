@@ -156,6 +156,8 @@ class _DetailContent extends ConsumerWidget {
                         ),
                       ),
                     ),
+                    _SourcePicker(anilistId: manga.anilistId),
+                    const SizedBox(width: 6),
                     _ScanlatorPicker(anilistId: manga.anilistId),
                   ],
                 ),
@@ -610,6 +612,190 @@ class _ScanlatorPicker extends ConsumerWidget {
 class _PickResult {
   const _PickResult({required this.scanlator});
   final String? scanlator;
+}
+
+/// Compact chip beside the chapters header that opens a modal sheet
+/// listing the source plugins that contributed playable chapters for
+/// this manga, with one "All" option that resets to the default
+/// fan-out + cross-source dedup behaviour.
+///
+/// Hidden when the chapter cache has not been warmed yet OR when only
+/// one plugin contributed (no choice to offer).
+class _SourcePicker extends ConsumerWidget {
+  const _SourcePicker({required this.anilistId});
+  final int anilistId;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final options = ref.watch(availableSourcesProvider(anilistId));
+    final preferredAsync = ref.watch(preferredSourceIdProvider(anilistId));
+    // Only one option AND no explicit user pin → nothing to pick. The
+    // chip stays hidden so it doesn't take real estate from the
+    // scanlator picker.
+    if (options.length <= 1 && preferredAsync.value == null) {
+      return const SizedBox.shrink();
+    }
+    final preferredId = preferredAsync.value;
+    final preferredOption = preferredId == null
+        ? null
+        : options.firstWhere(
+            (o) => o.sourceId == preferredId,
+            orElse: () => (
+              sourceId: preferredId,
+              displayName: preferredId,
+              chapterCount: 0,
+            ),
+          );
+    final l10n = context.l10n;
+    final label = preferredOption?.displayName ?? l10n.mangaDetailSourceAuto;
+    return InkWell(
+      borderRadius: BorderRadius.circular(KumoriyaRadius.full),
+      onTap: () => _openSheet(context, ref, options, preferredId),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+        decoration: BoxDecoration(
+          color: KumoriyaColors.surface,
+          border: Border.all(color: KumoriyaColors.borderSubtle),
+          borderRadius: BorderRadius.circular(KumoriyaRadius.full),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            const Icon(
+              Icons.cloud_outlined,
+              size: 14,
+              color: KumoriyaColors.textSecondary,
+            ),
+            const SizedBox(width: 6),
+            ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 120),
+              child: Text(
+                '${l10n.mangaDetailSourceLabel}: $label',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: KumoriyaColors.textSecondary,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+            const SizedBox(width: 4),
+            const Icon(
+              Icons.expand_more_rounded,
+              size: 14,
+              color: KumoriyaColors.textSecondary,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _openSheet(
+    BuildContext context,
+    WidgetRef ref,
+    List<SourceOption> options,
+    String? current,
+  ) async {
+    final l10n = context.l10n;
+    final picked = await showModalBottomSheet<_SourcePickResult?>(
+      context: context,
+      backgroundColor: KumoriyaColors.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (ctx) {
+        return SafeArea(
+          child: ListView(
+            shrinkWrap: true,
+            children: <Widget>[
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                child: Text(
+                  l10n.mangaDetailSourcePickerTitle,
+                  style: const TextStyle(
+                    color: KumoriyaColors.textPrimary,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 16,
+                  ),
+                ),
+              ),
+              ListTile(
+                leading: Icon(
+                  current == null
+                      ? Icons.radio_button_checked_rounded
+                      : Icons.radio_button_unchecked_rounded,
+                  color: current == null
+                      ? KumoriyaColors.primary
+                      : KumoriyaColors.textMuted,
+                ),
+                title: Text(
+                  l10n.mangaDetailSourceAuto,
+                  style: const TextStyle(
+                    color: KumoriyaColors.textPrimary,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                subtitle: Text(
+                  l10n.mangaDetailSourceAutoHint,
+                  style: const TextStyle(
+                    color: KumoriyaColors.textMuted,
+                    fontSize: 12,
+                  ),
+                ),
+                onTap: () => Navigator.of(
+                  ctx,
+                ).pop(const _SourcePickResult(sourceId: null)),
+              ),
+              const Divider(height: 1, color: KumoriyaColors.borderSubtle),
+              for (final opt in options)
+                ListTile(
+                  leading: Icon(
+                    current == opt.sourceId
+                        ? Icons.radio_button_checked_rounded
+                        : Icons.radio_button_unchecked_rounded,
+                    color: current == opt.sourceId
+                        ? KumoriyaColors.primary
+                        : KumoriyaColors.textMuted,
+                  ),
+                  title: Text(
+                    opt.displayName,
+                    style: const TextStyle(
+                      color: KumoriyaColors.textPrimary,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  trailing: Text(
+                    l10n.mangaDetailScanlatorChapterCount(opt.chapterCount),
+                    style: const TextStyle(
+                      color: KumoriyaColors.textMuted,
+                      fontSize: 12,
+                    ),
+                  ),
+                  onTap: () => Navigator.of(
+                    ctx,
+                  ).pop(_SourcePickResult(sourceId: opt.sourceId)),
+                ),
+              const SizedBox(height: 8),
+            ],
+          ),
+        );
+      },
+    );
+    if (picked == null) return;
+    if (picked.sourceId == current) return;
+    await ref
+        .read(mangaLibraryStoreProvider)
+        .setPreferredSourceId(anilistId, picked.sourceId);
+    ref.invalidate(preferredSourceIdProvider(anilistId));
+    ref.invalidate(mangaChaptersProvider(anilistId));
+  }
+}
+
+class _SourcePickResult {
+  const _SourcePickResult({required this.sourceId});
+  final String? sourceId;
 }
 
 /// Renders a chapter that lives on an official external publisher

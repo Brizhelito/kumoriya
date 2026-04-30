@@ -6,6 +6,7 @@ import 'package:kumoriya_anilist/kumoriya_anilist.dart';
 import 'package:kumoriya_core/kumoriya_core.dart';
 import 'package:kumoriya_manga_domain/kumoriya_manga_domain.dart';
 import 'package:kumoriya_manga_plugins/kumoriya_manga_plugins.dart';
+import 'package:kumoriya_mangabaka/kumoriya_mangabaka.dart';
 import 'package:kumoriya_source_mangadex/kumoriya_source_mangadex.dart';
 
 import '../../../../shared/cache/fallback_reason.dart';
@@ -60,6 +61,33 @@ final mangaPreferredLanguagesProvider = Provider<List<String> Function()>((
   };
 });
 
+/// Process-wide MangaBaka HTTP client. Hot-reload safe: the client
+/// caches responses in-memory for 5 min and rate-limits its outbound
+/// requests, so we do NOT want a fresh instance per provider rebuild.
+final mangaBakaHttpClientProvider = Provider<MangaBakaHttpClient>((ref) {
+  final client = HttpMangaBakaClient();
+  ref.onDispose(() {
+    // The default constructor uses a pooled http.Client — closing it
+    // is best-effort: the type holds a private field, and at the time
+    // of writing there is no public dispose hook. Future versions of
+    // the package can wire one in here.
+  });
+  return client;
+});
+
+/// Optional MangaBaka metadata gateway injected into the composite
+/// repository. When the AniList row's id maps to a MangaBaka series,
+/// the composite uses its `crossIds` (Strategy A2) and `titleCorpus`
+/// (Strategy B+) to close cross-tracker matching gaps. See diary
+/// 2026-04-29 (S1.D) for the full contract.
+final mangaBakaMetadataGatewayProvider = Provider<MangaBakaMetadataGateway>((
+  ref,
+) {
+  return HttpMangaBakaMetadataGateway(
+    client: ref.watch(mangaBakaHttpClientProvider),
+  );
+});
+
 final _compositeMangaCatalogRepositoryProvider =
     Provider<CompositeMangaCatalogRepository>((ref) {
       final gateway = ref.watch(anilistMetadataGatewayProvider);
@@ -69,6 +97,7 @@ final _compositeMangaCatalogRepositoryProvider =
         sourcePlugins: ref.watch(mangaSourcePluginsProvider),
         cacheStore: ref.watch(mangaCacheStoreProvider),
         preferredLanguages: ref.watch(mangaPreferredLanguagesProvider),
+        mangaBaka: ref.watch(mangaBakaMetadataGatewayProvider),
       );
     });
 
@@ -173,16 +202,21 @@ final mangaBatchByIdsProvider = FutureProvider.autoDispose
 
 final mangaChaptersProvider = FutureProvider.autoDispose
     .family<List<MangaChapter>, int>((ref, anilistId) async {
-      // Re-fetch when the user toggles preferred scanlator (or any
-      // other library row mutation propagates a sync refresh).
+      // Re-fetch when the user toggles preferred scanlator / preferred
+      // source id (or any other library row mutation propagates a sync
+      // refresh).
       ref.watch(syncDataRefreshEpochProvider);
       final composite = ref.watch(_compositeMangaCatalogRepositoryProvider);
-      final preferred = await ref.watch(
+      final preferredScan = await ref.watch(
         preferredScanlatorProvider(anilistId).future,
+      );
+      final preferredSrc = await ref.watch(
+        preferredSourceIdProvider(anilistId).future,
       );
       final result = await composite.fetchMangaChaptersWithPreference(
         anilistId,
-        preferredScanlator: preferred,
+        preferredScanlator: preferredScan,
+        preferredSourceId: preferredSrc,
       );
       return result.fold(
         onSuccess: (chapters) => chapters,
@@ -202,6 +236,18 @@ final preferredScanlatorProvider = FutureProvider.autoDispose
       return entry?.preferredScanlator;
     });
 
+/// Per-manga preferred source plugin id (e.g. `mangadex`, `olympus`).
+/// `null` means "Auto" (fan out to every registered plugin and dedup
+/// across them — the S1.C default). Mirrors [preferredScanlatorProvider]
+/// in shape and lifecycle.
+final preferredSourceIdProvider = FutureProvider.autoDispose
+    .family<String?, int>((ref, anilistId) async {
+      ref.watch(syncDataRefreshEpochProvider);
+      final store = ref.watch(mangaLibraryStoreProvider);
+      final entry = await store.getEntrySnapshot(anilistId);
+      return entry?.preferredSourceId;
+    });
+
 /// Scanlator catalog for a manga whose chapter list has been fetched
 /// at least once this session. Empty before the first fetch.
 ///
@@ -216,6 +262,19 @@ final availableScanlatorsProvider = Provider.autoDispose
       return ref
           .watch(_compositeMangaCatalogRepositoryProvider)
           .availableScanlators(anilistId);
+    });
+
+/// Source picker catalog (one entry per plugin that contributed
+/// playable chapters). Same lifecycle as [availableScanlatorsProvider].
+/// Empty before the first chapter fetch and any time the user has
+/// pinned a single source via `preferredSourceId` (the picker shows
+/// only that one option in that case).
+final availableSourcesProvider = Provider.autoDispose
+    .family<List<SourceOption>, int>((ref, anilistId) {
+      ref.watch(mangaChaptersProvider(anilistId));
+      return ref
+          .watch(_compositeMangaCatalogRepositoryProvider)
+          .availableSources(anilistId);
     });
 
 Exception _toException(KumoriyaError err) =>

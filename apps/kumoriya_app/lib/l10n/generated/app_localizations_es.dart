@@ -1101,6 +1101,19 @@ class AppLocalizationsEs extends AppLocalizations {
   }
 
   @override
+  String get mangaDetailSourceLabel => 'Proveedor';
+
+  @override
+  String get mangaDetailSourceAuto => 'Todos';
+
+  @override
+  String get mangaDetailSourceAutoHint =>
+      'Agrupa capítulos de todos los proveedores disponibles.';
+
+  @override
+  String get mangaDetailSourcePickerTitle => 'Elige proveedor';
+
+  @override
   String get calendarTitle => 'Calendario';
 
   @override

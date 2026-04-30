@@ -1879,6 +1879,30 @@ abstract class AppLocalizations {
   /// **'{count, plural, one{1 chapter} other{{count} chapters}}'**
   String mangaDetailScanlatorChapterCount(int count);
 
+  /// No description provided for @mangaDetailSourceLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Provider'**
+  String get mangaDetailSourceLabel;
+
+  /// No description provided for @mangaDetailSourceAuto.
+  ///
+  /// In en, this message translates to:
+  /// **'All'**
+  String get mangaDetailSourceAuto;
+
+  /// No description provided for @mangaDetailSourceAutoHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Aggregate chapters from every available provider.'**
+  String get mangaDetailSourceAutoHint;
+
+  /// No description provided for @mangaDetailSourcePickerTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Pick a provider'**
+  String get mangaDetailSourcePickerTitle;
+
   /// No description provided for @calendarTitle.
   ///
   /// In en, this message translates to:
