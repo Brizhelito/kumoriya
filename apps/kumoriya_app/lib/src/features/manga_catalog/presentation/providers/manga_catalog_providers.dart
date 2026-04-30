@@ -9,6 +9,7 @@ import 'package:kumoriya_manga_plugins/kumoriya_manga_plugins.dart';
 import 'package:kumoriya_mangabaka/kumoriya_mangabaka.dart';
 import 'package:kumoriya_mangaupdates/kumoriya_mangaupdates.dart';
 import 'package:kumoriya_source_mangadex/kumoriya_source_mangadex.dart';
+import 'package:kumoriya_source_olympus/kumoriya_source_olympus.dart';
 import 'package:kumoriya_source_runtime/kumoriya_source_runtime.dart';
 
 import '../../../../shared/cache/fallback_reason.dart';
@@ -47,7 +48,10 @@ final mangaSourcePluginsProvider = Provider<List<MangaSourcePlugin>>((ref) {
   final overrides = ref
       .watch(pluginBaseUrlOverridesProvider)
       .maybeWhen(data: (m) => m, orElse: () => const <String, Uri>{});
-  return <MangaSourcePlugin>[_buildMangaDex(overrides)];
+  return <MangaSourcePlugin>[
+    _buildMangaDex(overrides),
+    _buildOlympus(overrides),
+  ];
 });
 
 MangaSourcePlugin _buildMangaDex(Map<String, Uri> overrides) {
@@ -60,6 +64,36 @@ MangaSourcePlugin _buildMangaDex(Map<String, Uri> overrides) {
     mirrors: MirrorList(<Uri>[override, _mangaDexDefaultBaseUri]),
   );
 }
+
+/// Default web mirrors for Olympus (frontend host pair). The dashboard
+/// API host is derived by prefixing each web mirror with `dashboard.`,
+/// per the discovered Olympus convention.
+final List<Uri> _olympusDefaultWebMirrors = <Uri>[
+  Uri.parse('https://olympusbiblioteca.com/'),
+  Uri.parse('https://olympusscanlation.com/'),
+  Uri.parse('https://tomanhua.com/'),
+];
+
+MangaSourcePlugin _buildOlympus(Map<String, Uri> overrides) {
+  const pluginId = 'kumoriya.source.olympus';
+  final override = overrides[pluginId];
+  if (override == null) {
+    return OlympusSourcePlugin();
+  }
+  // The user override is interpreted as the preferred web frontend
+  // host. The matching dashboard host is derived by prefixing the
+  // authority with `dashboard.`, mirroring the Olympus deployment
+  // convention.
+  return OlympusSourcePlugin(
+    webMirrors: MirrorList(<Uri>[override, ..._olympusDefaultWebMirrors]),
+    dashboardMirrors: MirrorList(<Uri>[
+      _dashboardForWeb(override),
+      ..._olympusDefaultWebMirrors.map(_dashboardForWeb),
+    ]),
+  );
+}
+
+Uri _dashboardForWeb(Uri web) => web.replace(host: 'dashboard.${web.host}');
 
 /// Preferred chapter languages, derived from the active locale at the
 /// widget tree root.

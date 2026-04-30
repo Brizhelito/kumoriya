@@ -274,7 +274,9 @@ _None as of 2026-04-30 00:30._
 
 **S2 (M2) ✅ done (2026-04-30).** Mirror-switching contract landed: new `kumoriya_source_runtime` package (`MirrorList` + `MirrorRotator` + `TransportFailure`), MangaDex source plugin migrated to consume the rotator, Drift v22 schema with `plugin_base_url_override` table, Settings UI under "App → Plugin base URLs (advanced)", l10n in en + es. 19 + 3 + 7 = 29 new tests across runtime, MangaDex regression, and storage. Health probes deferred to S10 (M4) per plan.
 
-**S3 — `kumoriya_source_olympus`.** First LatAm mirror-dependent source. With S2 in place, Olympus ships its own `MirrorList` of known mirror domains as a constructor default; users pin a preferred mirror through the same Settings UI shipped in S2.C.
+**S3 (`kumoriya_source_olympus`) ✅ done (2026-04-30).** First LatAm source plugin. Olympus turned out to be Nuxt 3 SSR + an unauthenticated REST API on a paired `dashboard.*` subdomain. Plugin owns two `MirrorRotator`s (web + dashboard) so transport failures on either layer fall through to the next mirror pair. Internal `NuxtDataDecoder` decodes the `__NUXT_DATA__` flat-array deref format used to embed manga detail and reader pages in the SSR HTML. 24/24 tests (9 decoder + 15 plugin). MangaDex unchanged.
+
+**S4 — `kumoriya_source_inmanga`.** Open API per recon notes; budget 1d.
 
 ---
 
