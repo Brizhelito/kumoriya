@@ -1,6 +1,6 @@
 # Manga Source Coverage — Master Plan
 
-> **Status as of 2026-04-29:** S0 (recon) ✅ complete · S1.A (MangaBaka client) ✅ complete · S1.B onward pending
+> **Status as of 2026-04-29:** S0 (recon) ✅ · S1.A (MangaBaka) ✅ · S1.B (MangaUpdates) ✅ · S1.C (composite v2) ✅ · S1.D (MangaBaka matching wired) ✅ · S1.E onward pending
 > **Owner / driver:** brizhelito · **Plan version:** v3.1
 > **Cross-refs:** `docs/dev-diary/2026-04-29.md`, `docs/60-roadmap.md` (Phase 5)
 
@@ -171,7 +171,7 @@ Each slice is atomic, testable, and ships green before the next starts. Sub-slic
 | **S1.A** | `kumoriya_mangabaka` package (client + gateway + tests) | — | 0.5d | ✅ done |
 | **S1.B** | `kumoriya_mangaupdates` package (client + gateway + tests) | — | 0.5d | ✅ done |
 | **S1.C** | Composite repo v2: `List<MangaSourcePlugin>` + parallel fan-out + dedup | — | 1d | ✅ done |
-| **S1.D** | Wire MangaBaka corpus into composite v2 matching | S1.A + S1.C | 0.5d | ⏳ pending |
+| **S1.D** | Wire MangaBaka corpus into composite v2 matching | S1.A + S1.C | 0.5d | ✅ done |
 | **S1.E** | UI: extend picker with "source" dimension + l10n | S1.C | 0.5d | ⏳ pending |
 | **S1.F** | M8: scanlator picker enrichment via MU groups | S1.B + S1.E | 1.5d | ⏳ pending |
 | **S2 (M2)** | Configurable base URL + fallback list contract | S1.C | 1d | ⏳ pending |
@@ -262,6 +262,7 @@ S10 wraps up:
 - ✅ **S1.A — MangaBaka client** (commit `92714c2`, diary 2026-04-29)
 - ✅ **S1.B — MangaUpdates client** (diary 2026-04-29 second entry)
 - ✅ **S1.C — Composite repository v2** (diary 2026-04-29 fourth entry; multi-source fan-out, sourceId tagging, per-plugin timeout, failure isolation, `availableSources` picker catalog). The scanlator-picker work was committed first to keep the diff readable.
+- ✅ **S1.D — MangaBaka matching wired** (diary 2026-04-29 fifth entry). New Strategy A2 (cross-tracker bypass via `mu`/`mal` aligned to `MangaBakaCrossIds`) and Strategy B+ (fuzzy candidate pool expanded with `titleCorpus`). Per-AniList-id memoization. Gateway transport failures are non-fatal; resolver degrades to legacy A+B path. Optional `mangaBaka: MangaBakaMetadataGateway?` constructor param keeps existing call sites unchanged.
 
 ### 5.2 In progress
 
@@ -269,13 +270,14 @@ _None as of 2026-04-29 23:00._
 
 ### 5.3 Next up
 
-**S1.D — Wire MangaBaka corpus into composite v2 matching.** The fan-out plumbing now exists; what's still missing is using MangaBaka's rich title corpus + cross-tracker IDs as a higher-confidence matcher before falling back to per-plugin search. Touch points:
+**S1.E — Source picker UI chip.** The `availableSources(anilistId)` API on the composite already exposes everything the UI needs (sourceId, displayName, chapterCount, sorted by coverage). What's left is purely presentation:
 
-- New strategy in the composite that, when an AniList id is known, asks `MangaBakaMetadataGateway.fetchByAniListId(id)` first to obtain the canonical title corpus + cross IDs.
-- For plugins whose `SourceMangaMatch.externalIds` exposes one of those tracker ids (e.g. MangaDex `mu_id`, `mal_id`), bypass title fuzzy search entirely and resolve the `sourceMangaId` directly.
-- Keep the existing per-plugin `search()` path as the fallback when the corpus is silent.
+- Render a chip row in the chapter list header showing the contributing plugins, with the active one highlighted.
+- Wire the chip taps through `fetchMangaChaptersWithPreference(preferredSourceId: ...)`.
+- Persist the per-manga preferred source the same way the scanlator picker persists `preferredScanlator`.
+- Add l10n strings (es-MX primary, en fallback).
 
-After S1.D, **S1.E** adds the source picker chip in the chapter list (the `availableSources` provider already exposes everything the UI needs — this is purely presentation + l10n).
+In parallel, **S1.E** is also when we wire a real `HttpMangaBakaMetadataGateway` provider and inject it into the composite. The composite already accepts the optional gateway; only the Riverpod provider + HTTP client construction is missing.
 
 ---
 
