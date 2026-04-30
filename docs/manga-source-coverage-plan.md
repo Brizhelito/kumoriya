@@ -170,7 +170,7 @@ Each slice is atomic, testable, and ships green before the next starts. Sub-slic
 | **S0** | Recon (Cloudflare, MangaBaka API, source landscape) | — | — | ✅ done |
 | **S1.A** | `kumoriya_mangabaka` package (client + gateway + tests) | — | 0.5d | ✅ done |
 | **S1.B** | `kumoriya_mangaupdates` package (client + gateway + tests) | — | 0.5d | ✅ done |
-| **S1.C** | Composite repo v2: `List<MangaSourcePlugin>` + parallel fan-out + dedup | — | 1d | ⏳ pending |
+| **S1.C** | Composite repo v2: `List<MangaSourcePlugin>` + parallel fan-out + dedup | — | 1d | ✅ done |
 | **S1.D** | Wire MangaBaka corpus into composite v2 matching | S1.A + S1.C | 0.5d | ⏳ pending |
 | **S1.E** | UI: extend picker with "source" dimension + l10n | S1.C | 0.5d | ⏳ pending |
 | **S1.F** | M8: scanlator picker enrichment via MU groups | S1.B + S1.E | 1.5d | ⏳ pending |
@@ -261,20 +261,21 @@ S10 wraps up:
 - ✅ **S0 — Recon** (no commit; documented here)
 - ✅ **S1.A — MangaBaka client** (commit `92714c2`, diary 2026-04-29)
 - ✅ **S1.B — MangaUpdates client** (diary 2026-04-29 second entry)
+- ✅ **S1.C — Composite repository v2** (diary 2026-04-29 fourth entry; multi-source fan-out, sourceId tagging, per-plugin timeout, failure isolation, `availableSources` picker catalog). The scanlator-picker work was committed first to keep the diff readable.
 
 ### 5.2 In progress
 
-_None as of 2026-04-29 08:30._
+_None as of 2026-04-29 23:00._
 
 ### 5.3 Next up
 
-**S1.C — Composite repository v2.** Both metadata gateways (MangaBaka + MangaUpdates) are now ready as leaf packages. The next slice refactors `composite_manga_catalog_repository.dart` to accept `List<MangaSourcePlugin>` with parallel fan-out, per-plugin timeout, and `(chapterNumber, language, sourceId)` dedup. No metadata gateway wiring yet — that lands in S1.D.
+**S1.D — Wire MangaBaka corpus into composite v2 matching.** The fan-out plumbing now exists; what's still missing is using MangaBaka's rich title corpus + cross-tracker IDs as a higher-confidence matcher before falling back to per-plugin search. Touch points:
 
-This refactor will likely conflict with the **uncommitted scanlator-picker work** sitting in `apps/kumoriya_app/...` (see §5.4). Recommend committing or stashing that work before starting S1.C.
+- New strategy in the composite that, when an AniList id is known, asks `MangaBakaMetadataGateway.fetchByAniListId(id)` first to obtain the canonical title corpus + cross IDs.
+- For plugins whose `SourceMangaMatch.externalIds` exposes one of those tracker ids (e.g. MangaDex `mu_id`, `mal_id`), bypass title fuzzy search entirely and resolve the `sourceMangaId` directly.
+- Keep the existing per-plugin `search()` path as the fallback when the corpus is silent.
 
-### 5.4 Existing local work to be aware of
-
-There is uncommitted work on the scanlator picker (preferred-scanlator strict filter, see `docs/dev-diary/2026-04-28.md` final entry) currently sitting in `apps/kumoriya_app/...` and a MangaDex chapter mapping change. **This work is unrelated to S1.A** and was NOT touched by the MangaBaka commit. It will need its own separate commit + diary before S1.E starts (since S1.E touches the picker too and would conflict).
+After S1.D, **S1.E** adds the source picker chip in the chapter list (the `availableSources` provider already exposes everything the UI needs — this is purely presentation + l10n).
 
 ---
 
