@@ -41,6 +41,7 @@ google-services*.json
 
 # Local editor / assistant state
 .windsurf/
+.claude/
 
 # Local runtime data
 *.db
