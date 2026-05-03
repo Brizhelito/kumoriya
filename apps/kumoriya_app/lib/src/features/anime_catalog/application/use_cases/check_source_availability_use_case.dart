@@ -8,6 +8,8 @@ import '../models/source_availability.dart';
 enum _DirectBridgeKind { onaTvDrift, unknownFormat }
 
 final class CheckSourceAvailabilityUseCase {
+  static const int _maxParallelLookups = 3;
+
   const CheckSourceAvailabilityUseCase({
     required SourcePlugin sourcePlugin,
     required AnilistSourceMatcher matcher,
@@ -251,7 +253,8 @@ final class CheckSourceAvailabilityUseCase {
     var total = 0;
     var found = false;
     for (final relation in anilistDetail.relations) {
-      if (relation.type != AnimeRelationType.prequel) {
+      if (relation.type != AnimeRelationType.prequel ||
+          relation.targetKind != MediaKind.anime) {
         continue;
       }
       final episodes = relation.anime.totalEpisodes;
@@ -281,14 +284,30 @@ final class CheckSourceAvailabilityUseCase {
       ...searchCandidateSourceIds,
     ];
 
+    final slugs = <String>[];
     for (final slug in allSlugs) {
-      if (!probedSlugs.add(slug)) {
-        continue;
+      if (probedSlugs.add(slug)) {
+        slugs.add(slug);
       }
+    }
 
-      try {
-        final result = await _sourcePlugin.getAnimeDetail(slug);
-        result.fold(
+    for (var offset = 0; offset < slugs.length; offset += _maxParallelLookups) {
+      final end = offset + _maxParallelLookups < slugs.length
+          ? offset + _maxParallelLookups
+          : slugs.length;
+      final batch = slugs.sublist(offset, end);
+      final results = await Future.wait(
+        batch.map((slug) async {
+          try {
+            return await _sourcePlugin.getAnimeDetail(slug);
+          } catch (_) {
+            return null;
+          }
+        }),
+      );
+
+      for (final result in results) {
+        result?.fold(
           onFailure: (_) {},
           onSuccess: (detail) {
             final normalizedId = detail.sourceId.trim().toLowerCase();
@@ -314,8 +333,6 @@ final class CheckSourceAvailabilityUseCase {
             );
           },
         );
-      } catch (_) {
-        continue;
       }
     }
 
@@ -600,21 +617,35 @@ final class CheckSourceAvailabilityUseCase {
     final collected = <SourceAnimeMatch>[];
     KumoriyaError? lastError;
 
-    for (final query in queries) {
-      final result = await _sourcePlugin.search(
-        SourceSearchQuery(query: query.trim(), limit: 10),
+    for (
+      var offset = 0;
+      offset < queries.length;
+      offset += _maxParallelLookups
+    ) {
+      final end = offset + _maxParallelLookups < queries.length
+          ? offset + _maxParallelLookups
+          : queries.length;
+      final batch = queries.sublist(offset, end);
+      final results = await Future.wait(
+        batch.map(
+          (query) => _sourcePlugin.search(
+            SourceSearchQuery(query: query.trim(), limit: 10),
+          ),
+        ),
       );
 
-      result.fold(
-        onFailure: (error) => lastError = error,
-        onSuccess: (matches) {
-          for (final match in matches) {
-            if (seenIds.add(match.sourceId)) {
-              collected.add(match);
+      for (final result in results) {
+        result.fold(
+          onFailure: (error) => lastError = error,
+          onSuccess: (matches) {
+            for (final match in matches) {
+              if (seenIds.add(match.sourceId)) {
+                collected.add(match);
+              }
             }
-          }
-        },
-      );
+          },
+        );
+      }
 
       if (collected.length >= earlyStopCandidateCount) {
         break;

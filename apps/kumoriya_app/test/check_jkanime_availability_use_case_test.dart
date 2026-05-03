@@ -560,7 +560,7 @@ void main() {
           AnimeEpisode(number: 2, title: 'Episode 2', isAired: true),
           AnimeEpisode(number: 3, title: 'Episode 3', isAired: false),
         ],
-        relations: const <AnimeRelation>[
+        relations: <AnimeRelation>[
           AnimeRelation(
             type: AnimeRelationType.prequel,
             anime: Anime(

@@ -613,6 +613,7 @@ Future<SourceAvailabilitySummary> _summaryFor(
     matcher: const AnilistSourceMatcher(),
     selectionPolicy: const SourceSelectionPolicy(),
     registry: registry,
+    probeAudioKinds: true,
   ).call(_detail);
 }
 

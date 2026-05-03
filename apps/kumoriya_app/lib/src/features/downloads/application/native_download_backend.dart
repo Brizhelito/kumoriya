@@ -10,6 +10,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../shared/storage_providers.dart';
 import '../domain/download_backend.dart';
 import 'download_directory_service.dart';
+import 'download_library_index_service.dart';
 import 'download_manager_service.dart';
 import 'hls_remux_mode_notifier.dart';
 
@@ -29,6 +30,7 @@ class NativeDownloadBackend implements DownloadBackend {
 
   final Ref _ref;
   final DownloadDirectoryService _directoryService;
+  final DownloadLibraryIndexService _libraryIndexService;
   StreamSubscription? _eventSubscription;
 
   final _progressController =
@@ -37,7 +39,11 @@ class NativeDownloadBackend implements DownloadBackend {
   final _aggregateController =
       StreamController<DownloadAggregateProgress>.broadcast();
 
-  NativeDownloadBackend(this._ref, this._directoryService);
+  NativeDownloadBackend(
+    this._ref,
+    this._directoryService,
+    this._libraryIndexService,
+  );
 
   // ── Streams ─────────────────────────────────────────────────────────
 
@@ -317,9 +323,10 @@ class NativeDownloadBackend implements DownloadBackend {
 
   @override
   Future<void> syncDownloadedLibrary() async {
-    // Reconcile Drift state with native engine state.
-    // For now, broadcast a global change so providers rebuild.
-    _statusController.add(const DownloadStatusChange(taskId: ''));
+    final report = await _libraryIndexService.syncCurrentLibrary();
+    if (report.changed) {
+      _statusController.add(const DownloadStatusChange(taskId: ''));
+    }
   }
 
   /// Pull the native engine's last-known snapshot per task and replay
@@ -407,6 +414,7 @@ class NativeDownloadBackend implements DownloadBackend {
           downloadedBytes: downloadedBytes,
         ),
       );
+      await _writeManifestIfCompleted(taskId, status, filePath, totalBytes);
 
       if (status != null && status != oldStatus) {
         _statusController.add(
@@ -545,6 +553,12 @@ class NativeDownloadBackend implements DownloadBackend {
           filePath,
           totalBytes,
         );
+        await _writeManifestIfCompleted(
+          taskId,
+          newStatus,
+          filePath,
+          totalBytes,
+        );
         _statusController.add(
           DownloadStatusChange(
             taskId: taskId,
@@ -628,6 +642,35 @@ class NativeDownloadBackend implements DownloadBackend {
     return (oldStatus, anilistId);
   }
 
+  Future<void> _writeManifestIfCompleted(
+    String taskId,
+    DownloadStatus? status,
+    String? filePath,
+    int? totalBytes,
+  ) async {
+    if (status != DownloadStatus.completed ||
+        taskId.isEmpty ||
+        filePath == null ||
+        filePath.isEmpty) {
+      return;
+    }
+    final mediaFile = File(filePath);
+    if (!await mediaFile.exists()) {
+      return;
+    }
+    final store = _ref.read(downloadStoreProvider);
+    final result = await store.getTask(taskId);
+    final task = result.fold(onSuccess: (t) => t, onFailure: (_) => null);
+    if (task == null) {
+      return;
+    }
+    await _libraryIndexService.writeManifest(
+      task: task,
+      mediaPath: mediaFile.path,
+      totalBytes: totalBytes ?? await mediaFile.length(),
+    );
+  }
+
   /// [DownloadTask] is immutable with no `copyWith`; reconstruct manually.
   DownloadTask _copyTaskWith(
     DownloadTask task, {
@@ -702,6 +745,7 @@ class NativeDownloadBackend implements DownloadBackend {
         '.partial',
         '.chunks.json',
         '.chunks.json.tmp',
+        downloadSidecarSuffix,
       ]) {
         try {
           final f = File('$filePath$suffix');

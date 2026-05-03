@@ -101,7 +101,7 @@ final class DownloadLibraryIndexService {
     }
 
     await for (final entity in root.list(recursive: true, followLinks: false)) {
-      if (entity is! File || !entity.path.endsWith(downloadSidecarSuffix)) {
+      if (entity is! File || !_isDownloadManifestCandidate(entity.path)) {
         continue;
       }
 
@@ -114,8 +114,7 @@ final class DownloadLibraryIndexService {
         continue;
       }
 
-      final mediaPath =
-          manifest.mediaPath ?? _mediaPathFromSidecar(entity.path);
+      final mediaPath = await _resolveManifestMediaPath(manifest, entity);
       if (mediaPath == null) {
         continue;
       }
@@ -239,6 +238,48 @@ final class DownloadLibraryIndexService {
     );
   }
 
+  bool _isDownloadManifestCandidate(String path) {
+    final lowerPath = path.toLowerCase();
+    if (!lowerPath.endsWith('.json')) {
+      return false;
+    }
+    return !lowerPath.endsWith('.chunks.json') &&
+        !lowerPath.endsWith('.chunks.json.tmp');
+  }
+
+  Future<String?> _resolveManifestMediaPath(
+    _DownloadSidecarManifest manifest,
+    File manifestFile,
+  ) async {
+    final explicitMediaPath = manifest.mediaPath?.trim();
+    if (explicitMediaPath != null && explicitMediaPath.isNotEmpty) {
+      if (p.isAbsolute(explicitMediaPath)) {
+        return explicitMediaPath;
+      }
+      return p.normalize(p.join(manifestFile.parent.path, explicitMediaPath));
+    }
+
+    final sidecarPath = _mediaPathFromSidecar(manifestFile.path);
+    if (sidecarPath != null) {
+      return sidecarPath;
+    }
+
+    final explicitFileName = manifest.fileName?.trim();
+    if (explicitFileName != null && explicitFileName.isNotEmpty) {
+      return p.normalize(p.join(manifestFile.parent.path, explicitFileName));
+    }
+
+    final stem = p.withoutExtension(manifestFile.path);
+    for (final extension in _mediaFileExtensions) {
+      final siblingPath = '$stem$extension';
+      if (await File(siblingPath).exists()) {
+        return siblingPath;
+      }
+    }
+
+    return null;
+  }
+
   DownloadTask _copyTask(
     DownloadTask task, {
     int? totalBytes,
@@ -268,6 +309,15 @@ final class DownloadLibraryIndexService {
   }
 }
 
+const _mediaFileExtensions = <String>[
+  '.mp4',
+  '.mkv',
+  '.webm',
+  '.ts',
+  '.m4v',
+  '.mov',
+];
+
 final class _DownloadSidecarManifest {
   const _DownloadSidecarManifest({
     required this.version,
@@ -277,6 +327,7 @@ final class _DownloadSidecarManifest {
     required this.anilistId,
     required this.episodeNumber,
     required this.mediaPath,
+    required this.fileName,
     required this.totalBytes,
     this.animeTitle,
     this.sourcePluginId,
@@ -296,6 +347,7 @@ final class _DownloadSidecarManifest {
   final int anilistId;
   final double episodeNumber;
   final String? mediaPath;
+  final String? fileName;
   final int totalBytes;
   final String? animeTitle;
   final String? sourcePluginId;
@@ -322,6 +374,7 @@ final class _DownloadSidecarManifest {
       anilistId: task.anilistId,
       episodeNumber: task.episodeNumber,
       mediaPath: mediaPath,
+      fileName: task.fileName,
       totalBytes: totalBytes,
       animeTitle: task.animeTitle,
       sourcePluginId: task.sourcePluginId,
@@ -334,18 +387,28 @@ final class _DownloadSidecarManifest {
   }
 
   static _DownloadSidecarManifest? tryParse(Map<String, dynamic> json) {
-    final anilistId = json['anilistId'];
-    final episodeNumber = json['episodeNumber'];
-    final taskId = json['taskId'];
-    final identityKey = json['identityKey'];
-    final signature = json['signature'];
-    if (anilistId is! num ||
-        episodeNumber is! num ||
-        taskId is! String ||
-        identityKey is! String ||
-        signature is! String) {
+    final anilistId = _readNum(json, const ['anilistId', 'animeId']);
+    final episodeNumber = _readNum(json, const [
+      'episodeNumber',
+      'episode',
+      'episodeNo',
+    ]);
+    if (anilistId == null || episodeNumber == null) {
       return null;
     }
+    final taskId =
+        _readString(json, const ['taskId', 'id']) ??
+        buildDownloadTaskId(
+          anilistId: anilistId.toInt(),
+          episodeNumber: episodeNumber.toDouble(),
+        );
+    final identityKey =
+        _readString(json, const ['identityKey']) ??
+        buildDownloadIdentityKey(
+          anilistId: anilistId.toInt(),
+          episodeNumber: episodeNumber.toDouble(),
+        );
+    final signature = _readString(json, const ['signature']) ?? '';
 
     return _DownloadSidecarManifest(
       version: (json['version'] as num?)?.toInt() ?? currentVersion,
@@ -354,13 +417,14 @@ final class _DownloadSidecarManifest {
       signature: signature,
       anilistId: anilistId.toInt(),
       episodeNumber: episodeNumber.toDouble(),
-      mediaPath: json['mediaPath'] as String?,
+      mediaPath: _readString(json, const ['mediaPath', 'filePath', 'path']),
+      fileName: _readString(json, const ['fileName', 'filename', 'name']),
       totalBytes: (json['totalBytes'] as num?)?.toInt() ?? 0,
-      animeTitle: json['animeTitle'] as String?,
-      sourcePluginId: json['sourcePluginId'] as String?,
-      serverName: json['serverName'] as String?,
-      detectedHost: json['detectedHost'] as String?,
-      qualityLabel: json['qualityLabel'] as String?,
+      animeTitle: _readString(json, const ['animeTitle', 'title']),
+      sourcePluginId: _readString(json, const ['sourcePluginId', 'sourceId']),
+      serverName: _readString(json, const ['serverName', 'server']),
+      detectedHost: _readString(json, const ['detectedHost', 'host']),
+      qualityLabel: _readString(json, const ['qualityLabel', 'quality']),
       isHls: json['isHls'] == true,
       completedAtEpochMs: (json['completedAtEpochMs'] as num?)?.toInt(),
     );
@@ -375,6 +439,7 @@ final class _DownloadSidecarManifest {
       'anilistId': anilistId,
       'episodeNumber': episodeNumber,
       'mediaPath': mediaPath,
+      'fileName': fileName,
       'totalBytes': totalBytes,
       'animeTitle': animeTitle,
       'sourcePluginId': sourcePluginId,
@@ -415,6 +480,32 @@ final class _DownloadSidecarManifest {
       animeTitle: animeTitle,
       qualityLabel: qualityLabel,
     );
+  }
+
+  static num? _readNum(Map<String, dynamic> json, List<String> keys) {
+    for (final key in keys) {
+      final value = json[key];
+      if (value is num) {
+        return value;
+      }
+      if (value is String) {
+        final parsed = num.tryParse(value.trim());
+        if (parsed != null) {
+          return parsed;
+        }
+      }
+    }
+    return null;
+  }
+
+  static String? _readString(Map<String, dynamic> json, List<String> keys) {
+    for (final key in keys) {
+      final value = json[key];
+      if (value is String && value.trim().isNotEmpty) {
+        return value.trim();
+      }
+    }
+    return null;
   }
 
   static String _signatureFor({

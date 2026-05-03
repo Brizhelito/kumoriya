@@ -517,10 +517,22 @@ class _PartyAnimeContent extends ConsumerWidget {
                     height: 212,
                     child: ListView.separated(
                       scrollDirection: Axis.horizontal,
-                      itemCount: detail.relations.take(8).length,
+                      itemCount: detail.relations
+                          .where(
+                            (relation) =>
+                                relation.targetKind == MediaKind.anime,
+                          )
+                          .take(8)
+                          .length,
                       separatorBuilder: (_, _) => const SizedBox(width: 12),
                       itemBuilder: (context, index) {
-                        final relation = detail.relations[index];
+                        final relation = detail.relations
+                            .where(
+                              (relation) =>
+                                  relation.targetKind == MediaKind.anime,
+                            )
+                            .take(8)
+                            .elementAt(index);
                         return _PartyRelationCard(anime: relation.anime);
                       },
                     ),

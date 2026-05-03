@@ -1,3 +1,4 @@
+import 'package:kumoriya_core/kumoriya_core.dart';
 import 'package:kumoriya_domain/kumoriya_domain.dart';
 
 final class AnilistAnimeMapper {
@@ -210,11 +211,18 @@ final class AnilistAnimeMapper {
         continue;
       }
 
+      final mediaType = node['type'];
       try {
-        final mediaType = node['type'];
-        if (mediaType is String && mediaType != 'ANIME') {
+        if (mediaType == 'MANGA') {
+          relations.add(
+            AnimeRelation.crossMedia(
+              type: _mapRelationType(edge['relationType'] as String?),
+              target: _mapRelatedMedia(node, MediaKind.manga),
+            ),
+          );
           continue;
         }
+        if (mediaType is String && mediaType != 'ANIME') continue;
         final anime = mapAnime(node);
         relations.add(
           AnimeRelation(
@@ -228,6 +236,27 @@ final class AnilistAnimeMapper {
     }
 
     return relations;
+  }
+
+  static RelatedMedia _mapRelatedMedia(
+    Map<String, dynamic> media,
+    MediaKind kind,
+  ) {
+    final id = media['id'];
+    if (id is! int) {
+      throw const FormatException('Missing or invalid media id.');
+    }
+    final title = _mapTitle(media['title'], media['synonyms']);
+    return RelatedMedia(
+      kind: kind,
+      anilistId: id,
+      titleRomaji: title.romaji,
+      titleEnglish: title.english,
+      titleNative: title.native,
+      coverImageUrl: _extractCoverImage(media['coverImage']),
+      bannerImageUrl: media['bannerImage'] as String?,
+      formatLabel: media['format'] as String?,
+    );
   }
 
   static AnimeRelationType _mapRelationType(String? rawType) {

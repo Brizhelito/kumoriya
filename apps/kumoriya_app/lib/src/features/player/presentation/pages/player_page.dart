@@ -91,7 +91,8 @@ class PlayerPage extends ConsumerStatefulWidget {
   ConsumerState<PlayerPage> createState() => _PlayerPageState();
 }
 
-class _PlayerPageState extends ConsumerState<PlayerPage> {
+class _PlayerPageState extends ConsumerState<PlayerPage>
+    with WidgetsBindingObserver {
   PlaybackEngine? _engine;
   PlayerSessionOrchestrator? _orchestrator;
   late final SaveProgressUseCase _saveProgress;
@@ -181,6 +182,7 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     // Hold a screen wakelock for the entire player lifetime. Without this,
     // Android's inactivity timer (very aggressive on MIUI / Redmi devices)
     // dims the screen to ~30 % a few seconds before the configured display
@@ -320,6 +322,7 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
   @override
   void dispose() {
     _log('dispose');
+    WidgetsBinding.instance.removeObserver(this);
     // Always release the screen wakelock when leaving the player so the
     // device returns to its normal display-timeout behavior.
     unawaited(WakelockPlus.disable());
@@ -338,6 +341,22 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
     }
     _suppressOrientationRestore = false;
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    if (state == AppLifecycleState.resumed) {
+      return;
+    }
+    unawaited(_pauseForAppLifecycle());
+  }
+
+  Future<void> _pauseForAppLifecycle() async {
+    if (_isExiting || _state.status != PlayerSessionStatus.playing) {
+      return;
+    }
+    await _engine?.pause();
   }
 
   Future<void> _installRuntime() async {
@@ -2684,6 +2703,8 @@ class _ImmersivePlayerViewState extends State<_ImmersivePlayerView>
 
   // Controls lock
   bool _controlsLocked = false;
+  bool _lockOverlayVisible = false;
+  Timer? _lockOverlayHideTimer;
 
   // Volume/brightness gesture overlay state
   bool _showBrightnessOverlay = false;
@@ -2833,6 +2854,7 @@ class _ImmersivePlayerViewState extends State<_ImmersivePlayerView>
     _seekCommitTimer?.cancel();
     _overlayHideTimer?.cancel();
     _mouseIdleTimer?.cancel();
+    _lockOverlayHideTimer?.cancel();
     _skipButtonHideTimer?.cancel();
     _clockTimer?.cancel();
     _batteryLevelTimer?.cancel();
@@ -2861,6 +2883,20 @@ class _ImmersivePlayerViewState extends State<_ImmersivePlayerView>
     });
   }
 
+  void _startLockOverlayHideTimer() {
+    _lockOverlayHideTimer?.cancel();
+    _lockOverlayHideTimer = Timer(const Duration(seconds: 4), () {
+      if (mounted && widget.isPlaying) {
+        setState(() => _lockOverlayVisible = false);
+      }
+    });
+  }
+
+  void _showLockOverlay() {
+    setState(() => _lockOverlayVisible = true);
+    _startLockOverlayHideTimer();
+  }
+
   void _toggleControls() {
     if (_controlsLocked) return;
     setState(() {
@@ -2879,7 +2915,10 @@ class _ImmersivePlayerViewState extends State<_ImmersivePlayerView>
   }
 
   void _onTapUp(TapUpDetails details) {
-    if (_controlsLocked) return;
+    if (_controlsLocked) {
+      _showLockOverlay();
+      return;
+    }
     final zone = _zoneFromPosition(details.localPosition);
     _handleTapInZone(zone);
   }
@@ -3857,8 +3896,10 @@ class _ImmersivePlayerViewState extends State<_ImmersivePlayerView>
                                   setState(() {
                                     _controlsLocked = true;
                                     _controlsVisible = false;
+                                    _lockOverlayVisible = true;
                                   });
                                   _hideTimer?.cancel();
+                                  _startLockOverlayHideTimer();
                                 },
                                 icon: Icon(
                                   Icons.lock_outline_rounded,
@@ -4165,18 +4206,33 @@ class _ImmersivePlayerViewState extends State<_ImmersivePlayerView>
                   left: 0,
                   right: 0,
                   child: Center(
-                    child: GestureDetector(
-                      onTap: () => setState(() => _controlsLocked = false),
-                      child: Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: KumoriyaColors.playerControlBg,
-                          shape: BoxShape.circle,
-                        ),
-                        child: Icon(
-                          Icons.lock_rounded,
-                          color: KumoriyaColors.textPrimary,
-                          size: 20,
+                    child: AnimatedOpacity(
+                      opacity: _lockOverlayVisible ? 1.0 : 0.0,
+                      duration: const Duration(milliseconds: 300),
+                      child: IgnorePointer(
+                        ignoring: !_lockOverlayVisible,
+                        child: GestureDetector(
+                          onTap: () {
+                            _lockOverlayHideTimer?.cancel();
+                            setState(() {
+                              _controlsLocked = false;
+                              _lockOverlayVisible = false;
+                              _controlsVisible = true;
+                            });
+                            _startHideTimer();
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: KumoriyaColors.playerControlBg,
+                              shape: BoxShape.circle,
+                            ),
+                            child: Icon(
+                              Icons.lock_rounded,
+                              color: KumoriyaColors.textPrimary,
+                              size: 20,
+                            ),
+                          ),
                         ),
                       ),
                     ),

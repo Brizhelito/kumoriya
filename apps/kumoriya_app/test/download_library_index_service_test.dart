@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:drift/native.dart';
@@ -76,6 +77,39 @@ void main() {
     expect(saved!.status, DownloadStatus.completed);
     expect(saved.filePath, mediaFile.path);
     expect(saved.totalBytes, 128);
+  });
+
+  test('imports completed downloads from legacy json metadata', () async {
+    final mediaFile = File(
+      '${tempDir.path}${Platform.pathSeparator}legacy-episode.mp4',
+    );
+    await mediaFile.writeAsBytes(List<int>.filled(96, 3), flush: true);
+    final metadataFile = File(
+      '${tempDir.path}${Platform.pathSeparator}legacy-episode.json',
+    );
+    await metadataFile.writeAsString(
+      jsonEncode({
+        'animeId': 888,
+        'episode': '2',
+        'fileName': mediaFile.uri.pathSegments.last,
+        'title': 'Legacy Anime',
+        'server': 'LegacyHost',
+        'quality': '720p',
+      }),
+      flush: true,
+    );
+
+    final report = await indexService.syncDirectory(tempDir);
+
+    expect(report.importedCount, 1);
+    final loaded = await store.getTaskByEpisode(888, 2);
+    final saved = (loaded as Success<DownloadTask?, KumoriyaError>).value;
+    expect(saved, isNotNull);
+    expect(saved!.filePath, mediaFile.path);
+    expect(saved.animeTitle, 'Legacy Anime');
+    expect(saved.serverName, 'LegacyHost');
+    expect(saved.qualityLabel, '720p');
+    expect(saved.totalBytes, 96);
   });
 
   test('removes completed tasks whose files were deleted', () async {

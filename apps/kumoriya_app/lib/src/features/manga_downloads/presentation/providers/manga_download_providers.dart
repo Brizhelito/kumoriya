@@ -74,6 +74,68 @@ final mangaDownloadTasksProvider =
       return controller.stream;
     });
 
+final completedMangaDownloadTasksProvider =
+    StreamProvider<Result<List<MangaDownloadTask>, KumoriyaError>>((ref) {
+      return _watchMangaDownloadTasks(ref, statuses: _completedStatuses);
+    });
+
+final activeMangaDownloadTasksProvider =
+    StreamProvider<Result<List<MangaDownloadTask>, KumoriyaError>>((ref) {
+      return _watchMangaDownloadTasks(ref, statuses: _activeStatuses);
+    });
+
+final queuedMangaDownloadTasksProvider =
+    StreamProvider<Result<List<MangaDownloadTask>, KumoriyaError>>((ref) {
+      return _watchMangaDownloadTasks(ref, statuses: _queueStatuses);
+    });
+
+const _completedStatuses = <MangaDownloadStatus>{MangaDownloadStatus.completed};
+const _activeStatuses = <MangaDownloadStatus>{
+  MangaDownloadStatus.downloading,
+  MangaDownloadStatus.paused,
+  MangaDownloadStatus.packaging,
+  MangaDownloadStatus.disconnected,
+};
+const _queueStatuses = <MangaDownloadStatus>{
+  MangaDownloadStatus.pending,
+  MangaDownloadStatus.failed,
+  MangaDownloadStatus.partial,
+};
+
+Stream<Result<List<MangaDownloadTask>, KumoriyaError>> _watchMangaDownloadTasks(
+  Ref ref, {
+  required Set<MangaDownloadStatus> statuses,
+}) async* {
+  final store = ref.watch(mangaDownloadStoreProvider);
+  final manager = ref.watch(mangaDownloadManagerProvider);
+
+  Future<Result<List<MangaDownloadTask>, KumoriyaError>> read() =>
+      statuses.length == 1
+      ? store.getTasksByStatus(statuses.first, ascending: false)
+      : store.getTasksByStatuses(statuses.toList(), ascending: false);
+
+  yield await read();
+  await for (final _ in manager.statusStream.where(
+    (e) => _isRelevantToMangaTab(e, statuses),
+  )) {
+    yield await read();
+  }
+}
+
+bool _isRelevantToMangaTab(
+  MangaDownloadStatusEvent event,
+  Set<MangaDownloadStatus> statuses,
+) {
+  if (event.oldStatus == null && event.newStatus == null) return true;
+  if (event.oldStatus != null && statuses.contains(event.oldStatus)) {
+    return true;
+  }
+  if (event.newStatus != null && statuses.contains(event.newStatus)) {
+    return true;
+  }
+  return false;
+}
+
 /// Internal: a broadcast stream controller that survives provider
 /// rebuilds while the user navigates between tabs.
 final _tasksControllerProvider =

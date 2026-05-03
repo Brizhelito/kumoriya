@@ -63,6 +63,7 @@ final class CanonicalSeries {
         ...aliases,
       ]),
       relatedCanonicalIds: detail.relations
+          .where((relation) => relation.target.kind.wireValue == 'anime')
           .map((relation) => 'anilist:${relation.anime.anilistId}')
           .toList(growable: false),
     );

@@ -377,7 +377,17 @@ final mangaChaptersProvider = FutureProvider.autoDispose
       );
       return result.fold(
         onSuccess: (chapters) => chapters,
-        onFailure: (err) => throw _toException(err),
+        onFailure: (err) {
+          if (err.kind == KumoriyaErrorKind.transport) {
+            developer.log(
+              'mangaChapters[$anilistId] source transport degraded to empty: '
+              '${err.code} ${err.message}',
+              name: 'mangaChaptersProvider',
+            );
+            return const <MangaChapter>[];
+          }
+          throw _toException(err);
+        },
       );
     });
 

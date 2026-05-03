@@ -86,7 +86,11 @@ final downloadLibraryIndexServiceProvider =
 final downloadManagerProvider = Provider<DownloadBackend>((ref) {
   if (Platform.isAndroid) {
     final dirService = ref.watch(downloadDirectoryServiceProvider);
-    final backend = NativeDownloadBackend(ref, dirService);
+    final backend = NativeDownloadBackend(
+      ref,
+      dirService,
+      ref.watch(downloadLibraryIndexServiceProvider),
+    );
     backend.initialize();
     ref.onDispose(backend.dispose);
     return backend;

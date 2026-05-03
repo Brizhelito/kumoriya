@@ -74,6 +74,25 @@ void main() {
     },
   );
 
+  test(
+    'search exposes name_esp as alias when it differs from the real name',
+    () async {
+      final plugin = ManhwaWebSourcePlugin(
+        httpClient: MockClient((_) async {
+          return _ok(
+            '{"data":[{"_id":"solo_1","the_real_name":"Solo Leveling","name_esp":"Solo Leveling Español","_tipo":"manhwa"}]}',
+          );
+        }),
+      );
+
+      final res = await plugin.search(const MangaSearchQuery(query: 'solo'));
+      final matches =
+          (res as Success<List<SourceMangaMatch>, KumoriyaError>).value;
+      expect(matches.single.title, 'Solo Leveling');
+      expect(matches.single.aliases, contains('Solo Leveling Español'));
+    },
+  );
+
   test('search rejects empty query without HTTP', () async {
     final plugin = ManhwaWebSourcePlugin(
       httpClient: MockClient((_) async => fail('must not call network')),

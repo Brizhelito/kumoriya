@@ -28,6 +28,7 @@ import '../providers/storage_providers.dart';
 import '../../application/models/resolved_server_link_result.dart';
 import '../../application/models/server_quality_registry.dart';
 import '../../../downloads/presentation/download_providers.dart';
+import '../../../manga_catalog/presentation/pages/manga_detail_page.dart';
 import '../../../player/presentation/pages/player_page.dart';
 import 'episode_list_page.dart';
 import '../../../watch_party/presentation/pages/party_lobby_page.dart';
@@ -467,95 +468,10 @@ class AnimeDetailContent extends ConsumerWidget {
                 ),
                 if (detail.relations.isNotEmpty) ...<Widget>[
                   const SizedBox(height: 22),
-                  Text(
-                    context.l10n.relationsTitle,
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w700,
-                    ),
+                  _AnimeRelationsSection(
+                    relations: detail.relations,
+                    routeMode: routeMode,
                   ),
-                  const SizedBox(height: 8),
-                  ...detail.relations
-                      .take(6)
-                      .map(
-                        (relation) => Padding(
-                          padding: const EdgeInsets.only(bottom: 8),
-                          child: InkWell(
-                            borderRadius: BorderRadius.circular(
-                              KumoriyaRadius.xl,
-                            ),
-                            onTap: () => Navigator.of(context).push(
-                              MaterialPageRoute<void>(
-                                builder: (_) => routeMode.isParty
-                                    ? PartyAnimePage(
-                                        anilistId: relation.anime.anilistId,
-                                      )
-                                    : AnimeDetailPage(
-                                        anilistId: relation.anime.anilistId,
-                                      ),
-                              ),
-                            ),
-                            child: Container(
-                              padding: const EdgeInsets.all(12),
-                              decoration: BoxDecoration(
-                                color: KumoriyaColors.surface.withValues(
-                                  alpha: 0.6,
-                                ),
-                                borderRadius: BorderRadius.circular(
-                                  KumoriyaRadius.xl,
-                                ),
-                                border: Border.all(
-                                  color: KumoriyaColors.borderSubtle,
-                                ),
-                              ),
-                              child: Row(
-                                children: <Widget>[
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: <Widget>[
-                                        Text(
-                                          relation.anime.title.romaji,
-                                          maxLines: 2,
-                                          overflow: TextOverflow.ellipsis,
-                                          style: Theme.of(context)
-                                              .textTheme
-                                              .titleSmall!
-                                              .copyWith(
-                                                color:
-                                                    KumoriyaColors.textPrimary,
-                                              ),
-                                        ),
-                                        const SizedBox(height: 8),
-                                        Wrap(
-                                          spacing: 6,
-                                          runSpacing: 6,
-                                          children: <Widget>[
-                                            _RelationTypeBadge(
-                                              type: relation.type,
-                                            ),
-                                            MetaChip(
-                                              label: _formatLabel(
-                                                context,
-                                                relation.anime.format,
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                  const SizedBox(width: 10),
-                                  const Icon(
-                                    Icons.chevron_right_rounded,
-                                    color: KumoriyaColors.textDisabled,
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
                 ],
               ]),
             ),
@@ -877,6 +793,167 @@ class _CollapsibleSynopsisState extends State<_CollapsibleSynopsis> {
           duration: const Duration(milliseconds: 250),
         ),
       ],
+    );
+  }
+}
+
+class _AnimeRelationsSection extends StatefulWidget {
+  const _AnimeRelationsSection({
+    required this.relations,
+    required this.routeMode,
+  });
+
+  final List<AnimeRelation> relations;
+  final PartyRouteMode routeMode;
+
+  @override
+  State<_AnimeRelationsSection> createState() => _AnimeRelationsSectionState();
+}
+
+class _AnimeRelationsSectionState extends State<_AnimeRelationsSection> {
+  static const int _collapsedCount = 6;
+  bool _expanded = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final visible = _expanded
+        ? widget.relations
+        : widget.relations.take(_collapsedCount);
+    final canToggle = widget.relations.length > _collapsedCount;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        Text(
+          context.l10n.relationsTitle,
+          style: Theme.of(
+            context,
+          ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+        ),
+        const SizedBox(height: 8),
+        ...visible.map(
+          (relation) => Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: _AnimeRelationCard(
+              relation: relation,
+              routeMode: widget.routeMode,
+            ),
+          ),
+        ),
+        if (canToggle)
+          _RelationsToggleButton(
+            expanded: _expanded,
+            hiddenCount: widget.relations.length - _collapsedCount,
+            onPressed: () => setState(() => _expanded = !_expanded),
+          ),
+      ],
+    );
+  }
+}
+
+class _AnimeRelationCard extends StatelessWidget {
+  const _AnimeRelationCard({required this.relation, required this.routeMode});
+
+  final AnimeRelation relation;
+  final PartyRouteMode routeMode;
+
+  @override
+  Widget build(BuildContext context) {
+    final target = relation.target;
+    return InkWell(
+      borderRadius: BorderRadius.circular(KumoriyaRadius.xl),
+      onTap: () => Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) => switch (target.kind) {
+            MediaKind.anime =>
+              routeMode.isParty
+                  ? PartyAnimePage(anilistId: target.anilistId)
+                  : AnimeDetailPage(anilistId: target.anilistId),
+            MediaKind.manga => MangaDetailPage(anilistId: target.anilistId),
+          },
+        ),
+      ),
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: KumoriyaColors.surface.withValues(alpha: 0.6),
+          borderRadius: BorderRadius.circular(KumoriyaRadius.xl),
+          border: Border.all(color: KumoriyaColors.borderSubtle),
+        ),
+        child: Row(
+          children: <Widget>[
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  Text(
+                    target.titleRomaji,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.titleSmall!.copyWith(
+                      color: KumoriyaColors.textPrimary,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 6,
+                    children: <Widget>[
+                      _RelationTypeBadge(type: relation.type),
+                      MetaChip(
+                        label: _animeRelationTargetFormatLabel(
+                          context,
+                          relation,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 10),
+            const Icon(
+              Icons.chevron_right_rounded,
+              color: KumoriyaColors.textDisabled,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _RelationsToggleButton extends StatelessWidget {
+  const _RelationsToggleButton({
+    required this.expanded,
+    required this.hiddenCount,
+    required this.onPressed,
+  });
+
+  final bool expanded;
+  final int hiddenCount;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: TextButton.icon(
+        onPressed: onPressed,
+        icon: Icon(
+          expanded ? Icons.expand_less_rounded : Icons.expand_more_rounded,
+          size: 18,
+        ),
+        label: Text(
+          expanded
+              ? _relationsShowLessLabel(context)
+              : _relationsShowMoreLabel(context, hiddenCount),
+        ),
+        style: TextButton.styleFrom(
+          foregroundColor: KumoriyaColors.primary,
+          textStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+          padding: const EdgeInsets.symmetric(horizontal: 8),
+        ),
+      ),
     );
   }
 }
@@ -2502,6 +2579,29 @@ class _HeroMetaPill extends StatelessWidget {
 
 String _formatLabel(BuildContext context, AnimeFormat format) {
   return displayFormatLabel(context, format);
+}
+
+String _animeRelationTargetFormatLabel(
+  BuildContext context,
+  AnimeRelation relation,
+) {
+  return switch (relation.targetKind) {
+    MediaKind.anime => _formatLabel(context, relation.anime.format),
+    MediaKind.manga => relation.target.formatLabel ?? 'Manga',
+  };
+}
+
+String _relationsShowMoreLabel(BuildContext context, int hiddenCount) {
+  final spanish = Localizations.localeOf(context).languageCode == 'es';
+  return spanish
+      ? 'Ver $hiddenCount relaciones más'
+      : 'Show $hiddenCount more relations';
+}
+
+String _relationsShowLessLabel(BuildContext context) {
+  return Localizations.localeOf(context).languageCode == 'es'
+      ? 'Ver menos relaciones'
+      : 'Show fewer relations';
 }
 
 String _statusLabel(BuildContext context, AnimeStatus status) {

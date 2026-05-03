@@ -126,7 +126,7 @@ void main() {
   });
 
   group('AnilistMangaMapper.mapDetail', () {
-    test('builds detail with manga relations only (anime nodes filtered)', () {
+    test('mapDetail builds detail with manga and anime relations', () {
       final media = <String, dynamic>{
         'id': 100,
         'title': <String, dynamic>{'romaji': 'Series'},
@@ -162,11 +162,14 @@ void main() {
 
       final detail = AnilistMangaMapper.mapDetail(media);
 
-      expect(detail.relations, hasLength(2));
+      expect(detail.relations, hasLength(3));
       expect(detail.relations[0].type, MangaRelationType.sequel);
       expect(detail.relations[0].manga.anilistId, 101);
-      expect(detail.relations[1].type, MangaRelationType.sideStory);
-      expect(detail.relations[1].manga.anilistId, 103);
+      expect(detail.relations[1].type, MangaRelationType.adaptation);
+      expect(detail.relations[1].targetKind.wireValue, 'anime');
+      expect(detail.relations[1].target.anilistId, 102);
+      expect(detail.relations[2].type, MangaRelationType.sideStory);
+      expect(detail.relations[2].manga.anilistId, 103);
     });
   });
 }

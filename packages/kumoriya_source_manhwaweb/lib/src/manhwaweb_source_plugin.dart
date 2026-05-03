@@ -292,13 +292,18 @@ final class ManhwaWebSourcePlugin implements MangaSourcePlugin {
   SourceMangaMatch? _parseMatch(Map<String, Object?> row) {
     final id = _readString(row['_id']) ?? _readString(row['real_id']);
     if (id == null) return null;
-    final title =
-        _readString(row['the_real_name']) ?? _readString(row['name_esp']);
+    final realName = _readString(row['the_real_name']);
+    final espName = _readString(row['name_esp']);
+    final title = realName ?? espName;
     if (title == null) return null;
+    final aliases = <String>[
+      if (realName != null && espName != null && realName != espName) espName,
+    ];
     final cover = _readString(row['_imagen']);
     return SourceMangaMatch(
       sourceId: id,
       title: title,
+      aliases: aliases,
       thumbnailUrl: cover != null ? Uri.tryParse(cover) : null,
       format: _mapFormat(_readString(row['_tipo'])),
       country: MangaCountryOfOrigin.kr,

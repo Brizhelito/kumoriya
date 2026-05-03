@@ -545,7 +545,7 @@ void main() {
     });
 
     test('memoizes the resolved sourceMangaId across calls', () async {
-      final manga = _manga(id: 7);
+      final manga = _manga(id: 7, english: null, native: null);
       final delegate = _FakeAnilistMangaRepo(detail: _detail(manga));
       final source = _FakeMangaSourcePlugin(
         searchResults: const <SourceMangaMatch>[
@@ -1210,6 +1210,66 @@ void main() {
         expect(repo.fallbackReason.value, FallbackReason.offline);
       },
     );
+
+    test(
+      'restores same-media and cross-media relations from detail cache fallback',
+      () async {
+        final cache = _InMemoryMangaCacheStore();
+        final source = _FakeMangaSourcePlugin();
+        final main = _manga(id: 900, romaji: 'Main Manga');
+        final sequel = _manga(id: 901, romaji: 'Main Manga 2');
+        final online = CompositeMangaCatalogRepository(
+          delegate: _FakeAnilistMangaRepo(
+            detail: MangaDetail(
+              manga: main,
+              relations: <MangaRelation>[
+                MangaRelation(type: MangaRelationType.sequel, manga: sequel),
+                const MangaRelation.crossMedia(
+                  type: MangaRelationType.adaptation,
+                  target: RelatedMedia(
+                    kind: MediaKind.anime,
+                    anilistId: 902,
+                    titleRomaji: 'Main Anime',
+                    formatLabel: 'TV',
+                  ),
+                ),
+              ],
+            ),
+          ),
+          sourcePlugins: [source],
+          cacheStore: cache,
+          preferredLanguages: () => const <String>['en'],
+        );
+
+        final onlineResult = await online.fetchMangaDetail(900);
+        expect(onlineResult.isSuccess, isTrue);
+
+        final failing = _FailingDetailRepo(
+          underlying: _FakeAnilistMangaRepo(),
+          error: const SimpleError(
+            code: 'unreachable',
+            message: 'offline',
+            kind: KumoriyaErrorKind.transport,
+          ),
+        );
+        final offline = CompositeMangaCatalogRepository(
+          delegate: failing,
+          sourcePlugins: [source],
+          cacheStore: cache,
+          preferredLanguages: () => const <String>['en'],
+        );
+
+        final result = await offline.fetchMangaDetail(900);
+        expect(result.isSuccess, isTrue);
+        final detail = (result as Success<MangaDetail, KumoriyaError>).value;
+        expect(detail.relations, hasLength(2));
+        expect(detail.relations[0].targetKind, MediaKind.manga);
+        expect(detail.relations[0].manga.anilistId, 901);
+        expect(detail.relations[1].targetKind, MediaKind.anime);
+        expect(detail.relations[1].target.anilistId, 902);
+        expect(detail.relations[1].target.titleRomaji, 'Main Anime');
+      },
+    );
   });
 
   group('CompositeMangaCatalogRepository multi-source (S1.C)', () {
@@ -1479,7 +1539,12 @@ void main() {
       // Plugin B has no AniList id link AND no fuzzy title match — its
       // sourceMangaId resolves to null and we never call getChapters on it.
       // The whole call still succeeds with plugin A's chapters.
-      final manga = _manga(id: 704, romaji: 'Specific Title');
+      final manga = _manga(
+        id: 704,
+        romaji: 'Specific Title',
+        english: null,
+        native: null,
+      );
       final delegate = _FakeAnilistMangaRepo(detail: _detail(manga));
       final matching = _FakeMangaSourcePlugin(
         manifestId: 'mangadex',
@@ -2073,6 +2138,242 @@ void main() {
       expect(mb.searchSeriesCalls, 1);
     });
   });
+
+  group(
+    'CompositeMangaCatalogRepository multi-query search and fuzzy matching',
+    () {
+      test(
+        'searches with english and native variants when they differ from romaji',
+        () async {
+          final manga = _manga(
+            id: 1000,
+            romaji: 'Na Honjaman Level Up',
+            english: 'Solo Leveling',
+            native: null,
+          );
+          final delegate = _FakeAnilistMangaRepo(detail: _detail(manga));
+          final source = _FakeMangaSourcePlugin(
+            manifestId: 'manhwaweb',
+            searchResults: const <SourceMangaMatch>[
+              SourceMangaMatch(sourceId: 'src-mw-1000', title: 'Solo L3vel1ng'),
+            ],
+            chaptersById: <String, List<SourceChapter>>{
+              'src-mw-1000': <SourceChapter>[
+                _ch(sourceMangaId: 'src-mw-1000', id: 'c1', number: 1),
+              ],
+            },
+          );
+          final repo = CompositeMangaCatalogRepository(
+            delegate: delegate,
+            sourcePlugins: [source],
+            cacheStore: _InMemoryMangaCacheStore(),
+            preferredLanguages: () => const <String>['en'],
+          );
+
+          final result = await repo.fetchMangaChapters(1000);
+          expect(result.isSuccess, isTrue);
+          final chapters =
+              (result as Success<List<MangaChapter>, KumoriyaError>).value;
+          expect(chapters, hasLength(1));
+          expect(chapters.single.sourceId, 'manhwaweb');
+          // Two queries were issued (romaji + english).
+          expect(source.searchCalls, 2);
+        },
+      );
+
+      test(
+        'fuzzy Strategy B matches leetspeak variants via _unLeet + Jaro–Winkler',
+        () async {
+          final manga = _manga(
+            id: 1001,
+            romaji: 'Na Honjaman Level Up',
+            english: 'Solo Leveling',
+            native: null,
+          );
+          final delegate = _FakeAnilistMangaRepo(detail: _detail(manga));
+          final source = _FakeMangaSourcePlugin(
+            manifestId: 'manhwaweb',
+            searchResults: const <SourceMangaMatch>[
+              // Leetspeak title that exact-match would fail on.
+              SourceMangaMatch(sourceId: 'src-mw-1001', title: 'Solo L3vel1ng'),
+            ],
+            chaptersById: <String, List<SourceChapter>>{
+              'src-mw-1001': <SourceChapter>[
+                _ch(sourceMangaId: 'src-mw-1001', id: 'c1', number: 1),
+              ],
+            },
+          );
+          final repo = CompositeMangaCatalogRepository(
+            delegate: delegate,
+            sourcePlugins: [source],
+            cacheStore: _InMemoryMangaCacheStore(),
+            preferredLanguages: () => const <String>['en'],
+          );
+
+          final result = await repo.fetchMangaChapters(1001);
+          expect(result.isSuccess, isTrue);
+          final chapters =
+              (result as Success<List<MangaChapter>, KumoriyaError>).value;
+          expect(chapters, hasLength(1));
+          // The fuzzy match resolved despite leetspeak.
+          expect(chapters.single.sourceId, 'manhwaweb');
+        },
+      );
+
+      test('fuzzy Strategy B tolerates minor spelling differences '
+          '(e.g. British vs American)', () async {
+        final manga = _manga(
+          id: 1002,
+          romaji: 'Na Honjaman Level Up',
+          english: 'Solo Leveling',
+          native: null,
+        );
+        final delegate = _FakeAnilistMangaRepo(detail: _detail(manga));
+        final source = _FakeMangaSourcePlugin(
+          manifestId: 'olympus',
+          searchResults: const <SourceMangaMatch>[
+            // "Levelling" with double-l — exact match would fail.
+            SourceMangaMatch(sourceId: 'src-ol-1002', title: 'Solo Levelling'),
+          ],
+          chaptersById: <String, List<SourceChapter>>{
+            'src-ol-1002': <SourceChapter>[
+              _ch(sourceMangaId: 'src-ol-1002', id: 'c1', number: 1),
+            ],
+          },
+        );
+        final repo = CompositeMangaCatalogRepository(
+          delegate: delegate,
+          sourcePlugins: [source],
+          cacheStore: _InMemoryMangaCacheStore(),
+          preferredLanguages: () => const <String>['en'],
+        );
+
+        final result = await repo.fetchMangaChapters(1002);
+        expect(result.isSuccess, isTrue);
+        final chapters =
+            (result as Success<List<MangaChapter>, KumoriyaError>).value;
+        expect(chapters, hasLength(1));
+        expect(chapters.single.sourceId, 'olympus');
+      });
+
+      test('exact title wins over sequel with extra tokens', () async {
+        final manga = _manga(
+          id: 1004,
+          romaji: 'Na Honjaman Level Up',
+          english: 'Solo Leveling',
+          native: null,
+        );
+        final delegate = _FakeAnilistMangaRepo(detail: _detail(manga));
+        final source = _FakeMangaSourcePlugin(
+          manifestId: 'manhwaweb',
+          searchResults: const <SourceMangaMatch>[
+            SourceMangaMatch(
+              sourceId: 'src-mw-ragnarok',
+              title: 'Solo Leveling Ragnarok',
+            ),
+            SourceMangaMatch(sourceId: 'src-mw-solo', title: 'Solo Leveling'),
+          ],
+          chaptersById: <String, List<SourceChapter>>{
+            'src-mw-solo': <SourceChapter>[
+              _ch(sourceMangaId: 'src-mw-solo', id: 'c1', number: 1),
+            ],
+          },
+        );
+        final repo = CompositeMangaCatalogRepository(
+          delegate: delegate,
+          sourcePlugins: [source],
+          cacheStore: _InMemoryMangaCacheStore(),
+          preferredLanguages: () => const <String>['en'],
+        );
+
+        final result = await repo.fetchMangaChapters(1004);
+        expect(result.isSuccess, isTrue);
+        final chapters =
+            (result as Success<List<MangaChapter>, KumoriyaError>).value;
+        expect(chapters, hasLength(1));
+      });
+
+      test(
+        'sequel with extra tokens is rejected without exact title',
+        () async {
+          final manga = _manga(
+            id: 1005,
+            romaji: 'Na Honjaman Level Up',
+            english: 'Solo Leveling',
+            native: null,
+          );
+          final delegate = _FakeAnilistMangaRepo(detail: _detail(manga));
+          final source = _FakeMangaSourcePlugin(
+            manifestId: 'manhwaweb',
+            searchResults: const <SourceMangaMatch>[
+              SourceMangaMatch(
+                sourceId: 'src-mw-ragnarok',
+                title: 'Solo Leveling Ragnarok',
+              ),
+            ],
+            chaptersById: <String, List<SourceChapter>>{
+              'src-mw-ragnarok': <SourceChapter>[
+                _ch(sourceMangaId: 'src-mw-ragnarok', id: 'c1', number: 1),
+              ],
+            },
+          );
+          final repo = CompositeMangaCatalogRepository(
+            delegate: delegate,
+            sourcePlugins: [source],
+            cacheStore: _InMemoryMangaCacheStore(),
+            preferredLanguages: () => const <String>['en'],
+          );
+
+          final result = await repo.fetchMangaChapters(1005);
+          expect(result.isSuccess, isTrue);
+          final chapters =
+              (result as Success<List<MangaChapter>, KumoriyaError>).value;
+          expect(chapters, isEmpty);
+        },
+      );
+
+      test('multi-query search deduplicates overlapping results by sourceId '
+          'so strategies only evaluate each candidate once', () async {
+        final manga = _manga(
+          id: 1003,
+          romaji: 'Some Manga Title',
+          english: 'Another Title',
+          native: null,
+        );
+        final delegate = _FakeAnilistMangaRepo(detail: _detail(manga));
+        final source = _FakeMangaSourcePlugin(
+          manifestId: 'mangadex',
+          searchResults: const <SourceMangaMatch>[
+            SourceMangaMatch(
+              sourceId: 'src-md-1003',
+              title: 'Some Manga Title',
+              externalIds: <String, String>{'al': '1003'},
+            ),
+          ],
+          chaptersById: <String, List<SourceChapter>>{
+            'src-md-1003': <SourceChapter>[
+              _ch(sourceMangaId: 'src-md-1003', id: 'c1', number: 1),
+            ],
+          },
+        );
+        final repo = CompositeMangaCatalogRepository(
+          delegate: delegate,
+          sourcePlugins: [source],
+          cacheStore: _InMemoryMangaCacheStore(),
+          preferredLanguages: () => const <String>['en'],
+        );
+
+        final result = await repo.fetchMangaChapters(1003);
+        expect(result.isSuccess, isTrue);
+        final chapters =
+            (result as Success<List<MangaChapter>, KumoriyaError>).value;
+        expect(chapters, hasLength(1));
+        // Deduplication means the same match from romaji and english
+        // queries only produces one chapter.
+        expect(chapters.single.sourceId, 'mangadex');
+      });
+    },
+  );
 
   group('CompositeMangaCatalogRepository scanlator picker enrichment (S1.F)', () {
     SourceChapter chap({

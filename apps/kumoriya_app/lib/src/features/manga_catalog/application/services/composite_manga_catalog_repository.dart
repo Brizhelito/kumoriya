@@ -1,5 +1,7 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:developer' as developer;
+import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
 import 'package:kumoriya_core/kumoriya_core.dart';
@@ -171,6 +173,11 @@ final class CompositeMangaCatalogRepository implements MangaCatalogRepository {
   /// supplied to the constructor. Useful for diagnostics and tests.
   List<MangaSourcePlugin> get sourcePlugins => _sourcePlugins;
 
+  /// Tracks the last successful network fetch per catalog query key so we
+  /// can serve cached results within the freshness window without
+  /// re-hitting the backend.
+  final _catalogLastFetched = <String, DateTime>{};
+
   /// Indicates why the most recent catalog fetch fell back to locally
   /// cached data, or [FallbackReason.none] when operating normally.
   /// Mirrors the same notifier pattern as `CachedAnimeCatalogRepository`
@@ -242,6 +249,16 @@ final class CompositeMangaCatalogRepository implements MangaCatalogRepository {
     int page = 1,
     int perPage = 20,
   }) async {
+    final key = 'homeSections:$page:$perPage';
+
+    // Cache-first: serve from local store if we have a fresh snapshot.
+    final fresh = await _tryServeFreshSections(
+      key,
+      const Duration(hours: 4),
+      perPage,
+    );
+    if (fresh != null) return fresh;
+
     final result = await _delegate.fetchHomeSections(
       page: page,
       perPage: perPage,
@@ -261,6 +278,7 @@ final class CompositeMangaCatalogRepository implements MangaCatalogRepository {
           await _persistManga(manga);
         }
       }
+      _catalogLastFetched[key] = DateTime.now();
       return result;
     }
 
@@ -334,7 +352,7 @@ final class CompositeMangaCatalogRepository implements MangaCatalogRepository {
     if (result.isSuccess) {
       fallbackReason.value = FallbackReason.none;
       final detail = (result as Success<MangaDetail, KumoriyaError>).value;
-      await _persistManga(detail.manga);
+      await _persistMangaDetail(detail);
       return result;
     }
 
@@ -347,13 +365,15 @@ final class CompositeMangaCatalogRepository implements MangaCatalogRepository {
     if (reason == null) return result;
 
     final cached = await _cacheStore.get(anilistId);
-    return cached.fold<Result<MangaDetail, KumoriyaError>>(
-      onSuccess: (entry) {
-        if (entry == null) return result;
-        fallbackReason.value = reason;
-        return Success(MangaDetail(manga: _entryToManga(entry)));
-      },
-      onFailure: (_) => result,
+    if (cached is! Success<MangaCacheEntry?, KumoriyaError>) return result;
+    final entry = cached.value;
+    if (entry == null) return result;
+    fallbackReason.value = reason;
+    return Success(
+      MangaDetail(
+        manga: _entryToManga(entry),
+        relations: await _restoreRelations(entry.relationsJson),
+      ),
     );
   }
 
@@ -999,23 +1019,90 @@ final class CompositeMangaCatalogRepository implements MangaCatalogRepository {
     // treated as "no MangaBaka context".
     final mbContext = await _resolveMangaBakaContext(manga);
 
-    final query = MangaSearchQuery(
-      query: manga.title.romaji,
-      page: 1,
-      limit: 10,
-      languages: _preferredLanguages(),
-    );
-    final searchResult = await plugin.search(query);
-    if (searchResult.isFailure) {
-      // Don't memoize transport failures — a transient outage shouldn't
-      // poison the cache for the rest of the session.
-      return Failure(
-        (searchResult as Failure<List<SourceMangaMatch>, KumoriyaError>).error,
-      );
-    }
-    final matches =
-        (searchResult as Success<List<SourceMangaMatch>, KumoriyaError>).value;
+    // Build a set of distinct search queries from all known titles.
+    // Sources index by different languages and variants; romaji alone
+    // often misses LatAm scanlations that title in English/Spanish.
+    final searchQueries = <String>{
+      manga.title.romaji,
+      if (manga.title.english != null &&
+          manga.title.english!.trim().isNotEmpty &&
+          _normalize(manga.title.english!) != _normalize(manga.title.romaji))
+        manga.title.english!,
+      if (manga.title.native != null &&
+          manga.title.native!.trim().isNotEmpty &&
+          _normalize(manga.title.native!) != _normalize(manga.title.romaji))
+        manga.title.native!,
+      if (mbContext != null)
+        for (final t in mbContext.titleCorpus)
+          if (t.trim().isNotEmpty) t,
+    };
 
+    // Run up to 3 searches in parallel to avoid hammering the source.
+    // Collect all results and deduplicate by sourceId so strategies see
+    // the broadest possible candidate pool.
+    final allMatches = <String, SourceMangaMatch>{};
+    final failures = <KumoriyaError>[];
+    final queriesToRun = searchQueries.take(3).toList(growable: false);
+    await Future.wait(
+      queriesToRun.map((q) async {
+        try {
+          final query = MangaSearchQuery(
+            query: q,
+            page: 1,
+            limit: 10,
+            languages: _preferredLanguages(),
+          );
+          final result = await plugin.search(query).timeout(_perPluginTimeout);
+          if (result.isSuccess) {
+            final list =
+                (result as Success<List<SourceMangaMatch>, KumoriyaError>)
+                    .value;
+            for (final m in list) {
+              allMatches.putIfAbsent(m.sourceId, () => m);
+            }
+          } else {
+            failures.add(
+              (result as Failure<List<SourceMangaMatch>, KumoriyaError>).error,
+            );
+          }
+        } on TimeoutException catch (_) {
+          failures.add(
+            SimpleError(
+              code: 'manga.plugin.search_timeout',
+              message:
+                  'Source plugin `$pluginId` search timed out after ${_perPluginTimeout.inSeconds}s.',
+              kind: KumoriyaErrorKind.transport,
+            ),
+          );
+        } catch (error, stack) {
+          developer.log(
+            'Multi-query search for "$q" threw on $pluginId: $error',
+            name: 'CompositeMangaCatalogRepository',
+            error: error,
+            stackTrace: stack,
+          );
+        }
+      }),
+    );
+
+    if (allMatches.isEmpty &&
+        failures.isNotEmpty &&
+        failures.every((error) => error.kind == KumoriyaErrorKind.transport)) {
+      developer.log(
+        'manga plugin $pluginId search transport degraded to no match: '
+        '${failures.first.code} ${failures.first.message}',
+        name: 'CompositeMangaCatalogRepository',
+      );
+      return const Success(null);
+    }
+
+    // If every search failed, lift the first failure (don't memoize —
+    // transient outages shouldn't poison the cache).
+    if (allMatches.isEmpty && failures.isNotEmpty) {
+      return Failure(failures.first);
+    }
+
+    final matches = allMatches.values.toList(growable: false);
     String? resolved;
 
     // Strategy A: explicit AniList link in the source row.
@@ -1043,25 +1130,82 @@ final class CompositeMangaCatalogRepository implements MangaCatalogRepository {
     }
 
     // Strategy B: fuzzy title equality, optionally expanded with
-    // MangaBaka's title corpus.
+    // MangaBaka's title corpus. Uses Jaro–Winkler + leetspeak
+    // normalization so variants like "Solo L3vel1ng" still match.
+    // Now uses best-match instead of first-match, with exact-match
+    // priority and length-ratio penalty to prevent sequel/spinoff false positives.
     if (resolved == null) {
       final candidates = <String>{
-        _normalize(manga.title.romaji),
-        if (manga.title.english != null) _normalize(manga.title.english!),
-        if (manga.title.native != null) _normalize(manga.title.native!),
-        for (final s in manga.title.synonyms) _normalize(s),
+        _normalize(_unLeet(manga.title.romaji)),
+        if (manga.title.english != null)
+          _normalize(_unLeet(manga.title.english!)),
+        if (manga.title.native != null)
+          _normalize(_unLeet(manga.title.native!)),
+        for (final s in manga.title.synonyms) _normalize(_unLeet(s)),
         if (mbContext != null)
-          for (final t in mbContext.titleCorpus) _normalize(t),
+          for (final t in mbContext.titleCorpus) _normalize(_unLeet(t)),
       }..removeWhere((s) => s.isEmpty);
+
+      // First pass: check for exact normalized match (highest priority)
       for (final m in matches) {
         final names = <String>{
-          _normalize(m.title),
-          for (final a in m.aliases) _normalize(a),
+          _normalize(_unLeet(m.title)),
+          for (final a in m.aliases) _normalize(_unLeet(a)),
         }..removeWhere((s) => s.isEmpty);
-        if (names.any(candidates.contains)) {
-          resolved = m.sourceId;
-          break;
+        for (final name in names) {
+          if (candidates.contains(name)) {
+            resolved = m.sourceId;
+            perManga[pluginId] = resolved;
+            return Success(resolved);
+          }
         }
+      }
+
+      // Second pass: fuzzy matching with best-match selection and length penalty
+      // Uses blended score: Jaro-Winkler + token-set Jaccard to penalize extra tokens
+      String? bestMatchSourceId;
+      double bestMatchScore = 0.0;
+
+      for (final m in matches) {
+        final names = <String>{
+          _normalize(_unLeet(m.title)),
+          for (final a in m.aliases) _normalize(_unLeet(a)),
+        }..removeWhere((s) => s.isEmpty);
+        var bestCandidateScore = 0.0;
+
+        for (final name in names) {
+          for (final candidate in candidates) {
+            final jwScore = _jaroWinkler(name, candidate);
+            final tokenScore = _tokenSetJaccard(name, candidate);
+            final nameTokenCount = _tokenCount(name);
+            final candidateTokenCount = _tokenCount(candidate);
+            final titleShapeScore = nameTokenCount == candidateTokenCount
+                ? math.max(tokenScore, jwScore)
+                : tokenScore;
+            final maxLen = math.max(name.length, candidate.length);
+            final lengthScore = maxLen == 0
+                ? 0.0
+                : math.min(name.length, candidate.length) / maxLen;
+            final blendedScore =
+                (jwScore * 0.55) +
+                (titleShapeScore * 0.25) +
+                (lengthScore * 0.2);
+
+            if (blendedScore > bestCandidateScore) {
+              bestCandidateScore = blendedScore;
+            }
+          }
+        }
+
+        if (bestCandidateScore > bestMatchScore) {
+          bestMatchScore = bestCandidateScore;
+          bestMatchSourceId = m.sourceId;
+        }
+      }
+
+      // Accept only if best score exceeds threshold (raised from 0.82 to 0.85)
+      if (bestMatchScore >= 0.85) {
+        resolved = bestMatchSourceId;
       }
     }
 
@@ -1207,6 +1351,164 @@ final class CompositeMangaCatalogRepository implements MangaCatalogRepository {
     );
   }
 
+  Future<void> _persistMangaDetail(MangaDetail detail) async {
+    final manga = detail.manga;
+    final updatedAt = DateTime.now();
+
+    for (final relation in detail.relations) {
+      if (relation.targetKind != MediaKind.manga) continue;
+      final rel = relation.manga;
+      await _cacheStore.upsert(
+        MangaCacheEntry(
+          anilistId: rel.anilistId,
+          titleRomaji: rel.title.romaji,
+          titleEnglish: rel.title.english,
+          titleNative: rel.title.native,
+          synonyms: rel.title.synonyms.isNotEmpty ? rel.title.synonyms : null,
+          coverImageUrl: rel.coverImageUrl,
+          bannerImageUrl: rel.bannerImageUrl,
+          status: _statusCode(rel.status),
+          format: _formatCode(rel.format),
+          countryOfOrigin: rel.countryOfOrigin?.code,
+          releaseYear: rel.releaseYear,
+          totalChapters: rel.totalChapters,
+          totalVolumes: rel.totalVolumes,
+          averageScore: rel.averageScore,
+          popularity: rel.popularity,
+          genres: rel.genres.isNotEmpty ? rel.genres : null,
+          synopsis: rel.synopsis,
+          updatedAt: updatedAt,
+        ),
+      );
+    }
+
+    await _cacheStore.upsert(
+      MangaCacheEntry(
+        anilistId: manga.anilistId,
+        titleRomaji: manga.title.romaji,
+        titleEnglish: manga.title.english,
+        titleNative: manga.title.native,
+        synonyms: manga.title.synonyms.isNotEmpty ? manga.title.synonyms : null,
+        coverImageUrl: manga.coverImageUrl,
+        bannerImageUrl: manga.bannerImageUrl,
+        status: _statusCode(manga.status),
+        format: _formatCode(manga.format),
+        countryOfOrigin: manga.countryOfOrigin?.code,
+        releaseYear: manga.releaseYear,
+        totalChapters: manga.totalChapters,
+        totalVolumes: manga.totalVolumes,
+        averageScore: manga.averageScore,
+        popularity: manga.popularity,
+        genres: manga.genres.isNotEmpty ? manga.genres : null,
+        synopsis: manga.synopsis,
+        relationsJson: _serializeRelations(detail.relations),
+        updatedAt: updatedAt,
+      ),
+    );
+  }
+
+  String _serializeRelations(List<MangaRelation> relations) {
+    return jsonEncode(
+      relations
+          .map(
+            (relation) => {
+              'id': relation.target.anilistId,
+              'type': relation.type.name,
+              'mediaKind': relation.target.kind.wireValue,
+              'titleRomaji': relation.target.titleRomaji,
+              'titleEnglish': relation.target.titleEnglish,
+              'titleNative': relation.target.titleNative,
+              'coverImageUrl': relation.target.coverImageUrl,
+              'bannerImageUrl': relation.target.bannerImageUrl,
+              'formatLabel': relation.target.formatLabel,
+            },
+          )
+          .toList(growable: false),
+    );
+  }
+
+  Future<List<MangaRelation>> _restoreRelations(String? json) async {
+    if (json == null || json.isEmpty) return const <MangaRelation>[];
+
+    try {
+      final decoded = jsonDecode(json) as List<dynamic>;
+      if (decoded.isEmpty) return const <MangaRelation>[];
+
+      final ids = <int>[];
+      final typeByIds = <int, MangaRelationType>{};
+      final crossMediaRelations = <MangaRelation>[];
+      for (final item in decoded) {
+        if (item is! Map<String, dynamic>) continue;
+        final id = item['id'] as int?;
+        final typeName = item['type'] as String?;
+        if (id == null || typeName == null) continue;
+        final kind =
+            MediaKind.tryParse(item['mediaKind'] as String?) ?? MediaKind.manga;
+        final type = _toRelationType(typeName);
+        if (kind == MediaKind.anime) {
+          crossMediaRelations.add(
+            MangaRelation.crossMedia(
+              type: type,
+              target: _relatedMediaFromJson(item, MediaKind.anime),
+            ),
+          );
+          continue;
+        }
+        ids.add(id);
+        typeByIds[id] = type;
+      }
+
+      if (ids.isEmpty) return crossMediaRelations;
+
+      final result = await _cacheStore.getByIds(ids);
+      return result.fold(
+        onSuccess: (entries) {
+          final relations = <MangaRelation>[];
+          for (final entry in entries) {
+            final type = typeByIds[entry.anilistId];
+            if (type == null) continue;
+            relations.add(
+              MangaRelation(type: type, manga: _entryToManga(entry)),
+            );
+          }
+          relations.addAll(crossMediaRelations);
+          return relations;
+        },
+        onFailure: (_) => crossMediaRelations,
+      );
+    } catch (_) {
+      return const <MangaRelation>[];
+    }
+  }
+
+  static MangaRelationType _toRelationType(String name) {
+    return switch (name) {
+      'prequel' => MangaRelationType.prequel,
+      'sequel' => MangaRelationType.sequel,
+      'sideStory' => MangaRelationType.sideStory,
+      'adaptation' => MangaRelationType.adaptation,
+      'spinOff' => MangaRelationType.spinOff,
+      _ => MangaRelationType.other,
+    };
+  }
+
+  static RelatedMedia _relatedMediaFromJson(
+    Map<String, dynamic> json,
+    MediaKind fallbackKind,
+  ) {
+    final id = json['id'];
+    return RelatedMedia(
+      kind: MediaKind.tryParse(json['mediaKind'] as String?) ?? fallbackKind,
+      anilistId: id is int ? id : 0,
+      titleRomaji: (json['titleRomaji'] as String?) ?? 'Unknown',
+      titleEnglish: json['titleEnglish'] as String?,
+      titleNative: json['titleNative'] as String?,
+      coverImageUrl: json['coverImageUrl'] as String?,
+      bannerImageUrl: json['bannerImageUrl'] as String?,
+      formatLabel: json['formatLabel'] as String?,
+    );
+  }
+
   Future<Result<List<Manga>, KumoriyaError>> _fallbackList(
     Result<List<Manga>, KumoriyaError> networkResult,
     Future<Result<List<MangaCacheEntry>, KumoriyaError>> Function() cacheQuery,
@@ -1221,6 +1523,43 @@ final class CompositeMangaCatalogRepository implements MangaCatalogRepository {
         return Success(entries.map(_entryToManga).toList(growable: false));
       },
       onFailure: (_) => networkResult,
+    );
+  }
+
+  /// Serves manga home sections from cache if the last successful network
+  /// fetch for [key] is within [ttl].  Returns `null` when a fresh network
+  /// fetch is needed.  Mirrors `CachedAnimeCatalogRepository._tryServeFreshCatalog`.
+  Future<Result<MangaHomeSections, KumoriyaError>?> _tryServeFreshSections(
+    String key,
+    Duration ttl,
+    int perPage,
+  ) async {
+    final lastFetch = _catalogLastFetched[key];
+    if (lastFetch == null) return null;
+    if (DateTime.now().difference(lastFetch) >= ttl) return null;
+
+    final cached = await _cacheStore.getRecent(limit: perPage * 4);
+    return cached.fold<Result<MangaHomeSections, KumoriyaError>?>(
+      onSuccess: (entries) {
+        if (entries.isEmpty) return null;
+        fallbackReason.value = FallbackReason.none;
+        final mangas = entries.map(_entryToManga).toList(growable: false);
+        List<Manga> slice(int start) {
+          if (start >= mangas.length) return const <Manga>[];
+          final end = (start + perPage).clamp(0, mangas.length);
+          return mangas.sublist(start, end);
+        }
+
+        return Success(
+          MangaHomeSections(
+            trending: slice(0),
+            popular: slice(perPage),
+            latest: slice(perPage * 2),
+            topRated: slice(perPage * 3),
+          ),
+        );
+      },
+      onFailure: (_) => null,
     );
   }
 
@@ -1288,6 +1627,102 @@ final class CompositeMangaCatalogRepository implements MangaCatalogRepository {
 
   static String _normalize(String s) {
     return s.toLowerCase().replaceAll(RegExp(r'\s+'), ' ').trim();
+  }
+
+  /// Reverse common leetspeak substitutions so titles like
+  /// "Solo L3vel1ng" can match "Solo Leveling" during fuzzy compare.
+  static String _unLeet(String s) {
+    return s
+        .replaceAll('3', 'e')
+        .replaceAll('1', 'i')
+        .replaceAll('0', 'o')
+        .replaceAll('4', 'a')
+        .replaceAll('5', 's')
+        .replaceAll('7', 't')
+        .replaceAll('@', 'a')
+        .replaceAll('\$', 's')
+        .replaceAll('8', 'b')
+        .replaceAll('6', 'g')
+        .replaceAll('9', 'g');
+  }
+
+  /// Jaro–Winkler distance in [0, 1]. 1 = identical, 0 = no overlap.
+  /// Copied from `kumoriya_matching` `hybrid_series_scorer` so the
+  /// composite repo can match without adding a heavy dependency.
+  static double _jaroWinkler(String left, String right) {
+    if (left == right) return 1;
+    if (left.isEmpty || right.isEmpty) return 0;
+
+    final matchDistance = (math.max(left.length, right.length) ~/ 2) - 1;
+    final leftMatches = List<bool>.filled(left.length, false);
+    final rightMatches = List<bool>.filled(right.length, false);
+
+    var matches = 0;
+    for (var leftIndex = 0; leftIndex < left.length; leftIndex++) {
+      final start = math.max(0, leftIndex - matchDistance);
+      final end = math.min(leftIndex + matchDistance + 1, right.length);
+      for (var rightIndex = start; rightIndex < end; rightIndex++) {
+        if (rightMatches[rightIndex] || left[leftIndex] != right[rightIndex]) {
+          continue;
+        }
+        leftMatches[leftIndex] = true;
+        rightMatches[rightIndex] = true;
+        matches++;
+        break;
+      }
+    }
+    if (matches == 0) return 0;
+
+    var transpositions = 0;
+    var rightCursor = 0;
+    for (var leftIndex = 0; leftIndex < left.length; leftIndex++) {
+      if (!leftMatches[leftIndex]) continue;
+      while (!rightMatches[rightCursor]) {
+        rightCursor++;
+      }
+      if (left[leftIndex] != right[rightCursor]) transpositions++;
+      rightCursor++;
+    }
+
+    final m = matches.toDouble();
+    final jaro =
+        ((m / left.length) +
+            (m / right.length) +
+            ((m - transpositions / 2) / m)) /
+        3;
+    var prefix = 0;
+    for (
+      var index = 0;
+      index < math.min(4, math.min(left.length, right.length));
+      index++
+    ) {
+      if (left[index] != right[index]) break;
+      prefix++;
+    }
+    return jaro + (prefix * 0.1 * (1 - jaro));
+  }
+
+  /// Token-set Jaccard similarity: intersection size / union size.
+  /// Penalizes extra tokens naturally (e.g., "Solo Leveling" vs
+  /// "Solo Leveling Ragnarok" → {solo, leveling} ∩ {solo, leveling, ragnarok}
+  /// / {solo, leveling, ragnarok} = 2/3 = 0.67).
+  static double _tokenSetJaccard(String left, String right) {
+    final leftTokens = left.split(' ').where((t) => t.isNotEmpty).toSet();
+    final rightTokens = right.split(' ').where((t) => t.isNotEmpty).toSet();
+    if (leftTokens.isEmpty || rightTokens.isEmpty) {
+      return 0;
+    }
+    var intersectionCount = 0;
+    for (final item in leftTokens) {
+      if (rightTokens.contains(item)) intersectionCount++;
+    }
+    final unionCount =
+        leftTokens.length + rightTokens.length - intersectionCount;
+    return unionCount == 0 ? 0 : intersectionCount / unionCount;
+  }
+
+  static int _tokenCount(String value) {
+    return value.split(' ').where((t) => t.isNotEmpty).length;
   }
 
   static String _formatCode(MangaFormat format) {

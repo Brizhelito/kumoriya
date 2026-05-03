@@ -5,7 +5,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kumoriya_app/l10n/generated/app_localizations.dart';
-import 'package:kumoriya_core/kumoriya_core.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -339,8 +338,7 @@ class _FirstLaunchGateState extends ConsumerState<_FirstLaunchGate> {
         mangaTabBuilders: <KumoriyaMangaTab, WidgetBuilder>{
           KumoriyaMangaTab.home: (_) => const MangaHomePage(),
           KumoriyaMangaTab.search: (_) => const MangaSearchPage(),
-          KumoriyaMangaTab.library: (_) =>
-              const UnifiedLibraryPage(initialFilter: MediaKind.manga),
+          KumoriyaMangaTab.library: (_) => const UnifiedLibraryPage(),
           KumoriyaMangaTab.downloads: (_) => const MangaDownloadsPage(),
         },
       ),

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kumoriya_app/l10n/generated/app_localizations.dart';
+import 'package:kumoriya_core/kumoriya_core.dart';
 import 'package:kumoriya_manga_domain/kumoriya_manga_domain.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -8,7 +9,10 @@ import '../../../../app/l10n.dart';
 import '../../../../shared/storage_providers.dart';
 import '../../../../shared/theme/kumoriya_theme.dart';
 import '../../../../shared/widgets/kumoriya_cached_image.dart';
+import '../../../../shared/widgets/meta_chip.dart';
+import '../../../../shared/widgets/translated_dynamic_text.dart';
 import '../../../manga_downloads/presentation/widgets/chapter_download_button.dart';
+import '../../../anime_catalog/presentation/pages/anime_detail_page.dart';
 import '../../application/services/composite_manga_catalog_repository.dart';
 import '../providers/manga_catalog_providers.dart';
 import 'manga_reader_route.dart';
@@ -110,22 +114,11 @@ class _DetailContent extends ConsumerWidget {
                 const SizedBox(height: 16),
                 _LibraryActionsRow(anilistId: manga.anilistId),
                 const SizedBox(height: 16),
-                Text(
-                  l10n.mangaDetailSynopsis,
-                  style: theme.textTheme.titleMedium!.copyWith(
-                    color: KumoriyaColors.textPrimary,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  (detail.synopsis == null || detail.synopsis!.isEmpty)
+                _CollapsibleMangaSynopsis(
+                  synopsis:
+                      (detail.synopsis == null || detail.synopsis!.isEmpty)
                       ? l10n.mangaDetailNoSynopsis
                       : _stripHtml(detail.synopsis!),
-                  style: theme.textTheme.bodyMedium!.copyWith(
-                    color: KumoriyaColors.textSecondary,
-                    height: 1.55,
-                  ),
                 ),
                 if (detail.genres.isNotEmpty) ...<Widget>[
                   const SizedBox(height: 20),
@@ -167,6 +160,13 @@ class _DetailContent extends ConsumerWidget {
           ),
         ),
         _ChaptersSliver(anilistId: manga.anilistId),
+        if (detail.relations.isNotEmpty)
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 20, 16, 32),
+              child: _MangaRelationsSection(relations: detail.relations),
+            ),
+          ),
       ],
     );
   }
@@ -266,7 +266,9 @@ class _LibraryActionsRow extends ConsumerWidget {
     final isFav = isFavAsync.value ?? false;
     final isSub = isSubAsync.value ?? false;
     final l10n = context.l10n;
-    return Row(
+    return Wrap(
+      spacing: 12,
+      runSpacing: 8,
       children: <Widget>[
         _ActionPill(
           icon: isFav ? Icons.favorite_rounded : Icons.favorite_border_rounded,
@@ -281,7 +283,6 @@ class _LibraryActionsRow extends ConsumerWidget {
             ref.invalidate(favoriteMangaIdsProvider);
           },
         ),
-        const SizedBox(width: 12),
         _ActionPill(
           icon: isSub
               ? Icons.notifications_active_rounded
@@ -346,13 +347,316 @@ class _ActionPill extends StatelessWidget {
   }
 }
 
-class _ChaptersSliver extends ConsumerWidget {
+class _CollapsibleMangaSynopsis extends StatefulWidget {
+  const _CollapsibleMangaSynopsis({required this.synopsis});
+
+  final String synopsis;
+
+  @override
+  State<_CollapsibleMangaSynopsis> createState() =>
+      _CollapsibleMangaSynopsisState();
+}
+
+class _CollapsibleMangaSynopsisState extends State<_CollapsibleMangaSynopsis> {
+  bool _expanded = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        GestureDetector(
+          onTap: () => setState(() => _expanded = !_expanded),
+          child: Row(
+            children: <Widget>[
+              Text(
+                context.l10n.mangaDetailSynopsis,
+                style: Theme.of(context).textTheme.titleSmall!.copyWith(
+                  color: KumoriyaColors.textPrimary,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              const SizedBox(width: 4),
+              Icon(
+                _expanded
+                    ? Icons.expand_less_rounded
+                    : Icons.expand_more_rounded,
+                size: 20,
+                color: KumoriyaColors.textTertiary,
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 8),
+        AnimatedCrossFade(
+          firstChild: TranslatedDynamicText(
+            widget.synopsis,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: Theme.of(context).textTheme.bodySmall!.copyWith(
+              height: 1.5,
+              color: KumoriyaColors.textSecondary,
+            ),
+          ),
+          secondChild: TranslatedDynamicText(
+            widget.synopsis,
+            style: Theme.of(context).textTheme.bodySmall!.copyWith(
+              height: 1.5,
+              color: KumoriyaColors.textSecondary,
+            ),
+          ),
+          crossFadeState: _expanded
+              ? CrossFadeState.showSecond
+              : CrossFadeState.showFirst,
+          duration: const Duration(milliseconds: 250),
+        ),
+      ],
+    );
+  }
+}
+
+class _MangaRelationsSection extends StatefulWidget {
+  const _MangaRelationsSection({required this.relations});
+
+  final List<MangaRelation> relations;
+
+  @override
+  State<_MangaRelationsSection> createState() => _MangaRelationsSectionState();
+}
+
+class _MangaRelationsSectionState extends State<_MangaRelationsSection> {
+  static const int _collapsedCount = 6;
+  bool _expanded = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final visible = _expanded
+        ? widget.relations
+        : widget.relations.take(_collapsedCount);
+    final canToggle = widget.relations.length > _collapsedCount;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        Text(
+          context.l10n.relationsTitle,
+          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+            color: KumoriyaColors.textPrimary,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+        const SizedBox(height: 8),
+        ...visible.map(
+          (relation) => Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: _MangaRelationCard(relation: relation),
+          ),
+        ),
+        if (canToggle)
+          _RelationsToggleButton(
+            expanded: _expanded,
+            hiddenCount: widget.relations.length - _collapsedCount,
+            onPressed: () => setState(() => _expanded = !_expanded),
+          ),
+      ],
+    );
+  }
+}
+
+class _RelationsToggleButton extends StatelessWidget {
+  const _RelationsToggleButton({
+    required this.expanded,
+    required this.hiddenCount,
+    required this.onPressed,
+  });
+
+  final bool expanded;
+  final int hiddenCount;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: TextButton.icon(
+        onPressed: onPressed,
+        icon: Icon(
+          expanded ? Icons.expand_less_rounded : Icons.expand_more_rounded,
+          size: 18,
+        ),
+        label: Text(
+          expanded
+              ? _relationsShowLessLabel(context)
+              : _relationsShowMoreLabel(context, hiddenCount),
+        ),
+        style: TextButton.styleFrom(
+          foregroundColor: KumoriyaColors.primary,
+          textStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+          padding: const EdgeInsets.symmetric(horizontal: 8),
+        ),
+      ),
+    );
+  }
+}
+
+class _MangaRelationCard extends StatelessWidget {
+  const _MangaRelationCard({required this.relation});
+
+  final MangaRelation relation;
+
+  @override
+  Widget build(BuildContext context) {
+    final target = relation.target;
+    return InkWell(
+      borderRadius: BorderRadius.circular(KumoriyaRadius.xl),
+      onTap: () => Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) => switch (target.kind) {
+            MediaKind.anime => AnimeDetailPage(anilistId: target.anilistId),
+            MediaKind.manga => MangaDetailPage(anilistId: target.anilistId),
+          },
+        ),
+      ),
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: KumoriyaColors.surface.withValues(alpha: 0.6),
+          borderRadius: BorderRadius.circular(KumoriyaRadius.xl),
+          border: Border.all(color: KumoriyaColors.borderSubtle),
+        ),
+        child: Row(
+          children: <Widget>[
+            KumoriyaCachedImage(
+              url: target.coverImageUrl,
+              bucket: KumoriyaImageCacheBucket.artwork,
+              width: 44,
+              height: 58,
+              fit: BoxFit.cover,
+              borderRadius: BorderRadius.circular(KumoriyaRadius.md),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  Text(
+                    target.titleRomaji,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.titleSmall!.copyWith(
+                      color: KumoriyaColors.textPrimary,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 6,
+                    children: <Widget>[
+                      MetaChip(
+                        label: _displayMangaRelationTypeLabel(
+                          context,
+                          relation.type,
+                        ),
+                        isActive: true,
+                      ),
+                      MetaChip(
+                        label: _mangaRelationTargetFormatLabel(relation),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 10),
+            const Icon(
+              Icons.chevron_right_rounded,
+              color: KumoriyaColors.textDisabled,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ChapterPageSelector extends StatelessWidget {
+  const _ChapterPageSelector({
+    required this.pageCount,
+    required this.currentPage,
+    required this.pageSize,
+    required this.chapters,
+    required this.onPageSelected,
+  });
+
+  final int pageCount;
+  final int currentPage;
+  final int pageSize;
+  final List<MangaChapter> chapters;
+  final void Function(int page) onPageSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 36,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        itemCount: pageCount,
+        separatorBuilder: (_, _) => const SizedBox(width: 6),
+        itemBuilder: (context, index) {
+          final startIndex = index * pageSize;
+          final pageChapters = chapters
+              .skip(startIndex)
+              .take(pageSize)
+              .toList(growable: false);
+          final label = _chapterPageRangeLabel(pageChapters);
+          final isSelected = index == currentPage;
+          return ChoiceChip(
+            label: Text(label, style: const TextStyle(fontSize: 11)),
+            selected: isSelected,
+            onSelected: (_) => onPageSelected(index),
+            visualDensity: VisualDensity.compact,
+            padding: const EdgeInsets.symmetric(horizontal: 4),
+          );
+        },
+      ),
+    );
+  }
+}
+
+String _chapterPageRangeLabel(List<MangaChapter> chapters) {
+  if (chapters.isEmpty) return '—';
+  double min = chapters.first.number;
+  double max = chapters.first.number;
+  for (final chapter in chapters.skip(1)) {
+    if (chapter.number < min) min = chapter.number;
+    if (chapter.number > max) max = chapter.number;
+  }
+  final start = _formatChapterRangeNumber(min);
+  final end = _formatChapterRangeNumber(max);
+  return start == end ? start : '$start–$end';
+}
+
+String _formatChapterRangeNumber(double value) {
+  return value == value.truncateToDouble()
+      ? value.toInt().toString()
+      : value.toStringAsFixed(1);
+}
+
+class _ChaptersSliver extends ConsumerStatefulWidget {
   const _ChaptersSliver({required this.anilistId});
   final int anilistId;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final asyncChapters = ref.watch(mangaChaptersProvider(anilistId));
+  ConsumerState<_ChaptersSliver> createState() => _ChaptersSliverState();
+}
+
+class _ChaptersSliverState extends ConsumerState<_ChaptersSliver> {
+  static const int _pageSize = 50;
+  int _page = 0;
+
+  @override
+  Widget build(BuildContext context) {
+    final asyncChapters = ref.watch(mangaChaptersProvider(widget.anilistId));
     return asyncChapters.when(
       loading: () => const SliverToBoxAdapter(
         child: Padding(
@@ -394,19 +698,39 @@ class _ChaptersSliver extends ConsumerWidget {
             .where((c) => c.externalUrl != null)
             .toList(growable: false);
 
+        final pageCount = (playable.length / _pageSize).ceil().clamp(1, 9999);
+        final page = _page.clamp(0, pageCount - 1);
+        if (page != _page) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) setState(() => _page = page);
+          });
+        }
+        final pageStart = page * _pageSize;
+        final visiblePlayable = playable
+            .skip(pageStart)
+            .take(_pageSize)
+            .toList(growable: false);
         final l10n = context.l10n;
-        return SliverList(
-          delegate: SliverChildBuilderDelegate(
-            (ctx, i) {
-              if (i < playable.length) {
-                return _ChapterRow(
-                  chapter: playable[i],
-                  mangaAnilistId: anilistId,
-                );
-              }
-              if (external.isEmpty) return null;
-              if (i == playable.length) {
-                return Padding(
+        return SliverToBoxAdapter(
+          child: Column(
+            children: <Widget>[
+              if (pageCount > 1)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+                  child: _ChapterPageSelector(
+                    pageCount: pageCount,
+                    currentPage: page,
+                    pageSize: _pageSize,
+                    chapters: playable,
+                    onPageSelected: (selectedPage) {
+                      setState(() => _page = selectedPage);
+                    },
+                  ),
+                ),
+              for (final chapter in visiblePlayable)
+                _ChapterRow(chapter: chapter, mangaAnilistId: widget.anilistId),
+              if (external.isNotEmpty) ...<Widget>[
+                Padding(
                   padding: const EdgeInsets.fromLTRB(16, 24, 16, 4),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -430,14 +754,11 @@ class _ChaptersSliver extends ConsumerWidget {
                       ),
                     ],
                   ),
-                );
-              }
-              final extIdx = i - playable.length - 1;
-              return _ExternalChapterRow(chapter: external[extIdx]);
-            },
-            childCount:
-                playable.length +
-                (external.isNotEmpty ? 1 + external.length : 0),
+                ),
+                for (final chapter in external)
+                  _ExternalChapterRow(chapter: chapter),
+              ],
+            ],
           ),
         );
       },
@@ -830,6 +1151,52 @@ class _SourcePicker extends ConsumerWidget {
 class _SourcePickResult {
   const _SourcePickResult({required this.sourceId});
   final String? sourceId;
+}
+
+String _displayMangaRelationTypeLabel(
+  BuildContext context,
+  MangaRelationType type,
+) {
+  final spanish = Localizations.localeOf(context).languageCode == 'es';
+  return switch (type) {
+    MangaRelationType.prequel => spanish ? 'Precuela' : 'Prequel',
+    MangaRelationType.sequel => spanish ? 'Secuela' : 'Sequel',
+    MangaRelationType.sideStory => spanish ? 'Historia lateral' : 'Side story',
+    MangaRelationType.adaptation => spanish ? 'Adaptación' : 'Adaptation',
+    MangaRelationType.spinOff => 'Spin-off',
+    MangaRelationType.other => spanish ? 'Relación' : 'Related',
+  };
+}
+
+String _formatMangaFormatLabel(MangaFormat format) {
+  return switch (format) {
+    MangaFormat.manga => 'Manga',
+    MangaFormat.manhwa => 'Manhwa',
+    MangaFormat.manhua => 'Manhua',
+    MangaFormat.oneShot => 'One-shot',
+    MangaFormat.doujinshi => 'Doujinshi',
+    MangaFormat.unknown => '—',
+  };
+}
+
+String _mangaRelationTargetFormatLabel(MangaRelation relation) {
+  return switch (relation.targetKind) {
+    MediaKind.anime => relation.target.formatLabel ?? 'Anime',
+    MediaKind.manga => _formatMangaFormatLabel(relation.manga.format),
+  };
+}
+
+String _relationsShowMoreLabel(BuildContext context, int hiddenCount) {
+  final spanish = Localizations.localeOf(context).languageCode == 'es';
+  return spanish
+      ? 'Ver $hiddenCount relaciones más'
+      : 'Show $hiddenCount more relations';
+}
+
+String _relationsShowLessLabel(BuildContext context) {
+  return Localizations.localeOf(context).languageCode == 'es'
+      ? 'Ver menos relaciones'
+      : 'Show fewer relations';
 }
 
 /// Renders a chapter that lives on an official external publisher

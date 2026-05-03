@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:archive/archive_io.dart';
@@ -98,6 +99,19 @@ void main() {
     final names = archive.files.map((f) => f.name).toList()..sort();
     expect(names, ['000.jpg', '001.png', 'metadata.json']);
 
+    final sidecar = File('${cbz.path}$mangaDownloadSidecarSuffix');
+    expect(await sidecar.exists(), isTrue);
+    final sidecarJson =
+        jsonDecode(await sidecar.readAsString()) as Map<String, dynamic>;
+    expect(sidecarJson['mediaKind'], 'manga');
+    expect(sidecarJson['taskId'], 'task-1');
+    expect(sidecarJson['mangaAnilistId'], 42);
+    expect(sidecarJson['sourceId'], 'mangadex');
+    expect(sidecarJson['sourceChapterId'], 'c-1');
+    expect(sidecarJson['cbzPath'], cbz.path);
+    expect(sidecarJson['fileName'], cbz.uri.pathSegments.last);
+    expect(sidecarJson['totalBytes'], await cbz.length());
+
     manager.dispose();
   });
 
@@ -170,6 +184,8 @@ void main() {
     final cbz = File('${tmpRoot.path}/42/x.cbz');
     await cbz.parent.create(recursive: true);
     await cbz.writeAsBytes(const [1, 2, 3]);
+    final sidecar = File('${cbz.path}$mangaDownloadSidecarSuffix');
+    await sidecar.writeAsString('{"mediaKind":"manga"}');
 
     final task = MangaDownloadTask(
       id: 't-del',
@@ -193,6 +209,7 @@ void main() {
 
     await manager.delete('t-del');
     expect(await cbz.exists(), isFalse);
+    expect(await sidecar.exists(), isFalse);
     final r = await store.getTask('t-del');
     expect(r.fold(onSuccess: (v) => v, onFailure: (_) => null), isNull);
     manager.dispose();

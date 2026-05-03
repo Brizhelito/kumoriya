@@ -23,31 +23,29 @@ class MangaCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
+    final cover = ClipRRect(
+      borderRadius: BorderRadius.circular(KumoriyaRadius.xl),
+      child: Stack(
+        fit: StackFit.expand,
+        children: <Widget>[
+          KumoriyaCachedImage(
+            url: manga.coverImageUrl,
+            bucket: KumoriyaImageCacheBucket.artwork,
+            fit: BoxFit.cover,
+          ),
+          if (manga.averageScore != null)
+            Positioned(
+              top: 8,
+              right: 8,
+              child: _ScoreChip(score: manga.averageScore!),
+            ),
+        ],
+      ),
+    );
     final card = Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
-        AspectRatio(
-          aspectRatio: 3 / 4,
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(KumoriyaRadius.xl),
-            child: Stack(
-              fit: StackFit.expand,
-              children: <Widget>[
-                KumoriyaCachedImage(
-                  url: manga.coverImageUrl,
-                  bucket: KumoriyaImageCacheBucket.artwork,
-                  fit: BoxFit.cover,
-                ),
-                if (manga.averageScore != null)
-                  Positioned(
-                    top: 8,
-                    right: 8,
-                    child: _ScoreChip(score: manga.averageScore!),
-                  ),
-              ],
-            ),
-          ),
-        ),
+        Expanded(child: cover),
         const SizedBox(height: 8),
         Text(
           manga.title.romaji,

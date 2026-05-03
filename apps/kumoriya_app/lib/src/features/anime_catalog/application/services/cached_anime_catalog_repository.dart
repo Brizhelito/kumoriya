@@ -643,16 +643,29 @@ final class CachedAnimeCatalogRepository implements AnimeCatalogRepository {
 
       final ids = <int>[];
       final typeByIds = <int, AnimeRelationType>{};
+      final crossMediaRelations = <AnimeRelation>[];
       for (final item in decoded) {
         if (item is! Map<String, dynamic>) continue;
         final id = item['id'] as int?;
         final typeName = item['type'] as String?;
         if (id == null || typeName == null) continue;
+        final kind =
+            MediaKind.tryParse(item['mediaKind'] as String?) ?? MediaKind.anime;
+        final type = _toRelationType(typeName);
+        if (kind == MediaKind.manga) {
+          crossMediaRelations.add(
+            AnimeRelation.crossMedia(
+              type: type,
+              target: _relatedMediaFromJson(item, MediaKind.manga),
+            ),
+          );
+          continue;
+        }
         ids.add(id);
-        typeByIds[id] = _toRelationType(typeName);
+        typeByIds[id] = type;
       }
 
-      if (ids.isEmpty) return const <AnimeRelation>[];
+      if (ids.isEmpty) return crossMediaRelations;
 
       final result = await _cacheStore.getByIds(ids);
       return result.fold(
@@ -665,9 +678,10 @@ final class CachedAnimeCatalogRepository implements AnimeCatalogRepository {
               AnimeRelation(type: type, anime: _entryToAnime(entry)),
             );
           }
+          relations.addAll(crossMediaRelations);
           return relations;
         },
-        onFailure: (_) => const <AnimeRelation>[],
+        onFailure: (_) => crossMediaRelations,
       );
     } catch (_) {
       return const <AnimeRelation>[];
@@ -683,6 +697,23 @@ final class CachedAnimeCatalogRepository implements AnimeCatalogRepository {
       'spinOff' => AnimeRelationType.spinOff,
       _ => AnimeRelationType.other,
     };
+  }
+
+  static RelatedMedia _relatedMediaFromJson(
+    Map<String, dynamic> json,
+    MediaKind fallbackKind,
+  ) {
+    final id = json['id'];
+    return RelatedMedia(
+      kind: MediaKind.tryParse(json['mediaKind'] as String?) ?? fallbackKind,
+      anilistId: id is int ? id : 0,
+      titleRomaji: (json['titleRomaji'] as String?) ?? 'Unknown',
+      titleEnglish: json['titleEnglish'] as String?,
+      titleNative: json['titleNative'] as String?,
+      coverImageUrl: json['coverImageUrl'] as String?,
+      bannerImageUrl: json['bannerImageUrl'] as String?,
+      formatLabel: json['formatLabel'] as String?,
+    );
   }
 
   Future<void> _persistAnimeList(
@@ -726,8 +757,8 @@ final class CachedAnimeCatalogRepository implements AnimeCatalogRepository {
     final anime = detail.anime;
     final updatedAt = DateTime.now();
 
-    // Persist each related anime so it is available from cache.
     for (final relation in detail.relations) {
+      if (relation.targetKind != MediaKind.anime) continue;
       final rel = relation.anime;
       await _cacheStore.upsert(
         AnilistCacheEntry(
@@ -761,7 +792,19 @@ final class CachedAnimeCatalogRepository implements AnimeCatalogRepository {
     // wiping previously-cached relations, so we must opt in here explicitly.
     final relationsJson = jsonEncode(
       detail.relations
-          .map((r) => {'id': r.anime.anilistId, 'type': r.type.name})
+          .map(
+            (r) => {
+              'id': r.target.anilistId,
+              'type': r.type.name,
+              'mediaKind': r.target.kind.wireValue,
+              'titleRomaji': r.target.titleRomaji,
+              'titleEnglish': r.target.titleEnglish,
+              'titleNative': r.target.titleNative,
+              'coverImageUrl': r.target.coverImageUrl,
+              'bannerImageUrl': r.target.bannerImageUrl,
+              'formatLabel': r.target.formatLabel,
+            },
+          )
           .toList(growable: false),
     );
 

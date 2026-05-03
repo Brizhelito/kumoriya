@@ -1,48 +1,28 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:kumoriya_core/kumoriya_core.dart';
 
 import '../../../../app/l10n.dart';
+import '../../../../shared/storage_providers.dart';
 import '../../../../shared/theme/kumoriya_theme.dart';
 import '../../../../shared/widgets/kumoriya_cached_image.dart';
-import '../../../anime_catalog/presentation/pages/anime_detail_page.dart';
 import '../../../manga_catalog/presentation/pages/manga_detail_page.dart';
 import '../../domain/unified_library_entry.dart';
 import '../providers/unified_library_providers.dart';
 
-/// Unified library view: shows favorites and subscriptions from both
-/// universes side by side, with a filter chip (`All / Anime / Manga`)
-/// that defaults to whichever universe routed into the page.
-///
-/// This is the **manga universe's** library tab. The anime universe
-/// keeps its dedicated `LibraryPage` for now (it has additional
-/// surfaces — list/grid toggle, history with delete, clear-history
-/// action — that the unified view does not replicate). Aligning both
-/// universes on this page is a follow-up slice.
+/// Manga library view for favorites and chapter subscriptions.
 class UnifiedLibraryPage extends ConsumerStatefulWidget {
-  const UnifiedLibraryPage({super.key, required this.initialFilter});
-
-  /// `null` = "All", otherwise restrict to a single universe.
-  final MediaKind? initialFilter;
+  const UnifiedLibraryPage({super.key});
 
   @override
   ConsumerState<UnifiedLibraryPage> createState() => _UnifiedLibraryPageState();
 }
 
 class _UnifiedLibraryPageState extends ConsumerState<UnifiedLibraryPage> {
-  late MediaKind? _filter;
-
-  @override
-  void initState() {
-    super.initState();
-    _filter = widget.initialFilter;
-  }
-
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
     return DefaultTabController(
-      length: 2,
+      length: 3,
       child: Scaffold(
         backgroundColor: KumoriyaColors.background,
         body: SafeArea(
@@ -56,10 +36,6 @@ class _UnifiedLibraryPageState extends ConsumerState<UnifiedLibraryPage> {
                   style: Theme.of(context).textTheme.headlineMedium,
                 ),
               ),
-              _FilterChips(
-                value: _filter,
-                onChanged: (v) => setState(() => _filter = v),
-              ),
               TabBar(
                 isScrollable: true,
                 tabAlignment: TabAlignment.start,
@@ -72,6 +48,7 @@ class _UnifiedLibraryPageState extends ConsumerState<UnifiedLibraryPage> {
                   fontWeight: FontWeight.w700,
                 ),
                 tabs: <Tab>[
+                  Tab(text: l10n.myListHistory),
                   Tab(text: l10n.myListFavorites),
                   Tab(text: l10n.myListSubscribed),
                 ],
@@ -79,14 +56,9 @@ class _UnifiedLibraryPageState extends ConsumerState<UnifiedLibraryPage> {
               Expanded(
                 child: TabBarView(
                   children: <Widget>[
-                    _UnifiedTab(
-                      filter: _filter,
-                      kind: _UnifiedTabKind.favorites,
-                    ),
-                    _UnifiedTab(
-                      filter: _filter,
-                      kind: _UnifiedTabKind.subscribed,
-                    ),
+                    const _HistoryTab(),
+                    _UnifiedTab(kind: _UnifiedTabKind.favorites),
+                    _UnifiedTab(kind: _UnifiedTabKind.subscribed),
                   ],
                 ),
               ),
@@ -98,33 +70,97 @@ class _UnifiedLibraryPageState extends ConsumerState<UnifiedLibraryPage> {
   }
 }
 
-class _FilterChips extends StatelessWidget {
-  const _FilterChips({required this.value, required this.onChanged});
-  final MediaKind? value;
-  final ValueChanged<MediaKind?> onChanged;
+enum _UnifiedTabKind { favorites, subscribed }
+
+class _HistoryTab extends ConsumerWidget {
+  const _HistoryTab();
 
   @override
-  Widget build(BuildContext context) {
-    final l10n = context.l10n;
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
-      child: Wrap(
-        spacing: 6,
-        children: <Widget>[
-          _Chip(
-            label: l10n.libraryFilterAll,
-            selected: value == null,
-            onTap: () => onChanged(null),
+  Widget build(BuildContext context, WidgetRef ref) {
+    final historyAsync = ref.watch(unifiedMangaHistoryProvider);
+    final entries = historyAsync.value ?? const <MangaLibraryHistoryEntry>[];
+
+    if (historyAsync.isLoading && entries.isEmpty) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    if (entries.isEmpty) {
+      return _EmptyView(message: context.l10n.myListHistoryEmpty);
+    }
+    return ListView.separated(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+      itemCount: entries.length + 1,
+      separatorBuilder: (_, index) =>
+          index == 0 ? const SizedBox(height: 8) : const SizedBox(height: 6),
+      itemBuilder: (context, index) {
+        if (index == 0) {
+          return Align(
+            alignment: Alignment.centerRight,
+            child: TextButton.icon(
+              onPressed: () => _confirmClearAll(context, ref),
+              icon: const Icon(Icons.delete_sweep_rounded, size: 18),
+              label: Text(context.l10n.historyClearAllAction),
+              style: TextButton.styleFrom(
+                foregroundColor: KumoriyaColors.statusDanger,
+                textStyle: const TextStyle(fontSize: 12),
+              ),
+            ),
+          );
+        }
+        final item = entries[index - 1];
+        return Dismissible(
+          key: ValueKey('manga_history_${item.history.mangaAnilistId}'),
+          direction: DismissDirection.endToStart,
+          background: Container(
+            alignment: Alignment.centerRight,
+            padding: const EdgeInsets.only(right: 20),
+            decoration: BoxDecoration(
+              color: KumoriyaColors.statusDanger,
+              borderRadius: BorderRadius.circular(KumoriyaRadius.xxl),
+            ),
+            child: const Icon(Icons.delete_rounded, color: Colors.white),
           ),
-          _Chip(
-            label: l10n.universeAnime,
-            selected: value == MediaKind.anime,
-            onTap: () => onChanged(MediaKind.anime),
+          onDismissed: (_) => _deleteEntry(ref, item.history.mangaAnilistId),
+          child: _HistoryRow(
+            item: item,
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (_) =>
+                    MangaDetailPage(anilistId: item.history.mangaAnilistId),
+              ),
+            ),
+            onDelete: () => _deleteEntry(ref, item.history.mangaAnilistId),
           ),
-          _Chip(
-            label: l10n.universeManga,
-            selected: value == MediaKind.manga,
-            onTap: () => onChanged(MediaKind.manga),
+        );
+      },
+    );
+  }
+
+  void _deleteEntry(WidgetRef ref, int mangaAnilistId) {
+    ref.read(mangaProgressStoreProvider).deleteHistoryEntry(mangaAnilistId);
+    ref.invalidate(unifiedMangaHistoryProvider);
+  }
+
+  void _confirmClearAll(BuildContext context, WidgetRef ref) {
+    showDialog<void>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(context.l10n.historyClearAllTitle),
+        content: Text(context.l10n.historyClearAllMessage),
+        actions: <Widget>[
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(context.l10n.cancelAction),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+              ref.read(mangaProgressStoreProvider).clearAllHistory();
+              ref.invalidate(unifiedMangaHistoryProvider);
+            },
+            style: TextButton.styleFrom(
+              foregroundColor: KumoriyaColors.statusDanger,
+            ),
+            child: Text(context.l10n.deleteAction),
           ),
         ],
       ),
@@ -132,68 +168,21 @@ class _FilterChips extends StatelessWidget {
   }
 }
 
-class _Chip extends StatelessWidget {
-  const _Chip({
-    required this.label,
-    required this.selected,
-    required this.onTap,
-  });
-  final String label;
-  final bool selected;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return ChoiceChip(
-      label: Text(label),
-      selected: selected,
-      onSelected: (_) => onTap(),
-      selectedColor: KumoriyaColors.primary.withValues(alpha: 0.20),
-      backgroundColor: KumoriyaColors.surfaceDim,
-      labelStyle: TextStyle(
-        color: selected ? KumoriyaColors.primary : KumoriyaColors.textSecondary,
-        fontSize: 12,
-        fontWeight: FontWeight.w600,
-      ),
-      side: BorderSide(
-        color: selected ? KumoriyaColors.primary : KumoriyaColors.borderSubtle,
-      ),
-    );
-  }
-}
-
-enum _UnifiedTabKind { favorites, subscribed }
-
 class _UnifiedTab extends ConsumerWidget {
-  const _UnifiedTab({required this.filter, required this.kind});
+  const _UnifiedTab({required this.kind});
 
-  final MediaKind? filter;
   final _UnifiedTabKind kind;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final animeAsync = switch (kind) {
-      _UnifiedTabKind.favorites => ref.watch(unifiedAnimeFavoritesProvider),
-      _UnifiedTabKind.subscribed => ref.watch(unifiedAnimeSubscribedProvider),
-    };
     final mangaAsync = switch (kind) {
       _UnifiedTabKind.favorites => ref.watch(unifiedMangaFavoritesProvider),
       _UnifiedTabKind.subscribed => ref.watch(unifiedMangaSubscribedProvider),
     };
 
-    final animeEntries = filter == MediaKind.manga
-        ? const <UnifiedLibraryEntry>[]
-        : (animeAsync.value ?? const <UnifiedLibraryEntry>[]);
-    final mangaEntries = filter == MediaKind.anime
-        ? const <UnifiedLibraryEntry>[]
-        : (mangaAsync.value ?? const <UnifiedLibraryEntry>[]);
+    final entries = mangaAsync.value ?? const <UnifiedLibraryEntry>[];
 
-    final loading =
-        (filter != MediaKind.manga && animeAsync.isLoading) ||
-        (filter != MediaKind.anime && mangaAsync.isLoading);
-    final entries = <UnifiedLibraryEntry>[...animeEntries, ...mangaEntries];
-
-    if (loading && entries.isEmpty) {
+    if (mangaAsync.isLoading && entries.isEmpty) {
       return const Center(child: CircularProgressIndicator());
     }
     if (entries.isEmpty) {
@@ -229,6 +218,67 @@ class _EntryGrid extends StatelessWidget {
   }
 }
 
+class _HistoryRow extends StatelessWidget {
+  const _HistoryRow({
+    required this.item,
+    required this.onTap,
+    required this.onDelete,
+  });
+
+  final MangaLibraryHistoryEntry item;
+  final VoidCallback onTap;
+  final VoidCallback onDelete;
+
+  @override
+  Widget build(BuildContext context) {
+    final chapterLabel = item.history.lastChapterNumber % 1 == 0
+        ? item.history.lastChapterNumber.toInt().toString()
+        : item.history.lastChapterNumber.toString();
+    return ListTile(
+      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(KumoriyaRadius.xl),
+      ),
+      tileColor: KumoriyaColors.surface,
+      leading: ClipRRect(
+        borderRadius: BorderRadius.circular(6),
+        child: SizedBox(
+          width: 44,
+          height: 60,
+          child: item.entry.coverImageUrl != null
+              ? KumoriyaCachedImage(
+                  url: item.entry.coverImageUrl!,
+                  bucket: KumoriyaImageCacheBucket.artwork,
+                  fit: BoxFit.cover,
+                )
+              : ColoredBox(color: KumoriyaColors.surfaceDim),
+        ),
+      ),
+      title: Text(
+        item.entry.title,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: const TextStyle(
+          color: KumoriyaColors.textPrimary,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+      subtitle: Text(
+        'Capítulo $chapterLabel',
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: const TextStyle(color: KumoriyaColors.textMuted, fontSize: 12),
+      ),
+      trailing: IconButton(
+        icon: const Icon(Icons.close_rounded),
+        color: KumoriyaColors.textMuted,
+        onPressed: onDelete,
+      ),
+      onTap: onTap,
+    );
+  }
+}
+
 class _EntryCard extends StatelessWidget {
   const _EntryCard({required this.entry});
   final UnifiedLibraryEntry entry;
@@ -256,11 +306,6 @@ class _EntryCard extends StatelessWidget {
                         )
                       : ColoredBox(color: KumoriyaColors.surfaceDim),
                 ),
-                Positioned(
-                  top: 6,
-                  left: 6,
-                  child: _UniverseBadge(kind: entry.mediaKind),
-                ),
               ],
             ),
           ),
@@ -281,46 +326,10 @@ class _EntryCard extends StatelessWidget {
   }
 
   void _open(BuildContext context) {
-    final route = switch (entry.mediaKind) {
-      MediaKind.anime => MaterialPageRoute<void>(
-        builder: (_) => AnimeDetailPage(anilistId: entry.anilistId),
-      ),
-      MediaKind.manga => MaterialPageRoute<void>(
-        builder: (_) => MangaDetailPage(anilistId: entry.anilistId),
-      ),
-    };
-    Navigator.of(context).push(route);
-  }
-}
-
-/// Tiny pill in the cover top-left so the user can tell at a glance
-/// which universe a card belongs to in the "All" view.
-class _UniverseBadge extends StatelessWidget {
-  const _UniverseBadge({required this.kind});
-  final MediaKind kind;
-
-  @override
-  Widget build(BuildContext context) {
-    final label = switch (kind) {
-      MediaKind.anime => context.l10n.universeAnime,
-      MediaKind.manga => context.l10n.universeManga,
-    };
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-      decoration: BoxDecoration(
-        color: Colors.black54,
-        borderRadius: BorderRadius.circular(4),
-      ),
-      child: Text(
-        label.toUpperCase(),
-        style: const TextStyle(
-          color: Colors.white,
-          fontSize: 9,
-          fontWeight: FontWeight.w800,
-          letterSpacing: 0.5,
-        ),
-      ),
+    final route = MaterialPageRoute<void>(
+      builder: (_) => MangaDetailPage(anilistId: entry.anilistId),
     );
+    Navigator.of(context).push(route);
   }
 }
 

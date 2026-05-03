@@ -293,5 +293,12 @@ class _DriftReaderProgressSink implements ReaderProgressSink {
         updatedAt: DateTime.now(),
       ),
     );
+    await _store.upsertReadHistory(
+      mangaAnilistId: mangaAnilistId,
+      chapterNumber: chapterNumber,
+      lastSourceId: sourceId,
+      lastSourceChapterId: sourceChapterId,
+      lastPageIndex: pageIndex,
+    );
   }
 }

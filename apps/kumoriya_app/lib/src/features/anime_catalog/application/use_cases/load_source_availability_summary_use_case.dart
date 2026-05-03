@@ -30,6 +30,7 @@ final class LoadSourceAvailabilitySummaryUseCase {
     Duration? freshTtl,
     Duration? maxStaleAge,
     Duration? unavailableFreshTtl,
+    Duration? airingEpisodeFreshTtl,
   }) : _store = store,
        _computeUseCase = computeUseCase,
        _sourcePluginIds = sourcePlugins
@@ -39,7 +40,9 @@ final class LoadSourceAvailabilitySummaryUseCase {
        _freshTtl = freshTtl ?? const Duration(hours: 4),
        _maxStaleAge = maxStaleAge ?? const Duration(hours: 12),
        _unavailableFreshTtl =
-           unavailableFreshTtl ?? const Duration(minutes: 10);
+           unavailableFreshTtl ?? const Duration(minutes: 10),
+       _airingEpisodeFreshTtl =
+           airingEpisodeFreshTtl ?? const Duration(minutes: 2);
 
   final SourceAvailabilityStore _store;
   final GetSourceAvailabilitySummaryUseCase _computeUseCase;
@@ -48,6 +51,7 @@ final class LoadSourceAvailabilitySummaryUseCase {
   final Duration _freshTtl;
   final Duration _maxStaleAge;
   final Duration _unavailableFreshTtl;
+  final Duration _airingEpisodeFreshTtl;
 
   Future<Result<LoadedSourceAvailabilitySummary, KumoriyaError>> call(
     AnimeDetail anilistDetail,
@@ -60,8 +64,16 @@ final class LoadSourceAvailabilitySummaryUseCase {
           .difference(cached.coveredSourcePluginIds)
           .isNotEmpty;
       final hasPlayableSources = cached.summary.playableSources.isNotEmpty;
+      final missingAiredEpisode = _hasMissingAiredSourceEpisode(
+        anilistDetail,
+        cached.summary,
+      );
 
       if (age <= _maxStaleAge) {
+        if (missingAiredEpisode && age > _airingEpisodeFreshTtl) {
+          return _refresh(anilistDetail, now);
+        }
+
         return Success(
           LoadedSourceAvailabilitySummary(
             summary: cached.summary,
@@ -70,7 +82,8 @@ final class LoadSourceAvailabilitySummaryUseCase {
             shouldRefreshInBackground:
                 age > (hasPlayableSources ? _freshTtl : _unavailableFreshTtl) ||
                 missingCoverage ||
-                !hasPlayableSources,
+                !hasPlayableSources ||
+                missingAiredEpisode,
           ),
         );
       }
@@ -79,10 +92,40 @@ final class LoadSourceAvailabilitySummaryUseCase {
     return _refresh(anilistDetail, now);
   }
 
+  bool _hasMissingAiredSourceEpisode(
+    AnimeDetail anilistDetail,
+    SourceAvailabilitySummary summary,
+  ) {
+    if (anilistDetail.anime.status != AnimeStatus.releasing) {
+      return false;
+    }
+
+    final airedEpisodeNumbers = anilistDetail.episodes
+        .where((episode) => episode.isAired)
+        .map((episode) => episode.number)
+        .toSet();
+    if (airedEpisodeNumbers.isEmpty || summary.playableSources.isEmpty) {
+      return false;
+    }
+
+    final sourceEpisodeNumbers = <double>{
+      for (final source in summary.playableSources)
+        for (final episode in source.episodes) episode.number,
+    };
+
+    return airedEpisodeNumbers.any(
+      (episodeNumber) => !sourceEpisodeNumbers.contains(episodeNumber),
+    );
+  }
+
   Future<Result<SourceAvailabilitySummary, KumoriyaError>> refresh(
     AnimeDetail anilistDetail,
   ) async {
-    final refreshed = await _refresh(anilistDetail, DateTime.now());
+    final refreshed = await _refresh(
+      anilistDetail,
+      DateTime.now(),
+      enforceSourceTimeout: false,
+    );
     return refreshed.fold(
       onFailure: Failure.new,
       onSuccess: (value) => Success(value.summary),
@@ -99,9 +142,23 @@ final class LoadSourceAvailabilitySummaryUseCase {
 
   Future<Result<LoadedSourceAvailabilitySummary, KumoriyaError>> _refresh(
     AnimeDetail anilistDetail,
-    DateTime now,
-  ) async {
-    final summary = await _computeUseCase.call(anilistDetail);
+    DateTime now, {
+    bool enforceSourceTimeout = true,
+  }) async {
+    var summary = await _computeUseCase.call(
+      anilistDetail,
+      enforceSourceTimeout: enforceSourceTimeout,
+    );
+    if (enforceSourceTimeout &&
+        summary.playableSources.isEmpty &&
+        _hasTimedOutSources(summary)) {
+      summary = await _computeUseCase.call(
+        anilistDetail,
+        enforceSourceTimeout: false,
+      );
+    }
+    final shouldRefreshInBackground =
+        enforceSourceTimeout && _hasTimedOutSources(summary);
     final persistResult = await _store.replaceAvailability(
       anilistDetail.anime.anilistId,
       _cacheCodec.encode(
@@ -117,7 +174,7 @@ final class LoadSourceAvailabilitySummaryUseCase {
           summary: summary,
           updatedAt: now,
           fromCache: false,
-          shouldRefreshInBackground: false,
+          shouldRefreshInBackground: shouldRefreshInBackground,
         ),
       ),
       onSuccess: (_) => Success(
@@ -125,8 +182,16 @@ final class LoadSourceAvailabilitySummaryUseCase {
           summary: summary,
           updatedAt: now,
           fromCache: false,
-          shouldRefreshInBackground: false,
+          shouldRefreshInBackground: shouldRefreshInBackground,
         ),
+      ),
+    );
+  }
+
+  bool _hasTimedOutSources(SourceAvailabilitySummary summary) {
+    return summary.sources.any(
+      (source) => source.decision.rejectionSignals.contains(
+        'source-availability-timeout',
       ),
     );
   }

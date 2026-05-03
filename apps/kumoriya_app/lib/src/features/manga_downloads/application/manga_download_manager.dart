@@ -1,6 +1,8 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 
+import 'package:crypto/crypto.dart';
 import 'package:http/http.dart' as http;
 import 'package:kumoriya_core/kumoriya_core.dart';
 import 'package:kumoriya_manga_plugins/kumoriya_manga_plugins.dart';
@@ -14,6 +16,8 @@ import '../domain/manga_download_progress_event.dart';
 /// app to the manga plugin registry; tests inject a fake mapping.
 typedef MangaSourcePluginResolver =
     MangaSourcePlugin? Function(String sourceId);
+
+const mangaDownloadSidecarSuffix = '.kumoriya.json';
 
 /// In-process foreground manga download engine.
 ///
@@ -117,9 +121,17 @@ class MangaDownloadManager {
           /* swallow */
         }
       }
+      final sidecar = File(_sidecarPathForCbz(task.cbzPath!));
+      if (await sidecar.exists()) {
+        try {
+          await sidecar.delete();
+        } catch (_) {
+          /* swallow */
+        }
+      }
     }
     await _store.deleteTask(taskId);
-    _emitStatus(taskId, MangaDownloadStatus.failed);
+    _emitStatus(taskId, null, oldStatus: task?.status);
   }
 
   /// Clears the failed flag on a task and re-enqueues it for the
@@ -327,12 +339,16 @@ class MangaDownloadManager {
       /* non-fatal */
     }
 
-    await _writeTask(
+    final cbzSize = await cbzFile.length();
+    final completedTask = await _writeTask(
       current,
       status: MangaDownloadStatus.completed,
       cbzPath: cbzPath,
+      totalBytes: cbzSize,
+      downloadedBytes: cbzSize,
       errorMessage: null,
     );
+    await _writeSidecarManifest(completedTask, cbzFile);
   }
 
   // ── HTTP fetch with bounded retry ─────────────────────────────────
@@ -371,6 +387,8 @@ class MangaDownloadManager {
     MangaDownloadStatus? status,
     int? pagesDownloaded,
     int? pageCount,
+    int? totalBytes,
+    int? downloadedBytes,
     String? cbzPath,
     Object? errorMessage = _unset,
   }) async {
@@ -389,8 +407,8 @@ class MangaDownloadManager {
       status: status ?? current.status,
       pageCount: pageCount ?? current.pageCount,
       pagesDownloaded: pagesDownloaded ?? current.pagesDownloaded,
-      totalBytes: current.totalBytes,
-      downloadedBytes: current.downloadedBytes,
+      totalBytes: totalBytes ?? current.totalBytes,
+      downloadedBytes: downloadedBytes ?? current.downloadedBytes,
       cbzPath: cbzPath ?? current.cbzPath,
       errorMessage: identical(errorMessage, _unset)
           ? current.errorMessage
@@ -400,7 +418,12 @@ class MangaDownloadManager {
     );
     await _store.updateTask(next);
     if (status != null && status != current.status) {
-      _emitStatus(next.id, status, errorMessage: next.errorMessage);
+      _emitStatus(
+        next.id,
+        status,
+        oldStatus: current.status,
+        errorMessage: next.errorMessage,
+      );
     }
     return next;
   }
@@ -419,13 +442,15 @@ class MangaDownloadManager {
 
   void _emitStatus(
     String taskId,
-    MangaDownloadStatus status, {
+    MangaDownloadStatus? status, {
+    MangaDownloadStatus? oldStatus,
     String? errorMessage,
   }) {
     if (_statusController.isClosed) return;
     _statusController.add(
       MangaDownloadStatusEvent(
         taskId: taskId,
+        oldStatus: oldStatus,
         newStatus: status,
         errorMessage: errorMessage,
       ),
@@ -450,6 +475,50 @@ class MangaDownloadManager {
     final fileName =
         '${_sanitize(task.sourceId)}__${_sanitize(task.sourceChapterId)}.cbz';
     return p.join(root.path, task.mangaAnilistId.toString(), fileName);
+  }
+
+  Future<void> _writeSidecarManifest(
+    MangaDownloadTask task,
+    File cbzFile,
+  ) async {
+    final totalBytes = await cbzFile.length();
+    final identityKey =
+        '${task.mangaAnilistId}:${task.sourceId}:${task.sourceChapterId}';
+    final manifest = <String, Object?>{
+      'version': 1,
+      'mediaKind': 'manga',
+      'taskId': task.id,
+      'identityKey': identityKey,
+      'signature': sha256
+          .convert(utf8.encode('$identityKey|${cbzFile.path}'))
+          .toString(),
+      'anilistId': task.mangaAnilistId,
+      'mangaAnilistId': task.mangaAnilistId,
+      'mangaTitle': task.mangaTitle,
+      'sourceId': task.sourceId,
+      'sourceMangaId': task.sourceMangaId,
+      'sourceChapterId': task.sourceChapterId,
+      'chapterNumber': task.chapterNumber,
+      'chapterTitle': task.chapterTitle,
+      'volume': task.volume,
+      'language': task.language,
+      'scanlator': task.scanlator,
+      'pageCount': task.pageCount,
+      'cbzPath': cbzFile.path,
+      'fileName': p.basename(cbzFile.path),
+      'totalBytes': totalBytes,
+      'completedAtEpochMs': DateTime.now().millisecondsSinceEpoch,
+    };
+    final sidecar = File(_sidecarPathForCbz(cbzFile.path));
+    await sidecar.parent.create(recursive: true);
+    await sidecar.writeAsString(
+      const JsonEncoder.withIndent('  ').convert(manifest),
+      flush: true,
+    );
+  }
+
+  static String _sidecarPathForCbz(String cbzPath) {
+    return '$cbzPath$mangaDownloadSidecarSuffix';
   }
 
   /// Picks an extension based on the URL or falls back to `jpg`.

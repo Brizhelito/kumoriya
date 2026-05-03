@@ -26,11 +26,13 @@ class MangaDownloadProgressEvent {
 class MangaDownloadStatusEvent {
   const MangaDownloadStatusEvent({
     required this.taskId,
-    required this.newStatus,
+    this.oldStatus,
+    this.newStatus,
     this.errorMessage,
   });
 
   final String taskId;
-  final MangaDownloadStatus newStatus;
+  final MangaDownloadStatus? oldStatus;
+  final MangaDownloadStatus? newStatus;
   final String? errorMessage;
 }
