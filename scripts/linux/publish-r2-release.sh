@@ -112,23 +112,17 @@ VERSION="$(grep -E '^version:\s*[0-9]+\.[0-9]+\.[0-9]+\+' "$PUBSPEC" \
 TAG="v$VERSION"
 
 APK_DIR="$APP_DIR/build/app/outputs/flutter-apk"
-UNIVERSAL_APK="app-release.apk"
-SPLIT_APKS=(app-armeabi-v7a-release.apk app-arm64-v8a-release.apk app-x86_64-release.apk)
+TARGET_APK="app-arm64-v8a-release.apk"
 
 if [[ $SKIP_BUILD -eq 0 ]]; then
   pushd "$APP_DIR" >/dev/null
-  echo "==> Building Android universal APK..."
-  flutter build apk --release
-  echo "==> Building Android per-ABI APKs..."
+  echo "==> Building Android arm64-v8a APK..."
   flutter build apk --release --split-per-abi \
-    --target-platform android-arm,android-arm64,android-x64
+    --target-platform android-arm64
   popd >/dev/null
 fi
 
-[[ -f "$APK_DIR/$UNIVERSAL_APK" ]] || { echo "Universal APK missing: $APK_DIR/$UNIVERSAL_APK" >&2; exit 1; }
-for apk in "${SPLIT_APKS[@]}"; do
-  [[ -f "$APK_DIR/$apk" ]] || { echo "Split APK missing: $APK_DIR/$apk" >&2; exit 1; }
-done
+[[ -f "$APK_DIR/$TARGET_APK" ]] || { echo "arm64-v8a APK missing: $APK_DIR/$TARGET_APK" >&2; exit 1; }
 
 RELEASE_DIR="$REPO_ROOT/releases/versions/$TAG"
 mkdir -p "$RELEASE_DIR" "$REPO_ROOT/releases/manifests"
@@ -145,11 +139,9 @@ NOTES_EN_MD="$(cat "$NOTES_EN")"
 
 # Map: source apk filename -> "<abi_key>|<destination filename>".
 # abi_key uses underscores (matches Go AndroidABI* enum and updater lookup).
+# Only arm64-v8a is published to save R2 storage.
 declare -A ABI_MAP=(
-  ["app-release.apk"]="universal|kumoriya-$VERSION-universal.apk"
-  ["app-armeabi-v7a-release.apk"]="armeabi_v7a|kumoriya-$VERSION-armeabi-v7a.apk"
   ["app-arm64-v8a-release.apk"]="arm64_v8a|kumoriya-$VERSION-arm64-v8a.apk"
-  ["app-x86_64-release.apk"]="x86_64|kumoriya-$VERSION-x86_64.apk"
 )
 
 # Build a JSON array of objects: {abi,file_name,r2_key,public_url,size_bytes,sha256,source_path}.
@@ -167,9 +159,9 @@ for src in "${!ABI_MAP[@]}"; do
     <<<"$ARTIFACTS_JSON")"
 done
 
-get_universal() { jq '.[] | select(.abi=="universal")' <<<"$ARTIFACTS_JSON"; }
-UNIVERSAL="$(get_universal)"
-[[ -z "$UNIVERSAL" ]] && { echo "Universal artifact missing from computed set" >&2; exit 1; }
+# Only arm64-v8a is published; use it as the primary artifact.
+PRIMARY_ARTIFACT="$(jq '.[] | select(.abi=="arm64_v8a")' <<<"$ARTIFACTS_JSON")"
+[[ -z "$PRIMARY_ARTIFACT" ]] && { echo "arm64_v8a artifact missing from computed set" >&2; exit 1; }
 
 # --- release.json (human reference, uploaded to R2 + committed) ---
 jq -n \
@@ -177,7 +169,7 @@ jq -n \
   --arg ch "$CHANNEL" --arg notes "$RELEASE_NOTES" \
   --arg es "$SUMMARY_ES" --arg en "$SUMMARY_EN" \
   --arg notesEs "$NOTES_ES_MD" --arg notesEn "$NOTES_EN_MD" \
-  --argjson universal "$UNIVERSAL" \
+  --argjson primary "$PRIMARY_ARTIFACT" \
   --argjson artifacts "$ARTIFACTS_JSON" \
   '{
     version: $v, tag: $tag, date: $date, channels: [$ch],
@@ -185,9 +177,9 @@ jq -n \
     summary: {es:$es, en:$en},
     artifacts: {
       android: {
-        file_name: $universal.file_name,
-        r2_key: $universal.r2_key,
-        public_url: $universal.public_url,
+        file_name: $primary.file_name,
+        r2_key: $primary.r2_key,
+        public_url: $primary.public_url,
         abis: [$artifacts[] | {abi, file_name, r2_key, public_url, size_bytes, sha256}]
       }
     },
@@ -198,15 +190,14 @@ jq -n \
 # --- update.json (runtime manifest consumed by the app updater) ---
 jq -n \
   --arg v "$VERSION" --arg notes "$RELEASE_NOTES" \
-  --argjson universal "$UNIVERSAL" \
+  --argjson primary "$PRIMARY_ARTIFACT" \
   --argjson artifacts "$ARTIFACTS_JSON" \
   '{
     android: (
       {
         latest_version: $v,
-        url: $universal.public_url,
+        url: $primary.public_url,
         release_notes: $notes,
-        universal: ($universal | {url:.public_url, file_name, r2_key, size_bytes, sha256}),
         abis: (
           [$artifacts[] | select(.abi!="universal")]
           | map({key:.abi, value:{url:.public_url, file_name, r2_key, size_bytes, sha256}})
@@ -245,7 +236,7 @@ PUBLISH_BODY="$(jq -n \
   --arg ch "$CHANNEL" --arg notes "$RELEASE_NOTES" \
   --arg es "$SUMMARY_ES" --arg en "$SUMMARY_EN" \
   --arg notesEs "$NOTES_ES_MD" --arg notesEn "$NOTES_EN_MD" \
-  --argjson universal "$UNIVERSAL" \
+  --argjson primary "$PRIMARY_ARTIFACT" \
   --argjson artifacts "$ARTIFACTS_JSON" \
   '{
     version:$v, tag:$tag, date:$date, channel:$ch,
@@ -255,12 +246,11 @@ PUBLISH_BODY="$(jq -n \
     is_latest: true,
     downloads: {
       android: {
-        url: $universal.public_url,
-        file_name: $universal.file_name,
-        r2_key: $universal.r2_key,
-        size_bytes: $universal.size_bytes,
-        sha256: $universal.sha256,
-        universal: ($universal | {url:.public_url, file_name, r2_key, size_bytes, sha256}),
+        url: $primary.public_url,
+        file_name: $primary.file_name,
+        r2_key: $primary.r2_key,
+        size_bytes: $primary.size_bytes,
+        sha256: $primary.sha256,
         abis: (
           [$artifacts[] | select(.abi!="universal")]
           | map({key:.abi, value:{url:.public_url, file_name, r2_key, size_bytes, sha256}})
