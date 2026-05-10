@@ -4,145 +4,161 @@ All notable changes to Kumoriya will be documented in this file.
 
 ## [Unreleased]
 
+## [v0.4.0] - 2026-05-03
+
+### Added
+- **Manga mode** — you can now switch between Anime and Manga from the main app, and each universe has its own look and feel.
+- **Manga reader** — new reading experience with vertical and paged modes, chapter navigation, and CBZ support.
+- **Manga library** — History, Favorites, and Subscribed now live in a dedicated manga library.
+- **More places to find manga** — Kumoriya now brings together MangaDex and several Spanish-language sources so discovery is easier.
+- **Better filtering and suggestions** — source and scanlator selection is more helpful when picking what to read.
+- **Manga downloads and progress sync** — chapters can be downloaded for offline reading, and your reading progress can sync with your account.
+- **Better recovery when AniList is unavailable** — the app now has safer fallbacks so it keeps showing useful content instead of a blank screen.
+- **Release updates pushed to the app** — Kumoriya can now be notified when a new release is published.
+
+### Changed
+- **The app's look follows the selected universe** — Anime and Manga now feel visually distinct when you switch between them.
+- **Manga discovery feels smoother** — the manga home screen loads more reliably and with less waiting.
+
+### Fixed
+- **Screen turning off while watching** — the player now keeps the screen awake during playback.
+- **Brightness not restoring after playback** — leaving the player now returns brightness to its previous level.
+- **Missed airing notifications** — the app now catches recently aired episodes more reliably.
+
 ## [v0.3.0] - 2026-04-24
 
 ### Added
-- **Event-driven sync coordinator** — sync-to-server ya no depende solo del botón "Sync Now". `SyncCoordinator` orquesta seis triggers: escrituras locales con debounce de 500 ms, `AppLifecycleState.resumed` (fullSync si la última sincronización es > 6 h), reconexión de red vía `connectivity_plus`, `paused` con programación de una `OneTimeWorkRequest` en Android, flush bloqueante antes de logout (timeout 5 s), y tarea periódica de Workmanager cada 12 h como fallback absoluto. Incluye lock de push único en vuelo, backoff exponencial en fallo y skip automático cuando el dispositivo está offline para no envenenar las entradas con reintentos reales.
-- **Pull independiente del push** — nuevo `SyncCoordinator.triggerPull()` que llama solo `pullSince(lastSyncAt)` sin encolar un push, con lock `_pulling` separado. Al volver a foreground ahora siempre se hace pull (debounceado a 30 s entre resumes), y se programa un timer periódico de 30 min mientras la app está abierta para ver cambios de otros dispositivos del mismo usuario sin esperar al próximo cierre/apertura. Base lista para la integración futura con FCM silent push.
-- **Native downloader rebuilt from scratch (Android)** — `kumoriya_exoplayer` ships a standalone OkHttp + coroutines download engine that replaces the legacy Media3 `DownloadManager` path. Direct MP4/WebM/MKV via a range-aware `ParallelDownloader`, HLS via segment fetch + optional Media3 `Transformer` remux to MP4 (with `.ts` concat fallback on failure or low disk). Target files land in the user-chosen directory (`DownloadDirectoryService`).
-- **Download queue with concurrency cap** — at most three downloads run in parallel; the rest wait as `PENDING` in a FIFO queue and are promoted automatically as slots free up. Each active download still chunks internally via `ParallelDownloader` Range requests when the server supports them.
-- **Auto-resume on cold start** — tasks that were `downloading`, `pending`, `remuxing`, or `disconnected` when the process died are re-enqueued to the native engine on next app launch. Downloaders resume from `.state.json` + `.partial` bytes without re-downloading completed segments. Paused tasks stay paused.
-- **Downloads survive app close / swipe-away** — engine, notification center, and event sink are now process-scope; Flutter attach/detach only wires channels. `FOREGROUND_SERVICE_DATA_SYNC` keeps downloads running after the user swipes the app from recents, with `android:stopWithTask="false"` and an explicit `onTaskRemoved` override.
-- **Retry + error taxonomy** — `DownloadErrorClassifier` maps failures into `FailFast` / `RetryOnce` / `RetryBackoff` / `StorageFull` / `Disconnected`. 5xx and timeouts retry 1/2/4/8/16s (cap 5); 404 retries once; 401/403/410 fail fast. Terminal failures now carry a stable `errorCode` (e.g. `download.storage_full`, `download.server_error_503`) alongside the message.
-- **Android APK split per ABI** — release pipeline now builds `arm64-v8a`, `armeabi-v7a`, `x86_64`, and `universal` APKs. The in-app updater auto-detects the device ABI via `device_info_plus` and downloads the matching split (~35-45 MB each) instead of the ~90 MB universal APK. The API (`/releases/latest`) and update manifest expose both `universal` and per-ABI slots (`abis.arm64_v8a`, etc.) with SHA-256 and size for integrity checks.
-- **WiFi-only + auto-resume on reconnect** — toggling "WiFi only" or losing connectivity auto-pauses active + queued tasks with `DISCONNECTED`; tasks resume automatically when an acceptable network returns.
-- **Per-task + summary download notifications** — each active download has its own notification with Pause/Resume/Cancel actions; a grouped summary exposes Pause all / Resume all.
+- **Smarter sync** — Kumoriya now keeps checking for changes more often, so it can stay in sync without relying on a single button.
+- **Better pull behavior** — when you return to the app, it now checks for remote changes automatically.
+- **Android downloads rebuilt** — large files and HLS downloads are handled more reliably.
+- **Three downloads at a time** — extra downloads wait their turn instead of overwhelming the device.
+- **Resume after restart** — downloads can pick up again if the app closes or the process dies.
+- **Downloads that keep going** — closing the app or swiping it away is much less likely to stop active downloads.
+- **Clearer error handling** — the app now knows better when to retry, wait, or stop a failed download.
+- **APK by architecture** — Android users get a better-sized download for their device instead of always receiving the biggest package.
+- **WiFi-only support** — downloads pause and resume automatically when the network changes.
+- **Better download notifications** — each download has its own controls, plus a summary for all of them.
 
 ### Changed
-- **`media_kit_libs_video` replaced with desktop-only libs** — `media_kit_libs_linux`, `media_kit_libs_windows_video`, `media_kit_libs_macos_video` are pulled explicitly so the Android APK no longer ships libmpv / libavcodec / libdav1d (~30-50 MB of `.so` saved). Android playback runs exclusively through `kumoriya_exoplayer` (Media3); `MediaKit.ensureInitialized()` is gated with `!Platform.isAndroid`.
-- **`DownloadBackend` contract** — a single abstraction routes Android to `NativeDownloadBackend` and desktop to `DartDownloadBackend` (wraps the existing `DownloadManagerService`). Use cases and UI depend on the contract, not on concrete backends.
-- **Unified HTTP stack** — player and downloader now share `KumoriyaHttpClient` (single OkHttp `OkHttpClient` singleton with pool, redirects, timeouts, and UA extraction). Media3 playback uses `OkHttpDataSource.Factory` instead of `DefaultHttpDataSource`.
+- **Lighter Android app** — the app no longer ships desktop-only video pieces on Android.
+- **Shared network foundation** — playback and downloads now use the same HTTP base so they behave more consistently.
 
 ### Fixed
-- **UI de descargas no se actualizaba** — el flujo nativo ahora emite eventos de `state` explícitos (pending → downloading → completed/failed) y el servicio Dart los refleja inmediatamente en Drift y en los streams de Riverpod, así la tab Active muestra progreso en vivo.
-- **Descargas quedaban atascadas** — Media3 trataba todos los streams como progressive, bajando solo el `.m3u8`; ahora las URLs HLS van por un `HlsDownloadPreparer` con el MIME correcto.
-- **Eventos tempranos perdidos** — el sink del `EventChannel` es mutable y con buffer: eventos que ocurren antes de que Flutter suscriba se drenan al adjuntarse.
-- **Cancelar dejaba la descarga marcada como `failed`** — cancelar ahora borra el task de Drift y limpia segmentos/caché temporales (cancel = delete).
-- **Headers custom duplicados en la URL** al entregar una descarga al plugin nativo.
-- **Queue stuck after cold start** — before the reconciliation pass, tasks in `pending`/`downloading` in Drift had no matching native job; pause/resume were no-ops.
-- **Swipe-away killed downloads** — Flutter detach used to destroy the engine and stop the FGS, taking every in-flight download with it. Engine ownership moved to a process-scope singleton (`DownloadCore`).
-- **`.ts` and `.mp4` artifacts orphaned on cancel** — the cancel path now sweeps both HLS remux variants plus their `.partial` siblings.
-- **Auto-pause lost task on enqueue race** — the waiting queue is locked so concurrent enqueues cannot over-count active jobs; duplicate resume/retry clicks dedupe on `taskId`.
+- **Downloads UI now updates right away** — progress and state changes show up immediately.
+- **HLS downloads now start correctly** — HLS content is handled the right way instead of getting stuck.
+- **Early events no longer vanish** — startup events are buffered until Flutter is ready.
+- **Cancel now cleans up properly** — cancelled downloads are removed instead of being left in a bad state.
+- **Less confusion with custom headers** — download headers are no longer duplicated in the URL.
+- **Cold start recovery works again** — queued tasks reconnect correctly after app restart.
+- **Swiping away the app no longer kills everything** — downloads are kept alive more reliably.
+- **Cancel cleanup is more complete** — temporary HLS leftovers are removed more thoroughly.
+- **Retry spam is better handled** — repeated taps no longer over-count active work.
 
 ### Infra / Docs
-- **APK release baseline documented** — `docs/apk-size-analysis.md` captures per-ABI sizes (35.4 MB armv7 / 42.3 MB arm64 / 45.1 MB x86_64), component breakdown, and a prioritised list of follow-up optimisations (AAB migration, `flutter_webrtc` removal, media_kit web-only assets).
+- **APK size baseline documented** — a size breakdown was added so future release work can focus on the biggest wins.
 
 ## [v0.2.0] - 2026-04-18
 
 ### Added
-- **Dedicated Watch Party surfaces** — party anime and episode pages now have their own room-first layouts, making it much easier to understand members, readiness, room state, and the collaborative launch flow.
-- **Server-side AniList home cache (Go backend)** — trending, seasonal discovery, and airing calendar are now served from `api.kumoriya.online/v1/anilist/home/*` with in-memory SWR caching and conservative TTLs to reduce AniList rate-limit pressure.
-- **Firebase Cloud Messaging push notifications for airing episodes** — `media_{anilistId}` topic subscriptions now mirror the `notify_new_episodes` toggle and are reconciled after login and on app boot.
-- **Backend-first AniList metadata gateway** — clients now prefer backend-powered home/discovery fetches with transparent fallback to direct AniList on backend failure.
-- **API-driven release feed** — release metadata now lives in Neon and is served through `api.kumoriya.online/releases/*`, enabling the app and website to read a shared source of truth.
+- **Watch Party screens** — anime and episode pages were redesigned around room context and group playback.
+- **Faster AniList home** — trending, seasonal, and airing content now load from the backend with caching.
+- **Airing episode alerts** — anime subscriptions now sync better with your notification settings.
+- **Shared release feed** — the app and website now read release info from the API.
 
 ### Changed
-- **Watch Party navigation flow** — party browse and playback routes now preserve room context correctly and return users to the lobby instead of unwinding the global navigation stack.
-- **Profile hierarchy** — Watch Party is now a prominent CTA, logout is more visible, and destructive/account metadata actions are much more discreet to reduce accidental taps.
-- **Legacy new-episodes worker reduced to auto-download only** — local notifications were removed in favor of FCM push, and worker cadence was reduced to lower scraping traffic.
-- **Website release data source** — homepage downloads and changelog entries now consume the API-backed release feed instead of hand-maintained JSON as the primary source.
+- **Watch Party navigation** — browsing, playback, and returning to the lobby now feels more consistent.
+- **Profile layout** — Watch Party is easier to notice, while sensitive actions are less prominent.
+- **Simpler notifications flow** — local episode notifications were replaced with push notifications.
+- **Website release source** — the website now uses the API feed instead of hand-maintained JSON.
 
 ### Fixed
-- **Release publish staleness** — release metadata no longer depends on a one-time manifest fetch; publishing a new version now refreshes the API cache immediately.
-- **Airing notification channel drift** — Android and backend now use the same `kumoriya_new_episodes` channel.
-- **Accidental account deletion risk in Profile** — destructive actions and the account UUID are now visually de-emphasized compared with the main session actions.
+- **Release publishing stayed fresh** — new releases now refresh the API right away.
+- **Notification channel mismatch** — Android and backend now use the same episode alert channel.
+- **Safer profile actions** — destructive actions are now less likely to be tapped by mistake.
 
 ## [v0.1.4] - 2026-04-02
 
 ### Added
-- **Clear download queue button** — queue tab now shows a "Clear queue" action with confirmation dialog that removes all pending and failed tasks.
+- **Clear queue button** — you can now clear pending and failed downloads with confirmation.
 
 ### Changed
-- Download cancel/clear operations now remove tasks from UI/store first, then perform artifact cleanup in background for immediate UI feedback.
+- Cancelling or clearing now removes items from the list first, while cleanup continues in the background.
 
 ### Fixed
-- **Windows cancel delay in Downloads UI** — cancelled tasks now disappear immediately instead of waiting on large HLS segment folder deletion.
-- **Orphan HLS segment folders after app restart** — startup cleanup now removes stale `*_segments` directories not linked to active tasks (Windows/Android).
-- **FormatException on resolver responses** — resolver plugins now use malformed-safe UTF-8 decoding for non-UTF-8 embed responses.
-- **StateError: Using "ref" after widget unmount** — downloads refresh now guards `ref.invalidate()` after async gaps.
+- **Windows cancel delay** — cancelled downloads disappear immediately.
+- **Leftover HLS folders** — old segment folders are cleaned up on startup.
+- **Safer resolver responses** — odd text responses are handled more safely.
+- **Refresh after leaving the screen** — downloads refresh avoids errors if the screen is already gone.
 
 ## [v0.1.3] - 2026-04-01
 
 ### Added
-- **Browse Anime Page** — advanced genre/format/sort filtering with multi-genre selection and persistent filter state.
-- **Tag-Guided Anime Finder** — discover anime by AniList tags organized by category, with inline step-by-step guide.
-- **Bug Report Button** — in-app feedback widget in Settings that captures user reports directly to Sentry with tagging and categorization.
-- **Sentry crash monitoring** — full error tracking and user feedback integration via `sentry_flutter`.
-- **Consolidated Seasonal Discovery** — single AniList request combining current-season, upcoming, and recommended anime.
-- **AniList genre/tag collection queries** — fetch all valid genres and tags in one request each.
-- **Batch anime metadata fetch** — load full catalog data for a list of AniList IDs in one request.
-- **Watch history management** — `getAllHistory`, `deleteHistoryEntry`, and `clearAllHistory` methods in storage.
-- **AniList cache batch lookup** — `getByIds` for prefetching cache by ID list.
+- **Browse Anime page** — filter anime by genre, format, and sort order, including multiple genres.
+- **Tag-guided discovery** — browse AniList tags by category to find anime more easily.
+- **Bug report button** — send feedback and issues directly from the app.
+- **Error monitoring** — helps the team spot problems and fix them faster.
+- **Seasonal discovery** — current, upcoming, and recommended anime are now grouped together.
+- **More AniList data in one go** — the app can request more genre, tag, and metadata info at once.
+- **Watch history tools** — history can be viewed, deleted, or cleared.
+- **Faster cache lookup** — multiple IDs can be prefetched at once.
 
 ### Changed
-- **Player seek accumulation** — double-tap seek zones now accumulate ±10s with visual Delta indicator (e.g. "+30s"), commits after 800ms idle. Keyboard arrows support accumulation.
-- **Safer auto-next episode** — prevents position listeners from re-triggering auto-next during page transition.
-- **StreamWish mirror fallback** — added 3 new mirror hosts (`sfastwish.com`, `awish.pro`, `wishfast.top`); primary failures try mirrors before giving up.
-- **Honorific-hyphen normalization** — titles like "Hime-sama" now correctly match "Himesama" in AniList matching.
-- **Consolidated AniList GraphQL queries** — fewer network round-trips for browsing and discovery.
-- Download resolution failures now log detailed Sentry breadcrumbs.
+- **Seek accumulation** — quick taps now build up jumps so skipping is more precise.
+- **Safer auto-next** — the next episode is less likely to trigger by mistake.
+- **More playback fallbacks** — extra mirrors were added to improve availability.
+- **Better title matching** — some hyphenated titles now match more naturally.
+- **Fewer network calls** — browsing and discovery now use fewer round-trips.
+- Download failures now leave better breadcrumbs for debugging.
 
 ### Fixed
-- Disposed engine crashes — race where media_kit teardown triggered operations on already-disposed native player.
-- Player seek indicator now shows dynamic accumulated Delta instead of fixed ±10s.
-- Better playback teardown — stop before dispose reduces race windows.
+- **Player teardown crashes** — closing playback is now safer.
+- **Seek indicator** — the skip indicator now reflects the accumulated jump.
+- **Playback shutdown** — stopping before closing reduces race conditions.
 
 ## [v0.1.2] - 2026-03-31
 
 ### Added
-- Settings now shows the installed app version in the App section.
+- Settings now shows the installed app version.
 
 ### Changed
 - App version bumped to `0.1.2+3`.
 
 ### Fixed
-- Update availability check now runs automatically at startup on Android and Windows, so release builds can detect remote updates without relying on debug-only actions.
+- Update checks now run at startup on Android and Windows.
 
 ## [v0.1.1] - 2026-03-31
 
 ### Added
-- Parallel 4-connection range-based APK download accelerator (falls back to single-stream if server does not support range requests).
-- Native Android HTTP client via Cronet engine — same network stack used by Chrome and Android WebView, significantly faster than Dart's built-in client for large downloads.
-- `REQUEST_INSTALL_PACKAGES` permission in Android manifest.
-- Android storage access permission request on first launch (before download path dialog).
-- Debug forced-update dialog in Settings — opens the update install flow without requiring a newer remote version, for testing.
-- Storage: five new AniList cache columns — `synonyms`, `season`, `popularity`, `nextAiringEpisode`, `nextAiringAt`.
-- Storage: four new DAO query methods — `getRecent`, `getByStatus`, `getByYearAndStatus`, `searchByTitle`.
+- Faster update downloads using multiple connections.
+- Better Android network handling for big files.
+- Permission support for installing updates.
+- Storage access requested earlier during setup.
+- A debug-only forced update screen for testing.
+- More AniList data saved locally.
+- Better storage queries for browsing and search.
 
 ### Changed
-- Android application ID changed from `com.example.kumoriya_app` to `dev.kumoriya.app`.
-- Android app display name changed from `kumoriya_app` to `Kumoriya`.
-- Android app category set to `video`.
-- Debug builds use `applicationIdSuffix = ".debug"` and display label `Kumoriya (DEBUG)` so debug and release can coexist on the same device.
-- Download path first-launch dialog is now fully localized (ES + EN).
-- All update download requests include `Accept-Encoding: identity` to prevent CDN compression on binary payloads.
+- Android app identity changed to `dev.kumoriya.app` and `Kumoriya`.
+- Debug and release builds can now coexist on the same device.
+- Download path dialogs are now localized.
+- Update downloads avoid extra compression so the file arrives correctly.
 
 ### Fixed
-- Update installer failing silently when `REQUEST_INSTALL_PACKAGES` was denied — now prompts the user to the system settings to grant the permission.
-- First-launch download folder dialog showing English text regardless of device locale.
+- Update installs now tell you what to do if permission is denied.
+- The first-launch download folder dialog now respects your language.
 
 ## [v0.1.0] - 2026-03-30
 
 ### Added / Agregado
-- Initial public alpha app release for Android and Windows.
-- App update check flow via remote `update.json` manifest hosted on Cloudflare R2.
-- In-app update dialog with version comparison and release notes display.
-- Android update download and APK installer handoff.
-- Windows update installer handoff with app close-before-install behavior.
+- First public alpha release for Android and Windows.
+- In-app update checks using a remote release file.
+- Update dialog with release notes.
+- Android update download and install handoff.
+- Windows installer handoff with safe app closing.
 
 ### Changed / Cambios
-- Release process now supports centralized version metadata in R2.
-- Release publishing path now targets platform-specific versioned artifacts.
+- Release metadata is now centralized.
+- Release publishing now uses versioned artifacts per platform.
 
 ### Fixed / Corregido
-- N/A for baseline release.
+- None for the baseline release.

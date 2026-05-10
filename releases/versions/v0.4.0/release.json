@@ -1,0 +1,38 @@
+{
+  "version": "0.4.0",
+  "tag": "v0.4.0",
+  "date": "2026-05-03",
+  "channels": [
+    "alpha"
+  ],
+  "manifest_release_notes": "Actualizacion de version.",
+  "summary": {
+    "es": "Actualizacion de version.",
+    "en": "Actualizacion de version."
+  },
+  "artifacts": {
+    "android": {
+      "file_name": "kumoriya-0.4.0-arm64-v8a.apk",
+      "r2_key": "artifacts/android/v0.4.0/kumoriya-0.4.0-arm64-v8a.apk",
+      "public_url": "https://pub-8159019abe1741a097538b976c19722c.r2.dev/artifacts/android/v0.4.0/kumoriya-0.4.0-arm64-v8a.apk",
+      "abis": [
+        {
+          "abi": "arm64_v8a",
+          "file_name": "kumoriya-0.4.0-arm64-v8a.apk",
+          "r2_key": "artifacts/android/v0.4.0/kumoriya-0.4.0-arm64-v8a.apk",
+          "public_url": "https://pub-8159019abe1741a097538b976c19722c.r2.dev/artifacts/android/v0.4.0/kumoriya-0.4.0-arm64-v8a.apk",
+          "size_bytes": 43350126,
+          "sha256": "da6cf0406a38d49f894f51e5ffe1ed93c23c7c01ecc1d404d9ea1276c3c0580e"
+        }
+      ]
+    }
+  },
+  "changelog_paths": {
+    "es": "docs/releases/es/v0.4.0.md",
+    "en": "docs/releases/en/v0.4.0.md"
+  },
+  "notes_markdown": {
+    "es": "# Kumoriya v0.4.0 — Notas de Versión Alpha\n\n**Fecha:** 2026-05-03\n\n## Resumen\n\nEsta versión trae por fin la experiencia de manga completa: puedes cambiar entre Anime y Manga, leer capítulos con comodidad, guardar tu progreso, descargar para ver sin conexión y descubrir más series desde varias fuentes en español.\n\n## Agregado\n\n- **Nuevo modo Manga** — ahora puedes cambiar entre Anime y Manga desde la app, y cada universo tiene su propia apariencia.\n- **Lector de manga** — lectura vertical o por páginas, con navegación entre capítulos y soporte para CBZ.\n- **Biblioteca de manga** — historial, favoritos y suscripciones ahora están organizados en una biblioteca propia.\n- **Más opciones para descubrir manga** — Kumoriya ahora reúne MangaDex y varias fuentes en español para ayudarte a encontrar más contenido.\n- **Mejor selección de fuentes y scanlators** — elegir qué leer es más fácil y más preciso.\n- **Descargas y progreso sincronizado** — puedes bajar capítulos para leer sin conexión y guardar tu progreso en tu cuenta.\n- **Mejor manejo cuando AniList falla** — la app ahora muestra contenido útil en vez de quedarse en blanco.\n- **Avisos de nuevas versiones** — Kumoriya puede enterarse cuando hay un nuevo release publicado.\n- **Soporte para HLS en MP4** — las descargas de video HLS se convierten a un formato más fácil de guardar y reproducir.\n\n## Cambios\n\n- **La app se ve distinta según el universo elegido** — Anime y Manga ahora tienen identidad visual propia.\n- **La portada de manga carga mejor** — la pantalla principal de manga responde de forma más estable y rápida.\n\n## Corregido\n\n- **La pantalla ya no se apaga mientras ves un video** — la reproducción mantiene la pantalla activa.\n- **El brillo vuelve a la normalidad al salir del reproductor** — ya no se queda alterado después de ver un video.\n- **Las notificaciones de nuevos episodios son más fiables** — ahora la app detecta mejor los episodios recién emitidos.\n\n## Plataformas\n\n- Android (APK arm64-v8a)\n- Windows (publicación separada)",
+    "en": "# Kumoriya v0.4.0 — Alpha Release Notes\n\n**Date:** 2026-05-03\n\n## Summary\n\nThis release brings the full manga experience to Kumoriya: you can switch between Anime and Manga, read chapters more comfortably, keep your progress, download for offline use, and discover more series from multiple Spanish-language sources.\n\n## Added\n\n- **Manga mode** — you can now switch between Anime and Manga from the main app, and each universe has its own feel.\n- **Manga reader** — a new reading experience with vertical and paged modes, chapter navigation, and CBZ support.\n- **Manga library** — History, Favorites, and Subscribed now live in a dedicated manga library.\n- **More ways to discover manga** — Kumoriya now brings together MangaDex and several Spanish-language sources to help you find more series.\n- **Better source and scanlator picking** — choosing what to read is now easier and more accurate.\n- **Manga downloads and synced progress** — you can download chapters for offline reading and keep your progress in sync with your account.\n- **Better fallback when AniList is down** — the app now shows useful content instead of going blank.\n- **Release notifications** — Kumoriya can now be notified when a new release is published.\n- **HLS to MP4 support** — HLS video downloads are converted into a more practical format for saving and playback.\n\n## Changed\n\n- **The app styling follows the selected universe** — Anime and Manga now feel visually distinct when you switch.\n- **Manga home loads more smoothly** — the manga landing page is now more reliable and quicker to appear.\n\n## Fixed\n\n- **Screen dimming during playback** — the player now keeps the screen awake while a video is playing.\n- **Brightness not returning after playback** — leaving the player now restores your previous brightness level.\n- **Missed airing notifications** — the app now catches recently aired episodes more reliably.\n\n## Platforms\n\n- Android (arm64-v8a APK)\n- Windows (published separately)"
+  }
+}
