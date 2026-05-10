@@ -4,6 +4,30 @@ All notable changes to Kumoriya will be documented in this file.
 
 ## [Unreleased]
 
+## [v0.4.1] - 2026-05-10
+
+### Added
+- **More ways to discover anime** — Browse, Search, and Season Hub now load smoothly as you scroll, with extra filters by status, year, and season.
+- **More rows on Discover** — new Top Airing, Top Movies, and Upcoming sections.
+- **Choose the app language** — pick English, Spanish, or follow your device setting.
+- **Smarter episode titles** — episode names shown in the player and offline downloads adapt to your language when possible.
+
+### Changed
+- **Player feels more reliable** — rotation handling is more accurate and the controls are tidier.
+- **Settings and Profile cleaned up** — easier to find what you need; destructive actions are less likely to be tapped by accident.
+- **Watch Party overlay polished** — matches the new player look.
+- **Manga reader is smoother** — pages load before you reach them, so swipes feel less jumpy.
+
+### Fixed
+- **Manga sources and scanlators** — picking what to read is more accurate when several options are available.
+- **InManga** — better handling of small markup variations from the source.
+- **AniList prewarm** — the backend recovers better from transient errors and puts less pressure on AniList rate limits.
+
+### Infra / Docs
+- **Windows builds compile cleanly** — Android-only Firebase pieces are filtered out of the Windows build automatically.
+- **Historical release notes rewritten** — v0.1.0–v0.3.0 notes now read as user-facing release notes (in English and Spanish).
+- **Release publishing tools** — improved `publish-r2-release.sh` and added a `republish-release-history.sh` helper to backfill old releases without touching the current "latest" tag.
+
 ## [v0.4.0] - 2026-05-03
 
 ### Added

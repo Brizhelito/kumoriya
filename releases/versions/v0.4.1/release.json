@@ -1,0 +1,27 @@
+{
+  "version": "0.4.1",
+  "tag": "v0.4.1",
+  "date": "2026-05-10",
+  "channels": [
+    "alpha"
+  ],
+  "manifest_release_notes": "Discovery + UI polish.",
+  "summary": {
+    "es": "Discovery, ajustes y reproductor m\u00e1s pulidos.",
+    "en": "Discovery, settings and player polish."
+  },
+  "artifacts": {
+    "android": {
+      "abis": []
+    }
+  },
+  "changelog_paths": {
+    "es": "docs/releases/es/v0.4.1.md",
+    "en": "docs/releases/en/v0.4.1.md"
+  },
+  "notes_markdown": {
+    "es": null,
+    "en": null
+  },
+  "_pending": "APK arm64-v8a not yet built; populate artifacts/abis + notes_markdown before publishing."
+}
