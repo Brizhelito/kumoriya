@@ -1253,6 +1253,13 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settingsLanguageSpanish => 'Spanish';
 
   @override
+  String get settingsLanguageSystem => 'System';
+
+  @override
+  String get settingsLanguageDescription =>
+      'Choose the app language. \'System\' follows your device setting.';
+
+  @override
   String get settingsDesktopOnlyVisibleNote =>
       'On Windows only desktop-relevant settings are shown.';
 
@@ -1546,6 +1553,15 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get discoverPopular => 'Most Popular';
+
+  @override
+  String get discoverTopAiring => 'Top Airing';
+
+  @override
+  String get discoverTopMovies => 'Top Movies';
+
+  @override
+  String get discoverUpcoming => 'Upcoming';
 
   @override
   String get discoverGenres => 'Browse by Genre';

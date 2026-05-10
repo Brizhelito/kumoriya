@@ -2167,6 +2167,18 @@ abstract class AppLocalizations {
   /// **'Spanish'**
   String get settingsLanguageSpanish;
 
+  /// No description provided for @settingsLanguageSystem.
+  ///
+  /// In en, this message translates to:
+  /// **'System'**
+  String get settingsLanguageSystem;
+
+  /// No description provided for @settingsLanguageDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose the app language. \'System\' follows your device setting.'**
+  String get settingsLanguageDescription;
+
   /// No description provided for @settingsDesktopOnlyVisibleNote.
   ///
   /// In en, this message translates to:
@@ -2724,6 +2736,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Most Popular'**
   String get discoverPopular;
+
+  /// No description provided for @discoverTopAiring.
+  ///
+  /// In en, this message translates to:
+  /// **'Top Airing'**
+  String get discoverTopAiring;
+
+  /// No description provided for @discoverTopMovies.
+  ///
+  /// In en, this message translates to:
+  /// **'Top Movies'**
+  String get discoverTopMovies;
+
+  /// No description provided for @discoverUpcoming.
+  ///
+  /// In en, this message translates to:
+  /// **'Upcoming'**
+  String get discoverUpcoming;
 
   /// No description provided for @discoverGenres.
   ///
