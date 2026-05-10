@@ -16,8 +16,10 @@ import '../../../app_update/application/app_update_service.dart';
 import '../../../app_update/presentation/app_update_providers.dart';
 import '../../../app_update/presentation/widgets/update_available_dialog.dart';
 import '../../../anime_catalog/presentation/providers/storage_providers.dart';
+import '../../application/app_language_preference.dart';
 import '../../../auth/presentation/pages/login_page.dart';
 import '../../../auth/presentation/pages/profile_page.dart';
+import '../../../downloads/application/download_directory_service.dart';
 import '../../../downloads/presentation/download_providers.dart';
 import '../../../downloads/application/auto_delete_watched_service.dart';
 import '../../../downloads/application/wifi_only_mode_notifier.dart';
@@ -357,333 +359,317 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
         children: <Widget>[
-          Text(
-            context.l10n.settingsTitle,
-            style: Theme.of(
-              context,
-            ).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w800),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            Platform.isWindows
-                ? context.l10n.settingsDesktopOnlyVisibleNote
-                : context.l10n.settingsNotificationsDescription,
-            style: const TextStyle(
-              color: KumoriyaColors.textTertiary,
-              height: 1.4,
-            ),
-          ),
-          const SizedBox(height: 16),
           _buildAccountSection(context),
           const SizedBox(height: 16),
-          _SettingsSectionCard(
-            child: Column(
+          if (!Platform.isWindows) ...<Widget>[
+            _buildNotificationsCard(context),
+            const SizedBox(height: 16),
+          ],
+          _buildDownloadsCard(context, directoryInfoState),
+          const SizedBox(height: 16),
+          _buildPlaybackCard(context),
+          const SizedBox(height: 16),
+          _SettingsSectionCard(child: _buildSubtitleSettingsSection(context)),
+          const SizedBox(height: 16),
+          _buildAppCard(context, locale),
+          const SizedBox(height: 16),
+          _buildAdvancedCard(context),
+          const SizedBox(height: 16),
+          _buildHelpCard(context),
+          if (kDebugMode) ...<Widget>[
+            const SizedBox(height: 16),
+            _buildDeveloperCard(context),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildNotificationsCard(BuildContext context) {
+    return _SettingsSectionCard(
+      child: _SettingsSection(
+        title: context.l10n.settingsNotificationsTitle,
+        description: context.l10n.settingsNotificationsDescription,
+        child: Column(
+          children: <Widget>[
+            _SettingsActionRow(
+              leading: KumoriyaIcons.notificationsActive,
+              title: context.l10n.settingsNotificationsTitle,
+              subtitle: _notificationStatusLabel(context),
+              trailing: _StatusBadge(
+                label: _notificationStatusLabel(context),
+                tone: _notificationStatusTone,
+              ),
+            ),
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
               children: <Widget>[
-                if (!Platform.isWindows) ...<Widget>[
-                  _SettingsSection(
-                    title: context.l10n.settingsNotificationsTitle,
-                    description: context.l10n.settingsNotificationsDescription,
-                    child: Column(
-                      children: <Widget>[
-                        _SettingsActionRow(
-                          leading: KumoriyaIcons.notificationsActive,
-                          title: context.l10n.settingsNotificationsTitle,
-                          subtitle: _notificationStatusLabel(context),
-                          trailing: _StatusBadge(
-                            label: _notificationStatusLabel(context),
-                            tone: _notificationStatusTone,
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        Wrap(
-                          spacing: 8,
-                          runSpacing: 8,
-                          children: <Widget>[
-                            if (_supportsNotificationRequest &&
-                                !(_notificationStatus?.isGranted ?? false))
-                              FilledButton.icon(
-                                onPressed:
-                                    _requestingNotifications ||
-                                        _loadingNotificationStatus
-                                    ? null
-                                    : _requestNotifications,
-                                icon: _requestingNotifications
-                                    ? const SizedBox(
-                                        width: 18,
-                                        height: 18,
-                                        child: CircularProgressIndicator(
-                                          strokeWidth: 2,
-                                          color: Colors.white,
-                                        ),
-                                      )
-                                    : const Icon(
-                                        KumoriyaIcons.notificationsActive,
-                                      ),
-                                label: Text(
-                                  context.l10n.settingsEnableNotifications,
-                                ),
-                              ),
-                            OutlinedButton.icon(
-                              onPressed: () async {
-                                await openAppSettings();
-                                if (mounted) {
-                                  await _refreshNotificationStatus();
-                                }
-                              },
-                              icon: const Icon(Icons.open_in_new_rounded),
-                              label: Text(
-                                context.l10n.settingsOpenSystemSettings,
-                              ),
+                if (_supportsNotificationRequest &&
+                    !(_notificationStatus?.isGranted ?? false))
+                  FilledButton.icon(
+                    onPressed:
+                        _requestingNotifications || _loadingNotificationStatus
+                        ? null
+                        : _requestNotifications,
+                    icon: _requestingNotifications
+                        ? const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white,
                             ),
-                            if (kDebugMode &&
-                                (Platform.isAndroid || Platform.isWindows))
-                              FilledButton.tonalIcon(
-                                onPressed: _runningDebugUpdateProbe
-                                    ? null
-                                    : _runDebugUpdateProbe,
-                                icon: _runningDebugUpdateProbe
-                                    ? const SizedBox(
-                                        width: 18,
-                                        height: 18,
-                                        child: CircularProgressIndicator(
-                                          strokeWidth: 2,
-                                        ),
-                                      )
-                                    : const Icon(Icons.system_update_rounded),
-                                label: const Text('Test update E2E (debug)'),
-                              ),
-                            if (kDebugMode &&
-                                (Platform.isAndroid || Platform.isWindows))
-                              FilledButton.tonalIcon(
-                                onPressed: _runningForcedDebugUpdateProbe
-                                    ? null
-                                    : _runForcedDebugUpdateProbe,
-                                icon: _runningForcedDebugUpdateProbe
-                                    ? const SizedBox(
-                                        width: 18,
-                                        height: 18,
-                                        child: CircularProgressIndicator(
-                                          strokeWidth: 2,
-                                        ),
-                                      )
-                                    : const Icon(Icons.bolt_rounded),
-                                label: const Text(
-                                  'Forzar dialogo update (debug)',
-                                ),
-                              ),
-                            if (kDebugMode)
-                              FilledButton.tonalIcon(
-                                onPressed: () {
-                                  Navigator.of(
-                                    context,
-                                    rootNavigator: true,
-                                  ).push(
-                                    MaterialPageRoute<void>(
-                                      builder: (_) =>
-                                          const ResolverPlaygroundPage(),
-                                    ),
-                                  );
-                                },
-                                icon: const Icon(Icons.science_rounded),
-                                label: const Text('Resolver Playground'),
-                              ),
-                            if (kDebugMode)
-                              FilledButton.tonalIcon(
-                                onPressed: () {
-                                  Navigator.of(
-                                    context,
-                                    rootNavigator: true,
-                                  ).push(
-                                    MaterialPageRoute<void>(
-                                      builder: (_) =>
-                                          const PlayerFlowPlaygroundPage(),
-                                    ),
-                                  );
-                                },
-                                icon: const Icon(
-                                  Icons.play_circle_outline_rounded,
-                                ),
-                                label: const Text('Player Flow Playground'),
-                              ),
-                            if (kDebugMode && Platform.isAndroid)
-                              FilledButton.tonalIcon(
-                                onPressed: () {
-                                  Navigator.of(
-                                    context,
-                                    rootNavigator: true,
-                                  ).push(
-                                    MaterialPageRoute<void>(
-                                      builder: (_) =>
-                                          const KumoriyaExoPlayerPlaygroundPage(),
-                                    ),
-                                  );
-                                },
-                                icon: const Icon(Icons.smart_display_rounded),
-                                label: const Text(
-                                  'kumoriya_exoplayer Playground',
-                                ),
-                              ),
-                          ],
-                        ),
-                      ],
-                    ),
+                          )
+                        : const Icon(KumoriyaIcons.notificationsActive),
+                    label: Text(context.l10n.settingsEnableNotifications),
                   ),
-                  const _SectionDivider(),
-                ],
-                _SettingsSection(
-                  title: context.l10n.downloadFolderTitle,
-                  description: context.l10n.downloadFolderDescription,
-                  child: directoryInfoState.when(
-                    loading: () => const SizedBox(
-                      height: 64,
-                      child: Center(child: CircularProgressIndicator()),
-                    ),
-                    error: (_, _) => Align(
-                      alignment: Alignment.centerLeft,
-                      child: OutlinedButton.icon(
-                        onPressed: () =>
-                            ref.invalidate(downloadDirectoryInfoProvider),
-                        icon: const Icon(KumoriyaIcons.refresh),
-                        label: Text(context.l10n.retry),
-                      ),
-                    ),
-                    data: (info) => Column(
-                      children: <Widget>[
-                        _SettingsActionRow(
-                          leading: Icons.folder_open_rounded,
-                          title: context.l10n.downloadFolderTitle,
-                          subtitle: info.path,
-                          trailing: _StatusBadge(
-                            label: info.isCustom
-                                ? context.l10n.downloadFolderCustom
-                                : context.l10n.downloadFolderDefault,
-                            tone: _BadgeTone.primary,
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        Wrap(
-                          spacing: 8,
-                          runSpacing: 8,
-                          children: <Widget>[
-                            FilledButton.icon(
-                              onPressed: _changeDownloadFolder,
-                              icon: const Icon(Icons.folder_open_rounded),
-                              label: Text(context.l10n.downloadFolderChange),
-                            ),
-                            if (info.isCustom)
-                              OutlinedButton.icon(
-                                onPressed: _resetDownloadFolder,
-                                icon: const Icon(Icons.restore_rounded),
-                                label: Text(context.l10n.downloadFolderReset),
-                              ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                const _SectionDivider(),
-                _AutoDeleteWatchedSection(),
-                // WiFi-only toggle only applies to the native Android
-                // download pipeline. Desktop uses a different native
-                // plugin that does not honor this flag.
-                if (!Platform.isWindows) ...<Widget>[
-                  const _SectionDivider(),
-                  const _WifiOnlyDownloadsSection(),
-                ],
-                const _SectionDivider(),
-                _SettingsSection(
-                  title: context.l10n.settingsPlaybackPreferencesTitle,
-                  description:
-                      context.l10n.settingsPlaybackPreferencesDescription,
-                  child: Column(
-                    children: <Widget>[
-                      _SettingsActionRow(
-                        leading: Icons.tune_rounded,
-                        title: context.l10n.settingsPlaybackPreferencesTitle,
-                        subtitle:
-                            context.l10n.settingsPlaybackPreferencesDescription,
-                      ),
-                      const SizedBox(height: 12),
-                      Align(
-                        alignment: Alignment.centerLeft,
-                        child: OutlinedButton.icon(
-                          onPressed: _clearingPlaybackPreferences
-                              ? null
-                              : _clearPlaybackPreferences,
-                          icon: _clearingPlaybackPreferences
-                              ? const SizedBox(
-                                  width: 16,
-                                  height: 16,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                  ),
-                                )
-                              : const Icon(Icons.delete_sweep_rounded),
-                          label: Text(
-                            context.l10n.settingsPlaybackPreferencesClear,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const _SectionDivider(),
-                _buildSubtitleSettingsSection(context),
-                const _SectionDivider(),
-                _SettingsSection(
-                  title: context.l10n.settingsAppTitle,
-                  child: Column(
-                    children: <Widget>[
-                      _ReadOnlySettingRow(
-                        label: context.l10n.settingsVersionLabel,
-                        value: _loadingAppVersion
-                            ? context.l10n.loadingGeneric
-                            : _appVersionLabel,
-                      ),
-                      const SizedBox(height: 4),
-                      _ReadOnlySettingRow(
-                        label: context.l10n.settingsThemeLabel,
-                        value: context.l10n.settingsThemeDark,
-                      ),
-                      const SizedBox(height: 4),
-                      _ReadOnlySettingRow(
-                        label: context.l10n.settingsLanguageLabel,
-                        value: locale.languageCode.startsWith('es')
-                            ? context.l10n.settingsLanguageSpanish
-                            : context.l10n.settingsLanguageEnglish,
-                      ),
-                      const SizedBox(height: 16),
-                      const Divider(
-                        height: 1,
-                        color: KumoriyaColors.borderSubtle,
-                      ),
-                      const SizedBox(height: 12),
-                      ListTile(
-                        contentPadding: EdgeInsets.zero,
-                        leading: const Icon(Icons.link_rounded),
-                        title: Text(
-                          context.l10n.settingsPluginBaseUrlsAdvancedEntry,
-                        ),
-                        trailing: const Icon(Icons.chevron_right_rounded),
-                        onTap: () {
-                          Navigator.of(context, rootNavigator: true).push(
-                            MaterialPageRoute<void>(
-                              builder: (_) =>
-                                  const PluginBaseUrlOverridesPage(),
-                            ),
-                          );
-                        },
-                      ),
-                      const SizedBox(height: 12),
-                      const BugReportButton(),
-                    ],
-                  ),
+                OutlinedButton.icon(
+                  onPressed: () async {
+                    await openAppSettings();
+                    if (mounted) {
+                      await _refreshNotificationStatus();
+                    }
+                  },
+                  icon: const Icon(Icons.open_in_new_rounded),
+                  label: Text(context.l10n.settingsOpenSystemSettings),
                 ),
               ],
             ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDownloadsCard(
+    BuildContext context,
+    AsyncValue<DownloadDirectoryInfo> directoryInfoState,
+  ) {
+    return _SettingsSectionCard(
+      child: Column(
+        children: <Widget>[
+          _SettingsSection(
+            title: context.l10n.downloadFolderTitle,
+            description: context.l10n.downloadFolderDescription,
+            child: directoryInfoState.when(
+              loading: () => const SizedBox(
+                height: 64,
+                child: Center(child: CircularProgressIndicator()),
+              ),
+              error: (_, _) => Align(
+                alignment: Alignment.centerLeft,
+                child: OutlinedButton.icon(
+                  onPressed: () =>
+                      ref.invalidate(downloadDirectoryInfoProvider),
+                  icon: const Icon(KumoriyaIcons.refresh),
+                  label: Text(context.l10n.retry),
+                ),
+              ),
+              data: (info) => Column(
+                children: <Widget>[
+                  _SettingsActionRow(
+                    leading: Icons.folder_open_rounded,
+                    title: context.l10n.downloadFolderTitle,
+                    subtitle: info.path,
+                    trailing: _StatusBadge(
+                      label: info.isCustom
+                          ? context.l10n.downloadFolderCustom
+                          : context.l10n.downloadFolderDefault,
+                      tone: _BadgeTone.primary,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: <Widget>[
+                      FilledButton.icon(
+                        onPressed: _changeDownloadFolder,
+                        icon: const Icon(Icons.folder_open_rounded),
+                        label: Text(context.l10n.downloadFolderChange),
+                      ),
+                      if (info.isCustom)
+                        OutlinedButton.icon(
+                          onPressed: _resetDownloadFolder,
+                          icon: const Icon(Icons.restore_rounded),
+                          label: Text(context.l10n.downloadFolderReset),
+                        ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
           ),
+          const _SectionDivider(),
+          const _AutoDeleteWatchedSection(),
+          if (!Platform.isWindows) ...<Widget>[
+            const _SectionDivider(),
+            const _WifiOnlyDownloadsSection(),
+          ],
         ],
+      ),
+    );
+  }
+
+  Widget _buildPlaybackCard(BuildContext context) {
+    return _SettingsSectionCard(
+      child: _SettingsSection(
+        title: context.l10n.settingsPlaybackPreferencesTitle,
+        description: context.l10n.settingsPlaybackPreferencesDescription,
+        child: Align(
+          alignment: Alignment.centerLeft,
+          child: OutlinedButton.icon(
+            onPressed: _clearingPlaybackPreferences
+                ? null
+                : _clearPlaybackPreferences,
+            icon: _clearingPlaybackPreferences
+                ? const SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.delete_sweep_rounded),
+            label: Text(context.l10n.settingsPlaybackPreferencesClear),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAppCard(BuildContext context, Locale locale) {
+    return _SettingsSectionCard(
+      child: _SettingsSection(
+        title: context.l10n.settingsAppTitle,
+        child: Column(
+          children: <Widget>[
+            _ReadOnlySettingRow(
+              label: context.l10n.settingsVersionLabel,
+              value: _loadingAppVersion
+                  ? context.l10n.loadingGeneric
+                  : _appVersionLabel,
+            ),
+            const SizedBox(height: 4),
+            _ReadOnlySettingRow(
+              label: context.l10n.settingsThemeLabel,
+              value: context.l10n.settingsThemeDark,
+            ),
+            const SizedBox(height: 4),
+            _LanguagePickerRow(deviceLocale: locale),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAdvancedCard(BuildContext context) {
+    return _SettingsSectionCard(
+      child: _SettingsSection(
+        title: 'Avanzado',
+        child: ListTile(
+          contentPadding: EdgeInsets.zero,
+          leading: const Icon(Icons.link_rounded),
+          title: Text(context.l10n.settingsPluginBaseUrlsAdvancedEntry),
+          trailing: const Icon(Icons.chevron_right_rounded),
+          onTap: () {
+            Navigator.of(context, rootNavigator: true).push(
+              MaterialPageRoute<void>(
+                builder: (_) => const PluginBaseUrlOverridesPage(),
+              ),
+            );
+          },
+        ),
+      ),
+    );
+  }
+
+  Widget _buildHelpCard(BuildContext context) {
+    return _SettingsSectionCard(
+      child: _SettingsSection(
+        title: 'Ayuda y feedback',
+        child: const Align(
+          alignment: Alignment.centerLeft,
+          child: BugReportButton(),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDeveloperCard(BuildContext context) {
+    return _SettingsSectionCard(
+      child: _SettingsSection(
+        title: 'Desarrollador (debug)',
+        description:
+            'Herramientas internas. Solo visibles en builds de debug.',
+        child: Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: <Widget>[
+            if (Platform.isAndroid || Platform.isWindows)
+              FilledButton.tonalIcon(
+                onPressed: _runningDebugUpdateProbe
+                    ? null
+                    : _runDebugUpdateProbe,
+                icon: _runningDebugUpdateProbe
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.system_update_rounded),
+                label: const Text('Test update E2E'),
+              ),
+            if (Platform.isAndroid || Platform.isWindows)
+              FilledButton.tonalIcon(
+                onPressed: _runningForcedDebugUpdateProbe
+                    ? null
+                    : _runForcedDebugUpdateProbe,
+                icon: _runningForcedDebugUpdateProbe
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.bolt_rounded),
+                label: const Text('Forzar dialogo update'),
+              ),
+            FilledButton.tonalIcon(
+              onPressed: () {
+                Navigator.of(context, rootNavigator: true).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => const ResolverPlaygroundPage(),
+                  ),
+                );
+              },
+              icon: const Icon(Icons.science_rounded),
+              label: const Text('Resolver Playground'),
+            ),
+            FilledButton.tonalIcon(
+              onPressed: () {
+                Navigator.of(context, rootNavigator: true).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => const PlayerFlowPlaygroundPage(),
+                  ),
+                );
+              },
+              icon: const Icon(Icons.play_circle_outline_rounded),
+              label: const Text('Player Flow Playground'),
+            ),
+            if (Platform.isAndroid)
+              FilledButton.tonalIcon(
+                onPressed: () {
+                  Navigator.of(context, rootNavigator: true).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => const KumoriyaExoPlayerPlaygroundPage(),
+                    ),
+                  );
+                },
+                icon: const Icon(Icons.smart_display_rounded),
+                label: const Text('kumoriya_exoplayer Playground'),
+              ),
+          ],
+        ),
       ),
     );
   }
@@ -1138,6 +1124,70 @@ class _ReadOnlySettingRow extends StatelessWidget {
           fontWeight: FontWeight.w700,
           color: KumoriyaColors.textPrimary,
         ),
+      ),
+    );
+  }
+}
+
+class _LanguagePickerRow extends ConsumerWidget {
+  const _LanguagePickerRow({required this.deviceLocale});
+
+  final Locale deviceLocale;
+
+  String _label(BuildContext context, AppLanguagePreference pref) {
+    return switch (pref) {
+      AppLanguagePreference.system => context.l10n.settingsLanguageSystem,
+      AppLanguagePreference.english => context.l10n.settingsLanguageEnglish,
+      AppLanguagePreference.spanish => context.l10n.settingsLanguageSpanish,
+    };
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final asyncPref = ref.watch(appLanguageProvider);
+    final current = asyncPref.value ?? AppLanguagePreference.system;
+    return ListTile(
+      contentPadding: EdgeInsets.zero,
+      dense: true,
+      title: Text(
+        context.l10n.settingsLanguageLabel,
+        style: const TextStyle(
+          fontSize: 13,
+          fontWeight: FontWeight.w600,
+          color: KumoriyaColors.textSecondary,
+        ),
+      ),
+      subtitle: Text(
+        context.l10n.settingsLanguageDescription,
+        style: const TextStyle(
+          fontSize: 11,
+          color: KumoriyaColors.textTertiary,
+          height: 1.3,
+        ),
+      ),
+      trailing: DropdownButton<AppLanguagePreference>(
+        value: current,
+        underline: const SizedBox.shrink(),
+        style: const TextStyle(
+          fontSize: 13,
+          fontWeight: FontWeight.w700,
+          color: KumoriyaColors.textPrimary,
+        ),
+        dropdownColor: KumoriyaColors.surface,
+        items: AppLanguagePreference.values
+            .map(
+              (pref) => DropdownMenuItem<AppLanguagePreference>(
+                value: pref,
+                child: Text(_label(context, pref)),
+              ),
+            )
+            .toList(),
+        onChanged: asyncPref.isLoading
+            ? null
+            : (value) {
+                if (value == null) return;
+                ref.read(appLanguageProvider.notifier).setPreference(value);
+              },
       ),
     );
   }

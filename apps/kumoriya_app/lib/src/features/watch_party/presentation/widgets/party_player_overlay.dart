@@ -156,7 +156,13 @@ class _PartyPlayerOverlayState extends ConsumerState<PartyPlayerOverlay> {
 
         return Stack(
           children: [
-            RepaintBoundary(child: _ReactionBubbles(reactions: reactions)),
+            Positioned.fill(
+              child: IgnorePointer(
+                child: RepaintBoundary(
+                  child: _ReactionBubbles(reactions: reactions),
+                ),
+              ),
+            ),
             const Positioned(
               top: 8,
               right: 8,
@@ -654,19 +660,15 @@ class _ReactionBubbles extends StatelessWidget {
         ? reactions.sublist(reactions.length - 5)
         : reactions;
 
-    return Positioned.fill(
-      child: IgnorePointer(
-        child: Stack(
-          children: [
-            for (int i = 0; i < recent.length; i++)
-              _AnimatedReaction(
-                key: ValueKey(recent[i].timestamp),
-                reaction: recent[i],
-                index: i,
-              ),
-          ],
-        ),
-      ),
+    return Stack(
+      children: [
+        for (int i = 0; i < recent.length; i++)
+          _AnimatedReaction(
+            key: ValueKey(recent[i].timestamp),
+            reaction: recent[i],
+            index: i,
+          ),
+      ],
     );
   }
 }

@@ -140,209 +140,154 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
         backgroundColor: KumoriyaColors.surface,
       ),
       body: ListView(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
         children: [
-          // Avatar + name
-          Center(
+          _ProfileHeaderCard(user: user),
+          const SizedBox(height: 16),
+
+          // Sync card
+          _SectionCard(
+            title: context.l10n.profileSync,
             child: Column(
               children: [
-                CircleAvatar(
-                  radius: 48,
-                  backgroundColor: KumoriyaColors.primaryContainer,
-                  backgroundImage: user.avatarUrl != null
-                      ? CachedNetworkImageProvider(user.avatarUrl.toString())
-                      : null,
-                  child: user.avatarUrl == null
-                      ? Text(
-                          user.displayName.isNotEmpty
-                              ? user.displayName[0].toUpperCase()
-                              : '?',
-                          style: const TextStyle(
-                            fontSize: 32,
-                            color: KumoriyaColors.textPrimary,
-                          ),
-                        )
-                      : null,
+                _InfoTile(
+                  icon: Icons.sync,
+                  title: context.l10n.profileSyncStatus,
+                  subtitle: _syncStatusLabel(context, syncStatus),
                 ),
-                const SizedBox(height: 12),
-                Text(
-                  user.displayName,
-                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    color: KumoriyaColors.textPrimary,
-                    fontWeight: FontWeight.w700,
-                  ),
+                _InfoTile(
+                  icon: Icons.schedule,
+                  title: context.l10n.profileLastSynced,
+                  subtitle: lastSyncAsync.value != null
+                      ? _formatRelativeTime(
+                          context,
+                          lastSyncAsync.value!,
+                          Localizations.localeOf(context).languageCode,
+                        )
+                      : context.l10n.profileLastSyncedNever,
                 ),
                 const SizedBox(height: 8),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 5,
-                  ),
-                  decoration: BoxDecoration(
-                    color: KumoriyaColors.surface.withValues(alpha: 0.72),
-                    borderRadius: BorderRadius.circular(999),
-                    border: Border.all(
-                      color: KumoriyaColors.borderSubtle.withValues(alpha: 0.8),
-                    ),
-                  ),
-                  child: Text(
-                    user.id,
-                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                      color: KumoriyaColors.textDisabled,
-                      letterSpacing: 0.2,
-                    ),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: FilledButton.icon(
+                    onPressed:
+                        syncStatus == SyncStatus.pushing ||
+                            syncStatus == SyncStatus.pulling
+                        ? null
+                        : () => ref.read(syncTriggerProvider).fullSync(),
+                    icon: const Icon(Icons.sync, size: 18),
+                    label: Text(context.l10n.profileSyncNow),
                   ),
                 ),
               ],
             ),
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 16),
 
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton.icon(
-              onPressed: _confirmLogout,
-              icon: const Icon(Icons.logout_rounded, size: 18),
-              label: Text(context.l10n.profileLogOut),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: KumoriyaColors.accentAmber.withValues(
-                  alpha: 0.18,
-                ),
-                foregroundColor: KumoriyaColors.textPrimary,
-                padding: const EdgeInsets.symmetric(vertical: 14),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14),
-                  side: BorderSide(
-                    color: KumoriyaColors.accentAmber.withValues(alpha: 0.28),
-                  ),
-                ),
-              ),
+          // Linked accounts
+          _SectionCard(
+            title: context.l10n.profileLinkedAccounts,
+            child: profileAsync.when(
+              data: (profile) {
+                final accounts =
+                    (profile?['linked_accounts'] as List?)
+                        ?.cast<Map<String, dynamic>>() ??
+                    [];
+                if (accounts.isEmpty) {
+                  return _EmptyInline(context.l10n.profileNoLinkedAccounts);
+                }
+                return Column(
+                  children: accounts.map((a) {
+                    return _InfoTile(
+                      icon: a['provider'] == 'discord'
+                          ? Icons.discord
+                          : Icons.account_circle,
+                      title:
+                          (a['provider'] as String?)?.toUpperCase() ??
+                          context.l10n.profileUnknownProvider,
+                      subtitle:
+                          a['email'] as String? ?? context.l10n.profileNoEmail,
+                    );
+                  }).toList(),
+                );
+              },
+              loading: () => const _LoadingInline(),
+              error: (_, _) =>
+                  _EmptyInline(context.l10n.profileCouldNotLoadAccounts),
             ),
           ),
-          const SizedBox(height: 32),
-
-          // Linked accounts section
-          _SectionHeader(context.l10n.profileLinkedAccounts),
-          profileAsync.when(
-            data: (profile) {
-              final accounts =
-                  (profile?['linked_accounts'] as List?)
-                      ?.cast<Map<String, dynamic>>() ??
-                  [];
-              if (accounts.isEmpty) {
-                return _EmptyCard(context.l10n.profileNoLinkedAccounts);
-              }
-              return Column(
-                children: accounts.map((a) {
-                  return _InfoTile(
-                    icon: a['provider'] == 'discord'
-                        ? Icons.discord
-                        : Icons.account_circle,
-                    title:
-                        (a['provider'] as String?)?.toUpperCase() ??
-                        context.l10n.profileUnknownProvider,
-                    subtitle:
-                        a['email'] as String? ?? context.l10n.profileNoEmail,
-                  );
-                }).toList(),
-              );
-            },
-            loading: () => const _LoadingCard(),
-            error: (_, _) =>
-                _EmptyCard(context.l10n.profileCouldNotLoadAccounts),
-          ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 16),
 
           // Active sessions
-          _SectionHeader(context.l10n.profileActiveSessions),
-          profileAsync.when(
-            data: (profile) {
-              final sessions =
-                  (profile?['active_sessions'] as List?)
-                      ?.cast<Map<String, dynamic>>() ??
-                  [];
-              if (sessions.isEmpty) {
-                return _EmptyCard(context.l10n.profileNoActiveSessions);
-              }
-              return Column(
-                children: sessions.map((s) {
-                  return _InfoTile(
-                    icon: Icons.devices,
-                    title:
-                        s['device_name'] as String? ??
-                        context.l10n.profileUnknownDevice,
-                    subtitle: [
-                      s['ip_address'] as String?,
-                      _formatDate(s['created_at'] as String?),
-                    ].where((e) => e != null && e.isNotEmpty).join(' · '),
-                  );
-                }).toList(),
-              );
-            },
-            loading: () => const _LoadingCard(),
-            error: (_, _) =>
-                _EmptyCard(context.l10n.profileCouldNotLoadSessions),
-          ),
-          const SizedBox(height: 24),
-
-          // TODO(passkey): unhide once the passkey login flow is complete.
-          const SizedBox(height: 24),
-
-          // Sync status
-          _SectionHeader(context.l10n.profileSync),
-          _InfoTile(
-            icon: Icons.sync,
-            title: context.l10n.profileSyncStatus,
-            subtitle: _syncStatusLabel(context, syncStatus),
-          ),
-          _InfoTile(
-            icon: Icons.schedule,
-            title: context.l10n.profileLastSynced,
-            subtitle: lastSyncAsync.value != null
-                ? _formatRelativeTime(
-                    context,
-                    lastSyncAsync.value!,
-                    Localizations.localeOf(context).languageCode,
-                  )
-                : context.l10n.profileLastSyncedNever,
-          ),
-          const SizedBox(height: 12),
-          ElevatedButton.icon(
-            onPressed:
-                syncStatus == SyncStatus.pushing ||
-                    syncStatus == SyncStatus.pulling
-                ? null
-                : () => ref.read(syncTriggerProvider).fullSync(),
-            icon: const Icon(Icons.sync, size: 18),
-            label: Text(context.l10n.profileSyncNow),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: KumoriyaColors.primary,
-              foregroundColor: KumoriyaColors.textPrimary,
-              disabledBackgroundColor: KumoriyaColors.primaryContainer,
+          _SectionCard(
+            title: context.l10n.profileActiveSessions,
+            child: profileAsync.when(
+              data: (profile) {
+                final sessions =
+                    (profile?['active_sessions'] as List?)
+                        ?.cast<Map<String, dynamic>>() ??
+                    [];
+                if (sessions.isEmpty) {
+                  return _EmptyInline(context.l10n.profileNoActiveSessions);
+                }
+                return Column(
+                  children: sessions.map((s) {
+                    return _InfoTile(
+                      icon: Icons.devices,
+                      title:
+                          s['device_name'] as String? ??
+                          context.l10n.profileUnknownDevice,
+                      subtitle: [
+                        s['ip_address'] as String?,
+                        _formatDate(s['created_at'] as String?),
+                      ].where((e) => e != null && e.isNotEmpty).join(' · '),
+                    );
+                  }).toList(),
+                );
+              },
+              loading: () => const _LoadingInline(),
+              error: (_, _) =>
+                  _EmptyInline(context.l10n.profileCouldNotLoadSessions),
             ),
           ),
-          const SizedBox(height: 32),
+          const SizedBox(height: 16),
 
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: KumoriyaColors.surface.withValues(alpha: 0.72),
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(
-                color: KumoriyaColors.statusDanger.withValues(alpha: 0.18),
-              ),
-            ),
+          // Account actions
+          _SectionCard(
+            title: context.l10n.profileTitle,
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  context.l10n.profileDeleteAccount,
-                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                    color: KumoriyaColors.textSecondary,
-                    fontWeight: FontWeight.w600,
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed: _confirmLogout,
+                    icon: const Icon(Icons.logout_rounded, size: 18),
+                    label: Text(context.l10n.profileLogOut),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: KumoriyaColors.textPrimary,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      side: BorderSide(
+                        color: KumoriyaColors.borderSubtle.withValues(
+                          alpha: 0.8,
+                        ),
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
                   ),
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 12),
+                const Divider(height: 1, color: KumoriyaColors.borderSubtle),
+                const SizedBox(height: 12),
+                Text(
+                  context.l10n.profileDeleteAccount,
+                  style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                    color: KumoriyaColors.statusDanger,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 6),
                 Text(
                   context.l10n.profileDeleteAccountWarning,
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
@@ -350,15 +295,18 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                     height: 1.4,
                   ),
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 8),
                 Align(
-                  alignment: Alignment.centerRight,
+                  alignment: Alignment.centerLeft,
                   child: TextButton(
                     onPressed: _confirmDeleteAccount,
                     style: TextButton.styleFrom(
                       foregroundColor: KumoriyaColors.statusDanger,
+                      padding: EdgeInsets.zero,
+                      minimumSize: Size.zero,
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                     ),
-                    child: Text(context.l10n.profileDeleteAccount),
+                    child: Text(context.l10n.profileDelete),
                   ),
                 ),
               ],
@@ -457,20 +405,135 @@ class _LoginRedirectPage extends StatelessWidget {
   }
 }
 
-class _SectionHeader extends StatelessWidget {
-  const _SectionHeader(this.title);
+class _ProfileHeaderCard extends StatelessWidget {
+  const _ProfileHeaderCard({required this.user});
+  final dynamic user;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: KumoriyaColors.surfaceElevated,
+        borderRadius: BorderRadius.circular(KumoriyaRadius.xxl),
+        border: Border.all(color: KumoriyaColors.borderSubtle),
+      ),
+      child: Row(
+        children: [
+          CircleAvatar(
+            radius: 32,
+            backgroundColor: KumoriyaColors.primaryContainer,
+            backgroundImage: user.avatarUrl != null
+                ? CachedNetworkImageProvider(user.avatarUrl.toString())
+                : null,
+            child: user.avatarUrl == null
+                ? Text(
+                    user.displayName.isNotEmpty
+                        ? user.displayName[0].toUpperCase()
+                        : '?',
+                    style: const TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.w700,
+                      color: KumoriyaColors.textPrimary,
+                    ),
+                  )
+                : null,
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  user.displayName,
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                    color: KumoriyaColors.textPrimary,
+                    fontWeight: FontWeight.w700,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  user.id,
+                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                    color: KumoriyaColors.textDisabled,
+                    letterSpacing: 0.2,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SectionCard extends StatelessWidget {
+  const _SectionCard({required this.title, required this.child});
   final String title;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: KumoriyaColors.surfaceElevated,
+        borderRadius: BorderRadius.circular(KumoriyaRadius.xxl),
+        border: Border.all(color: KumoriyaColors.borderSubtle),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: const TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.w800,
+              color: KumoriyaColors.textPrimary,
+            ),
+          ),
+          const SizedBox(height: 14),
+          child,
+        ],
+      ),
+    );
+  }
+}
+
+class _EmptyInline extends StatelessWidget {
+  const _EmptyInline(this.message);
+  final String message;
 
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.symmetric(vertical: 8),
       child: Text(
-        title,
-        style: Theme.of(context).textTheme.titleSmall?.copyWith(
-          color: KumoriyaColors.textMuted,
-          fontWeight: FontWeight.w600,
-          letterSpacing: 0.5,
+        message,
+        style: const TextStyle(color: KumoriyaColors.textMuted),
+      ),
+    );
+  }
+}
+
+class _LoadingInline extends StatelessWidget {
+  const _LoadingInline();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Padding(
+      padding: EdgeInsets.symmetric(vertical: 8),
+      child: SizedBox(
+        width: 20,
+        height: 20,
+        child: CircularProgressIndicator(
+          strokeWidth: 2,
+          color: KumoriyaColors.primary,
         ),
       ),
     );
@@ -530,51 +593,3 @@ class _InfoTile extends StatelessWidget {
   }
 }
 
-class _EmptyCard extends StatelessWidget {
-  const _EmptyCard(this.message);
-  final String message;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      margin: const EdgeInsets.only(bottom: 8),
-      decoration: BoxDecoration(
-        color: KumoriyaColors.surface,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Center(
-        child: Text(
-          message,
-          style: const TextStyle(color: KumoriyaColors.textMuted),
-        ),
-      ),
-    );
-  }
-}
-
-class _LoadingCard extends StatelessWidget {
-  const _LoadingCard();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      margin: const EdgeInsets.only(bottom: 8),
-      decoration: BoxDecoration(
-        color: KumoriyaColors.surface,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: const Center(
-        child: SizedBox(
-          width: 20,
-          height: 20,
-          child: CircularProgressIndicator(
-            strokeWidth: 2,
-            color: KumoriyaColors.primary,
-          ),
-        ),
-      ),
-    );
-  }
-}

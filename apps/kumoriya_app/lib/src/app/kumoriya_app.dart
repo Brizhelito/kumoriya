@@ -28,6 +28,7 @@ import '../features/downloads/application/download_directory_service.dart';
 import '../features/downloads/presentation/download_providers.dart';
 import '../features/downloads/presentation/widgets/download_path_dialog.dart';
 import '../features/player/presentation/pages/player_performance_benchmark_page.dart';
+import '../features/settings/application/app_language_preference.dart';
 import '../shared/auth/auth_providers.dart';
 import '../shared/auth/deep_link_handler.dart';
 import '../shared/cache/anilist_recovery_watcher.dart';
@@ -88,6 +89,15 @@ class _KumoriyaAppState extends ConsumerState<KumoriyaApp> {
     // MaterialApp's implicit AnimatedTheme cross-fades the change.
     final accent = ref.watch(universeAccentProvider);
     final themeData = KumoriyaTheme.forUniverse(accent);
+    // Language override (null → device locale resolved against
+    // supportedLocales). Async until the JSON file is loaded; default
+    // is `system` so the first frame already respects the device.
+    final languagePref = ref
+        .watch(appLanguageProvider)
+        .maybeWhen(
+          data: (pref) => pref,
+          orElse: () => AppLanguagePreference.system,
+        );
     return MaterialApp(
       navigatorKey: _navigatorKey,
       onGenerateTitle: (context) => context.l10n.appTitle,
@@ -98,6 +108,7 @@ class _KumoriyaAppState extends ConsumerState<KumoriyaApp> {
         GlobalWidgetsLocalizations.delegate,
         GlobalCupertinoLocalizations.delegate,
       ],
+      locale: languagePref.toLocale(),
       supportedLocales: AppLocalizations.supportedLocales,
       theme: themeData,
       darkTheme: themeData,

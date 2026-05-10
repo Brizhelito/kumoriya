@@ -17,6 +17,7 @@ import 'package:wakelock_plus/wakelock_plus.dart';
 import 'package:window_manager/window_manager.dart';
 import 'package:kumoriya_storage/kumoriya_storage.dart';
 import 'package:media_kit_video/media_kit_video.dart';
+import 'package:native_device_orientation/native_device_orientation.dart';
 
 import '../../../../app/l10n.dart';
 import '../../../../shared/icons/kumoriya_icons.dart';
@@ -144,6 +145,17 @@ class _PlayerPageState extends ConsumerState<PlayerPage>
   ProviderSubscription<PartySessionState>? _partyRoomSub;
   bool _stalePlayerHandled = false;
 
+  /// Subscription to the device sensor orientation. We read it directly via
+  /// `native_device_orientation` (with `useSensor: true`) so the player can
+  /// flip 180° between [DeviceOrientation.landscapeLeft] and
+  /// [DeviceOrientation.landscapeRight] following the physical position of
+  /// the device, even when the OS-level auto-rotate setting is OFF (which
+  /// otherwise pins Android apps to a single landscape orientation regardless
+  /// of which way the user is holding the phone).
+  StreamSubscription<NativeDeviceOrientation>? _sensorOrientationSub;
+  NativeDeviceOrientation _lastSensorOrientation =
+      NativeDeviceOrientation.unknown;
+
   // Debounces orientation restoration so that pushReplacement to a new
   // PlayerPage can cancel it in initState, preventing a portrait flash.
   static Timer? _orientationRestoreTimer;
@@ -215,6 +227,7 @@ class _PlayerPageState extends ConsumerState<PlayerPage>
       DeviceOrientation.landscapeLeft,
       DeviceOrientation.landscapeRight,
     ]);
+    _startSensorOrientationFollower();
 
     // Wire party sync: listen for remote playback commands.
     // Use addPostFrameCallback to ensure the provider is fully initialized,
@@ -330,6 +343,8 @@ class _PlayerPageState extends ConsumerState<PlayerPage>
     _partyDriftTimer?.cancel();
     _partyRoomSub?.close();
     _partyRoomSub = null;
+    unawaited(_sensorOrientationSub?.cancel());
+    _sensorOrientationSub = null;
     unawaited(_saveCurrentProgress());
     unawaited(_disposeRuntime());
     unawaited(_restoreWindowsFullscreenIfNeeded());
@@ -341,6 +356,56 @@ class _PlayerPageState extends ConsumerState<PlayerPage>
     }
     _suppressOrientationRestore = false;
     super.dispose();
+  }
+
+  /// Subscribes to the device sensor stream and forces the app to one of the
+  /// landscape orientations matching the physical device pose, even when the
+  /// system-wide auto-rotate setting is OFF. Calling this multiple times is
+  /// safe: any previous subscription is cancelled first.
+  ///
+  /// Only enabled on Android where the OS otherwise pins apps to a single
+  /// landscape orientation regardless of which way the user is holding the
+  /// phone. On iOS/desktop platforms `setPreferredOrientations` already
+  /// honours both landscape sides, so we skip the extra plumbing.
+  void _startSensorOrientationFollower() {
+    if (!Platform.isAndroid) return;
+    unawaited(_sensorOrientationSub?.cancel());
+    _sensorOrientationSub = NativeDeviceOrientationCommunicator()
+        .onOrientationChanged(useSensor: true)
+        .listen(_applySensorOrientation);
+  }
+
+  void _applySensorOrientation(NativeDeviceOrientation orientation) {
+    _lastSensorOrientation = orientation;
+    DeviceOrientation? target;
+    switch (orientation) {
+      case NativeDeviceOrientation.landscapeLeft:
+        target = DeviceOrientation.landscapeLeft;
+        break;
+      case NativeDeviceOrientation.landscapeRight:
+        target = DeviceOrientation.landscapeRight;
+        break;
+      case NativeDeviceOrientation.portraitUp:
+      case NativeDeviceOrientation.portraitDown:
+      case NativeDeviceOrientation.unknown:
+        // Ignore portrait readings; the player stays landscape.
+        return;
+    }
+    SystemChrome.setPreferredOrientations(<DeviceOrientation>[target]);
+  }
+
+  /// Invoked by the immersive controls when the user toggles the rotation
+  /// lock button. When locked, the player follows the sensor and 180°-flips
+  /// between landscape sides. When unlocked, the follower is paused so the
+  /// OS can pick any orientation (matching the previous behaviour).
+  void _onImmersiveOrientationLockChanged(bool locked) {
+    if (locked) {
+      _startSensorOrientationFollower();
+      _applySensorOrientation(_lastSensorOrientation);
+    } else {
+      unawaited(_sensorOrientationSub?.cancel());
+      _sensorOrientationSub = null;
+    }
   }
 
   @override
@@ -2003,6 +2068,8 @@ class _PlayerPageState extends ConsumerState<PlayerPage>
                 onSpeedChanged: (speed) => _engine?.setPlaybackSpeed(speed),
                 diagnosticsStream: engine?.diagnosticsStream,
                 seekLatencyMs: _orchestrator?.lastSeekLatencyMs,
+                partyMemberLocked: partyMemberLocked,
+                onOrientationLockChanged: _onImmersiveOrientationLockChanged,
               ),
             ),
             // Watch party overlay — only visible when a party session is active.
@@ -2610,6 +2677,8 @@ class _ImmersivePlayerView extends StatefulWidget {
     this.onSpeedChanged,
     this.diagnosticsStream,
     this.seekLatencyMs,
+    this.partyMemberLocked = false,
+    this.onOrientationLockChanged,
   });
 
   final PlaybackEngine? engine;
@@ -2655,6 +2724,8 @@ class _ImmersivePlayerView extends StatefulWidget {
   final ValueChanged<double>? onSpeedChanged;
   final Stream<PlayerDiagnostics>? diagnosticsStream;
   final int? seekLatencyMs;
+  final bool partyMemberLocked;
+  final ValueChanged<bool>? onOrientationLockChanged;
 
   @override
   State<_ImmersivePlayerView> createState() => _ImmersivePlayerViewState();
@@ -2916,7 +2987,12 @@ class _ImmersivePlayerViewState extends State<_ImmersivePlayerView>
 
   void _onTapUp(TapUpDetails details) {
     if (_controlsLocked) {
-      _showLockOverlay();
+      if (_lockOverlayVisible) {
+        _lockOverlayHideTimer?.cancel();
+        setState(() => _lockOverlayVisible = false);
+      } else {
+        _showLockOverlay();
+      }
       return;
     }
     final zone = _zoneFromPosition(details.localPosition);
@@ -3157,6 +3233,7 @@ class _ImmersivePlayerViewState extends State<_ImmersivePlayerView>
     setState(() {
       _orientationLocked = !_orientationLocked;
     });
+    widget.onOrientationLockChanged?.call(_orientationLocked);
     if (_orientationLocked) {
       SystemChrome.setPreferredOrientations(<DeviceOrientation>[
         DeviceOrientation.landscapeLeft,
@@ -3922,120 +3999,124 @@ class _ImmersivePlayerViewState extends State<_ImmersivePlayerView>
 
                         // Center: Frosted glass play/pause + bare skip buttons
                         if (!_isDragSeeking)
-                          Center(
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: <Widget>[
-                                // Skip back
-                                SizedBox(
-                                  width: 56,
-                                  height: 56,
-                                  child: IconButton(
-                                    onPressed: widget.onSkipBackward,
-                                    tooltip: context.l10n.playerSkipBackward,
-                                    icon: Icon(
-                                      KumoriyaIcons.playerSeekBack10,
-                                      color: KumoriyaColors.textPrimary,
-                                      size: 28,
-                                      shadows: const <Shadow>[
-                                        Shadow(
-                                          color: Color(0xCC000000),
-                                          blurRadius: 8,
-                                        ),
-                                        Shadow(
-                                          color: Color(0x66000000),
-                                          blurRadius: 24,
-                                        ),
-                                      ],
+                          Opacity(
+                            opacity: widget.partyMemberLocked ? 0.35 : 1.0,
+                            child: Center(
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: <Widget>[
+                                  // Skip back
+                                  SizedBox(
+                                    width: 56,
+                                    height: 56,
+                                    child: IconButton(
+                                      onPressed: widget.onSkipBackward,
+                                      tooltip: context.l10n.playerSkipBackward,
+                                      icon: Icon(
+                                        KumoriyaIcons.playerSeekBack10,
+                                        color: KumoriyaColors.textPrimary,
+                                        size: 28,
+                                        shadows: const <Shadow>[
+                                          Shadow(
+                                            color: Color(0xCC000000),
+                                            blurRadius: 8,
+                                          ),
+                                          Shadow(
+                                            color: Color(0x66000000),
+                                            blurRadius: 24,
+                                          ),
+                                        ],
+                                      ),
+                                      padding: EdgeInsets.zero,
                                     ),
-                                    padding: EdgeInsets.zero,
                                   ),
-                                ),
-                                const SizedBox(width: KumoriyaSpacing.xxxl),
-                                // Play/pause (plain tint — no BackdropFilter).
-                                Material(
-                                  color: Colors.transparent,
-                                  shape: const CircleBorder(),
-                                  child: InkWell(
-                                    customBorder: const CircleBorder(),
-                                    onTap: widget.onTogglePlayPause,
-                                    splashColor: KumoriyaColors.primaryLight
-                                        .withValues(alpha: 0.20),
-                                    child: Container(
-                                      width: 80,
-                                      height: 80,
-                                      decoration: BoxDecoration(
-                                        shape: BoxShape.circle,
-                                        color: const Color(0xCC1E1629),
-                                        border: Border.all(
-                                          color: Colors.white.withValues(
-                                            alpha: 0.10,
+                                  const SizedBox(width: KumoriyaSpacing.xxxl),
+                                  // Play/pause (plain tint — no BackdropFilter).
+                                  Material(
+                                    color: Colors.transparent,
+                                    shape: const CircleBorder(),
+                                    child: InkWell(
+                                      customBorder: const CircleBorder(),
+                                      onTap: widget.onTogglePlayPause,
+                                      splashColor: KumoriyaColors.primaryLight
+                                          .withValues(alpha: 0.20),
+                                      child: Container(
+                                        width: 80,
+                                        height: 80,
+                                        decoration: BoxDecoration(
+                                          shape: BoxShape.circle,
+                                          color: const Color(0xCC1E1629),
+                                          border: Border.all(
+                                            color: Colors.white.withValues(
+                                              alpha: 0.10,
+                                            ),
+                                          ),
+                                        ),
+                                        child: Center(
+                                          child: Icon(
+                                            widget.isPlaying
+                                                ? KumoriyaIcons.playerPause
+                                                : KumoriyaIcons.playerPlay,
+                                            color: KumoriyaColors.textPrimary,
+                                            size: 48,
                                           ),
                                         ),
                                       ),
-                                      child: Center(
-                                        child: Icon(
-                                          widget.isPlaying
-                                              ? KumoriyaIcons.playerPause
-                                              : KumoriyaIcons.playerPlay,
-                                          color: KumoriyaColors.textPrimary,
-                                          size: 48,
+                                    ),
+                                  ),
+                                  const SizedBox(width: KumoriyaSpacing.xxxl),
+                                  // Skip forward
+                                  SizedBox(
+                                    width: 56,
+                                    height: 56,
+                                    child: IconButton(
+                                      onPressed: widget.onSkipForward,
+                                      tooltip: context.l10n.playerSkipForward,
+                                      icon: Icon(
+                                        KumoriyaIcons.playerSeekForward10,
+                                        color: KumoriyaColors.textPrimary,
+                                        size: 28,
+                                        shadows: const <Shadow>[
+                                          Shadow(
+                                            color: Color(0xCC000000),
+                                            blurRadius: 8,
+                                          ),
+                                          Shadow(
+                                            color: Color(0x66000000),
+                                            blurRadius: 24,
+                                          ),
+                                        ],
+                                      ),
+                                      padding: EdgeInsets.zero,
+                                    ),
+                                  ),
+                                  // Fallback +90s skip (discrete, only when missing opening OR ending)
+                                  if (widget.showFallbackSkip &&
+                                      _controlsVisible)
+                                    Padding(
+                                      padding: const EdgeInsets.only(left: 8),
+                                      child: SizedBox(
+                                        height: 32,
+                                        child: TextButton(
+                                          onPressed: widget.onFallbackSkip,
+                                          style: TextButton.styleFrom(
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 10,
+                                            ),
+                                            backgroundColor: Colors.black38,
+                                            foregroundColor:
+                                                KumoriyaColors.textSecondary,
+                                            textStyle: const TextStyle(
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.w500,
+                                            ),
+                                          ),
+                                          child: const Text('+90s'),
                                         ),
                                       ),
                                     ),
-                                  ),
-                                ),
-                                const SizedBox(width: KumoriyaSpacing.xxxl),
-                                // Skip forward
-                                SizedBox(
-                                  width: 56,
-                                  height: 56,
-                                  child: IconButton(
-                                    onPressed: widget.onSkipForward,
-                                    tooltip: context.l10n.playerSkipForward,
-                                    icon: Icon(
-                                      KumoriyaIcons.playerSeekForward10,
-                                      color: KumoriyaColors.textPrimary,
-                                      size: 28,
-                                      shadows: const <Shadow>[
-                                        Shadow(
-                                          color: Color(0xCC000000),
-                                          blurRadius: 8,
-                                        ),
-                                        Shadow(
-                                          color: Color(0x66000000),
-                                          blurRadius: 24,
-                                        ),
-                                      ],
-                                    ),
-                                    padding: EdgeInsets.zero,
-                                  ),
-                                ),
-                                // Fallback +90s skip (discrete, only when missing opening OR ending)
-                                if (widget.showFallbackSkip && _controlsVisible)
-                                  Padding(
-                                    padding: const EdgeInsets.only(left: 8),
-                                    child: SizedBox(
-                                      height: 32,
-                                      child: TextButton(
-                                        onPressed: widget.onFallbackSkip,
-                                        style: TextButton.styleFrom(
-                                          padding: const EdgeInsets.symmetric(
-                                            horizontal: 10,
-                                          ),
-                                          backgroundColor: Colors.black38,
-                                          foregroundColor:
-                                              KumoriyaColors.textSecondary,
-                                          textStyle: const TextStyle(
-                                            fontSize: 12,
-                                            fontWeight: FontWeight.w500,
-                                          ),
-                                        ),
-                                        child: const Text('+90s'),
-                                      ),
-                                    ),
-                                  ),
-                              ],
+                                ],
+                              ),
                             ),
                           ),
 

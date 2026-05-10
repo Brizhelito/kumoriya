@@ -107,6 +107,7 @@ dependencies:
   share_plus: ^10.1.4
   battery_plus: ^6.2.1
   wakelock_plus: ^1.2.10
+  native_device_orientation: ^2.0.3
 
 dev_dependencies:
   flutter_test:
