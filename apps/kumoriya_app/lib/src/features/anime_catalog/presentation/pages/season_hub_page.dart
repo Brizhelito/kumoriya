@@ -5,10 +5,8 @@ import 'package:kumoriya_domain/kumoriya_domain.dart';
 import '../../../../app/l10n.dart';
 import '../../../../shared/theme/kumoriya_theme.dart';
 import '../../../../shared/widgets/state_views.dart';
-import '../../application/models/seasonal_discovery_catalog.dart';
-import '../providers/anime_catalog_providers.dart';
+import '../controllers/paginated_anime_feed_notifier.dart';
 import '../support/season_presentation.dart';
-import '../widgets/anime_list_tile.dart';
 import 'anime_detail_page.dart';
 
 class SeasonHubPage extends ConsumerStatefulWidget {
@@ -29,10 +27,6 @@ class _SeasonHubPageState extends ConsumerState<SeasonHubPage> {
 
   @override
   Widget build(BuildContext context) {
-    final discoveryAsync = ref.watch(
-      seasonalDiscoveryCatalogProvider(_request),
-    );
-
     return Scaffold(
       backgroundColor: KumoriyaColors.background,
       appBar: AppBar(
@@ -59,28 +53,21 @@ class _SeasonHubPageState extends ConsumerState<SeasonHubPage> {
               ),
             ),
             Expanded(
-              child: discoveryAsync.when(
-                loading: () =>
-                    LoadingStateView(label: context.l10n.seasonHubLoading),
-                error: (_, _) => ErrorStateView(
-                  message: context.l10n.genericLoadFailure,
-                  onRetry: () => ref.invalidate(
-                    seasonalDiscoveryCatalogProvider(_request),
-                  ),
-                ),
-                data: (result) => result.fold(
-                  onFailure: (error) => ErrorStateView(
-                    message: mapErrorMessage(context, error),
-                    onRetry: () => ref.invalidate(
-                      seasonalDiscoveryCatalogProvider(_request),
-                    ),
-                  ),
-                  onSuccess: (catalog) => _SeasonHubBody(catalog: catalog),
-                ),
+              child: _SeasonHubBody(
+                request: _request,
+                onOpenDetail: (anime) => _openDetail(context, anime),
               ),
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  void _openDetail(BuildContext context, Anime anime) {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => AnimeDetailPage(anilistId: anime.anilistId),
       ),
     );
   }
@@ -154,17 +141,10 @@ class _SeasonChips extends StatelessWidget {
 }
 
 class _SeasonHubBody extends StatelessWidget {
-  const _SeasonHubBody({required this.catalog});
+  const _SeasonHubBody({required this.request, required this.onOpenDetail});
 
-  final SeasonalDiscoveryCatalog catalog;
-
-  void _openDetail(BuildContext context, Anime anime) {
-    Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (_) => AnimeDetailPage(anilistId: anime.anilistId),
-      ),
-    );
-  }
+  final SeasonalCatalogRequest request;
+  final ValueChanged<Anime> onOpenDetail;
 
   @override
   Widget build(BuildContext context) {
@@ -189,18 +169,24 @@ class _SeasonHubBody extends StatelessWidget {
               children: <Widget>[
                 _SeasonListSection(
                   emptyMessage: context.l10n.seasonHubInSeasonEmpty,
-                  items: catalog.inSeason,
-                  onTap: (anime) => _openDetail(context, anime),
+                  request: _browseRequest(
+                    statuses: const <AnimeStatus>[AnimeStatus.releasing],
+                    sort: AnimeSortType.trending,
+                  ),
+                  onTap: onOpenDetail,
                 ),
                 _SeasonListSection(
                   emptyMessage: context.l10n.seasonHubUpcomingEmpty,
-                  items: catalog.upcoming,
-                  onTap: (anime) => _openDetail(context, anime),
+                  request: _browseRequest(
+                    statuses: const <AnimeStatus>[AnimeStatus.notYetReleased],
+                    sort: AnimeSortType.trending,
+                  ),
+                  onTap: onOpenDetail,
                 ),
                 _SeasonListSection(
                   emptyMessage: context.l10n.seasonHubRecommendedEmpty,
-                  items: catalog.recommended,
-                  onTap: (anime) => _openDetail(context, anime),
+                  request: _browseRequest(sort: AnimeSortType.score),
+                  onTap: onOpenDetail,
                 ),
               ],
             ),
@@ -209,35 +195,152 @@ class _SeasonHubBody extends StatelessWidget {
       ),
     );
   }
+
+  AnimeBrowseRequest _browseRequest({
+    List<AnimeStatus>? statuses,
+    AnimeSortType sort = AnimeSortType.trending,
+  }) {
+    return AnimeBrowseRequest(
+      season: request.season,
+      seasonYear: request.year,
+      statuses: statuses,
+      sort: sort,
+      page: 1,
+      perPage: paginatedAnimeFeedPerPage,
+    );
+  }
 }
 
-class _SeasonListSection extends StatelessWidget {
+class _SeasonListSection extends ConsumerStatefulWidget {
   const _SeasonListSection({
     required this.emptyMessage,
-    required this.items,
+    required this.request,
     required this.onTap,
   });
 
   final String emptyMessage;
-  final List<Anime> items;
+  final AnimeBrowseRequest request;
   final ValueChanged<Anime> onTap;
 
   @override
+  ConsumerState<_SeasonListSection> createState() => _SeasonListSectionState();
+}
+
+class _SeasonListSectionState extends ConsumerState<_SeasonListSection> {
+  late final ScrollController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = ScrollController()..addListener(_handleScroll);
+  }
+
+  void _handleScroll() {
+    if (!_controller.hasClients) return;
+    final position = _controller.position;
+    if (position.pixels < position.maxScrollExtent - 480) return;
+    ref
+        .read(paginatedAnimeFeedProvider(widget.request).notifier)
+        .loadNextPage();
+  }
+
+  @override
+  void dispose() {
+    _controller
+      ..removeListener(_handleScroll)
+      ..dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    if (items.isEmpty) {
-      return Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16),
-        child: EmptyStateView(message: emptyMessage),
+    final state = ref.watch(paginatedAnimeFeedProvider(widget.request));
+    if (state.isLoadingFirstPage) {
+      return LoadingStateView(label: context.l10n.seasonHubLoading);
+    }
+    final error = state.error;
+    if (error != null && state.items.isEmpty) {
+      return ErrorStateView(
+        message: mapErrorMessage(context, error),
+        onRetry: () => ref
+            .read(paginatedAnimeFeedProvider(widget.request).notifier)
+            .refresh(),
+      );
+    }
+    if (state.items.isEmpty) {
+      return EmptyStateView(
+        icon: Icons.event_busy_rounded,
+        message: widget.emptyMessage,
       );
     }
 
-    return ListView.builder(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
-      itemCount: items.length,
+    return ListView.separated(
+      controller: _controller,
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+      itemCount: state.items.length + 1,
+      separatorBuilder: (_, _) => const SizedBox(height: 8),
       itemBuilder: (context, index) {
-        final anime = items[index];
-        return AnimeListTile(anime: anime, onTap: () => onTap(anime));
+        if (index == state.items.length) {
+          return _SeasonFooter(
+            state: state,
+            onRetry: () => ref
+                .read(paginatedAnimeFeedProvider(widget.request).notifier)
+                .loadNextPage(),
+          );
+        }
+        final anime = state.items[index];
+        return ListTile(
+          contentPadding: EdgeInsets.zero,
+          leading: SizedBox(
+            width: 56,
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(KumoriyaRadius.md),
+              child: Image.network(
+                anime.coverImageUrl ?? '',
+                fit: BoxFit.cover,
+                errorBuilder: (_, _, _) =>
+                    const ColoredBox(color: KumoriyaColors.surface),
+              ),
+            ),
+          ),
+          title: Text(anime.title.romaji),
+          subtitle: Text(
+            [
+              if (anime.releaseYear != null) anime.releaseYear.toString(),
+              displayFormatLabel(context, anime.format),
+              if (anime.averageScore != null) '★ ${anime.averageScore}',
+            ].join(' • '),
+          ),
+          onTap: () => widget.onTap(anime),
+        );
       },
     );
+  }
+}
+
+class _SeasonFooter extends StatelessWidget {
+  const _SeasonFooter({required this.state, required this.onRetry});
+
+  final PaginatedAnimeFeedState state;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    if (state.isLoadingMore) {
+      return const Padding(
+        padding: EdgeInsets.all(16),
+        child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+      );
+    }
+    if (state.error != null) {
+      return Center(
+        child: TextButton.icon(
+          onPressed: onRetry,
+          icon: const Icon(Icons.refresh_rounded),
+          label: Text(context.l10n.retry),
+        ),
+      );
+    }
+    return const SizedBox(height: 24);
   }
 }

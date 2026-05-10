@@ -82,11 +82,12 @@ class _SearchPageState extends ConsumerState<SearchPage> {
     );
   }
 
-  void _openBrowse({String? genre}) {
+  void _openBrowse({String? genre, AnimeBrowseRequest? request}) {
     Navigator.of(context).push(
       MaterialPageRoute<void>(
         builder: (_) => BrowseResultsPage(
           initialGenres: genre != null ? <String>[genre] : null,
+          initialRequest: request,
         ),
       ),
     );
@@ -141,7 +142,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                   ? _DiscoverBody(
                       onOpenDetail: _openDetail,
                       onOpenGenre: (genre) => _openBrowse(genre: genre),
-                      onOpenBrowseAll: () => _openBrowse(),
+                      onOpenBrowse: (request) => _openBrowse(request: request),
                       onOpenTagFind: _openTagFind,
                     )
                   : _SearchResults(
@@ -235,13 +236,13 @@ class _DiscoverBody extends ConsumerWidget {
   const _DiscoverBody({
     required this.onOpenDetail,
     required this.onOpenGenre,
-    required this.onOpenBrowseAll,
+    required this.onOpenBrowse,
     required this.onOpenTagFind,
   });
 
   final ValueChanged<int> onOpenDetail;
   final ValueChanged<String> onOpenGenre;
-  final VoidCallback onOpenBrowseAll;
+  final ValueChanged<AnimeBrowseRequest> onOpenBrowse;
   final VoidCallback onOpenTagFind;
 
   static const _trendingRequest = AnimeBrowseRequest(
@@ -256,12 +257,30 @@ class _DiscoverBody extends ConsumerWidget {
     sort: AnimeSortType.popularity,
     perPage: 20,
   );
+  static const _topAiringRequest = AnimeBrowseRequest(
+    statuses: <AnimeStatus>[AnimeStatus.releasing],
+    sort: AnimeSortType.popularity,
+    perPage: 20,
+  );
+  static const _topMoviesRequest = AnimeBrowseRequest(
+    formats: <AnimeFormat>[AnimeFormat.movie],
+    sort: AnimeSortType.score,
+    perPage: 20,
+  );
+  static const _upcomingRequest = AnimeBrowseRequest(
+    statuses: <AnimeStatus>[AnimeStatus.notYetReleased],
+    sort: AnimeSortType.popularity,
+    perPage: 20,
+  );
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final trending = ref.watch(browseAnimeCatalogProvider(_trendingRequest));
+    final topAiring = ref.watch(browseAnimeCatalogProvider(_topAiringRequest));
     final topRated = ref.watch(browseAnimeCatalogProvider(_topRatedRequest));
     final popular = ref.watch(browseAnimeCatalogProvider(_popularRequest));
+    final topMovies = ref.watch(browseAnimeCatalogProvider(_topMoviesRequest));
+    final upcoming = ref.watch(browseAnimeCatalogProvider(_upcomingRequest));
     final genres = ref.watch(genreCollectionProvider);
 
     return ListView(
@@ -272,7 +291,14 @@ class _DiscoverBody extends ConsumerWidget {
           title: context.l10n.discoverTrending,
           state: trending,
           onOpenDetail: onOpenDetail,
-          onSeeAll: onOpenBrowseAll,
+          onSeeAll: () => onOpenBrowse(_trendingRequest),
+        ),
+        const SizedBox(height: 24),
+        _AnimeHorizontalSection(
+          title: context.l10n.discoverTopAiring,
+          state: topAiring,
+          onOpenDetail: onOpenDetail,
+          onSeeAll: () => onOpenBrowse(_topAiringRequest),
         ),
         const SizedBox(height: 24),
         // -- Top Rated section
@@ -280,7 +306,7 @@ class _DiscoverBody extends ConsumerWidget {
           title: context.l10n.discoverTopRated,
           state: topRated,
           onOpenDetail: onOpenDetail,
-          onSeeAll: onOpenBrowseAll,
+          onSeeAll: () => onOpenBrowse(_topRatedRequest),
         ),
         const SizedBox(height: 24),
         // -- Most Popular section
@@ -288,7 +314,21 @@ class _DiscoverBody extends ConsumerWidget {
           title: context.l10n.discoverPopular,
           state: popular,
           onOpenDetail: onOpenDetail,
-          onSeeAll: onOpenBrowseAll,
+          onSeeAll: () => onOpenBrowse(_popularRequest),
+        ),
+        const SizedBox(height: 24),
+        _AnimeHorizontalSection(
+          title: context.l10n.discoverTopMovies,
+          state: topMovies,
+          onOpenDetail: onOpenDetail,
+          onSeeAll: () => onOpenBrowse(_topMoviesRequest),
+        ),
+        const SizedBox(height: 24),
+        _AnimeHorizontalSection(
+          title: context.l10n.discoverUpcoming,
+          state: upcoming,
+          onOpenDetail: onOpenDetail,
+          onSeeAll: () => onOpenBrowse(_upcomingRequest),
         ),
         const SizedBox(height: 28),
         // -- Genre chips
@@ -297,7 +337,11 @@ class _DiscoverBody extends ConsumerWidget {
           child: KumoriyaSectionHeader(title: context.l10n.discoverGenres),
         ),
         const SizedBox(height: 12),
-        _GenreChipsSection(genres: genres, onGenreTap: onOpenGenre),
+        _GenreChipsSection(
+          genres: genres,
+          onGenreTap: onOpenGenre,
+          onRequestTap: onOpenBrowse,
+        ),
         const SizedBox(height: 28),
         // -- "Can't remember the name?" CTA
         Padding(
@@ -392,10 +436,55 @@ class _AnimeHorizontalSection extends StatelessWidget {
 // ---------------------------------------------------------------------------
 
 class _GenreChipsSection extends StatelessWidget {
-  const _GenreChipsSection({required this.genres, required this.onGenreTap});
+  const _GenreChipsSection({
+    required this.genres,
+    required this.onGenreTap,
+    required this.onRequestTap,
+  });
 
   final AsyncValue<Result<List<String>, KumoriyaError>> genres;
   final ValueChanged<String> onGenreTap;
+  final ValueChanged<AnimeBrowseRequest> onRequestTap;
+
+  static const List<String> _baseGenres = <String>[
+    'Action',
+    'Adventure',
+    'Comedy',
+    'Drama',
+    'Ecchi',
+    'Fantasy',
+    'Horror',
+    'Mahou Shoujo',
+    'Mecha',
+    'Music',
+    'Mystery',
+    'Psychological',
+    'Romance',
+    'Sci-Fi',
+    'Slice of Life',
+    'Sports',
+    'Supernatural',
+    'Thriller',
+  ];
+
+  static const List<_DiscoveryChip> _extraChips = <_DiscoveryChip>[
+    _DiscoveryChip(label: 'Isekai', tag: 'Isekai'),
+    _DiscoveryChip(label: 'School', tag: 'School'),
+    _DiscoveryChip(label: 'Shounen', tag: 'Shounen'),
+    _DiscoveryChip(label: 'Seinen', tag: 'Seinen'),
+    _DiscoveryChip(label: 'Shoujo', tag: 'Shoujo'),
+    _DiscoveryChip(label: 'Josei', tag: 'Josei'),
+    _DiscoveryChip(label: 'Rom-Com', tag: 'Romantic Comedy'),
+    _DiscoveryChip(label: 'Time Travel', tag: 'Time Manipulation'),
+    _DiscoveryChip(label: 'Super Power', tag: 'Super Power'),
+    _DiscoveryChip(label: 'Vampire', tag: 'Vampire'),
+    _DiscoveryChip(label: 'Idol', tag: 'Idol'),
+    _DiscoveryChip(label: 'Iyashikei', tag: 'Iyashikei'),
+    _DiscoveryChip(label: 'CGDCT', tag: 'Cute Girls Doing Cute Things'),
+    _DiscoveryChip(label: 'Coming of Age', tag: 'Coming of Age'),
+    _DiscoveryChip(label: 'Post-Apocalyptic', tag: 'Post-Apocalyptic'),
+    _DiscoveryChip(label: 'Urban Fantasy', tag: 'Urban Fantasy'),
+  ];
 
   @override
   Widget build(BuildContext context) {
@@ -413,30 +502,66 @@ class _GenreChipsSection extends StatelessWidget {
       error: (_, _) => const SizedBox.shrink(),
       data: (result) => result.fold(
         onFailure: (_) => const SizedBox.shrink(),
-        onSuccess: (genreList) => Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: genreList
-                .map((genre) {
-                  return ActionChip(
-                    label: Text(displayGenreLabel(context, genre)),
-                    onPressed: () => onGenreTap(genre),
-                    backgroundColor: KumoriyaColors.surface,
-                    side: const BorderSide(color: KumoriyaColors.borderSubtle),
-                    labelStyle: const TextStyle(
-                      color: KumoriyaColors.textSecondary,
-                      fontSize: 13,
-                    ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(KumoriyaRadius.full),
-                    ),
-                  );
-                })
-                .toList(growable: false),
-          ),
-        ),
+        onSuccess: (genreList) {
+          final mergedGenres = <String>[
+            ..._baseGenres,
+            for (final genre in genreList)
+              if (!_baseGenres.any(
+                (baseGenre) =>
+                    baseGenre.toLowerCase().trim() ==
+                    genre.toLowerCase().trim(),
+              ))
+                genre,
+          ];
+          final chips = <Widget>[
+            for (final genre in mergedGenres)
+              _DiscoveryActionChip(
+                label: displayGenreLabel(context, genre),
+                onPressed: () => onGenreTap(genre),
+              ),
+            for (final chip in _extraChips)
+              _DiscoveryActionChip(
+                label: displayTagLabel(context, chip.label),
+                onPressed: () =>
+                    onRequestTap(AnimeBrowseRequest(tags: <String>[chip.tag])),
+              ),
+          ];
+          return Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Wrap(spacing: 8, runSpacing: 8, children: chips),
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _DiscoveryChip {
+  const _DiscoveryChip({required this.label, required this.tag});
+
+  final String label;
+  final String tag;
+}
+
+class _DiscoveryActionChip extends StatelessWidget {
+  const _DiscoveryActionChip({required this.label, required this.onPressed});
+
+  final String label;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return ActionChip(
+      label: Text(label),
+      onPressed: onPressed,
+      backgroundColor: KumoriyaColors.surface,
+      side: const BorderSide(color: KumoriyaColors.borderSubtle),
+      labelStyle: const TextStyle(
+        color: KumoriyaColors.textSecondary,
+        fontSize: 13,
+      ),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(KumoriyaRadius.full),
       ),
     );
   }

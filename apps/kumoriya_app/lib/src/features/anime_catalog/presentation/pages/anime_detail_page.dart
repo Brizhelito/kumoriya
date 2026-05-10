@@ -27,6 +27,7 @@ import '../providers/anime_catalog_providers.dart';
 import '../providers/storage_providers.dart';
 import '../../application/models/resolved_server_link_result.dart';
 import '../../application/models/server_quality_registry.dart';
+import '../../../downloads/application/probe_audio_kinds.dart';
 import '../../../downloads/presentation/download_providers.dart';
 import '../../../manga_catalog/presentation/pages/manga_detail_page.dart';
 import '../../../player/presentation/pages/player_page.dart';
@@ -40,6 +41,7 @@ import '../../../watch_party/presentation/party_route_mode.dart';
 import '../support/episode_display_title.dart';
 import '../support/playback_launch_flow.dart';
 import '../support/plugin_icon_helpers.dart';
+import '../support/translated_episode_title.dart';
 import '../widgets/source_badge.dart';
 import '../widgets/source_quality_picker_sheet.dart';
 
@@ -1780,6 +1782,14 @@ class _EpisodeDetailSectionState extends ConsumerState<_EpisodeDetailSection> {
       return;
     }
     final playbackPreparingLabel = context.l10n.playbackPreparing;
+    final languageCode =
+        Localizations.maybeLocaleOf(context)?.languageCode ?? 'en';
+    final translatedEpisodeTitle = await resolveTranslatedEpisodeTitle(
+      ref: ref,
+      title: row.displayTitle,
+      languageCode: languageCode,
+    );
+    if (!mounted) return;
 
     // Check for completed offline download first.
     final dlTasksState = ref.read(
@@ -1812,7 +1822,7 @@ class _EpisodeDetailSectionState extends ConsumerState<_EpisodeDetailSection> {
               anilistId: widget.detail.anime.anilistId,
               animeTitle: widget.detail.anime.title.romaji,
               episodeNumber: row.number.toInt().toString(),
-              episodeTitle: row.displayTitle,
+              episodeTitle: translatedEpisodeTitle,
               persistSelection: false,
               sourcePluginId: offlineTask.sourcePluginId ?? 'offline',
               serverName: offlineTask.serverName ?? 'Downloaded',
@@ -1866,7 +1876,7 @@ class _EpisodeDetailSectionState extends ConsumerState<_EpisodeDetailSection> {
       ref: ref,
       anilistId: widget.detail.anime.anilistId,
       animeTitle: widget.detail.anime.title.romaji,
-      episodeTitle: row.displayTitle,
+      episodeTitle: translatedEpisodeTitle,
       routeMode: widget.routeMode,
       decision: decision,
       totalEpisodes: widget.detail.anime.totalEpisodes,
@@ -1982,6 +1992,8 @@ class _DetailEpisodeCardState extends ConsumerState<_DetailEpisodeCard> {
     if (_isEnqueuing) return;
     final messenger = ScaffoldMessenger.of(context);
     final l10n = context.l10n;
+    final languageCode =
+        Localizations.maybeLocaleOf(context)?.languageCode ?? 'en';
 
     // Get downloadable sources (excluding Anime Nexus).
     final entries = widget.row.sourceEpisodes.entries
@@ -2063,6 +2075,12 @@ class _DetailEpisodeCardState extends ConsumerState<_DetailEpisodeCard> {
 
       final chosenLink = chosenOption.link;
       final chosenEntry = optionSourceMap[chosenOption] ?? entries.first;
+      final translatedEpisodeTitle = await resolveTranslatedEpisodeTitle(
+        ref: ref,
+        title: widget.row.displayTitle,
+        languageCode: languageCode,
+      );
+      if (!mounted) return;
 
       final enqueueUseCase = ref.read(enqueueDownloadUseCaseProvider);
       final result = await enqueueUseCase.call(
@@ -2072,7 +2090,7 @@ class _DetailEpisodeCardState extends ConsumerState<_DetailEpisodeCard> {
         sourcePluginId: chosenEntry.key,
         animeTitle: widget.animeTitle,
         coverImageUrl: widget.coverImageUrl,
-        episodeTitle: chosenEntry.value.title,
+        episodeTitle: translatedEpisodeTitle,
       );
 
       if (!mounted) return;
@@ -2433,19 +2451,19 @@ _DetailEpisodeRowsResult _buildDetailEpisodeRows({
 
           return _DetailEpisodeRowData(
             number: number,
-            displayTitle:
-                (jikanMetadata?.title != null &&
-                    jikanMetadata!.title!.trim().isNotEmpty)
-                ? jikanMetadata.title!.trim()
-                : resolveEpisodeDisplayTitle(
-                    episodeNumber: number,
-                    animeTitle: animeTitle,
-                    metadata: metadata,
-                    sourceEpisodes:
-                        sourceEpisodesByNumber[number] ??
-                        const <String, SourceEpisode>{},
-                    fallbackTitle: fallbackTitleBuilder(number),
-                  ),
+            displayTitle: resolveEpisodeDisplayTitle(
+              episodeNumber: number,
+              animeTitle: animeTitle,
+              metadata: metadata,
+              sourceEpisodes:
+                  sourceEpisodesByNumber[number] ??
+                  const <String, SourceEpisode>{},
+              fallbackTitle:
+                  (jikanMetadata?.title != null &&
+                      jikanMetadata!.title!.trim().isNotEmpty)
+                  ? jikanMetadata.title!.trim()
+                  : fallbackTitleBuilder(number),
+            ),
             secondaryText: metadata?.airDate != null
                 ? _formatEpisodeDate(metadata!.airDate!)
                 : metadata?.isAired == false
@@ -2674,6 +2692,7 @@ Future<bool> _enqueueDetailEpisodeDownload({
   SourceAudioKind? audioPreference,
   String? animeTitle,
   String? coverImageUrl,
+  String? episodeTitle,
   DateTime? createdAt,
 }) async {
   try {
@@ -2736,7 +2755,7 @@ Future<bool> _enqueueDetailEpisodeDownload({
         sourcePluginId: sourcePluginId,
         animeTitle: animeTitle,
         coverImageUrl: coverImageUrl,
-        episodeTitle: sourceEpisode.title,
+        episodeTitle: episodeTitle ?? sourceEpisode.title,
         createdAt: createdAt,
       );
       final enqueued = result.fold(
@@ -2894,6 +2913,8 @@ class _DetailDownloadAllButtonState
 
   Future<void> _downloadAll(BuildContext context) async {
     if (_isEnqueuing) return;
+    final languageCode =
+        Localizations.maybeLocaleOf(context)?.languageCode ?? 'en';
     final downloadable = widget.rows
         .where((r) => r.sourceEpisodes.isNotEmpty)
         .toList();
@@ -2906,13 +2927,32 @@ class _DetailDownloadAllButtonState
 
     if (!context.mounted) return;
 
-    // Check if the selected source has both SUB and DUB.
-    SourceAudioKind? audioPreference;
+    // Detect available audio kinds for the chosen source. Prefer the cached
+    // [SourceAvailability.availableAudioKinds] when populated; otherwise probe
+    // the first downloadable episode's server links just-in-time.
     final selectedSource = widget.availableSources
         .where((s) => s.manifest.id == sourceId)
         .firstOrNull;
-    if (selectedSource != null &&
-        selectedSource.availableAudioKinds.length > 1) {
+    var audioKinds =
+        selectedSource?.availableAudioKinds ?? const <SourceAudioKind>{};
+    if (audioKinds.length <= 1) {
+      final sampleEpisode = downloadable
+          .map((row) => row.sourceEpisodes[sourceId])
+          .whereType<SourceEpisode>()
+          .firstOrNull;
+      if (sampleEpisode != null) {
+        final probed = await probeAudioKindsForSource(
+          ref: ref,
+          sourcePluginId: sourceId,
+          sampleEpisode: sampleEpisode,
+        );
+        if (probed.isNotEmpty) audioKinds = probed;
+      }
+      if (!context.mounted) return;
+    }
+
+    SourceAudioKind? audioPreference;
+    if (audioKinds.length > 1) {
       audioPreference = await _pickAudioKind(context);
       if (audioPreference == null || !context.mounted) return;
     }
@@ -2937,6 +2977,12 @@ class _DetailDownloadAllButtonState
             .where((e) => e.key == sourceId)
             .firstOrNull;
         if (entry == null) continue;
+        final translatedEpisodeTitle = await resolveTranslatedEpisodeTitle(
+          ref: ref,
+          title: row.displayTitle,
+          languageCode: languageCode,
+        );
+        if (!mounted) return;
 
         futures.add(
           _enqueueDetailEpisodeDownload(
@@ -2947,6 +2993,7 @@ class _DetailDownloadAllButtonState
             audioPreference: audioPreference,
             animeTitle: widget.animeTitle,
             coverImageUrl: widget.coverImageUrl,
+            episodeTitle: translatedEpisodeTitle,
             createdAt: baseTime.add(Duration(milliseconds: i + j)),
           ),
         );

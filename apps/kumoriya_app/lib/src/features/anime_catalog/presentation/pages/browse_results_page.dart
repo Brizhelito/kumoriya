@@ -8,13 +8,15 @@ import '../../../../shared/icons/kumoriya_icons.dart';
 import '../../../../shared/theme/kumoriya_theme.dart';
 import '../../../../shared/widgets/anime_card.dart';
 import '../../../../shared/widgets/state_views.dart';
+import '../controllers/paginated_anime_feed_notifier.dart';
 import '../providers/anime_catalog_providers.dart';
 import 'anime_detail_page.dart';
 
 class BrowseResultsPage extends ConsumerStatefulWidget {
-  const BrowseResultsPage({super.key, this.initialGenres});
+  const BrowseResultsPage({super.key, this.initialGenres, this.initialRequest});
 
   final List<String>? initialGenres;
+  final AnimeBrowseRequest? initialRequest;
 
   @override
   ConsumerState<BrowseResultsPage> createState() => _BrowseResultsPageState();
@@ -25,8 +27,12 @@ class _BrowseResultsPageState extends ConsumerState<BrowseResultsPage> {
 
   // Filter state
   final Set<String> _selectedGenres = <String>{};
+  final Set<AnimeStatus> _selectedStatuses = <AnimeStatus>{};
   AnimeFormat? _selectedFormat;
+  AnimeSeason? _selectedSeason;
+  int? _selectedYear;
   AnimeSortType _selectedSort = AnimeSortType.trending;
+  late final ScrollController _scrollController;
 
   List<String>? _sortedSelectedGenres() {
     if (_selectedGenres.isEmpty) return null;
@@ -34,15 +40,39 @@ class _BrowseResultsPageState extends ConsumerState<BrowseResultsPage> {
     return genres;
   }
 
+  List<AnimeStatus>? _sortedSelectedStatuses() {
+    if (_selectedStatuses.isEmpty) return null;
+    return AnimeStatus.values
+        .where(_selectedStatuses.contains)
+        .toList(growable: false);
+  }
+
   @override
   void initState() {
     super.initState();
+    _scrollController = ScrollController()..addListener(_handleScroll);
+    final initialRequest = widget.initialRequest;
+    if (initialRequest != null) {
+      _selectedGenres.addAll(initialRequest.genres ?? const <String>[]);
+      _selectedStatuses.addAll(
+        initialRequest.statuses ?? const <AnimeStatus>[],
+      );
+      if (initialRequest.formats?.isNotEmpty ?? false) {
+        _selectedFormat = initialRequest.formats!.first;
+      }
+      _selectedSeason = initialRequest.season;
+      _selectedYear = initialRequest.seasonYear;
+      _selectedSort = initialRequest.sort;
+    }
     if (widget.initialGenres != null) {
       _selectedGenres.addAll(widget.initialGenres!);
     }
     _request = AnimeBrowseRequest(
       genres: _sortedSelectedGenres(),
+      statuses: _sortedSelectedStatuses(),
       sort: _selectedSort,
+      page: 1,
+      perPage: paginatedAnimeFeedPerPage,
     );
   }
 
@@ -53,9 +83,29 @@ class _BrowseResultsPageState extends ConsumerState<BrowseResultsPage> {
         formats: _selectedFormat != null
             ? <AnimeFormat>[_selectedFormat!]
             : null,
+        season: _selectedSeason,
+        seasonYear: _selectedYear,
+        statuses: _sortedSelectedStatuses(),
         sort: _selectedSort,
+        page: 1,
+        perPage: paginatedAnimeFeedPerPage,
       );
     });
+  }
+
+  void _handleScroll() {
+    if (!_scrollController.hasClients) return;
+    final position = _scrollController.position;
+    if (position.pixels < position.maxScrollExtent - 480) return;
+    ref.read(paginatedAnimeFeedProvider(_request).notifier).loadNextPage();
+  }
+
+  @override
+  void dispose() {
+    _scrollController
+      ..removeListener(_handleScroll)
+      ..dispose();
+    super.dispose();
   }
 
   void _openDetail(int anilistId) {
@@ -68,7 +118,6 @@ class _BrowseResultsPageState extends ConsumerState<BrowseResultsPage> {
 
   @override
   Widget build(BuildContext context) {
-    final browseState = ref.watch(browseAnimeCatalogProvider(_request));
     final genres = ref.watch(genreCollectionProvider);
 
     return Scaffold(
@@ -83,7 +132,10 @@ class _BrowseResultsPageState extends ConsumerState<BrowseResultsPage> {
           // -- Filter row
           _FilterRow(
             selectedGenres: _selectedGenres,
+            selectedStatuses: _selectedStatuses,
             selectedFormat: _selectedFormat,
+            selectedSeason: _selectedSeason,
+            selectedYear: _selectedYear,
             selectedSort: _selectedSort,
             genres: genres,
             onGenresChanged: (g) {
@@ -96,13 +148,30 @@ class _BrowseResultsPageState extends ConsumerState<BrowseResultsPage> {
               _selectedFormat = f;
               _updateRequest();
             },
+            onStatusesChanged: (statuses) {
+              _selectedStatuses
+                ..clear()
+                ..addAll(statuses);
+              _updateRequest();
+            },
+            onSeasonChanged: (season) {
+              _selectedSeason = season;
+              _updateRequest();
+            },
+            onYearChanged: (year) {
+              _selectedYear = year;
+              _updateRequest();
+            },
             onSortChanged: (s) {
               _selectedSort = s;
               _updateRequest();
             },
             onClear: () {
               _selectedGenres.clear();
+              _selectedStatuses.clear();
               _selectedFormat = null;
+              _selectedSeason = null;
+              _selectedYear = null;
               _selectedSort = AnimeSortType.trending;
               _updateRequest();
             },
@@ -111,10 +180,15 @@ class _BrowseResultsPageState extends ConsumerState<BrowseResultsPage> {
           // -- Results
           Expanded(
             child: _BrowseGrid(
-              state: browseState,
+              state: ref.watch(paginatedAnimeFeedProvider(_request)),
+              controller: _scrollController,
               onOpenDetail: _openDetail,
-              onRetry: () =>
-                  ref.invalidate(browseAnimeCatalogProvider(_request)),
+              onRetry: () => ref
+                  .read(paginatedAnimeFeedProvider(_request).notifier)
+                  .refresh(),
+              onLoadMore: () => ref
+                  .read(paginatedAnimeFeedProvider(_request).notifier)
+                  .loadNextPage(),
             ),
           ),
         ],
@@ -130,26 +204,42 @@ class _BrowseResultsPageState extends ConsumerState<BrowseResultsPage> {
 class _FilterRow extends StatelessWidget {
   const _FilterRow({
     required this.selectedGenres,
+    required this.selectedStatuses,
     required this.selectedFormat,
+    required this.selectedSeason,
+    required this.selectedYear,
     required this.selectedSort,
     required this.genres,
     required this.onGenresChanged,
     required this.onFormatChanged,
+    required this.onStatusesChanged,
+    required this.onSeasonChanged,
+    required this.onYearChanged,
     required this.onSortChanged,
     required this.onClear,
   });
 
   final Set<String> selectedGenres;
+  final Set<AnimeStatus> selectedStatuses;
   final AnimeFormat? selectedFormat;
+  final AnimeSeason? selectedSeason;
+  final int? selectedYear;
   final AnimeSortType selectedSort;
   final AsyncValue<Result<List<String>, KumoriyaError>> genres;
   final ValueChanged<Set<String>> onGenresChanged;
   final ValueChanged<AnimeFormat?> onFormatChanged;
+  final ValueChanged<Set<AnimeStatus>> onStatusesChanged;
+  final ValueChanged<AnimeSeason?> onSeasonChanged;
+  final ValueChanged<int?> onYearChanged;
   final ValueChanged<AnimeSortType> onSortChanged;
   final VoidCallback onClear;
 
   bool get _hasActiveFilter =>
-      selectedGenres.isNotEmpty || selectedFormat != null;
+      selectedGenres.isNotEmpty ||
+      selectedStatuses.isNotEmpty ||
+      selectedFormat != null ||
+      selectedSeason != null ||
+      selectedYear != null;
 
   @override
   Widget build(BuildContext context) {
@@ -170,6 +260,16 @@ class _FilterRow extends StatelessWidget {
             onTap: () => _showGenrePicker(context),
           ),
           const SizedBox(width: 8),
+          _FilterChip(
+            label: selectedStatuses.isEmpty
+                ? context.l10n.browseFilterStatus
+                : selectedStatuses.length == 1
+                ? _statusLabel(context, selectedStatuses.first)
+                : '${context.l10n.browseFilterStatus} (${selectedStatuses.length})',
+            active: selectedStatuses.isNotEmpty,
+            onTap: () => _showStatusPicker(context),
+          ),
+          const SizedBox(width: 8),
           // Format chooser
           _FilterChip(
             label: selectedFormat != null
@@ -177,6 +277,22 @@ class _FilterRow extends StatelessWidget {
                 : context.l10n.browseFilterFormat,
             active: selectedFormat != null,
             onTap: () => _showFormatPicker(context),
+          ),
+          const SizedBox(width: 8),
+          _FilterChip(
+            label: selectedSeason != null
+                ? _seasonLabel(context, selectedSeason!)
+                : context.l10n.browseFilterSeason,
+            active: selectedSeason != null,
+            onTap: () => _showSeasonPicker(context),
+          ),
+          const SizedBox(width: 8),
+          _FilterChip(
+            label: selectedYear != null
+                ? selectedYear.toString()
+                : context.l10n.browseFilterYear,
+            active: selectedYear != null,
+            onTap: () => _showYearPicker(context),
           ),
           const SizedBox(width: 8),
           // Sort chooser
@@ -279,6 +395,100 @@ class _FilterRow extends StatelessWidget {
     );
   }
 
+  void _showStatusPicker(BuildContext context) {
+    final statuses = <AnimeStatus>[
+      AnimeStatus.releasing,
+      AnimeStatus.notYetReleased,
+      AnimeStatus.finished,
+      AnimeStatus.cancelled,
+      AnimeStatus.hiatus,
+    ];
+
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: KumoriyaColors.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(
+          top: Radius.circular(KumoriyaRadius.xl),
+        ),
+      ),
+      builder: (ctx) => _MultiStatusPickerSheet(
+        title: context.l10n.browseFilterStatus,
+        statuses: statuses,
+        selected: selectedStatuses,
+        labelFor: (status) => _statusLabel(context, status),
+        onDone: (result) {
+          Navigator.pop(ctx);
+          onStatusesChanged(result);
+        },
+        onClear: () {
+          Navigator.pop(ctx);
+          onStatusesChanged(<AnimeStatus>{});
+        },
+      ),
+    );
+  }
+
+  void _showSeasonPicker(BuildContext context) {
+    final seasons = AnimeSeason.values;
+
+    showModalBottomSheet<AnimeSeason>(
+      context: context,
+      backgroundColor: KumoriyaColors.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(
+          top: Radius.circular(KumoriyaRadius.xl),
+        ),
+      ),
+      builder: (ctx) => _PickerSheet(
+        title: context.l10n.browseFilterSeason,
+        items: seasons.map((s) => _seasonLabel(context, s)).toList(),
+        selected: selectedSeason != null
+            ? _seasonLabel(context, selectedSeason!)
+            : null,
+        onSelected: (label) {
+          Navigator.pop(ctx);
+          final idx = seasons.indexWhere(
+            (s) => _seasonLabel(context, s) == label,
+          );
+          if (idx != -1) onSeasonChanged(seasons[idx]);
+        },
+        onClear: () {
+          Navigator.pop(ctx);
+          onSeasonChanged(null);
+        },
+      ),
+    );
+  }
+
+  void _showYearPicker(BuildContext context) {
+    final currentYear = DateTime.now().year + 1;
+    final years = List<int>.generate(55, (index) => currentYear - index);
+
+    showModalBottomSheet<int>(
+      context: context,
+      backgroundColor: KumoriyaColors.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(
+          top: Radius.circular(KumoriyaRadius.xl),
+        ),
+      ),
+      builder: (ctx) => _PickerSheet(
+        title: context.l10n.browseFilterYear,
+        items: years.map((y) => y.toString()).toList(),
+        selected: selectedYear?.toString(),
+        onSelected: (label) {
+          Navigator.pop(ctx);
+          onYearChanged(int.tryParse(label));
+        },
+        onClear: () {
+          Navigator.pop(ctx);
+          onYearChanged(null);
+        },
+      ),
+    );
+  }
+
   void _showSortPicker(BuildContext context) {
     final sortTypes = AnimeSortType.values;
 
@@ -313,6 +523,26 @@ class _FilterRow extends StatelessWidget {
       AnimeFormat.ona => context.l10n.formatOna,
       AnimeFormat.special => context.l10n.formatSpecial,
       AnimeFormat.unknown => '?',
+    };
+  }
+
+  static String _seasonLabel(BuildContext context, AnimeSeason season) {
+    return switch (season) {
+      AnimeSeason.winter => context.l10n.seasonWinter,
+      AnimeSeason.spring => context.l10n.seasonSpring,
+      AnimeSeason.summer => context.l10n.seasonSummer,
+      AnimeSeason.fall => context.l10n.seasonFall,
+    };
+  }
+
+  static String _statusLabel(BuildContext context, AnimeStatus status) {
+    return switch (status) {
+      AnimeStatus.releasing => context.l10n.statusAiring,
+      AnimeStatus.notYetReleased => context.l10n.statusUpcoming,
+      AnimeStatus.finished => context.l10n.statusFinished,
+      AnimeStatus.cancelled => context.l10n.statusCancelled,
+      AnimeStatus.hiatus => context.l10n.statusOnHiatus,
+      AnimeStatus.unknown => context.l10n.statusUnknown,
     };
   }
 
@@ -624,6 +854,131 @@ class _MultiGenrePickerSheetState extends State<_MultiGenrePickerSheet> {
   }
 }
 
+class _MultiStatusPickerSheet extends StatefulWidget {
+  const _MultiStatusPickerSheet({
+    required this.title,
+    required this.statuses,
+    required this.selected,
+    required this.labelFor,
+    required this.onDone,
+    required this.onClear,
+  });
+
+  final String title;
+  final List<AnimeStatus> statuses;
+  final Set<AnimeStatus> selected;
+  final String Function(AnimeStatus status) labelFor;
+  final ValueChanged<Set<AnimeStatus>> onDone;
+  final VoidCallback onClear;
+
+  @override
+  State<_MultiStatusPickerSheet> createState() =>
+      _MultiStatusPickerSheetState();
+}
+
+class _MultiStatusPickerSheetState extends State<_MultiStatusPickerSheet> {
+  late final Set<AnimeStatus> _draft = <AnimeStatus>{...widget.selected};
+
+  void _toggle(AnimeStatus status) {
+    setState(() {
+      if (_draft.contains(status)) {
+        _draft.remove(status);
+      } else {
+        _draft.add(status);
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(0, 12, 0, 16),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          Container(
+            width: 40,
+            height: 4,
+            decoration: BoxDecoration(
+              color: KumoriyaColors.borderSubtle,
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+          const SizedBox(height: 16),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: <Widget>[
+                Text(
+                  widget.title,
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: <Widget>[
+                    if (_draft.isNotEmpty)
+                      TextButton(
+                        onPressed: widget.onClear,
+                        child: Text(context.l10n.browseFilterClear),
+                      ),
+                    const SizedBox(width: 4),
+                    FilledButton(
+                      onPressed: () => widget.onDone(_draft),
+                      style: FilledButton.styleFrom(
+                        backgroundColor: KumoriyaColors.primary,
+                        minimumSize: const Size(64, 36),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(
+                            KumoriyaRadius.md,
+                          ),
+                        ),
+                      ),
+                      child: Text(context.l10n.browseFilterApply),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 8),
+          Flexible(
+            child: ListView.builder(
+              shrinkWrap: true,
+              itemCount: widget.statuses.length,
+              itemBuilder: (context, index) {
+                final status = widget.statuses[index];
+                final isSelected = _draft.contains(status);
+                return ListTile(
+                  title: Text(
+                    widget.labelFor(status),
+                    style: TextStyle(
+                      color: isSelected
+                          ? KumoriyaColors.primaryLight
+                          : KumoriyaColors.textPrimary,
+                      fontWeight: isSelected
+                          ? FontWeight.w600
+                          : FontWeight.normal,
+                    ),
+                  ),
+                  trailing: isSelected
+                      ? const Icon(
+                          Icons.check_rounded,
+                          color: KumoriyaColors.primaryLight,
+                          size: 20,
+                        )
+                      : null,
+                  onTap: () => _toggle(status),
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Browse results grid
 // ---------------------------------------------------------------------------
@@ -631,53 +986,101 @@ class _MultiGenrePickerSheetState extends State<_MultiGenrePickerSheet> {
 class _BrowseGrid extends StatelessWidget {
   const _BrowseGrid({
     required this.state,
+    required this.controller,
     required this.onOpenDetail,
     required this.onRetry,
+    required this.onLoadMore,
   });
 
-  final AsyncValue<Result<List<Anime>, KumoriyaError>> state;
+  final PaginatedAnimeFeedState state;
+  final ScrollController controller;
   final ValueChanged<int> onOpenDetail;
   final VoidCallback onRetry;
+  final VoidCallback onLoadMore;
 
   @override
   Widget build(BuildContext context) {
-    return state.when(
-      loading: () => LoadingStateView(label: context.l10n.searchLoading),
-      error: (_, _) => ErrorStateView(
-        message: context.l10n.genericLoadFailure,
+    if (state.isLoadingFirstPage) {
+      return LoadingStateView(label: context.l10n.searchLoading);
+    }
+
+    final error = state.error;
+    if (error != null && state.items.isEmpty) {
+      return ErrorStateView(
+        message: mapErrorMessage(context, error),
         onRetry: onRetry,
-      ),
-      data: (result) => result.fold(
-        onFailure: (error) => ErrorStateView(
-          message: mapErrorMessage(context, error),
-          onRetry: onRetry,
+      );
+    }
+
+    final animeList = state.items;
+    if (animeList.isEmpty) {
+      return EmptyStateView(
+        icon: Icons.filter_list_off_rounded,
+        message: context.l10n.browseNoResults,
+      );
+    }
+
+    return RefreshIndicator(
+      onRefresh: () async => onRetry(),
+      child: GridView.builder(
+        controller: controller,
+        padding: const EdgeInsets.fromLTRB(16, 4, 16, 32),
+        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 3,
+          childAspectRatio: 0.52,
+          crossAxisSpacing: 12,
+          mainAxisSpacing: 16,
         ),
-        onSuccess: (animeList) {
-          if (animeList.isEmpty) {
-            return EmptyStateView(
-              icon: Icons.filter_list_off_rounded,
-              message: context.l10n.browseNoResults,
-            );
+        itemCount: animeList.length + 1,
+        itemBuilder: (context, index) {
+          if (index == animeList.length) {
+            return _BrowseFooter(state: state, onRetry: onLoadMore);
           }
-          return GridView.builder(
-            padding: const EdgeInsets.fromLTRB(16, 4, 16, 32),
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 3,
-              childAspectRatio: 0.52,
-              crossAxisSpacing: 12,
-              mainAxisSpacing: 16,
-            ),
-            itemCount: animeList.length,
-            itemBuilder: (context, index) {
-              final anime = animeList[index];
-              return AnimeCard(
-                anime: anime,
-                onTap: () => onOpenDetail(anime.anilistId),
-              );
-            },
+          final anime = animeList[index];
+          return AnimeCard(
+            anime: anime,
+            onTap: () => onOpenDetail(anime.anilistId),
           );
         },
       ),
     );
+  }
+}
+
+class _BrowseFooter extends StatelessWidget {
+  const _BrowseFooter({required this.state, required this.onRetry});
+
+  final PaginatedAnimeFeedState state;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    if (state.isLoadingMore) {
+      return const Center(
+        child: SizedBox(
+          width: 24,
+          height: 24,
+          child: CircularProgressIndicator(strokeWidth: 2),
+        ),
+      );
+    }
+    if (state.error != null) {
+      return Center(
+        child: IconButton(
+          onPressed: onRetry,
+          icon: const Icon(Icons.refresh_rounded),
+          color: KumoriyaColors.textMuted,
+        ),
+      );
+    }
+    if (state.hasReachedEnd) {
+      return const Center(
+        child: Icon(
+          Icons.check_circle_outline_rounded,
+          color: KumoriyaColors.textMuted,
+        ),
+      );
+    }
+    return const SizedBox.shrink();
   }
 }
