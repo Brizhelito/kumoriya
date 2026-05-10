@@ -265,9 +265,10 @@ void main() {
         number: 1,
       ),
     );
+    expect(captured!.path, '/chapter/chapterIndexControls');
     expect(
-      captured!.path,
-      '/ver/manga/_/1/8d23d3d6-7c59-4223-bfbc-6f87aa8259dd',
+      captured!.queryParameters['identification'],
+      '8d23d3d6-7c59-4223-bfbc-6f87aa8259dd',
     );
     final pages = (res as Success<List<SourcePage>, KumoriyaError>).value;
     expect(pages, hasLength(5));
@@ -280,27 +281,31 @@ void main() {
     );
   });
 
-  test('getChapterPages emits fractional chapter URLs verbatim', () async {
-    Uri? captured;
-    final plugin = InMangaSourcePlugin(
-      httpClient: MockClient((req) async {
-        captured = req.url;
-        return http.Response(
-          _fix('reader_one_piece_ch1.html'),
-          200,
-          headers: {'content-type': 'text/html'},
-        );
-      }),
-    );
-    await plugin.getChapterPages(
-      const SourceChapter(
-        sourceMangaId: 'mid',
-        sourceChapterId: 'cid',
-        number: 12.5,
-      ),
-    );
-    expect(captured!.path, '/ver/manga/_/12.5/cid');
-  });
+  test(
+    'getChapterPages passes identification query param for any chapter',
+    () async {
+      Uri? captured;
+      final plugin = InMangaSourcePlugin(
+        httpClient: MockClient((req) async {
+          captured = req.url;
+          return http.Response(
+            _fix('reader_one_piece_ch1.html'),
+            200,
+            headers: {'content-type': 'text/html'},
+          );
+        }),
+      );
+      await plugin.getChapterPages(
+        const SourceChapter(
+          sourceMangaId: 'mid',
+          sourceChapterId: 'cid',
+          number: 12.5,
+        ),
+      );
+      expect(captured!.path, '/chapter/chapterIndexControls');
+      expect(captured!.queryParameters['identification'], 'cid');
+    },
+  );
 
   test(
     'getChapterPages returns typed failure when PageList is missing',

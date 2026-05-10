@@ -4,6 +4,7 @@ import 'package:photo_view/photo_view.dart';
 import 'package:photo_view/photo_view_gallery.dart';
 
 import 'manga_page_image.dart';
+import 'page_prefetch.dart';
 
 /// Page-at-a-time reader with horizontal swipes and per-page zoom.
 ///
@@ -35,6 +36,12 @@ class _PaginatedReaderState extends State<PaginatedReader> {
     super.initState();
     _currentIndex = widget.initialPageIndex.clamp(0, widget.pages.length - 1);
     _controller = PageController(initialPage: _currentIndex);
+    // Warm the cache for the first batch after the first frame so the
+    // BuildContext has an attached ImageConfiguration.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      precacheNextPages(context, widget.pages, _currentIndex);
+    });
   }
 
   @override
@@ -46,6 +53,8 @@ class _PaginatedReaderState extends State<PaginatedReader> {
   void _onPageChanged(int index) {
     setState(() => _currentIndex = index);
     widget.onPageChanged?.call(index);
+    // Prefetch the next batch so subsequent swipes are instant.
+    precacheNextPages(context, widget.pages, index);
   }
 
   @override

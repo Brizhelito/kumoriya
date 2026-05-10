@@ -265,20 +265,15 @@ final class CompositeMangaCatalogRepository implements MangaCatalogRepository {
     );
     if (result is Success<MangaHomeSections, KumoriyaError>) {
       fallbackReason.value = FallbackReason.none;
+      _catalogLastFetched[key] = DateTime.now();
       // Write-through every shelf so cold-launch / offline still
       // populates the carousels with the most recently seen catalog.
+      // Fire-and-forget: 4 * perPage sequential Drift upserts add
+      // ~300-800 ms on Android. Awaiting them here was blocking the
+      // home from rendering even though the data was already in memory.
+      // Persistence runs in the background and any failure is logged.
       final sections = result.value;
-      for (final shelf in <List<Manga>>[
-        sections.trending,
-        sections.popular,
-        sections.latest,
-        sections.topRated,
-      ]) {
-        for (final manga in shelf) {
-          await _persistManga(manga);
-        }
-      }
-      _catalogLastFetched[key] = DateTime.now();
+      unawaited(_persistHomeSectionsInBackground(sections));
       return result;
     }
 
@@ -1323,6 +1318,35 @@ final class CompositeMangaCatalogRepository implements MangaCatalogRepository {
     if (result is! Success<List<Manga>, KumoriyaError>) return;
     for (final manga in result.value) {
       await _persistManga(manga);
+    }
+  }
+
+  /// Write-through persistence of every manga in every Home shelf.
+  /// Run as fire-and-forget from `fetchHomeSections` so the UI never
+  /// waits for ~80 sequential Drift upserts before rendering. Any
+  /// per-row failure is logged and skipped — partial writes are
+  /// preferable to losing the whole snapshot for one bad row.
+  Future<void> _persistHomeSectionsInBackground(
+    MangaHomeSections sections,
+  ) async {
+    for (final shelf in <List<Manga>>[
+      sections.trending,
+      sections.popular,
+      sections.latest,
+      sections.topRated,
+    ]) {
+      for (final manga in shelf) {
+        try {
+          await _persistManga(manga);
+        } catch (e, st) {
+          developer.log(
+            'manga home persistence failed for anilistId=${manga.anilistId}: $e',
+            name: 'CompositeMangaCatalogRepository',
+            error: e,
+            stackTrace: st,
+          );
+        }
+      }
     }
   }
 

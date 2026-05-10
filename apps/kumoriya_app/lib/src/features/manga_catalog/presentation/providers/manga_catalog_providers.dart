@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:developer' as developer;
 
 import 'package:flutter/widgets.dart';
@@ -280,6 +281,16 @@ const _kHomeSectionPerPage = 20;
 final mangaHomeProvider = FutureProvider.autoDispose<MangaHomeData>((
   ref,
 ) async {
+  // Keep the resolved shelves warm for 15 minutes so navigating away
+  // from the manga universe and back does NOT replay the full pipeline
+  // and re-show the loading spinner. Mirrors `homeCatalogProvider` in
+  // the anime universe — without this, every tab re-entry rebuilds the
+  // four carousels from scratch even when the underlying repo cache
+  // could answer in milliseconds.
+  final link = ref.keepAlive();
+  final timer = Timer(const Duration(minutes: 15), link.close);
+  ref.onDispose(timer.cancel);
+
   final repo = ref.watch(mangaCatalogRepositoryProvider);
 
   // Single backend-cached round-trip returns the four shelves

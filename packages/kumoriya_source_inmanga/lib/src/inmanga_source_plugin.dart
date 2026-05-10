@@ -249,9 +249,14 @@ final class InMangaSourcePlugin implements MangaSourcePlugin {
     }
     String body;
     try {
+      // InManga moved the PageList from the main reader page into a
+      // separate partial loaded via AJAX. The reader HTML no longer
+      // embeds the <select id="PageList"> inline. We now call the
+      // same endpoint the JS client uses.
       body = await _rotator.run<String>((base) async {
-        final uri = base.resolve(
-          'ver/manga/_/${_friendlyChapterNumber(chapter.number)}/$chId',
+        final uri = base.replace(
+          path: 'chapter/chapterIndexControls',
+          queryParameters: <String, String>{'identification': chId},
         );
         return _getString(uri);
       });
@@ -491,15 +496,6 @@ final class InMangaSourcePlugin implements MangaSourcePlugin {
   static DateTime? _parseDotnetIso(String? v) {
     if (v == null) return null;
     return DateTime.tryParse(v);
-  }
-
-  /// InManga's reader URL embeds the chapter's `FriendlyChapterNumberUrl`
-  /// (e.g. `1`, `12`, `1.5`). We don't have it directly here so we
-  /// reconstruct from the parsed double — integer chapters render as
-  /// ints (`12`, not `12.0`), fractional as decimal.
-  String _friendlyChapterNumber(double n) {
-    if (n == n.roundToDouble()) return n.toInt().toString();
-    return n.toString();
   }
 
   static String? _between(String haystack, String start, String end) {

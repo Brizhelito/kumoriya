@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:kumoriya_manga_domain/kumoriya_manga_domain.dart';
 
 import 'manga_page_image.dart';
+import 'page_prefetch.dart';
 
 /// Continuous-scroll reader for manhwa / webtoon.
 ///
@@ -33,6 +34,10 @@ class VerticalReader extends StatefulWidget {
 
 class _VerticalReaderState extends State<VerticalReader> {
   late final ScrollController _controller;
+  // Tracks the last index we already scheduled prefetch for so we don't
+  // re-issue precache on every scroll tick (the listener fires per frame
+  // while the user is dragging).
+  int _lastPrefetchedIndex = -1;
 
   @override
   void initState() {
@@ -57,16 +62,30 @@ class _VerticalReaderState extends State<VerticalReader> {
         );
       });
     }
+
+    // Warm the cache for the first batch so the very first scroll has
+    // the next pages already decoded.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final start = widget.initialPageIndex.clamp(0, widget.pages.length - 1);
+      _lastPrefetchedIndex = start;
+      precacheNextPages(context, widget.pages, start);
+    });
   }
 
   void _emitScroll() {
-    final cb = widget.onScroll;
-    if (cb == null) return;
     final offset = _controller.offset;
     final approxIndex = (_avgPageHeight() <= 0)
         ? 0
         : (offset / _avgPageHeight()).floor().clamp(0, widget.pages.length - 1);
-    cb(offset, approxIndex);
+    widget.onScroll?.call(offset, approxIndex);
+    // Prefetch only when the approximate page index advances. This
+    // throttles the per-frame scroll listener to one precache pass per
+    // crossed page boundary.
+    if (approxIndex != _lastPrefetchedIndex) {
+      _lastPrefetchedIndex = approxIndex;
+      precacheNextPages(context, widget.pages, approxIndex);
+    }
   }
 
   double _avgPageHeight() {
