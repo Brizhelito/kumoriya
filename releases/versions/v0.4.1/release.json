@@ -5,14 +5,26 @@
   "channels": [
     "alpha"
   ],
-  "manifest_release_notes": "Discovery + UI polish.",
+  "manifest_release_notes": "Discovery + UI polish: paginated browse, language preference, player and reader smoothing.",
   "summary": {
-    "es": "Discovery, ajustes y reproductor m\u00e1s pulidos.",
-    "en": "Discovery, settings and player polish."
+    "es": "Más fluidez en Browse/Buscar/Hub de Temporada, idioma de la app, reproductor y lector más pulidos.",
+    "en": "Smoother Browse/Search/Season Hub, app language preference, player and reader polish."
   },
   "artifacts": {
     "android": {
-      "abis": []
+      "file_name": "kumoriya-0.4.1-arm64-v8a.apk",
+      "r2_key": "artifacts/android/v0.4.1/kumoriya-0.4.1-arm64-v8a.apk",
+      "public_url": "https://pub-8159019abe1741a097538b976c19722c.r2.dev/artifacts/android/v0.4.1/kumoriya-0.4.1-arm64-v8a.apk",
+      "abis": [
+        {
+          "abi": "arm64_v8a",
+          "file_name": "kumoriya-0.4.1-arm64-v8a.apk",
+          "r2_key": "artifacts/android/v0.4.1/kumoriya-0.4.1-arm64-v8a.apk",
+          "public_url": "https://pub-8159019abe1741a097538b976c19722c.r2.dev/artifacts/android/v0.4.1/kumoriya-0.4.1-arm64-v8a.apk",
+          "size_bytes": 43416002,
+          "sha256": "10b2a89d437fa873e5630355399c0772ad7cd64728073da0cfc3aa76cf0c9136"
+        }
+      ]
     }
   },
   "changelog_paths": {
@@ -20,8 +32,7 @@
     "en": "docs/releases/en/v0.4.1.md"
   },
   "notes_markdown": {
-    "es": null,
-    "en": null
-  },
-  "_pending": "APK arm64-v8a not yet built; populate artifacts/abis + notes_markdown before publishing."
+    "es": "# Kumoriya v0.4.1 — Notas de Versión Alpha\n\n**Fecha:** 2026-05-10\n\n## Resumen\n\nEsta versión se centra en mejorar el descubrimiento y pulir la experiencia. Browse, Buscar y Hub de Temporada ahora cargan de forma fluida mientras desplazas, con más filtros y nuevas filas. El reproductor, los ajustes y el perfil están más ordenados, y el lector de manga se siente más suave gracias al precargado de páginas.\n\n## Agregado\n\n- **Más formas de descubrir anime** — Browse, Buscar y Hub de Temporada cargan de forma fluida al desplazar, con filtros extra por estado, año y temporada.\n- **Más filas en Descubrir** — nuevas secciones de En Emisión, Mejores Películas y Próximamente.\n- **Elige el idioma de la app** — selecciona Inglés, Español o sigue la configuración del dispositivo.\n- **Títulos de episodio más inteligentes** — los nombres de episodio en el reproductor y en las descargas se adaptan a tu idioma cuando es posible.\n\n## Cambios\n\n- **El reproductor se siente más fiable** — la rotación funciona mejor y los controles están más ordenados.\n- **Ajustes y Perfil más limpios** — es más fácil encontrar lo que necesitas y las acciones destructivas son menos accidentales.\n- **Overlay de Watch Party pulido** — combina con el nuevo aspecto del reproductor.\n- **El lector de manga es más suave** — las páginas se precargan antes de que llegues a ellas, así los pases se sienten menos abruptos.\n\n## Corregido\n\n- **Fuentes y scanlators de manga** — elegir qué leer es más preciso cuando hay varias opciones disponibles.\n- **InManga** — mejor manejo de pequeñas variaciones de marcado en la fuente.\n- **Prewarm de AniList** — el backend se recupera mejor de errores transitorios y reduce la presión sobre los límites de AniList.\n\n## Infra / Docs\n\n- **La compilación de Windows funciona limpia** — las piezas exclusivas de Android (Firebase) se filtran automáticamente del build de Windows.\n- **Notas históricas reescritas** — las notas v0.1.0–v0.3.0 ahora se leen como notas de versión para usuarios (en inglés y español).\n- **Herramientas de publicación** — mejor `publish-r2-release.sh` y nuevo `republish-release-history.sh` para republicar releases antiguos sin tocar el tag \"latest\" actual.\n\n## Plataformas\n\n- Android (APK arm64-v8a)\n- Windows (publicación separada)",
+    "en": "# Kumoriya v0.4.1 — Alpha Release Notes\n\n**Date:** 2026-05-10\n\n## Summary\n\nThis release focuses on discovery and polish. Browsing, searching, and the season hub now load smoothly as you scroll, with extra filters and new rows. The player, settings, and profile screens were tidied up, and the manga reader feels smoother thanks to page prefetching.\n\n## Added\n\n- **More ways to discover anime** — Browse, Search, and Season Hub now load smoothly as you scroll, with extra filters by status, year, and season.\n- **More rows on Discover** — new Top Airing, Top Movies, and Upcoming sections.\n- **Choose the app language** — pick English, Spanish, or follow your device setting.\n- **Smarter episode titles** — episode names shown in the player and offline downloads adapt to your language when possible.\n\n## Changed\n\n- **Player feels more reliable** — rotation handling is more accurate and the controls are tidier.\n- **Settings and Profile cleaned up** — easier to find what you need; destructive actions are less likely to be tapped by accident.\n- **Watch Party overlay polished** — matches the new player look.\n- **Manga reader is smoother** — pages load before you reach them, so swipes feel less jumpy.\n\n## Fixed\n\n- **Manga sources and scanlators** — picking what to read is more accurate when several options are available.\n- **InManga** — better handling of small markup variations from the source.\n- **AniList prewarm** — the backend recovers better from transient errors and puts less pressure on AniList rate limits.\n\n## Infra / Docs\n\n- **Windows builds compile cleanly** — Android-only Firebase pieces are filtered out of the Windows build automatically.\n- **Historical release notes rewritten** — v0.1.0–v0.3.0 notes now read as user-facing release notes (in English and Spanish).\n- **Release publishing tools** — improved `publish-r2-release.sh` and added `republish-release-history.sh` to backfill old releases without touching the current \"latest\" tag.\n\n## Platforms\n\n- Android (arm64-v8a APK)\n- Windows (published separately)"
+  }
 }
