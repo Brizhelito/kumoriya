@@ -594,12 +594,27 @@ final sourceAvailabilitySummaryProvider = FutureProvider.autoDispose
       return loaded.fold(
         onFailure: Failure.new,
         onSuccess: (value) {
+          _debugSourceAvailability(
+            'provider-loaded anilist=$anilistId '
+            'animeStatus=${detail.anime.status.name} '
+            'animeEpisodes=${_debugEpisodeRange(detail.episodes)} '
+            'fromCache=${value.fromCache} '
+            'shouldRefreshInBackground=${value.shouldRefreshInBackground} '
+            'sources=${_debugSummaryRanges(value.summary)}',
+          );
           if (value.shouldRefreshInBackground) {
             unawaited(
               Future<void>(() async {
+                _debugSourceAvailability(
+                  'provider-background-refresh-start anilist=$anilistId',
+                );
                 final refreshResult = await ref
                     .read(loadSourceAvailabilitySummaryUseCaseProvider)
                     .refresh(detail);
+                _debugSourceAvailability(
+                  'provider-background-refresh-done anilist=$anilistId '
+                  'success=${refreshResult.isSuccess}',
+                );
                 if (refreshResult.isSuccess) {
                   ref.invalidateSelf();
                 }
@@ -610,6 +625,56 @@ final sourceAvailabilitySummaryProvider = FutureProvider.autoDispose
         },
       );
     });
+
+void _debugSourceAvailability(String message) {
+  if (kDebugMode) {
+    debugPrint('[KUMO_SOURCE_AVAIL] $message');
+  }
+}
+
+String _debugSummaryRanges(SourceAvailabilitySummary summary) {
+  if (summary.sources.isEmpty) {
+    return 'none';
+  }
+  return summary.sources
+      .map(
+        (source) =>
+            '${source.manifest.id}:status=${source.status.name}:eps=${_debugEpisodeRange(source.episodes)}:accept=${source.decision.acceptanceSignals.join('|')}:reject=${source.decision.rejectionSignals.join('|')}',
+      )
+      .join(';');
+}
+
+String _debugEpisodeRange(Iterable<dynamic> episodes) {
+  var count = 0;
+  double? min;
+  double? max;
+  String? lastId;
+  for (final episode in episodes) {
+    final (number, sourceId) = switch (episode) {
+      AnimeEpisode e => (e.number, null),
+      SourceEpisode e => (e.number, e.sourceEpisodeId),
+      _ => (null, null),
+    };
+    if (number == null) {
+      continue;
+    }
+    count++;
+    min = min == null || number < min ? number : min;
+    max = max == null || number > max ? number : max;
+    lastId = sourceId ?? lastId;
+  }
+  if (count == 0) {
+    return '0';
+  }
+  final idSuffix = lastId == null ? '' : ':last=$lastId';
+  return '$count(${_debugNumberLabel(min!)}-${_debugNumberLabel(max!)})$idSuffix';
+}
+
+String _debugNumberLabel(double value) {
+  return value == value.roundToDouble()
+      ? value.toInt().toString()
+      : value.toStringAsFixed(3);
+}
 
 final sourceEpisodeServerLinksProvider = FutureProvider.autoDispose
     .family<

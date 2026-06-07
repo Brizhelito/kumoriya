@@ -93,15 +93,80 @@ bool _isGenericEpisodeTitle(
   if (animeNormalized != null && animeNormalized.isNotEmpty) {
     final noPunct = withoutBrackets
         .replaceAll(RegExp(r'[^a-z0-9 ]'), ' ')
+        .replaceAll(RegExp(r'\s+'), ' ')
         .trim();
-    if (noPunct.startsWith(animeNormalized)) {
-      final suffix = noPunct.substring(animeNormalized.length).trim();
+    for (final animeVariant in _animeTitleGenericVariants(animeNormalized)) {
+      if (!noPunct.startsWith(animeVariant)) {
+        continue;
+      }
+      final suffix = noPunct.substring(animeVariant.length).trim();
       if (suffix == episodeInt.toString() ||
-          suffix == episodeInt.toString().padLeft(2, '0')) {
+          suffix == episodeInt.toString().padLeft(2, '0') ||
+          RegExp(
+            r'^(?:episode|ep|episodio|capitulo|capítulo|chapter|chap|cap)\s*0*' +
+                episodeInt.toString() +
+                r'$',
+          ).hasMatch(suffix)) {
         return true;
       }
     }
   }
 
   return false;
+}
+
+Iterable<String> _animeTitleGenericVariants(String normalizedAnimeTitle) sync* {
+  final variants = <String>{normalizedAnimeTitle};
+
+  final seasonNumber = _extractSeasonNumber(normalizedAnimeTitle);
+  if (seasonNumber != null) {
+    final withoutSeason = normalizedAnimeTitle
+        .replaceAll(RegExp(r'\s*\b\d+(?:st|nd|rd|th)?\s+season\b\s*$'), '')
+        .replaceAll(RegExp(r'\s*\bseason\s+\d+\b\s*$'), '')
+        .trim();
+    if (withoutSeason.isNotEmpty) {
+      variants.add(withoutSeason);
+      variants.add('$withoutSeason $seasonNumber');
+      variants.add('$withoutSeason season $seasonNumber');
+      variants.add('$withoutSeason ${_ordinal(seasonNumber)} season');
+    }
+  }
+
+  for (final variant in variants) {
+    yield variant;
+  }
+}
+
+int? _extractSeasonNumber(String normalizedAnimeTitle) {
+  final ordinal = RegExp(
+    r'\b(\d+)(?:st|nd|rd|th)\s+season\b',
+  ).firstMatch(normalizedAnimeTitle);
+  if (ordinal != null) {
+    return int.tryParse(ordinal.group(1) ?? '');
+  }
+
+  final season = RegExp(r'\bseason\s+(\d+)\b').firstMatch(normalizedAnimeTitle);
+  if (season != null) {
+    return int.tryParse(season.group(1) ?? '');
+  }
+
+  return null;
+}
+
+String _ordinal(int value) {
+  final remainder100 = value % 100;
+  if (remainder100 >= 11 && remainder100 <= 13) {
+    return '${value}th';
+  }
+
+  switch (value % 10) {
+    case 1:
+      return '${value}st';
+    case 2:
+      return '${value}nd';
+    case 3:
+      return '${value}rd';
+    default:
+      return '${value}th';
+  }
 }

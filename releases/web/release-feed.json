@@ -1,238 +1,98 @@
 {
-  "generated_at": "2026-04-02T01:35:00Z",
+  "generated_at": "2026-06-06T20:55:00Z",
   "latest": {
-    "version": "0.1.4",
-    "tag": "v0.1.4",
-    "date": "2026-04-02",
+    "version": "0.4.2",
+    "tag": "v0.4.2",
+    "date": "2026-06-06",
     "channel": "alpha",
     "downloads": {
       "android": {
-        "url": "https://pub-8159019abe1741a097538b976c19722c.r2.dev/artifacts/android/v0.1.4/kumoriya-0.1.4.apk",
-        "file_name": "kumoriya-0.1.4.apk"
-      },
-      "windows": {
-        "url": "https://pub-8159019abe1741a097538b976c19722c.r2.dev/artifacts/windows/v0.1.4/Kumoriya-0.1.4-windows-x64-setup.exe",
-        "file_name": "Kumoriya-0.1.4-windows-x64-setup.exe"
+        "url": "https://pub-8159019abe1741a097538b976c19722c.r2.dev/artifacts/android/v0.4.2/kumoriya-0.4.2-arm64-v8a.apk",
+        "file_name": "kumoriya-0.4.2-arm64-v8a.apk"
       }
     },
     "release_notes": {
-      "es": "v0.1.4: cancelacion inmediata de descargas, limpieza de huerfanos y mayor robustez HLS",
-      "en": "v0.1.4: immediate download cancellation, orphan cleanup, and stronger HLS reliability"
+      "es": "v0.4.2: estabilidad del reproductor, correcciones en rotación y episodios de temporadas divididas.",
+      "en": "v0.4.2: player stability, rotation fixes, and split-season episode alignment."
     }
   },
   "changelog": [
     {
-      "version": "0.1.4",
-      "tag": "v0.1.4",
-      "date": "2026-04-02",
+      "version": "0.4.2",
+      "tag": "v0.4.2",
+      "date": "2026-06-06",
       "channel": "alpha",
       "release_notes": {
-        "es": "Versión de parche con mejoras en cancelación de descargas, limpieza de huérfanos y robustez de resolvers/HLS.",
-        "en": "Patch release with improvements to download cancellation, orphan cleanup, and resolver/HLS robustness."
+        "es": "v0.4.2: corrección de errores en el reproductor (ciclo de vida y rotación) y fiabilidad del catálogo.",
+        "en": "v0.4.2: bug fixes for the player (lifecycle and rotation) and catalog reliability."
       },
       "notes": {
         "es": {
-          "resumen": "Versión de parche enfocada en descargas, limpieza y robustez de reproducción.",
-          "agregado": [
-            "Botón para limpiar la cola completa de descargas."
-          ],
-          "cambios": [
-            "Las operaciones de cancelar y limpiar ahora reflejan el cambio de inmediato en la UI."
-          ],
+          "resumen": "Esta versión se centra en la estabilidad del reproductor y la fiabilidad del catálogo.",
           "corregido": [
-            "Las cancelaciones en Windows ya no esperan el borrado completo de segmentos HLS.",
-            "Se limpian carpetas *_segments huérfanas al iniciar.",
-            "Los resolvers toleran respuestas embed no UTF-8.",
-            "El refresh de descargas evita StateError tras async gaps."
+            "El video ya no se pausa al abrir el panel de notificaciones o rotar.",
+            "El bloqueo de orientación es más predecible y centralizado.",
+            "Los episodios de temporadas divididas (S1+S2) ahora se muestran completos.",
+            "Refresco de caché más inteligente para episodios recién lanzados.",
+            "Normalización de títulos de episodios para mayor consistencia."
           ]
         },
         "en": {
-          "summary": "Patch release focused on downloads, cleanup, and playback robustness.",
-          "added": [
-            "Clear queue action for pending and failed download tasks."
-          ],
-          "changed": [
-            "Cancel and clear flows now update the UI immediately before background cleanup finishes."
-          ],
+          "summary": "This release focuses on player stability and catalog reliability.",
           "fixed": [
-            "Windows cancellations no longer wait for full HLS segment deletion before disappearing.",
-            "Orphan *_segments folders are cleaned at startup.",
-            "Resolvers tolerate non-UTF-8 embed responses safely.",
-            "Downloads refresh avoids StateError after async gaps."
+            "Video no longer pauses when opening notifications or rotating.",
+            "Orientation lock is more predictable and centralized.",
+            "Split-season episodes (S1+S2) are now fully displayed.",
+            "Smarter cache refresh for newly released episodes.",
+            "Episode title normalization for better consistency."
           ]
         }
       },
       "downloads": {
-        "android": "https://pub-8159019abe1741a097538b976c19722c.r2.dev/artifacts/android/v0.1.4/kumoriya-0.1.4.apk",
-        "windows": "https://pub-8159019abe1741a097538b976c19722c.r2.dev/artifacts/windows/v0.1.4/Kumoriya-0.1.4-windows-x64-setup.exe"
+        "android": "https://pub-8159019abe1741a097538b976c19722c.r2.dev/artifacts/android/v0.4.2/kumoriya-0.4.2-arm64-v8a.apk"
       }
     },
     {
-      "version": "0.1.3",
-      "tag": "v0.1.3",
-      "date": "2026-04-01",
+      "version": "0.4.1",
+      "tag": "v0.4.1",
+      "date": "2026-05-10",
       "channel": "alpha",
       "release_notes": {
-        "es": "Versión alpha con mejoras en exploración, reproductor, matching y catálogo AniList.",
-        "en": "Alpha release with improvements in discovery, player behavior, matching, and AniList catalog flow."
+        "es": "v0.4.1: descubrimiento de anime fluido, más filas en Discover e idioma de la app.",
+        "en": "v0.4.1: fluid anime discovery, more rows in Discover, and app language preference."
       },
       "notes": {
         "es": {
-          "resumen": "Version alpha enfocada en discovery, estabilidad del reproductor y robustez de descargas HLS.",
+          "resumen": "Esta versión se centra en mejorar el descubrimiento y pulir la experiencia.",
           "agregado": [
-            "Browse Anime con filtros avanzados y buscador por tags de AniList.",
-            "Boton de reporte de bugs y monitoreo de errores con Sentry."
+            "Browse, Buscar y Hub de Temporada con carga fluida.",
+            "Nuevas filas de En Emisión, Mejores Películas y Próximamente.",
+            "Selector de idioma (Inglés/Español).",
+            "Títulos de episodio inteligentes según el idioma."
           ],
           "cambios": [
-            "Acumulacion de seek en reproductor con indicador visual.",
-            "Menos round-trips con queries GraphQL consolidadas y mejoras de matching."
-          ],
-          "corregido": [
-            "Race conditions en teardown del reproductor.",
-            "Indicador de seek acumulado y estabilidad de auto-next."
+            "Reproductor más fiable y controles ordenados.",
+            "Ajustes y Perfil rediseñados.",
+            "Lector de manga más suave con precargado."
           ]
         },
         "en": {
-          "summary": "Alpha release focused on discovery, player stability, and resilient HLS downloads.",
+          "summary": "This release focuses on discovery and polish.",
           "added": [
-            "Browse Anime with advanced filters and AniList tag-guided finder.",
-            "In-app bug reporting and Sentry monitoring."
+            "Smooth loading for Browse, Search, and Season Hub.",
+            "New Top Airing, Top Movies, and Upcoming rows.",
+            "App language selector (English/Spanish).",
+            "Smarter episode titles based on language."
           ],
           "changed": [
-            "Accumulated seek behavior with visual indicator.",
-            "Fewer round-trips through consolidated GraphQL queries and matching improvements."
-          ],
-          "fixed": [
-            "Player teardown race conditions.",
-            "Accumulated seek indicator and auto-next stability."
+            "More reliable player and tidier controls.",
+            "Redesigned Settings and Profile.",
+            "Smoother manga reader with prefetching."
           ]
         }
       },
       "downloads": {
-        "android": "https://pub-8159019abe1741a097538b976c19722c.r2.dev/artifacts/android/v0.1.3/kumoriya-0.1.3.apk",
-        "windows": "https://pub-8159019abe1741a097538b976c19722c.r2.dev/artifacts/windows/v0.1.3/Kumoriya-0.1.3-windows-x64-setup.exe"
-      }
-    },
-    {
-      "version": "0.1.2",
-      "tag": "v0.1.2",
-      "date": "2026-03-31",
-      "channel": "alpha",
-      "release_notes": {
-        "es": "Version de parche enfocada en visibilidad de actualizacion y claridad en UX de release.",
-        "en": "Patch release focused on update visibility and release UX clarity."
-      },
-      "notes": {
-        "es": {
-          "resumen": "Version de parche enfocada en visibilidad de actualizacion y claridad en UX de release.",
-          "agregado": [
-            "Configuracion ahora muestra la version instalada de la app en la seccion Aplicacion."
-          ],
-          "cambios": [
-            "Version de la app actualizada a 0.1.2+3."
-          ],
-          "corregido": [
-            "La verificacion automatica de actualizacion ahora se ejecuta al inicio en Android y Windows."
-          ]
-        },
-        "en": {
-          "summary": "Patch release focused on update visibility and release UX clarity.",
-          "added": [
-            "Settings now shows the installed app version in the App section."
-          ],
-          "changed": [
-            "App version bumped to 0.1.2+3."
-          ],
-          "fixed": [
-            "Automatic update check now runs at startup on Android and Windows."
-          ]
-        }
-      },
-      "downloads": {
-        "android": "https://pub-8159019abe1741a097538b976c19722c.r2.dev/artifacts/android/v0.1.2/kumoriya-0.1.2.apk",
-        "windows": "https://pub-8159019abe1741a097538b976c19722c.r2.dev/artifacts/windows/v0.1.2/Kumoriya-0.1.2-windows-x64-setup.exe"
-      }
-    },
-    {
-      "version": "0.1.1",
-      "tag": "v0.1.1",
-      "date": "2026-03-31",
-      "channel": "alpha",
-      "release_notes": {
-        "es": "Mejoras de update, permisos y rendimiento de descarga.",
-        "en": "Update, permissions, and download performance improvements."
-      },
-      "notes": {
-        "es": {
-          "resumen": "Version de parche enfocada en identidad Android, rendimiento de descarga, permisos y localizacion.",
-          "agregado": [
-            "Descargador paralelo por rangos para APK.",
-            "Cliente HTTP Cronet en Android.",
-            "Permiso REQUEST_INSTALL_PACKAGES."
-          ],
-          "cambios": [
-            "applicationId Android cambiado a dev.kumoriya.app.",
-            "Nombre visible de app: Kumoriya.",
-            "Build debug con sufijo .debug."
-          ],
-          "corregido": [
-            "Fallo silencioso del instalador cuando faltaba permiso de instalacion.",
-            "Dialogo inicial de carpeta de descarga sin localizacion correcta."
-          ]
-        },
-        "en": {
-          "summary": "Patch release focused on Android identity, download performance, permissions flow, and localization.",
-          "added": [
-            "Parallel range-based APK downloader.",
-            "Cronet HTTP client on Android.",
-            "REQUEST_INSTALL_PACKAGES permission."
-          ],
-          "changed": [
-            "Android applicationId changed to dev.kumoriya.app.",
-            "App display name set to Kumoriya.",
-            "Debug builds use .debug suffix."
-          ],
-          "fixed": [
-            "Silent installer failure when install permission was denied.",
-            "First-launch download folder dialog localization issues."
-          ]
-        }
-      },
-      "downloads": {
-        "android": "https://pub-8159019abe1741a097538b976c19722c.r2.dev/artifacts/android/v0.1.1/kumoriya-0.1.1.apk",
-        "windows": "https://pub-8159019abe1741a097538b976c19722c.r2.dev/artifacts/windows/v0.1.1/Kumoriya-0.1.1-windows-x64-setup.exe"
-      }
-    },
-    {
-      "version": "0.1.0",
-      "tag": "v0.1.0",
-      "date": "2026-03-30",
-      "channel": "alpha",
-      "release_notes": {
-        "es": "Primer lanzamiento publico alpha con distribucion para Android y Windows.",
-        "en": "Initial public alpha release for Android and Windows."
-      },
-      "notes": {
-        "es": {
-          "resumen": "Primer lanzamiento publico alpha.",
-          "agregado": [
-            "Flujo inicial de actualizacion por update.json remoto.",
-            "Descarga APK Android e instalacion por intent del sistema.",
-            "Instalador EXE para Windows con cierre seguro de app."
-          ]
-        },
-        "en": {
-          "summary": "Initial public alpha release.",
-          "added": [
-            "Initial app update flow using remote update.json.",
-            "Android APK download and installer handoff.",
-            "Windows EXE installer handoff with safe app shutdown."
-          ]
-        }
-      },
-      "downloads": {
-        "android": "https://pub-8159019abe1741a097538b976c19722c.r2.dev/artifacts/android/v0.1.0/kumoriya-0.1.0.apk",
-        "windows": "https://pub-8159019abe1741a097538b976c19722c.r2.dev/artifacts/windows/v0.1.0/Kumoriya-0.1.0-windows-x64-setup.exe"
+        "android": "https://pub-8159019abe1741a097538b976c19722c.r2.dev/artifacts/android/v0.4.1/kumoriya-0.4.1-arm64-v8a.apk"
       }
     }
   ]

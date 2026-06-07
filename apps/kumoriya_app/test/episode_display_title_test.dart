@@ -31,5 +31,45 @@ void main() {
 
       expect(title, 'Crueldad');
     });
+
+    test('treats anime title plus episode number as generic source title', () {
+      final title = resolveEpisodeDisplayTitle(
+        episodeNumber: 10,
+        animeTitle:
+            'Otonari no Tenshi-sama ni Itsunomanika Dame Ningen ni Sareteita Ken 2nd Season',
+        fallbackTitle: 'Episode 10',
+        sourceEpisodes: <String, SourceEpisode>{
+          'source': SourceEpisode(
+            sourceEpisodeId: '10',
+            number: 10,
+            title:
+                'Otonari no Tenshi-sama ni Itsunomanika Dame Ningen ni Sareteita Ken 2 10',
+            episodeUrl: Uri.parse('https://example.test/10'),
+          ),
+        },
+      );
+
+      expect(title, 'Episode 10');
+    });
+
+    test('treats anime title plus capitulo as generic source title', () {
+      final title = resolveEpisodeDisplayTitle(
+        episodeNumber: 10,
+        animeTitle:
+            'Otonari no Tenshi-sama ni Itsunomanika Dame Ningen ni Sareteita Ken 2nd Season',
+        fallbackTitle: 'Episode 10',
+        sourceEpisodes: <String, SourceEpisode>{
+          'source': SourceEpisode(
+            sourceEpisodeId: '10',
+            number: 10,
+            title:
+                'Otonari no Tenshi-sama ni Itsunomanika Dame Ningen ni Sareteita Ken Season 2 Capitulo 10',
+            episodeUrl: Uri.parse('https://example.test/10'),
+          ),
+        },
+      );
+
+      expect(title, 'Episode 10');
+    });
   });
 }

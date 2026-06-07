@@ -600,8 +600,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
     return _SettingsSectionCard(
       child: _SettingsSection(
         title: 'Desarrollador (debug)',
-        description:
-            'Herramientas internas. Solo visibles en builds de debug.',
+        description: 'Herramientas internas. Solo visibles en builds de debug.',
         child: Wrap(
           spacing: 8,
           runSpacing: 8,

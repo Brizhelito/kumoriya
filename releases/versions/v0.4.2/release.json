@@ -1,0 +1,38 @@
+{
+  "version": "0.4.2",
+  "tag": "v0.4.2",
+  "date": "2026-06-07",
+  "channels": [
+    "alpha"
+  ],
+  "manifest_release_notes": "Player stability and catalog reliability: fixed orientation lock, background pause behavior, and split-season episode synthesis.",
+  "summary": {
+    "es": "v0.4.2: estabilidad del reproductor, correcciones en rotación y episodios de temporadas divididas.",
+    "en": "v0.4.2: player stability, rotation fixes, and split-season episode alignment."
+  },
+  "artifacts": {
+    "android": {
+      "file_name": "kumoriya-0.4.2-arm64-v8a.apk",
+      "r2_key": "artifacts/android/v0.4.2/kumoriya-0.4.2-arm64-v8a.apk",
+      "public_url": "https://pub-8159019abe1741a097538b976c19722c.r2.dev/artifacts/android/v0.4.2/kumoriya-0.4.2-arm64-v8a.apk",
+      "abis": [
+        {
+          "abi": "arm64_v8a",
+          "file_name": "kumoriya-0.4.2-arm64-v8a.apk",
+          "r2_key": "artifacts/android/v0.4.2/kumoriya-0.4.2-arm64-v8a.apk",
+          "public_url": "https://pub-8159019abe1741a097538b976c19722c.r2.dev/artifacts/android/v0.4.2/kumoriya-0.4.2-arm64-v8a.apk",
+          "size_bytes": 43547074,
+          "sha256": "bf84469213513a7f4ed7e1addc18d2e136439891fa44bc2b0de373ff35644956"
+        }
+      ]
+    }
+  },
+  "changelog_paths": {
+    "es": "docs/releases/es/v0.4.2.md",
+    "en": "docs/releases/en/v0.4.2.md"
+  },
+  "notes_markdown": {
+    "es": "# Lanzamiento v0.4.2\n\nFecha: 2026-06-06\n\n## Resumen\nEsta versión de corrección se centra en la estabilidad del reproductor y la fiabilidad del catálogo, abordando específicamente problemas con la alineación de episodios de temporadas divididas y el comportamiento de la orientación del dispositivo.\n\n## Corregido\n- **Robustez del Ciclo de Vida del Reproductor**: La reproducción de video ahora solo se pausa cuando la aplicación está completamente en segundo plano, evitando pausas intrusivas durante cambios de orientación o interacciones con la bandeja del sistema.\n- **Control de Bloqueo de Orientación**: Gestión centralizada de la orientación para asegurar que el bloqueo se comporte de manera predecible y reanude la autorrotación correctamente cuando se desactiva.\n- **Síntesis de Episodios de Temporadas Divididas**: Se corrigió un error de truncamiento donde los episodios adicionales de fuentes que combinan varias temporadas (S1+S2) se descartaban si la entrada correspondiente de AniList no estaba actualizada.\n- **Fiabilidad de la Caché del Catálogo**: Se mejoró la lógica de refresco para coincidencias de títulos de temporadas agrupadas para asegurar que los episodios recién lanzados sean visibles rápidamente.\n- **Normalización de Títulos de Episodios**: Mejora en el análisis de títulos para tratar las etiquetas de fuentes específicas de temporada como títulos de episodios genéricos para una mejor consistencia visual.\n\n## Agregado\n- **Logs de Diagnóstico**: Se añadió instrumentación interna para el seguimiento de la disponibilidad de fuentes y el monitoreo del rendimiento de la caché.\n\n## Notas de Migración\n- Ninguna.",
+    "en": "# Release v0.4.2\n\nDate: 2026-06-06\n\n## Summary\nThis patch release focuses on player stability and catalog reliability, specifically addressing issues with split-season episode alignment and device orientation behavior.\n\n## Fixed\n- **Player Lifecycle Robustness**: Video playback now only pauses when the app is fully backgrounded, preventing intrusive pauses during orientation changes or system tray interactions.\n- **Orientation Lock Control**: Centralized orientation management to ensure the lock behaves predictably and resumes auto-rotation correctly when disabled.\n- **Split-Season Episode Synthesis**: Fixed a truncation bug where extra episodes from sources combining multiple seasons (S1+S2) were discarded if the corresponding AniList entry was out of date.\n- **Catalog Cache Reliability**: Improved refresh logic for grouped-season title matches to ensure newly released episodes are promptly visible.\n- **Episode Title Normalization**: Enhanced title parsing to treat season-specific source labels as generic episode titles for better visual consistency.\n\n## Added\n- **Diagnostic Logging**: Added internal instrumentation for source availability tracking and cache performance monitoring.\n\n## Migration Notes\n- None."
+  }
+}

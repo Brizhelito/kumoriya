@@ -395,26 +395,38 @@ class _PlayerPageState extends ConsumerState<PlayerPage>
   }
 
   /// Invoked by the immersive controls when the user toggles the rotation
-  /// lock button. When locked, the player follows the sensor and 180°-flips
-  /// between landscape sides. When unlocked, the follower is paused so the
-  /// OS can pick any orientation (matching the previous behaviour).
+  /// lock button. When locked, we stop following the sensor and pin preferred
+  /// orientations to the single current landscape side to prevent any physical
+  /// rotation. When unlocked, we resume the sensor follower and allow auto-rotation
+  /// between both landscape sides.
   void _onImmersiveOrientationLockChanged(bool locked) {
     if (locked) {
-      _startSensorOrientationFollower();
-      _applySensorOrientation(_lastSensorOrientation);
-    } else {
       unawaited(_sensorOrientationSub?.cancel());
       _sensorOrientationSub = null;
+
+      // Lock to the current landscape side to freeze rotation.
+      final target =
+          _lastSensorOrientation == NativeDeviceOrientation.landscapeRight
+          ? DeviceOrientation.landscapeRight
+          : DeviceOrientation.landscapeLeft;
+      SystemChrome.setPreferredOrientations(<DeviceOrientation>[target]);
+    } else {
+      // Unlock: resume sensor following and allow both landscape sides.
+      _startSensorOrientationFollower();
+      SystemChrome.setPreferredOrientations(<DeviceOrientation>[
+        DeviceOrientation.landscapeLeft,
+        DeviceOrientation.landscapeRight,
+      ]);
+      _applySensorOrientation(_lastSensorOrientation);
     }
   }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     super.didChangeAppLifecycleState(state);
-    if (state == AppLifecycleState.resumed) {
-      return;
+    if (state == AppLifecycleState.paused) {
+      unawaited(_pauseForAppLifecycle());
     }
-    unawaited(_pauseForAppLifecycle());
   }
 
   Future<void> _pauseForAppLifecycle() async {
@@ -2743,7 +2755,7 @@ class _ImmersivePlayerViewState extends State<_ImmersivePlayerView>
   int _pendingSeekSeconds = 0;
   Timer? _seekCommitTimer;
   static const Duration _seekCommitDelay = Duration(milliseconds: 800);
-  bool _orientationLocked = true;
+  bool _orientationLocked = false;
   bool _isDragSeeking = false;
   double _dragSeekAccumulatedDx = 0;
   Duration _dragSeekTargetPosition = Duration.zero;
@@ -3234,14 +3246,6 @@ class _ImmersivePlayerViewState extends State<_ImmersivePlayerView>
       _orientationLocked = !_orientationLocked;
     });
     widget.onOrientationLockChanged?.call(_orientationLocked);
-    if (_orientationLocked) {
-      SystemChrome.setPreferredOrientations(<DeviceOrientation>[
-        DeviceOrientation.landscapeLeft,
-        DeviceOrientation.landscapeRight,
-      ]);
-    } else {
-      SystemChrome.setPreferredOrientations(<DeviceOrientation>[]);
-    }
   }
 
   KeyEventResult _handleKeyEvent(FocusNode node, KeyEvent event) {

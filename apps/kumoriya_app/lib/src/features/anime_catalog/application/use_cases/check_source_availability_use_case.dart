@@ -1,3 +1,5 @@
+import 'dart:developer' as developer;
+
 import 'package:kumoriya_core/kumoriya_core.dart';
 import 'package:kumoriya_domain/kumoriya_domain.dart';
 import 'package:kumoriya_plugins/kumoriya_plugins.dart';
@@ -42,6 +44,12 @@ final class CheckSourceAvailabilityUseCase {
     final candidates = searchResult.fold(
       onFailure: (_) => const <SourceAnimeMatch>[],
       onSuccess: (value) => value,
+    );
+    _debugLog(
+      'search anilist=${anilistDetail.anime.anilistId} '
+      'source=${_sourcePlugin.manifest.id} '
+      'title="${anilistDetail.anime.title.romaji}" '
+      'candidates=${candidates.length}',
     );
     var allCandidates = candidates;
     var directlyConfirmedCandidateIds = <String>{};
@@ -103,10 +111,23 @@ final class CheckSourceAvailabilityUseCase {
         ? directFormatBridgeDecision
         : null;
     final resolvedDecision = fallbackDecision ?? decision;
+    _debugLog(
+      'decision anilist=${anilistDetail.anime.anilistId} '
+      'source=${_sourcePlugin.manifest.id} '
+      'verdict=${resolvedDecision.verdict} '
+      'confidence=${resolvedDecision.confidence.name} '
+      'candidate=${resolvedDecision.candidate?.sourceId ?? 'none'} '
+      'accept=${resolvedDecision.acceptanceSignals.join('|')} '
+      'reject=${resolvedDecision.rejectionSignals.join('|')}',
+    );
 
     if ((!resolvedDecision.verdict &&
             !acceptsDirectlyConfirmedReviewCandidate) ||
         resolvedDecision.candidate == null) {
+      _debugLog(
+        'unavailable-no-match anilist=${anilistDetail.anime.anilistId} '
+        'source=${_sourcePlugin.manifest.id}',
+      );
       return SourceAvailability(
         manifest: _sourcePlugin.manifest,
         status: SourceAvailabilityStatus.unavailable,
@@ -126,21 +147,34 @@ final class CheckSourceAvailabilityUseCase {
     );
 
     return episodesResult.fold(
-      onFailure: (error) => SourceAvailability(
-        manifest: _sourcePlugin.manifest,
-        status: error.kind == KumoriyaErrorKind.notFound
-            ? SourceAvailabilityStatus.unavailable
-            : SourceAvailabilityStatus.error,
-        decision: resolvedDecision,
-        unavailableReason: error.kind == KumoriyaErrorKind.notFound
-            ? SourceUnavailableReason.noEpisodes
-            : null,
-        errorMessage: error.kind == KumoriyaErrorKind.notFound
-            ? null
-            : error.message,
-      ),
+      onFailure: (error) {
+        _debugLog(
+          'episodes-failure anilist=${anilistDetail.anime.anilistId} '
+          'source=${_sourcePlugin.manifest.id} '
+          'candidate=${resolvedDecision.candidate!.sourceId} '
+          'code=${error.code} kind=${error.kind.name}',
+        );
+        return SourceAvailability(
+          manifest: _sourcePlugin.manifest,
+          status: error.kind == KumoriyaErrorKind.notFound
+              ? SourceAvailabilityStatus.unavailable
+              : SourceAvailabilityStatus.error,
+          decision: resolvedDecision,
+          unavailableReason: error.kind == KumoriyaErrorKind.notFound
+              ? SourceUnavailableReason.noEpisodes
+              : null,
+          errorMessage: error.kind == KumoriyaErrorKind.notFound
+              ? null
+              : error.message,
+        );
+      },
       onSuccess: (episodes) {
         if (episodes.isEmpty) {
+          _debugLog(
+            'episodes-empty anilist=${anilistDetail.anime.anilistId} '
+            'source=${_sourcePlugin.manifest.id} '
+            'candidate=${resolvedDecision.candidate!.sourceId}',
+          );
           return SourceAvailability(
             manifest: _sourcePlugin.manifest,
             status: SourceAvailabilityStatus.unavailable,
@@ -152,6 +186,17 @@ final class CheckSourceAvailabilityUseCase {
           anilistDetail: anilistDetail,
           decision: resolvedDecision,
           episodes: episodes,
+        );
+        _debugLog(
+          'episodes-ready anilist=${anilistDetail.anime.anilistId} '
+          'source=${_sourcePlugin.manifest.id} '
+          'candidate=${resolvedDecision.candidate!.sourceId} '
+          'raw=${_episodeRange(episodes)} '
+          'aligned=${_episodeRange(alignedEpisodes)} '
+          'animeEpisodes=${_episodeRange(anilistDetail.episodes)} '
+          'status=${anilistDetail.anime.status.name} '
+          'total=${anilistDetail.anime.totalEpisodes ?? 'unknown'} '
+          'accept=${resolvedDecision.acceptanceSignals.join('|')}',
         );
         return SourceAvailability(
           manifest: _sourcePlugin.manifest,
@@ -184,6 +229,14 @@ final class CheckSourceAvailabilityUseCase {
 
     final seasonTotal =
         anilistDetail.anime.totalEpisodes ?? sortedMetadata.length;
+    if (seasonTotal > 0 &&
+        episodes.length <= seasonTotal &&
+        _candidateLooksRequestedSeasonSpecific(
+          anilistDetail: anilistDetail,
+          candidate: decision.candidate,
+        )) {
+      return episodes;
+    }
 
     // Prefer the prequel-derived boundary: the source lists S1+S2 cumulatively
     // under a grouped slug, so the S2 block starts right after all previous
@@ -221,25 +274,41 @@ final class CheckSourceAvailabilityUseCase {
       return episodes;
     }
 
-    final maxLength = sourceSlice.length < alignmentMetadata.length
-        ? sourceSlice.length
-        : alignmentMetadata.length;
     final aligned = <SourceEpisode>[];
 
-    for (var index = 0; index < maxLength; index++) {
+    for (var index = 0; index < sourceSlice.length; index++) {
       final sourceEpisode = sourceSlice[index];
-      final targetEpisode = alignmentMetadata[index];
-      aligned.add(
-        SourceEpisode(
-          sourceEpisodeId: sourceEpisode.sourceEpisodeId,
-          number: targetEpisode.number,
-          title: targetEpisode.title.trim().isEmpty
-              ? sourceEpisode.title
-              : targetEpisode.title,
-          episodeUrl: sourceEpisode.episodeUrl,
-          thumbnailUrl: sourceEpisode.thumbnailUrl,
-        ),
-      );
+      if (index < alignmentMetadata.length) {
+        final targetEpisode = alignmentMetadata[index];
+        aligned.add(
+          SourceEpisode(
+            sourceEpisodeId: sourceEpisode.sourceEpisodeId,
+            number: targetEpisode.number,
+            title: targetEpisode.title.trim().isEmpty
+                ? sourceEpisode.title
+                : targetEpisode.title,
+            episodeUrl: sourceEpisode.episodeUrl,
+            thumbnailUrl: sourceEpisode.thumbnailUrl,
+          ),
+        );
+      } else {
+        // Synthesize episode numbering/metadata for extra episodes from the source
+        // that AniList hasn't populated yet.
+        final nextNumber =
+            (alignmentMetadata.isNotEmpty
+                ? alignmentMetadata.last.number
+                : 0.0) +
+            (index - alignmentMetadata.length + 1);
+        aligned.add(
+          SourceEpisode(
+            sourceEpisodeId: sourceEpisode.sourceEpisodeId,
+            number: nextNumber,
+            title: sourceEpisode.title,
+            episodeUrl: sourceEpisode.episodeUrl,
+            thumbnailUrl: sourceEpisode.thumbnailUrl,
+          ),
+        );
+      }
     }
 
     return aligned.isEmpty ? episodes : aligned;
@@ -266,6 +335,73 @@ final class CheckSourceAvailabilityUseCase {
       found = true;
     }
     return found ? total : null;
+  }
+
+  bool _candidateLooksRequestedSeasonSpecific({
+    required AnimeDetail anilistDetail,
+    required SourceAnimeMatch? candidate,
+  }) {
+    if (candidate == null) {
+      return false;
+    }
+
+    final seasonNumber = _requestedSeasonNumber(anilistDetail);
+    if (seasonNumber == null || seasonNumber < 2) {
+      return false;
+    }
+    if (candidate.seasonNumber == seasonNumber) {
+      return true;
+    }
+
+    final sourceTokens = <String>{
+      _slugify(candidate.sourceId),
+      _slugify(candidate.title),
+      for (final alias in candidate.aliases) _slugify(alias),
+    }..removeWhere((value) => value.isEmpty);
+
+    final seasonTokens = <String>{
+      '$seasonNumber',
+      'season-$seasonNumber',
+      '${_ordinal(seasonNumber)}-season',
+    };
+
+    return sourceTokens.any(
+      (token) => seasonTokens.any(
+        (seasonToken) =>
+            token.endsWith('-$seasonToken') || token.contains('-$seasonToken-'),
+      ),
+    );
+  }
+
+  int? _requestedSeasonNumber(AnimeDetail anilistDetail) {
+    for (final title in _buildCandidateTitleSet(anilistDetail.anime)) {
+      final normalized = title.trim();
+      if (normalized.isEmpty) {
+        continue;
+      }
+      final seasonFirst = RegExp(
+        r'\bseason\s+(\d+)\b',
+        caseSensitive: false,
+      ).firstMatch(normalized);
+      if (seasonFirst != null) {
+        return int.tryParse(seasonFirst.group(1) ?? '');
+      }
+
+      final ordinalFirst = RegExp(
+        r'\b(\d+)(?:st|nd|rd|th)\s+season\b',
+        caseSensitive: false,
+      ).firstMatch(normalized);
+      if (ordinalFirst != null) {
+        return int.tryParse(ordinalFirst.group(1) ?? '');
+      }
+
+      final bareTrailing = _tryParseBareTrailingSeasonTitle(normalized);
+      if (bareTrailing != null) {
+        return bareTrailing.seasonNumber;
+      }
+    }
+
+    return null;
   }
 
   Future<List<SourceAnimeMatch>> _probeDirectSlugCandidates(
@@ -1137,5 +1273,46 @@ final class CheckSourceAvailabilityUseCase {
       default:
         return '${value}th';
     }
+  }
+
+  void _debugLog(String message) {
+    assert(() {
+      developer.log(message, name: 'kumoriya.source_availability');
+      // ignore: avoid_print
+      print('[KSA] $message');
+      return true;
+    }());
+  }
+
+  String _episodeRange(Iterable<dynamic> episodes) {
+    var count = 0;
+    double? min;
+    double? max;
+    String? lastId;
+    for (final episode in episodes) {
+      final (number, sourceId) = switch (episode) {
+        AnimeEpisode e => (e.number, null),
+        SourceEpisode e => (e.number, e.sourceEpisodeId),
+        _ => (null, null),
+      };
+      if (number == null) {
+        continue;
+      }
+      count++;
+      min = min == null || number < min ? number : min;
+      max = max == null || number > max ? number : max;
+      lastId = sourceId ?? lastId;
+    }
+    if (count == 0) {
+      return '0';
+    }
+    final idSuffix = lastId == null ? '' : ':last=$lastId';
+    return '$count(${_numberLabel(min!)}-${_numberLabel(max!)})$idSuffix';
+  }
+
+  String _numberLabel(double value) {
+    return value == value.roundToDouble()
+        ? value.toInt().toString()
+        : value.toStringAsFixed(3);
   }
 }

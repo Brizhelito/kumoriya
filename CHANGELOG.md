@@ -4,6 +4,18 @@ All notable changes to Kumoriya will be documented in this file.
 
 ## [Unreleased]
 
+## [v0.4.2] - 2026-06-06
+
+### Fixed
+- **Player stays playing when you need it** — the video no longer pauses when you pull down the notification panel or change device orientation; it only pauses when the app is actually sent to the background.
+- **Better orientation control** — locking the orientation now stays exactly where you set it, and unlocking correctly resumes auto-rotation between landscape modes.
+- **Found more episodes for split seasons** — fixed an issue where sources combining Season 1 and Season 2 had their extra episodes hidden if AniList hadn't updated yet.
+- **Smarter catalog caching** — improved how we refresh available sources to make sure newly released episodes show up promptly without being lost in the cache.
+- **Cleaner episode titles** — titles like "Season 2 Episode 10" from sources are now correctly normalized to match the app's style.
+
+### Added
+- **Diagnostic logging** — added internal logging to better track source availability and cache performance.
+
 ## [v0.4.1] - 2026-05-10
 
 ### Added

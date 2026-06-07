@@ -1,15 +1,15 @@
 {
   "android": {
-    "latest_version": "0.4.1",
-    "url": "https://pub-8159019abe1741a097538b976c19722c.r2.dev/artifacts/android/v0.4.1/kumoriya-0.4.1-arm64-v8a.apk",
-    "release_notes": "Discovery + UI polish: paginated browse, language preference, player and reader smoothing.",
+    "latest_version": "0.4.2",
+    "url": "https://pub-8159019abe1741a097538b976c19722c.r2.dev/artifacts/android/v0.4.2/kumoriya-0.4.2-arm64-v8a.apk",
+    "release_notes": "Player stability and catalog reliability: fixed orientation lock, background pause behavior, and split-season episode synthesis.",
     "abis": {
       "arm64_v8a": {
-        "url": "https://pub-8159019abe1741a097538b976c19722c.r2.dev/artifacts/android/v0.4.1/kumoriya-0.4.1-arm64-v8a.apk",
-        "file_name": "kumoriya-0.4.1-arm64-v8a.apk",
-        "r2_key": "artifacts/android/v0.4.1/kumoriya-0.4.1-arm64-v8a.apk",
-        "size_bytes": 43416002,
-        "sha256": "10b2a89d437fa873e5630355399c0772ad7cd64728073da0cfc3aa76cf0c9136"
+        "url": "https://pub-8159019abe1741a097538b976c19722c.r2.dev/artifacts/android/v0.4.2/kumoriya-0.4.2-arm64-v8a.apk",
+        "file_name": "kumoriya-0.4.2-arm64-v8a.apk",
+        "r2_key": "artifacts/android/v0.4.2/kumoriya-0.4.2-arm64-v8a.apk",
+        "size_bytes": 43547074,
+        "sha256": "bf84469213513a7f4ed7e1addc18d2e136439891fa44bc2b0de373ff35644956"
       }
     }
   }

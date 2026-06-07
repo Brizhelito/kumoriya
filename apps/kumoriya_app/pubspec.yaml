@@ -1,7 +1,7 @@
 name: kumoriya_app
 description: Kumoriya main Flutter application.
 publish_to: none
-version: 0.4.1+9
+version: 0.4.2+10
 
 resolution: workspace
 

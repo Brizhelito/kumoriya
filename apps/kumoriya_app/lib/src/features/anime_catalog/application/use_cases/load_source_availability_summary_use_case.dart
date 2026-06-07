@@ -1,3 +1,5 @@
+import 'dart:developer' as developer;
+
 import 'package:kumoriya_core/kumoriya_core.dart';
 import 'package:kumoriya_domain/kumoriya_domain.dart';
 import 'package:kumoriya_plugins/kumoriya_plugins.dart';
@@ -68,27 +70,59 @@ final class LoadSourceAvailabilitySummaryUseCase {
         anilistDetail,
         cached.summary,
       );
+      final releasingPlayableNeedsRefresh =
+          anilistDetail.anime.status == AnimeStatus.releasing &&
+          hasPlayableSources &&
+          age > _airingEpisodeFreshTtl;
+      _debugLog(
+        'cache-read anilist=${anilistDetail.anime.anilistId} '
+        'status=${anilistDetail.anime.status.name} '
+        'age=${age.inSeconds}s playable=${cached.summary.playableSources.length} '
+        'animeEpisodes=${_episodeRange(anilistDetail.episodes)} '
+        'sourceEpisodes=${_summaryEpisodeRanges(cached.summary)} '
+        'missingAired=$missingAiredEpisode '
+        'releasingPlayableNeedsRefresh=$releasingPlayableNeedsRefresh '
+        'missingCoverage=$missingCoverage',
+      );
 
       if (age <= _maxStaleAge) {
-        if (missingAiredEpisode && age > _airingEpisodeFreshTtl) {
+        if ((missingAiredEpisode && age > _airingEpisodeFreshTtl) ||
+            releasingPlayableNeedsRefresh) {
+          _debugLog(
+            'cache-refresh-now anilist=${anilistDetail.anime.anilistId} '
+            'reason=${releasingPlayableNeedsRefresh ? 'releasing-playable-ttl' : 'missing-aired-episode'}',
+          );
           return _refresh(anilistDetail, now);
         }
 
+        final shouldRefreshInBackground =
+            age > (hasPlayableSources ? _freshTtl : _unavailableFreshTtl) ||
+            missingCoverage ||
+            !hasPlayableSources ||
+            missingAiredEpisode;
+        _debugLog(
+          'cache-serve anilist=${anilistDetail.anime.anilistId} '
+          'fromCache=true shouldRefreshInBackground=$shouldRefreshInBackground',
+        );
         return Success(
           LoadedSourceAvailabilitySummary(
             summary: cached.summary,
             updatedAt: cached.updatedAt,
             fromCache: true,
-            shouldRefreshInBackground:
-                age > (hasPlayableSources ? _freshTtl : _unavailableFreshTtl) ||
-                missingCoverage ||
-                !hasPlayableSources ||
-                missingAiredEpisode,
+            shouldRefreshInBackground: shouldRefreshInBackground,
           ),
         );
       }
+      _debugLog(
+        'cache-expired anilist=${anilistDetail.anime.anilistId} '
+        'age=${age.inSeconds}s maxStale=${_maxStaleAge.inSeconds}s',
+      );
     }
 
+    _debugLog(
+      'cache-miss-refresh anilist=${anilistDetail.anime.anilistId} '
+      'status=${anilistDetail.anime.status.name}',
+    );
     return _refresh(anilistDetail, now);
   }
 
@@ -152,6 +186,9 @@ final class LoadSourceAvailabilitySummaryUseCase {
     if (enforceSourceTimeout &&
         summary.playableSources.isEmpty &&
         _hasTimedOutSources(summary)) {
+      _debugLog(
+        'refresh-retry-without-timeout anilist=${anilistDetail.anime.anilistId}',
+      );
       summary = await _computeUseCase.call(
         anilistDetail,
         enforceSourceTimeout: false,
@@ -166,6 +203,14 @@ final class LoadSourceAvailabilitySummaryUseCase {
         summary: summary,
         updatedAt: now,
       ),
+    );
+    _debugLog(
+      'refresh-complete anilist=${anilistDetail.anime.anilistId} '
+      'enforceTimeout=$enforceSourceTimeout '
+      'playable=${summary.playableSources.length} '
+      'sourceEpisodes=${_summaryEpisodeRanges(summary)} '
+      'shouldRefreshInBackground=$shouldRefreshInBackground '
+      'persisted=${persistResult.isSuccess}',
     );
 
     return persistResult.fold(
@@ -194,5 +239,55 @@ final class LoadSourceAvailabilitySummaryUseCase {
         'source-availability-timeout',
       ),
     );
+  }
+
+  void _debugLog(String message) {
+    assert(() {
+      developer.log(message, name: 'kumoriya.source_availability');
+      // ignore: avoid_print
+      print('[KSA] $message');
+      return true;
+    }());
+  }
+
+  String _summaryEpisodeRanges(SourceAvailabilitySummary summary) {
+    if (summary.playableSources.isEmpty) {
+      return 'none';
+    }
+    return summary.playableSources
+        .map(
+          (source) =>
+              '${source.manifest.id}:${_episodeRange(source.episodes)}:${source.decision.acceptanceSignals.join('|')}',
+        )
+        .join(',');
+  }
+
+  String _episodeRange(Iterable<dynamic> episodes) {
+    var count = 0;
+    double? min;
+    double? max;
+    for (final episode in episodes) {
+      final number = switch (episode) {
+        AnimeEpisode e => e.number,
+        SourceEpisode e => e.number,
+        _ => null,
+      };
+      if (number == null) {
+        continue;
+      }
+      count++;
+      min = min == null || number < min ? number : min;
+      max = max == null || number > max ? number : max;
+    }
+    if (count == 0) {
+      return '0';
+    }
+    return '$count(${_numberLabel(min!)}-${_numberLabel(max!)})';
+  }
+
+  String _numberLabel(double value) {
+    return value == value.roundToDouble()
+        ? value.toInt().toString()
+        : value.toStringAsFixed(3);
   }
 }

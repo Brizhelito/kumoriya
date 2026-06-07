@@ -484,6 +484,11 @@ class _EpisodeListSceneState extends ConsumerState<EpisodeListScene> {
     if (!mounted) {
       return;
     }
+    _debugEpisodeList(
+      'tap anilist=${widget.anilistId} episode=${row.number} '
+      'rowSources=${_debugSourceEpisodeMap(row.sourceEpisodes)} '
+      'summary=${_debugSummaryRanges(summary)}',
+    );
     setState(() => _isLaunching = true);
     showBlockingLoader(
       Navigator.of(context, rootNavigator: true).context,
@@ -499,6 +504,10 @@ class _EpisodeListSceneState extends ConsumerState<EpisodeListScene> {
     if (!mounted) {
       return;
     }
+    _debugEpisodeList(
+      'decision anilist=${widget.anilistId} episode=${row.number} '
+      'type=${decision.runtimeType}',
+    );
     final rootNavigator = Navigator.of(context, rootNavigator: true);
     hideBlockingLoader(rootNavigator.context);
     setState(() => _isLaunching = false);
@@ -1340,6 +1349,69 @@ double? _progressFraction(EpisodeProgress? progress) {
 String _formatDate(DateTime dt) {
   final local = dt.toLocal();
   return '${local.year}-${local.month.toString().padLeft(2, '0')}-${local.day.toString().padLeft(2, '0')}';
+}
+
+void _debugEpisodeList(String message) {
+  assert(() {
+    debugPrint('[KUMO_EPISODE_LIST] $message');
+    return true;
+  }());
+}
+
+String _debugSummaryRanges(SourceAvailabilitySummary summary) {
+  if (summary.sources.isEmpty) {
+    return 'none';
+  }
+  return summary.sources
+      .map(
+        (source) =>
+            '${source.manifest.id}:status=${source.status.name}:eps=${_debugEpisodeRange(source.episodes)}:accept=${source.decision.acceptanceSignals.join('|')}:reject=${source.decision.rejectionSignals.join('|')}',
+      )
+      .join(';');
+}
+
+String _debugSourceEpisodeMap(Map<String, SourceEpisode> episodes) {
+  if (episodes.isEmpty) {
+    return 'none';
+  }
+  return episodes.entries
+      .map(
+        (entry) =>
+            '${entry.key}:ep=${_debugNumberLabel(entry.value.number)}:id=${entry.value.sourceEpisodeId}',
+      )
+      .join(';');
+}
+
+String _debugEpisodeRange(Iterable<dynamic> episodes) {
+  var count = 0;
+  double? min;
+  double? max;
+  String? lastId;
+  for (final episode in episodes) {
+    final (number, sourceId) = switch (episode) {
+      AnimeEpisode e => (e.number, null),
+      SourceEpisode e => (e.number, e.sourceEpisodeId),
+      _ => (null, null),
+    };
+    if (number == null) {
+      continue;
+    }
+    count++;
+    min = min == null || number < min ? number : min;
+    max = max == null || number > max ? number : max;
+    lastId = sourceId ?? lastId;
+  }
+  if (count == 0) {
+    return '0';
+  }
+  final idSuffix = lastId == null ? '' : ':last=$lastId';
+  return '$count(${_debugNumberLabel(min!)}-${_debugNumberLabel(max!)})$idSuffix';
+}
+
+String _debugNumberLabel(double value) {
+  return value == value.roundToDouble()
+      ? value.toInt().toString()
+      : value.toStringAsFixed(3);
 }
 
 // ─── Page selector ───────────────────────────────────────────────────────────
