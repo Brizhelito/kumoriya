@@ -40,6 +40,11 @@ dependencies:
   kumoriya_source_animeflv:
   kumoriya_source_animeav1:
   kumoriya_source_anime_nexus:
+  kumoriya_source_miruro:
+  kumoriya_resolver_miruro_kwik:
+  kumoriya_resolver_miruro_anidb:
+  kumoriya_resolver_miruro_vidtube:
+  kumoriya_resolver_miruro_vibeplayer:
   kumoriya_resolver_jkplayer:
   kumoriya_resolver_streamwish:
   kumoriya_resolver_mixdrop:

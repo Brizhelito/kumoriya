@@ -25,6 +25,7 @@ final class VidhideResolverPlugin implements ResolverPlugin {
     'alions.pro',
     'asnow.pro',
     'alhayah.online',
+    'otakuvid.online',
   };
 
   @override
@@ -40,6 +41,7 @@ final class VidhideResolverPlugin implements ResolverPlugin {
       'alions.pro',
       'asnow.pro',
       'alhayah.online',
+      'otakuvid.online',
     ],
     baseUrls: <String>['https://vidhide.com/e/'],
   );

@@ -8,6 +8,14 @@ import '../services/source_selection_policy.dart';
 import 'check_source_availability_use_case.dart';
 import 'get_source_episode_server_links_use_case.dart';
 
+const Map<String, Duration> _defaultSourceAvailabilityTimeoutOverrides =
+    <String, Duration>{
+      // Miruro availability requires AniList-backed search plus a secure pipe
+      // round-trip (`env2.js` -> `pipe/episodes`), which is consistently slower
+      // than the lightweight HTML/API probes used by the other sources.
+      'kumoriya.source.miruro': Duration(seconds: 4),
+    };
+
 final class GetSourceAvailabilitySummaryUseCase {
   const GetSourceAvailabilitySummaryUseCase({
     required List<SourcePlugin> sourcePlugins,
@@ -15,12 +23,15 @@ final class GetSourceAvailabilitySummaryUseCase {
     required SourceSelectionPolicy selectionPolicy,
     required ResolverRegistry registry,
     Duration sourceTimeout = const Duration(milliseconds: 900),
+    Map<String, Duration> sourceTimeoutOverrides =
+        _defaultSourceAvailabilityTimeoutOverrides,
     bool probeAudioKinds = false,
   }) : _sourcePlugins = sourcePlugins,
        _matcher = matcher,
        _selectionPolicy = selectionPolicy,
        _registry = registry,
        _sourceTimeout = sourceTimeout,
+       _sourceTimeoutOverrides = sourceTimeoutOverrides,
        _probeAudioKinds = probeAudioKinds;
 
   final List<SourcePlugin> _sourcePlugins;
@@ -28,6 +39,7 @@ final class GetSourceAvailabilitySummaryUseCase {
   final SourceSelectionPolicy _selectionPolicy;
   final ResolverRegistry _registry;
   final Duration _sourceTimeout;
+  final Map<String, Duration> _sourceTimeoutOverrides;
   final bool _probeAudioKinds;
 
   Future<SourceAvailabilitySummary> call(
@@ -60,6 +72,7 @@ final class GetSourceAvailabilitySummaryUseCase {
     required bool enforceSourceTimeout,
   }) async {
     try {
+      final timeout = _sourceTimeoutFor(plugin);
       final availability = CheckSourceAvailabilityUseCase(
         sourcePlugin: plugin,
         matcher: _matcher,
@@ -68,8 +81,8 @@ final class GetSourceAvailabilitySummaryUseCase {
         return await availability;
       }
       return await availability.timeout(
-        _sourceTimeout,
-        onTimeout: () => _timedOutAvailability(plugin),
+        timeout,
+        onTimeout: () => _timedOutAvailability(plugin, timeout),
       );
     } catch (error) {
       return SourceAvailability(
@@ -87,7 +100,14 @@ final class GetSourceAvailabilitySummaryUseCase {
     }
   }
 
-  SourceAvailability _timedOutAvailability(SourcePlugin plugin) {
+  Duration _sourceTimeoutFor(SourcePlugin plugin) {
+    return _sourceTimeoutOverrides[plugin.manifest.id] ?? _sourceTimeout;
+  }
+
+  SourceAvailability _timedOutAvailability(
+    SourcePlugin plugin,
+    Duration timeout,
+  ) {
     return SourceAvailability(
       manifest: plugin.manifest,
       status: SourceAvailabilityStatus.error,
@@ -98,7 +118,7 @@ final class GetSourceAvailabilitySummaryUseCase {
         acceptanceSignals: <String>[],
         rejectionSignals: <String>['source-availability-timeout'],
       ),
-      errorMessage: 'Source availability exceeded $_sourceTimeout.',
+      errorMessage: 'Source availability exceeded $timeout.',
     );
   }
 

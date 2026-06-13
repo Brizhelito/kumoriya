@@ -45,6 +45,14 @@ final class ResolverRegistry {
         .where((resolver) => resolver.supports(url))
         .toList(growable: false);
 
+    // DEBUG: Log resolver search for debugging
+    print('[RESOLVER-DEBUG] Checking URL: $url');
+    print('[RESOLVER-DEBUG] Host: $host');
+    print('[RESOLVER-DEBUG] Found ${candidates.length} candidates');
+    for (final candidate in candidates) {
+      print('[RESOLVER-DEBUG] Candidate: ${candidate.manifest.id}');
+    }
+
     if (candidates.isEmpty) {
       // Deliberately do NOT cache `ResolverNotFound`. Two reasons:
       //

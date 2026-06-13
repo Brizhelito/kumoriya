@@ -34,11 +34,18 @@ void main() {
     },
   );
 
-  test('default resolver catalog covers common JKAnime stream hosts', () {
+  test('default resolver catalog covers registered stream hosts', () {
     final registry = ResolverRegistry(resolvers: buildDefaultResolverPlugins());
 
     final expectations = <Uri, String>{
-      Uri.parse('https://voe.sx/e/abc123'): 'kumoriya.resolver.voe',
+      Uri.parse('https://vault-05.uwucdn.top/stream/05/abc/uwu.m3u8'):
+          'kumoriya.resolver.miruro_kwik',
+      Uri.parse('https://hls.anidb.app/stream/4ezavJr2Oxf'):
+          'kumoriya.resolver.miruro_anidb',
+      Uri.parse('https://mt.nekostream.site/1b252d77b90e951c15c32d17e81e5882'):
+          'kumoriya.resolver.miruro_vidtube',
+      Uri.parse('https://vibeplayer.site/public/stream/c9b6f93a987e273c'):
+          'kumoriya.resolver.miruro_vibeplayer',
       Uri.parse('https://mixdrop.co/e/abc123'): 'kumoriya.resolver.mixdrop',
       Uri.parse('https://filemoon.sx/e/abc123'): 'kumoriya.resolver.filemoon',
       Uri.parse('https://vidhide.com/e/abc123'): 'kumoriya.resolver.vidhide',

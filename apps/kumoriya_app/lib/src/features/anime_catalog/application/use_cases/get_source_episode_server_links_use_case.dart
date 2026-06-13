@@ -54,6 +54,7 @@ final class GetSourceEpisodeServerLinksUseCase {
             )
             .where(
               (link) =>
+                  link.isDirectStream ||
                   _registry.selectFor(link.initialUrl) is ResolverSelected,
             )
             .toList(growable: false);

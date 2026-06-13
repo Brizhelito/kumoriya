@@ -289,6 +289,30 @@ void main() {
   );
 
   test(
+    'source-specific timeout override keeps Miruro-like availability playable',
+    () async {
+      final miruroPlugin = _SlowMiruroPlayableSourcePlugin();
+      final miruroUseCase = GetSourceAvailabilitySummaryUseCase(
+        sourcePlugins: <SourcePlugin>[miruroPlugin],
+        matcher: const AnilistSourceMatcher(),
+        selectionPolicy: const SourceSelectionPolicy(),
+        registry: ResolverRegistry(resolvers: <ResolverPlugin>[]),
+        sourceTimeout: const Duration(milliseconds: 20),
+      );
+
+      final summary = await miruroUseCase.call(_detail());
+
+      expect(summary.playableSources.map((source) => source.manifest.id), [
+        miruroPlugin.manifest.id,
+      ]);
+      expect(
+        summary.sources.single.decision.rejectionSignals,
+        isNot(contains('source-availability-timeout')),
+      );
+    },
+  );
+
+  test(
     'load returns partial playable sources and requests full background refresh',
     () async {
       final fastPlugin = _CountingSourcePlugin();
@@ -517,6 +541,71 @@ final class _SlowPlayableSourcePlugin implements SourcePlugin {
     SourceSearchQuery query,
   ) async {
     await Future<void>.delayed(const Duration(milliseconds: 80));
+    return const Success(<SourceAnimeMatch>[
+      SourceAnimeMatch(
+        sourceId: 'slow-oshi-no-ko',
+        title: 'Oshi no Ko',
+        format: AnimeFormat.tv,
+        releaseYear: 2023,
+      ),
+    ]);
+  }
+}
+
+final class _SlowMiruroPlayableSourcePlugin implements SourcePlugin {
+  static const String pluginId = 'kumoriya.source.miruro';
+
+  @override
+  PluginManifest get manifest => const PluginManifest(
+    id: pluginId,
+    displayName: 'Miruro',
+    type: PluginType.source,
+    capabilities: <PluginCapability>{
+      PluginCapability.search,
+      PluginCapability.episodeList,
+    },
+  );
+
+  @override
+  Future<Result<SourceAnimeDetail, KumoriyaError>> getAnimeDetail(
+    String sourceId,
+  ) async {
+    return Failure(
+      SimpleError(
+        code: 'fake.miruro.detail',
+        message: 'Slow detail unavailable.',
+        kind: KumoriyaErrorKind.notFound,
+      ),
+    );
+  }
+
+  @override
+  Future<Result<List<SourceEpisode>, KumoriyaError>> getEpisodes(
+    String sourceId,
+  ) async {
+    await Future<void>.delayed(const Duration(milliseconds: 40));
+    return Success(<SourceEpisode>[
+      SourceEpisode(
+        sourceEpisodeId: '$sourceId-1',
+        number: 1,
+        title: 'Episode 1',
+        episodeUrl: Uri.parse('https://miruro.example.com/$sourceId/1'),
+      ),
+    ]);
+  }
+
+  @override
+  Future<Result<List<SourceServerLink>, KumoriyaError>> getEpisodeServerLinks(
+    SourceEpisode episode,
+  ) async {
+    return const Success(<SourceServerLink>[]);
+  }
+
+  @override
+  Future<Result<List<SourceAnimeMatch>, KumoriyaError>> search(
+    SourceSearchQuery query,
+  ) async {
+    await Future<void>.delayed(const Duration(milliseconds: 40));
     return const Success(<SourceAnimeMatch>[
       SourceAnimeMatch(
         sourceId: 'slow-oshi-no-ko',

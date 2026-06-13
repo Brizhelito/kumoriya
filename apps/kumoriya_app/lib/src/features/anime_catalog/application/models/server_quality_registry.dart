@@ -84,6 +84,21 @@ class ServerQualityRegistry {
     // dav1d-perf decoder tuning in media_kit_playback_engine is no
     // longer the bottleneck.
     'player.zilla-networks.com': ServerQualityTier.premium, // 34/34 @ 1082 ms
+    // Kwik CDNs (AnimePahe via Miruro). Extremely fast direct streams.
+    // Evidence (2026-06-12): owocdn.top 6/6 @ ~850 ms openMed.
+    'owocdn.top': ServerQualityTier.premium,
+    'uwucdn.top': ServerQualityTier.premium,
+    'cdn.kwik.si': ServerQualityTier.premium,
+    // Miruro embeds (forced to Premium by request)
+    'mewcdn.online': ServerQualityTier.premium,
+    's2.cinewave2.site': ServerQualityTier.premium,
+    'megaplay.buzz': ServerQualityTier.premium,
+    'fxpy7.watching.onl': ServerQualityTier.premium,
+    'vidwish.live': ServerQualityTier.premium,
+    'morning-credit-3bcc.takutakutaku.workers.dev': ServerQualityTier.premium,
+    'animegg.org': ServerQualityTier.premium,
+    'repackager.wixmp.com': ServerQualityTier.premium,
+    'tools.fast4speed.rsvp': ServerQualityTier.premium,
     // ── Good (70 %–84 % success) ─────────────────────────────────────
     // UPNShare (animeav1.uns.bio): 24/34 = 71 % @ 2848 ms. openP75 is
     // 5054 ms (right at the timeout) so it's a borderline good; if the
@@ -94,6 +109,13 @@ class ServerQualityRegistry {
     // dsvplay is the only live DoodStream mirror. 4/4 @ 2540 ms in this
     // batch; all other DoodStream domains stay in `low`.
     'dsvplay.com': ServerQualityTier.good, // 4/4 @ 2540 ms
+    // playmogo.com (Doodstream mirror via Miruro).
+    // Evidence (2026-06-12): 4/4 @ ~2150 ms openMed.
+    'playmogo.com': ServerQualityTier.good,
+    // ok.ru (via Miruro).
+    // Evidence (2026-06-12): 1/1 @ 2245 ms. Upgraded from low.
+    'ok.ru': ServerQualityTier.good,
+    'okcdn.ru': ServerQualityTier.good,
     // Filemoon variants with no direct measurement keep the historical
     // rating. bysekoze.com (a Filemoon mirror) measured 4/11 → low.
     'filemoon.sx': ServerQualityTier.good,
@@ -118,6 +140,12 @@ class ServerQualityRegistry {
     'embedwish.com': ServerQualityTier.average, // no data
     'vidhide.com': ServerQualityTier.average, // no data
     'vidhidepro.com': ServerQualityTier.average, // no data
+    // otakuvid.online (Vidhide mirror via Miruro).
+    // Evidence (2026-06-12): 2/2 @ ~3000 ms openMed.
+    'otakuvid.online': ServerQualityTier.average,
+    // vibeplayer.site (Miruro). Mixed results, some fast, some timeout.
+    // Evidence (2026-06-12): 2/4 OK @ ~1900 ms, 2/4 TIMEOUT.
+    'vibeplayer.site': ServerQualityTier.average,
     'upnshare.com': ServerQualityTier
         .average, // no data (animeav1.uns.bio is the live path)
     // ── Low (<50 % success or openMed > 4 s) ─────────────────────────
@@ -127,6 +155,9 @@ class ServerQualityRegistry {
     'vidhidevip.com': ServerQualityTier.low, // 7/17 @ 5021 ms
     'bysekoze.com': ServerQualityTier.low, // 0/4 @ 5053 ms (timeouts)
     'sfastwish.com': ServerQualityTier.low, // 8/17 @ 5018 ms
+    // otakuhg.site (Streamwish mirror via Miruro).
+    // Evidence (2026-06-12): 1/2 OK @ 4228 ms, 1/2 TIMEOUT.
+    'otakuhg.site': ServerQualityTier.low,
     'streamtape.com': ServerQualityTier.low, // 7/56, mostly deleted
     'streamtape.to': ServerQualityTier.low,
     // MEGA, MP4Upload, VOE, Fembed (embedsito), Netu (hqq.tv/.ac), Maru
@@ -142,7 +173,6 @@ class ServerQualityRegistry {
     'ds2play.com': ServerQualityTier.low,
     'd-s.io': ServerQualityTier.low, // 0/13 transport failures
     'yourupload.com': ServerQualityTier.low, // 1/17
-    'ok.ru': ServerQualityTier.low, // 0/10, resolver.okru.parse
     'odnoklassniki.ru': ServerQualityTier.low,
     'www.mp4upload.com': ServerQualityTier.low,
     'mp4upload.com': ServerQualityTier.low, // 0/72
@@ -178,6 +208,11 @@ class ServerQualityRegistry {
     // until evidence suggests otherwise.
     'nozomi': ServerQualityTier.good,
     'rina': ServerQualityTier.good,
+    // Miruro provider fallbacks (when host is unknown or missing)
+    'bee': ServerQualityTier.low,
+    'bonk': ServerQualityTier.low,
+    'moo': ServerQualityTier.low,
+    'ally': ServerQualityTier.low,
   };
 
   /// Look up the quality tier for a server link.

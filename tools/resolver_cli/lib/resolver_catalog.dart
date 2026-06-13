@@ -4,6 +4,10 @@ import 'package:kumoriya_resolver_doodstream/kumoriya_resolver_doodstream.dart';
 import 'package:kumoriya_resolver_filemoon/kumoriya_resolver_filemoon.dart';
 import 'package:kumoriya_resolver_hqq/kumoriya_resolver_hqq.dart';
 import 'package:kumoriya_resolver_jkplayer/kumoriya_resolver_jkplayer.dart';
+import 'package:kumoriya_resolver_miruro_anidb/kumoriya_resolver_miruro_anidb.dart';
+import 'package:kumoriya_resolver_miruro_kwik/kumoriya_resolver_miruro_kwik.dart';
+import 'package:kumoriya_resolver_miruro_vibeplayer/kumoriya_resolver_miruro_vibeplayer.dart';
+import 'package:kumoriya_resolver_miruro_vidtube/kumoriya_resolver_miruro_vidtube.dart';
 import 'package:kumoriya_resolver_mixdrop/kumoriya_resolver_mixdrop.dart';
 import 'package:kumoriya_resolver_mp4upload/kumoriya_resolver_mp4upload.dart';
 import 'package:kumoriya_resolver_okru/kumoriya_resolver_okru.dart';
@@ -20,6 +24,10 @@ import 'package:kumoriya_resolver_zilla/kumoriya_resolver_zilla.dart';
 List<ResolverPlugin> buildAllResolvers() {
   return <ResolverPlugin>[
     AnimeNexusResolverPlugin(),
+    const MiruroKwikResolverPlugin(),
+    const MiruroAnidbResolverPlugin(),
+    const MiruroVidtubeResolverPlugin(),
+    const MiruroVibeplayerResolverPlugin(),
     JkPlayerJkResolverPlugin(),
     JkPlayerResolverPlugin(),
     StreamwishResolverPlugin(),

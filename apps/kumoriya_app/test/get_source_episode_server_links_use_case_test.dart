@@ -86,6 +86,31 @@ void main() {
       );
     },
   );
+
+  test('keeps direct stream links even if no resolver exists', () async {
+    final useCase = GetSourceEpisodeServerLinksUseCase(
+      sourcePlugin: _DirectStreamSourcePlugin(),
+      registry: ResolverRegistry(resolvers: <ResolverPlugin>[]),
+    );
+
+    final result = await useCase.call(
+      SourceEpisode(
+        sourceEpisodeId: '1',
+        number: 1,
+        title: 'Episode 1',
+        episodeUrl: Uri.parse('https://example.com/1'),
+      ),
+    );
+
+    expect(result.isSuccess, isTrue);
+    result.fold(
+      onFailure: (_) => fail('expected success'),
+      onSuccess: (links) {
+        expect(links, hasLength(1));
+        expect(links.first.isDirectStream, isTrue);
+      },
+    );
+  });
 }
 
 final class _FakeSourcePlugin implements SourcePlugin {
@@ -199,6 +224,51 @@ final class _NeverCompletesSourcePlugin implements SourcePlugin {
     SourceEpisode episode,
   ) {
     return Completer<Result<List<SourceServerLink>, KumoriyaError>>().future;
+  }
+
+  @override
+  Future<Result<List<SourceAnimeMatch>, KumoriyaError>> search(
+    SourceSearchQuery query,
+  ) async {
+    throw UnimplementedError();
+  }
+}
+
+final class _DirectStreamSourcePlugin implements SourcePlugin {
+  @override
+  PluginManifest get manifest => const PluginManifest(
+    id: 'direct.source',
+    displayName: 'Direct Source',
+    type: PluginType.source,
+    capabilities: <PluginCapability>{PluginCapability.linkExtraction},
+  );
+
+  @override
+  Future<Result<SourceAnimeDetail, KumoriyaError>> getAnimeDetail(
+    String sourceId,
+  ) async {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<Result<List<SourceEpisode>, KumoriyaError>> getEpisodes(
+    String sourceId,
+  ) async {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<Result<List<SourceServerLink>, KumoriyaError>> getEpisodeServerLinks(
+    SourceEpisode episode,
+  ) async {
+    return Success(<SourceServerLink>[
+      SourceServerLink(
+        serverId: 'direct',
+        serverName: 'Direct Stream',
+        initialUrl: Uri.parse('https://example.com/video.m3u8'),
+        isDirectStream: true,
+      ),
+    ]);
   }
 
   @override

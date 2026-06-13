@@ -8,6 +8,10 @@ import 'package:kumoriya_resolver_filemoon/kumoriya_resolver_filemoon.dart';
 // import 'package:kumoriya_resolver_hqq/kumoriya_resolver_hqq.dart';
 import 'package:kumoriya_resolver_jkplayer/kumoriya_resolver_jkplayer.dart';
 import 'package:kumoriya_resolver_mediafire/kumoriya_resolver_mediafire.dart';
+import 'package:kumoriya_resolver_miruro_anidb/kumoriya_resolver_miruro_anidb.dart';
+import 'package:kumoriya_resolver_miruro_kwik/kumoriya_resolver_miruro_kwik.dart';
+import 'package:kumoriya_resolver_miruro_vibeplayer/kumoriya_resolver_miruro_vibeplayer.dart';
+import 'package:kumoriya_resolver_miruro_vidtube/kumoriya_resolver_miruro_vidtube.dart';
 import 'package:kumoriya_resolver_mixdrop/kumoriya_resolver_mixdrop.dart';
 // import 'package:kumoriya_resolver_mp4upload/kumoriya_resolver_mp4upload.dart';
 import 'package:kumoriya_resolver_okru/kumoriya_resolver_okru.dart';
@@ -23,11 +27,13 @@ import 'package:kumoriya_source_anime_nexus/kumoriya_source_anime_nexus.dart';
 import 'package:kumoriya_source_animeav1/kumoriya_source_animeav1.dart';
 import 'package:kumoriya_source_animeflv/kumoriya_source_animeflv.dart';
 import 'package:kumoriya_source_jkanime/kumoriya_source_jkanime.dart';
+import 'package:kumoriya_source_miruro/kumoriya_source_miruro.dart';
 
 import '../../../player/infrastructure/native_anime_nexus_bypass_resolver.dart';
 
 List<SourcePlugin> buildDefaultSourcePlugins() {
   return <SourcePlugin>[
+    MiruroSourcePlugin(),
     JkAnimeSourcePlugin(),
     AnimeFlvSourcePlugin(),
     AnimeAv1SourcePlugin(),
@@ -51,6 +57,10 @@ List<ResolverPlugin> buildDefaultResolverPlugins({http.Client? httpClient}) {
     // platforms.
     if (Platform.isAndroid) const NativeAnimeNexusBypassResolver(),
     AnimeNexusResolverPlugin(),
+    const MiruroKwikResolverPlugin(),
+    const MiruroAnidbResolverPlugin(),
+    const MiruroVidtubeResolverPlugin(),
+    const MiruroVibeplayerResolverPlugin(),
     JkPlayerJkResolverPlugin(httpClient: httpClient),
     JkPlayerResolverPlugin(httpClient: httpClient),
     StreamwishResolverPlugin(httpClient: httpClient),

@@ -1,0 +1,17 @@
+name: kumoriya_resolver_miruro_vibeplayer
+description: Miruro Vibeplayer passthrough resolver plugin for Kumoriya.
+version: 0.1.0
+publish_to: none
+
+resolution: workspace
+
+environment:
+  sdk: ^3.11.1
+
+dependencies:
+  kumoriya_core:
+  kumoriya_plugins:
+
+dev_dependencies:
+  lints: ^6.0.0
+  test: ^1.25.6

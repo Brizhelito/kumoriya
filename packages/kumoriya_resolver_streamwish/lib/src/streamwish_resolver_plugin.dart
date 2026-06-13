@@ -23,6 +23,9 @@ final class StreamwishResolverPlugin implements ResolverPlugin {
     'playnixes.com',
     'medixiru.com',
     'hgplaycdn.com',
+    'vidwish.live',
+    'megaplay.buzz',
+    'otakuhg.site',
   };
 
   static const List<String> _mirrorHosts = <String>[
@@ -32,6 +35,9 @@ final class StreamwishResolverPlugin implements ResolverPlugin {
     'playnixes.com',
     'medixiru.com',
     'hgplaycdn.com',
+    'vidwish.live',
+    'megaplay.buzz',
+    'otakuhg.site',
   ];
 
   /// HTTP status codes that signal the content itself is gone — 404 Not
@@ -58,6 +64,9 @@ final class StreamwishResolverPlugin implements ResolverPlugin {
       'playnixes.com',
       'medixiru.com',
       'hgplaycdn.com',
+      'vidwish.live',
+      'megaplay.buzz',
+      'otakuhg.site',
     ],
     baseUrls: <String>['https://streamwish.to/e/'],
   );

@@ -32,6 +32,14 @@ dependencies:
     path: ../../packages/kumoriya_resolver_okru
   kumoriya_resolver_pixeldrain:
     path: ../../packages/kumoriya_resolver_pixeldrain
+  kumoriya_resolver_miruro_anidb:
+    path: ../../packages/kumoriya_resolver_miruro_anidb
+  kumoriya_resolver_miruro_kwik:
+    path: ../../packages/kumoriya_resolver_miruro_kwik
+  kumoriya_resolver_miruro_vidtube:
+    path: ../../packages/kumoriya_resolver_miruro_vidtube
+  kumoriya_resolver_miruro_vibeplayer:
+    path: ../../packages/kumoriya_resolver_miruro_vibeplayer
   kumoriya_resolver_streamtape:
     path: ../../packages/kumoriya_resolver_streamtape
   kumoriya_resolver_streamwish:

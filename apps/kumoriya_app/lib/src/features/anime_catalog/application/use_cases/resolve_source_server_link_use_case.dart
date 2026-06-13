@@ -58,6 +58,60 @@ final class ResolveSourceServerLinkUseCase {
         ? _registry.selectFor(url)
         : null;
     if (preferredResolver == null && selection is ResolverNotFound) {
+      if (sourceServerLink.isDirectStream) {
+        _log('resolve direct stream server=${sourceServerLink.serverName} url=$url');
+        final isHls = url.path.toLowerCase().endsWith('.m3u8') || url.path.toLowerCase().contains('.m3u8?');
+        final resolveOutcome = Success<ResolvedServerLinkResult, KumoriyaError>(
+          ResolvedServerLinkResult(
+            resolverId: 'direct',
+            resolverName: 'Direct Stream',
+            streams: [
+              ResolvedStream(
+                url: url,
+                qualityLabel: 'auto',
+                mimeType: isHls ? 'application/vnd.apple.mpegurl' : 'video/mp4',
+                isHls: isHls,
+                headers: const {},
+              ),
+            ],
+            externalSubtitles: sourceServerLink.externalSubtitles,
+          ),
+        );
+
+        if (_verifyClient == null) {
+          return resolveOutcome;
+        }
+
+        final resolved = resolveOutcome.value;
+        final verifiedStreams = await _verifyAndFilter(
+          resolved.streams,
+          serverName: sourceServerLink.serverName,
+          resolverId: 'direct',
+        );
+
+        if (verifiedStreams.isEmpty) {
+          _log(
+            'verify all rejected server=${sourceServerLink.serverName} resolver=direct',
+          );
+          return const Failure(
+            SimpleError(
+              code: 'resolver.all_streams_rejected',
+              message:
+                  'All resolved streams failed pre-verification (non-video response).',
+              kind: KumoriyaErrorKind.notFound,
+            ),
+          );
+        }
+
+        return Success(
+          ResolvedServerLinkResult(
+            resolverId: resolved.resolverId,
+            resolverName: resolved.resolverName,
+            streams: verifiedStreams,
+            externalSubtitles: resolved.externalSubtitles,
+          ),
+        );
+      }
       _log('reject no-resolver server=${sourceServerLink.serverName} url=$url');
       return Failure(
         SimpleError(

@@ -113,6 +113,7 @@ final class SourceServerLink {
     this.linkType = SourceServerLinkType.stream,
     this.detectedHost,
     this.externalSubtitles = const <ExternalSubtitleTrack>[],
+    this.isDirectStream = false,
   });
 
   final String serverId;
@@ -122,6 +123,7 @@ final class SourceServerLink {
   final SourceServerLinkType linkType;
   final String? detectedHost;
   final List<ExternalSubtitleTrack> externalSubtitles;
+  final bool isDirectStream;
 }
 
 abstract interface class SourcePlugin {

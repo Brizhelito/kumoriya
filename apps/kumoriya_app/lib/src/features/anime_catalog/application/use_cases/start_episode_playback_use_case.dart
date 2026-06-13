@@ -116,13 +116,20 @@ final class StartEpisodePlaybackUseCase {
     await _persistPreference(reconciliation.persistedPreferenceUpdate);
 
     var durablePreference = reconciliation.durablePreference;
+    final optionSourceIds = options
+        .map((option) => option.sourcePluginId)
+        .toSet();
     final ranked = _playbackPreferencePolicy.rankOptions(
       options: options,
       durablePreference: durablePreference,
       episodePreference: reconciliation.episodePreference,
       sourcePriorityIndex: _sourceSelectionPolicy.priorityIndex,
     );
-    final fullAutoQueue = allowAutomaticResolution || options.length == 1
+    final shouldAutoResolve =
+        options.length == 1 ||
+        (allowAutomaticResolution &&
+            (durablePreference != null || optionSourceIds.length <= 1));
+    final fullAutoQueue = shouldAutoResolve
         ? _playbackPreferencePolicy.buildAutoQueue(
             rankedOptions: ranked,
             durablePreference: durablePreference,
@@ -331,7 +338,16 @@ final class StartEpisodePlaybackUseCase {
         return links
             .map((link) {
               final selection = _registry.selectFor(link.initialUrl);
-              if (selection is! ResolverSelected) {
+              // DEBUG: Log resolver selection for Miruro links
+              if (availability.manifest.id == 'kumoriya.source.miruro') {
+                _log(
+                  'Miruro link resolver selection: '
+                  'url=${link.initialUrl} '
+                  'host=${link.detectedHost} '
+                  'selection=${selection.runtimeType}',
+                );
+              }
+              if (selection is! ResolverSelected && !link.isDirectStream) {
                 return null;
               }
               return EpisodePlaybackOption(
@@ -342,8 +358,8 @@ final class StartEpisodePlaybackUseCase {
                     _fallbackIconUrl(availability.manifest),
                 sourceEpisode: episode,
                 serverLink: link,
-                resolverId: selection.resolver.manifest.id,
-                resolverName: selection.resolver.manifest.displayName,
+                resolverId: selection is ResolverSelected ? selection.resolver.manifest.id : 'direct',
+                resolverName: selection is ResolverSelected ? selection.resolver.manifest.displayName : 'Direct Stream',
                 audioKind: sourceAudioKindFromCode(link.language),
               );
             })

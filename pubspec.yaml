@@ -49,6 +49,11 @@ workspace:
   - packages/kumoriya_source_lectortmo
   - packages/kumoriya_source_nekoscan
   - packages/kumoriya_source_visormanga
+  - packages/kumoriya_source_miruro
+  - packages/kumoriya_resolver_miruro_kwik
+  - packages/kumoriya_resolver_miruro_anidb
+  - packages/kumoriya_resolver_miruro_vidtube
+  - packages/kumoriya_resolver_miruro_vibeplayer
   - packages/kumoriya_exoplayer
   - packages/kumoriya_reader
   - tools/resolver_cli

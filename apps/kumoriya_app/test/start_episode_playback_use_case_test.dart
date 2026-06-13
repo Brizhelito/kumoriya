@@ -479,6 +479,41 @@ void main() {
   );
 
   test(
+    'shows selector when multiple source plugins are available without a durable preference',
+    () async {
+      const primarySource = _SingleServerSourcePlugin();
+      const miruroSource = _MiruroSingleServerSourcePlugin();
+      final summary = await _summaryFor(const <SourcePlugin>[
+        primarySource,
+        miruroSource,
+      ], registry: registry);
+
+      final decision =
+          await _buildUseCase(
+            sourcePlugins: const <SourcePlugin>[primarySource, miruroSource],
+            store: store,
+            registry: registry,
+            resolver: resolver,
+          ).call(
+            anilistId: _detail.anime.anilistId,
+            episodeNumber: 1,
+            availabilitySummary: summary,
+          );
+
+      expect(decision.type, EpisodePlaybackDecisionType.selection);
+      expect(decision.autoSelectionFailed, isFalse);
+      expect(decision.options, hasLength(2));
+      expect(
+        decision.options.map((option) => option.sourcePluginId).toSet(),
+        <String>{
+          primarySource.manifest.id,
+          miruroSource.manifest.id,
+        },
+      );
+    },
+  );
+
+  test(
     'skips automatic resolution when interactive selection is required',
     () async {
       const source = _MultiServerSourcePlugin();
@@ -732,6 +767,37 @@ class _DualAudioSourcePlugin extends _BaseFakeSourcePlugin {
         serverName: 'DubStream',
         initialUrl: Uri.parse('https://video.example/dub/1'),
         language: 'dub',
+      ),
+    ]);
+  }
+}
+
+class _MiruroSingleServerSourcePlugin extends _BaseFakeSourcePlugin {
+  const _MiruroSingleServerSourcePlugin();
+
+  @override
+  PluginManifest get manifest => const PluginManifest(
+    id: 'kumoriya.source.miruro',
+    displayName: 'Miruro',
+    type: PluginType.source,
+    capabilities: <PluginCapability>{
+      PluginCapability.search,
+      PluginCapability.episodeList,
+      PluginCapability.linkExtraction,
+    },
+    iconUrl: 'https://example.com/miruro.png',
+  );
+
+  @override
+  Future<Result<List<SourceServerLink>, KumoriyaError>> getEpisodeServerLinks(
+    SourceEpisode episode,
+  ) async {
+    return Success(<SourceServerLink>[
+      SourceServerLink(
+        serverId: 'miruro-kiwi',
+        serverName: 'KIWI 1080p',
+        initialUrl: Uri.parse('https://video.example/miruro/1'),
+        language: 'sub',
       ),
     ]);
   }
