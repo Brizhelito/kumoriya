@@ -25,6 +25,7 @@ import '../../application/models/models.dart';
 import '../../application/providers/party_providers.dart';
 import '../party_route_mode.dart';
 import 'party_episode_list_page.dart';
+import 'party_lobby_page.dart';
 
 class PartyAnimePage extends ConsumerStatefulWidget {
   const PartyAnimePage({super.key, required this.anilistId});
@@ -216,7 +217,11 @@ class _PartyAnimePageState extends ConsumerState<PartyAnimePage> {
   }
 
   void _openLobby() {
-    Navigator.of(context, rootNavigator: true).pop();
+    Navigator.of(context, rootNavigator: true).pushReplacement(
+      MaterialPageRoute<void>(
+        builder: (_) => PartyLobbyPage(anilistId: widget.anilistId),
+      ),
+    );
   }
 
   void _openEpisodes(AnimeDetail detail) {
