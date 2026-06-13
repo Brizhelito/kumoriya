@@ -2363,4 +2363,47 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get partyOnlyHostChangesEpisode =>
       'Only the host can change the party episode.';
+
+  @override
+  String get partyExitTitle => 'Leave Watch Party?';
+
+  @override
+  String get partyExitBody =>
+      'If you leave now, you\'ll need a new invite code to rejoin.';
+
+  @override
+  String get partyExitStay => 'Stay';
+
+  @override
+  String get partyExitLeave => 'Leave Party';
+
+  @override
+  String get partyPlayerExitTitle => 'Watching with Party';
+
+  @override
+  String get partyPlayerExitBackToParty => 'Back to Party';
+
+  @override
+  String get partyPlayerExitBackToPartyDesc =>
+      'Return to browse and members list';
+
+  @override
+  String get partyPlayerExitLeave => 'Leave Party';
+
+  @override
+  String get partyPlayerExitLeaveDesc => 'Disconnect and return home';
+
+  @override
+  String get partyPlayerExitCancel => 'Keep Watching';
+
+  @override
+  String get partyBannerTitle => 'Watch Party Active';
+
+  @override
+  String partyBannerSubtitle(Object animeTitle, int episodeNumber) {
+    return '$animeTitle · Ep $episodeNumber';
+  }
+
+  @override
+  String get partyBannerRejoin => 'Rejoin';
 }

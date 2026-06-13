@@ -1188,5 +1188,29 @@
       }
     }
   },
-  "partyOnlyHostChangesEpisode": "Solo el host puede cambiar el episodio de la party."
+  "partyOnlyHostChangesEpisode": "Solo el host puede cambiar el episodio de la party.",
+
+  "partyExitTitle": "\u00bfSalir de la Watch Party?",
+  "partyExitBody": "Si sales ahora, necesitar\u00e1s un nuevo c\u00f3digo de invitaci\u00f3n para volver.",
+  "partyExitStay": "Quedarse",
+  "partyExitLeave": "Salir de la Party",
+
+  "partyPlayerExitTitle": "Viendo con la Party",
+  "partyPlayerExitBackToParty": "Volver a la Party",
+  "partyPlayerExitBackToPartyDesc": "Regresa al explorador y lista de miembros",
+  "partyPlayerExitLeave": "Salir de la Party",
+  "partyPlayerExitLeaveDesc": "Desconectarse y volver al inicio",
+  "partyPlayerExitCancel": "Seguir Viendo",
+
+  "partyBannerTitle": "Watch Party Activa",
+  "partyBannerSubtitle": "{animeTitle} \u00b7 Ep {episodeNumber}",
+  "@partyBannerSubtitle": {
+    "placeholders": {
+      "animeTitle": {},
+      "episodeNumber": {
+        "type": "int"
+      }
+    }
+  },
+  "partyBannerRejoin": "Reingresar"
 }

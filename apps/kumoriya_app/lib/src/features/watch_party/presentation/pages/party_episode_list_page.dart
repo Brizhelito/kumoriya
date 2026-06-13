@@ -25,7 +25,6 @@ import '../../../anime_catalog/presentation/providers/storage_providers.dart';
 import '../../application/party_session_guard.dart';
 import '../../application/providers/party_providers.dart';
 import '../party_route_mode.dart';
-import 'party_lobby_page.dart';
 
 class PartyEpisodeListPage extends ConsumerStatefulWidget {
   const PartyEpisodeListPage({
@@ -57,54 +56,61 @@ class _PartyEpisodeListPageState extends ConsumerState<PartyEpisodeListPage> {
       animeEpisodeProgressListProvider(widget.anilistId),
     );
     final session = ref.watch(partySessionProvider);
+    final isActive = session.isActive;
 
-    return Scaffold(
-      backgroundColor: KumoriyaColors.background,
-      body: SafeArea(
-        child: detailState.when(
-          loading: () =>
-              LoadingStateView(label: context.l10n.partyLoadingEpisodeBoard),
-          error: (_, _) => ErrorStateView(
-            message: context.l10n.partyCouldNotLoadEpisodes,
-            onRetry: () =>
-                ref.invalidate(animeDetailProvider(widget.anilistId)),
-          ),
-          data: (detailResult) => detailResult.fold(
-            onFailure: (error) => ErrorStateView(
-              message: mapErrorMessage(context, error),
+    return PopScope(
+      canPop: !isActive,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop && mounted) _openLobby();
+      },
+      child: Scaffold(
+        backgroundColor: KumoriyaColors.background,
+        body: SafeArea(
+          child: detailState.when(
+            loading: () =>
+                LoadingStateView(label: context.l10n.partyLoadingEpisodeBoard),
+            error: (_, _) => ErrorStateView(
+              message: context.l10n.partyCouldNotLoadEpisodes,
               onRetry: () =>
                   ref.invalidate(animeDetailProvider(widget.anilistId)),
             ),
-            onSuccess: (detail) {
-              final summary = availabilityState.maybeWhen(
-                data: (result) => result.fold(
-                  onFailure: (_) => null,
-                  onSuccess: (value) => value,
-                ),
-                orElse: () => null,
-              );
-              final progressList = progressState.maybeWhen(
-                data: (result) => result.fold(
-                  onFailure: (_) => const <EpisodeProgress>[],
-                  onSuccess: (value) => value,
-                ),
-                orElse: () => const <EpisodeProgress>[],
-              );
-              return _PartyEpisodeContent(
-                detail: detail,
-                summary: summary,
-                progressList: progressList,
-                session: session,
-                focusedEpisodeNumber: widget.focusedEpisodeNumber,
-                isLaunching: _isLaunching,
-                onBack: _openLobby,
-                onEpisodeSelected: (episode) => _handleEpisodeTap(
+            data: (detailResult) => detailResult.fold(
+              onFailure: (error) => ErrorStateView(
+                message: mapErrorMessage(context, error),
+                onRetry: () =>
+                    ref.invalidate(animeDetailProvider(widget.anilistId)),
+              ),
+              onSuccess: (detail) {
+                final summary = availabilityState.maybeWhen(
+                  data: (result) => result.fold(
+                    onFailure: (_) => null,
+                    onSuccess: (value) => value,
+                  ),
+                  orElse: () => null,
+                );
+                final progressList = progressState.maybeWhen(
+                  data: (result) => result.fold(
+                    onFailure: (_) => const <EpisodeProgress>[],
+                    onSuccess: (value) => value,
+                  ),
+                  orElse: () => const <EpisodeProgress>[],
+                );
+                return _PartyEpisodeContent(
                   detail: detail,
-                  episode: episode,
                   summary: summary,
-                ),
-              );
-            },
+                  progressList: progressList,
+                  session: session,
+                  focusedEpisodeNumber: widget.focusedEpisodeNumber,
+                  isLaunching: _isLaunching,
+                  onBack: _openLobby,
+                  onEpisodeSelected: (episode) => _handleEpisodeTap(
+                    detail: detail,
+                    episode: episode,
+                    summary: summary,
+                  ),
+                );
+              },
+            ),
           ),
         ),
       ),
@@ -112,14 +118,7 @@ class _PartyEpisodeListPageState extends ConsumerState<PartyEpisodeListPage> {
   }
 
   void _openLobby() {
-    Navigator.of(context, rootNavigator: true).pushReplacement(
-      MaterialPageRoute<void>(
-        builder: (_) => PartyLobbyPage(
-          anilistId: widget.anilistId,
-          animeTitle: widget.animeTitle,
-        ),
-      ),
-    );
+    Navigator.of(context, rootNavigator: true).pop();
   }
 
   Future<void> _handleEpisodeTap({

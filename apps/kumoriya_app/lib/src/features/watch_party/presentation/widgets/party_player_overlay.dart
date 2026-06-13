@@ -9,6 +9,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../shared/theme/kumoriya_theme.dart';
 import '../../application/party_session_guard.dart';
 import '../../application/providers/party_providers.dart';
+import '../../application/models/models.dart';
 
 // ── Tunables ──────────────────────────────────────────────────────────────
 const List<String> _kPartyEmojis = [
@@ -166,7 +167,7 @@ class _PartyPlayerOverlayState extends ConsumerState<PartyPlayerOverlay> {
             const Positioned(
               top: 8,
               right: 8,
-              child: RepaintBoundary(child: _PeerIndicators()),
+              child: RepaintBoundary(child: _PartyPlayerHud()),
             ),
             Positioned(
               left: buttonPos.dx,
@@ -598,47 +599,158 @@ class _WheelPainter extends CustomPainter {
       old.introT != introT;
 }
 
-// ── Peer connection indicators (top-right) ──
+// ── Expandable peer HUD (top-right) ──
 
-class _PeerIndicators extends ConsumerWidget {
-  const _PeerIndicators();
+class _PartyPlayerHud extends ConsumerStatefulWidget {
+  const _PartyPlayerHud();
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final sessionView = ref.watch(
-      partySessionProvider.select(
-        (session) =>
-            (room: session.room, connectedPeerIds: session.connectedPeerIds),
-      ),
-    );
-    final room = sessionView.room;
+  ConsumerState<_PartyPlayerHud> createState() => _PartyPlayerHudState();
+}
+
+class _PartyPlayerHudState extends ConsumerState<_PartyPlayerHud> {
+  bool _expanded = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final session = ref.watch(partySessionProvider);
+    final room = session.room;
     if (room == null) return const SizedBox.shrink();
     final localUserId = ref.read(partySessionProvider.notifier).localUserId;
     final connectedCount = partyConnectedMemberCount(
-      PartySessionState(
-        room: room,
-        connectedPeerIds: sessionView.connectedPeerIds,
-      ),
+      session,
       localUserId: localUserId,
     );
 
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: KumoriyaColors.playerControlBg,
-        borderRadius: BorderRadius.circular(16),
-      ),
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: [
+        // Trigger pill (always visible)
+        GestureDetector(
+          onTap: () => setState(() => _expanded = !_expanded),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            decoration: BoxDecoration(
+              color: KumoriyaColors.playerControlBg,
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.groups, color: Colors.white, size: 16),
+                const SizedBox(width: 4),
+                Text(
+                  '$connectedCount/${room.maxMembers}',
+                  style: const TextStyle(color: Colors.white, fontSize: 12),
+                ),
+                const SizedBox(width: 2),
+                Icon(
+                  _expanded ? Icons.expand_less : Icons.expand_more,
+                  color: Colors.white70,
+                  size: 16,
+                ),
+              ],
+            ),
+          ),
+        ),
+        // Expanded panel
+        if (_expanded)
+          GestureDetector(
+            onTap: () => setState(() => _expanded = false),
+            child: Container(
+              margin: const EdgeInsets.only(top: 6),
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: KumoriyaColors.playerControlBg,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: IntrinsicWidth(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    for (final member in room.members) ...[
+                      if (member != room.members.first)
+                        const Padding(
+                          padding: EdgeInsets.symmetric(vertical: 4),
+                          child: Divider(height: 1, color: Colors.white12),
+                        ),
+                      _MemberRow(
+                        member: member,
+                        isConnected: session.connectedPeerIds.contains(
+                          member.userId,
+                        ),
+                        isReady: session.readyStates[member.userId] ?? false,
+                        isSelf: member.userId == localUserId,
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+class _MemberRow extends StatelessWidget {
+  const _MemberRow({
+    required this.member,
+    required this.isConnected,
+    required this.isReady,
+    required this.isSelf,
+  });
+
+  final PartyMember member;
+  final bool isConnected;
+  final bool isReady;
+  final bool isSelf;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(Icons.groups, color: KumoriyaColors.textPrimary, size: 16),
-          const SizedBox(width: 4),
-          Text(
-            '$connectedCount/${room.maxMembers}',
-            style: const TextStyle(
-              color: KumoriyaColors.textPrimary,
-              fontSize: 12,
+          CircleAvatar(
+            radius: 10,
+            backgroundColor: KumoriyaColors.primaryContainer,
+            child: Text(
+              member.displayName.isNotEmpty
+                  ? member.displayName[0].toUpperCase()
+                  : '?',
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 10,
+                fontWeight: FontWeight.w700,
+              ),
             ),
+          ),
+          const SizedBox(width: 8),
+          Text(
+            isSelf ? '${member.displayName} (You)' : member.displayName,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(width: 8),
+          Icon(
+            isReady ? Icons.check_circle_rounded : Icons.radio_button_unchecked,
+            size: 12,
+            color: isReady ? Colors.green : Colors.white38,
+          ),
+          const SizedBox(width: 4),
+          Icon(
+            isConnected ? Icons.wifi : Icons.wifi_off,
+            size: 12,
+            color: isConnected ? Colors.green : Colors.white24,
           ),
         ],
       ),

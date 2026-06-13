@@ -2387,4 +2387,47 @@ class AppLocalizationsEs extends AppLocalizations {
   @override
   String get partyOnlyHostChangesEpisode =>
       'Solo el host puede cambiar el episodio de la party.';
+
+  @override
+  String get partyExitTitle => '¿Salir de la Watch Party?';
+
+  @override
+  String get partyExitBody =>
+      'Si sales ahora, necesitarás un nuevo código de invitación para volver.';
+
+  @override
+  String get partyExitStay => 'Quedarse';
+
+  @override
+  String get partyExitLeave => 'Salir de la Party';
+
+  @override
+  String get partyPlayerExitTitle => 'Viendo con la Party';
+
+  @override
+  String get partyPlayerExitBackToParty => 'Volver a la Party';
+
+  @override
+  String get partyPlayerExitBackToPartyDesc =>
+      'Regresa al explorador y lista de miembros';
+
+  @override
+  String get partyPlayerExitLeave => 'Salir de la Party';
+
+  @override
+  String get partyPlayerExitLeaveDesc => 'Desconectarse y volver al inicio';
+
+  @override
+  String get partyPlayerExitCancel => 'Seguir Viendo';
+
+  @override
+  String get partyBannerTitle => 'Watch Party Activa';
+
+  @override
+  String partyBannerSubtitle(Object animeTitle, int episodeNumber) {
+    return '$animeTitle · Ep $episodeNumber';
+  }
+
+  @override
+  String get partyBannerRejoin => 'Reingresar';
 }

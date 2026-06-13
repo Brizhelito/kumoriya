@@ -8,6 +8,7 @@ import 'package:share_plus/share_plus.dart';
 import '../../../../app/l10n.dart';
 import '../../../../shared/storage_providers.dart';
 import '../../../../shared/theme/kumoriya_theme.dart';
+import '../../../../shared/widgets/party_exit_dialog.dart';
 import '../../application/models/models.dart';
 import '../../application/party_session_guard.dart';
 import '../../application/providers/party_providers.dart';
@@ -119,54 +120,68 @@ class _PartyLobbyPageState extends ConsumerState<PartyLobbyPage> {
   Widget build(BuildContext context) {
     final session = ref.watch(partySessionProvider);
 
-    return Scaffold(
-      backgroundColor: KumoriyaColors.background,
-      appBar: AppBar(
-        backgroundColor: KumoriyaColors.surface,
-        title: Text(context.l10n.partyTitle),
-        actions: [
-          if (session.isActive && session.room != null)
-            IconButton(
-              icon: const Icon(Icons.travel_explore_rounded),
-              onPressed: () => Navigator.of(context, rootNavigator: true).push(
-                MaterialPageRoute<void>(
-                  builder: (_) =>
-                      PartyAnimePage(anilistId: session.room!.anilistId),
-                ),
-              ),
-              tooltip: context.l10n.partyOpenBrowseTooltip,
-            ),
-          // Debug: view party logs
-          IconButton(
-            icon: const Icon(Icons.bug_report),
-            onPressed: () => _showDebugLogs(context),
-            tooltip: context.l10n.partyViewDebugLogsTooltip,
-          ),
-          if (session.isActive)
-            IconButton(
-              icon: const Icon(Icons.exit_to_app),
-              onPressed: () => _leaveParty(context),
-            ),
-        ],
-      ),
-      body: switch (session.status) {
-        PartySessionStatus.idle => _IdleView(
-          inviteController: _inviteController,
-          onJoin: _joinParty,
-          onCreate: (widget.anilistId != null && widget.animeTitle != null)
-              ? _createParty
-              : null,
-          animeTitle: widget.animeTitle,
-        ),
-        PartySessionStatus.creating ||
-        PartySessionStatus.joining ||
-        PartySessionStatus.connecting => const _LoadingView(),
-        PartySessionStatus.connected => _ConnectedView(session: session),
-        PartySessionStatus.error => _ErrorView(
-          message: session.error ?? 'Unknown error',
-          onRetry: () => ref.read(partySessionProvider.notifier).leaveRoom(),
-        ),
+    return PopScope(
+      canPop: !session.isActive,
+      onPopInvokedWithResult: (didPop, _) async {
+        if (didPop || !session.isActive || !mounted) return;
+        final action = await showPartyExitDialog(context);
+        if (action == PartyExitAction.leave && mounted) {
+          ref.read(partySessionProvider.notifier).leaveRoom();
+          if (context.mounted) {
+            Navigator.of(context, rootNavigator: true).pop();
+          }
+        }
       },
+      child: Scaffold(
+        backgroundColor: KumoriyaColors.background,
+        appBar: AppBar(
+          backgroundColor: KumoriyaColors.surface,
+          title: Text(context.l10n.partyTitle),
+          actions: [
+            if (session.isActive && session.room != null)
+              IconButton(
+                icon: const Icon(Icons.travel_explore_rounded),
+                onPressed: () =>
+                    Navigator.of(context, rootNavigator: true).push(
+                      MaterialPageRoute<void>(
+                        builder: (_) =>
+                            PartyAnimePage(anilistId: session.room!.anilistId),
+                      ),
+                    ),
+                tooltip: context.l10n.partyOpenBrowseTooltip,
+              ),
+            // Debug: view party logs
+            IconButton(
+              icon: const Icon(Icons.bug_report),
+              onPressed: () => _showDebugLogs(context),
+              tooltip: context.l10n.partyViewDebugLogsTooltip,
+            ),
+            if (session.isActive)
+              IconButton(
+                icon: const Icon(Icons.exit_to_app),
+                onPressed: () => _leaveParty(context),
+              ),
+          ],
+        ),
+        body: switch (session.status) {
+          PartySessionStatus.idle => _IdleView(
+            inviteController: _inviteController,
+            onJoin: _joinParty,
+            onCreate: (widget.anilistId != null && widget.animeTitle != null)
+                ? _createParty
+                : null,
+            animeTitle: widget.animeTitle,
+          ),
+          PartySessionStatus.creating ||
+          PartySessionStatus.joining ||
+          PartySessionStatus.connecting => const _LoadingView(),
+          PartySessionStatus.connected => _ConnectedView(session: session),
+          PartySessionStatus.error => _ErrorView(
+            message: session.error ?? 'Unknown error',
+            onRetry: () => ref.read(partySessionProvider.notifier).leaveRoom(),
+          ),
+        },
+      ),
     );
   }
 

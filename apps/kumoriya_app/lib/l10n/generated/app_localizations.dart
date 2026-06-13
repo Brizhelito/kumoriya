@@ -4188,6 +4188,84 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Only the host can change the party episode.'**
   String get partyOnlyHostChangesEpisode;
+
+  /// No description provided for @partyExitTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Leave Watch Party?'**
+  String get partyExitTitle;
+
+  /// No description provided for @partyExitBody.
+  ///
+  /// In en, this message translates to:
+  /// **'If you leave now, you\'ll need a new invite code to rejoin.'**
+  String get partyExitBody;
+
+  /// No description provided for @partyExitStay.
+  ///
+  /// In en, this message translates to:
+  /// **'Stay'**
+  String get partyExitStay;
+
+  /// No description provided for @partyExitLeave.
+  ///
+  /// In en, this message translates to:
+  /// **'Leave Party'**
+  String get partyExitLeave;
+
+  /// No description provided for @partyPlayerExitTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Watching with Party'**
+  String get partyPlayerExitTitle;
+
+  /// No description provided for @partyPlayerExitBackToParty.
+  ///
+  /// In en, this message translates to:
+  /// **'Back to Party'**
+  String get partyPlayerExitBackToParty;
+
+  /// No description provided for @partyPlayerExitBackToPartyDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Return to browse and members list'**
+  String get partyPlayerExitBackToPartyDesc;
+
+  /// No description provided for @partyPlayerExitLeave.
+  ///
+  /// In en, this message translates to:
+  /// **'Leave Party'**
+  String get partyPlayerExitLeave;
+
+  /// No description provided for @partyPlayerExitLeaveDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Disconnect and return home'**
+  String get partyPlayerExitLeaveDesc;
+
+  /// No description provided for @partyPlayerExitCancel.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep Watching'**
+  String get partyPlayerExitCancel;
+
+  /// No description provided for @partyBannerTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Watch Party Active'**
+  String get partyBannerTitle;
+
+  /// No description provided for @partyBannerSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'{animeTitle} · Ep {episodeNumber}'**
+  String partyBannerSubtitle(Object animeTitle, int episodeNumber);
+
+  /// No description provided for @partyBannerRejoin.
+  ///
+  /// In en, this message translates to:
+  /// **'Rejoin'**
+  String get partyBannerRejoin;
 }
 
 class _AppLocalizationsDelegate

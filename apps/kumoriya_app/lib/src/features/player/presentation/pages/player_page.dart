@@ -52,6 +52,7 @@ import '../../../watch_party/presentation/pages/party_episode_list_page.dart';
 import '../../../watch_party/presentation/pages/party_lobby_page.dart';
 import '../../../watch_party/presentation/party_route_mode.dart';
 import '../../../watch_party/presentation/widgets/party_player_overlay.dart';
+import '../../../../shared/widgets/party_exit_dialog.dart';
 
 const bool _playerVerboseLogs = bool.fromEnvironment(
   'PLAYER_VERBOSE_LOGS',
@@ -1039,6 +1040,48 @@ class _PlayerPageState extends ConsumerState<PlayerPage>
     if (_isExiting) {
       return;
     }
+
+    // Party mode: show confirmation dialog with 3 options.
+    if (widget.routeMode.isParty && !naturalCompletion) {
+      final action = await showPartyPlayerExitDialog(context);
+      if (!mounted || action == null) return;
+      switch (action) {
+        case PartyPlayerExitAction.cancel:
+          return;
+        case PartyPlayerExitAction.backToParty:
+          _isExiting = true;
+          try {
+            await _flushProgressAndRefresh();
+            await _updateWatchHistory();
+          } finally {
+            if (mounted) {
+              Navigator.of(context, rootNavigator: true).pop();
+            }
+            _isExiting = false;
+          }
+          return;
+        case PartyPlayerExitAction.leaveParty:
+          _isExiting = true;
+          try {
+            await _flushProgressAndRefresh();
+            await _updateWatchHistory();
+            ref.invalidate(continueWatchingProvider);
+            ref.invalidate(latestEpisodeProgressProvider(widget.anilistId));
+            ref.invalidate(animeEpisodeProgressListProvider(widget.anilistId));
+            ref.read(partySessionProvider.notifier).leaveRoom();
+          } finally {
+            if (mounted) {
+              Navigator.of(
+                context,
+                rootNavigator: true,
+              ).popUntil((route) => route.isFirst);
+            }
+            _isExiting = false;
+          }
+          return;
+      }
+    }
+
     _isExiting = true;
     try {
       await _flushProgressAndRefresh();

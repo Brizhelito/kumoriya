@@ -25,7 +25,6 @@ import '../../application/models/models.dart';
 import '../../application/providers/party_providers.dart';
 import '../party_route_mode.dart';
 import 'party_episode_list_page.dart';
-import 'party_lobby_page.dart';
 
 class PartyAnimePage extends ConsumerStatefulWidget {
   const PartyAnimePage({super.key, required this.anilistId});
@@ -170,37 +169,45 @@ class _PartyAnimePageState extends ConsumerState<PartyAnimePage> {
     );
     final session = ref.watch(partySessionProvider);
 
-    return Scaffold(
-      backgroundColor: KumoriyaColors.background,
-      body: detailState.when(
-        loading: () => _PartyPageShell(
-          child: LoadingStateView(label: context.l10n.partyPreparingStage),
-        ),
-        error: (_, _) => _PartyPageShell(
-          child: ErrorStateView(
-            message: context.l10n.partyCouldNotLoadAnime,
-            onRetry: () =>
-                ref.invalidate(animeDetailProvider(widget.anilistId)),
+    final isActive = session.isActive;
+
+    return PopScope(
+      canPop: !isActive,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop && mounted) _openLobby();
+      },
+      child: Scaffold(
+        backgroundColor: KumoriyaColors.background,
+        body: detailState.when(
+          loading: () => _PartyPageShell(
+            child: LoadingStateView(label: context.l10n.partyPreparingStage),
           ),
-        ),
-        data: (result) => result.fold(
-          onFailure: (error) => _PartyPageShell(
+          error: (_, _) => _PartyPageShell(
             child: ErrorStateView(
-              message: mapErrorMessage(context, error),
+              message: context.l10n.partyCouldNotLoadAnime,
               onRetry: () =>
                   ref.invalidate(animeDetailProvider(widget.anilistId)),
             ),
           ),
-          onSuccess: (detail) => _PartyPageShell(
-            child: _PartyAnimeContent(
-              detail: detail,
-              availabilityState: availabilityState,
-              session: session,
-              isLaunching: _isLaunching,
-              onOpenLobby: _openLobby,
-              onOpenEpisodes: () => _openEpisodes(detail),
-              onSwitchAnime: () => _switchPartyAnime(detail),
-              onOpenCurrentEpisode: () => _openCurrentEpisode(detail),
+          data: (result) => result.fold(
+            onFailure: (error) => _PartyPageShell(
+              child: ErrorStateView(
+                message: mapErrorMessage(context, error),
+                onRetry: () =>
+                    ref.invalidate(animeDetailProvider(widget.anilistId)),
+              ),
+            ),
+            onSuccess: (detail) => _PartyPageShell(
+              child: _PartyAnimeContent(
+                detail: detail,
+                availabilityState: availabilityState,
+                session: session,
+                isLaunching: _isLaunching,
+                onOpenLobby: _openLobby,
+                onOpenEpisodes: () => _openEpisodes(detail),
+                onSwitchAnime: () => _switchPartyAnime(detail),
+                onOpenCurrentEpisode: () => _openCurrentEpisode(detail),
+              ),
             ),
           ),
         ),
@@ -209,11 +216,7 @@ class _PartyAnimePageState extends ConsumerState<PartyAnimePage> {
   }
 
   void _openLobby() {
-    Navigator.of(context, rootNavigator: true).pushReplacement(
-      MaterialPageRoute<void>(
-        builder: (_) => PartyLobbyPage(anilistId: widget.anilistId),
-      ),
-    );
+    Navigator.of(context, rootNavigator: true).pop();
   }
 
   void _openEpisodes(AnimeDetail detail) {

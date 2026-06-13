@@ -14,6 +14,7 @@ import 'package:kumoriya_storage/kumoriya_storage.dart';
 import '../../../../app/l10n.dart';
 import '../../../../shared/icons/kumoriya_icons.dart';
 import '../../../../shared/theme/kumoriya_theme.dart';
+import '../../../../shared/widgets/active_party_banner.dart';
 import '../../../../shared/widgets/continue_watching_card.dart';
 import '../../../../shared/widgets/kumoriya_cached_image.dart';
 import '../../../../shared/widgets/section_header.dart';
@@ -137,6 +138,7 @@ class _HomeBody extends StatelessWidget {
               ),
             ),
           ),
+          const SliverToBoxAdapter(child: ActivePartyBanner()),
           SliverToBoxAdapter(
             child: _ContinueWatchingSection(
               continueWatching: continueWatching,
