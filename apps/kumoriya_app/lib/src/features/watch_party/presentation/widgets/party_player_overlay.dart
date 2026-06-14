@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../app/l10n.dart';
 import '../../../../shared/theme/kumoriya_theme.dart';
 import '../../application/party_session_guard.dart';
 import '../../application/providers/party_providers.dart';
@@ -710,6 +711,9 @@ class _MemberRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final displayStatus = isConnected
+        ? member.status
+        : PartyMemberStatus.inLobby;
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 2),
       child: Row(
@@ -721,7 +725,7 @@ class _MemberRow extends StatelessWidget {
             child: Text(
               member.displayName.isNotEmpty
                   ? member.displayName[0].toUpperCase()
-                  : '?',
+                  : context.l10n.partyAvatarFallback,
               style: const TextStyle(
                 color: Colors.white,
                 fontSize: 10,
@@ -731,7 +735,9 @@ class _MemberRow extends StatelessWidget {
           ),
           const SizedBox(width: 8),
           Text(
-            isSelf ? '${member.displayName} (You)' : member.displayName,
+            isSelf
+                ? '${member.displayName} (${context.l10n.partyYouSuffix})'
+                : member.displayName,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: const TextStyle(
@@ -741,11 +747,7 @@ class _MemberRow extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 8),
-          Icon(
-            isReady ? Icons.check_circle_rounded : Icons.radio_button_unchecked,
-            size: 12,
-            color: isReady ? Colors.green : Colors.white38,
-          ),
+          _StatusBadge(status: displayStatus),
           const SizedBox(width: 4),
           Icon(
             isConnected ? Icons.wifi : Icons.wifi_off,
@@ -756,6 +758,39 @@ class _MemberRow extends StatelessWidget {
       ),
     );
   }
+}
+
+class _StatusBadge extends StatelessWidget {
+  const _StatusBadge({required this.status});
+
+  final PartyMemberStatus status;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+      decoration: BoxDecoration(
+        color: _color.withValues(alpha: 0.2),
+        borderRadius: BorderRadius.circular(4),
+      ),
+      child: Text(
+        status.label,
+        style: TextStyle(
+          color: _color,
+          fontSize: 9,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+    );
+  }
+
+  Color get _color => switch (status) {
+    PartyMemberStatus.watching => Colors.green,
+    PartyMemberStatus.inPlayer => Colors.lightBlue,
+    PartyMemberStatus.loading => Colors.orange,
+    PartyMemberStatus.paused => Colors.amber,
+    PartyMemberStatus.inLobby => Colors.white54,
+  };
 }
 
 // ── Floating reaction bubbles ──

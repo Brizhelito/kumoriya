@@ -4,6 +4,28 @@ All notable changes to Kumoriya will be documented in this file.
 
 ## [Unreleased]
 
+## [v0.5.0] - 2026-06-14
+
+### Added
+- **Miruro source plugin** — new anime source with four resolvers (AniDB, Kwik, VibePlayer, VidTube).
+- **Watch Party immersive re-entry** — exit confirmation dialog, active party banner, and player HUD integration.
+- **System documentation** — comprehensive ARCHITECTURE, BACKEND, CI/CD, DATA_FLOW, EDGE_INFRASTRUCTURE, FRONTEND, PLUGIN_SYSTEM, and TESTING guides.
+- **MIT LICENSE** file.
+
+### Changed
+- **Watch Party navigation** — migrated from push-based lobby to pop-based navigation with player HUD.
+- **Player page redesigned** — improved controls layout and playback flow.
+- **Party session architecture** — refactored session guard, realtime state, and providers for reliability.
+- **Party lobby page retired** — replaced by the new navigation flow.
+- **Localizations** — updated EN and ES strings for new features.
+
+### Fixed
+- **Watch Party lobby navigation** — pushReplacement restored after visiting anime detail page.
+- **PartyRoomDO** — improved connection state restoration and reconnection handling.
+
+### Infra / Docs
+- **PartyRoomDO properties** — added tests for grace period, host authority, media change resets, ready state consistency, and reconnection state restoration.
+
 ## [v0.4.2] - 2026-06-06
 
 ### Fixed

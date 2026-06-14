@@ -14,7 +14,7 @@
  */
 
 import { Env } from '../types/env';
-import type { RoomState, Member, PlaybackState, MediaState } from '../types/room';
+import type { RoomState, Member, MemberStatus, PlaybackState, MediaState } from '../types/room';
 import { buildAck, buildError, parseEnvelope, validateMessageId } from '../messaging/ack';
 import type { WSEnvelope, PlaybackIntentPayload } from '../types/messages';
 
@@ -156,6 +156,11 @@ export function transferHost(hostId: string, members: Member[]): string {
 export function applySetReady(member: Member, ready: boolean): Member {
   const effectiveReady = ready && member.presence === 'connected';
   return { ...member, readyPersisted: ready, effectiveReady };
+}
+
+/** Apply set_status to a member: update the member's activity status */
+export function applySetStatus(member: Member, status: MemberStatus): Member {
+  return { ...member, status };
 }
 
 /** Apply play action to playback state */
@@ -366,6 +371,7 @@ export class PartyRoomDO {
           presence: 'connected',
           readyPersisted: false,
           effectiveReady: false,
+          status: 'in_lobby',
           joinedAtMs: now,
           lastHeartbeatMs: now,
         },
@@ -411,6 +417,7 @@ export class PartyRoomDO {
       presence: 'connected',
       readyPersisted: false,
       effectiveReady: false,
+      status: 'in_lobby',
       joinedAtMs: now,
       lastHeartbeatMs: now,
     };
@@ -716,6 +723,9 @@ export class PartyRoomDO {
       case 'set_ready':
         await this.handleSetReady(ws, userId, roomState, envelope);
         break;
+      case 'set_status':
+        await this.handleSetStatus(ws, userId, roomState, envelope);
+        break;
       case 'send_reaction':
         await this.handleSendReaction(ws, userId, roomState, envelope);
         break;
@@ -839,6 +849,45 @@ export class PartyRoomDO {
 
     if (envelope.messageId) {
       ws.send(JSON.stringify(buildAck(envelope.messageId, 'set_ready', roomState.roomId)));
+    }
+  }
+
+  /**
+   * Handle set_status — member activity status update (any member can set their own status)
+   */
+  private async handleSetStatus(
+    ws: WebSocket,
+    userId: string,
+    roomState: RoomState,
+    envelope: WSEnvelope
+  ): Promise<void> {
+    const payload = envelope.payload as { status: MemberStatus };
+    const status = payload.status;
+
+    const member = roomState.members.find((m) => m.userId === userId);
+    if (!member) return;
+
+    const wasWatching = member.status === 'watching';
+    member.status = status;
+    roomState.roomVersion += 1;
+    roomState.lastActivityAt = Date.now();
+    await this.state.storage.put('roomState', roomState);
+
+    this.broadcast(
+      buildEnvelope(
+        'member_status_changed',
+        { userId, status },
+        roomState.roomId,
+        roomState.roomVersion
+      )
+    );
+
+    if (wasWatching && status === 'in_lobby') {
+      await this._applyAutoPause(roomState);
+    }
+
+    if (envelope.messageId) {
+      ws.send(JSON.stringify(buildAck(envelope.messageId, 'set_status', roomState.roomId)));
     }
   }
 
@@ -1058,6 +1107,22 @@ export class PartyRoomDO {
     if (envelope.messageId) {
       ws.send(JSON.stringify(buildAck(envelope.messageId, 'playback_intent', roomState.roomId)));
     }
+  }
+
+  /**
+   * Auto-pause the room when a member who was watching leaves the player
+   * or disconnects. This is server-initiated and bypasses the host check.
+   */
+  private async _applyAutoPause(roomState: RoomState): Promise<void> {
+    const now = Date.now();
+    roomState.playback.status = 'paused';
+    roomState.playback.effectiveAtMs = now;
+    roomState.playback.generation += 1;
+    roomState.roomVersion += 1;
+    roomState.lastActivityAt = now;
+    await this.state.storage.put('roomState', roomState);
+
+    this.broadcast(this.buildPlaybackStateChangedEnvelope(roomState));
   }
 
   // ─── Playback-state envelope helper ───────────────────────────────
@@ -1581,6 +1646,7 @@ export class PartyRoomDO {
     if (!member) return;
 
     // Update presence and effectiveReady
+    const wasWatching = member.status === 'watching';
     member.presence = 'disconnected';
     member.effectiveReady = false;
     roomState.readyStates[userId] = {
@@ -1598,6 +1664,10 @@ export class PartyRoomDO {
         roomState.roomVersion
       )
     );
+
+    if (wasWatching) {
+      await this._applyAutoPause(roomState);
+    }
 
     // Determine grace period length
     const graceMs = roomState.hostId === userId ? HOST_GRACE_PERIOD_MS : MEMBER_GRACE_PERIOD_MS;

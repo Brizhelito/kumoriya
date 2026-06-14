@@ -32,6 +32,7 @@ const disconnectedMemberArb = fc
       userId: data.userId,
       name: data.name,
       presence: 'disconnected',
+      status: 'in_lobby',
       readyPersisted: data.readyPersisted,
       effectiveReady: false, // invariant while disconnected
       joinedAtMs: data.joinedAtMs,
@@ -53,6 +54,7 @@ const connectedMemberArb = fc
       userId: data.userId,
       name: data.name,
       presence: 'connected',
+      status: 'in_lobby',
       readyPersisted: data.readyPersisted,
       effectiveReady: data.readyPersisted,
       joinedAtMs: data.joinedAtMs,

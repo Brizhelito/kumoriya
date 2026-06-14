@@ -1015,6 +1015,7 @@
   "partyWaitingForHost": "Esperando a que el host empiece...",
   "partyTryAgain": "Intentar de nuevo",
   "partyHostActionsTooltip": "Acciones del host",
+  "partyHostControls": "Controles del host",
   "partyMakeHost": "Hacer host",
   "partyMemberDisconnected": "El miembro está desconectado",
   "partyRemoveFromParty": "Expulsar de la party",
@@ -1212,5 +1213,22 @@
       }
     }
   },
-  "partyBannerRejoin": "Reingresar"
+  "partyBannerRejoin": "Reingresar",
+
+  "partyEnterPlayer": "Entrar al reproductor",
+  "partyIdleSubtitle": "Inicia o únete a una Watch Party para ver juntos.",
+  "partyOrDivider": "o",
+  "partyUnknownError": "Error desconocido",
+  "partyAvatarFallback": "?",
+  "partyEpisodeLabel": "Episodio {number}",
+  "@partyEpisodeLabel": {
+    "placeholders": {"number": {"type": "int"}}
+  },
+  "partyWaitingForOneMember": "Esperando a 1 miembro…",
+  "partyWaitingForMembers": "Esperando a {count} miembros…",
+  "@partyWaitingForMembers": {
+    "placeholders": {"count": {"type": "int"}}
+  },
+  "partyHostPaused": "El host pausó",
+  "partyPlaybackLaunchFailed": "Error al iniciar la reproducción. Intenta de nuevo."
 }

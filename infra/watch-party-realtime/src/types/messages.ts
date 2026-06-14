@@ -1,4 +1,4 @@
-import type { Member, MediaState, PlaybackState } from './room';
+import type { Member, MediaState, MemberStatus, PlaybackState } from './room';
 
 /**
  * WebSocket Envelope
@@ -55,6 +55,15 @@ export interface RequestSnapshotPayload {
  */
 export interface SetReadyPayload {
   ready: boolean;
+}
+
+/**
+ * set_status
+ *
+ * Set the sender's current activity status.
+ */
+export interface SetStatusPayload {
+  status: 'in_lobby' | 'loading' | 'in_player' | 'watching' | 'paused';
 }
 
 /**
@@ -238,6 +247,16 @@ export interface MemberPresenceChangedPayload {
 export interface MemberReadyChangedPayload {
   userId: string;
   effectiveReady: boolean;
+}
+
+/**
+ * member_status_changed
+ *
+ * A member's activity status has changed.
+ */
+export interface MemberStatusChangedPayload {
+  userId: string;
+  status: 'in_lobby' | 'loading' | 'in_player' | 'watching' | 'paused';
 }
 
 /**

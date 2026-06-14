@@ -8,7 +8,7 @@
 export type { SessionToken } from './session';
 
 // Room state types
-export type { RoomState, Member, ReadyState, MediaState, PlaybackState } from './room';
+export type { RoomState, Member, MemberStatus, ReadyState, MediaState, PlaybackState } from './room';
 
 // Error types
 export { ErrorCode } from './errors';
@@ -22,6 +22,7 @@ export type {
   HeartbeatPayload,
   RequestSnapshotPayload,
   SetReadyPayload,
+  SetStatusPayload,
   SendReactionPayload,
   PlaybackIntentPayload,
   LeaveRoomPayload,
@@ -32,6 +33,7 @@ export type {
   MemberLeftPayload,
   MemberPresenceChangedPayload,
   MemberReadyChangedPayload,
+  MemberStatusChangedPayload,
   ReactionBroadcastPayload,
   PlaybackStateChangedPayload,
   MediaChangedPayload,

@@ -30,6 +30,7 @@ function memberArb(presence: 'connected' | 'disconnected' = 'connected') {
       userId: d.userId,
       name: d.name,
       presence,
+      status: 'in_lobby',
       readyPersisted: d.readyPersisted,
       effectiveReady: d.readyPersisted && presence === 'connected',
       joinedAtMs: d.joinedAtMs,

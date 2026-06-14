@@ -86,6 +86,7 @@ function makeMember(userId: string, opts: Partial<Member> = {}): Member {
     userId,
     name: `User ${userId}`,
     presence: 'connected',
+    status: 'in_lobby',
     readyPersisted: false,
     effectiveReady: false,
     joinedAtMs: 1000,

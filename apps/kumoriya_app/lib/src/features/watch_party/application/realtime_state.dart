@@ -48,6 +48,7 @@ final class PartyRealtimeState {
     this.inviteCode,
     this.members = const <PartyMember>[],
     this.readyStates = const <String, bool>{},
+    this.memberStatuses = const <String, PartyMemberStatus>{},
     this.connectedIds = const <String>{},
     this.playback = PartyPlaybackState.empty,
     this.roomVersion = 0,
@@ -62,6 +63,9 @@ final class PartyRealtimeState {
 
   /// effectiveReady as reported by the Worker.
   final Map<String, bool> readyStates;
+
+  /// Activity status per member (derived from member_status_changed events).
+  final Map<String, PartyMemberStatus> memberStatuses;
 
   /// Connected members (presence=connected).
   final Set<String> connectedIds;
@@ -80,6 +84,7 @@ final class PartyRealtimeState {
     String? inviteCode,
     List<PartyMember>? members,
     Map<String, bool>? readyStates,
+    Map<String, PartyMemberStatus>? memberStatuses,
     Set<String>? connectedIds,
     PartyPlaybackState? playback,
     int? roomVersion,
@@ -91,6 +96,7 @@ final class PartyRealtimeState {
     inviteCode: inviteCode ?? this.inviteCode,
     members: members ?? this.members,
     readyStates: readyStates ?? this.readyStates,
+    memberStatuses: memberStatuses ?? this.memberStatuses,
     connectedIds: connectedIds ?? this.connectedIds,
     playback: playback ?? this.playback,
     roomVersion: roomVersion ?? this.roomVersion,
@@ -144,6 +150,8 @@ PartyRealtimeState reducePartyRealtimeEvent(
       return _applyPresence(prev, payload, roomVersion);
     case 'member_ready_changed':
       return _applyReady(prev, payload, roomVersion);
+    case 'member_status_changed':
+      return _applyMemberStatus(prev, payload, roomVersion);
     case 'playback_state_changed':
       return _applyPlayback(prev, payload, roomVersion);
     case 'media_changed':
@@ -197,6 +205,13 @@ PartyRealtimeState _applySnapshot(
       if (m['userId'] is String)
         m['userId'] as String: (m['effectiveReady'] as bool? ?? false),
   };
+  final statuses = <String, PartyMemberStatus>{
+    for (final m in members.whereType<Map<String, dynamic>>())
+      if (m['userId'] is String)
+        m['userId'] as String: PartyMemberStatus.fromJson(
+          m['status'] as String?,
+        ),
+  };
   final playback = payload['playback'];
   final parsedPlayback = playback is Map<String, dynamic>
       ? PartyPlaybackState(
@@ -216,6 +231,7 @@ PartyRealtimeState _applySnapshot(
     inviteCode: payload['inviteCode'] as String? ?? prev.inviteCode,
     members: parsedMembers,
     readyStates: ready,
+    memberStatuses: statuses,
     connectedIds: connected,
     playback: parsedPlayback,
     roomVersion: (payload['roomVersion'] as num?)?.toInt() ?? prev.roomVersion,
@@ -236,6 +252,7 @@ PartyMember _parseMember(Map<String, dynamic> raw) {
       isUtc: true,
     ),
     isReady: raw['effectiveReady'] as bool? ?? false,
+    status: PartyMemberStatus.fromJson(raw['status'] as String?),
   );
 }
 
@@ -255,10 +272,13 @@ PartyRealtimeState _applyMemberJoined(
   final connected = Set<String>.from(prev.connectedIds)..add(userId);
   final ready = Map<String, bool>.from(prev.readyStates);
   ready[userId] = raw['effectiveReady'] as bool? ?? false;
+  final statuses = Map<String, PartyMemberStatus>.from(prev.memberStatuses);
+  statuses[userId] = PartyMemberStatus.fromJson(raw['status'] as String?);
   return prev.copyWith(
     members: members,
     connectedIds: connected,
     readyStates: ready,
+    memberStatuses: statuses,
     roomVersion: roomVersion ?? prev.roomVersion,
   );
 }
@@ -273,11 +293,14 @@ PartyRealtimeState _applyMemberLeft(
   final members = prev.members.where((m) => m.userId != userId).toList();
   final connected = Set<String>.from(prev.connectedIds)..remove(userId);
   final ready = Map<String, bool>.from(prev.readyStates)..remove(userId);
+  final statuses = Map<String, PartyMemberStatus>.from(prev.memberStatuses)
+    ..remove(userId);
   final newHostId = payload['newHostId'] as String?;
   return prev.copyWith(
     members: members,
     connectedIds: connected,
     readyStates: ready,
+    memberStatuses: statuses,
     hostId: newHostId ?? prev.hostId,
     roomVersion: roomVersion ?? prev.roomVersion,
   );
@@ -318,6 +341,31 @@ PartyRealtimeState _applyReady(
   ready[userId] = payload['effectiveReady'] as bool? ?? false;
   return prev.copyWith(
     readyStates: ready,
+    roomVersion: roomVersion ?? prev.roomVersion,
+  );
+}
+
+PartyRealtimeState _applyMemberStatus(
+  PartyRealtimeState prev,
+  Map<String, dynamic> payload,
+  int? roomVersion,
+) {
+  final userId = payload['userId'] as String?;
+  final statusRaw = payload['status'] as String?;
+  if (userId == null || statusRaw == null) return prev;
+  final status = PartyMemberStatus.fromJson(statusRaw);
+  final statuses = Map<String, PartyMemberStatus>.from(prev.memberStatuses);
+  statuses[userId] = status;
+  // Also update the status on the member in the members list
+  final members = prev.members
+      .map((m) {
+        if (m.userId == userId) return m.copyWith(status: status);
+        return m;
+      })
+      .toList(growable: false);
+  return prev.copyWith(
+    members: members,
+    memberStatuses: statuses,
     roomVersion: roomVersion ?? prev.roomVersion,
   );
 }

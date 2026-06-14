@@ -21,7 +21,7 @@ import '../../../player/presentation/pages/player_page.dart';
 import '../../../watch_party/application/party_session_guard.dart';
 import '../../../watch_party/application/providers/party_providers.dart';
 import '../../../watch_party/presentation/party_route_mode.dart';
-import '../../../watch_party/presentation/pages/party_lobby_page.dart';
+import '../../../watch_party/presentation/pages/party_anime_page.dart';
 import '../providers/anime_catalog_providers.dart';
 import '../providers/storage_providers.dart';
 import '../support/episode_display_title.dart';
@@ -154,10 +154,8 @@ class _EpisodeListSceneState extends ConsumerState<EpisodeListScene> {
                   onPressed: () => Navigator.of(context, rootNavigator: true)
                       .pushReplacement(
                         MaterialPageRoute<void>(
-                          builder: (_) => PartyLobbyPage(
-                            anilistId: widget.anilistId,
-                            animeTitle: widget.animeTitle,
-                          ),
+                          builder: (_) =>
+                              PartyAnimePage(anilistId: widget.anilistId),
                         ),
                       ),
                 )
@@ -248,10 +246,8 @@ class _EpisodeListSceneState extends ConsumerState<EpisodeListScene> {
                 onPressed: () =>
                     Navigator.of(context, rootNavigator: true).pushReplacement(
                       MaterialPageRoute<void>(
-                        builder: (_) => PartyLobbyPage(
-                          anilistId: widget.anilistId,
-                          animeTitle: widget.animeTitle,
-                        ),
+                        builder: (_) =>
+                            PartyAnimePage(anilistId: widget.anilistId),
                       ),
                     ),
               )

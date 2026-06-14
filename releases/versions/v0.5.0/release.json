@@ -1,0 +1,38 @@
+{
+  "version": "0.5.0",
+  "tag": "v0.5.0",
+  "date": "2026-06-14",
+  "channels": [
+    "alpha"
+  ],
+  "manifest_release_notes": "Watch Party redesign, Miruro source plugin, player overhaul, system docs.",
+  "summary": {
+    "es": "Rediseño de Watch Party, plugin Miruro, revisión del reproductor y documentación del sistema.",
+    "en": "Watch Party redesign, Miruro source plugin, player overhaul, and system documentation."
+  },
+  "artifacts": {
+    "android": {
+      "file_name": "kumoriya-0.5.0-arm64-v8a.apk",
+      "r2_key": "artifacts/android/v0.5.0/kumoriya-0.5.0-arm64-v8a.apk",
+      "public_url": "https://pub-8159019abe1741a097538b976c19722c.r2.dev/artifacts/android/v0.5.0/kumoriya-0.5.0-arm64-v8a.apk",
+      "abis": [
+        {
+          "abi": "arm64_v8a",
+          "file_name": "kumoriya-0.5.0-arm64-v8a.apk",
+          "r2_key": "artifacts/android/v0.5.0/kumoriya-0.5.0-arm64-v8a.apk",
+          "public_url": "https://pub-8159019abe1741a097538b976c19722c.r2.dev/artifacts/android/v0.5.0/kumoriya-0.5.0-arm64-v8a.apk",
+          "size_bytes": 43546894,
+          "sha256": "42f2325b38e518d39c81a4cf360fa73c727534d42ce24efa8153e4e0ef77ebae"
+        }
+      ]
+    }
+  },
+  "changelog_paths": {
+    "es": "docs/releases/es/v0.5.0.md",
+    "en": "docs/releases/en/v0.5.0.md"
+  },
+  "notes_markdown": {
+    "es": "# Lanzamiento v0.5.0\n\nFecha: 2026-06-14\n\n## Resumen\nEsta versión introduce el plugin de fuente Miruro con cuatro resolvers, un rediseño importante de Watch Party con reentrada inmersiva y HUD del reproductor, y documentación completa del sistema.\n\n## Agregado\n- **Plugin de fuente Miruro** — nueva fuente de anime con cuatro resolvers (AniDB, Kwik, VibePlayer, VidTube) para mayor disponibilidad de contenido.\n- **Reentrada inmersiva de Watch Party** — diálogo de confirmación de salida, banner de fiesta activa en la interfaz principal e integración con HUD del reproductor.\n- **Documentación del sistema** — guías completas de arquitectura, backend, CI/CD, flujo de datos, infraestructura edge, frontend, sistema de plugins y pruebas.\n- **Archivo MIT LICENSE** agregado al repositorio.\n\n## Cambios\n- **Navegación de Watch Party** — migrada de lobby basado en push a navegación basada en pop con HUD del reproductor.\n- **Página del reproductor rediseñada** — diseño de controles mejorado y flujo de reproducción más limpio.\n- **Arquitectura de sesión de fiesta** — guardia de sesión, estado en tiempo real y proveedores refactorizados para mayor fiabilidad.\n- **Página de lobby de fiesta retirada** — reemplazada por el nuevo flujo de navegación.\n- **Traducciones** — cadenas en inglés y español actualizadas para todas las funciones nuevas.\n\n## Corregido\n- **Navegación del lobby de Watch Party** — pushReplacement restaurado correctamente después de visitar la página de detalles del anime.\n- **PartyRoomDO** — mejora en la restauración del estado de conexión y manejo de reconexiones.\n\n## Notas de Migración\n- Ninguna.",
+    "en": "# Release v0.5.0\n\nDate: 2026-06-14\n\n## Summary\nThis release introduces the Miruro anime source with four resolvers, a major Watch Party redesign with immersive re-entry and player HUD, and comprehensive system documentation.\n\n## Added\n- **Miruro source plugin** — new anime source with four resolvers (AniDB, Kwik, VibePlayer, VidTube) for expanded content availability.\n- **Watch Party immersive re-entry** — exit confirmation dialog, active party banner in the main UI, and player HUD integration for seamless party management.\n- **System documentation** — comprehensive guides covering architecture, backend, CI/CD, data flow, edge infrastructure, frontend, plugin system, and testing.\n- **MIT LICENSE** file added to the repository.\n\n## Changed\n- **Watch Party navigation** — migrated from push-based lobby to pop-based navigation with player HUD, making party flow feel more natural.\n- **Player page redesigned** — improved controls layout and playback flow for a cleaner experience.\n- **Party session architecture** — refactored session guard, realtime state, and providers for better reliability and state consistency.\n- **Party lobby page retired** — replaced by the new navigation flow; all party actions now accessible from context.\n- **Localizations** — updated English and Spanish strings for all new features.\n\n## Fixed\n- **Watch Party lobby navigation** — pushReplacement correctly restored after visiting anime detail page.\n- **PartyRoomDO** — improved connection state restoration and reconnection handling for more robust party sessions.\n\n## Migration Notes\n- None."
+  }
+}

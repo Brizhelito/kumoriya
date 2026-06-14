@@ -34,50 +34,64 @@ void main() {
     );
   }
 
-  group('partyHasAllMembersReady', () {
-    test('returns true only when every room member is ready', () {
+  group('partyAllMembersInPlayer', () {
+    test('returns true when all connected members are in the player', () {
       final session = PartySessionState(
         status: PartySessionStatus.connected,
         room: room(),
-        readyStates: const <String, bool>{
-          'host': true,
-          'member-1': true,
-          'member-2': true,
+        connectedPeerIds: const <String>{'host', 'member-1', 'member-2'},
+        memberStatuses: const <String, PartyMemberStatus>{
+          'host': PartyMemberStatus.watching,
+          'member-1': PartyMemberStatus.inPlayer,
+          'member-2': PartyMemberStatus.inPlayer,
         },
       );
 
-      expect(partyHasAllMembersReady(session), isTrue);
+      expect(partyAllMembersInPlayer(session, localUserId: 'host'), isTrue);
     });
 
-    test('returns false when one member is still loading', () {
+    test('returns false when a connected member is still in lobby', () {
       final session = PartySessionState(
         status: PartySessionStatus.connected,
         room: room(),
-        readyStates: const <String, bool>{
-          'host': true,
-          'member-1': true,
-          'member-2': false,
+        connectedPeerIds: const <String>{'host', 'member-1', 'member-2'},
+        memberStatuses: const <String, PartyMemberStatus>{
+          'host': PartyMemberStatus.watching,
+          'member-1': PartyMemberStatus.inPlayer,
+          'member-2': PartyMemberStatus.inLobby,
         },
       );
 
-      expect(partyHasAllMembersReady(session), isFalse);
+      expect(partyAllMembersInPlayer(session, localUserId: 'host'), isFalse);
     });
 
-    test('dedupes duplicated room members by user id', () {
-      final duplicatedRoom = room().copyWith(
-        members: <PartyMember>[
-          member('host', role: PartyRole.host),
-          member('member-1'),
-          member('member-1'),
-        ],
-      );
+    test('returns false when no members are connected', () {
       final session = PartySessionState(
         status: PartySessionStatus.connected,
-        room: duplicatedRoom,
-        readyStates: const <String, bool>{'host': true, 'member-1': true},
+        room: room(),
       );
 
-      expect(partyHasAllMembersReady(session), isTrue);
+      expect(partyAllMembersInPlayer(session, localUserId: 'host'), isFalse);
+    });
+
+    test('returns true for solo room (only self connected)', () {
+      final session = PartySessionState(
+        status: PartySessionStatus.connected,
+        room: PartyRoom(
+          id: 'room-solo',
+          hostId: 'host',
+          members: <PartyMember>[member('host', role: PartyRole.host)],
+          anilistId: 42,
+          animeTitle: 'Test Anime',
+          episodeNumber: 1,
+          maxMembers: 1,
+          inviteCode: 'SOLO',
+          createdAt: DateTime.utc(2026, 1, 1),
+        ),
+        connectedPeerIds: const <String>{'host'},
+      );
+
+      expect(partyAllMembersInPlayer(session, localUserId: 'host'), isTrue);
     });
   });
 
@@ -104,49 +118,127 @@ void main() {
   });
 
   group('shouldHoldPartyPlayback', () {
-    test('keeps members paused until the room playback is playing', () {
-      final session = PartySessionState(
+    PartySessionState sessionWith({
+      required Set<String> connectedPeerIds,
+      required Map<String, PartyMemberStatus> memberStatuses,
+      PartyPlaybackState playback = PartyPlaybackState.empty,
+    }) {
+      return PartySessionState(
         status: PartySessionStatus.connected,
         room: room(),
-        readyStates: const <String, bool>{
-          'host': true,
-          'member-1': true,
-          'member-2': true,
-        },
+        connectedPeerIds: connectedPeerIds,
+        memberStatuses: memberStatuses,
+        playback: playback,
       );
+    }
 
+    const allInPlayer = <String, PartyMemberStatus>{
+      'host': PartyMemberStatus.watching,
+      'member-1': PartyMemberStatus.inPlayer,
+      'member-2': PartyMemberStatus.inPlayer,
+    };
+    const playing = PartyPlaybackState(
+      status: 'playing',
+      basePositionMs: 0,
+      effectiveAtMs: 0,
+      generation: 1,
+    );
+
+    test('is a no-op when the player is not bound to the party room', () {
+      final session = sessionWith(
+        connectedPeerIds: <String>{'host', 'member-1', 'member-2'},
+        memberStatuses: allInPlayer,
+      );
       expect(
         shouldHoldPartyPlayback(
           session: session,
-          isLocallyBoundToRoom: true,
+          isLocallyBoundToRoom: false,
           isLocalHost: false,
+          localUserId: 'host',
         ),
-        isTrue,
+        isFalse,
       );
     });
 
-    test('releases members once the room playback is playing', () {
-      final session = PartySessionState(
-        status: PartySessionStatus.connected,
-        room: room(),
-        readyStates: const <String, bool>{
-          'host': true,
-          'member-1': true,
-          'member-2': true,
+    test('holds everyone while a connected member is still in lobby', () {
+      final session = sessionWith(
+        connectedPeerIds: <String>{'host', 'member-1', 'member-2'},
+        memberStatuses: <String, PartyMemberStatus>{
+          'host': PartyMemberStatus.watching,
+          'member-1': PartyMemberStatus.inPlayer,
+          'member-2': PartyMemberStatus.inLobby,
         },
-        playback: const PartyPlaybackState(
-          status: 'playing',
-          basePositionMs: 0,
-          effectiveAtMs: 0,
-          generation: 1,
-        ),
       );
-
+      expect(
+        shouldHoldPartyPlayback(
+          session: session,
+          isLocallyBoundToRoom: true,
+          isLocalHost: true,
+          localUserId: 'host',
+        ),
+        isTrue,
+        reason: 'host must wait for members to enter player',
+      );
       expect(
         shouldHoldPartyPlayback(
           session: session,
           isLocallyBoundToRoom: true,
           isLocalHost: false,
+          localUserId: 'member-1',
+        ),
+        isTrue,
+        reason: 'members must wait for each other before playing',
+      );
+    });
+
+    test('lets the host play once all members are in the player', () {
+      final session = sessionWith(
+        connectedPeerIds: <String>{'host', 'member-1', 'member-2'},
+        memberStatuses: allInPlayer,
+      );
+      expect(
+        shouldHoldPartyPlayback(
+          session: session,
+          isLocallyBoundToRoom: true,
+          isLocalHost: true,
+          localUserId: 'host',
+        ),
+        isFalse,
+      );
+    });
+
+    test(
+      'keeps members paused after presence-gate until the server signals play',
+      () {
+        final session = sessionWith(
+          connectedPeerIds: <String>{'host', 'member-1', 'member-2'},
+          memberStatuses: allInPlayer,
+        );
+        expect(
+          shouldHoldPartyPlayback(
+            session: session,
+            isLocallyBoundToRoom: true,
+            isLocalHost: false,
+            localUserId: 'member-1',
+          ),
+          isTrue,
+          reason: 'member must not auto-play while server says paused',
+        );
+      },
+    );
+
+    test('releases member playback once server signals play', () {
+      final session = sessionWith(
+        connectedPeerIds: <String>{'host', 'member-1', 'member-2'},
+        memberStatuses: allInPlayer,
+        playback: playing,
+      );
+      expect(
+        shouldHoldPartyPlayback(
+          session: session,
+          isLocallyBoundToRoom: true,
+          isLocalHost: false,
+          localUserId: 'member-1',
         ),
         isFalse,
       );
@@ -191,117 +283,6 @@ void main() {
           anilistId: 99,
         ),
         isNull,
-      );
-    });
-  });
-
-  group('shouldHoldPartyPlayback', () {
-    PartySessionState sessionWith({
-      required Map<String, bool> readyStates,
-      PartyPlaybackState playback = PartyPlaybackState.empty,
-    }) {
-      return PartySessionState(
-        status: PartySessionStatus.connected,
-        room: room(),
-        readyStates: readyStates,
-        playback: playback,
-      );
-    }
-
-    const allReady = <String, bool>{
-      'host': true,
-      'member-1': true,
-      'member-2': true,
-    };
-    const playing = PartyPlaybackState(
-      status: 'playing',
-      basePositionMs: 0,
-      effectiveAtMs: 0,
-      generation: 1,
-    );
-
-    test('is a no-op when the player is not bound to the party room', () {
-      final session = sessionWith(readyStates: const <String, bool>{});
-      expect(
-        shouldHoldPartyPlayback(
-          session: session,
-          isLocallyBoundToRoom: false,
-          isLocalHost: false,
-        ),
-        isFalse,
-      );
-    });
-
-    test('holds everyone while any member is still loading', () {
-      final session = sessionWith(
-        readyStates: const <String, bool>{
-          'host': true,
-          'member-1': true,
-          'member-2': false,
-        },
-      );
-      expect(
-        shouldHoldPartyPlayback(
-          session: session,
-          isLocallyBoundToRoom: true,
-          isLocalHost: true,
-        ),
-        isTrue,
-        reason: 'host must wait for members before playing',
-      );
-      expect(
-        shouldHoldPartyPlayback(
-          session: session,
-          isLocallyBoundToRoom: true,
-          isLocalHost: false,
-        ),
-        isTrue,
-        reason: 'members must wait for each other before playing',
-      );
-    });
-
-    test('lets the host play once all members are ready', () {
-      final session = sessionWith(readyStates: allReady);
-      expect(
-        shouldHoldPartyPlayback(
-          session: session,
-          isLocallyBoundToRoom: true,
-          isLocalHost: true,
-        ),
-        isFalse,
-      );
-    });
-
-    test(
-      'keeps members paused after ready-gate until the server signals play',
-      () {
-        final session = sessionWith(readyStates: allReady);
-        // Regression: before the non-host autoplay guard, members would
-        // auto-play the moment everyone was ready, regardless of the host's
-        // actual playback state. Members must mirror the server's
-        // authoritative PartyPlaybackState.isPlaying, which is paused until
-        // the host explicitly plays.
-        expect(
-          shouldHoldPartyPlayback(
-            session: session,
-            isLocallyBoundToRoom: true,
-            isLocalHost: false,
-          ),
-          isTrue,
-          reason: 'member must not auto-play while server says paused',
-        );
-      },
-    );
-
-    test('releases member playback once server signals play', () {
-      final session = sessionWith(readyStates: allReady, playback: playing);
-      expect(
-        shouldHoldPartyPlayback(
-          session: session,
-          isLocallyBoundToRoom: true,
-          isLocalHost: false,
-        ),
-        isFalse,
       );
     });
   });

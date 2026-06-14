@@ -32,7 +32,6 @@ import '../../../downloads/presentation/download_providers.dart';
 import '../../../manga_catalog/presentation/pages/manga_detail_page.dart';
 import '../../../player/presentation/pages/player_page.dart';
 import 'episode_list_page.dart';
-import '../../../watch_party/presentation/pages/party_lobby_page.dart';
 import '../../../watch_party/application/party_session_guard.dart';
 import '../../../watch_party/application/providers/party_providers.dart';
 import '../../../watch_party/presentation/pages/party_anime_page.dart';
@@ -77,138 +76,13 @@ class AnimeDetailScene extends ConsumerStatefulWidget {
 }
 
 class _AnimeDetailSceneState extends ConsumerState<AnimeDetailScene> {
-  bool _partySourceCallbackSet = false;
-  // Swallow duplicate `source_selected` broadcasts (e.g. Worker retry).
-  int? _lastPartyAutoResolveAtMs;
-  PartySessionNotifier? _partyNotifier;
-
-  Future<void> _handlePartySourceSelected({
-    required String sourcePluginId,
-    required String serverName,
-    required String? resolverPluginId,
-    required double episodeNumber,
-  }) async {
-    if (!mounted) return;
-
-    // Only members auto-launch. The host already has the player
-    // open for this selection — re-launching would push a
-    // duplicate route on top of theirs.
-    final current = ref.read(partySessionProvider.notifier);
-    if (current.isLocalHost) return;
-
-    final session = ref.read(partySessionProvider);
-    final room = session.room;
-    // Gate by anilist id so a stale broadcast from a previous
-    // party (same notifier, new room) cannot hijack an unrelated
-    // detail page.
-    if (room == null || room.anilistId != widget.anilistId) return;
-
-    // De-dup: Worker may re-emit on reconnect / snapshot, and we may
-    // also replay the latest cached event after the page mounts.
-    final now = DateTime.now().millisecondsSinceEpoch;
-    if (_lastPartyAutoResolveAtMs != null &&
-        now - _lastPartyAutoResolveAtMs! < 1500) {
-      return;
-    }
-    _lastPartyAutoResolveAtMs = now;
-
-    final outcome = await openPartySelectedSource(
-      context: context,
-      ref: ref,
-      anilistId: widget.anilistId,
-      animeTitle: room.animeTitle,
-      episodeNumber: episodeNumber,
-      sourcePluginId: sourcePluginId,
-      serverName: serverName,
-      resolverPluginId: resolverPluginId,
-      routeMode: widget.routeMode,
-    );
-    if (!mounted) return;
-
-    String? hint;
-    switch (outcome) {
-      case PartyAutoResolveOutcome.launched:
-      case PartyAutoResolveOutcome.notActive:
-        break;
-      case PartyAutoResolveOutcome.sourceUnavailable:
-        hint = context.l10n.partyHostSourceMissing;
-        break;
-      case PartyAutoResolveOutcome.episodeUnavailable:
-        hint = context.l10n.partyHostEpisodeUnavailable;
-        break;
-      case PartyAutoResolveOutcome.serverUnavailable:
-        hint = context.l10n.partyHostServerUnavailable;
-        break;
-      case PartyAutoResolveOutcome.resolverFailed:
-        hint = context.l10n.partyHostResolverFailed;
-        break;
-    }
-    if (hint != null) {
-      ScaffoldMessenger.maybeOf(context)?.showSnackBar(
-        SnackBar(content: Text(hint), duration: const Duration(seconds: 3)),
-      );
-    }
-  }
-
   @override
   void initState() {
     super.initState();
-    // When the host picks a source in the lobby's player, members
-    // receive a `source_selected` broadcast. Auto-resolve the matching
-    // provider locally and launch the player so members don't have to
-    // pick manually. If anything goes wrong (host's source unavailable
-    // here, resolver fails), we stay on this page and let the user
-    // proceed through the normal server picker.
-    final notifier = ref.read(partySessionProvider.notifier);
-    _partyNotifier = notifier;
-    notifier.onPartySourceSelected =
-        (
-          String sourcePluginId,
-          String serverName,
-          String? resolverPluginId,
-          double episodeNumber,
-        ) {
-          unawaited(
-            _handlePartySourceSelected(
-              sourcePluginId: sourcePluginId,
-              serverName: serverName,
-              resolverPluginId: resolverPluginId,
-              episodeNumber: episodeNumber,
-            ),
-          );
-        };
-    _partySourceCallbackSet = true;
-
-    final pendingSelection = notifier.latestSourceSelection;
-    if (pendingSelection != null) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!mounted) return;
-        final room = ref.read(partySessionProvider).room;
-        if (room == null || room.anilistId != widget.anilistId) {
-          return;
-        }
-        if ((room.episodeNumber - pendingSelection.episodeNumber).abs() >=
-            0.001) {
-          return;
-        }
-        unawaited(
-          _handlePartySourceSelected(
-            sourcePluginId: pendingSelection.sourcePluginId,
-            serverName: pendingSelection.serverName,
-            resolverPluginId: pendingSelection.resolverPluginId,
-            episodeNumber: pendingSelection.episodeNumber,
-          ),
-        );
-      });
-    }
   }
 
   @override
   void dispose() {
-    if (_partySourceCallbackSet) {
-      _partyNotifier?.onPartySourceSelected = null;
-      _partySourceCallbackSet = false;
-    }
     super.dispose();
   }
 
@@ -394,9 +268,8 @@ class AnimeDetailContent extends ConsumerWidget {
                     onPressed: () => Navigator.of(context, rootNavigator: true)
                         .pushReplacement(
                           MaterialPageRoute<void>(
-                            builder: (_) => PartyLobbyPage(
+                            builder: (_) => PartyAnimePage(
                               anilistId: detail.anime.anilistId,
-                              animeTitle: detail.anime.title.romaji,
                             ),
                           ),
                         ),
@@ -997,10 +870,7 @@ class _PartyActionButton extends ConsumerWidget {
             ? () {
                 final navigator = Navigator.of(context, rootNavigator: true);
                 final route = MaterialPageRoute<void>(
-                  builder: (_) => PartyLobbyPage(
-                    anilistId: anilistId,
-                    animeTitle: animeTitle,
-                  ),
+                  builder: (_) => PartyAnimePage(anilistId: anilistId),
                 );
                 if (routeMode.isParty) {
                   navigator.pushReplacement(route);
@@ -1062,14 +932,9 @@ class _PartyActionButton extends ConsumerWidget {
       onPressed: () {
         final navigator = Navigator.of(context, rootNavigator: true);
         final route = MaterialPageRoute<void>(
-          builder: (_) =>
-              PartyLobbyPage(anilistId: anilistId, animeTitle: animeTitle),
+          builder: (_) => PartyAnimePage(anilistId: anilistId),
         );
-        if (routeMode.isParty) {
-          navigator.pushReplacement(route);
-        } else {
-          navigator.push(route);
-        }
+        navigator.pushReplacement(route);
       },
     );
   }
@@ -1096,14 +961,9 @@ class _WatchPartySpotlightCard extends ConsumerWidget {
         onPressed: () {
           final navigator = Navigator.of(context, rootNavigator: true);
           final route = MaterialPageRoute<void>(
-            builder: (_) =>
-                PartyLobbyPage(anilistId: anilistId, animeTitle: animeTitle),
+            builder: (_) => PartyAnimePage(anilistId: anilistId),
           );
-          if (routeMode.isParty) {
-            navigator.pushReplacement(route);
-          } else {
-            navigator.push(route);
-          }
+          navigator.pushReplacement(route);
         },
         icon: Icon(
           isActive ? Icons.groups_rounded : Icons.group_add_rounded,

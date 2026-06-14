@@ -505,10 +505,7 @@ void main() {
       expect(decision.options, hasLength(2));
       expect(
         decision.options.map((option) => option.sourcePluginId).toSet(),
-        <String>{
-          primarySource.manifest.id,
-          miruroSource.manifest.id,
-        },
+        <String>{primarySource.manifest.id, miruroSource.manifest.id},
       );
     },
   );

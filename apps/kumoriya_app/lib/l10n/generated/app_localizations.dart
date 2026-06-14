@@ -3745,6 +3745,12 @@ abstract class AppLocalizations {
   /// **'Host actions'**
   String get partyHostActionsTooltip;
 
+  /// No description provided for @partyHostControls.
+  ///
+  /// In en, this message translates to:
+  /// **'Host Controls'**
+  String get partyHostControls;
+
   /// No description provided for @partyMakeHost.
   ///
   /// In en, this message translates to:
@@ -4266,6 +4272,66 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Rejoin'**
   String get partyBannerRejoin;
+
+  /// No description provided for @partyEnterPlayer.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter Player'**
+  String get partyEnterPlayer;
+
+  /// No description provided for @partyIdleSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Start or join a Watch Party to watch together.'**
+  String get partyIdleSubtitle;
+
+  /// No description provided for @partyOrDivider.
+  ///
+  /// In en, this message translates to:
+  /// **'or'**
+  String get partyOrDivider;
+
+  /// No description provided for @partyUnknownError.
+  ///
+  /// In en, this message translates to:
+  /// **'Unknown error'**
+  String get partyUnknownError;
+
+  /// No description provided for @partyAvatarFallback.
+  ///
+  /// In en, this message translates to:
+  /// **'?'**
+  String get partyAvatarFallback;
+
+  /// No description provided for @partyEpisodeLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Episode {number}'**
+  String partyEpisodeLabel(int number);
+
+  /// No description provided for @partyWaitingForOneMember.
+  ///
+  /// In en, this message translates to:
+  /// **'Waiting for 1 member to join…'**
+  String get partyWaitingForOneMember;
+
+  /// No description provided for @partyWaitingForMembers.
+  ///
+  /// In en, this message translates to:
+  /// **'Waiting for {count} members to join…'**
+  String partyWaitingForMembers(int count);
+
+  /// No description provided for @partyHostPaused.
+  ///
+  /// In en, this message translates to:
+  /// **'The host paused'**
+  String get partyHostPaused;
+
+  /// No description provided for @partyPlaybackLaunchFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to start playback. Please try again.'**
+  String get partyPlaybackLaunchFailed;
 }
 
 class _AppLocalizationsDelegate

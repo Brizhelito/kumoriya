@@ -59,8 +59,12 @@ final class ResolveSourceServerLinkUseCase {
         : null;
     if (preferredResolver == null && selection is ResolverNotFound) {
       if (sourceServerLink.isDirectStream) {
-        _log('resolve direct stream server=${sourceServerLink.serverName} url=$url');
-        final isHls = url.path.toLowerCase().endsWith('.m3u8') || url.path.toLowerCase().contains('.m3u8?');
+        _log(
+          'resolve direct stream server=${sourceServerLink.serverName} url=$url',
+        );
+        final isHls =
+            url.path.toLowerCase().endsWith('.m3u8') ||
+            url.path.toLowerCase().contains('.m3u8?');
         final resolveOutcome = Success<ResolvedServerLinkResult, KumoriyaError>(
           ResolvedServerLinkResult(
             resolverId: 'direct',

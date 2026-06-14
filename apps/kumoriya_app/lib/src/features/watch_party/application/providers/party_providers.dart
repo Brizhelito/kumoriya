@@ -69,6 +69,7 @@ final class PartySessionState {
     this.error,
     this.reactions = const [],
     this.readyStates = const {},
+    this.memberStatuses = const <String, PartyMemberStatus>{},
     this.connectedPeerIds = const {},
     this.playback = PartyPlaybackState.empty,
   });
@@ -78,6 +79,7 @@ final class PartySessionState {
   final String? error;
   final List<PartyReaction> reactions;
   final Map<String, bool> readyStates;
+  final Map<String, PartyMemberStatus> memberStatuses;
   final Set<String> connectedPeerIds;
   final PartyPlaybackState playback;
 
@@ -91,6 +93,7 @@ final class PartySessionState {
     String? error,
     List<PartyReaction>? reactions,
     Map<String, bool>? readyStates,
+    Map<String, PartyMemberStatus>? memberStatuses,
     Set<String>? connectedPeerIds,
     PartyPlaybackState? playback,
   }) => PartySessionState(
@@ -99,6 +102,7 @@ final class PartySessionState {
     error: error,
     reactions: reactions ?? this.reactions,
     readyStates: readyStates ?? this.readyStates,
+    memberStatuses: memberStatuses ?? this.memberStatuses,
     connectedPeerIds: connectedPeerIds ?? this.connectedPeerIds,
     playback: playback ?? this.playback,
   );
@@ -133,22 +137,6 @@ typedef OnMediaChangeNavigation =
 /// `positionMs` is the already-projected position at the moment of dispatch.
 typedef PartyOnSyncState = void Function(bool isPlaying, int positionMs);
 
-final class PartySourceSelectionEvent {
-  const PartySourceSelectionEvent({
-    required this.sourcePluginId,
-    required this.serverName,
-    required this.episodeNumber,
-    required this.receivedAtMs,
-    this.resolverPluginId,
-  });
-
-  final String sourcePluginId;
-  final String serverName;
-  final String? resolverPluginId;
-  final double episodeNumber;
-  final int receivedAtMs;
-}
-
 class PartySessionNotifier extends Notifier<PartySessionState> {
   // Legacy P2P plumbing (used when kWatchPartyRealtimeV2 is false).
   SignalingClient? _signaling;
@@ -160,11 +148,8 @@ class PartySessionNotifier extends Notifier<PartySessionState> {
   StreamSubscription<PartyEventEnvelope>? _realtimeEventsSub;
   StreamSubscription<PartyRealtimeStatus>? _realtimeStatusSub;
   PartyRealtimeState _realtimeState = const PartyRealtimeState();
-  PartySourceSelectionEvent? _latestSourceSelection;
 
   PartySyncEngine? get syncEngine => _syncEngine;
-  PartySourceSelectionEvent? get latestSourceSelection =>
-      _latestSourceSelection;
 
   /// Id of the locally authenticated user. Derived from [authStateProvider]
   /// so it is available both in the legacy P2P path (v1) and the brokered
@@ -200,22 +185,6 @@ class PartySessionNotifier extends Notifier<PartySessionState> {
   /// UI can distinguish a kick from a generic disconnect. Fires BEFORE
   /// the local session is torn down so the UI can, e.g., show a dialog.
   void Function(String byUserId, String? reason)? onKickedOut;
-
-  /// Callback invoked when the host announces the source/server they
-  /// picked for the current episode. Members can use it to auto-resolve
-  /// the same provider locally and launch the player without going
-  /// through the manual server picker.
-  ///
-  /// The host also receives this event (Worker broadcasts to everyone)
-  /// but typically ignores it because the host already has the player
-  /// open for that selection.
-  void Function(
-    String sourcePluginId,
-    String serverName,
-    String? resolverPluginId,
-    double episodeNumber,
-  )?
-  onPartySourceSelected;
 
   @override
   PartySessionState build() => const PartySessionState();
@@ -349,6 +318,15 @@ class PartySessionNotifier extends Notifier<PartySessionState> {
     _syncEngine?.sendReady(ready);
   }
 
+  /// Update the member's activity status. Broadcasts to the room so
+  /// everyone sees what every member is doing. V2-only; v1 clients
+  /// silently ignore.
+  void sendStatus(PartyMemberStatus status) {
+    if (kWatchPartyRealtimeV2) {
+      _realtime?.sendSetStatus(status);
+    }
+  }
+
   /// Update local playback state for sync. In v2 this is a no-op: the Worker
   /// is authoritative and drives everyone via `playback_state_changed`.
   /// The host signals changes through [syncNow]/[changeEpisode]/[changeMedia].
@@ -426,29 +404,6 @@ class PartySessionNotifier extends Notifier<PartySessionState> {
       );
     }
     _realtime?.sendPlaybackIntent(action: 'start_watching');
-  }
-
-  /// Host-only: announce which source plugin + server the host just
-  /// picked for the current episode, so members can try to auto-resolve
-  /// the same provider instead of picking manually.
-  ///
-  /// The broadcast carries identifiers only (never resolved URLs) —
-  /// each client resolves locally because resolvers depend on region,
-  /// plugins installed, and auth state.
-  void broadcastSourceSelected({
-    required String sourcePluginId,
-    required String serverName,
-    required double episodeNumber,
-    String? resolverPluginId,
-  }) {
-    if (!kWatchPartyRealtimeV2) return;
-    _realtime?.sendPlaybackIntent(
-      action: 'source_selected',
-      episodeNumber: episodeNumber,
-      sourcePluginId: sourcePluginId,
-      serverName: serverName,
-      resolverPluginId: resolverPluginId,
-    );
   }
 
   /// Request episode change (host only).
@@ -720,7 +675,6 @@ class PartySessionNotifier extends Notifier<PartySessionState> {
     await _realtime?.dispose();
     _realtime = null;
     _realtimeState = const PartyRealtimeState();
-    _latestSourceSelection = null;
   }
 
   // ── Internal realtime v2 lifecycle ──
@@ -827,9 +781,6 @@ class PartySessionNotifier extends Notifier<PartySessionState> {
       case 'kicked':
         _handleRealtimeKicked(env.payload);
         return;
-      case 'source_selected':
-        _handleRealtimeSourceSelected(env.payload);
-        return;
       case 'room_closed':
         _partyLog('room_closed: ${env.payload['reason']}');
         leaveRoom();
@@ -929,39 +880,6 @@ class PartySessionNotifier extends Notifier<PartySessionState> {
     }
   }
 
-  /// Host broadcast: tells clients which source/server the host just
-  /// picked. Members can react by auto-resolving the same provider.
-  void _handleRealtimeSourceSelected(Map<String, dynamic> payload) {
-    final sourcePluginId = payload['sourcePluginId'] as String?;
-    final serverName = payload['serverName'] as String?;
-    final resolverPluginId = payload['resolverPluginId'] as String?;
-    final episodeNumber = (payload['episodeNumber'] as num?)?.toDouble();
-    if (sourcePluginId == null || serverName == null || episodeNumber == null) {
-      return;
-    }
-    _latestSourceSelection = PartySourceSelectionEvent(
-      sourcePluginId: sourcePluginId,
-      serverName: serverName,
-      resolverPluginId: resolverPluginId,
-      episodeNumber: episodeNumber,
-      receivedAtMs: DateTime.now().millisecondsSinceEpoch,
-    );
-    _partyLog(
-      'source_selected source=$sourcePluginId server=$serverName '
-      'resolver=${resolverPluginId ?? '-'} ep=$episodeNumber',
-    );
-    try {
-      onPartySourceSelected?.call(
-        sourcePluginId,
-        serverName,
-        resolverPluginId,
-        episodeNumber,
-      );
-    } catch (e) {
-      _partyLog('onPartySourceSelected callback threw: $e');
-    }
-  }
-
   /// Target-only broadcast: the local user has been kicked. We notify
   /// the UI first (so it can show a dialog/snackbar) and then tear the
   /// session down, mirroring what the server-side close would do a
@@ -1051,6 +969,7 @@ class PartySessionNotifier extends Notifier<PartySessionState> {
             role: m.userId == rt.hostId ? PartyRole.host : PartyRole.member,
             joinedAt: m.joinedAt,
             isReady: rt.readyStates[m.userId] ?? false,
+            status: rt.memberStatuses[m.userId] ?? m.status,
           ),
         )
         .toList(growable: false);
@@ -1062,6 +981,7 @@ class PartySessionNotifier extends Notifier<PartySessionState> {
         members: rebuiltMembers.isEmpty ? room.members : rebuiltMembers,
       ),
       readyStates: rt.readyStates,
+      memberStatuses: rt.memberStatuses,
       connectedPeerIds: rt.connectedIds,
       playback: rt.playback,
     );

@@ -1,15 +1,15 @@
 {
   "android": {
-    "latest_version": "0.4.2",
-    "url": "https://pub-8159019abe1741a097538b976c19722c.r2.dev/artifacts/android/v0.4.2/kumoriya-0.4.2-arm64-v8a.apk",
-    "release_notes": "Player stability and catalog reliability: fixed orientation lock, background pause behavior, and split-season episode synthesis.",
+    "latest_version": "0.5.0",
+    "url": "https://pub-8159019abe1741a097538b976c19722c.r2.dev/artifacts/android/v0.5.0/kumoriya-0.5.0-arm64-v8a.apk",
+    "release_notes": "Watch Party redesign, Miruro source plugin, player overhaul, system docs.",
     "abis": {
       "arm64_v8a": {
-        "url": "https://pub-8159019abe1741a097538b976c19722c.r2.dev/artifacts/android/v0.4.2/kumoriya-0.4.2-arm64-v8a.apk",
-        "file_name": "kumoriya-0.4.2-arm64-v8a.apk",
-        "r2_key": "artifacts/android/v0.4.2/kumoriya-0.4.2-arm64-v8a.apk",
-        "size_bytes": 43547074,
-        "sha256": "bf84469213513a7f4ed7e1addc18d2e136439891fa44bc2b0de373ff35644956"
+        "url": "https://pub-8159019abe1741a097538b976c19722c.r2.dev/artifacts/android/v0.5.0/kumoriya-0.5.0-arm64-v8a.apk",
+        "file_name": "kumoriya-0.5.0-arm64-v8a.apk",
+        "r2_key": "artifacts/android/v0.5.0/kumoriya-0.5.0-arm64-v8a.apk",
+        "size_bytes": 43546894,
+        "sha256": "42f2325b38e518d39c81a4cf360fa73c727534d42ce24efa8153e4e0ef77ebae"
       }
     }
   }

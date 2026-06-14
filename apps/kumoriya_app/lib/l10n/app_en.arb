@@ -1015,6 +1015,7 @@
   "partyWaitingForHost": "Waiting for the host to start...",
   "partyTryAgain": "Try Again",
   "partyHostActionsTooltip": "Host actions",
+  "partyHostControls": "Host Controls",
   "partyMakeHost": "Make host",
   "partyMemberDisconnected": "Member is disconnected",
   "partyRemoveFromParty": "Remove from party",
@@ -1212,5 +1213,22 @@
       }
     }
   },
-  "partyBannerRejoin": "Rejoin"
+  "partyBannerRejoin": "Rejoin",
+
+  "partyEnterPlayer": "Enter Player",
+  "partyIdleSubtitle": "Start or join a Watch Party to watch together.",
+  "partyOrDivider": "or",
+  "partyUnknownError": "Unknown error",
+  "partyAvatarFallback": "?",
+  "partyEpisodeLabel": "Episode {number}",
+  "@partyEpisodeLabel": {
+    "placeholders": {"number": {"type": "int"}}
+  },
+  "partyWaitingForOneMember": "Waiting for 1 member to join…",
+  "partyWaitingForMembers": "Waiting for {count} members to join…",
+  "@partyWaitingForMembers": {
+    "placeholders": {"count": {"type": "int"}}
+  },
+  "partyHostPaused": "The host paused",
+  "partyPlaybackLaunchFailed": "Failed to start playback. Please try again."
 }

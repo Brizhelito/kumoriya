@@ -31,6 +31,7 @@ function createMember(
     userId,
     name,
     presence,
+    status: 'in_lobby',
     readyPersisted,
     effectiveReady: readyPersisted && presence === 'connected',
     joinedAtMs,

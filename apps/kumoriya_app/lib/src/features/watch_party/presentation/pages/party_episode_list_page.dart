@@ -233,7 +233,7 @@ class _PartyEpisodeListPageState extends ConsumerState<PartyEpisodeListPage> {
   String _displayEpisodeTitle(AnimeEpisode episode) {
     return episode.title.trim().isNotEmpty
         ? episode.title
-        : 'Episode ${episode.number.toInt()}';
+        : context.l10n.partyEpisodeLabel(episode.number.toInt());
   }
 }
 
@@ -363,13 +363,6 @@ class _PartyEpisodeContent extends ConsumerWidget {
                                     connectedCount,
                                   ),
                                 ),
-                                _PartyMiniChip(
-                                  label: context.l10n.partyReadyCount(
-                                    session.readyStates.values
-                                        .where((v) => v)
-                                        .length,
-                                  ),
-                                ),
                               ],
                             ),
                           ],
@@ -425,7 +418,63 @@ class _PartyEpisodeContent extends ConsumerWidget {
                           (item.episodeNumber - episode.number).abs() < 0.001,
                     )
                     .firstOrNull;
-                final canOpen = isCurrentPartyEpisode && sources.isNotEmpty;
+                if (!isHost) {
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 4),
+                    child: Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: isCurrentPartyEpisode
+                            ? KumoriyaColors.primary.withValues(alpha: 0.08)
+                            : Colors.transparent,
+                        borderRadius: BorderRadius.circular(KumoriyaRadius.lg),
+                        border: isCurrentPartyEpisode
+                            ? Border.all(
+                                color: KumoriyaColors.primary.withValues(
+                                  alpha: 0.20,
+                                ),
+                              )
+                            : null,
+                      ),
+                      child: Row(
+                        children: <Widget>[
+                          SizedBox(
+                            width: 36,
+                            child: Text(
+                              episode.number.toInt().toString(),
+                              style: Theme.of(context).textTheme.titleMedium
+                                  ?.copyWith(
+                                    color: isCurrentPartyEpisode
+                                        ? KumoriyaColors.primary
+                                        : KumoriyaColors.textSecondary,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              _displayEpisodeTitle(episode, context: context),
+                              style: Theme.of(context).textTheme.bodyMedium
+                                  ?.copyWith(color: KumoriyaColors.textPrimary),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          if (isCurrentPartyEpisode)
+                            Text(
+                              context.l10n.partyRoomPick,
+                              style: Theme.of(context).textTheme.labelSmall
+                                  ?.copyWith(
+                                    color: KumoriyaColors.primary,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                            ),
+                        ],
+                      ),
+                    ),
+                  );
+                }
 
                 return EpisodeRow(
                   number: episode.number,
@@ -450,23 +499,16 @@ class _PartyEpisodeContent extends ConsumerWidget {
                       .toList(growable: false),
                   progressFraction: _progressFraction(progress),
                   isCurrentEpisode: isCurrentPartyEpisode,
-                  isPlayable:
-                      !isLaunching &&
-                      (isHost || isCurrentPartyEpisode) &&
-                      (isCurrentPartyEpisode ? sources.isNotEmpty : true),
+                  isPlayable: !isLaunching && sources.isNotEmpty,
                   activeLabel: isCurrentPartyEpisode
                       ? context.l10n.partyRoomPick
-                      : isHost
-                      ? context.l10n.partyTapToQueue
-                      : context.l10n.partyHostDecides,
+                      : context.l10n.partyTapToQueue,
                   trailingAccessory: _EpisodeActionChip(
                     label: isCurrentPartyEpisode
-                        ? (canOpen
+                        ? (sources.isNotEmpty
                               ? context.l10n.partyWatchTogether
                               : context.l10n.partyWaitingOnSource)
-                        : isHost
-                        ? context.l10n.partySetForPartyTooltip
-                        : context.l10n.partyLocked,
+                        : context.l10n.partySetForPartyTooltip,
                     highlighted: isCurrentPartyEpisode,
                   ),
                   onTap: () => onEpisodeSelected(episode),
@@ -498,7 +540,7 @@ class _PartyEpisodeContent extends ConsumerWidget {
   }) {
     return resolveEpisodeDisplayTitle(
       episodeNumber: episode.number,
-      fallbackTitle: 'Episode ${episode.number.toInt()}',
+      fallbackTitle: context.l10n.partyEpisodeLabel(episode.number.toInt()),
       animeTitle: detail.anime.title.romaji,
       metadata: episode,
     );

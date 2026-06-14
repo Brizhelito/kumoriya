@@ -14,61 +14,60 @@ import 'package:kumoriya_plugins/kumoriya_plugins.dart';
 import 'package:kumoriya_storage/kumoriya_storage.dart';
 
 void main() {
-  testWidgets(
-    'server picker lists Miruro alongside existing sources',
-    (tester) async {
-      ServerPickerSelection? selection;
+  testWidgets('server picker lists Miruro alongside existing sources', (
+    tester,
+  ) async {
+    ServerPickerSelection? selection;
 
-      await tester.pumpWidget(
-        MaterialApp(
-          locale: const Locale('es'),
-          localizationsDelegates: const <LocalizationsDelegate<dynamic>>[
-            AppLocalizations.delegate,
-            GlobalMaterialLocalizations.delegate,
-            GlobalWidgetsLocalizations.delegate,
-            GlobalCupertinoLocalizations.delegate,
-          ],
-          supportedLocales: AppLocalizations.supportedLocales,
-          home: Builder(
-            builder: (context) {
-              return Scaffold(
-                body: Center(
-                  child: FilledButton(
-                    onPressed: () async {
-                      selection = await showServerPicker(
-                        context,
-                        options: <EpisodePlaybackOption>[
-                          ..._options,
-                          _miruroOption,
-                        ],
-                        autoSelectionFailed: false,
-                      );
-                    },
-                    child: const Text('open miruro'),
-                  ),
+    await tester.pumpWidget(
+      MaterialApp(
+        locale: const Locale('es'),
+        localizationsDelegates: const <LocalizationsDelegate<dynamic>>[
+          AppLocalizations.delegate,
+          GlobalMaterialLocalizations.delegate,
+          GlobalWidgetsLocalizations.delegate,
+          GlobalCupertinoLocalizations.delegate,
+        ],
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: Builder(
+          builder: (context) {
+            return Scaffold(
+              body: Center(
+                child: FilledButton(
+                  onPressed: () async {
+                    selection = await showServerPicker(
+                      context,
+                      options: <EpisodePlaybackOption>[
+                        ..._options,
+                        _miruroOption,
+                      ],
+                      autoSelectionFailed: false,
+                    );
+                  },
+                  child: const Text('open miruro'),
                 ),
-              );
-            },
-          ),
+              ),
+            );
+          },
         ),
-      );
+      ),
+    );
 
-      await tester.tap(find.text('open miruro'));
-      await tester.pumpAndSettle();
+    await tester.tap(find.text('open miruro'));
+    await tester.pumpAndSettle();
 
-      expect(find.text('Todas las fuentes'), findsOneWidget);
-      expect(find.text('Okru'), findsOneWidget);
-      expect(find.text('BetaServer'), findsOneWidget);
-      expect(find.text('KIWI 1080p'), findsOneWidget);
+    expect(find.text('Todas las fuentes'), findsOneWidget);
+    expect(find.text('Okru'), findsOneWidget);
+    expect(find.text('BetaServer'), findsOneWidget);
+    expect(find.text('KIWI 1080p'), findsOneWidget);
 
-      await tester.tap(find.text('KIWI 1080p'));
-      await tester.pumpAndSettle();
+    await tester.tap(find.text('KIWI 1080p'));
+    await tester.pumpAndSettle();
 
-      expect(selection, isNotNull);
-      expect(selection!.option.sourcePluginId, 'kumoriya.source.miruro');
-      expect(selection!.option.serverLink.serverName, 'KIWI 1080p');
-    },
-  );
+    expect(selection, isNotNull);
+    expect(selection!.option.sourcePluginId, 'kumoriya.source.miruro');
+    expect(selection!.option.serverLink.serverName, 'KIWI 1080p');
+  });
 
   testWidgets(
     'server picker groups by source and returns remember-selection choice',
@@ -126,6 +125,10 @@ void main() {
 
       expect(find.text('BetaServer'), findsOneWidget);
       expect(find.text('Okru'), findsNothing);
+
+      // Toggle the "remember" switch on so the selection persists.
+      await tester.tap(find.text('Recordar esta seleccion'));
+      await tester.pumpAndSettle();
 
       await tester.tap(find.text('BetaServer'));
       await tester.pumpAndSettle();

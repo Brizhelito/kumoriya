@@ -4,7 +4,7 @@ import 'dart:developer' as dev;
 
 import 'package:web_socket_channel/web_socket_channel.dart';
 
-import '../application/models/party_realtime_session.dart';
+import '../application/models/models.dart';
 import 'party_debug_logger.dart';
 
 const bool _watchPartyVerboseLogs = bool.fromEnvironment(
@@ -151,6 +151,9 @@ final class PartyRealtimeClient {
 
   String sendSetReady(bool ready) =>
       _send('set_ready', <String, dynamic>{'ready': ready});
+
+  String sendSetStatus(PartyMemberStatus status) =>
+      _send('set_status', <String, dynamic>{'status': status.jsonValue});
 
   String sendReaction(String reaction) =>
       _send('send_reaction', <String, dynamic>{'reaction': reaction});

@@ -1,22 +1,73 @@
 {
-  "generated_at": "2026-06-06T20:55:00Z",
+  "generated_at": "2026-06-14T00:00:00Z",
   "latest": {
-    "version": "0.4.2",
-    "tag": "v0.4.2",
-    "date": "2026-06-06",
+    "version": "0.5.0",
+    "tag": "v0.5.0",
+    "date": "2026-06-14",
     "channel": "alpha",
     "downloads": {
       "android": {
-        "url": "https://pub-8159019abe1741a097538b976c19722c.r2.dev/artifacts/android/v0.4.2/kumoriya-0.4.2-arm64-v8a.apk",
-        "file_name": "kumoriya-0.4.2-arm64-v8a.apk"
+        "url": "https://pub-8159019abe1741a097538b976c19722c.r2.dev/artifacts/android/v0.5.0/kumoriya-0.5.0-arm64-v8a.apk",
+        "file_name": "kumoriya-0.5.0-arm64-v8a.apk"
       }
     },
     "release_notes": {
-      "es": "v0.4.2: estabilidad del reproductor, correcciones en rotación y episodios de temporadas divididas.",
-      "en": "v0.4.2: player stability, rotation fixes, and split-season episode alignment."
+      "es": "v0.5.0: rediseño de Watch Party, plugin Miruro, revisión del reproductor y documentación del sistema.",
+      "en": "v0.5.0: Watch Party redesign, Miruro source plugin, player overhaul, and system documentation."
     }
   },
   "changelog": [
+    {
+      "version": "0.5.0",
+      "tag": "v0.5.0",
+      "date": "2026-06-14",
+      "channel": "alpha",
+      "release_notes": {
+        "es": "v0.5.0: rediseño de Watch Party, plugin Miruro, revisión del reproductor y documentación del sistema.",
+        "en": "v0.5.0: Watch Party redesign, Miruro source plugin, player overhaul, and system documentation."
+      },
+      "notes": {
+        "es": {
+          "resumen": "Rediseño inmersivo de Watch Party, nuevo plugin Miruro, revisión importante del reproductor y documentación completa del sistema.",
+          "agregado": [
+            "Plugin de fuente Miruro con 4 resolvers (AniDB, Kwik, VibePlayer, VidTube).",
+            "Watch Party con reentrada inmersiva, confirmación de salida y HUD del reproductor.",
+            "Documentación completa del sistema (arquitectura, backend, CI/CD, edge infra, frontend, plugins, testing)."
+          ],
+          "cambios": [
+            "Navegación de Watch Party migrada a pop-based con HUD del reproductor.",
+            "Página del reproductor rediseñada con controles mejorados.",
+            "Arquitectura de sesión de fiesta refactorizada para mayor fiabilidad.",
+            "Página de lobby de fiesta retirada."
+          ],
+          "corregido": [
+            "Navegación del lobby de Watch Party restaurada correctamente.",
+            "PartyRoomDO: mejora en restauración de conexión y reconexiones."
+          ]
+        },
+        "en": {
+          "summary": "Immersive Watch Party redesign, new Miruro source plugin, major player overhaul, and comprehensive system documentation.",
+          "added": [
+            "Miruro source plugin with 4 resolvers (AniDB, Kwik, VibePlayer, VidTube).",
+            "Watch Party immersive re-entry, exit confirmation, and player HUD.",
+            "Comprehensive system docs (architecture, backend, CI/CD, edge infra, frontend, plugins, testing)."
+          ],
+          "changed": [
+            "Watch Party navigation migrated to pop-based with player HUD.",
+            "Player page redesigned with improved controls.",
+            "Party session architecture refactored for reliability.",
+            "Party lobby page retired."
+          ],
+          "fixed": [
+            "Watch Party lobby navigation correctly restored.",
+            "PartyRoomDO: improved connection state restoration and reconnection handling."
+          ]
+        }
+      },
+      "downloads": {
+        "android": "https://pub-8159019abe1741a097538b976c19722c.r2.dev/artifacts/android/v0.5.0/kumoriya-0.5.0-arm64-v8a.apk"
+      }
+    },
     {
       "version": "0.4.2",
       "tag": "v0.4.2",

@@ -45,11 +45,12 @@ import '../../infrastructure/playback_engine_factory.dart';
 import '../../infrastructure/kumoriya_exoplayer_engine.dart';
 import '../widgets/player_video_surface.dart';
 import '../widgets/player_debug_overlay.dart';
+import '../../../watch_party/application/models/party_member.dart';
 import '../../../watch_party/application/party_session_guard.dart';
+import '../../../watch_party/application/realtime_state.dart';
 import '../../../watch_party/application/providers/party_providers.dart';
 import '../../../watch_party/presentation/pages/party_anime_page.dart';
 import '../../../watch_party/presentation/pages/party_episode_list_page.dart';
-import '../../../watch_party/presentation/pages/party_lobby_page.dart';
 import '../../../watch_party/presentation/party_route_mode.dart';
 import '../../../watch_party/presentation/widgets/party_player_overlay.dart';
 import '../../../../shared/widgets/party_exit_dialog.dart';
@@ -230,25 +231,25 @@ class _PlayerPageState extends ConsumerState<PlayerPage>
     ]);
     _startSensorOrientationFollower();
 
-    // Wire party sync: listen for remote playback commands.
-    // Use addPostFrameCallback to ensure the provider is fully initialized,
-    // but guard with mounted since the widget may be disposed before the frame.
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      _wirePartySyncCallbacks();
-      _broadcastSourceSelectionIfHost();
-    });
+    // Wire party sync immediately so remote playback events are never missed.
+    if (mounted) _wirePartySyncCallbacks();
 
     // Detect when the party room moves on to a different anime or episode
     // while this page is still alive. That happens when a new PlayerPage is
     // pushed on top of the old one (host changing episode from the party
     // episode list, cross-anime `changeMedia`, etc.). The stale page must
     // cut audio immediately so the user does not hear two episodes at once.
-    _partyRoomSub = ref.listenManual<PartySessionState>(
-      partySessionProvider,
-      (prev, next) => _detectStalePartyPlayer(next),
-      fireImmediately: false,
-    );
+    _partyRoomSub = ref.listenManual<PartySessionState>(partySessionProvider, (
+      prev,
+      next,
+    ) {
+      _detectStalePartyPlayer(next);
+      // Re-wire sync callbacks if the session becomes active after
+      // the initial guard returned early.
+      if (prev?.isActive == false && next.isActive) {
+        _wirePartySyncCallbacks();
+      }
+    }, fireImmediately: false);
   }
 
   /// Pauses the engine and stops feeding the party sync pipeline when the
@@ -278,61 +279,6 @@ class _PlayerPageState extends ConsumerState<PlayerPage>
     unawaited(_engine?.pause());
   }
 
-  /// When a party is active and the local user is the host, announce the
-  /// source/server picked for this episode so members can try to
-  /// auto-resolve the same provider instead of going through their
-  /// server picker manually. Non-hosts and idle sessions are no-ops.
-  ///
-  /// If the host just advanced to a different episode of the same anime
-  /// (e.g. via the "next episode" or "previous episode" buttons, or an
-  /// auto-advance residual from the AniSkip ending segment), this also
-  /// emits a `change_episode` intent first so the Worker updates the room
-  /// state and members navigate to the new episode. Without this the
-  /// server still thinks the room is on the previous episode and members
-  /// would stay watching the wrong one.
-  void _broadcastSourceSelectionIfHost() {
-    final session = ref.read(partySessionProvider);
-    if (!session.isActive) return;
-    final notifier = ref.read(partySessionProvider.notifier);
-    if (!notifier.isLocalHost) return;
-    final epNumber = double.tryParse(widget.episodeNumber);
-    if (epNumber == null) return;
-
-    // Propagate the host-local episode advance to the Worker so members
-    // get the `episode_changed` broadcast and follow us. We only fire
-    // this when the anime matches the one the room is already pointing
-    // at; cross-anime changes go through `changeMedia` (initiated from
-    // the lobby), not from the player.
-    final room = session.room;
-    if (room != null &&
-        room.anilistId == widget.anilistId &&
-        (room.episodeNumber - epNumber).abs() >= 0.001) {
-      if (_playerVerboseLogs) {
-        dev.log(
-          'host episode advance roomEp=${room.episodeNumber} newEp=$epNumber '
-          'anilistId=${widget.anilistId}',
-          name: 'Party',
-        );
-      }
-      notifier.changeEpisode(epNumber);
-    }
-
-    if (_playerVerboseLogs) {
-      dev.log(
-        'broadcasting source_selected source=${widget.sourcePluginId} '
-        'server=${widget.serverName} resolver=${widget.resolved.resolverId} '
-        'ep=$epNumber',
-        name: 'Party',
-      );
-    }
-    notifier.broadcastSourceSelected(
-      sourcePluginId: widget.sourcePluginId,
-      serverName: widget.serverName,
-      resolverPluginId: widget.resolved.resolverId,
-      episodeNumber: epNumber,
-    );
-  }
-
   @override
   void dispose() {
     _log('dispose');
@@ -348,12 +294,19 @@ class _PlayerPageState extends ConsumerState<PlayerPage>
     _sensorOrientationSub = null;
     unawaited(_saveCurrentProgress());
     unawaited(_disposeRuntime());
+    try {
+      _sendPartyStatus(PartyMemberStatus.inLobby);
+    } catch (_) {
+      // Best-effort: status send should never block disposal.
+    }
     unawaited(_restoreWindowsFullscreenIfNeeded());
     _orientationRestoreTimer?.cancel();
     _orientationRestoreTimer = null;
     if (!_suppressOrientationRestore) {
       SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
-      SystemChrome.setPreferredOrientations(<DeviceOrientation>[]);
+      SystemChrome.setPreferredOrientations(<DeviceOrientation>[
+        DeviceOrientation.portraitUp,
+      ]);
     }
     _suppressOrientationRestore = false;
     super.dispose();
@@ -582,6 +535,7 @@ class _PlayerPageState extends ConsumerState<PlayerPage>
       unawaited(_updateWatchHistory());
     }
     if (playing) {
+      _sendPartyStatus(PartyMemberStatus.watching);
       if (!_historyWrittenForSession) {
         _historyWrittenForSession = true;
         unawaited(_updateWatchHistory());
@@ -591,6 +545,7 @@ class _PlayerPageState extends ConsumerState<PlayerPage>
         (_) => unawaited(_saveCurrentProgress()),
       );
     } else {
+      _sendPartyStatus(PartyMemberStatus.paused);
       _periodicSaveTimer?.cancel();
       _periodicSaveTimer = null;
     }
@@ -791,6 +746,7 @@ class _PlayerPageState extends ConsumerState<PlayerPage>
       session: session,
       isLocallyBoundToRoom: _isCurrentPlayerBoundToPartyRoom(session),
       isLocalHost: notifier.isLocalHost,
+      localUserId: notifier.localUserId,
     );
   }
 
@@ -837,24 +793,18 @@ class _PlayerPageState extends ConsumerState<PlayerPage>
     }
     _partyPlayerReadySent = true;
     ref.read(partySessionProvider.notifier).toggleReady(true);
+    _sendPartyStatus(PartyMemberStatus.inPlayer);
+  }
+
+  void _sendPartyStatus(PartyMemberStatus status) {
+    final session = ref.read(partySessionProvider);
+    if (!_isCurrentPlayerBoundToPartyRoom(session)) return;
+    ref.read(partySessionProvider.notifier).sendStatus(status);
   }
 
   Future<void> _togglePartyAwarePlayPause() async {
     final session = ref.read(partySessionProvider);
     if (_shouldHoldPartyPlayback(session)) {
-      final notifier = ref.read(partySessionProvider.notifier);
-      // Two distinct hold reasons deserve distinct user-facing messages:
-      // (a) everyone is waiting for all members to finish loading, or
-      // (b) only the host can control playback and they haven't resumed yet.
-      final waitingForReady = !partyHasAllMembersReady(session);
-      final message = waitingForReady
-          ? 'Waiting for everyone to load the episode.'
-          : notifier.isLocalHost
-          ? 'Waiting for everyone to load the episode.'
-          : 'Only the host can control playback.';
-      ScaffoldMessenger.maybeOf(context)?.showSnackBar(
-        SnackBar(content: Text(message), duration: const Duration(seconds: 2)),
-      );
       await _enforcePartyPauseHold(force: true);
       return;
     }
@@ -1095,10 +1045,7 @@ class _PlayerPageState extends ConsumerState<PlayerPage>
         if (widget.routeMode.isParty) {
           navigator.pushAndRemoveUntil(
             MaterialPageRoute<void>(
-              builder: (_) => PartyLobbyPage(
-                anilistId: widget.anilistId,
-                animeTitle: widget.animeTitle,
-              ),
+              builder: (_) => PartyAnimePage(anilistId: widget.anilistId),
             ),
             (route) => route.isFirst,
           );
@@ -1135,6 +1082,7 @@ class _PlayerPageState extends ConsumerState<PlayerPage>
       'startPlayback resumePosition=$initialPosition streams=${widget.resolved.streams.length} softwareOutput=$_forceSoftwareVideoOutput',
     );
     _autoNextTriggeredByEndingResidual = false;
+    _sendPartyStatus(PartyMemberStatus.loading);
     final result = await orchestrator.start(
       streamCandidates: widget.resolved.streams,
       externalSubtitles: widget.resolved.externalSubtitles,
@@ -1147,6 +1095,10 @@ class _PlayerPageState extends ConsumerState<PlayerPage>
       onSuccess: (_) {
         _markPartyPlayerReadyIfNeeded();
         unawaited(_enforcePartyPauseHold(force: true));
+        // Always start paused in party mode — host must press play manually
+        if (ref.read(partySessionProvider).isActive) {
+          unawaited(_engine?.pause());
+        }
         unawaited(_persistSuccessfulSelection());
       },
     );
@@ -1159,6 +1111,7 @@ class _PlayerPageState extends ConsumerState<PlayerPage>
     if (orchestrator == null) {
       return;
     }
+    _sendPartyStatus(PartyMemberStatus.loading);
     final result = await orchestrator.retry();
     if (!mounted) return;
     result.fold(
@@ -1167,6 +1120,10 @@ class _PlayerPageState extends ConsumerState<PlayerPage>
       onSuccess: (_) {
         _markPartyPlayerReadyIfNeeded();
         unawaited(_enforcePartyPauseHold(force: true));
+        // Always start paused in party mode
+        if (ref.read(partySessionProvider).isActive) {
+          unawaited(_engine?.pause());
+        }
         unawaited(_persistSuccessfulSelection());
       },
     );
@@ -1923,31 +1880,53 @@ class _PlayerPageState extends ConsumerState<PlayerPage>
     final localPartyUserId = ref
         .read(partySessionProvider.notifier)
         .localUserId;
+    final localPartyIsHost =
+        localPartyUserId != null &&
+        ref.read(partySessionProvider).room?.hostId == localPartyUserId;
     final partyMemberLocked = ref.watch(
       partySessionProvider.select((session) {
-        final room = session.room;
         final isLocalHost =
             localPartyUserId != null &&
-            room != null &&
-            room.hostId == localPartyUserId;
+            session.room?.hostId == localPartyUserId;
         return session.isActive && !isLocalHost;
       }),
     );
     final partyHostWaitingForReady = ref.watch(
       partySessionProvider.select((session) {
-        final room = session.room;
         final isLocalHost =
             localPartyUserId != null &&
-            room != null &&
-            room.hostId == localPartyUserId;
+            session.room?.hostId == localPartyUserId;
         if (!session.isActive || !isLocalHost) return false;
-        // Call the pure guard directly: `_shouldHoldPartyPlayback` reads
-        // `ref` internally, which is forbidden inside a `.select` selector.
         return shouldHoldPartyPlayback(
           session: session,
           isLocallyBoundToRoom: _isCurrentPlayerBoundToPartyRoom(session),
           isLocalHost: isLocalHost,
+          localUserId: localPartyUserId,
         );
+      }),
+    );
+
+    final partyPlayback = ref.watch(
+      partySessionProvider.select((session) => session.playback),
+    );
+    final allMembersInPlayer = ref.watch(
+      partySessionProvider.select((session) {
+        if (!session.isActive) return true;
+        return partyAllMembersInPlayer(session, localUserId: localPartyUserId);
+      }),
+    );
+    final membersWaitingCount = ref.watch(
+      partySessionProvider.select((session) {
+        if (!session.isActive) return 0;
+        var waiting = 0;
+        for (final userId in session.connectedPeerIds) {
+          if (userId == localPartyUserId) continue;
+          final status = session.memberStatuses[userId];
+          if (status == null || status == PartyMemberStatus.inLobby) {
+            waiting++;
+          }
+        }
+        return waiting;
       }),
     );
 
@@ -2125,6 +2104,10 @@ class _PlayerPageState extends ConsumerState<PlayerPage>
                 seekLatencyMs: _orchestrator?.lastSeekLatencyMs,
                 partyMemberLocked: partyMemberLocked,
                 onOrientationLockChanged: _onImmersiveOrientationLockChanged,
+                partyPlayback: partyPlayback,
+                allMembersInPlayer: allMembersInPlayer,
+                membersWaitingCount: membersWaitingCount,
+                isLocalHost: localPartyIsHost,
               ),
             ),
             // Watch party overlay — only visible when a party session is active.
@@ -2734,6 +2717,10 @@ class _ImmersivePlayerView extends StatefulWidget {
     this.seekLatencyMs,
     this.partyMemberLocked = false,
     this.onOrientationLockChanged,
+    this.partyPlayback,
+    this.allMembersInPlayer = true,
+    this.membersWaitingCount = 0,
+    this.isLocalHost = false,
   });
 
   final PlaybackEngine? engine;
@@ -2781,6 +2768,10 @@ class _ImmersivePlayerView extends StatefulWidget {
   final int? seekLatencyMs;
   final bool partyMemberLocked;
   final ValueChanged<bool>? onOrientationLockChanged;
+  final PartyPlaybackState? partyPlayback;
+  final bool allMembersInPlayer;
+  final int membersWaitingCount;
+  final bool isLocalHost;
 
   @override
   State<_ImmersivePlayerView> createState() => _ImmersivePlayerViewState();
@@ -4044,127 +4035,20 @@ class _ImmersivePlayerViewState extends State<_ImmersivePlayerView>
                           ),
                         ),
 
-                        // Center: Frosted glass play/pause + bare skip buttons
+                        // Center: Party status overlay or play/pause + bare skip buttons
                         if (!_isDragSeeking)
-                          Opacity(
-                            opacity: widget.partyMemberLocked ? 0.35 : 1.0,
-                            child: Center(
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: <Widget>[
-                                  // Skip back
-                                  SizedBox(
-                                    width: 56,
-                                    height: 56,
-                                    child: IconButton(
-                                      onPressed: widget.onSkipBackward,
-                                      tooltip: context.l10n.playerSkipBackward,
-                                      icon: Icon(
-                                        KumoriyaIcons.playerSeekBack10,
-                                        color: KumoriyaColors.textPrimary,
-                                        size: 28,
-                                        shadows: const <Shadow>[
-                                          Shadow(
-                                            color: Color(0xCC000000),
-                                            blurRadius: 8,
-                                          ),
-                                          Shadow(
-                                            color: Color(0x66000000),
-                                            blurRadius: 24,
-                                          ),
-                                        ],
-                                      ),
-                                      padding: EdgeInsets.zero,
-                                    ),
-                                  ),
-                                  const SizedBox(width: KumoriyaSpacing.xxxl),
-                                  // Play/pause (plain tint — no BackdropFilter).
-                                  Material(
-                                    color: Colors.transparent,
-                                    shape: const CircleBorder(),
-                                    child: InkWell(
-                                      customBorder: const CircleBorder(),
-                                      onTap: widget.onTogglePlayPause,
-                                      splashColor: KumoriyaColors.primaryLight
-                                          .withValues(alpha: 0.20),
-                                      child: Container(
-                                        width: 80,
-                                        height: 80,
-                                        decoration: BoxDecoration(
-                                          shape: BoxShape.circle,
-                                          color: const Color(0xCC1E1629),
-                                          border: Border.all(
-                                            color: Colors.white.withValues(
-                                              alpha: 0.10,
-                                            ),
-                                          ),
-                                        ),
-                                        child: Center(
-                                          child: Icon(
-                                            widget.isPlaying
-                                                ? KumoriyaIcons.playerPause
-                                                : KumoriyaIcons.playerPlay,
-                                            color: KumoriyaColors.textPrimary,
-                                            size: 48,
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                  const SizedBox(width: KumoriyaSpacing.xxxl),
-                                  // Skip forward
-                                  SizedBox(
-                                    width: 56,
-                                    height: 56,
-                                    child: IconButton(
-                                      onPressed: widget.onSkipForward,
-                                      tooltip: context.l10n.playerSkipForward,
-                                      icon: Icon(
-                                        KumoriyaIcons.playerSeekForward10,
-                                        color: KumoriyaColors.textPrimary,
-                                        size: 28,
-                                        shadows: const <Shadow>[
-                                          Shadow(
-                                            color: Color(0xCC000000),
-                                            blurRadius: 8,
-                                          ),
-                                          Shadow(
-                                            color: Color(0x66000000),
-                                            blurRadius: 24,
-                                          ),
-                                        ],
-                                      ),
-                                      padding: EdgeInsets.zero,
-                                    ),
-                                  ),
-                                  // Fallback +90s skip (discrete, only when missing opening OR ending)
-                                  if (widget.showFallbackSkip &&
-                                      _controlsVisible)
-                                    Padding(
-                                      padding: const EdgeInsets.only(left: 8),
-                                      child: SizedBox(
-                                        height: 32,
-                                        child: TextButton(
-                                          onPressed: widget.onFallbackSkip,
-                                          style: TextButton.styleFrom(
-                                            padding: const EdgeInsets.symmetric(
-                                              horizontal: 10,
-                                            ),
-                                            backgroundColor: Colors.black38,
-                                            foregroundColor:
-                                                KumoriyaColors.textSecondary,
-                                            textStyle: const TextStyle(
-                                              fontSize: 12,
-                                              fontWeight: FontWeight.w500,
-                                            ),
-                                          ),
-                                          child: const Text('+90s'),
-                                        ),
-                                      ),
-                                    ),
-                                ],
-                              ),
-                            ),
+                          _PartyCenterStatus(
+                            membersWaitingCount: widget.membersWaitingCount,
+                            allMembersInPlayer: widget.allMembersInPlayer,
+                            partyPlayback: widget.partyPlayback,
+                            isLocalHost: widget.isLocalHost,
+                            isPlaying: widget.isPlaying,
+                            onTogglePlayPause: widget.onTogglePlayPause,
+                            onSkipBackward: widget.onSkipBackward,
+                            onSkipForward: widget.onSkipForward,
+                            onFallbackSkip: widget.onFallbackSkip,
+                            showFallbackSkip: widget.showFallbackSkip,
+                            controlsVisible: _controlsVisible,
                           ),
 
                         // Bottom: Bare text action selectors
@@ -4757,6 +4641,265 @@ class _PlayerSelectorSheet extends StatelessWidget {
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _PartyCenterStatus extends StatelessWidget {
+  const _PartyCenterStatus({
+    required this.membersWaitingCount,
+    required this.allMembersInPlayer,
+    required this.partyPlayback,
+    required this.isLocalHost,
+    required this.isPlaying,
+    required this.onTogglePlayPause,
+    required this.onSkipBackward,
+    required this.onSkipForward,
+    this.onFallbackSkip,
+    this.showFallbackSkip = false,
+    this.controlsVisible = true,
+  });
+
+  final int membersWaitingCount;
+  final bool allMembersInPlayer;
+  final PartyPlaybackState? partyPlayback;
+  final bool isLocalHost;
+  final bool isPlaying;
+  final VoidCallback? onTogglePlayPause;
+  final VoidCallback? onSkipBackward;
+  final VoidCallback? onSkipForward;
+  final VoidCallback? onFallbackSkip;
+  final bool showFallbackSkip;
+  final bool controlsVisible;
+
+  @override
+  Widget build(BuildContext context) {
+    final waiting = membersWaitingCount > 0;
+
+    // ── Host: show waiting message if members are still in lobby ──
+    if (isLocalHost) {
+      if (waiting) {
+        return Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.people_outline_rounded,
+                color: KumoriyaColors.textSecondary,
+                size: 40,
+                shadows: const [Shadow(color: Colors.black54, blurRadius: 6)],
+              ),
+              const SizedBox(height: 12),
+              Text(
+                membersWaitingCount == 1
+                    ? context.l10n.partyWaitingForOneMember
+                    : context.l10n.partyWaitingForMembers(membersWaitingCount),
+                style: const TextStyle(
+                  color: KumoriyaColors.textSecondary,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
+        );
+      }
+      // Host sees normal controls when all members are in player
+      return _buildCenterControls(context);
+    }
+
+    // ── Member: contextual overlay ──
+    if (waiting) {
+      return Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.hourglass_empty_rounded,
+              color: KumoriyaColors.textSecondary,
+              size: 40,
+              shadows: const [Shadow(color: Colors.black54, blurRadius: 6)],
+            ),
+            const SizedBox(height: 12),
+            Text(
+              membersWaitingCount == 1
+                  ? context.l10n.partyWaitingForOneMember
+                  : context.l10n.partyWaitingForMembers(membersWaitingCount),
+              style: const TextStyle(
+                color: KumoriyaColors.textSecondary,
+                fontSize: 16,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    if (!allMembersInPlayer) return const SizedBox.shrink();
+
+    final playback = partyPlayback;
+    if (playback == null || playback.status == 'paused') {
+      return Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              playback?.generation == 0
+                  ? Icons.hourglass_empty_rounded
+                  : Icons.pause_rounded,
+              color: KumoriyaColors.textSecondary,
+              size: 40,
+              shadows: const [Shadow(color: Colors.black54, blurRadius: 6)],
+            ),
+            const SizedBox(height: 12),
+            Text(
+              playback?.generation == 0
+                  ? context.l10n.partyWaitingForHost
+                  : context.l10n.partyHostPaused,
+              style: const TextStyle(
+                color: KumoriyaColors.textSecondary,
+                fontSize: 16,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            if (playback?.generation != 0 && onTogglePlayPause != null) ...[
+              const SizedBox(height: 16),
+              Material(
+                color: Colors.transparent,
+                shape: const CircleBorder(),
+                child: InkWell(
+                  customBorder: const CircleBorder(),
+                  onTap: onTogglePlayPause,
+                  splashColor: KumoriyaColors.primaryLight.withValues(
+                    alpha: 0.20,
+                  ),
+                  child: Container(
+                    width: 64,
+                    height: 64,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: const Color(0xCC1E1629),
+                      border: Border.all(
+                        color: Colors.white.withValues(alpha: 0.10),
+                      ),
+                    ),
+                    child: Center(
+                      child: Icon(
+                        Icons.play_arrow_rounded,
+                        color: KumoriyaColors.textPrimary,
+                        size: 36,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ],
+        ),
+      );
+    }
+
+    // Host is playing — hide center overlay for members
+    return const SizedBox.shrink();
+  }
+
+  Widget _buildCenterControls(BuildContext context) {
+    if (onTogglePlayPause == null) return const SizedBox.shrink();
+
+    return Center(
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          SizedBox(
+            width: 56,
+            height: 56,
+            child: IconButton(
+              onPressed: onSkipBackward,
+              tooltip: context.l10n.playerSkipBackward,
+              icon: Icon(
+                KumoriyaIcons.playerSeekBack10,
+                color: KumoriyaColors.textPrimary,
+                size: 28,
+                shadows: const [
+                  Shadow(color: Color(0xCC000000), blurRadius: 8),
+                  Shadow(color: Color(0x66000000), blurRadius: 24),
+                ],
+              ),
+              padding: EdgeInsets.zero,
+            ),
+          ),
+          const SizedBox(width: KumoriyaSpacing.xxxl),
+          Material(
+            color: Colors.transparent,
+            shape: const CircleBorder(),
+            child: InkWell(
+              customBorder: const CircleBorder(),
+              onTap: onTogglePlayPause,
+              splashColor: KumoriyaColors.primaryLight.withValues(alpha: 0.20),
+              child: Container(
+                width: 80,
+                height: 80,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: const Color(0xCC1E1629),
+                  border: Border.all(
+                    color: Colors.white.withValues(alpha: 0.10),
+                  ),
+                ),
+                child: Center(
+                  child: Icon(
+                    isPlaying
+                        ? KumoriyaIcons.playerPause
+                        : KumoriyaIcons.playerPlay,
+                    color: KumoriyaColors.textPrimary,
+                    size: 48,
+                  ),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: KumoriyaSpacing.xxxl),
+          SizedBox(
+            width: 56,
+            height: 56,
+            child: IconButton(
+              onPressed: onSkipForward,
+              tooltip: context.l10n.playerSkipForward,
+              icon: Icon(
+                KumoriyaIcons.playerSeekForward10,
+                color: KumoriyaColors.textPrimary,
+                size: 28,
+                shadows: const [
+                  Shadow(color: Color(0xCC000000), blurRadius: 8),
+                  Shadow(color: Color(0x66000000), blurRadius: 24),
+                ],
+              ),
+              padding: EdgeInsets.zero,
+            ),
+          ),
+          if (showFallbackSkip && controlsVisible)
+            Padding(
+              padding: const EdgeInsets.only(left: 8),
+              child: SizedBox(
+                height: 32,
+                child: TextButton(
+                  onPressed: onFallbackSkip,
+                  style: TextButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(horizontal: 10),
+                    backgroundColor: Colors.black38,
+                    foregroundColor: KumoriyaColors.textSecondary,
+                    textStyle: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  child: const Text('+90s'),
+                ),
+              ),
+            ),
+        ],
       ),
     );
   }

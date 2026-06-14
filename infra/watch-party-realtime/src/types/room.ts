@@ -21,12 +21,25 @@ export interface RoomState {
  *
  * Represents a member in the watch party room.
  */
+/**
+ * Member Status
+ *
+ * What the member is currently doing in the watch party.
+ * - in_lobby:   browsing / waiting in the lobby
+ * - loading:    episode is loading (buffer / resolve)
+ * - in_player:  player open but not actively watching (e.g. paused by user)
+ * - watching:   actively playing (media is running)
+ * - paused:     playback paused by user
+ */
+export type MemberStatus = 'in_lobby' | 'loading' | 'in_player' | 'watching' | 'paused';
+
 export interface Member {
   userId: string;
   name: string;
   presence: 'connected' | 'disconnected';
   readyPersisted: boolean; // Persisted during grace period
   effectiveReady: boolean; // readyPersisted AND connected
+  status: MemberStatus;    // current member activity
   joinedAtMs: number;
   lastHeartbeatMs: number;
 }

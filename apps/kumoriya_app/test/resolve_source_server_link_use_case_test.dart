@@ -272,33 +272,37 @@ void main() {
     },
   );
 
-  test('resolves direct stream when isDirectStream is true and no resolver exists', () async {
-    final useCase = ResolveSourceServerLinkUseCase(
-      registry: ResolverRegistry(
-        resolvers: const <ResolverPlugin>[],
-      ),
-    );
+  test(
+    'resolves direct stream when isDirectStream is true and no resolver exists',
+    () async {
+      final useCase = ResolveSourceServerLinkUseCase(
+        registry: ResolverRegistry(resolvers: const <ResolverPlugin>[]),
+      );
 
-    final result = await useCase.call(
-      SourceServerLink(
-        serverId: 'direct-0',
-        serverName: 'Direct',
-        initialUrl: Uri.parse('https://example.com/video.m3u8'),
-        isDirectStream: true,
-      ),
-    );
+      final result = await useCase.call(
+        SourceServerLink(
+          serverId: 'direct-0',
+          serverName: 'Direct',
+          initialUrl: Uri.parse('https://example.com/video.m3u8'),
+          isDirectStream: true,
+        ),
+      );
 
-    expect(result.isSuccess, isTrue);
-    result.fold(
-      onFailure: (_) => fail('expected success'),
-      onSuccess: (resolved) {
-        expect(resolved.resolverId, 'direct');
-        expect(resolved.streams, hasLength(1));
-        expect(resolved.streams.single.isHls, isTrue);
-        expect(resolved.streams.single.url.toString(), 'https://example.com/video.m3u8');
-      },
-    );
-  });
+      expect(result.isSuccess, isTrue);
+      result.fold(
+        onFailure: (_) => fail('expected success'),
+        onSuccess: (resolved) {
+          expect(resolved.resolverId, 'direct');
+          expect(resolved.streams, hasLength(1));
+          expect(resolved.streams.single.isHls, isTrue);
+          expect(
+            resolved.streams.single.url.toString(),
+            'https://example.com/video.m3u8',
+          );
+        },
+      );
+    },
+  );
 }
 
 final class _SuccessResolver implements ResolverPlugin {

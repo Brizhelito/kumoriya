@@ -2092,6 +2092,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get partyHostActionsTooltip => 'Host actions';
 
   @override
+  String get partyHostControls => 'Host Controls';
+
+  @override
   String get partyMakeHost => 'Make host';
 
   @override
@@ -2406,4 +2409,40 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get partyBannerRejoin => 'Rejoin';
+
+  @override
+  String get partyEnterPlayer => 'Enter Player';
+
+  @override
+  String get partyIdleSubtitle =>
+      'Start or join a Watch Party to watch together.';
+
+  @override
+  String get partyOrDivider => 'or';
+
+  @override
+  String get partyUnknownError => 'Unknown error';
+
+  @override
+  String get partyAvatarFallback => '?';
+
+  @override
+  String partyEpisodeLabel(int number) {
+    return 'Episode $number';
+  }
+
+  @override
+  String get partyWaitingForOneMember => 'Waiting for 1 member to join…';
+
+  @override
+  String partyWaitingForMembers(int count) {
+    return 'Waiting for $count members to join…';
+  }
+
+  @override
+  String get partyHostPaused => 'The host paused';
+
+  @override
+  String get partyPlaybackLaunchFailed =>
+      'Failed to start playback. Please try again.';
 }

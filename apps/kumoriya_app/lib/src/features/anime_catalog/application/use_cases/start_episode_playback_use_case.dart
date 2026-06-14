@@ -358,8 +358,12 @@ final class StartEpisodePlaybackUseCase {
                     _fallbackIconUrl(availability.manifest),
                 sourceEpisode: episode,
                 serverLink: link,
-                resolverId: selection is ResolverSelected ? selection.resolver.manifest.id : 'direct',
-                resolverName: selection is ResolverSelected ? selection.resolver.manifest.displayName : 'Direct Stream',
+                resolverId: selection is ResolverSelected
+                    ? selection.resolver.manifest.id
+                    : 'direct',
+                resolverName: selection is ResolverSelected
+                    ? selection.resolver.manifest.displayName
+                    : 'Direct Stream',
                 audioKind: sourceAudioKindFromCode(link.language),
               );
             })

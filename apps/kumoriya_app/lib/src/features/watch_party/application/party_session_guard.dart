@@ -1,3 +1,4 @@
+import 'models/party_member.dart';
 import 'providers/party_providers.dart';
 
 /// Decides whether the local player must *hold* playback (keep the video
@@ -5,13 +6,14 @@ import 'providers/party_providers.dart';
 ///
 /// Two distinct hold conditions:
 ///
-/// 1. **Ready gate** — any member (host or not) still loading the episode
-///    holds everyone. Prevents the host from pulling ahead.
+/// 1. **Presence gate** — host cannot play until every connected member has
+///    entered the player (status ≠ inLobby). Replaces the old ready-state
+///    gate. The player page sends `PartyMemberStatus.inPlayer` on mount.
 ///
 /// 2. **Non-host autoplay guard** — members never auto-play. Their player
 ///    mirrors the server's authoritative [PartyPlaybackState.isPlaying]:
 ///    until the server signals a `play` intent, the member stays paused
-///    even after the ready-gate releases. Without this, a member joining
+///    even after the presence-gate releases. Without this, a member joining
 ///    mid-session would start playing from 0 before the first
 ///    `playback_state_changed` sync arrives, causing a visible auto-play
 ///    glitch regardless of what the host is doing.
@@ -23,11 +25,12 @@ bool shouldHoldPartyPlayback({
   required PartySessionState session,
   required bool isLocallyBoundToRoom,
   required bool isLocalHost,
+  String? localUserId,
 }) {
   if (!isLocallyBoundToRoom) {
     return false;
   }
-  if (!partyHasAllMembersReady(session)) {
+  if (!partyAllMembersInPlayer(session, localUserId: localUserId)) {
     return true;
   }
   if (!isLocalHost && !session.playback.isPlaying) {
@@ -36,19 +39,22 @@ bool shouldHoldPartyPlayback({
   return false;
 }
 
-bool partyHasAllMembersReady(PartySessionState session) {
-  final room = session.room;
-  if (room == null || room.members.isEmpty) {
-    return false;
+/// Returns true when every connected member (excluding [localUserId]) has a
+/// status other than [PartyMemberStatus.inLobby] — meaning they have entered
+/// the player.
+bool partyAllMembersInPlayer(PartySessionState session, {String? localUserId}) {
+  final connected = session.connectedPeerIds;
+  if (connected.isEmpty) return false;
+
+  // If this is a solo room the gate passes immediately.
+  if (connected.length == 1 && connected.contains(localUserId)) return true;
+
+  for (final userId in connected) {
+    if (userId == localUserId) continue;
+    final status = session.memberStatuses[userId];
+    if (status == null || status == PartyMemberStatus.inLobby) return false;
   }
-  final memberIds = <String>{
-    for (final member in room.members)
-      if (member.userId.trim().isNotEmpty) member.userId,
-  };
-  if (memberIds.isEmpty) {
-    return false;
-  }
-  return memberIds.every((memberId) => session.readyStates[memberId] == true);
+  return true;
 }
 
 int partyConnectedMemberCount(

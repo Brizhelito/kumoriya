@@ -39,10 +39,19 @@ Future<void> handlePlaybackDecision({
   String? episodeTitle,
   required EpisodePlaybackDecision decision,
   PlaybackUnavailableFallback? onUnavailable,
+  bool persistSelection = true,
   PartyRouteMode routeMode = PartyRouteMode.standard,
   int? totalEpisodes,
   double? nextAiringEpisodeNumber,
 }) async {
+  // In party mode the default is to NOT persist to avoid the host's
+  // (or a one-off party) selection becoming the member's durable pref.
+  // When the member checks the "remember" toggle in the server picker
+  // it is passed as explicit `persistSelection: true`.
+  final actualPersist = routeMode.isParty
+      ? (persistSelection && false)
+      : persistSelection;
+
   switch (decision.type) {
     case EpisodePlaybackDecisionType.direct:
       await _openPlayer(
@@ -51,6 +60,7 @@ Future<void> handlePlaybackDecision({
         animeTitle: animeTitle,
         episodeTitle: episodeTitle,
         launch: decision.launch!,
+        persistSelection: actualPersist,
         routeMode: routeMode,
         totalEpisodes: totalEpisodes,
         nextAiringEpisodeNumber: nextAiringEpisodeNumber,
@@ -275,7 +285,7 @@ Future<PartyAutoResolveOutcome> openPartySelectedSource({
 
   final resolveResult = await ref
       .read(resolveSourceServerLinkUseCaseProvider)
-      .call(matchingLink, preferredResolverId: resolverPluginId);
+      .call(matchingLink);
   if (!context.mounted) {
     return PartyAutoResolveOutcome.launched;
   }
@@ -304,6 +314,7 @@ Future<PartyAutoResolveOutcome> openPartySelectedSource({
     anilistId: anilistId,
     animeTitle: animeTitle,
     episodeTitle: episode.title.isEmpty ? null : episode.title,
+    persistSelection: false,
     routeMode: routeMode,
     decision: EpisodePlaybackDecision.direct(
       launch: EpisodePlayerLaunch(option: option, resolved: resolved),
@@ -521,7 +532,7 @@ class _ServerPickerSheetState extends State<_ServerPickerSheet> {
   @override
   void initState() {
     super.initState();
-    _rememberSelection = widget.rememberedPreference != null;
+    _rememberSelection = false;
   }
 
   @override

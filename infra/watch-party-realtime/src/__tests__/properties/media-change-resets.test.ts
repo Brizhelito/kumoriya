@@ -47,6 +47,7 @@ function memberArb(): fc.Arbitrary<Member> {
     })
     .map((d): Member => ({
       ...d,
+      status: 'in_lobby',
       effectiveReady: d.readyPersisted && d.presence === 'connected',
     }));
 }

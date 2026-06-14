@@ -4,7 +4,7 @@ import 'package:app_links/app_links.dart';
 import 'package:flutter/material.dart';
 
 import '../../features/auth/presentation/pages/oauth_callback_page.dart';
-import '../../features/watch_party/presentation/pages/party_lobby_page.dart';
+import '../../features/watch_party/presentation/pages/party_anime_page.dart';
 
 /// Listens for incoming deep links and navigates accordingly.
 ///
@@ -24,7 +24,7 @@ class DeepLinkHandler {
   StreamSubscription<Uri>? _sub;
 
   /// Callback invoked when a party invite deep link is received.
-  /// If null, the handler falls back to pushing [PartyLobbyPage] with an
+  /// If null, the handler falls back to pushing [PartyAnimePage] with an
   /// `autoJoinCode` so the lobby joins the room automatically on mount.
   void Function(String inviteCode)? onPartyInvite;
 
@@ -111,7 +111,7 @@ class DeepLinkHandler {
     nav.popUntil((route) => route.isFirst);
     nav.push(
       MaterialPageRoute<void>(
-        builder: (_) => PartyLobbyPage(autoJoinCode: inviteCode),
+        builder: (_) => PartyAnimePage(autoJoinCode: inviteCode),
       ),
     );
   }
