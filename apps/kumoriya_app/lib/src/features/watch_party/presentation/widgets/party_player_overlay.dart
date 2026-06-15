@@ -790,6 +790,7 @@ class _StatusBadge extends StatelessWidget {
     PartyMemberStatus.loading => Colors.orange,
     PartyMemberStatus.paused => Colors.amber,
     PartyMemberStatus.inLobby => Colors.white54,
+    PartyMemberStatus.buffering => Colors.deepOrange,
   };
 }
 

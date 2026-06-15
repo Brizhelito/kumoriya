@@ -1248,6 +1248,7 @@ Color _statusColor(PartyMemberStatus status) {
     PartyMemberStatus.loading => Colors.orange,
     PartyMemberStatus.paused => Colors.amber,
     PartyMemberStatus.inLobby => KumoriyaColors.textMuted,
+    PartyMemberStatus.buffering => Colors.deepOrange,
   };
 }
 

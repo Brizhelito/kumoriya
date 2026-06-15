@@ -8,6 +8,7 @@ final class PartyPlaybackState {
     required this.basePositionMs,
     required this.effectiveAtMs,
     required this.generation,
+    this.awaitReady = false,
   });
 
   /// 'playing' | 'paused'
@@ -15,12 +16,14 @@ final class PartyPlaybackState {
   final int basePositionMs;
   final int effectiveAtMs;
   final int generation;
+  final bool awaitReady;
 
   static const empty = PartyPlaybackState(
     status: 'paused',
     basePositionMs: 0,
     effectiveAtMs: 0,
     generation: 0,
+    awaitReady: false,
   );
 
   bool get isPlaying => status == 'playing';
@@ -219,6 +222,7 @@ PartyRealtimeState _applySnapshot(
           basePositionMs: (playback['basePositionMs'] as num?)?.toInt() ?? 0,
           effectiveAtMs: (playback['effectiveAtMs'] as num?)?.toInt() ?? 0,
           generation: (playback['generation'] as num?)?.toInt() ?? 0,
+          awaitReady: playback['awaitReady'] == true,
         )
       : PartyPlaybackState.empty;
   final serverNowMs = (payload['serverTimeMs'] as num?)?.toInt();
@@ -412,6 +416,7 @@ PartyRealtimeState _applyPlayback(
       basePositionMs: (payload['basePositionMs'] as num?)?.toInt() ?? 0,
       effectiveAtMs: (payload['effectiveAtMs'] as num?)?.toInt() ?? 0,
       generation: (payload['generation'] as num?)?.toInt() ?? 0,
+      awaitReady: payload['awaitReady'] == true,
     ),
     roomVersion: roomVersion ?? prev.roomVersion,
     clientServerOffsetMs: nextOffset,

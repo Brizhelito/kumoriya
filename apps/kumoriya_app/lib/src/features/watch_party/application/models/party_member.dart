@@ -5,7 +5,8 @@ enum PartyMemberStatus {
   loading,
   inPlayer,
   watching,
-  paused;
+  paused,
+  buffering;
 
   String get label {
     return switch (this) {
@@ -14,6 +15,7 @@ enum PartyMemberStatus {
       PartyMemberStatus.inPlayer => 'In Player',
       PartyMemberStatus.watching => 'Watching',
       PartyMemberStatus.paused => 'Paused',
+      PartyMemberStatus.buffering => 'Buffering…',
     };
   }
 
@@ -24,6 +26,7 @@ enum PartyMemberStatus {
       'in_player' => PartyMemberStatus.inPlayer,
       'watching' => PartyMemberStatus.watching,
       'paused' => PartyMemberStatus.paused,
+      'buffering' => PartyMemberStatus.buffering,
       _ => PartyMemberStatus.inLobby,
     };
   }
@@ -35,6 +38,7 @@ enum PartyMemberStatus {
       PartyMemberStatus.inPlayer => 'in_player',
       PartyMemberStatus.watching => 'watching',
       PartyMemberStatus.paused => 'paused',
+      PartyMemberStatus.buffering => 'buffering',
     };
   }
 }

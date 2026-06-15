@@ -249,6 +249,7 @@ class _PlayerPageState extends ConsumerState<PlayerPage>
       if (prev?.isActive == false && next.isActive) {
         _wirePartySyncCallbacks();
       }
+      _checkAndSendPartyReadyState();
     }, fireImmediately: false);
   }
 
@@ -277,6 +278,10 @@ class _PlayerPageState extends ConsumerState<PlayerPage>
     unawaited(_positionSub?.cancel());
     _positionSub = null;
     unawaited(_engine?.pause());
+    // Notify the lobby that this member's player is stale — they have
+    // effectively returned to the lobby even though their page is still
+    // mounted.
+    _sendPartyStatusUnconditional(PartyMemberStatus.inLobby);
   }
 
   @override
@@ -295,7 +300,10 @@ class _PlayerPageState extends ConsumerState<PlayerPage>
     unawaited(_saveCurrentProgress());
     unawaited(_disposeRuntime());
     try {
-      _sendPartyStatus(PartyMemberStatus.inLobby);
+      // Use the unconditional variant: inLobby is always valid and must
+      // be sent even if the room moved to a different episode while this
+      // player was open (the guarded version would silently drop it).
+      _sendPartyStatusUnconditional(PartyMemberStatus.inLobby);
     } catch (_) {
       // Best-effort: status send should never block disposal.
     }
@@ -408,6 +416,8 @@ class _PlayerPageState extends ConsumerState<PlayerPage>
       } else {
         _state = next;
       }
+      _updatePartyStatusFromSessionStatus(next.status);
+      _checkAndSendPartyReadyState();
     });
 
     _positionSub = orchestrator.positionStream.listen((pos) {
@@ -652,6 +662,11 @@ class _PlayerPageState extends ConsumerState<PlayerPage>
             name: 'Party',
           );
         }
+        // Detect if the host skipped an AniSkip segment (opening/ending)
+        // by checking whether the new position jumped past a known
+        // segment boundary. Show a brief toast so members understand the
+        // sudden jump.
+        _maybeShowHostSkipToast(localMs, positionMs);
         orchestrator.seekTo(Duration(milliseconds: positionMs));
       }
     }
@@ -712,6 +727,15 @@ class _PlayerPageState extends ConsumerState<PlayerPage>
             }
             return;
           }
+          // Show a toast telling the member the host changed the episode
+          // before navigating away, so they understand why they are being
+          // kicked out of the player.
+          ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+            SnackBar(
+              content: Text(context.l10n.partyHostChangedEpisode),
+              duration: const Duration(seconds: 3),
+            ),
+          );
           WidgetsBinding.instance.addPostFrameCallback((_) {
             if (!mounted) return;
             final navigator = Navigator.of(context, rootNavigator: true);
@@ -796,10 +820,79 @@ class _PlayerPageState extends ConsumerState<PlayerPage>
     _sendPartyStatus(PartyMemberStatus.inPlayer);
   }
 
+  /// Sends a party member status update, gated by the binding check.
+  ///
+  /// The guard prevents sending `watching`/`paused` for a player that is
+  /// not actually the party's current episode — avoids confusing the lobby
+  /// with stale status from an old player page.
   void _sendPartyStatus(PartyMemberStatus status) {
     final session = ref.read(partySessionProvider);
     if (!_isCurrentPlayerBoundToPartyRoom(session)) return;
     ref.read(partySessionProvider.notifier).sendStatus(status);
+  }
+
+  /// Sends a party member status update WITHOUT the binding guard.
+  ///
+  /// Used exclusively for the `inLobby` transition during dispose and
+  /// explicit exit paths. Returning to the lobby is always a valid
+  /// transition regardless of whether this player is still bound to the
+  /// room's current (anime, episode). Without this, the binding guard
+  /// silently drops the `inLobby` update when the room has moved on,
+  /// leaving the member stuck at `paused` in the lobby UI.
+  void _sendPartyStatusUnconditional(PartyMemberStatus status) {
+    final session = ref.read(partySessionProvider);
+    if (!session.isActive) return;
+    ref.read(partySessionProvider.notifier).sendStatus(status);
+  }
+
+  void _updatePartyStatusFromSessionStatus(PlayerSessionStatus status) {
+    switch (status) {
+      case PlayerSessionStatus.buffering:
+        _sendPartyStatus(PartyMemberStatus.buffering);
+        break;
+      case PlayerSessionStatus.playing:
+        _sendPartyStatus(PartyMemberStatus.watching);
+        break;
+      case PlayerSessionStatus.paused:
+        _sendPartyStatus(PartyMemberStatus.paused);
+        break;
+      case PlayerSessionStatus.opening:
+      case PlayerSessionStatus.fallbacking:
+        _sendPartyStatus(PartyMemberStatus.loading);
+        break;
+      case PlayerSessionStatus.idle:
+      case PlayerSessionStatus.error:
+        break;
+    }
+  }
+
+  void _checkAndSendPartyReadyState() {
+    final session = ref.read(partySessionProvider);
+    if (!session.isActive) return;
+    if (!_isCurrentPlayerBoundToPartyRoom(session)) return;
+
+    final awaitReady = session.playback.awaitReady;
+    if (!awaitReady) return;
+
+    final localUserId = ref.read(partySessionProvider.notifier).localUserId;
+    if (localUserId == null) return;
+
+    final isAlreadyReady = session.readyStates[localUserId] == true;
+    if (isAlreadyReady) return;
+
+    // Check if player is NOT loading/buffering/idle/error
+    final status = _state.status;
+    final isReady =
+        status != PlayerSessionStatus.buffering &&
+        status != PlayerSessionStatus.opening &&
+        status != PlayerSessionStatus.fallbacking &&
+        status != PlayerSessionStatus.idle &&
+        status != PlayerSessionStatus.error;
+
+    if (isReady) {
+      _log('player ready in awaitReady barrier; sending ready=true');
+      ref.read(partySessionProvider.notifier).toggleReady(true);
+    }
   }
 
   Future<void> _togglePartyAwarePlayPause() async {
@@ -1001,6 +1094,9 @@ class _PlayerPageState extends ConsumerState<PlayerPage>
         case PartyPlayerExitAction.backToParty:
           _isExiting = true;
           try {
+            // Explicitly transition back to lobby before navigating away
+            // so other members see the status update immediately.
+            _sendPartyStatusUnconditional(PartyMemberStatus.inLobby);
             await _flushProgressAndRefresh();
             await _updateWatchHistory();
           } finally {
@@ -1013,6 +1109,7 @@ class _PlayerPageState extends ConsumerState<PlayerPage>
         case PartyPlayerExitAction.leaveParty:
           _isExiting = true;
           try {
+            _sendPartyStatusUnconditional(PartyMemberStatus.inLobby);
             await _flushProgressAndRefresh();
             await _updateWatchHistory();
             ref.invalidate(continueWatchingProvider);
@@ -1034,6 +1131,9 @@ class _PlayerPageState extends ConsumerState<PlayerPage>
 
     _isExiting = true;
     try {
+      // Transition to lobby before tearing down the player so the party
+      // sees the member as returned rather than stuck at paused.
+      _sendPartyStatusUnconditional(PartyMemberStatus.inLobby);
       await _flushProgressAndRefresh();
       await _updateWatchHistory();
       ref.invalidate(continueWatchingProvider);
@@ -1347,6 +1447,35 @@ class _PlayerPageState extends ConsumerState<PlayerPage>
   bool _shouldAutoAdvanceAfterEnding(AniSkipSegment ending) {
     final remainingAfterEnding = _currentDuration - ending.end;
     return remainingAfterEnding < const Duration(seconds: 10);
+  }
+
+  /// Shows a brief toast when a remote (host-driven) seek jumps past a known
+  /// AniSkip segment boundary. Lets members understand why the timeline
+  /// suddenly jumped forward (e.g. host skipped the opening).
+  ///
+  /// [fromMs] is the member's position before the seek, [toMs] is the
+  /// authoritative position from the host.
+  void _maybeShowHostSkipToast(int fromMs, int toMs) {
+    if (_aniSkipSegments.isEmpty || !mounted) return;
+    for (final segment in _aniSkipSegments) {
+      final segStartMs = segment.start.inMilliseconds;
+      final segEndMs = segment.end.inMilliseconds;
+      // The host jumped from before/at the segment to past its end.
+      if (fromMs <= segStartMs + 2000 && toMs >= segEndMs - 500) {
+        final label = segment.kind == AniSkipSegmentKind.opening
+            ? context.l10n.playerHostSkippedIntro
+            : context.l10n.playerHostSkippedCredits;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(label),
+            duration: const Duration(seconds: 2),
+            behavior: SnackBarBehavior.floating,
+            width: 220,
+          ),
+        );
+        return;
+      }
+    }
   }
 
   void _maybeAutoNextFromEndingResidual(Duration position) {
@@ -1883,12 +2012,18 @@ class _PlayerPageState extends ConsumerState<PlayerPage>
     final localPartyIsHost =
         localPartyUserId != null &&
         ref.read(partySessionProvider).room?.hostId == localPartyUserId;
+    // Only lock controls when this player is actually the one bound to the
+    // party room AND the user is not the host. Without the binding check, a
+    // lingering active party session would disable controls on every player
+    // page the user opens (even outside the party flow).
     final partyMemberLocked = ref.watch(
       partySessionProvider.select((session) {
+        if (!session.isActive) return false;
         final isLocalHost =
             localPartyUserId != null &&
             session.room?.hostId == localPartyUserId;
-        return session.isActive && !isLocalHost;
+        if (isLocalHost) return false;
+        return _isCurrentPlayerBoundToPartyRoom(session);
       }),
     );
     final partyHostWaitingForReady = ref.watch(
@@ -1928,6 +2063,13 @@ class _PlayerPageState extends ConsumerState<PlayerPage>
         }
         return waiting;
       }),
+    );
+    // Whether a party session is currently active. When false the player
+    // is being used for solo playback and all party overlays must be
+    // suppressed — otherwise stale empty-state playback (generation=0,
+    // status=paused) leaks through as a spurious "Waiting for host".
+    final partyActive = ref.watch(
+      partySessionProvider.select((session) => session.isActive),
     );
 
     // ── Watch-party member lockout (Sync Prop-1) ──────────────────────────
@@ -2108,6 +2250,7 @@ class _PlayerPageState extends ConsumerState<PlayerPage>
                 allMembersInPlayer: allMembersInPlayer,
                 membersWaitingCount: membersWaitingCount,
                 isLocalHost: localPartyIsHost,
+                partyActive: partyActive,
               ),
             ),
             // Watch party overlay — only visible when a party session is active.
@@ -2721,6 +2864,7 @@ class _ImmersivePlayerView extends StatefulWidget {
     this.allMembersInPlayer = true,
     this.membersWaitingCount = 0,
     this.isLocalHost = false,
+    this.partyActive = false,
   });
 
   final PlaybackEngine? engine;
@@ -2772,6 +2916,7 @@ class _ImmersivePlayerView extends StatefulWidget {
   final bool allMembersInPlayer;
   final int membersWaitingCount;
   final bool isLocalHost;
+  final bool partyActive;
 
   @override
   State<_ImmersivePlayerView> createState() => _ImmersivePlayerViewState();
@@ -4049,6 +4194,7 @@ class _ImmersivePlayerViewState extends State<_ImmersivePlayerView>
                             onFallbackSkip: widget.onFallbackSkip,
                             showFallbackSkip: widget.showFallbackSkip,
                             controlsVisible: _controlsVisible,
+                            partyActive: widget.partyActive,
                           ),
 
                         // Bottom: Bare text action selectors
@@ -4659,6 +4805,7 @@ class _PartyCenterStatus extends StatelessWidget {
     this.onFallbackSkip,
     this.showFallbackSkip = false,
     this.controlsVisible = true,
+    this.partyActive = false,
   });
 
   final int membersWaitingCount;
@@ -4672,9 +4819,16 @@ class _PartyCenterStatus extends StatelessWidget {
   final VoidCallback? onFallbackSkip;
   final bool showFallbackSkip;
   final bool controlsVisible;
+  final bool partyActive;
 
   @override
   Widget build(BuildContext context) {
+    // When no party session is active the player is in solo mode — always
+    // show the normal play/pause + skip controls. Without this gate the
+    // empty PartyPlaybackState (status='paused', generation=0) leaks into
+    // the member branch and renders a spurious "Waiting for host" overlay.
+    if (!partyActive) return _buildCenterControls(context);
+
     final waiting = membersWaitingCount > 0;
 
     // ── Host: show waiting message if members are still in lobby ──

@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:kumoriya_app/src/features/watch_party/application/models/party_member.dart';
 import 'package:kumoriya_app/src/features/watch_party/application/realtime_state.dart';
 import 'package:kumoriya_app/src/features/watch_party/infrastructure/party_realtime_client.dart';
 
@@ -166,11 +167,34 @@ void main() {
           'basePositionMs': 9_000,
           'effectiveAtMs': 42_000,
           'generation': 11,
+          'awaitReady': true,
         },
       );
       expect(state.playback.isPlaying, false);
       expect(state.playback.basePositionMs, 9_000);
       expect(state.playback.generation, 11);
+      expect(state.playback.awaitReady, true);
+    });
+
+    test('member_status_changed updates user status to buffering', () {
+      final initial = PartyRealtimeState(
+        members: [
+          PartyMember(
+            userId: 'user-2',
+            displayName: 'Bob',
+            role: PartyRole.member,
+            joinedAt: DateTime.fromMillisecondsSinceEpoch(123),
+            status: PartyMemberStatus.watching,
+          ),
+        ],
+        memberStatuses: const {'user-2': PartyMemberStatus.watching},
+      );
+      final state = reducePartyRealtimeEvent(initial, 'member_status_changed', {
+        'userId': 'user-2',
+        'status': 'buffering',
+      });
+      expect(state.memberStatuses['user-2'], PartyMemberStatus.buffering);
+      expect(state.members.first.status, PartyMemberStatus.buffering);
     });
 
     test('host_transferred updates hostId', () {
