@@ -230,6 +230,58 @@ class PartySessionNotifier extends Notifier<PartySessionState> {
       await _connectP2P(room, isHost: true);
     } on PartyApiException catch (e) {
       _partyDebug('createRoom: API exception: $e');
+      if (e.statusCode == 409) {
+        _partyDebug(
+          'createRoom: 409 Conflict. Leaving existing room and retrying...',
+        );
+        try {
+          final api = ref.read(partyApiClientProvider);
+          await api.leaveRoom();
+          _partyDebug(
+            'createRoom: Left existing room successfully. Retrying original operation...',
+          );
+          if (kWatchPartyRealtimeV2) {
+            final bundle = await api.createRoomV2(
+              anilistId: anilistId,
+              animeTitle: animeTitle,
+              episodeNumber: episodeNumber,
+            );
+            _partyDebug(
+              'createRoom[v2] (retry): room=${bundle.room.id} exp=${bundle.session.expiresAt.toIso8601String()}',
+            );
+            state = state.copyWith(
+              status: PartySessionStatus.connecting,
+              room: bundle.room,
+            );
+            await _connectRealtime(bundle.room, bundle.session);
+            return;
+          } else {
+            final room = await api.createRoom(
+              anilistId: anilistId,
+              animeTitle: animeTitle,
+              episodeNumber: episodeNumber,
+            );
+            _partyDebug(
+              'createRoom (retry): API returned room=${room.id} hostId=${room.hostId}',
+            );
+            state = state.copyWith(
+              status: PartySessionStatus.connecting,
+              room: room,
+            );
+            await _connectP2P(room, isHost: true);
+            return;
+          }
+        } catch (retryError) {
+          _partyDebug('createRoom: retry failed: $retryError');
+          state = state.copyWith(
+            status: PartySessionStatus.error,
+            error: retryError is PartyApiException
+                ? retryError.message
+                : retryError.toString(),
+          );
+          return;
+        }
+      }
       state = state.copyWith(
         status: PartySessionStatus.error,
         error: e.message,
@@ -270,6 +322,50 @@ class PartySessionNotifier extends Notifier<PartySessionState> {
       await _connectP2P(room, isHost: false);
     } on PartyApiException catch (e) {
       _partyDebug('joinRoom: API exception: $e');
+      if (e.statusCode == 409) {
+        _partyDebug(
+          'joinRoom: 409 Conflict. Leaving existing room and retrying...',
+        );
+        try {
+          final api = ref.read(partyApiClientProvider);
+          await api.leaveRoom();
+          _partyDebug(
+            'joinRoom: Left existing room successfully. Retrying original operation...',
+          );
+          if (kWatchPartyRealtimeV2) {
+            final bundle = await api.joinRoomV2(inviteCode);
+            _partyDebug(
+              'joinRoom[v2] (retry): room=${bundle.room.id} exp=${bundle.session.expiresAt.toIso8601String()}',
+            );
+            state = state.copyWith(
+              status: PartySessionStatus.connecting,
+              room: bundle.room,
+            );
+            await _connectRealtime(bundle.room, bundle.session);
+            return;
+          } else {
+            final room = await api.joinRoom(inviteCode);
+            _partyDebug(
+              'joinRoom (retry): API returned room=${room.id} hostId=${room.hostId}',
+            );
+            state = state.copyWith(
+              status: PartySessionStatus.connecting,
+              room: room,
+            );
+            await _connectP2P(room, isHost: false);
+            return;
+          }
+        } catch (retryError) {
+          _partyDebug('joinRoom: retry failed: $retryError');
+          state = state.copyWith(
+            status: PartySessionStatus.error,
+            error: retryError is PartyApiException
+                ? retryError.message
+                : retryError.toString(),
+          );
+          return;
+        }
+      }
       state = state.copyWith(
         status: PartySessionStatus.error,
         error: e.message,
@@ -407,10 +503,23 @@ class PartySessionNotifier extends Notifier<PartySessionState> {
   }
 
   /// Request episode change (host only).
+  ///
+  /// Immediately sets the local member's status to [PartyMemberStatus.loading]
+  /// so the lobby shows the host is transitioning, closing the gap between
+  /// the media change intent and the new player mounting.
   void changeEpisode(double episodeNumber) {
+    // Optimistic local update so the host UI reflects the new episode immediately.
+    final room = state.room;
+    if (room != null) {
+      state = state.copyWith(room: room.copyWith(episodeNumber: episodeNumber));
+    }
+    // Transition own status to loading immediately so the lobby reflects
+    // the pending episode change before the new player mounts.
+    sendStatus(PartyMemberStatus.loading);
     if (kWatchPartyRealtimeV2) {
       _realtime?.sendPlaybackIntent(
         action: 'episode_change',
+        animeTitle: room?.animeTitle,
         episodeNumber: episodeNumber,
       );
       return;
@@ -444,6 +553,10 @@ class PartySessionNotifier extends Notifier<PartySessionState> {
       ),
     );
 
+    // Transition own status to loading immediately so the lobby reflects
+    // the pending media change before the new player mounts.
+    sendStatus(PartyMemberStatus.loading);
+
     if (kWatchPartyRealtimeV2) {
       // In v2 the Worker owns room state: send the intent and let the
       // broadcast of `media_changed` drive other clients. The REST PATCH
@@ -451,6 +564,7 @@ class PartySessionNotifier extends Notifier<PartySessionState> {
       _realtime?.sendPlaybackIntent(
         action: 'media_change',
         anilistId: anilistId,
+        animeTitle: animeTitle,
         episodeNumber: episodeNumber,
       );
       return;

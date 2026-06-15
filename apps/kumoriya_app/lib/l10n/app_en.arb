@@ -721,6 +721,8 @@
   "playerSubtitleStyleDescription": "Improve readability without leaving the player.",
   "playerSkipIntro": "Skip intro",
   "playerSkipCredits": "Skip credits",
+  "playerHostSkippedIntro": "Host skipped intro",
+  "playerHostSkippedCredits": "Host skipped credits",
   "clearSearch": "Clear search",
   "sourceServerLinksEmpty": "No server links available for this episode.",
   "downloadDeleteConfirmTitle": "Delete download?",
@@ -955,6 +957,7 @@
       "reason": {}
     }
   },
+  "partyHostChangedEpisode": "The host changed the episode. Returning to the lobby.",
   "partyDebugLogsTitle": "Party Debug Logs",
   "partyClose": "Close",
   "partyCopy": "Copy",
@@ -1099,6 +1102,10 @@
   "partyOpening": "Opening...",
   "partyWatchCurrentEpisode": "Watch Current Episode",
   "partyHostChoosesAnime": "Host Chooses Anime",
+  "partySearchAnime": "Search Anime",
+  "partySearchPlaceholder": "Search for an anime...",
+  "partyHostIsChoosing": "Host is choosing the next anime...",
+  "partyTrendingNow": "Trending Now",
   "partyMaybeNext": "Maybe next in the party",
   "partyChooseRoomNext": "Choose what the room should watch next.",
   "partyRoomCode": "Room code {code}",
@@ -1230,5 +1237,15 @@
     "placeholders": {"count": {"type": "int"}}
   },
   "partyHostPaused": "The host paused",
-  "partyPlaybackLaunchFailed": "Failed to start playback. Please try again."
+  "partyPlaybackLaunchFailed": "Failed to start playback. Please try again.",
+  "partyLeavingRoom": "Leaving party...",
+  "partyCurrentlyWatchingEp": "Watching Ep {number}",
+  "@partyCurrentlyWatchingEp": {
+    "placeholders": {"number": {"type": "int"}}
+  },
+  "partyPlaybackPlaying": "Playing",
+  "partyPlaybackPaused": "Paused",
+  "partyRequiresAccount": "Account Required",
+  "partyRequiresAccountDescription": "To use Watch Party you need to log in or create a Kumoriya account.",
+  "partyGoToLogin": "Log In"
 }

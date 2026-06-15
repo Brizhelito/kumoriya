@@ -721,6 +721,8 @@
   "playerSubtitleStyleDescription": "Mejora la legibilidad sin salir del reproductor.",
   "playerSkipIntro": "Saltar intro",
   "playerSkipCredits": "Saltar créditos",
+  "playerHostSkippedIntro": "El host saltó la intro",
+  "playerHostSkippedCredits": "El host saltó los créditos",
   "clearSearch": "Borrar búsqueda",
   "sourceServerLinksEmpty": "No hay enlaces de servidor disponibles para este episodio.",
   "downloadDeleteConfirmTitle": "¿Eliminar descarga?",
@@ -955,6 +957,7 @@
       "reason": {}
     }
   },
+  "partyHostChangedEpisode": "El host cambió el episodio. Regresando al lobby.",
   "partyDebugLogsTitle": "Logs Debug de la Party",
   "partyClose": "Cerrar",
   "partyCopy": "Copiar",
@@ -1099,6 +1102,10 @@
   "partyOpening": "Abriendo...",
   "partyWatchCurrentEpisode": "Ver episodio actual",
   "partyHostChoosesAnime": "El host elige el anime",
+  "partySearchAnime": "Buscar anime",
+  "partySearchPlaceholder": "Buscar un anime...",
+  "partyHostIsChoosing": "El host está eligiendo el siguiente anime...",
+  "partyTrendingNow": "Tendencias",
   "partyMaybeNext": "Tal vez siga en la party",
   "partyChooseRoomNext": "Elige qué debería ver la sala a continuación.",
   "partyRoomCode": "Código de sala {code}",
@@ -1230,5 +1237,15 @@
     "placeholders": {"count": {"type": "int"}}
   },
   "partyHostPaused": "El host pausó",
-  "partyPlaybackLaunchFailed": "Error al iniciar la reproducción. Intenta de nuevo."
+  "partyPlaybackLaunchFailed": "Error al iniciar la reproducción. Intenta de nuevo.",
+  "partyLeavingRoom": "Saliendo del party...",
+  "partyCurrentlyWatchingEp": "Viendo Ep {number}",
+  "@partyCurrentlyWatchingEp": {
+    "placeholders": {"number": {"type": "int"}}
+  },
+  "partyPlaybackPlaying": "Reproduciendo",
+  "partyPlaybackPaused": "Pausado",
+  "partyRequiresAccount": "Cuenta requerida",
+  "partyRequiresAccountDescription": "Para usar Watch Party necesitas iniciar sesión o crear una cuenta de Kumoriya.",
+  "partyGoToLogin": "Iniciar sesión"
 }

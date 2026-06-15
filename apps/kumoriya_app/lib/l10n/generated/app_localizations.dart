@@ -2533,6 +2533,18 @@ abstract class AppLocalizations {
   /// **'Skip credits'**
   String get playerSkipCredits;
 
+  /// No description provided for @playerHostSkippedIntro.
+  ///
+  /// In en, this message translates to:
+  /// **'Host skipped intro'**
+  String get playerHostSkippedIntro;
+
+  /// No description provided for @playerHostSkippedCredits.
+  ///
+  /// In en, this message translates to:
+  /// **'Host skipped credits'**
+  String get playerHostSkippedCredits;
+
   /// No description provided for @clearSearch.
   ///
   /// In en, this message translates to:
@@ -3553,6 +3565,12 @@ abstract class AppLocalizations {
   /// **'You were removed from the party: {reason}'**
   String partyRemovedWithReason(Object reason);
 
+  /// No description provided for @partyHostChangedEpisode.
+  ///
+  /// In en, this message translates to:
+  /// **'The host changed the episode. Returning to the lobby.'**
+  String get partyHostChangedEpisode;
+
   /// No description provided for @partyDebugLogsTitle.
   ///
   /// In en, this message translates to:
@@ -4003,6 +4021,30 @@ abstract class AppLocalizations {
   /// **'Host Chooses Anime'**
   String get partyHostChoosesAnime;
 
+  /// No description provided for @partySearchAnime.
+  ///
+  /// In en, this message translates to:
+  /// **'Search Anime'**
+  String get partySearchAnime;
+
+  /// No description provided for @partySearchPlaceholder.
+  ///
+  /// In en, this message translates to:
+  /// **'Search for an anime...'**
+  String get partySearchPlaceholder;
+
+  /// No description provided for @partyHostIsChoosing.
+  ///
+  /// In en, this message translates to:
+  /// **'Host is choosing the next anime...'**
+  String get partyHostIsChoosing;
+
+  /// No description provided for @partyTrendingNow.
+  ///
+  /// In en, this message translates to:
+  /// **'Trending Now'**
+  String get partyTrendingNow;
+
   /// No description provided for @partyMaybeNext.
   ///
   /// In en, this message translates to:
@@ -4332,6 +4374,48 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Failed to start playback. Please try again.'**
   String get partyPlaybackLaunchFailed;
+
+  /// No description provided for @partyLeavingRoom.
+  ///
+  /// In en, this message translates to:
+  /// **'Leaving party...'**
+  String get partyLeavingRoom;
+
+  /// No description provided for @partyCurrentlyWatchingEp.
+  ///
+  /// In en, this message translates to:
+  /// **'Watching Ep {number}'**
+  String partyCurrentlyWatchingEp(int number);
+
+  /// No description provided for @partyPlaybackPlaying.
+  ///
+  /// In en, this message translates to:
+  /// **'Playing'**
+  String get partyPlaybackPlaying;
+
+  /// No description provided for @partyPlaybackPaused.
+  ///
+  /// In en, this message translates to:
+  /// **'Paused'**
+  String get partyPlaybackPaused;
+
+  /// No description provided for @partyRequiresAccount.
+  ///
+  /// In en, this message translates to:
+  /// **'Account Required'**
+  String get partyRequiresAccount;
+
+  /// No description provided for @partyRequiresAccountDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'To use Watch Party you need to log in or create a Kumoriya account.'**
+  String get partyRequiresAccountDescription;
+
+  /// No description provided for @partyGoToLogin.
+  ///
+  /// In en, this message translates to:
+  /// **'Log In'**
+  String get partyGoToLogin;
 }
 
 class _AppLocalizationsDelegate

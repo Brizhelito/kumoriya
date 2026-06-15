@@ -8,15 +8,18 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kumoriya_core/kumoriya_core.dart';
 import 'package:kumoriya_domain/kumoriya_domain.dart';
 import 'package:kumoriya_plugins/kumoriya_plugins.dart';
+import 'package:kumoriya_auth/kumoriya_auth.dart';
 import 'package:kumoriya_storage/kumoriya_storage.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../../../../app/l10n.dart';
+import '../../../../shared/auth/auth_providers.dart';
 import '../../../../shared/storage_providers.dart';
 import '../../../../shared/theme/kumoriya_theme.dart';
 import '../../../../shared/widgets/kumoriya_cached_image.dart';
 import '../../../../shared/widgets/party_exit_dialog.dart';
 import '../../../../shared/widgets/state_views.dart';
+import '../../../auth/presentation/pages/login_page.dart';
 import '../../../anime_catalog/application/models/resolved_server_link_result.dart';
 import '../../../anime_catalog/application/models/source_availability.dart';
 import '../../../anime_catalog/presentation/providers/anime_catalog_providers.dart';
@@ -45,6 +48,7 @@ class _PartyAnimePageState extends ConsumerState<PartyAnimePage> {
   final _inviteController = TextEditingController();
   bool _isLaunching = false;
   bool _navCallbackSet = false;
+  bool _showAnimeSearch = false;
   PartySessionNotifier? _partyNotifier;
 
   @override
@@ -55,6 +59,12 @@ class _PartyAnimePageState extends ConsumerState<PartyAnimePage> {
     notifier.onMediaChangeNavigation =
         (int anilistId, String animeTitle, double episodeNumber) {
           if (!mounted) return;
+          // When the anime stays the same and only the episode changes,
+          // the lobby already reacts via ref.watch(partySessionProvider)
+          // — skip the disruptive pop+push navigation.
+          // Compare against widget.anilistId (fixed at construction) since
+          // session state has already been updated when this callback fires.
+          if (widget.anilistId != null && widget.anilistId == anilistId) return;
           WidgetsBinding.instance.addPostFrameCallback((_) {
             if (!mounted) return;
             final navigator = Navigator.of(context, rootNavigator: true);
@@ -210,8 +220,25 @@ class _PartyAnimePageState extends ConsumerState<PartyAnimePage> {
     );
   }
 
-  void _leaveParty(BuildContext context) {
-    ref.read(partySessionProvider.notifier).leaveRoom();
+  /// Leave the party from the lobby AppBar exit button.
+  ///
+  /// Shows a confirmation dialog first. On confirm, displays a brief loading
+  /// overlay while [leaveRoom] completes, then pops to the root route.
+  Future<void> _leaveParty(BuildContext context) async {
+    final action = await showPartyExitDialog(context);
+    if (action != PartyExitAction.leave || !mounted) return;
+    showBlockingLoader(context, context.l10n.partyLeavingRoom);
+    try {
+      await ref.read(partySessionProvider.notifier).leaveRoom();
+    } finally {
+      if (mounted) {
+        hideBlockingLoader(context);
+        Navigator.of(
+          context,
+          rootNavigator: true,
+        ).popUntil((route) => route.isFirst);
+      }
+    }
   }
 
   Future<void> _showDebugLogs(BuildContext context) async {
@@ -250,6 +277,16 @@ class _PartyAnimePageState extends ConsumerState<PartyAnimePage> {
   }
 
   Widget _buildBody(PartySessionState session, int anilistId) {
+    final auth = ref.watch(authStateProvider);
+    if (auth.isLoading || auth.value == null) {
+      return _PartyPageShell(
+        child: LoadingStateView(label: context.l10n.loadingGeneric),
+      );
+    }
+    if (auth.value is! AuthenticatedAuthState) {
+      return const _PartyPageShell(child: _UnauthenticatedView());
+    }
+
     if (session.status == PartySessionStatus.idle) {
       if (anilistId == 0) {
         return _PartyPageShell(
@@ -322,6 +359,8 @@ class _PartyAnimePageState extends ConsumerState<PartyAnimePage> {
             availabilityState: availabilityState,
             session: session,
             isLaunching: _isLaunching,
+            showAnimeSearch: _showAnimeSearch,
+            onCloseAnimeSearch: () => setState(() => _showAnimeSearch = false),
             onOpenEpisodes: () => _openEpisodes(detail),
             onStartWatching: () => _startWatching(detail),
             onChangeAnime: () => _changeAnime(context, ref),
@@ -515,60 +554,28 @@ class _PartyAnimePageState extends ConsumerState<PartyAnimePage> {
       );
       return;
     }
-    // Navigate to PartyAnimePage to pick a different anime
-    final session = ref.read(partySessionProvider);
-    final room = session.room;
-    if (!mounted || room == null) return;
-    Navigator.of(context, rootNavigator: true).push(
-      MaterialPageRoute<void>(
-        builder: (_) => PartyAnimePage(anilistId: room.anilistId),
-      ),
-    );
+    // Toggle the inline search section instead of navigating away.
+    setState(() => _showAnimeSearch = !_showAnimeSearch);
   }
 
-  Future<void> _changeEpisode(BuildContext context, WidgetRef ref) async {
+  /// Opens the full episode list page so the host can pick an episode
+  /// visually instead of typing a number. The episode list page handles
+  /// `changeMedia()` internally when the host selects a different episode.
+  void _changeEpisode(BuildContext context, WidgetRef ref) {
     final notifier = ref.read(partySessionProvider.notifier);
     if (!notifier.isLocalHost) return;
-    // Simple dialog to pick episode
     final session = ref.read(partySessionProvider);
     final room = session.room;
     if (room == null) return;
-    final episodeController = TextEditingController(
-      text: room.episodeNumber.toInt().toString(),
-    );
-    final result = await showDialog<int>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(context.l10n.partyChangeEpisodeTitle),
-        content: TextField(
-          controller: episodeController,
-          keyboardType: TextInputType.number,
-          decoration: InputDecoration(
-            labelText: context.l10n.partyEpisodeNumberLabel,
-          ),
+    Navigator.of(context, rootNavigator: true).push(
+      MaterialPageRoute<void>(
+        builder: (_) => PartyEpisodeListPage(
+          anilistId: room.anilistId,
+          animeTitle: room.animeTitle,
+          focusedEpisodeNumber: room.episodeNumber,
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(),
-            child: Text(context.l10n.partyClose),
-          ),
-          FilledButton(
-            onPressed: () {
-              final ep = int.tryParse(episodeController.text);
-              if (ep != null) Navigator.of(ctx).pop(ep);
-            },
-            child: Text(context.l10n.partyApply),
-          ),
-        ],
       ),
     );
-    if (result != null && mounted) {
-      await notifier.changeMedia(
-        anilistId: room.anilistId,
-        animeTitle: room.animeTitle,
-        episodeNumber: result.toDouble(),
-      );
-    }
   }
 
   Future<void> _shareInviteLink(BuildContext context, PartyRoom room) async {
@@ -738,6 +745,59 @@ class _ErrorView extends StatelessWidget {
   }
 }
 
+// ── Unauthenticated ──
+
+class _UnauthenticatedView extends StatelessWidget {
+  const _UnauthenticatedView();
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(
+              Icons.lock_outline,
+              size: 56,
+              color: KumoriyaColors.primary,
+            ),
+            const SizedBox(height: 16),
+            Text(
+              context.l10n.partyRequiresAccount,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: KumoriyaColors.textPrimary,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              context.l10n.partyRequiresAccountDescription,
+              textAlign: TextAlign.center,
+              style: const TextStyle(color: KumoriyaColors.textSecondary),
+            ),
+            const SizedBox(height: 24),
+            FilledButton(
+              onPressed: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute<void>(builder: (_) => const LoginPage()),
+                );
+              },
+              style: FilledButton.styleFrom(
+                backgroundColor: KumoriyaColors.primary,
+              ),
+              child: Text(context.l10n.partyGoToLogin),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 // ── Shell ──
 
 class _PartyPageShell extends StatelessWidget {
@@ -772,6 +832,8 @@ class _PartyAnimeContent extends ConsumerWidget {
     required this.availabilityState,
     required this.session,
     required this.isLaunching,
+    required this.showAnimeSearch,
+    required this.onCloseAnimeSearch,
     required this.onOpenEpisodes,
     required this.onStartWatching,
     required this.onChangeAnime,
@@ -784,6 +846,8 @@ class _PartyAnimeContent extends ConsumerWidget {
   availabilityState;
   final PartySessionState session;
   final bool isLaunching;
+  final bool showAnimeSearch;
+  final VoidCallback onCloseAnimeSearch;
   final VoidCallback onOpenEpisodes;
   final VoidCallback onStartWatching;
   final VoidCallback onChangeAnime;
@@ -817,6 +881,7 @@ class _PartyAnimeContent extends ConsumerWidget {
                   detail: detail,
                   memberCount: memberCount,
                   currentEpisode: room?.episodeNumber,
+                  isPlaying: session.playback.isPlaying,
                 ),
                 const SizedBox(height: 16),
                 if (room != null)
@@ -831,6 +896,16 @@ class _PartyAnimeContent extends ConsumerWidget {
                     onChangeEpisode: onChangeEpisode,
                   ),
                 if (room != null && isHost) const SizedBox(height: 16),
+                if (showAnimeSearch && isHost && room != null)
+                  _PartyAnimeSearchSection(
+                    currentAnilistId: room.anilistId,
+                    onClose: onCloseAnimeSearch,
+                  ),
+                if (showAnimeSearch && isHost && room != null)
+                  const SizedBox(height: 16),
+                // Members see a waiting indicator when host is searching.
+                if (showAnimeSearch && !isHost && room != null)
+                  _PartyWaitingForHostBanner(),
                 _PartySourceStrip(summary: summary),
                 const SizedBox(height: 16),
                 Row(
@@ -939,11 +1014,13 @@ class _PartyHeroCard extends StatelessWidget {
     required this.detail,
     required this.memberCount,
     required this.currentEpisode,
+    required this.isPlaying,
   });
 
   final AnimeDetail detail;
   final int memberCount;
   final double? currentEpisode;
+  final bool isPlaying;
 
   @override
   Widget build(BuildContext context) {
@@ -994,9 +1071,16 @@ class _PartyHeroCard extends StatelessWidget {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: <Widget>[
-                    _PartyStatPill(
-                      icon: Icons.group_rounded,
-                      label: context.l10n.partyInRoomCount(memberCount),
+                    Row(
+                      children: [
+                        _PartyStatPill(
+                          icon: Icons.group_rounded,
+                          label: context.l10n.partyInRoomCount(memberCount),
+                        ),
+                        const SizedBox(width: 8),
+                        // Live playback state indicator.
+                        _PlaybackStatePill(isPlaying: isPlaying),
+                      ],
                     ),
                     Column(
                       mainAxisSize: MainAxisSize.min,
@@ -1148,64 +1232,7 @@ class _PartyMembersStrip extends StatelessWidget {
               final member = members[index];
               final status = memberStatuses[member.userId] ?? member.status;
               final isYou = member.userId == currentUserId;
-              return Container(
-                width: 116,
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF111A24),
-                  borderRadius: BorderRadius.circular(KumoriyaRadius.xl),
-                  border: Border.all(
-                    color: status == PartyMemberStatus.watching
-                        ? KumoriyaColors.statusSuccess.withValues(alpha: 0.5)
-                        : KumoriyaColors.borderSubtle,
-                  ),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: <Widget>[
-                    Row(
-                      children: <Widget>[
-                        CircleAvatar(
-                          radius: 12,
-                          backgroundColor: KumoriyaColors.primaryContainer,
-                          child: Text(
-                            member.displayName.isEmpty
-                                ? context.l10n.partyAvatarFallback
-                                : member.displayName
-                                      .substring(0, 1)
-                                      .toUpperCase(),
-                            style: const TextStyle(
-                              color: KumoriyaColors.textPrimary,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                        ),
-                        const Spacer(),
-                        Text(
-                          status.label,
-                          style: TextStyle(
-                            color: _statusColor(status),
-                            fontSize: 9,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const Spacer(),
-                    Text(
-                      isYou
-                          ? '${member.displayName} · ${context.l10n.partyYouSuffix}'
-                          : member.displayName,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: KumoriyaColors.textPrimary,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ],
-                ),
-              );
+              return _MemberTile(member: member, status: status, isYou: isYou);
             },
           ),
         ),
@@ -1222,6 +1249,190 @@ Color _statusColor(PartyMemberStatus status) {
     PartyMemberStatus.paused => Colors.amber,
     PartyMemberStatus.inLobby => KumoriyaColors.textMuted,
   };
+}
+
+// ── Animated member tile ──
+
+/// Individual member tile with animated border transitions.
+///
+/// The border color smoothly interpolates when a member's status changes
+/// (e.g. from `inLobby` to `watching`), giving the lobby a sense of
+/// liveness without being distracting.
+class _MemberTile extends StatelessWidget {
+  const _MemberTile({
+    required this.member,
+    required this.status,
+    required this.isYou,
+  });
+
+  final PartyMember member;
+  final PartyMemberStatus status;
+  final bool isYou;
+
+  @override
+  Widget build(BuildContext context) {
+    final borderColor = status == PartyMemberStatus.watching
+        ? KumoriyaColors.statusSuccess.withValues(alpha: 0.5)
+        : status == PartyMemberStatus.loading
+        ? Colors.orange.withValues(alpha: 0.4)
+        : KumoriyaColors.borderSubtle;
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeOut,
+      width: 116,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: const Color(0xFF111A24),
+        borderRadius: BorderRadius.circular(KumoriyaRadius.xl),
+        border: Border.all(color: borderColor),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Row(
+            children: <Widget>[
+              CircleAvatar(
+                radius: 12,
+                backgroundColor: KumoriyaColors.primaryContainer,
+                child: Text(
+                  member.displayName.isEmpty
+                      ? context.l10n.partyAvatarFallback
+                      : member.displayName.substring(0, 1).toUpperCase(),
+                  style: const TextStyle(
+                    color: KumoriyaColors.textPrimary,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+              const Spacer(),
+              Text(
+                status.label,
+                style: TextStyle(
+                  color: _statusColor(status),
+                  fontSize: 9,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
+          ),
+          const Spacer(),
+          Text(
+            isYou
+                ? '${member.displayName} · ${context.l10n.partyYouSuffix}'
+                : member.displayName,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              color: KumoriyaColors.textPrimary,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Playback state pill (hero card) ──
+
+/// Small pill showing the room's live playback state (playing / paused).
+///
+/// Uses a pulsing green dot when playing and a static amber dot when
+/// paused, giving the lobby an at-a-glance indicator of whether content
+/// is actively streaming.
+class _PlaybackStatePill extends StatelessWidget {
+  const _PlaybackStatePill({required this.isPlaying});
+
+  final bool isPlaying;
+
+  @override
+  Widget build(BuildContext context) {
+    final dotColor = isPlaying ? KumoriyaColors.statusSuccess : Colors.amber;
+    final label = isPlaying
+        ? context.l10n.partyPlaybackPlaying
+        : context.l10n.partyPlaybackPaused;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: 0.26),
+        borderRadius: BorderRadius.circular(KumoriyaRadius.full),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.10)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 8,
+            height: 8,
+            decoration: BoxDecoration(
+              color: dotColor,
+              shape: BoxShape.circle,
+              boxShadow: [
+                BoxShadow(
+                  color: dotColor.withValues(alpha: 0.6),
+                  blurRadius: isPlaying ? 6 : 0,
+                  spreadRadius: isPlaying ? 1 : 0,
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 6),
+          Text(
+            label,
+            style: Theme.of(context).textTheme.labelSmall?.copyWith(
+              color: Colors.white,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Waiting for host banner ──
+
+/// Shown to non-host members when the host is in anime-search mode.
+///
+/// Gives members context that the host is actively choosing the next
+/// anime, so they understand why nothing is happening.
+class _PartyWaitingForHostBanner extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        decoration: BoxDecoration(
+          color: KumoriyaColors.primary.withValues(alpha: 0.12),
+          borderRadius: BorderRadius.circular(KumoriyaRadius.lg),
+          border: Border.all(
+            color: KumoriyaColors.primary.withValues(alpha: 0.3),
+          ),
+        ),
+        child: Row(
+          children: [
+            const SizedBox(
+              width: 16,
+              height: 16,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                context.l10n.partyHostIsChoosing,
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: KumoriyaColors.textPrimary,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }
 
 // ── Relation card ──
@@ -1469,6 +1680,359 @@ class _PartyInfoChip extends StatelessWidget {
           color: Colors.white,
           fontWeight: FontWeight.w600,
         ),
+      ),
+    );
+  }
+}
+
+// ── Inline anime search section (host only) ──
+
+/// Expandable search section rendered inline in the party lobby.
+///
+/// The host types a query, sees live results from the AniList catalog,
+/// and taps an anime to confirm a `changeMedia` for the whole room.
+/// Uses the existing [searchCatalogProvider] for queries and
+/// [browseAnimeCatalogProvider] for trending suggestions when the
+/// search box is empty.
+class _PartyAnimeSearchSection extends ConsumerStatefulWidget {
+  const _PartyAnimeSearchSection({
+    required this.currentAnilistId,
+    required this.onClose,
+  });
+
+  final int currentAnilistId;
+  final VoidCallback onClose;
+
+  @override
+  ConsumerState<_PartyAnimeSearchSection> createState() =>
+      _PartyAnimeSearchSectionState();
+}
+
+class _PartyAnimeSearchSectionState
+    extends ConsumerState<_PartyAnimeSearchSection> {
+  final _searchController = TextEditingController();
+  final _focusNode = FocusNode();
+  Timer? _debounce;
+  String _activeQuery = '';
+
+  @override
+  void dispose() {
+    _debounce?.cancel();
+    _searchController.dispose();
+    _focusNode.dispose();
+    super.dispose();
+  }
+
+  void _onQueryChanged(String value) {
+    _debounce?.cancel();
+    _debounce = Timer(const Duration(milliseconds: 350), () {
+      if (!mounted) return;
+      setState(() => _activeQuery = value.trim());
+    });
+  }
+
+  Future<void> _selectAnime(
+    BuildContext context,
+    WidgetRef ref,
+    Anime anime,
+  ) async {
+    if (anime.anilistId == widget.currentAnilistId) return;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: KumoriyaColors.surface,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(KumoriyaRadius.xl),
+        ),
+        title: Text(
+          context.l10n.partyChangeAnimeTitle,
+          style: TextStyle(color: KumoriyaColors.textPrimary),
+        ),
+        content: Text(
+          context.l10n.partyChangeAnimeBody(anime.title.romaji),
+          style: TextStyle(color: KumoriyaColors.textSecondary, height: 1.4),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: Text(
+              context.l10n.cancelAction,
+              style: TextStyle(color: KumoriyaColors.textSecondary),
+            ),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: KumoriyaColors.primary,
+            ),
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: Text(context.l10n.partySwitch),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    final notifier = ref.read(partySessionProvider.notifier);
+    await notifier.changeMedia(
+      anilistId: anime.anilistId,
+      animeTitle: anime.title.romaji,
+      episodeNumber: 1.0,
+    );
+    widget.onClose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: KumoriyaColors.surface,
+        borderRadius: BorderRadius.circular(KumoriyaRadius.xl),
+        border: Border.all(
+          color: KumoriyaColors.primary.withValues(alpha: 0.4),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header row
+          Row(
+            children: [
+              Icon(Icons.search, color: KumoriyaColors.primary, size: 20),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  context.l10n.partySearchAnime,
+                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                    color: KumoriyaColors.textPrimary,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+              IconButton(
+                icon: Icon(
+                  Icons.close,
+                  color: KumoriyaColors.textMuted,
+                  size: 20,
+                ),
+                onPressed: widget.onClose,
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          // Search input
+          TextField(
+            controller: _searchController,
+            focusNode: _focusNode,
+            onChanged: _onQueryChanged,
+            decoration: InputDecoration(
+              hintText: context.l10n.partySearchPlaceholder,
+              filled: true,
+              fillColor: KumoriyaColors.background,
+              prefixIcon: Icon(
+                Icons.search,
+                color: KumoriyaColors.textMuted,
+                size: 20,
+              ),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(10),
+                borderSide: BorderSide.none,
+              ),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 14,
+                vertical: 12,
+              ),
+              isDense: true,
+            ),
+            style: TextStyle(color: KumoriyaColors.textPrimary, fontSize: 14),
+          ),
+          const SizedBox(height: 12),
+          // Results or trending
+          if (_activeQuery.isNotEmpty)
+            _SearchResultsList(
+              query: _activeQuery,
+              onSelect: (anime) => _selectAnime(context, ref, anime),
+            )
+          else
+            _TrendingAnimeList(
+              onSelect: (anime) => _selectAnime(context, ref, anime),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Compact search results list driven by [searchCatalogProvider].
+class _SearchResultsList extends ConsumerWidget {
+  const _SearchResultsList({required this.query, required this.onSelect});
+
+  final String query;
+  final ValueChanged<Anime> onSelect;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final state = ref.watch(searchCatalogProvider(query));
+    return state.when(
+      loading: () => const Padding(
+        padding: EdgeInsets.symmetric(vertical: 24),
+        child: Center(
+          child: SizedBox(
+            width: 20,
+            height: 20,
+            child: CircularProgressIndicator(strokeWidth: 2),
+          ),
+        ),
+      ),
+      error: (_, __) => Padding(
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        child: Text(
+          context.l10n.partyCouldNotLoadAnime,
+          style: TextStyle(color: KumoriyaColors.textMuted, fontSize: 12),
+        ),
+      ),
+      data: (result) {
+        final anime = result.fold(
+          onFailure: (_) => <Anime>[],
+          onSuccess: (list) => list,
+        );
+        if (anime.isEmpty) {
+          return Padding(
+            padding: const EdgeInsets.symmetric(vertical: 12),
+            child: Text(
+              context.l10n.partyNeedPlayableSource,
+              style: TextStyle(color: KumoriyaColors.textMuted, fontSize: 12),
+            ),
+          );
+        }
+        return _AnimeCompactList(items: anime, onSelect: onSelect);
+      },
+    );
+  }
+}
+
+/// Compact trending anime list driven by [browseAnimeCatalogProvider].
+class _TrendingAnimeList extends ConsumerWidget {
+  const _TrendingAnimeList({required this.onSelect});
+
+  final ValueChanged<Anime> onSelect;
+
+  static const _trendingRequest = AnimeBrowseRequest(
+    sort: AnimeSortType.trending,
+    perPage: 12,
+  );
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final state = ref.watch(browseAnimeCatalogProvider(_trendingRequest));
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          context.l10n.partyTrendingNow,
+          style: Theme.of(context).textTheme.labelMedium?.copyWith(
+            color: KumoriyaColors.textSecondary,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        const SizedBox(height: 8),
+        state.when(
+          loading: () => const Padding(
+            padding: EdgeInsets.symmetric(vertical: 24),
+            child: Center(
+              child: SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+            ),
+          ),
+          error: (_, __) => const SizedBox.shrink(),
+          data: (result) {
+            final anime = result.fold(
+              onFailure: (_) => <Anime>[],
+              onSuccess: (list) => list,
+            );
+            return _AnimeCompactList(items: anime, onSelect: onSelect);
+          },
+        ),
+      ],
+    );
+  }
+}
+
+/// Compact vertical list of anime tiles used inside the search section.
+class _AnimeCompactList extends StatelessWidget {
+  const _AnimeCompactList({required this.items, required this.onSelect});
+
+  final List<Anime> items;
+  final ValueChanged<Anime> onSelect;
+
+  @override
+  Widget build(BuildContext context) {
+    return ConstrainedBox(
+      constraints: const BoxConstraints(maxHeight: 260),
+      child: ListView.separated(
+        shrinkWrap: true,
+        itemCount: items.length,
+        separatorBuilder: (_, __) =>
+            const Divider(height: 1, color: KumoriyaColors.borderSubtle),
+        itemBuilder: (context, index) {
+          final anime = items[index];
+          return InkWell(
+            borderRadius: BorderRadius.circular(8),
+            onTap: () => onSelect(anime),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+              child: Row(
+                children: [
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(6),
+                    child: KumoriyaCachedImage(
+                      url: anime.coverImageUrl,
+                      bucket: KumoriyaImageCacheBucket.artwork,
+                      width: 40,
+                      height: 56,
+                      fit: BoxFit.cover,
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          anime.title.romaji,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: KumoriyaColors.textPrimary,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        if (anime.releaseYear != null)
+                          Text(
+                            '${anime.format.name} \u00b7 ${anime.releaseYear}',
+                            style: TextStyle(
+                              color: KumoriyaColors.textMuted,
+                              fontSize: 11,
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                  Icon(
+                    Icons.chevron_right,
+                    color: KumoriyaColors.textMuted,
+                    size: 18,
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
       ),
     );
   }

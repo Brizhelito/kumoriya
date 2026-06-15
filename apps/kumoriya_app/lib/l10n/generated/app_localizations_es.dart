@@ -1462,6 +1462,12 @@ class AppLocalizationsEs extends AppLocalizations {
   String get playerSkipCredits => 'Saltar créditos';
 
   @override
+  String get playerHostSkippedIntro => 'El host saltó la intro';
+
+  @override
+  String get playerHostSkippedCredits => 'El host saltó los créditos';
+
+  @override
   String get clearSearch => 'Borrar búsqueda';
 
   @override
@@ -2005,6 +2011,10 @@ class AppLocalizationsEs extends AppLocalizations {
   }
 
   @override
+  String get partyHostChangedEpisode =>
+      'El host cambió el episodio. Regresando al lobby.';
+
+  @override
   String get partyDebugLogsTitle => 'Logs Debug de la Party';
 
   @override
@@ -2267,6 +2277,19 @@ class AppLocalizationsEs extends AppLocalizations {
   String get partyHostChoosesAnime => 'El host elige el anime';
 
   @override
+  String get partySearchAnime => 'Buscar anime';
+
+  @override
+  String get partySearchPlaceholder => 'Buscar un anime...';
+
+  @override
+  String get partyHostIsChoosing =>
+      'El host está eligiendo el siguiente anime...';
+
+  @override
+  String get partyTrendingNow => 'Tendencias';
+
+  @override
   String get partyMaybeNext => 'Tal vez siga en la party';
 
   @override
@@ -2469,4 +2492,28 @@ class AppLocalizationsEs extends AppLocalizations {
   @override
   String get partyPlaybackLaunchFailed =>
       'Error al iniciar la reproducción. Intenta de nuevo.';
+
+  @override
+  String get partyLeavingRoom => 'Saliendo del party...';
+
+  @override
+  String partyCurrentlyWatchingEp(int number) {
+    return 'Viendo Ep $number';
+  }
+
+  @override
+  String get partyPlaybackPlaying => 'Reproduciendo';
+
+  @override
+  String get partyPlaybackPaused => 'Pausado';
+
+  @override
+  String get partyRequiresAccount => 'Cuenta requerida';
+
+  @override
+  String get partyRequiresAccountDescription =>
+      'Para usar Watch Party necesitas iniciar sesión o crear una cuenta de Kumoriya.';
+
+  @override
+  String get partyGoToLogin => 'Iniciar sesión';
 }
