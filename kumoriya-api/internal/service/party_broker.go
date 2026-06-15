@@ -136,6 +136,12 @@ func (c *PartyBrokerClient) LeaveRoom(ctx context.Context, roomID, userID string
 	return c.do(ctx, http.MethodPost, path, body, nil)
 }
 
+// ForceLeave forces a user out of their current room (recovery mechanism).
+func (c *PartyBrokerClient) ForceLeave(ctx context.Context, userID string) error {
+	path := "/internal/v1/users/" + userID + "/force-leave"
+	return c.do(ctx, http.MethodPost, path, nil, nil)
+}
+
 // VerifyMember reports whether a user is still a member (or within grace).
 func (c *PartyBrokerClient) VerifyMember(ctx context.Context, roomID, userID string) (bool, error) {
 	body := brokerMemberVerifyRequest{UserID: userID}

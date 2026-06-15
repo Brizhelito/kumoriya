@@ -211,15 +211,20 @@ func (h *PartyHandler) LeaveRoom(c fiber.Ctx) error {
 	}
 
 	if h.realtimeV2 {
-		// Best-effort: we do not know the roomId from here. The Flutter client
-		// is expected to send the roomId explicitly via a query param; fall
-		// back to "nothing to do" otherwise.
+		// If the Flutter client doesn't know its roomId (e.g. recovering from a ghost session),
+		// we use the force-leave recovery endpoint.
 		roomID := c.Query("roomId")
-		if roomID == "" {
-			return c.JSON(fiber.Map{"ok": true})
-		}
+		
 		ctx, cancel := context.WithTimeout(c.Context(), brokerCallTimeout)
 		defer cancel()
+		
+		if roomID == "" {
+			if err := h.broker.ForceLeave(ctx, userID.String()); err != nil {
+				log.Warn().Err(err).Str("user", userID.String()).Msg("broker force leave failed")
+			}
+			return c.JSON(fiber.Map{"ok": true})
+		}
+
 		if err := h.broker.LeaveRoom(ctx, roomID, userID.String()); err != nil {
 			log.Warn().Err(err).Str("room", roomID).Msg("broker leave failed")
 		}
