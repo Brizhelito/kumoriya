@@ -179,7 +179,7 @@ Future<void> _initFirebase() async {
 /// in place. Failures are swallowed so notifications stay optional.
 Future<void> _initFcm(ProviderContainer container) async {
   try {
-    await container.read(fcmServiceProvider).initialize();
+    await (container.read(fcmServiceProvider) as FcmService).initialize();
   } catch (err, st) {
     debugPrint('[Startup] FCM init failed: $err');
     unawaited(Sentry.captureException(err, stackTrace: st));

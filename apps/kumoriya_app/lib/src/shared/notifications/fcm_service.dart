@@ -36,6 +36,18 @@ Future<void> kumoriyaFcmBackgroundHandler(RemoteMessage message) async {
   }
 }
 
+/// No-op implementation for platforms where Firebase is not available
+/// (Windows, Linux, macOS, web). Avoids constructing [FcmService] which
+/// eagerly accesses [FirebaseMessaging.instance] and would throw
+/// `[core/no-app]` if `Firebase.initializeApp()` was never called.
+class NoopFcmTopicSubscriber implements FcmTopicSubscriber {
+  @override
+  Future<void> subscribeToMedia(int anilistId) async {}
+
+  @override
+  Future<void> unsubscribeFromMedia(int anilistId) async {}
+}
+
 /// Thin wrapper around `FirebaseMessaging` that exposes only what the
 /// app actually uses. Keeps direct Firebase imports out of widget code
 /// so the domain can be unit-tested without a live Firebase runtime.
