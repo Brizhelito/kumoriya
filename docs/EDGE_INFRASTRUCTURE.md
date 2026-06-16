@@ -88,29 +88,40 @@ Each room is a **single-threaded Durable Object** instance that is the **authori
 interface RoomState {
   roomId: string;
   inviteCode: string;
-  hostUserId: string;
-  members: Map<string, Member>;
-  playback: PlaybackState;
+  hostId: string;
+  members: Member[];
+  readyStates: Record<string, ReadyState>;
   media: MediaState;
+  playback: PlaybackState;
+  roomVersion: number;
   createdAt: number;
+  lastActivityAt: number;
 }
 
 interface Member {
   userId: string;
   name: string;
-  role: 'host' | 'member';
-  joinedAt: number;
-  lastHeartbeat: number;
-  readyPersisted: boolean;    // User explicitly marked ready
-  effectiveReady: boolean;    // Computed: readyPersisted && present
-  wsConnection: WebSocket;
+  presence: 'connected' | 'disconnected';
+  readyPersisted: boolean;     // Persisted during grace period
+  effectiveReady: boolean;     // readyPersisted AND connected
+  status: MemberStatus;        // Current member activity (watching, buffering, lobby, etc.)
+  joinedAtMs: number;
+  lastHeartbeatMs: number;
+}
+
+type MemberStatus = 'in_lobby' | 'loading' | 'in_player' | 'watching' | 'paused' | 'buffering';
+
+interface ReadyState {
+  readyPersisted: boolean;
+  effectiveReady: boolean;
 }
 
 interface PlaybackState {
-  isPlaying: boolean;
-  position: number;           // Seconds
-  updatedAt: number;          // Timestamp
-  updatedBy: string;          // userId
+  status: 'playing' | 'paused';
+  basePositionMs: number;
+  effectiveAtMs: number;
+  generation: number;
+  awaitReady?: boolean;        // When true, clients wait until everyone is ready before auto-resuming
 }
 
 interface MediaState {
@@ -137,10 +148,12 @@ When a member disconnects, they enter a **grace period** instead of being immedi
 
 Token-bucket rate limiting per user per message type:
 
-| Message Type | Capacity | Refill Rate | Window |
+| Message Type | Capacity | Refill Rate | Description / Window |
 |:---|:---|:---|:---|
-| Reactions | 8 | 0.8/sec | ~10 seconds |
-| Playback Intents | 3 | 0.3/sec | ~10 seconds |
+| Reactions | 8 | 0.8/sec | ~10 seconds (emotes) |
+| Playback Intents | 6 | 0.6/sec | ~10 seconds (throttled to prevent thrashing) |
+| WebRTC Signals | 30 | 5.0/sec | ~6 seconds (chatty during ICE negotiation) |
+| Voice State | 10 | 1.0/sec | ~10 seconds (PTT state changes) |
 
 ### Heartbeat Auto-Response
 
@@ -197,42 +210,64 @@ All messages are JSON with a `type` discriminator:
 
 ```typescript
 interface WSEnvelope {
-  type: string;       // Message type discriminator
-  id?: string;        // Optional message ID for ACK tracking
-  payload?: unknown;  // Type-specific payload
-  timestamp?: number; // Client timestamp
+  type: string;          // Message type (event name)
+  roomId?: string;       // Room identifier
+  eventId?: string;      // Unique event identifier
+  roomVersion?: number;  // Room version for optimistic updates
+  sentAt: number;        // Server timestamp
+  sender?: string;       // userId of sender
+  payload: unknown;      // Message-specific payload
+  messageId?: string;    // Client-provided for correlation
 }
 ```
 
 ### Message Types
 
-| Type | Direction | Purpose |
+#### Client → Server Messages
+
+| Type | Payload Type | Purpose |
 |:---|:---|:---|
-| `playback_intent` | Client → Server | User wants to play/pause/seek |
-| `playback_state` | Server → Client | Authoritative playback state broadcast |
-| `media_change` | Host → Server | Host changes anime/episode |
-| `media_state` | Server → Client | Current media info broadcast |
-| `ready` | Client → Server | User marks ready to start |
-| `ready_state` | Server → Client | Ready state broadcast |
-| `reaction` | Client → Server | User sends reaction emoji |
-| `reaction_broadcast` | Server → Client | Reaction forwarded to room |
-| `member_join` | Server → Client | New member joined |
-| `member_leave` | Server → Client | Member left |
-| `host_change` | Server → Client | Host transferred |
-| `hb` | Client → Server | Heartbeat (auto-responded) |
-| `hb_ack` | Server → Client | Heartbeat acknowledgment |
-| `webrtc_signal` | Client ⇄ Server | WebRTC ICE/SDP signaling relay |
-| `voice_state` | Client → Server | Client toggles speaking (PTT) |
-| `voice_state_changed` | Server → Client | Broadcast peer speaking state changes |
-| `error` | Server → Client | Error response |
+| `hello` | (none) | Initial handshake after WebSocket connection is established |
+| `heartbeat` | (none) | Periodic keep-alive sent every 25 seconds (presence tracking) |
+| `request_snapshot` | (none) | Request the current room snapshot |
+| `set_ready` | `SetReadyPayload` | Toggle the member's ready state |
+| `set_status` | `SetStatusPayload` | Update the member's current activity status (lobby, watching, buffering, etc.) |
+| `send_reaction` | `SendReactionPayload` | Send a reaction emote to the room |
+| `playback_intent` | `PlaybackIntentPayload` | Host-only commands to control playback (play, pause, seek, media_change, etc.) |
+| `leave_room` | (none) | Explicit notification before disconnecting |
+| `kick_member` | `KickMemberPayload` | Host-only command to forcibly remove a user |
+| `transfer_host` | `TransferHostPayload` | Host-only command to transfer host authority |
+| `webrtc_signal` | `WebRTCSignalPayload` | Send ICE/SDP signals to a target peer |
+| `voice_state` | `VoiceStatePayload` | Notify local Push-to-Talk (PTT) speaking state |
+
+#### Server → Client Messages / Events
+
+| Type | Payload Type | Purpose |
+|:---|:---|:---|
+| `room_snapshot` | `RoomSnapshotPayload` | Complete room state sent on connect or reconnect |
+| `member_joined` | `MemberJoinedPayload` | Broadcast when a new member joins |
+| `member_left` | `MemberLeftPayload` | Broadcast when a member leaves |
+| `member_presence_changed` | `MemberPresenceChangedPayload` | Broadcast when a member's network presence changes (connected/disconnected) |
+| `member_ready_changed` | `MemberReadyChangedPayload` | Broadcast when a member's effective ready state changes |
+| `member_status_changed` | `MemberStatusChangedPayload` | Broadcast when a member's activity status changes (watching, buffering, etc.) |
+| `reaction_broadcast` | `ReactionBroadcastPayload` | Broadcast a reaction emote to all members |
+| `playback_state_changed` | `PlaybackStateChangedPayload` | Broadcast authoritative playback state update |
+| `media_changed` | `MediaChangedPayload` | Broadcast when the host changes the current media |
+| `episode_changed` | `EpisodeChangedPayload` | Broadcast when the host changes the current episode |
+| `host_transferred` | `HostTransferredPayload` | Broadcast when host authority is transferred |
+| `room_closed` | `RoomClosedPayload` | Broadcast when the room is destroyed |
+| `ack` | `AckPayload` | Acknowledge a client message via `messageId` correlation |
+| `webrtc_signal` | `WebRTCSignalServerPayload` | Relayed WebRTC signaling from a peer |
+| `voice_state_changed` | `VoiceStateChangedPayload` | Broadcast when a peer starts or stops speaking (PTT toggle) |
+| `error` | `ErrorPayload` | Error response |
 
 ### ACK/Error Handling
 
-Messages with `id` fields expect acknowledgment:
+Messages with `messageId` fields expect acknowledgment:
 
 ```
-Client sends: {type: "playback_intent", id: "msg_42", payload: {...}}
-Server responds: {type: "ack", id: "msg_42"} or {type: "error", id: "msg_42", payload: {code: "...", message: "..."}}
+Client sends: {type: "playback_intent", messageId: "msg_42", payload: {...}}
+Server responds: {type: "ack", payload: {messageId: "msg_42", type: "playback_intent", success: true}} or {type: "error", payload: {code: "...", message: "...", retryable: true}}
 ```
 
 ---
@@ -319,12 +354,16 @@ Handles Watch Party invite links at `join.kumoriya.online/{code}`.
 
 1. **Invite Code Validation:** Regex `^[A-Z0-9]{4,12}$`
 2. **Branded Landing Page:** Dark-themed, responsive HTML with invite code display
-3. **Deep Linking:**
+3. Deep Linking:
    - Custom scheme: `kumoriya://party/join?code={code}`
    - Android intent: `intent://party/join?code={code}#Intent;scheme=kumoriya;package=dev.kumoriya.app;end`
-4. **Fallback:** Redirects to download page if app not installed
-5. **Auto-open:** JavaScript attempts to open app on page load (mobile only)
-6. **Digital Asset Links:** Serves `/.well-known/assetlinks.json` for Android passkey association
+   - Windows integration: Registers the `kumoriya://` custom protocol scheme to the app executable on installation via Inno Setup registry keys (HKCU/HKLM `SOFTWARE\Classes\kumoriya`).
+4. Windows Single Instance Forwarding:
+   - Activates when deep links are clicked while the app is already running (warm-start).
+   - The Windows native runner (`main.cpp`) uses a lock/find-window mechanism and forwards the deep link URI via `WM_COPYDATA` (using the `app_links` plugin C API) to the running instance, then immediately exits.
+5. Fallback: Redirects to download page if app not installed.
+6. Auto-open: JavaScript attempts to open app on page load (mobile and desktop supporting custom protocol handlers).
+7. Digital Asset Links: Serves `/.well-known/assetlinks.json` for Android passkey association.
 
 ### Security
 

@@ -115,6 +115,7 @@ abstract class SourcePlugin {
 
 | Plugin | Package | Content Type |
 |:---|:---|:---|
+| Miruro | `kumoriya_source_miruro` | Anime |
 | JKAnime | `kumoriya_source_jkanime` | Anime |
 | AnimeFLV | `kumoriya_source_animeflv` | Anime |
 | AnimeAv1 | `kumoriya_source_animeav1` | Anime |
@@ -156,7 +157,7 @@ abstract class ResolverPlugin {
 - Source-to-anime matching
 - Playback UI or player controls
 
-### Implemented Resolver Plugins (18)
+### Implemented Resolver Plugins (21)
 
 | Plugin | Package | Host |
 |:---|:---|:---|
@@ -177,6 +178,10 @@ abstract class ResolverPlugin {
 | YourUpload | `kumoriya_resolver_yourupload` | yourupload.com |
 | Zilla | `kumoriya_resolver_zilla` | zilla-x.com |
 | Anime Nexus | `kumoriya_resolver_anime_nexus` | anime_nexus (custom) |
+| Miruro AniDB | `kumoriya_resolver_miruro_anidb` | hls.anidb.app |
+| Miruro Kwik | `kumoriya_resolver_miruro_kwik` | cdn.kwik.si, kwik.cx, uwucdn.top, owocdn.top |
+| Miruro VibePlayer | `kumoriya_resolver_miruro_vibeplayer` | vibeplayer.site |
+| Miruro VidTube | `kumoriya_resolver_miruro_vidtube` | mt.nekostream.site |
 
 ### Common Resolver Utilities
 
