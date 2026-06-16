@@ -23,6 +23,9 @@ on:
         default: "Correcciones y mejoras."
         type: string
 
+permissions:
+  contents: write
+
 jobs:
   build-android:
     runs-on: ubuntu-latest
@@ -31,7 +34,6 @@ jobs:
       tag: ${{ steps.meta.outputs.tag }}
       filename: ${{ steps.meta.outputs.filename }}
       r2_key: ${{ steps.meta.outputs.r2_key }}
-      public_url: ${{ steps.meta.outputs.public_url }}
       sha256: ${{ steps.meta.outputs.sha256 }}
       size_bytes: ${{ steps.meta.outputs.size_bytes }}
     steps:
@@ -53,12 +55,11 @@ jobs:
 
       - name: Write key.properties
         run: |
-          cat > apps/kumoriya_app/android/key.properties << 'KEYPROPS'
-          storePassword=${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
-          keyPassword=${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
-          keyAlias=${{ secrets.ANDROID_KEY_ALIAS }}
-          storeFile=../kumoriya-release.jks
-          KEYPROPS
+          printf 'storePassword=%s\nkeyPassword=%s\nkeyAlias=%s\nstoreFile=../kumoriya-release.jks\n' \
+            "${{ secrets.ANDROID_KEYSTORE_PASSWORD }}" \
+            "${{ secrets.ANDROID_KEYSTORE_PASSWORD }}" \
+            "${{ secrets.ANDROID_KEY_ALIAS }}" \
+            > apps/kumoriya_app/android/key.properties
 
       - name: Write google-services.json
         run: |
@@ -80,14 +81,12 @@ jobs:
           TAG="v$VERSION"
           FILENAME="kumoriya-$VERSION-arm64-v8a.apk"
           R2_KEY="artifacts/android/$TAG/$FILENAME"
-          PUBLIC_URL="${{ secrets.R2_PUBLIC_BASE_URL }}/$R2_KEY"
           SHA=$(sha256sum "$APK" | awk '{print $1}')
           SIZE=$(stat -c%s "$APK")
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
           echo "filename=$FILENAME" >> "$GITHUB_OUTPUT"
           echo "r2_key=$R2_KEY" >> "$GITHUB_OUTPUT"
-          echo "public_url=$PUBLIC_URL" >> "$GITHUB_OUTPUT"
           echo "sha256=$SHA" >> "$GITHUB_OUTPUT"
           echo "size_bytes=$SIZE" >> "$GITHUB_OUTPUT"
 
@@ -104,6 +103,7 @@ jobs:
             --content-disposition "attachment; filename=\"${{ steps.meta.outputs.filename }}\""
 
       - name: Upload to GitHub Release
+        continue-on-error: true
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.meta.outputs.tag }}
@@ -120,7 +120,6 @@ jobs:
       tag: ${{ steps.meta.outputs.tag }}
       filename: ${{ steps.meta.outputs.filename }}
       r2_key: ${{ steps.meta.outputs.r2_key }}
-      public_url: ${{ steps.meta.outputs.public_url }}
     steps:
       - uses: actions/checkout@v4
 
@@ -133,6 +132,8 @@ jobs:
         working-directory: apps/kumoriya_app
 
       - name: Build Windows runner
+        env:
+          CL: /D_SILENCE_EXPERIMENTAL_COROUTINE_DEPRECATION_WARNINGS
         run: flutter build windows --release
         working-directory: apps/kumoriya_app
 
@@ -164,12 +165,10 @@ jobs:
           $tag = "v$version"
           $filename = "Kumoriya-$version-windows-x64-setup.exe"
           $r2Key = "artifacts/windows/$tag/$filename"
-          $publicUrl = "${{ secrets.R2_PUBLIC_BASE_URL }}/$r2Key"
           echo "version=$version" >> $env:GITHUB_OUTPUT
           echo "tag=$tag" >> $env:GITHUB_OUTPUT
           echo "filename=$filename" >> $env:GITHUB_OUTPUT
           echo "r2_key=$r2Key" >> $env:GITHUB_OUTPUT
-          echo "public_url=$publicUrl" >> $env:GITHUB_OUTPUT
 
       - name: Configure AWS and upload to R2
         shell: pwsh
@@ -184,6 +183,7 @@ jobs:
             --content-disposition "attachment; filename=`"${{ steps.meta.outputs.filename }}`""
 
       - name: Upload to GitHub Release
+        continue-on-error: true
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.meta.outputs.tag }}
@@ -232,12 +232,11 @@ jobs:
           SUMMARY_ES: ${{ inputs.summary_es }}
           AND_FN: ${{ needs.build-android.outputs.filename }}
           AND_R2: ${{ needs.build-android.outputs.r2_key }}
-          AND_URL: ${{ needs.build-android.outputs.public_url }}
           AND_SHA: ${{ needs.build-android.outputs.sha256 }}
           AND_SZ: ${{ needs.build-android.outputs.size_bytes }}
           WIN_FN: ${{ needs.build-windows.outputs.filename }}
           WIN_R2: ${{ needs.build-windows.outputs.r2_key }}
-          WIN_URL: ${{ needs.build-windows.outputs.public_url }}
+          R2_BASE: ${{ secrets.R2_PUBLIC_BASE_URL }}
         run: |
           PAYLOAD=$(jq -n \
             --arg v "$VERSION" --arg tag "$TAG" \
@@ -245,9 +244,9 @@ jobs:
             --arg notes "$SUMMARY_EN" \
             --arg sumEs "$SUMMARY_ES" --arg sumEn "$SUMMARY_EN" \
             --arg notesEs "$NOTES_ES" --arg notesEn "$NOTES_EN" \
-            --arg andFn "$AND_FN" --arg andR2 "$AND_R2" --arg andUrl "$AND_URL" \
+            --arg andFn "$AND_FN" --arg andR2 "$AND_R2" --arg andUrl "$R2_BASE/$AND_R2" \
             --arg andSha "$AND_SHA" --argjson andSz "$AND_SZ" \
-            --arg winFn "$WIN_FN" --arg winR2 "$WIN_R2" --arg winUrl "$WIN_URL" \
+            --arg winFn "$WIN_FN" --arg winR2 "$WIN_R2" --arg winUrl "$R2_BASE/$WIN_R2" \
             '{
               version: $v, tag: $tag, date: $date, channel: $ch,
               manifest_release_notes: $notes,
@@ -290,20 +289,19 @@ jobs:
           VERSION: ${{ steps.version.outputs.version }}
           AND_FN: ${{ needs.build-android.outputs.filename }}
           AND_R2: ${{ needs.build-android.outputs.r2_key }}
-          AND_URL: ${{ needs.build-android.outputs.public_url }}
           AND_SHA: ${{ needs.build-android.outputs.sha256 }}
           AND_SZ: ${{ needs.build-android.outputs.size_bytes }}
           WIN_FN: ${{ needs.build-windows.outputs.filename }}
           WIN_R2: ${{ needs.build-windows.outputs.r2_key }}
-          WIN_URL: ${{ needs.build-windows.outputs.public_url }}
+          R2_BASE: ${{ secrets.R2_PUBLIC_BASE_URL }}
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         run: |
           jq -n \
             --arg v "$VERSION" \
-            --arg andUrl "$AND_URL" --arg andFn "$AND_FN" --arg andR2 "$AND_R2" \
+            --arg andUrl "$R2_BASE/$AND_R2" --arg andFn "$AND_FN" --arg andR2 "$AND_R2" \
             --arg andSha "$AND_SHA" --argjson andSz "$AND_SZ" \
-            --arg winUrl "$WIN_URL" --arg winFn "$WIN_FN" --arg winR2 "$WIN_R2" \
+            --arg winUrl "$R2_BASE/$WIN_R2" --arg winFn "$WIN_FN" --arg winR2 "$WIN_R2" \
             --arg notes "${{ inputs.summary_en }}" \
             '{
               android: {
