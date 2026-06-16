@@ -8,11 +8,8 @@ Collect before execution:
 1. target version (`X.Y.Z`)
 2. release date (`YYYY-MM-DD`, default: today)
 3. release scope (patch/minor/major)
-4. platforms to publish (android/windows)
-5. R2 bucket and path conventions
-6. distribution files expected for this version
-7. website static metadata destination path (default: `visual_reference/public/data/release-feed.json`)
-8. git branch and tag policy
+4. release notes summary (EN + ES, short one-liner for the manifest)
+5. git branch (default: `main`)
 
 If an input is missing, ask only for the missing minimum.
 
@@ -20,195 +17,197 @@ If an input is missing, ask only for the missing minimum.
 
 Defaults unless the user overrides:
 - release tag: `vX.Y.Z`
-- Flutter app version: `X.Y.Z+N`
+- Flutter app version: `X.Y.Z+N` (increment N from previous release)
 - changelog heading: `## [vX.Y.Z] - YYYY-MM-DD`
-- android artifact: `artifacts/android/vX.Y.Z/kumoriya-X.Y.Z.apk`
+- android artifact: `artifacts/android/vX.Y.Z/kumoriya-X.Y.Z-arm64-v8a.apk`
 - windows artifact: `artifacts/windows/vX.Y.Z/Kumoriya-X.Y.Z-windows-x64-setup.exe`
-- update manifest URL path: `/update.json`
-- website release feed: `visual_reference/public/data/release-feed.json`
-- website feed format: one JSON with `latest` + `changelog[]`
+- update manifest: `releases/manifests/update.json`
+- release metadata: `releases/versions/vX.Y.Z/release.json`
+- R2 bucket: `kumoriya-releases`
+- R2 public base: `https://pub-8159019abe1741a097538b976c19722c.r2.dev`
+- API publish endpoint: `https://api.kumoriya.online/internal/releases/publish`
 
-Separation rule:
-- R2: binaries + app update manifest only.
-- Website: static metadata in website repo/CDN, no R2 runtime fetch for release cards.
+## Remotes
 
-## Phases
+- **origin** → `https://github.com/Brizhelito/kumoriya.git` (source of truth)
+- **deploy** → `https://github.com/BrizhelDev/kumoriya.git` (CI mirror, Actions run here)
+
+`gh` CLI must be authenticated with both accounts. Switch with `gh auth switch -u <user>`.
+
+---
+
+## Local Phases
 
 ### Phase 0 — Preflight
-1. Confirm intent and scope.
-2. Inspect git status + existing version references.
-3. Verify toolchain: Flutter, Dart, Git, upload tool (`aws` or `rclone`).
+1. Confirm version, scope, and summaries (EN + ES).
+2. Inspect `git status` — clean working tree required.
+3. Verify `gh auth status` shows both Brizhelito and BrizhelDev accounts.
+4. Check `flutter --version` matches CI (stable channel).
+5. Run `dart format` and `dart analyze` on `apps/kumoriya_app/lib`.
 
-Do not proceed if toolchain broken.
+Do not proceed if dirty tree or toolchain broken.
 
 ### Phase 1 — Version Bump
-1. `apps/kumoriya_app/pubspec.yaml`
-2. Any metadata files pinning version.
-3. Version strings in naming.
-
-Validate: no stale version references in release-critical files.
+1. `apps/kumoriya_app/pubspec.yaml` — update `version: X.Y.Z+N`
+2. Verify no stale version references.
 
 ### Phase 2 — Changelog + Release Notes
 Use the `changelog-release-notes` skill.
 
 Required outputs:
-1. root `CHANGELOG.md` new top entry
+1. Root `CHANGELOG.md` — new top entry (non-technical, user-facing language)
 2. `docs/releases/en/vX.Y.Z.md`
 3. `docs/releases/es/vX.Y.Z.md`
-4. `docs/releases/README.md` newest-first
+4. `docs/releases/README.md` — newest-first
 
-Rule: append-only history.
+Rules:
+- Append-only history.
+- User-facing language. No technical jargon (commit hashes, class names, etc.).
+- Fixes that complete a new feature are NOT listed separately as "Fixed" — they are part of the feature.
 
-### Phase 3 — Build + Validation
-1. `dart format`
-2. `dart analyze`
-3. relevant tests
-4. platform builds
+### Phase 3 — Git Commits + Push + Trigger CI
 
-```powershell
-cd apps/kumoriya_app
-flutter pub get
-flutter test
-flutter build apk --release
-flutter build windows --release
+Commits (in order):
+```bash
+git add apps/kumoriya_app/pubspec.yaml CHANGELOG.md docs/releases/
+git commit -m "chore(release): bump version to vX.Y.Z"
+
+git add .github/workflows/  # only if workflow changed
+git commit -m "ci: ..."     # only if workflow changed
 ```
 
-If any step fails, stop publish and report blocker.
+Push to both remotes:
+```bash
+gh auth switch -u Brizhelito
+git push origin main
 
-### Phase 4 — Artifact Hygiene
-1. Locate binaries.
-2. Rename to canonical filenames.
-3. Generate SHA-256.
-
-```powershell
-Get-FileHash <path> -Algorithm SHA256
+gh auth switch -u BrizhelDev
+git push deploy main
 ```
-
-Record local paths and hashes in the report.
-
-### Phase 5 — Update Manifest (update.json)
-Per platform:
-- `latest_version`
-- `url`
-- `release_notes`
-
-Validate:
-1. URLs match uploaded filenames
-2. version strings consistent
-3. JSON valid
-
-Never publish manifest pointing to missing artifacts.
-
-### Phase 6 — Website Static Metadata (Astro/Vercel)
-
-Output: `visual_reference/public/data/release-feed.json`
-
-Structure:
-- `generated_at` (ISO)
-- `latest` (version/tag/date/channel/downloads)
-- `changelog[]` newest-first with EN/ES notes
-
-Website rules (strict):
-- Inline changelog content in JSON (`notes.en` / `notes.es`).
-- No `notes_urls` to remote markdown.
-- R2 links used only on user download click.
-
-Schema:
-```json
-{
-  "generated_at": "2026-03-31T00:00:00Z",
-  "latest": {
-    "version": "0.1.2",
-    "tag": "v0.1.2",
-    "date": "2026-03-31",
-    "channel": "alpha",
-    "downloads": {
-      "android": { "url": "...", "file_name": "..." },
-      "windows": { "url": "...", "file_name": "..." }
-    }
-  },
-  "changelog": [
-    {
-      "version": "0.1.2",
-      "tag": "v0.1.2",
-      "date": "2026-03-31",
-      "notes": { "en": "...", "es": "..." }
-    }
-  ]
-}
-```
-
-Sources of truth:
-1. `releases/versions/vX.Y.Z/release.json`
-2. `docs/releases/en/vX.Y.Z.md`
-3. `docs/releases/es/vX.Y.Z.md`
-4. `docs/releases/README.md`
-
-Validate:
-1. JSON parses
-2. latest tag/version = release tag
-3. `latest.downloads.*.url` matches uploaded artifacts
-4. `changelog[0].tag` = current tag
-5. `changelog[*].notes` non-empty for EN and ES
-6. no `notes_urls`
-7. committed in same release PR
-
-### Phase 7 — Upload to Cloudflare R2
-Upload artifacts first, manifest last.
-
-```powershell
-aws s3 cp <local> s3://<bucket>/artifacts/android/vX.Y.Z/kumoriya-X.Y.Z.apk --endpoint-url <r2>
-aws s3 cp <local> s3://<bucket>/artifacts/windows/vX.Y.Z/Kumoriya-X.Y.Z-windows-x64-setup.exe --endpoint-url <r2>
-aws s3 cp <update_json> s3://<bucket>/update.json --endpoint-url <r2>
-```
-
-Or rclone:
-```powershell
-rclone copy <local> <remote>:<bucket>/artifacts/android/vX.Y.Z/
-rclone copy <local> <remote>:<bucket>/artifacts/windows/vX.Y.Z/
-rclone copy <update_json> <remote>:<bucket>/
-```
-
-Without creds: prepare files, provide exact commands.
-
-### Phase 8 — Git Commits + Tag
-Reviewable slices:
-1. `chore(release): bump version to vX.Y.Z`
-2. `docs(release): add notes for vX.Y.Z`
-3. `chore(release): publish artifact metadata for vX.Y.Z` (if tracked)
 
 Tag:
-```powershell
+```bash
 git tag -a vX.Y.Z -m "Release vX.Y.Z"
-git push origin <branch>
 git push origin vX.Y.Z
 ```
 
-No unrelated changes.
+Trigger CI:
+```bash
+gh workflow run release.yml -R BrizhelDev/kumoriya \
+  -f version=X.Y.Z \
+  -f channel=alpha \
+  -f summary_en="<EN summary>" \
+  -f summary_es="<ES summary>"
+```
 
-### Phase 9 — Release Gate (all must be true)
-- version updated everywhere
-- changelog entry once
-- EN + ES notes
-- analyze clean
-- tests pass
-- builds succeed
-- artifact names normalized
-- SHA-256 generated
-- website metadata generated + validated
-- binaries uploaded
-- update.json uploaded last
-- git commits clean
-- release tag created
-- residual risks stated
+Monitor:
+```bash
+gh run view <run-id> -R BrizhelDev/kumoriya
+gh run view --job=<job-id> -R BrizhelDev/kumoriya  # step details
+gh run view --job=<job-id> -R BrizhelDev/kumoriya --log-failed  # failure logs
+```
+
+Switch back:
+```bash
+gh auth switch -u Brizhelito
+```
+
+---
+
+## CI Phases (GitHub Actions)
+
+The workflow `.github/workflows/release.yml` handles:
+
+### CI Job 1: build-android (ubuntu-latest)
+1. Checkout + Flutter setup + Java 17
+2. Decode keystore from secrets → write `key.properties` + `google-services.json`
+3. `flutter build apk --release --split-per-abi --target-platform android-arm64`
+4. Compute SHA-256 + size
+5. Upload APK to R2 (`aws s3 cp`)
+6. Upload to GitHub Release (`softprops/action-gh-release`, continue-on-error)
+
+### CI Job 2: build-windows (windows-latest)
+1. Checkout + Flutter setup
+2. `flutter build windows --release` (with `_SILENCE_EXPERIMENTAL_COROUTINE_DEPRECATION_WARNINGS`)
+3. Install Inno Setup (`choco install innosetup`)
+4. Patch `kumoriya_installer.iss` version + output filename
+5. `iscc kumoriya_installer.iss /Qp`
+6. Upload EXE to R2
+7. Upload to GitHub Release (continue-on-error)
+
+### CI Job 3: publish (ubuntu-latest, needs both builds)
+1. Read version from pubspec + release notes from `docs/releases/`
+2. Combine Android + Windows artifact metadata
+3. POST to API (`/internal/releases/publish`) with `is_latest: true`
+4. Generate `update.json` with both platforms
+5. Upload `update.json` to R2 (last, so manifest never points to missing artifacts)
+
+---
+
+## Post-CI Phase
+
+### Phase 4 — Update Local Manifests
+After CI succeeds, update local files to match what's on R2:
+
+1. `releases/manifests/update.json` — copy from R2 or reconstruct from CI outputs
+2. `releases/versions/vX.Y.Z/release.json` — create with artifact metadata
+3. Commit and push:
+```bash
+git add releases/
+git commit -m "chore(release): publish artifact metadata for vX.Y.Z"
+git push origin main
+```
+
+---
+
+## GitHub Actions Secrets
+
+Set on `BrizhelDev/kumoriya` via `gh secret set -R BrizhelDev/kumoriya`:
+
+| Secret | Source |
+|--------|--------|
+| `ANDROID_KEYSTORE_JKS` | Base64 of `kumoriya-release.jks` |
+| `ANDROID_KEYSTORE_PASSWORD` | From `key.properties` |
+| `ANDROID_KEY_ALIAS` | From `key.properties` |
+| `ANDROID_GOOGLE_SERVICES_JSON` | From `google-services.json` |
+| `R2_BUCKET_NAME` | `secrets/kumoriya_r2.credentials.env` |
+| `R2_ENDPOINT_URL` | `secrets/kumoriya_r2.credentials.env` |
+| `R2_PUBLIC_BASE_URL` | `secrets/kumoriya_r2.credentials.env` |
+| `AWS_ACCESS_KEY_ID` | `secrets/kumoriya_r2.credentials.env` |
+| `AWS_SECRET_ACCESS_KEY` | `secrets/kumoriya_r2.credentials.env` |
+| `UPDATE_API_BASE_URL` | `secrets/update_publish.credentials.env` |
+| `RELEASE_PUBLISH_TOKEN` | `secrets/update_publish.credentials.env` |
+
+---
+
+## Release Gate (all must be true)
+
+- [ ] version bumped in pubspec.yaml
+- [ ] changelog entry in CHANGELOG.md
+- [ ] EN + ES release notes created
+- [ ] dart analyze clean (no errors)
+- [ ] git commits clean (one concern per commit)
+- [ ] release tag created and pushed
+- [ ] CI workflow triggered and all 3 jobs passed
+- [ ] Android APK on R2
+- [ ] Windows installer on R2
+- [ ] API publish succeeded (both platforms in `/releases/latest`)
+- [ ] `update.json` on R2 with both platforms
+- [ ] Local manifests updated and committed
+- [ ] residual risks stated
 
 ## Failure Policy
 
 On block, return:
-1. failing phase
-2. exact command/error
+1. failing phase (local or CI job)
+2. exact command/error (include CI log URL)
 3. impact
 4. fastest safe recovery
+
+For CI failures, common issues:
+- **Windows coroutine error**: `_SILENCE_EXPERIMENTAL_COROUTINE_DEPRECATION_WARNINGS` env var (already in workflow)
+- **Keystore password**: single-quote echo pattern in workflow (already fixed)
+- **Secret masking**: never pass R2 public URL as job output (reconstruct in publish job)
 
 Never claim complete if upload, manifest, build, or tag missing.
 
@@ -223,12 +222,13 @@ Release Execution Report
 - Files changed:
 - Artifacts generated:
 - Checksums:
-- Website metadata status:
 - R2 upload status:
+- API publish status:
 - Manifest status:
 - Git commits:
 - Git tag:
-- Validation run:
+- CI run URL:
+- CI result:
 - Residual risks:
 - Next action:
 ```
