@@ -51,6 +51,12 @@ final class VoicePeerManager {
   bool _micEnabled = false;
   final _peers = <String, _VoicePeerEntry>{};
 
+  // TODO(voice): ExpressTURN free-tier credentials expire periodically.
+  // For production, fetch fresh credentials from an API endpoint or use
+  // long-term credential mechanism / shared secret auth.
+  static const _turnUsername = '000000002096973307';
+  static const _turnCredential = 'l74AsmUudAWr22o/U/rbWTqFh8o=';
+
   static const _rtcConfig = <String, dynamic>{
     'iceServers': [
       // Google STUN (low-latency, globally distributed)
@@ -60,23 +66,14 @@ final class VoicePeerManager {
       {'urls': 'stun:stun.cloudflare.com:3478'},
       // Twilio STUN (additional geographic diversity)
       {'urls': 'stun:global.stun.twilio.com:3478'},
-      // ExpressTURN UDP (relay — essential for symmetric NAT / VPN)
+      // ExpressTURN UDP relay (free tier — essential for symmetric NAT / VPN)
       {
         'urls': [
-          'turn:relay1.expressturn.com:3478',
-          'turn:relay2.expressturn.com:3478',
+          'turn:free.expressturn.com:3478?transport=udp',
+          'turn:free.expressturn.com:3478?transport=tcp',
         ],
-        'username': 'turn',
-        'credential': 'turn',
-      },
-      // ExpressTURN TLS (punches through restrictive firewalls / VPN)
-      {
-        'urls': [
-          'turns:relay1.expressturn.com:5349',
-          'turns:relay2.expressturn.com:5349',
-        ],
-        'username': 'turn',
-        'credential': 'turn',
+        'username': _turnUsername,
+        'credential': _turnCredential,
       },
     ],
     'sdpSemantics': 'unified-plan',
