@@ -4,6 +4,16 @@ All notable changes to Kumoriya will be documented in this file.
 
 ## [Unreleased]
 
+## [v0.5.1] - 2026-06-16
+
+### Added
+- **Stay in sync during Watch Party** — buffering indicator, synchronized seek, and auto-resume so everyone watches at the same time.
+- **Voice chat for Watch Party** — push-to-talk voice chat with improved connection reliability, audio quality, and crash-free mic handling on Android and desktop.
+- **Deep links** — the app can now open kumoriya:// links on Windows for direct navigation from notifications or the browser.
+
+### Changed
+- **Miruro source name** — now shows "Miruro" consistently regardless of language.
+
 ## [v0.5.0] - 2026-06-14
 
 ### Added

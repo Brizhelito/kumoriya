@@ -2,6 +2,10 @@
 
 Internationalized release notes are split by locale.
 
+- v0.5.1 (2026-06-16)
+        - Espanol: [es/v0.5.1.md](./es/v0.5.1.md)
+        - English: [en/v0.5.1.md](./en/v0.5.1.md)
+
 - v0.5.0 (2026-06-14)
         - Espanol: [es/v0.5.0.md](./es/v0.5.0.md)
         - English: [en/v0.5.0.md](./en/v0.5.0.md)
