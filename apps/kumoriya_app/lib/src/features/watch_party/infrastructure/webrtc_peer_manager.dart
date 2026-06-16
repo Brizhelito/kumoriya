@@ -211,6 +211,10 @@ final class VoicePeerManager {
     await entry.pc.setRemoteDescription(RTCSessionDescription(sdp, sdpType));
     entry.hasRemoteDescription = true;
 
+    // Delay to let the signaling thread fully process setRemoteDescription
+    // before adding candidates. Prevents native race condition (SIGABRT).
+    await Future<void>.delayed(const Duration(milliseconds: 100));
+
     // Flush buffered candidates
     for (final candidate in entry.bufferedCandidates) {
       await entry.pc.addCandidate(candidate);
@@ -241,6 +245,10 @@ final class VoicePeerManager {
     await entry.pc.setRemoteDescription(RTCSessionDescription(sdp, sdpType));
     entry.hasRemoteDescription = true;
 
+    // Delay to let the signaling thread fully process setRemoteDescription
+    // before adding candidates. Prevents native race condition (SIGABRT).
+    await Future<void>.delayed(const Duration(milliseconds: 100));
+
     // Flush buffered candidates
     for (final candidate in entry.bufferedCandidates) {
       await entry.pc.addCandidate(candidate);
@@ -251,14 +259,21 @@ final class VoicePeerManager {
   Future<void> _handleCandidate(String peerId, Object? signal) async {
     if (signal is! Map) return;
     final candidateStr = signal['candidate'] as String?;
-    // Guard: null sdpMid crashes native JNI NewStringUTF (SIGABRT).
-    final sdpMid = signal['sdpMid'] as String? ?? '';
+    final sdpMid = signal['sdpMid'] as String?;
     // Guard: JSON may decode 0 as 0.0 (double), so coerce via num.
     final rawIndex = signal['sdpMLineIndex'];
     final sdpMLineIndex = rawIndex is int
         ? rawIndex
         : (rawIndex is num ? rawIndex.toInt() : 0);
+    // Guard: null/empty candidate string is useless.
     if (candidateStr == null || candidateStr.isEmpty) return;
+    // Guard: null or empty sdpMid crashes native JNI NewStringUTF
+    // (SIGABRT). A candidate without a valid media section reference
+    // cannot be applied, so skip it entirely.
+    if (sdpMid == null || sdpMid.isEmpty) {
+      _voiceLog('Skipping ICE candidate from $peerId: empty sdpMid');
+      return;
+    }
 
     _voiceLog(
       'Handling ICE candidate from $peerId: sdpMid=$sdpMid, '
@@ -302,10 +317,18 @@ final class VoicePeerManager {
     // Handle ICE candidates
     pc.onIceCandidate = (RTCIceCandidate candidate) {
       final candidateStr = candidate.candidate;
+      final mid = candidate.sdpMid;
+      // Skip candidates with null/empty sdpMid or candidate string.
+      // They cannot be applied by the remote peer and may trigger
+      // native JNI crashes in flutter_webrtc (SIGABRT in NewStringUTF).
       if (candidateStr == null || candidateStr.isEmpty) return;
+      if (mid == null || mid.isEmpty) {
+        _voiceLog('Skipping local ICE candidate for $peerId: empty sdpMid');
+        return;
+      }
       sendSignal(peerId, 'ice-candidate', {
         'candidate': candidateStr,
-        'sdpMid': candidate.sdpMid ?? '',
+        'sdpMid': mid,
         'sdpMLineIndex': candidate.sdpMLineIndex ?? 0,
       });
     };

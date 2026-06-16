@@ -16,6 +16,9 @@ class VoiceSessionNotifier extends Notifier<PartyVoiceState> {
   VoicePeerManager? _manager;
   StreamSubscription? _eventsSub;
 
+  // Tracks whether the event listener + manager are wired up (no mic yet).
+  bool _isWired = false;
+
   @override
   PartyVoiceState build() {
     ref.onDispose(() {
@@ -25,15 +28,65 @@ class VoiceSessionNotifier extends Notifier<PartyVoiceState> {
     return const PartyVoiceState();
   }
 
-  /// Initialize voice chat if permission is granted and WebSocket is active.
-  Future<void> initialize(String localUserId) async {
+  // ── Public surface ──────────────────────────────────────────────────────────
+
+  /// Called by PTT button on first interaction.
+  /// Wires up signaling, requests mic permission, and acquires the stream.
+  /// Returns true if voice is ready to use.
+  Future<bool> activate(String localUserId) async {
+    _wireEvents(localUserId);
+
+    // Request mic permission — only now, triggered by user gesture.
+    final status = await Permission.microphone.request();
+    final granted = status.isGranted;
+
+    state = state.copyWith(hasPermission: granted);
+    if (!granted) return false;
+
+    final ok = await _manager!.acquireMicrophone();
+    state = state.copyWith(isInitialized: ok);
+    if (!ok) return false;
+
+    // Connect to already-present room members with staggered delays
+    // to avoid overwhelming the WebRTC signaling thread.
+    final room = ref.read(partySessionProvider).room;
+    if (room != null) {
+      for (final member in room.members) {
+        if (member.userId != localUserId) {
+          await _manager!.connectToPeer(member.userId, createOffer: true);
+          await Future<void>.delayed(const Duration(milliseconds: 200));
+        }
+      }
+    }
+
+    return true;
+  }
+
+  /// Called when PTT button is long-pressed (already activated).
+  void setMicEnabled(bool enabled) {
+    _manager?.setMicEnabled(enabled);
+    state = state.copyWith(isMicEnabled: enabled);
+
+    final sessionNotifier = ref.read(partySessionProvider.notifier);
+    sessionNotifier.realtimeClient?.sendVoiceState(speaking: enabled);
+  }
+
+  /// Peer disconnected.
+  Future<void> disconnectPeer(String peerId) async {
+    await _manager?.handlePeerLeft(peerId);
+  }
+
+  // ── Private helpers ─────────────────────────────────────────────────────────
+
+  /// Wire up the VoicePeerManager and WebSocket event subscription.
+  /// Safe to call multiple times — idempotent.
+  void _wireEvents(String localUserId) {
+    if (_isWired) return;
+    _isWired = true;
+
     final sessionNotifier = ref.read(partySessionProvider.notifier);
     final realtimeClient = sessionNotifier.realtimeClient;
     if (realtimeClient == null) return;
-
-    // Request permission using permission_handler
-    final status = await Permission.microphone.request();
-    final hasPermission = status.isGranted;
 
     _manager = VoicePeerManager(
       localUserId: localUserId,
@@ -55,82 +108,47 @@ class VoiceSessionNotifier extends Notifier<PartyVoiceState> {
       },
     );
 
-    final isInitialized = await _manager!.initialize();
-
-    state = PartyVoiceState(
-      isInitialized: isInitialized,
-      hasPermission: hasPermission,
-      connectedVoicePeers: const {},
-      speakingPeers: const {},
-    );
-
-    if (!isInitialized || !hasPermission) return;
-
-    // Listen to incoming WebSocket events
     _eventsSub = realtimeClient.events.listen((event) {
-      if (event.type == 'webrtc_signal') {
-        final payload = event.payload;
-        final senderId = payload['senderId'] as String?;
-        final type = payload['type'] as String?;
-        final signal = payload['signal'];
-        if (senderId != null && type != null && signal != null) {
-          _manager?.handleSignal(senderId, type, signal);
-        }
-      } else if (event.type == 'voice_state_changed') {
-        final payload = event.payload;
-        final userId = payload['userId'] as String?;
-        final speaking = payload['speaking'] as bool? ?? false;
-        if (userId != null) {
-          final speakingPeers = Set<String>.from(state.speakingPeers);
-          if (speaking) {
-            speakingPeers.add(userId);
-          } else {
-            speakingPeers.remove(userId);
+      switch (event.type) {
+        case 'webrtc_signal':
+          final payload = event.payload;
+          final senderId = payload['senderId'] as String?;
+          final type = payload['type'] as String?;
+          final signal = payload['signal'];
+          if (senderId != null && type != null && signal != null) {
+            _manager?.handleSignal(senderId, type, signal);
           }
-          state = state.copyWith(speakingPeers: speakingPeers);
-        }
-      } else if (event.type == 'member_joined') {
-        final payload = event.payload;
-        final joinedUserId = payload['userId'] as String?;
-        if (joinedUserId != null && joinedUserId != localUserId) {
-          connectToPeer(joinedUserId);
-        }
-      } else if (event.type == 'member_left') {
-        final payload = event.payload;
-        final leftUserId = payload['userId'] as String?;
-        if (leftUserId != null) {
-          disconnectPeer(leftUserId);
-        }
+
+        case 'voice_state_changed':
+          final payload = event.payload;
+          final userId = payload['userId'] as String?;
+          final speaking = payload['speaking'] as bool? ?? false;
+          if (userId != null) {
+            final speakingPeers = Set<String>.from(state.speakingPeers);
+            if (speaking) {
+              speakingPeers.add(userId);
+            } else {
+              speakingPeers.remove(userId);
+            }
+            state = state.copyWith(speakingPeers: speakingPeers);
+          }
+
+        case 'member_joined':
+          // Only connect if voice is already active (mic acquired).
+          if (!state.isInitialized) return;
+          final payload = event.payload;
+          final joinedUserId = payload['userId'] as String?;
+          if (joinedUserId != null && joinedUserId != localUserId) {
+            _manager?.connectToPeer(joinedUserId, createOffer: true);
+          }
+
+        case 'member_left':
+          final payload = event.payload;
+          final leftUserId = payload['userId'] as String?;
+          if (leftUserId != null) {
+            disconnectPeer(leftUserId);
+          }
       }
     });
-
-    // Auto-connect to existing room members
-    final room = ref.read(partySessionProvider).room;
-    if (room != null) {
-      for (final member in room.members) {
-        if (member.userId != localUserId) {
-          connectToPeer(member.userId);
-        }
-      }
-    }
-  }
-
-  /// PTT toggle: set local mic state and notify room.
-  void setMicEnabled(bool enabled) {
-    _manager?.setMicEnabled(enabled);
-    state = state.copyWith(isMicEnabled: enabled);
-
-    final sessionNotifier = ref.read(partySessionProvider.notifier);
-    sessionNotifier.realtimeClient?.sendVoiceState(speaking: enabled);
-  }
-
-  /// Initiate offer to a peer.
-  Future<void> connectToPeer(String peerId) async {
-    await _manager?.connectToPeer(peerId, createOffer: true);
-  }
-
-  /// Peer disconnected.
-  Future<void> disconnectPeer(String peerId) async {
-    await _manager?.handlePeerLeft(peerId);
   }
 }
