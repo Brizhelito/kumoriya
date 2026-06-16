@@ -34,7 +34,7 @@ class MiruroSourcePlugin implements SourcePlugin {
   @override
   PluginManifest get manifest => const PluginManifest(
     id: 'kumoriya.source.miruro',
-    displayName: 'Miruro',
+    displayName: 'Miruro (EN)',
     type: PluginType.source,
     capabilities: {
       PluginCapability.search,
@@ -253,7 +253,10 @@ class MiruroSourcePlugin implements SourcePlugin {
           links.add(
             SourceServerLink(
               serverId: '${variant.provider}-$type-$quality-$i',
-              serverName: _formatServerName(variant.provider, quality.toString()),
+              serverName: _formatServerName(
+                variant.provider,
+                quality.toString(),
+              ),
               initialUrl: uri,
               language: variant.category,
               linkType: SourceServerLinkType.stream,
@@ -305,11 +308,14 @@ String _formatServerName(String provider, String quality) {
       friendlyProvider = 'Hop';
       break;
     default:
-      friendlyProvider = provider.substring(0, 1).toUpperCase() + provider.substring(1).toLowerCase();
+      friendlyProvider =
+          provider.substring(0, 1).toUpperCase() +
+          provider.substring(1).toLowerCase();
   }
 
   String cleanQuality = quality.replaceAll(RegExp(r'[-_]+$'), '').trim();
-  if (cleanQuality.toLowerCase() == 'kiswi-stream' || cleanQuality.toLowerCase() == 'kiswi stream') {
+  if (cleanQuality.toLowerCase() == 'kiswi-stream' ||
+      cleanQuality.toLowerCase() == 'kiswi stream') {
     cleanQuality = 'Auto';
   }
   if (cleanQuality.isEmpty) {

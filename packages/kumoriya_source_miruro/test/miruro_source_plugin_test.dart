@@ -139,62 +139,65 @@ void main() {
     },
   );
 
-  test('keeps successful provider variants when another variant fails', () async {
-    final plugin = MiruroSourcePlugin(
-      anilistGateway: _FakeAnilistMetadataGateway(),
-      client: _FakeMiruroClient(
-        onPipeRequest: (path, {query}) async {
-          expect(path, 'sources');
-          if (query?['provider'] == 'pewe') {
-            throw Exception('provider temporarily blocked');
-          }
-          return <String, dynamic>{
-            'streams': <Map<String, dynamic>>[
+  test(
+    'keeps successful provider variants when another variant fails',
+    () async {
+      final plugin = MiruroSourcePlugin(
+        anilistGateway: _FakeAnilistMetadataGateway(),
+        client: _FakeMiruroClient(
+          onPipeRequest: (path, {query}) async {
+            expect(path, 'sources');
+            if (query?['provider'] == 'pewe') {
+              throw Exception('provider temporarily blocked');
+            }
+            return <String, dynamic>{
+              'streams': <Map<String, dynamic>>[
+                <String, dynamic>{
+                  'url': 'https://vault-05.uwucdn.top/stream/abc/uwu.m3u8',
+                  'type': 'hls',
+                  'quality': '1080p',
+                },
+              ],
+            };
+          },
+        ),
+      );
+
+      final result = await plugin.getEpisodeServerLinks(
+        SourceEpisode(
+          sourceEpisodeId: jsonEncode(<String, dynamic>{
+            'anilistId': '21',
+            'variants': <Map<String, dynamic>>[
               <String, dynamic>{
-                'url': 'https://vault-05.uwucdn.top/stream/abc/uwu.m3u8',
-                'type': 'hls',
-                'quality': '1080p',
+                'episodeId': 'ep-1',
+                'provider': 'kiwi',
+                'category': 'sub',
+                'anilistId': '21',
+              },
+              <String, dynamic>{
+                'episodeId': 'ep-1b',
+                'provider': 'pewe',
+                'category': 'sub',
+                'anilistId': '21',
               },
             ],
-          };
+          }),
+          number: 1,
+          title: 'Episode 1',
+          episodeUrl: Uri.parse('https://www.miruro.tv/watch/21'),
+        ),
+      );
+
+      expect(result.isSuccess, isTrue);
+      result.fold(
+        onFailure: (_) => fail('expected success'),
+        onSuccess: (links) {
+          expect(links, hasLength(1));
+          expect(links.single.serverName, 'KIWI 1080p');
         },
-      ),
-    );
-
-    final result = await plugin.getEpisodeServerLinks(
-      SourceEpisode(
-        sourceEpisodeId: jsonEncode(<String, dynamic>{
-          'anilistId': '21',
-          'variants': <Map<String, dynamic>>[
-            <String, dynamic>{
-              'episodeId': 'ep-1',
-              'provider': 'kiwi',
-              'category': 'sub',
-              'anilistId': '21',
-            },
-            <String, dynamic>{
-              'episodeId': 'ep-1b',
-              'provider': 'pewe',
-              'category': 'sub',
-              'anilistId': '21',
-            },
-          ],
-        }),
-        number: 1,
-        title: 'Episode 1',
-        episodeUrl: Uri.parse('https://www.miruro.tv/watch/21'),
-      ),
-    );
-
-    expect(result.isSuccess, isTrue);
-    result.fold(
-      onFailure: (_) => fail('expected success'),
-      onSuccess: (links) {
-        expect(links, hasLength(1));
-        expect(links.single.serverName, 'KIWI 1080p');
-      },
-    );
-  });
+      );
+    },
+  );
 }
 
 final class _FakeMiruroClient extends MiruroClient {
