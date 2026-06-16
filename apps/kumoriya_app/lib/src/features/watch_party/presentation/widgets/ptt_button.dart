@@ -1,5 +1,7 @@
 import 'dart:async';
+import 'dart:io' show Platform;
 
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -11,7 +13,7 @@ import '../../application/providers/voice_providers.dart';
 ///
 /// Interaction:
 ///  - Mobile/Touch: long-press to speak, release to mute.
-///  - Desktop/Windows: hold V to speak, release V to mute.
+///  - Desktop/Windows/Linux/macOS: hold V to speak, release V to mute.
 ///  - First use: activates voice (requests mic permission) before speaking.
 ///
 /// Visual states:
@@ -19,10 +21,20 @@ import '../../application/providers/voice_providers.dart';
 ///  - Ready (has permission, not speaking): mic_none icon.
 ///  - Speaking: red, pulsing glow, mic icon.
 ///  - Activating: circular progress.
+///
+/// On desktop platforms the visual button is hidden — only the "V" keyboard
+/// shortcut is active. A tiny speaking indicator dot is still shown when
+/// the user is broadcasting voice.
 class PttButton extends ConsumerStatefulWidget {
   const PttButton({super.key, this.isOverlayMode = false});
 
   final bool isOverlayMode;
+
+  /// Whether the current platform is a desktop OS (no touch PTT needed).
+  static bool get isDesktopPlatform {
+    if (kIsWeb) return false;
+    return Platform.isWindows || Platform.isLinux || Platform.isMacOS;
+  }
 
   @override
   ConsumerState<PttButton> createState() => _PttButtonState();
@@ -119,6 +131,33 @@ class _PttButtonState extends ConsumerState<PttButton>
     final voice = ref.watch(voiceSessionProvider);
     final active = _pressed && voice.hasPermission;
     final glow = active ? 0.25 + (_pulse.value) * 0.35 : 0.0;
+    final desktop = PttButton.isDesktopPlatform;
+
+    // On desktop: no tappable button — keyboard "V" handles everything.
+    // Show a tiny glowing dot only when actively speaking so the user
+    // gets visual confirmation without a full button chrome.
+    if (desktop) {
+      if (!active) return const SizedBox.shrink();
+      return Tooltip(
+        message: 'Speaking (release V to mute)',
+        child: Container(
+          width: 12,
+          height: 12,
+          margin: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: Colors.red.shade600,
+            boxShadow: [
+              BoxShadow(
+                color: Colors.red.withValues(alpha: glow),
+                blurRadius: 10,
+                spreadRadius: 2,
+              ),
+            ],
+          ),
+        ),
+      );
+    }
 
     return GestureDetector(
       onLongPressStart: (_) => _start(),

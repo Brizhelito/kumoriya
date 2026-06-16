@@ -53,12 +53,27 @@ final class VoicePeerManager {
 
   static const _rtcConfig = <String, dynamic>{
     'iceServers': [
+      // Google STUN (low-latency, globally distributed)
       {'urls': 'stun:stun.l.google.com:19302'},
       {'urls': 'stun:stun1.l.google.com:19302'},
+      // Cloudflare STUN (reliable fallback, no auth needed)
+      {'urls': 'stun:stun.cloudflare.com:3478'},
+      // Twilio STUN (additional geographic diversity)
+      {'urls': 'stun:global.stun.twilio.com:3478'},
+      // ExpressTURN UDP (relay — essential for symmetric NAT / VPN)
       {
         'urls': [
           'turn:relay1.expressturn.com:3478',
           'turn:relay2.expressturn.com:3478',
+        ],
+        'username': 'turn',
+        'credential': 'turn',
+      },
+      // ExpressTURN TLS (punches through restrictive firewalls / VPN)
+      {
+        'urls': [
+          'turns:relay1.expressturn.com:5349',
+          'turns:relay2.expressturn.com:5349',
         ],
         'username': 'turn',
         'credential': 'turn',
@@ -168,9 +183,39 @@ final class VoicePeerManager {
   }
 
   /// Initiate a connection to a peer by sending an SDP offer.
+  ///
+  /// If the existing peer connection is in a terminal state (failed /
+  /// disconnected / closed), it is torn down and recreated so the new
+  /// offer goes through a fresh RTCPeerConnection — this fixes the
+  /// "stale peer" bug where re-joining members could not connect.
   Future<void> connectToPeer(String peerId, {required bool createOffer}) async {
     if (peerId == localUserId) return;
     _voiceLog('Connecting to peer: $peerId (createOffer=$createOffer)');
+
+    // If a stale/dead connection exists for this peer, tear it down first.
+    // Check both our tracking flag AND the native connection state, since
+    // on Android the onConnectionState callback sometimes doesn't fire
+    // for transient disconnections.
+    final stale = _peers[peerId];
+    if (stale != null) {
+      final nativeState = await stale.pc.getConnectionState();
+      final isDead =
+          !stale.connected ||
+          nativeState == RTCPeerConnectionState.RTCPeerConnectionStateFailed ||
+          nativeState ==
+              RTCPeerConnectionState.RTCPeerConnectionStateDisconnected ||
+          nativeState == RTCPeerConnectionState.RTCPeerConnectionStateClosed;
+      if (isDead) {
+        _voiceLog(
+          'Removing stale peer entry for $peerId '
+          '(connected=${stale.connected}, native=${nativeState?.name ?? 'null'})',
+        );
+        try {
+          await stale.pc.close();
+        } catch (_) {}
+        _peers.remove(peerId);
+      }
+    }
 
     final entry = await _getOrCreatePeer(peerId);
 
@@ -292,6 +337,26 @@ final class VoicePeerManager {
 
   // ── Peer connection initialization ──
 
+  /// Perform an ICE restart on an existing peer connection.
+  ///
+  /// Creates a new offer with `iceRestart: true`, which causes the browser
+  /// to re-gather ICE candidates (potentially discovering new relay paths)
+  /// while keeping the existing SDP negotiation. This is the standard
+  /// WebRTC recovery mechanism for transient network failures.
+  Future<void> _iceRestart(String peerId, _VoicePeerEntry entry) async {
+    try {
+      entry.hasRemoteDescription = false;
+      entry.bufferedCandidates.clear();
+      final offer = await entry.pc.createOffer({'iceRestart': true});
+      await entry.pc.setLocalDescription(offer);
+      sendSignal(peerId, 'offer', {'sdp': offer.sdp, 'type': offer.type});
+      _voiceLog('ICE restart offer sent to $peerId');
+    } catch (e) {
+      _voiceLog('ICE restart failed for $peerId: $e');
+      _voiceDebug('ice_restart_error peer=$peerId error=$e');
+    }
+  }
+
   Future<_VoicePeerEntry> _getOrCreatePeer(String peerId) async {
     final existing = _peers[peerId];
     if (existing != null) return existing;
@@ -349,6 +414,7 @@ final class VoicePeerManager {
     // Handle connection state changes
     pc.onConnectionState = (RTCPeerConnectionState state) {
       _voiceLog('Connection state for $peerId changed to: ${state.name}');
+      _voiceDebug('conn_state peer=$peerId state=${state.name}');
       final connected =
           state == RTCPeerConnectionState.RTCPeerConnectionStateConnected;
       final failed =
@@ -358,10 +424,31 @@ final class VoicePeerManager {
 
       if (connected && !entry.connected) {
         entry.connected = true;
+        entry.iceRestartAttempted = false; // reset on success
         onPeerStateChange?.call(peerId, true);
       } else if (failed && entry.connected) {
         entry.connected = false;
         onPeerStateChange?.call(peerId, false);
+
+        // Attempt a single ICE restart before giving up. This re-gathers
+        // candidates and can recover from transient NAT/VPN failures that
+        // are common on Linux desktop.
+        if (!entry.iceRestartAttempted) {
+          entry.iceRestartAttempted = true;
+          _voiceLog('Attempting ICE restart for $peerId');
+          _voiceDebug('ice_restart peer=$peerId');
+          _iceRestart(peerId, entry);
+        } else {
+          _voiceLog(
+            'ICE restart already attempted for $peerId — closing stale pc',
+          );
+          _voiceDebug('ice_restart_exhausted peer=$peerId');
+          // Remove the dead entry so connectToPeer creates a fresh one.
+          _peers.remove(peerId);
+          try {
+            pc.close();
+          } catch (_) {}
+        }
       }
     };
 
@@ -375,6 +462,7 @@ class _VoicePeerEntry {
   final RTCPeerConnection pc;
   bool connected = false;
   bool hasRemoteDescription = false;
+  bool iceRestartAttempted = false;
   final bufferedCandidates = <RTCIceCandidate>[];
 }
 

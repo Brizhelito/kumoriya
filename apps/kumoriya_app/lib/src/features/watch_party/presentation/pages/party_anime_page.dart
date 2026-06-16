@@ -162,7 +162,7 @@ class _PartyAnimePageState extends ConsumerState<PartyAnimePage> {
       },
       child: Scaffold(
         backgroundColor: KumoriyaColors.background,
-        floatingActionButton: isConnected
+        floatingActionButton: isConnected && !PttButton.isDesktopPlatform
             ? const PttButton(isOverlayMode: false)
             : null,
         appBar: AppBar(
