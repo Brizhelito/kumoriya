@@ -97,3 +97,13 @@ events through `reducePartyRealtimeEvent`.
 - A reconnects within grace → state restored without resetting ready.
 - Host leaves → `host_transferred` is broadcast to B.
 - Close last member → room cleans up after the empty-room timer.
+
+## 6. Voice Chat (PTT)
+
+1. **Worker Routing**: Handles the `webrtc_signal` relay to route ICE/SDP messages, and broadcasts `voice_state_changed` whenever a member starts or stops speaking (PTT toggle).
+2. **Android Runtime Permission**: The client asks for `RECORD_AUDIO` permission when initializing the voice session. It requires both `RECORD_AUDIO` and `MODIFY_AUDIO_SETTINGS` to be present in `AndroidManifest.xml`.
+3. **PTT Button**: In both the Lobby and the Player overlay. Desktop clients can hold the `V` key to speak, while mobile clients long-press the PTT button. The button becomes translucent after 4 seconds of inactivity.
+4. **Validation Checklist**:
+   - Verify that microphone permission is requested successfully.
+   - Test peer connection establishing automatically when members join a room.
+   - Verify that the speaking mic indicator 🎤 appears on avatars in the lobby and next to names in the player overlay when speaking.

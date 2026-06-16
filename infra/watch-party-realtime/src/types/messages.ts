@@ -358,3 +358,22 @@ export interface WebRTCSignalServerPayload {
   type: 'offer' | 'answer' | 'ice-candidate';
   signal: unknown;
 }
+
+/**
+ * voice_state (client → server)
+ *
+ * Client notifies room of their local PTT speaking state.
+ */
+export interface VoiceStatePayload {
+  speaking: boolean;
+}
+
+/**
+ * voice_state_changed (server → client)
+ *
+ * Broadcast to other room members when a member's PTT state changes.
+ */
+export interface VoiceStateChangedPayload {
+  userId: string;
+  speaking: boolean;
+}

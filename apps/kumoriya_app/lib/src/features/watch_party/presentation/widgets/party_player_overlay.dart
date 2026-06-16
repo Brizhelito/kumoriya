@@ -10,7 +10,9 @@ import '../../../../app/l10n.dart';
 import '../../../../shared/theme/kumoriya_theme.dart';
 import '../../application/party_session_guard.dart';
 import '../../application/providers/party_providers.dart';
+import '../../application/providers/voice_providers.dart';
 import '../../application/models/models.dart';
+import 'ptt_button.dart';
 
 // ── Tunables ──────────────────────────────────────────────────────────────
 const List<String> _kPartyEmojis = [
@@ -173,45 +175,58 @@ class _PartyPlayerOverlayState extends ConsumerState<PartyPlayerOverlay> {
             Positioned(
               left: buttonPos.dx,
               top: buttonPos.dy,
-              child: _FloatingReactionButton(
-                editMode: _editMode,
-                dimmed: _wheelOpen,
-                onDoubleTap: _enterEditMode,
-                onPanStart: (pos) {
-                  if (_editMode) {
-                    _bumpEditTimer();
-                    return;
-                  }
-                  _openWheel(pos, overlaySize);
-                },
-                onPanUpdate: (globalPos, delta) {
-                  if (_editMode) {
-                    setState(() {
-                      _buttonPosition = Offset(
-                        (buttonPos.dx + delta.dx).clamp(
-                          8.0,
-                          math.max(8.0, overlaySize.width - _kButtonSize - 8),
-                        ),
-                        (buttonPos.dy + delta.dy).clamp(
-                          8.0,
-                          math.max(8.0, overlaySize.height - _kButtonSize - 8),
-                        ),
-                      );
-                    });
-                    return;
-                  }
-                  if (_wheelOpen) _updateWheel(globalPos);
-                },
-                onPanEnd: () {
-                  if (_editMode) {
-                    _bumpEditTimer();
-                    return;
-                  }
-                  if (_wheelOpen) _closeWheel(commit: true);
-                },
-                onPanCancel: () {
-                  if (_wheelOpen) _closeWheel(commit: false);
-                },
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  _FloatingReactionButton(
+                    editMode: _editMode,
+                    dimmed: _wheelOpen,
+                    onDoubleTap: _enterEditMode,
+                    onPanStart: (pos) {
+                      if (_editMode) {
+                        _bumpEditTimer();
+                        return;
+                      }
+                      _openWheel(pos, overlaySize);
+                    },
+                    onPanUpdate: (globalPos, delta) {
+                      if (_editMode) {
+                        setState(() {
+                          _buttonPosition = Offset(
+                            (buttonPos.dx + delta.dx).clamp(
+                              8.0,
+                              math.max(
+                                8.0,
+                                overlaySize.width - _kButtonSize - 8,
+                              ),
+                            ),
+                            (buttonPos.dy + delta.dy).clamp(
+                              8.0,
+                              math.max(
+                                8.0,
+                                overlaySize.height - _kButtonSize - 8,
+                              ),
+                            ),
+                          );
+                        });
+                        return;
+                      }
+                      if (_wheelOpen) _updateWheel(globalPos);
+                    },
+                    onPanEnd: () {
+                      if (_editMode) {
+                        _bumpEditTimer();
+                        return;
+                      }
+                      if (_wheelOpen) _closeWheel(commit: true);
+                    },
+                    onPanCancel: () {
+                      if (_wheelOpen) _closeWheel(commit: false);
+                    },
+                  ),
+                  const SizedBox(height: 10),
+                  const PttButton(isOverlayMode: true),
+                ],
               ),
             ),
             if (_wheelOpen)
@@ -677,13 +692,23 @@ class _PartyPlayerHudState extends ConsumerState<_PartyPlayerHud> {
                           padding: EdgeInsets.symmetric(vertical: 4),
                           child: Divider(height: 1, color: Colors.white12),
                         ),
-                      _MemberRow(
-                        member: member,
-                        isConnected: session.connectedPeerIds.contains(
-                          member.userId,
-                        ),
-                        isReady: session.readyStates[member.userId] ?? false,
-                        isSelf: member.userId == localUserId,
+                      Consumer(
+                        builder: (context, ref, _) {
+                          final voice = ref.watch(voiceSessionProvider);
+                          final isSpeaking = member.userId == localUserId
+                              ? voice.isMicEnabled
+                              : voice.speakingPeers.contains(member.userId);
+                          return _MemberRow(
+                            member: member,
+                            isConnected: session.connectedPeerIds.contains(
+                              member.userId,
+                            ),
+                            isReady:
+                                session.readyStates[member.userId] ?? false,
+                            isSelf: member.userId == localUserId,
+                            isSpeaking: isSpeaking,
+                          );
+                        },
                       ),
                     ],
                   ],
@@ -702,12 +727,14 @@ class _MemberRow extends StatelessWidget {
     required this.isConnected,
     required this.isReady,
     required this.isSelf,
+    required this.isSpeaking,
   });
 
   final PartyMember member;
   final bool isConnected;
   final bool isReady;
   final bool isSelf;
+  final bool isSpeaking;
 
   @override
   Widget build(BuildContext context) {
@@ -754,6 +781,10 @@ class _MemberRow extends StatelessWidget {
             size: 12,
             color: isConnected ? Colors.green : Colors.white24,
           ),
+          if (isSpeaking) ...[
+            const SizedBox(width: 4),
+            const Icon(Icons.mic, size: 12, color: Colors.redAccent),
+          ],
         ],
       ),
     );

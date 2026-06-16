@@ -8,3 +8,4 @@ export 'party_room.dart';
 export 'party_member.dart';
 export 'p2p_message.dart';
 export 'party_realtime_session.dart';
+export 'voice_state.dart';

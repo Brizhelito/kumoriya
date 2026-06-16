@@ -51,6 +51,8 @@ const RATE_LIMITS: Record<string, { capacity: number; refillPerSec: number }> = 
   playback_intent: { capacity: 6, refillPerSec: 0.6 },
   // WebRTC signaling can be chatty during ICE negotiation.
   webrtc_signal: { capacity: 30, refillPerSec: 5 },
+  // voice_state changes (PTT toggle)
+  voice_state: { capacity: 10, refillPerSec: 1 },
 };
 
 interface TokenBucket {
@@ -84,6 +86,7 @@ export const DEFAULT_RATE_LIMITS: Record<string, { capacity: number; refillPerSe
   reaction: { capacity: 8, refillPerSec: 0.8 },
   playback_intent: { capacity: 6, refillPerSec: 0.6 },
   webrtc_signal: { capacity: 30, refillPerSec: 5 },
+  voice_state: { capacity: 10, refillPerSec: 1 },
 };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -732,6 +735,9 @@ export class PartyRoomDO {
       case 'webrtc_signal':
         this.handleWebRtcSignal(ws, userId, roomState, envelope);
         break;
+      case 'voice_state':
+        this.handleVoiceState(ws, userId, roomState, envelope);
+        break;
       case 'leave_room':
         await this.handleLeaveFromSocket(ws, userId, roomState, envelope);
         break;
@@ -1365,6 +1371,46 @@ export class PartyRoomDO {
     }
     if (envelope.messageId) {
       ws.send(JSON.stringify(buildAck(envelope.messageId, 'webrtc_signal', roomState.roomId)));
+    }
+  }
+
+  /**
+   * Broadcast a member's PTT voice state change to all other members.
+   */
+  private handleVoiceState(
+    ws: WebSocket,
+    userId: string,
+    roomState: RoomState,
+    envelope: WSEnvelope
+  ): void {
+    if (!this.consumeToken(userId, 'voice_state')) {
+      this.rejectRateLimited(ws, envelope, roomState.roomId);
+      return;
+    }
+    const payload = envelope.payload as { speaking?: boolean } | null | undefined;
+    const speaking = payload?.speaking === true;
+
+    const broadcast = JSON.stringify(
+      buildEnvelope(
+        'voice_state_changed',
+        { userId, speaking },
+        roomState.roomId,
+        roomState.roomVersion
+      )
+    );
+    for (const [memberId, sockets] of this.activeConnections.entries()) {
+      if (memberId === userId) continue;
+      for (const socket of sockets) {
+        try {
+          socket.send(broadcast);
+        } catch {
+          /* ignore dead socket */
+        }
+      }
+    }
+
+    if (envelope.messageId) {
+      ws.send(JSON.stringify(buildAck(envelope.messageId, 'voice_state', roomState.roomId)));
     }
   }
 

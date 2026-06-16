@@ -74,9 +74,10 @@ What to remove once v2 is stable:
   `internal/handler/party_signal_handler.go`, and the `GET /party/:id/signal` route
   from `cmd/server/main.go`. Collapse `PartyHandler` back to a single code path.
 - `apps/kumoriya_app`: `infrastructure/signaling_client.dart`,
-  `infrastructure/webrtc_peer_manager.dart`,
-  `application/party_sync_engine.dart`, plus the `flutter_webrtc` dependency
-  if nothing else uses it.
+  `application/party_sync_engine.dart` (which was decoupled from active features),
+  and the legacy parts of `webrtc_peer_manager.dart` (which was refactored to
+  `VoicePeerManager` to serve audio P2P).
+  NOTE: `flutter_webrtc` is now RETAINED because it is used for Voice PTT chat.
 - `model.SignalMessage` / `SignalType` DTOs and their tests.
 
 Do not rip these out while the flag default is "off"; they are the rollback

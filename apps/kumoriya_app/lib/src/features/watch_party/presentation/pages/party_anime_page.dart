@@ -30,8 +30,10 @@ import '../../../downloads/presentation/download_providers.dart';
 import '../../../player/presentation/pages/player_page.dart';
 import '../../application/models/models.dart';
 import '../../application/providers/party_providers.dart';
+import '../../application/providers/voice_providers.dart';
 import '../../infrastructure/party_debug_logger.dart';
 import '../party_route_mode.dart';
+import '../widgets/ptt_button.dart';
 import 'party_episode_list_page.dart';
 
 class PartyAnimePage extends ConsumerStatefulWidget {
@@ -160,6 +162,9 @@ class _PartyAnimePageState extends ConsumerState<PartyAnimePage> {
       },
       child: Scaffold(
         backgroundColor: KumoriyaColors.background,
+        floatingActionButton: isConnected
+            ? const PttButton(isOverlayMode: false)
+            : null,
         appBar: AppBar(
           backgroundColor: KumoriyaColors.surface,
           title: Text(context.l10n.partyTitle),
@@ -1324,16 +1329,34 @@ class _MemberTile extends StatelessWidget {
             ],
           ),
           const Spacer(),
-          Text(
-            isYou
-                ? '${member.displayName} · ${context.l10n.partyYouSuffix}'
-                : member.displayName,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: KumoriyaColors.textPrimary,
-              fontWeight: FontWeight.w600,
-            ),
+          Consumer(
+            builder: (context, ref, _) {
+              final voice = ref.watch(voiceSessionProvider);
+              final isSpeaking = isYou
+                  ? voice.isMicEnabled
+                  : voice.speakingPeers.contains(member.userId);
+              return Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      isYou
+                          ? '${member.displayName} · ${context.l10n.partyYouSuffix}'
+                          : member.displayName,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: KumoriyaColors.textPrimary,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                  if (isSpeaking) ...[
+                    const SizedBox(width: 4),
+                    const Icon(Icons.mic, size: 12, color: Colors.redAccent),
+                  ],
+                ],
+              );
+            },
           ),
         ],
       ),

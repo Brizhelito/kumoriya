@@ -13,6 +13,7 @@ import '../../infrastructure/party_realtime_client.dart';
 import '../../infrastructure/signaling_client.dart';
 import '../../infrastructure/webrtc_peer_manager.dart';
 import '../../infrastructure/party_debug_logger.dart';
+import 'voice_providers.dart';
 
 const bool _watchPartyVerboseLogs = bool.fromEnvironment(
   'WATCH_PARTY_VERBOSE_LOGS',
@@ -148,6 +149,8 @@ class PartySessionNotifier extends Notifier<PartySessionState> {
   StreamSubscription<PartyEventEnvelope>? _realtimeEventsSub;
   StreamSubscription<PartyRealtimeStatus>? _realtimeStatusSub;
   PartyRealtimeState _realtimeState = const PartyRealtimeState();
+
+  PartyRealtimeClient? get realtimeClient => _realtime;
 
   PartySyncEngine? get syncEngine => _syncEngine;
 
@@ -789,6 +792,7 @@ class PartySessionNotifier extends Notifier<PartySessionState> {
     await _realtime?.dispose();
     _realtime = null;
     _realtimeState = const PartyRealtimeState();
+    ref.invalidate(voiceSessionProvider);
   }
 
   // ── Internal realtime v2 lifecycle ──
@@ -845,6 +849,10 @@ class PartySessionNotifier extends Notifier<PartySessionState> {
         case PartyRealtimeStatus.connected:
           if (state.status != PartySessionStatus.connected) {
             state = state.copyWith(status: PartySessionStatus.connected);
+          }
+          final uid = localUserId;
+          if (uid != null) {
+            ref.read(voiceSessionProvider.notifier).initialize(uid);
           }
           break;
         case PartyRealtimeStatus.expiredSession:

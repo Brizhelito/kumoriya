@@ -219,6 +219,10 @@ final class PartyRealtimeClient {
     'signal': signal,
   });
 
+  /// Notify the room of the local PTT speaking state.
+  String sendVoiceState({required bool speaking}) =>
+      _send('voice_state', <String, dynamic>{'speaking': speaking});
+
   // ── Internals ──────────────────────────────────────────────────────────────
 
   String _send(String type, Map<String, dynamic> payload) {

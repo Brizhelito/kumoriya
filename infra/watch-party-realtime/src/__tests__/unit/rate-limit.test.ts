@@ -77,4 +77,22 @@ describe('consumeFromBucket', () => {
     const intentR = consumeFromBucket(undefined, DEFAULT_RATE_LIMITS.playback_intent, 0);
     expect(intentR.allowed).toBe(true);
   });
+
+  it('correctly configures and verifies voice_state rate limit', () => {
+    const spec = DEFAULT_RATE_LIMITS.voice_state;
+    expect(spec).toBeDefined();
+    expect(spec.capacity).toBe(10);
+    expect(spec.refillPerSec).toBe(1);
+
+    let bucket = undefined as ReturnType<typeof consumeFromBucket>['bucket'] | undefined;
+    for (let i = 0; i < spec.capacity; i++) {
+      bucket = consumeFromBucket(bucket, spec, 0).bucket;
+    }
+    const extra = consumeFromBucket(bucket, spec, 0);
+    expect(extra.allowed).toBe(false);
+
+    // After 1 second, we should have 1 token for a 1/s refill.
+    const after1s = consumeFromBucket(bucket, spec, 1000);
+    expect(after1s.allowed).toBe(true);
+  });
 });

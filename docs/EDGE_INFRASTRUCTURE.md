@@ -221,6 +221,9 @@ interface WSEnvelope {
 | `host_change` | Server → Client | Host transferred |
 | `hb` | Client → Server | Heartbeat (auto-responded) |
 | `hb_ack` | Server → Client | Heartbeat acknowledgment |
+| `webrtc_signal` | Client ⇄ Server | WebRTC ICE/SDP signaling relay |
+| `voice_state` | Client → Server | Client toggles speaking (PTT) |
+| `voice_state_changed` | Server → Client | Broadcast peer speaking state changes |
 | `error` | Server → Client | Error response |
 
 ### ACK/Error Handling
