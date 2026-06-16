@@ -12,11 +12,13 @@ import '../../application/providers/voice_providers.dart';
 /// Interaction:
 ///  - Mobile/Touch: long-press to speak, release to mute.
 ///  - Desktop/Windows: hold V to speak, release V to mute.
+///  - First use: activates voice (requests mic permission) before speaking.
 ///
 /// Visual states:
-///  - Idle: translucent grey, mic_none icon.
+///  - Ready (no permission): mic_off icon — tap to activate voice.
+///  - Ready (has permission, not speaking): mic_none icon.
 ///  - Speaking: red, pulsing glow, mic icon.
-///  - No Permission/Unavailable: mic_off icon (tap requests permission).
+///  - Activating: circular progress.
 class PttButton extends ConsumerStatefulWidget {
   const PttButton({super.key, this.isOverlayMode = false});
 
@@ -31,6 +33,7 @@ class _PttButtonState extends ConsumerState<PttButton>
   late final AnimationController _pulse;
   bool _pressed = false;
   bool _isDimmed = false;
+  bool _activating = false;
   Timer? _dimTimer;
 
   @override
@@ -69,8 +72,25 @@ class _PttButtonState extends ConsumerState<PttButton>
     return false;
   }
 
-  void _start() {
+  Future<void> _start() async {
     _resetDimTimer();
+    final voice = ref.read(voiceSessionProvider);
+
+    // First use: activate voice lazily (requests permission + acquires mic).
+    if (!voice.isInitialized) {
+      if (_activating) return;
+      final localUserId = ref.read(partySessionProvider.notifier).localUserId;
+      if (localUserId == null) return;
+
+      setState(() => _activating = true);
+      final ok = await ref
+          .read(voiceSessionProvider.notifier)
+          .activate(localUserId);
+      if (!mounted) return;
+      setState(() => _activating = false);
+      if (!ok) return; // permission denied or mic error
+    }
+
     setState(() => _pressed = true);
     _pulse.repeat(reverse: true);
     HapticFeedback.mediumImpact();
@@ -97,38 +117,34 @@ class _PttButtonState extends ConsumerState<PttButton>
   @override
   Widget build(BuildContext context) {
     final voice = ref.watch(voiceSessionProvider);
-    if (!voice.isInitialized) {
-      return const SizedBox.shrink();
-    }
+    final active = _pressed && voice.hasPermission;
+    final glow = active ? 0.25 + (_pulse.value) * 0.35 : 0.0;
 
     return GestureDetector(
       onLongPressStart: (_) => _start(),
       onLongPressEnd: (_) => _stop(),
       onTapDown: (_) => _resetDimTimer(),
-      onTap: () {
-        if (!voice.hasPermission) {
-          final localUserId = ref
-              .read(partySessionProvider.notifier)
-              .localUserId;
-          if (localUserId != null) {
-            ref.read(voiceSessionProvider.notifier).initialize(localUserId);
-          }
-        }
-      },
       child: AnimatedOpacity(
         opacity: _isDimmed ? 0.3 : 1.0,
         duration: const Duration(milliseconds: 300),
         child: AnimatedBuilder(
           animation: _pulse,
           builder: (context, _) {
-            final active = _pressed && voice.hasPermission;
-            final glow = active ? 0.25 + _pulse.value * 0.35 : 0.0;
             final bgColor = active
                 ? Colors.red.shade700.withValues(alpha: 0.90)
                 : Colors.white.withValues(alpha: 0.12);
 
             final Widget icon;
-            if (!voice.hasPermission) {
+            if (_activating) {
+              icon = const SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: Colors.white60,
+                ),
+              );
+            } else if (!voice.hasPermission) {
               icon = const Icon(Icons.mic_off, color: Colors.white60, size: 22);
             } else if (active) {
               icon = const Icon(Icons.mic, color: Colors.white, size: 22);
@@ -156,7 +172,7 @@ class _PttButtonState extends ConsumerState<PttButton>
                       ]
                     : null,
               ),
-              child: icon,
+              child: Center(child: icon),
             );
           },
         ),

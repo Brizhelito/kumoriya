@@ -13,6 +13,7 @@ import 'package:media_kit/media_kit.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:workmanager/workmanager.dart';
 import 'package:window_manager/window_manager.dart';
+import 'package:flutter_webrtc/flutter_webrtc.dart';
 
 import 'src/app/kumoriya_app.dart';
 import 'src/config/app_config.dart';
@@ -91,6 +92,11 @@ Future<void> _appMain() async {
   // MissingPluginException / dlopen failure.
   if (!kIsWeb && !Platform.isAndroid) {
     MediaKit.ensureInitialized();
+  }
+  // Initialize the flutter_webrtc native engine. Must run before any
+  // getUserMedia / createPeerConnection call (required on Android).
+  if (!kIsWeb) {
+    await WebRTC.initialize();
   }
 
   // Only the DB blocks the provider tree (it is injected as an override

@@ -850,10 +850,6 @@ class PartySessionNotifier extends Notifier<PartySessionState> {
           if (state.status != PartySessionStatus.connected) {
             state = state.copyWith(status: PartySessionStatus.connected);
           }
-          final uid = localUserId;
-          if (uid != null) {
-            ref.read(voiceSessionProvider.notifier).initialize(uid);
-          }
           break;
         case PartyRealtimeStatus.expiredSession:
           state = state.copyWith(
