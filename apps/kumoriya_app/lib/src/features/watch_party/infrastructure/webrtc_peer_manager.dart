@@ -71,7 +71,16 @@ final class VoicePeerManager {
   bool get isMicEnabled => _micEnabled;
 
   /// Acquire microphone stream (initially muted for PTT).
-  Future<bool> initialize() async {
+  Future<bool> initialize({bool acquireMic = false}) async {
+    _voiceLog('Initializing VoicePeerManager');
+    if (acquireMic) {
+      return await acquireMicrophone();
+    }
+    return true;
+  }
+
+  Future<bool> acquireMicrophone() async {
+    if (_localStream != null) return true;
     _voiceLog('Initializing local audio stream');
     try {
       _localStream = await navigator.mediaDevices.getUserMedia({
@@ -83,8 +92,21 @@ final class VoicePeerManager {
         'video': false,
       });
       // Mute local tracks by default for Push-to-Talk
-      _setLocalMuted(true);
+      _setLocalMuted(!_micEnabled);
       _voiceLog('Local audio stream initialized successfully');
+
+      // Attach to existing peer connections by replacing the track
+      final track = _localStream!.getAudioTracks().first;
+      for (final entry in _peers.values) {
+        final senders = await entry.pc.getSenders();
+        for (final sender in senders) {
+          if (sender.track?.kind == 'audio' || sender.track == null) {
+            await sender.replaceTrack(track);
+            break;
+          }
+        }
+      }
+
       return true;
     } catch (e) {
       _voiceLog('Failed to acquire microphone: $e');
@@ -177,7 +199,13 @@ final class VoicePeerManager {
     if (signal is! Map) return;
     final sdp = signal['sdp'] as String?;
     final sdpType = signal['type'] as String?;
-    if (sdp == null || sdpType == null) return;
+    if (sdp == null || sdp.isEmpty || sdpType == null || sdpType.isEmpty) {
+      _voiceLog(
+        'Invalid offer signal from $peerId: '
+        'sdp=${sdp != null ? 'present' : 'null'}, type=$sdpType',
+      );
+      return;
+    }
 
     final entry = await _getOrCreatePeer(peerId);
     await entry.pc.setRemoteDescription(RTCSessionDescription(sdp, sdpType));
@@ -199,7 +227,13 @@ final class VoicePeerManager {
     if (signal is! Map) return;
     final sdp = signal['sdp'] as String?;
     final sdpType = signal['type'] as String?;
-    if (sdp == null || sdpType == null) return;
+    if (sdp == null || sdp.isEmpty || sdpType == null || sdpType.isEmpty) {
+      _voiceLog(
+        'Invalid answer signal from $peerId: '
+        'sdp=${sdp != null ? 'present' : 'null'}, type=$sdpType',
+      );
+      return;
+    }
 
     final entry = _peers[peerId];
     if (entry == null) return;
@@ -217,10 +251,19 @@ final class VoicePeerManager {
   Future<void> _handleCandidate(String peerId, Object? signal) async {
     if (signal is! Map) return;
     final candidateStr = signal['candidate'] as String?;
-    final sdpMid = signal['sdpMid'] as String?;
-    final sdpMLineIndex = signal['sdpMLineIndex'] as int?;
-    if (candidateStr == null) return;
+    // Guard: null sdpMid crashes native JNI NewStringUTF (SIGABRT).
+    final sdpMid = signal['sdpMid'] as String? ?? '';
+    // Guard: JSON may decode 0 as 0.0 (double), so coerce via num.
+    final rawIndex = signal['sdpMLineIndex'];
+    final sdpMLineIndex = rawIndex is int
+        ? rawIndex
+        : (rawIndex is num ? rawIndex.toInt() : 0);
+    if (candidateStr == null || candidateStr.isEmpty) return;
 
+    _voiceLog(
+      'Handling ICE candidate from $peerId: sdpMid=$sdpMid, '
+      'mline=$sdpMLineIndex',
+    );
     final candidate = RTCIceCandidate(candidateStr, sdpMid, sdpMLineIndex);
     final entry = _peers[peerId];
     if (entry == null) return;
@@ -249,14 +292,21 @@ final class VoicePeerManager {
       for (final track in localStream.getAudioTracks()) {
         await pc.addTrack(track, localStream);
       }
+    } else {
+      await pc.addTransceiver(
+        kind: RTCRtpMediaType.RTCRtpMediaTypeAudio,
+        init: RTCRtpTransceiverInit(direction: TransceiverDirection.SendRecv),
+      );
     }
 
     // Handle ICE candidates
     pc.onIceCandidate = (RTCIceCandidate candidate) {
+      final candidateStr = candidate.candidate;
+      if (candidateStr == null || candidateStr.isEmpty) return;
       sendSignal(peerId, 'ice-candidate', {
-        'candidate': candidate.candidate,
-        'sdpMid': candidate.sdpMid,
-        'sdpMLineIndex': candidate.sdpMLineIndex,
+        'candidate': candidateStr,
+        'sdpMid': candidate.sdpMid ?? '',
+        'sdpMLineIndex': candidate.sdpMLineIndex ?? 0,
       });
     };
 
