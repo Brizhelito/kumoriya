@@ -776,6 +776,9 @@ class PartySessionNotifier extends Notifier<PartySessionState> {
     state = state.copyWith(status: PartySessionStatus.connected);
     _partyLog('_connectP2P: status=connected');
     _partyDebug('_connectP2P: STATUS=CONNECTED — waiting for WebRTC peers');
+
+    // Wire up voice listeners passively.
+    ref.read(voiceSessionProvider.notifier).wireOnly(userId);
   }
 
   Future<void> _disconnect() async {
@@ -850,6 +853,9 @@ class PartySessionNotifier extends Notifier<PartySessionState> {
           if (state.status != PartySessionStatus.connected) {
             state = state.copyWith(status: PartySessionStatus.connected);
           }
+          // Wire up voice listeners passively.
+          final userId = authState.user.id;
+          ref.read(voiceSessionProvider.notifier).wireOnly(userId);
           break;
         case PartyRealtimeStatus.expiredSession:
           state = state.copyWith(

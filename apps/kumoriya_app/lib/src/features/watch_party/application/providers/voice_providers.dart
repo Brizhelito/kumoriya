@@ -1,11 +1,25 @@
 import 'dart:async';
+import 'dart:developer' as dev;
+import 'dart:io' show Platform;
 
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_webrtc/flutter_webrtc.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 import '../models/voice_state.dart';
 import '../../infrastructure/webrtc_peer_manager.dart';
 import 'party_providers.dart';
+
+const bool _watchPartyVerboseLogs = bool.fromEnvironment(
+  'WATCH_PARTY_VERBOSE_LOGS',
+  defaultValue: false,
+);
+
+void _voiceLog(String msg) {
+  if (!_watchPartyVerboseLogs) return;
+  dev.log('[VoiceRTC] $msg', name: 'PartyVoice');
+}
 
 final voiceSessionProvider =
     NotifierProvider<VoiceSessionNotifier, PartyVoiceState>(
@@ -16,6 +30,8 @@ class VoiceSessionNotifier extends Notifier<PartyVoiceState> {
   VoicePeerManager? _manager;
   StreamSubscription? _eventsSub;
 
+  final _renderers = <String, RTCVideoRenderer>{};
+
   // Tracks whether the event listener + manager are wired up (no mic yet).
   bool _isWired = false;
 
@@ -24,21 +40,35 @@ class VoiceSessionNotifier extends Notifier<PartyVoiceState> {
     ref.onDispose(() {
       _eventsSub?.cancel();
       _manager?.dispose();
+      for (final renderer in _renderers.values) {
+        renderer.srcObject = null;
+        renderer.dispose();
+      }
+      _renderers.clear();
     });
-    return const PartyVoiceState();
+    return const PartyVoiceState(peersWithAudio: <String>{});
   }
 
   // ── Public surface ──────────────────────────────────────────────────────────
 
+  /// Called by the party session when the room connects.
+  /// Wires up event listeners passively without requesting mic permission.
+  void wireOnly(String localUserId) {
+    _wireEvents(localUserId);
+  }
+
   /// Called by PTT button on first interaction.
-  /// Wires up signaling, requests mic permission, and acquires the stream.
+  /// Requests mic permission and acquires the stream.
   /// Returns true if voice is ready to use.
   Future<bool> activate(String localUserId) async {
     _wireEvents(localUserId);
 
-    // Request mic permission — only now, triggered by user gesture.
-    final status = await Permission.microphone.request();
-    final granted = status.isGranted;
+    // Request mic permission — only on mobile platforms where it is supported.
+    bool granted = true;
+    if (!kIsWeb && (Platform.isAndroid || Platform.isIOS)) {
+      final status = await Permission.microphone.request();
+      granted = status.isGranted;
+    }
 
     state = state.copyWith(hasPermission: granted);
     if (!granted) return false;
@@ -74,6 +104,20 @@ class VoiceSessionNotifier extends Notifier<PartyVoiceState> {
   /// Peer disconnected.
   Future<void> disconnectPeer(String peerId) async {
     await _manager?.handlePeerLeft(peerId);
+    _disposeRenderer(peerId);
+    final connected = Set<String>.from(state.connectedVoicePeers);
+    final speaking = Set<String>.from(state.speakingPeers);
+    final peersAudio = Set<String>.from(state.peersWithAudio);
+
+    connected.remove(peerId);
+    speaking.remove(peerId);
+    peersAudio.remove(peerId);
+
+    state = state.copyWith(
+      connectedVoicePeers: connected,
+      speakingPeers: speaking,
+      peersWithAudio: peersAudio,
+    );
   }
 
   // ── Private helpers ─────────────────────────────────────────────────────────
@@ -98,6 +142,9 @@ class VoiceSessionNotifier extends Notifier<PartyVoiceState> {
         );
       },
       onPeerStateChange: (peerId, connected) {
+        if (!connected) {
+          _disposeRenderer(peerId);
+        }
         final peers = Set<String>.from(state.connectedVoicePeers);
         if (connected) {
           peers.add(peerId);
@@ -106,13 +153,25 @@ class VoiceSessionNotifier extends Notifier<PartyVoiceState> {
         }
         state = state.copyWith(connectedVoicePeers: peers);
       },
+      onRemoteStream: (peerId, stream) {
+        // Remote audio stream received - play it
+        _voiceLog('Playing remote stream from $peerId');
+
+        // flutter_webrtc on Desktop requires attaching the stream to a renderer
+        // for it to route the audio correctly to the OS mixer.
+        _setupRenderer(peerId, stream);
+
+        final peers = Set<String>.from(state.peersWithAudio);
+        peers.add(peerId);
+        state = state.copyWith(peersWithAudio: peers);
+      },
     );
 
     _eventsSub = realtimeClient.events.listen((event) {
       switch (event.type) {
         case 'webrtc_signal':
           final payload = event.payload;
-          final senderId = payload['senderId'] as String?;
+          final senderId = event.sender ?? payload['senderId'] as String?;
           final type = payload['type'] as String?;
           final signal = payload['signal'];
           if (senderId != null && type != null && signal != null) {
@@ -137,7 +196,10 @@ class VoiceSessionNotifier extends Notifier<PartyVoiceState> {
           // Only connect if voice is already active (mic acquired).
           if (!state.isInitialized) return;
           final payload = event.payload;
-          final joinedUserId = payload['userId'] as String?;
+          final memberRaw = payload['member'];
+          final joinedUserId =
+              (memberRaw is Map ? memberRaw['userId'] : payload['userId'])
+                  as String?;
           if (joinedUserId != null && joinedUserId != localUserId) {
             _manager?.connectToPeer(joinedUserId, createOffer: true);
           }
@@ -150,5 +212,24 @@ class VoiceSessionNotifier extends Notifier<PartyVoiceState> {
           }
       }
     });
+  }
+
+  Future<void> _setupRenderer(String peerId, MediaStream stream) async {
+    if (_renderers.containsKey(peerId)) {
+      _renderers[peerId]!.srcObject = stream;
+      return;
+    }
+    final renderer = RTCVideoRenderer();
+    await renderer.initialize();
+    renderer.srcObject = stream;
+    _renderers[peerId] = renderer;
+  }
+
+  void _disposeRenderer(String peerId) {
+    final renderer = _renderers.remove(peerId);
+    if (renderer != null) {
+      renderer.srcObject = null;
+      renderer.dispose();
+    }
   }
 }

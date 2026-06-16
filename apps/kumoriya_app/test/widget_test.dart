@@ -16,9 +16,7 @@ void main() {
     // Build our app and trigger a frame.
     await tester.pumpWidget(
       ProviderScope(
-        overrides: [
-          appDatabaseProvider.overrideWithValue(db),
-        ],
+        overrides: [appDatabaseProvider.overrideWithValue(db)],
         child: const KumoriyaApp(),
       ),
     );

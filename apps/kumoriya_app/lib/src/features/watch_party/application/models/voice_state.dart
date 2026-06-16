@@ -6,6 +6,7 @@ final class PartyVoiceState {
     this.hasPermission = false,
     this.connectedVoicePeers = const <String>{},
     this.speakingPeers = const <String>{},
+    this.peersWithAudio = const <String>{},
     this.isConnecting = false,
   });
 
@@ -24,6 +25,9 @@ final class PartyVoiceState {
   /// IDs of peers currently speaking (broadcasting voice).
   final Set<String> speakingPeers;
 
+  /// IDs of peers whose remote audio stream we have received.
+  final Set<String> peersWithAudio;
+
   /// Whether ICE connection is currently negotiating.
   final bool isConnecting;
 
@@ -36,6 +40,7 @@ final class PartyVoiceState {
     bool? hasPermission,
     Set<String>? connectedVoicePeers,
     Set<String>? speakingPeers,
+    Set<String>? peersWithAudio,
     bool? isConnecting,
   }) {
     return PartyVoiceState(
@@ -44,6 +49,7 @@ final class PartyVoiceState {
       hasPermission: hasPermission ?? this.hasPermission,
       connectedVoicePeers: connectedVoicePeers ?? this.connectedVoicePeers,
       speakingPeers: speakingPeers ?? this.speakingPeers,
+      peersWithAudio: peersWithAudio ?? this.peersWithAudio,
       isConnecting: isConnecting ?? this.isConnecting,
     );
   }
@@ -57,6 +63,7 @@ final class PartyVoiceState {
         other.hasPermission == hasPermission &&
         other.connectedVoicePeers == connectedVoicePeers &&
         other.speakingPeers == speakingPeers &&
+        other.peersWithAudio == peersWithAudio &&
         other.isConnecting == isConnecting;
   }
 
@@ -68,6 +75,7 @@ final class PartyVoiceState {
       hasPermission,
       connectedVoicePeers,
       speakingPeers,
+      peersWithAudio,
       isConnecting,
     );
   }

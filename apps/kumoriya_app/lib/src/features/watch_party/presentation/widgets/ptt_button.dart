@@ -71,13 +71,23 @@ class _PttButtonState extends ConsumerState<PttButton>
   }
 
   bool _onKey(KeyEvent e) {
-    if (e.logicalKey != LogicalKeyboardKey.keyV) return false;
+    final isKeyV =
+        e.logicalKey == LogicalKeyboardKey.keyV ||
+        e.physicalKey == PhysicalKeyboardKey.keyV;
+    if (!isKeyV) return false;
+
+    debugPrint(
+      '[PttButton] Keyboard event: $e, physicalKey: ${e.physicalKey}, logicalKey: ${e.logicalKey}',
+    );
+
     _resetDimTimer();
     if (e is KeyDownEvent && !_pressed) {
+      debugPrint('[PttButton] KeyDownEvent detected, starting voice...');
       _start();
       return true;
     }
     if (e is KeyUpEvent && _pressed) {
+      debugPrint('[PttButton] KeyUpEvent detected, stopping voice...');
       _stop();
       return true;
     }
@@ -92,12 +102,17 @@ class _PttButtonState extends ConsumerState<PttButton>
     if (!voice.isInitialized) {
       if (_activating) return;
       final localUserId = ref.read(partySessionProvider.notifier).localUserId;
-      if (localUserId == null) return;
+      if (localUserId == null) {
+        debugPrint('[PttButton] _start failed: localUserId is null');
+        return;
+      }
 
       setState(() => _activating = true);
+      debugPrint('[PttButton] Activating voice session for $localUserId...');
       final ok = await ref
           .read(voiceSessionProvider.notifier)
           .activate(localUserId);
+      debugPrint('[PttButton] Activation result: $ok');
       if (!mounted) return;
       setState(() => _activating = false);
       if (!ok) return; // permission denied or mic error
