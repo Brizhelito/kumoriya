@@ -112,3 +112,10 @@ apps/kumoriya_app/run_and_capture_errors.sh
 evidence/
 .agents/runs/
 .kiro/
+.devin/
+docs/temp_progress/
+player_flow_*.json
+test_miruro.dart
+tools/miruro_analyzer/
+apps/kumoriya_app/package-lock.json
+apps/kumoriya_app/package.json
