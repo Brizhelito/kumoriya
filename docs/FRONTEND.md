@@ -27,10 +27,11 @@ The app follows a **cold-start-optimized** boot sequence:
 1. Sentry initialization (error tracking from frame 0)
 2. WidgetsFlutterBinding.ensureInitialized()
 3. Platform-specific init (WindowManager on Windows)
-4. Database open (blocking — required before UI)
-5. ProviderContainer creation with DB override
-6. runApp() — first frame renders immediately
-7. Post-frame async init (non-blocking):
+4. WebRTC engine init (flutter_webrtc native — required before voice chat)
+5. Database open (blocking — required before UI)
+6. ProviderContainer creation with DB override
+7. runApp() — first frame renders immediately
+8. Post-frame async init (non-blocking):
    ├── Restore download queue
    ├── Auto-delete watched downloads
    ├── Purge expired caches
@@ -40,7 +41,7 @@ The app follows a **cold-start-optimized** boot sequence:
    └── Download foreground service init (Android only)
 ```
 
-**Key optimization:** Only the database blocks the first frame. All platform services (Firebase, FCM, notifications, Workmanager) initialize asynchronously after `runApp()`.
+**Key optimization:** Only the database (and WebRTC engine) block the first frame. All platform services (Firebase, FCM, notifications, Workmanager) initialize asynchronously after `runApp()`.
 
 ### `KumoriyaApp` — App Shell
 
@@ -191,6 +192,8 @@ The `KumoriyaTheme` provides:
 | `StatusPill` | Airing/Completed status indicator |
 | `StateViews` | Loading, error, empty state widgets |
 | `BugReportButton` | Floating action button for user feedback |
+| `ActivePartyBanner` | Persistent banner on home when user is in an active watch party |
+| `PartyExitDialog` | Confirmation dialog when leaving a watch party |
 
 ### Responsive Design
 
@@ -232,6 +235,7 @@ The `KumoriyaTheme` provides:
 - Progress tracking with periodic saves
 - AniSkip integration (intro/outro detection)
 - Performance benchmark mode
+- **Watch Party integration:** buffering state reporting, synchronized seek barrier, auto-pause on member disconnect
 
 ### Downloads (`downloads/`)
 
@@ -246,11 +250,16 @@ The `KumoriyaTheme` provides:
 ### Watch Party (`watch_party/`)
 
 **Key capabilities:**
-- Room creation and joining
-- WebSocket real-time client
-- Playback state synchronization
-- Host authority management
-- Grace period handling on disconnect
+- Room creation and joining via Cloudflare Worker (v2 architecture)
+- WebSocket real-time client with Ed25519 session tokens
+- Playback state synchronization with server-authoritative clock
+- Host authority management (transfer, kick, grace period)
+- **Ready barrier system:** synchronized seek, media change, and episode change reset all ready states; playback auto-resumes when all members re-toggle ready
+- **Buffering state tracking:** members report `buffering` status during video load
+- **Auto-pause on disconnect:** server pauses playback when a watching member disconnects
+- **Source selection broadcast:** host's source/server choice is broadcast so members can auto-resolve the same provider locally
+- **Immersive re-entry:** persistent party banner on home, exit confirmation dialog, pop-based navigation
+- **Voice Chat (WebRTC PTT):** Push-to-Talk voice communication via `flutter_webrtc` 1.5.1, ExpressTURN relay, P2P mesh topology
 - Debug logging for diagnostics
 
 ### Authentication (`auth/`)
@@ -347,8 +356,15 @@ When the AniList API is unreachable:
 - **File picker:** Native directory selection
 - **MSIX packaging:** Windows Store-compatible distribution
 
+### Linux-Specific
+
+- **Audio:** PipeWire/PulseAudio delivery for voice chat
+- **PTT overlay suppression:** Desktop PTT overlay hidden on Linux to avoid compositor issues
+- **`flutter_webrtc`:** WebRTC audio rendering via libjingle
+
 ### Shared
 
 - **Path Provider:** Platform-appropriate storage paths
 - **Package Info:** Version detection for update checks
 - **Permission Handler:** Runtime permission requests
+- **`flutter_webrtc`:** WebRTC voice chat (Android, Windows, Linux)

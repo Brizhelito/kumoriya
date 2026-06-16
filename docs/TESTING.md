@@ -33,7 +33,7 @@ Kumoriya's testing strategy follows these principles:
 
 ### Test Location
 
-All Flutter tests in `apps/kumoriya_app/test/` — **65+ test files**.
+All Flutter tests in `apps/kumoriya_app/test/` — **70+ test files**.
 
 ### Test Categories
 
@@ -46,7 +46,7 @@ All Flutter tests in `apps/kumoriya_app/test/` — **65+ test files**.
 | `get_source_episode_server_links_use_case_test.dart` | Server link extraction orchestration |
 | `resolve_source_server_link_use_case_test.dart` | Resolver selection and resolution |
 | `start_episode_playback_use_case_test.dart` | Playback launch orchestration |
-| `load_source_availability_summary_use_case_test.dart` | Availability summary loading |
+| `load_source_availability_summary_use_case_test.dart` | Availability summary loading (including Miruro source) |
 | `save_progress_use_case_test.dart` | Progress persistence logic |
 | `seasonal_discovery_catalog_use_case_test.dart` | Seasonal catalog discovery |
 
@@ -102,8 +102,10 @@ All Flutter tests in `apps/kumoriya_app/test/` — **65+ test files**.
 |:---|:---|
 | `party_realtime_reducer_test.dart` | State reducer logic |
 | `watch_party_session_guard_test.dart` | Session validation |
+| `watch_party_seek_barrier_test.dart` | Synchronized seek barrier with ready-state reset |
 | `watch_party_p2p_sync_bug_exploration_test.dart` | P2P sync edge cases |
 | `watch_party_p2p_sync_preservation_test.dart` | P2P sync state preservation |
+| `voice_chat_test.dart` | WebRTC voice chat PTT and signaling |
 
 #### UI & Integration Tests
 

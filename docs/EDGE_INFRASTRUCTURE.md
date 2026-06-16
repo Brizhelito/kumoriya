@@ -144,6 +144,18 @@ When a member disconnects, they enter a **grace period** instead of being immedi
 
 **Empty Room Cleanup:** If all members leave (including grace expiration), the room is destroyed after 15 minutes.
 
+### Auto-Pause on Member Disconnect
+
+When a member whose status was `watching` disconnects (or changes status to `in_lobby` / `buffering`), the server **automatically pauses playback**. This is a server-initiated action that bypasses the host check, ensuring no device runs ahead while a member is disconnected.
+
+### Synchronized Seek Barrier
+
+When the host issues a `seek` playback intent, the server:
+1. Pauses playback and resets all members' ready states
+2. Sets `awaitReady = true` on the playback state
+3. Clients must re-toggle ready once their player has seeked
+4. When all connected members are ready again, the server auto-resumes playback
+
 ### Rate Limiting
 
 Token-bucket rate limiting per user per message type:
@@ -233,7 +245,7 @@ interface WSEnvelope {
 | `set_ready` | `SetReadyPayload` | Toggle the member's ready state |
 | `set_status` | `SetStatusPayload` | Update the member's current activity status (lobby, watching, buffering, etc.) |
 | `send_reaction` | `SendReactionPayload` | Send a reaction emote to the room |
-| `playback_intent` | `PlaybackIntentPayload` | Host-only commands to control playback (play, pause, seek, media_change, etc.) |
+| `playback_intent` | `PlaybackIntentPayload` | Host-only commands to control playback (play, pause, seek, media_change, episode_change, resync_request, start_watching, source_selected) |
 | `leave_room` | (none) | Explicit notification before disconnecting |
 | `kick_member` | `KickMemberPayload` | Host-only command to forcibly remove a user |
 | `transfer_host` | `TransferHostPayload` | Host-only command to transfer host authority |
@@ -259,6 +271,9 @@ interface WSEnvelope {
 | `ack` | `AckPayload` | Acknowledge a client message via `messageId` correlation |
 | `webrtc_signal` | `WebRTCSignalServerPayload` | Relayed WebRTC signaling from a peer |
 | `voice_state_changed` | `VoiceStateChangedPayload` | Broadcast when a peer starts or stops speaking (PTT toggle) |
+| `source_selected` | `SourceSelectedPayload` | Broadcast when the host picks a source/server for the current episode (notification-only, no timeline mutation) |
+| `start_watching` | `StartWatchingPayload` | Broadcast when the host taps "Start Watching" in the lobby — carries media + playback snapshot so all clients navigate to the player |
+| `kicked` | `KickedPayload` | Targeted notification sent to a member being kicked, right before their WebSocket is closed |
 | `error` | `ErrorPayload` | Error response |
 
 ### ACK/Error Handling
@@ -269,6 +284,25 @@ Messages with `messageId` fields expect acknowledgment:
 Client sends: {type: "playback_intent", messageId: "msg_42", payload: {...}}
 Server responds: {type: "ack", payload: {messageId: "msg_42", type: "playback_intent", success: true}} or {type: "error", payload: {code: "...", message: "...", retryable: true}}
 ```
+
+The `PlaybackIntentPayload` supports the following actions:
+
+| Action | Description |
+|:---|:---|
+| `play` | Resume playback (optional `positionMs` for implicit seek) |
+| `pause` | Pause playback (optional `positionMs` for implicit seek) |
+| `seek` | Seek to position, pause, reset ready states, set `awaitReady` barrier |
+| `media_change` | Change anime (resets playback, resets ready states, exempts host) |
+| `episode_change` | Change episode within same anime (resets playback and ready states) |
+| `resync_request` | Broadcast current playback state without incrementing generation |
+| `start_watching` | Transition from lobby to player — freezes playback paused, resets ready |
+| `source_selected` | Notification-only — broadcast which source/server host picked (no timeline mutation) |
+
+### Source Selection Protocol
+
+When the host selects a specific server for the current episode, a `source_selected` playback intent is sent. The server broadcasts a `source_selected` event to all members carrying `sourcePluginId`, `serverName`, `resolverPluginId`, and `episodeNumber`. Each member's client can then **auto-resolve the same source locally** — the actual stream URL is never shared, because resolvers depend on region, installed plugins, and auth.
+
+If the host's source is unavailable on a member's device, the member's client falls back to the normal manual server picker.
 
 ---
 

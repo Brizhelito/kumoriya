@@ -95,7 +95,7 @@ Kumoriya follows a **three-tier distributed architecture** with clear separation
 The Flutter app is structured as a **monorepo with Domain-Driven Design (DDD)** principles:
 
 - **`apps/kumoriya_app`**: The main application entry point
-- **`packages/`**: 45+ micro-packages enforcing strict boundaries
+- **`packages/`**: 50+ micro-packages enforcing strict boundaries
 
 ### Feature Slice Architecture
 
@@ -222,12 +222,13 @@ Multi-strategy authentication:
 
 ### watch-party-realtime
 
-**Purpose:** Real-time synchronized viewing rooms with WebSocket signaling.
+**Purpose:** Real-time synchronized viewing rooms with WebSocket signaling and WebRTC voice chat.
 
 **Architecture:**
 - **Entry Point (`index.ts`):** Routes HTTP requests to health, WebSocket upgrade, or internal API
 - **PartyRegistryDO:** Global registry mapping invite codes → room IDs, enforcing user-in-one-room constraint
 - **PartyRoomDO:** Per-room Durable Object managing authoritative state
+- **Voice Chat:** WebRTC signaling relay (`webrtc_signal` / `voice_state`) through the DO for P2P mesh audio with ExpressTURN relay fallback
 
 **PartyRoomDO State Machine:**
 ```
@@ -244,8 +245,11 @@ Room Created → Members Join → Ready Check → Playing → Paused → Ended
 **WebSocket Protocol:**
 - Typed JSON message envelopes with `type` discriminator
 - ACK/error handling with message IDs
-- Token-bucket rate limiting per user per message type
+- Token-bucket rate limiting per user per message type (reactions, playback intents, WebRTC signals, voice state)
 - Heartbeat auto-response via DO hibernation bypass (95% cost reduction)
+- Synchronized seek barrier with ready-state reset and auto-resume
+- Auto-pause when a watching member disconnects
+- Source selection broadcast for automatic source resolution on members
 
 **Session Security:**
 - Ed25519-signed JWT tokens issued by Go API
@@ -277,7 +281,7 @@ Room Created → Members Join → Ready Check → Playing → Paused → Ended
 ### Observability
 
 - **Sentry:** Crash reporting, ANR detection (Android), session replay, performance tracing
-- **Intelligent filtering:** Known non-actionable errors (media_kit disposal races, resolver failures) are dropped before reaching Sentry
+- **Intelligent filtering:** Known non-actionable errors (media_kit disposal races, resolver failures, WebRTC native crashes) are dropped before reaching Sentry
 - **Debug logging:** Feature-flagged verbose logging (`KUMORIYA_DOWNLOAD_DEBUG_LOGS`)
 
 ### Internationalization
@@ -380,6 +384,10 @@ Client connects WebSocket to party.kumoriya.online
         │
         ▼
 PartyRoomDO manages synchronized playback state
+        │
+        ▼
+Voice Chat: WebRTC P2P mesh signaling relayed through DO
+             ExpressTURN relay for NAT traversal
 ```
 
 ---
@@ -402,7 +410,7 @@ PartyRoomDO manages synchronized playback state
 **Trade-off:** Cannot merge concurrent edits, but concurrent edits are rare for this data model.
 
 ### ADR-004: Monorepo with Micro-Packages
-**Decision:** Single repository with 45+ Dart packages instead of multiple repos.
+**Decision:** Single repository with 50+ Dart packages instead of multiple repos.
 **Rationale:** Shared tooling, atomic commits across boundaries, simplified CI. Package boundaries enforced by Dart's import system.
 **Trade-off:** Larger clone size, but `flutter pub get` handles dependency resolution.
 

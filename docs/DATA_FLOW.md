@@ -19,7 +19,7 @@
 
 ## Data Flow Overview
 
-Kumoriya has **five primary data pipelines**:
+Kumoriya has **six primary data pipelines**:
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
@@ -30,6 +30,7 @@ Kumoriya has **five primary data pipelines**:
 │  3. Multi-Device Sync:  Local DB ↔ Go API ↔ Neon            │
 │  4. Downloads:          Resolver → HLS/MP4 → Local Storage  │
 │  5. Notifications:      AniList → Redis → FCM → Device      │
+│  6. Watch Party Voice:  WebRTC P2P mesh via DO signaling    │
 │                                                              │
 └─────────────────────────────────────────────────────────────┘
 ```
@@ -492,7 +493,7 @@ Client connects WebSocket to party.kumoriya.online
 Host seeks to 5:30
       │
       ▼
-Client → PartyRoomDO: {type: "playback_intent", payload: {position: 330, isPlaying: true}}
+Client → PartyRoomDO: {type: "playback_intent", payload: {action: "seek", positionMs: 330000}}
       │
       ▼
 PartyRoomDO validates:
@@ -501,15 +502,40 @@ PartyRoomDO validates:
       │
       ▼
 PartyRoomDO updates authoritative state:
-  playback.position = 330
-  playback.isPlaying = true
+  playback.basePositionMs = 330000
+  playback.status = 'paused'
+  playback.awaitReady = true
+  Reset all members' ready states to false
       │
       ▼
-PartyRoomDO broadcasts to ALL members:
-  {type: "playback_state", payload: {position: 330, isPlaying: true, updatedBy: hostId}}
+PartyRoomDO broadcasts playback_state_changed + member_ready_changed to ALL members
       │
       ▼
-All clients seek to 5:30 and play
+All clients seek to 5:30, pause, and re-toggle ready
+      │
+      ▼
+When all connected members are ready → server auto-resumes playback
+```
+
+### Auto-Pause on Member Disconnect
+
+```
+Member disconnects while status = 'watching'
+      │
+      ▼
+PartyRoomDO detects disconnect (webSocketClose)
+      │
+      ▼
+Server automatically pauses playback:
+  playback.status = 'paused'
+  (Bypasses host check — server-initiated)
+      │
+      ▼
+PartyRoomDO broadcasts playback_state_changed to all remaining members
+      │
+      ▼
+Member enters grace period (120s for members, 60s for host)
+If member reconnects within grace → presence restored, ready state preserved
 ```
 
 ### Member Join Flow
@@ -536,4 +562,29 @@ Client connects WebSocket → PartyRoomDO
       ▼
 PartyRoomDO broadcasts member_join to all existing members
 PartyRoomDO sends full state to new member (playback, media, members)
+```
+
+### Voice Chat (WebRTC PTT)
+
+```
+Member presses PTT button
+      │
+      ▼
+Client → PartyRoomDO: {type: "voice_state", payload: {speaking: true}}
+      │
+      ▼
+PartyRoomDO broadcasts voice_state_changed to all OTHER members:
+  {type: "voice_state_changed", payload: {userId, speaking: true}}
+      │
+      ▼
+Remote clients render audio indicator for the speaking member
+      │
+      ▼
+WebRTC signaling (offer/answer/ICE) relayed through DO:
+  Client → PartyRoomDO: {type: "webrtc_signal", payload: {targetUserId, type, signal}}
+  PartyRoomDO → Target client: relayed signal
+      │
+      ▼
+P2P mesh established (ExpressTURN relay for NAT traversal)
+Audio streams directly between peers (not through DO)
 ```

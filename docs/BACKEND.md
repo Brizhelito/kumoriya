@@ -257,6 +257,7 @@ Go API (PartyBrokerClient)
         │  POST /internal/v1/rooms/:id/leave
         │  GET  /internal/v1/invite/:code
         │  POST /internal/v1/rooms/:id/member-verify
+        │  POST /internal/v1/users/:id/force-leave   (recovery)
         │
         ▼
 Cloudflare Worker (party.kumoriya.online)
