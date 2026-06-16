@@ -934,7 +934,7 @@ class _PartyActionButton extends ConsumerWidget {
         final route = MaterialPageRoute<void>(
           builder: (_) => PartyAnimePage(anilistId: anilistId),
         );
-        navigator.pushReplacement(route);
+        navigator.push(route);
       },
     );
   }
@@ -963,7 +963,7 @@ class _WatchPartySpotlightCard extends ConsumerWidget {
           final route = MaterialPageRoute<void>(
             builder: (_) => PartyAnimePage(anilistId: anilistId),
           );
-          navigator.pushReplacement(route);
+          navigator.push(route);
         },
         icon: Icon(
           isActive ? Icons.groups_rounded : Icons.group_add_rounded,

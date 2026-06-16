@@ -160,11 +160,18 @@ class _PartyAnimePageState extends ConsumerState<PartyAnimePage> {
       },
       child: Scaffold(
         backgroundColor: KumoriyaColors.background,
-        appBar: isConnected
-            ? AppBar(
-                backgroundColor: KumoriyaColors.surface,
-                title: Text(context.l10n.partyTitle),
-                actions: [
+        appBar: AppBar(
+          backgroundColor: KumoriyaColors.surface,
+          title: Text(context.l10n.partyTitle),
+          leading: isConnected
+              ? null
+              : IconButton(
+                  icon: const Icon(Icons.arrow_back_rounded),
+                  onPressed: () =>
+                      Navigator.of(context, rootNavigator: true).pop(),
+                ),
+          actions: isConnected
+              ? [
                   if (session.room != null)
                     Padding(
                       padding: const EdgeInsets.only(right: 4),
@@ -210,11 +217,11 @@ class _PartyAnimePageState extends ConsumerState<PartyAnimePage> {
                   ),
                   IconButton(
                     icon: const Icon(Icons.exit_to_app),
-                    onPressed: () => _leaveParty(context),
+                    onPressed: _leaveParty,
                   ),
-                ],
-              )
-            : null,
+                ]
+              : null,
+        ),
         body: _buildBody(session, effectiveAnilistId),
       ),
     );
@@ -224,7 +231,7 @@ class _PartyAnimePageState extends ConsumerState<PartyAnimePage> {
   ///
   /// Shows a confirmation dialog first. On confirm, displays a brief loading
   /// overlay while [leaveRoom] completes, then pops to the root route.
-  Future<void> _leaveParty(BuildContext context) async {
+  Future<void> _leaveParty() async {
     final action = await showPartyExitDialog(context);
     if (action != PartyExitAction.leave || !mounted) return;
     showBlockingLoader(context, context.l10n.partyLeavingRoom);
@@ -1886,7 +1893,7 @@ class _SearchResultsList extends ConsumerWidget {
           ),
         ),
       ),
-      error: (_, __) => Padding(
+      error: (_, _) => Padding(
         padding: const EdgeInsets.symmetric(vertical: 12),
         child: Text(
           context.l10n.partyCouldNotLoadAnime,
@@ -1949,7 +1956,7 @@ class _TrendingAnimeList extends ConsumerWidget {
               ),
             ),
           ),
-          error: (_, __) => const SizedBox.shrink(),
+          error: (_, _) => const SizedBox.shrink(),
           data: (result) {
             final anime = result.fold(
               onFailure: (_) => <Anime>[],
@@ -1977,7 +1984,7 @@ class _AnimeCompactList extends StatelessWidget {
       child: ListView.separated(
         shrinkWrap: true,
         itemCount: items.length,
-        separatorBuilder: (_, __) =>
+        separatorBuilder: (_, _) =>
             const Divider(height: 1, color: KumoriyaColors.borderSubtle),
         itemBuilder: (context, index) {
           final anime = items[index];

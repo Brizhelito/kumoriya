@@ -1,4 +1,4 @@
-import type { Member, MediaState, MemberStatus, PlaybackState } from './room';
+import type { Member, MediaState, PlaybackState } from './room';
 
 /**
  * WebSocket Envelope
@@ -97,7 +97,8 @@ export interface PlaybackIntentPayload {
     | 'source_selected';
   positionMs?: number; // For seek, or optional anchor for play/pause
   anilistId?: number; // For media_change
-  episodeNumber?: number; // For episode_change and source_selected
+  animeTitle?: string; // For media_change / episode_change
+  episodeNumber?: number; // For episode_change, media_change and source_selected
   sourcePluginId?: string; // For source_selected
   serverName?: string; // For source_selected
   resolverPluginId?: string; // For source_selected (optional hint)

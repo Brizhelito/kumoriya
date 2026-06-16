@@ -173,6 +173,7 @@ final class PartyRealtimeClient {
     required String action,
     int? positionMs,
     int? anilistId,
+    String? animeTitle,
     double? episodeNumber,
     String? sourcePluginId,
     String? serverName,
@@ -181,6 +182,7 @@ final class PartyRealtimeClient {
     final payload = <String, dynamic>{'action': action};
     if (positionMs != null) payload['positionMs'] = positionMs;
     if (anilistId != null) payload['anilistId'] = anilistId;
+    if (animeTitle != null) payload['animeTitle'] = animeTitle;
     if (episodeNumber != null) payload['episodeNumber'] = episodeNumber;
     if (sourcePluginId != null) payload['sourcePluginId'] = sourcePluginId;
     if (serverName != null) payload['serverName'] = serverName;

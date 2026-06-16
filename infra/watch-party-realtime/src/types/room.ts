@@ -30,8 +30,9 @@ export interface RoomState {
  * - in_player:  player open but not actively watching (e.g. paused by user)
  * - watching:   actively playing (media is running)
  * - paused:     playback paused by user
+ * - buffering:  player is buffering video data
  */
-export type MemberStatus = 'in_lobby' | 'loading' | 'in_player' | 'watching' | 'paused';
+export type MemberStatus = 'in_lobby' | 'loading' | 'in_player' | 'watching' | 'paused' | 'buffering';
 
 export interface Member {
   userId: string;
@@ -75,4 +76,6 @@ export interface PlaybackState {
   basePositionMs: number;
   effectiveAtMs: number;
   generation: number;
+  /** When true, clients should wait until all are ready before auto-resuming. */
+  awaitReady?: boolean;
 }

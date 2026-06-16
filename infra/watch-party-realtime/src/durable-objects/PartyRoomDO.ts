@@ -850,6 +850,23 @@ export class PartyRoomDO {
     if (envelope.messageId) {
       ws.send(JSON.stringify(buildAck(envelope.messageId, 'set_ready', roomState.roomId)));
     }
+
+    // Auto-resume if waiting on a ready barrier and everyone is now ready
+    if (roomState.playback.awaitReady) {
+      const allReady = roomState.members
+        .filter((m) => m.presence === 'connected')
+        .every((m) => m.effectiveReady);
+      if (allReady) {
+        roomState.playback.status = 'playing';
+        roomState.playback.awaitReady = false;
+        roomState.playback.effectiveAtMs = Date.now();
+        roomState.playback.generation += 1;
+        roomState.roomVersion += 1;
+        roomState.lastActivityAt = Date.now();
+        await this.state.storage.put('roomState', roomState);
+        this.broadcast(this.buildPlaybackStateChangedEnvelope(roomState));
+      }
+    }
   }
 
   /**
@@ -882,7 +899,7 @@ export class PartyRoomDO {
       )
     );
 
-    if (wasWatching && status === 'in_lobby') {
+    if (wasWatching && (status === 'in_lobby' || status === 'buffering')) {
       await this._applyAutoPause(roomState);
     }
 
@@ -935,13 +952,46 @@ export class PartyRoomDO {
       case 'seek':
         if (payload.positionMs !== undefined) {
           roomState.playback.basePositionMs = payload.positionMs;
+          roomState.playback.status = 'paused';
+          roomState.playback.awaitReady = true;
           roomState.playback.effectiveAtMs = now;
           roomState.playback.generation += 1;
+          const resetIds = this.resetAllReadyStates(roomState);
+          
+          // Persist state before broadcasting
+          roomState.roomVersion += 1;
+          roomState.lastActivityAt = now;
+          await this.state.storage.put('roomState', roomState);
+
+          this.broadcast(this.buildPlaybackStateChangedEnvelope(roomState));
+          
+          for (const resetUserId of resetIds) {
+            this.broadcast(
+              buildEnvelope(
+                'member_ready_changed',
+                { userId: resetUserId, effectiveReady: false },
+                roomState.roomId,
+                roomState.roomVersion
+              )
+            );
+          }
+          if (envelope.messageId) {
+            ws.send(
+              JSON.stringify(buildAck(envelope.messageId, 'playback_intent', roomState.roomId))
+            );
+          }
+          return;
         }
         break;
       case 'media_change':
         if (payload.anilistId !== undefined) {
           roomState.media.anilistId = payload.anilistId;
+          if (payload.animeTitle !== undefined) {
+            roomState.media.animeTitle = payload.animeTitle;
+          }
+          if (payload.episodeNumber !== undefined) {
+            roomState.media.episodeNumber = payload.episodeNumber;
+          }
           roomState.playback = applyPlaybackResetForMediaChange(roomState.playback, now);
           // Exempt the host (origin of the intent): their next PlayerPage
           // will re-mark ready immediately and the round-trip flicker is
@@ -979,6 +1029,9 @@ export class PartyRoomDO {
       case 'episode_change':
         if (payload.episodeNumber !== undefined) {
           roomState.media.episodeNumber = payload.episodeNumber;
+          if (payload.animeTitle !== undefined) {
+            roomState.media.animeTitle = payload.animeTitle;
+          }
           roomState.playback = applyPlaybackResetForMediaChange(roomState.playback, now);
           const episodeResetIds = this.resetAllReadyStates(roomState, userId);
           roomState.roomVersion += 1;
