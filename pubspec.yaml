@@ -56,4 +56,5 @@ workspace:
   - packages/kumoriya_resolver_miruro_vibeplayer
   - packages/kumoriya_exoplayer
   - packages/kumoriya_reader
+  - packages/kumoriya_ui
   - tools/resolver_cli

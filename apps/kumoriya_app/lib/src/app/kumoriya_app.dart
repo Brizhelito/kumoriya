@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kumoriya_app/l10n/generated/app_localizations.dart';
+import 'package:kumoriya_ui/kumoriya_ui.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -98,24 +99,27 @@ class _KumoriyaAppState extends ConsumerState<KumoriyaApp> {
           data: (pref) => pref,
           orElse: () => AppLanguagePreference.system,
         );
-    return MaterialApp(
-      navigatorKey: _navigatorKey,
-      onGenerateTitle: (context) => context.l10n.appTitle,
-      debugShowCheckedModeBanner: false,
-      localizationsDelegates: const <LocalizationsDelegate<dynamic>>[
-        AppLocalizations.delegate,
-        GlobalMaterialLocalizations.delegate,
-        GlobalWidgetsLocalizations.delegate,
-        GlobalCupertinoLocalizations.delegate,
-      ],
-      locale: languagePref.toLocale(),
-      supportedLocales: AppLocalizations.supportedLocales,
-      theme: themeData,
-      darkTheme: themeData,
-      themeMode: ThemeMode.dark,
-      home: kPlayerPerfBenchmarkMode
-          ? const PlayerPerformanceBenchmarkPage()
-          : const _FirstLaunchGate(),
+    return FormFactorProvider(
+      colors: CloudColors.noche(),
+      child: MaterialApp(
+        navigatorKey: _navigatorKey,
+        onGenerateTitle: (context) => context.l10n.appTitle,
+        debugShowCheckedModeBanner: false,
+        localizationsDelegates: const <LocalizationsDelegate<dynamic>>[
+          AppLocalizations.delegate,
+          GlobalMaterialLocalizations.delegate,
+          GlobalWidgetsLocalizations.delegate,
+          GlobalCupertinoLocalizations.delegate,
+        ],
+        locale: languagePref.toLocale(),
+        supportedLocales: AppLocalizations.supportedLocales,
+        theme: themeData,
+        darkTheme: themeData,
+        themeMode: ThemeMode.dark,
+        home: kPlayerPerfBenchmarkMode
+            ? const PlayerPerformanceBenchmarkPage()
+            : const _FirstLaunchGate(),
+      ),
     );
   }
 }

@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:kumoriya_ui/kumoriya_ui.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:permission_handler/permission_handler.dart';
 
@@ -667,6 +668,17 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                 icon: const Icon(Icons.smart_display_rounded),
                 label: const Text('kumoriya_exoplayer Playground'),
               ),
+            FilledButton.tonalIcon(
+              onPressed: () {
+                Navigator.of(context, rootNavigator: true).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => const CloudGalleryPage(),
+                  ),
+                );
+              },
+              icon: const Icon(Icons.palette_outlined),
+              label: const Text('Cloud UI Gallery'),
+            ),
           ],
         ),
       ),

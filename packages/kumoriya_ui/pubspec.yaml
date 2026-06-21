@@ -1,0 +1,20 @@
+name: kumoriya_ui
+description: Kumoriya Cloudy Cozy design system — tokens, primitives, components, navigation, and textures.
+version: 0.1.0
+publish_to: none
+
+resolution: workspace
+
+environment:
+  sdk: ^3.11.1
+
+dependencies:
+  flutter:
+    sdk: flutter
+  kumoriya_core:
+  kumoriya_domain:
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  lints: ^6.0.0

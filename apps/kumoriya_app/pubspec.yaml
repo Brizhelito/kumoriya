@@ -33,6 +33,7 @@ dependencies:
   kumoriya_anilist:
   kumoriya_core:
   kumoriya_domain:
+  kumoriya_ui:
   kumoriya_plugins:
   kumoriya_matching:
   kumoriya_resolver_common:
