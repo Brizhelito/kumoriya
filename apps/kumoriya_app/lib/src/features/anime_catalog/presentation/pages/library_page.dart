@@ -1,12 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kumoriya_storage/kumoriya_storage.dart';
+import 'package:kumoriya_ui/kumoriya_ui.dart';
 
 import '../../../../app/l10n.dart';
 import '../../../../shared/icons/kumoriya_icons.dart';
-import '../../../../shared/theme/kumoriya_theme.dart';
-import '../../../../shared/widgets/kumoriya_cached_image.dart';
-import '../../../../shared/widgets/state_views.dart';
+import '../../../../shared/utils/error_messaging.dart';
 import '../providers/anime_catalog_providers.dart';
 import '../providers/storage_providers.dart';
 import 'anime_detail_page.dart';
@@ -23,10 +22,11 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
 
   @override
   Widget build(BuildContext context) {
+    final colors = FormFactorProvider.colorsOf(context);
     return DefaultTabController(
       length: 3,
       child: Scaffold(
-        backgroundColor: KumoriyaColors.background,
+        backgroundColor: colors.bg,
         body: SafeArea(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -38,7 +38,11 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
                     Expanded(
                       child: Text(
                         context.l10n.libraryTitle,
-                        style: Theme.of(context).textTheme.headlineMedium,
+                        style: TextStyle(
+                          color: colors.text,
+                          fontSize: 28,
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
                     ),
                     IconButton(
@@ -46,7 +50,7 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
                         _listView
                             ? Icons.grid_view_rounded
                             : Icons.view_list_rounded,
-                        color: KumoriyaColors.textSecondary,
+                        color: colors.textMuted,
                         size: 22,
                       ),
                       tooltip: _listView ? 'Grid view' : 'List view',
@@ -58,10 +62,10 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
               TabBar(
                 isScrollable: true,
                 tabAlignment: TabAlignment.start,
-                indicatorColor: KumoriyaColors.primary,
-                labelColor: KumoriyaColors.primary,
-                unselectedLabelColor: KumoriyaColors.navInactive,
-                dividerColor: KumoriyaColors.borderSubtle,
+                indicatorColor: colors.primary,
+                labelColor: colors.primary,
+                unselectedLabelColor: colors.textMuted,
+                dividerColor: colors.surface2,
                 labelStyle: const TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w700,
@@ -94,6 +98,7 @@ class _HistoryTab extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final colors = FormFactorProvider.colorsOf(context);
     final historyState = ref.watch(allWatchHistoryProvider);
 
     return historyState.when(
@@ -134,7 +139,7 @@ class _HistoryTab extends ConsumerWidget {
                         icon: const Icon(Icons.delete_sweep_rounded, size: 18),
                         label: Text(context.l10n.historyClearAllAction),
                         style: TextButton.styleFrom(
-                          foregroundColor: KumoriyaColors.statusDanger,
+                          foregroundColor: colors.error,
                           textStyle: const TextStyle(fontSize: 12),
                         ),
                       ),
@@ -149,8 +154,9 @@ class _HistoryTab extends ConsumerWidget {
                     padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
                     child: Text(
                       section.key,
-                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                        color: KumoriyaColors.textSecondary,
+                      style: TextStyle(
+                        color: colors.textMuted,
+                        fontSize: 14,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
@@ -170,10 +176,8 @@ class _HistoryTab extends ConsumerWidget {
                           alignment: Alignment.centerRight,
                           padding: const EdgeInsets.only(right: 20),
                           decoration: BoxDecoration(
-                            color: KumoriyaColors.statusDanger,
-                            borderRadius: BorderRadius.circular(
-                              KumoriyaRadius.xxl,
-                            ),
+                            color: colors.error,
+                            borderRadius: BorderRadius.circular(CloudRadius.lg),
                           ),
                           child: const Icon(
                             Icons.delete_rounded,
@@ -258,6 +262,7 @@ class _HistoryTab extends ConsumerWidget {
   }
 
   Future<bool> _confirmDeleteEntry(BuildContext context) async {
+    final colors = FormFactorProvider.colorsOf(context);
     final result = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -270,9 +275,7 @@ class _HistoryTab extends ConsumerWidget {
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            style: TextButton.styleFrom(
-              foregroundColor: KumoriyaColors.statusDanger,
-            ),
+            style: TextButton.styleFrom(foregroundColor: colors.error),
             child: Text(context.l10n.removeAction),
           ),
         ],
@@ -282,6 +285,7 @@ class _HistoryTab extends ConsumerWidget {
   }
 
   void _confirmClearAll(BuildContext context, WidgetRef ref) {
+    final colors = FormFactorProvider.colorsOf(context);
     showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
@@ -299,9 +303,7 @@ class _HistoryTab extends ConsumerWidget {
               ref.invalidate(allWatchHistoryProvider);
               ref.invalidate(continueWatchingProvider);
             },
-            style: TextButton.styleFrom(
-              foregroundColor: KumoriyaColors.statusDanger,
-            ),
+            style: TextButton.styleFrom(foregroundColor: colors.error),
             child: Text(context.l10n.deleteAction),
           ),
         ],
@@ -469,6 +471,7 @@ class _AnimeListRow extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final colors = FormFactorProvider.colorsOf(context);
     final detailState = ref.watch(animeDetailProvider(anilistId));
 
     final title = detailState.maybeWhen(
@@ -498,17 +501,17 @@ class _AnimeListRow extends ConsumerWidget {
 
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(KumoriyaRadius.xxl),
-      splashColor: KumoriyaColors.primary.withValues(alpha: 0.08),
+      borderRadius: BorderRadius.circular(CloudRadius.lg),
+      splashColor: colors.primary.withValues(alpha: 0.08),
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
         child: Row(
           children: <Widget>[
             ClipRRect(
-              borderRadius: BorderRadius.circular(KumoriyaRadius.md),
-              child: KumoriyaCachedImage(
+              borderRadius: BorderRadius.circular(CloudRadius.md),
+              child: CloudCachedImage(
                 url: imageUrl,
-                bucket: KumoriyaImageCacheBucket.artwork,
+                bucket: CloudImageCacheBucket.artwork,
                 width: 48,
                 height: 64,
                 fit: BoxFit.cover,
@@ -524,7 +527,9 @@ class _AnimeListRow extends ConsumerWidget {
                     title,
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    style: TextStyle(
+                      color: colors.text,
+                      fontSize: 14,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
@@ -532,9 +537,7 @@ class _AnimeListRow extends ConsumerWidget {
                     const SizedBox(height: 2),
                     Text(
                       status,
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: KumoriyaColors.textMuted,
-                      ),
+                      style: TextStyle(color: colors.textMuted, fontSize: 12),
                     ),
                   ],
                 ],
@@ -545,8 +548,8 @@ class _AnimeListRow extends ConsumerWidget {
               Container(
                 padding: const EdgeInsets.all(4),
                 decoration: BoxDecoration(
-                  color: KumoriyaColors.primary,
-                  borderRadius: BorderRadius.circular(KumoriyaRadius.full),
+                  color: colors.primary,
+                  borderRadius: BorderRadius.circular(CloudRadius.pill),
                 ),
                 child: const Icon(
                   KumoriyaIcons.notificationsActive,
@@ -575,6 +578,7 @@ class _AnimePosterCard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final colors = FormFactorProvider.colorsOf(context);
     final detailState = ref.watch(animeDetailProvider(anilistId));
 
     final title = detailState.maybeWhen(
@@ -604,10 +608,10 @@ class _AnimePosterCard extends ConsumerWidget {
               fit: StackFit.expand,
               children: <Widget>[
                 ClipRRect(
-                  borderRadius: BorderRadius.circular(KumoriyaRadius.lg),
-                  child: KumoriyaCachedImage(
+                  borderRadius: BorderRadius.circular(CloudRadius.md),
+                  child: CloudCachedImage(
                     url: imageUrl,
-                    bucket: KumoriyaImageCacheBucket.artwork,
+                    bucket: CloudImageCacheBucket.artwork,
                     fit: BoxFit.cover,
                   ),
                 ),
@@ -618,10 +622,8 @@ class _AnimePosterCard extends ConsumerWidget {
                     child: Container(
                       padding: const EdgeInsets.all(4),
                       decoration: BoxDecoration(
-                        color: KumoriyaColors.primary,
-                        borderRadius: BorderRadius.circular(
-                          KumoriyaRadius.full,
-                        ),
+                        color: colors.primary,
+                        borderRadius: BorderRadius.circular(CloudRadius.pill),
                       ),
                       child: const Icon(
                         KumoriyaIcons.notificationsActive,
@@ -640,9 +642,11 @@ class _AnimePosterCard extends ConsumerWidget {
               title,
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
-              style: Theme.of(
-                context,
-              ).textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w600),
+              style: TextStyle(
+                color: colors.text,
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+              ),
             ),
           ),
         ],
@@ -667,6 +671,7 @@ class _HistoryRowState extends ConsumerState<_HistoryRow> {
 
   @override
   Widget build(BuildContext context) {
+    final colors = FormFactorProvider.colorsOf(context);
     final detailState = ref.watch(animeDetailProvider(widget.entry.anilistId));
 
     final title = detailState.maybeWhen(
@@ -707,31 +712,27 @@ class _HistoryRowState extends ConsumerState<_HistoryRow> {
       onExit: (_) => setState(() => _hovered = false),
       child: InkWell(
         onTap: widget.onTap,
-        borderRadius: BorderRadius.circular(KumoriyaRadius.xxl),
-        splashColor: KumoriyaColors.primary.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(CloudRadius.lg),
+        splashColor: colors.primary.withValues(alpha: 0.08),
         child: AnimatedContainer(
-          duration: const Duration(milliseconds: 180),
+          duration: CloudMotion.fast,
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
             color: _hovered
-                ? KumoriyaColors.surface
-                : KumoriyaColors.surfaceDim,
-            borderRadius: BorderRadius.circular(KumoriyaRadius.xxl),
-            border: Border.all(
-              color: _hovered
-                  ? KumoriyaColors.borderMedium
-                  : KumoriyaColors.borderSubtle,
-            ),
+                ? colors.surface
+                : colors.surface.withValues(alpha: 0.5),
+            borderRadius: BorderRadius.circular(CloudRadius.lg),
+            border: Border.all(color: _hovered ? colors.mist : colors.surface2),
           ),
           child: Row(
             children: <Widget>[
               Stack(
                 children: <Widget>[
                   ClipRRect(
-                    borderRadius: BorderRadius.circular(KumoriyaRadius.md),
-                    child: KumoriyaCachedImage(
+                    borderRadius: BorderRadius.circular(CloudRadius.md),
+                    child: CloudCachedImage(
                       url: imageUrl,
-                      bucket: KumoriyaImageCacheBucket.artwork,
+                      bucket: CloudImageCacheBucket.artwork,
                       width: 56,
                       height: 56,
                       fit: BoxFit.cover,
@@ -746,10 +747,8 @@ class _HistoryRowState extends ConsumerState<_HistoryRow> {
                         vertical: 2,
                       ),
                       decoration: BoxDecoration(
-                        color: KumoriyaColors.primary,
-                        borderRadius: BorderRadius.circular(
-                          KumoriyaRadius.full,
-                        ),
+                        color: colors.primary,
+                        borderRadius: BorderRadius.circular(CloudRadius.pill),
                       ),
                       child: Text(
                         'EP ${widget.entry.lastEpisodeNumber.isFinite ? widget.entry.lastEpisodeNumber.toInt() : "?"}',
@@ -772,12 +771,16 @@ class _HistoryRowState extends ConsumerState<_HistoryRow> {
                       title,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: Theme.of(context).textTheme.labelLarge,
+                      style: TextStyle(
+                        color: colors.text,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                      ),
                     ),
                     const SizedBox(height: 3),
                     Text(
                       progressText,
-                      style: Theme.of(context).textTheme.bodySmall,
+                      style: TextStyle(color: colors.text, fontSize: 12),
                     ),
                   ],
                 ),
@@ -788,10 +791,7 @@ class _HistoryRowState extends ConsumerState<_HistoryRow> {
                 children: <Widget>[
                   Text(
                     timeAgo,
-                    style: const TextStyle(
-                      fontSize: 11,
-                      color: KumoriyaColors.textDisabled,
-                    ),
+                    style: TextStyle(fontSize: 11, color: colors.textSoft),
                   ),
                   if (widget.onDelete != null)
                     SizedBox(
@@ -801,9 +801,9 @@ class _HistoryRowState extends ConsumerState<_HistoryRow> {
                         padding: EdgeInsets.zero,
                         iconSize: 18,
                         onPressed: widget.onDelete,
-                        icon: const Icon(
+                        icon: Icon(
                           Icons.more_vert_rounded,
-                          color: KumoriyaColors.navInactive,
+                          color: colors.textMuted,
                         ),
                       ),
                     ),

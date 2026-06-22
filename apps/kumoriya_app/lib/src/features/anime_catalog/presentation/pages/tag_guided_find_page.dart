@@ -5,9 +5,9 @@ import 'package:kumoriya_domain/kumoriya_domain.dart';
 
 import '../../../../app/l10n.dart';
 import '../../../../shared/icons/kumoriya_icons.dart';
-import '../../../../shared/theme/kumoriya_theme.dart';
-import '../../../../shared/widgets/anime_card.dart';
-import '../../../../shared/widgets/state_views.dart';
+// PosterCard from package:kumoriya_ui
+import 'package:kumoriya_ui/kumoriya_ui.dart';
+import '../../../../shared/utils/error_messaging.dart';
 import '../providers/anime_catalog_providers.dart';
 import 'anime_detail_page.dart';
 
@@ -51,11 +51,12 @@ class _TagGuidedFindPageState extends ConsumerState<TagGuidedFindPage> {
   @override
   Widget build(BuildContext context) {
     final tagsState = ref.watch(tagCollectionProvider);
+    final colors = FormFactorProvider.colorsOf(context);
 
     return Scaffold(
-      backgroundColor: KumoriyaColors.background,
+      backgroundColor: colors.bg,
       appBar: AppBar(
-        backgroundColor: KumoriyaColors.background,
+        backgroundColor: colors.bg,
         title: Text(context.l10n.tagSearchTitle),
         elevation: 0,
       ),
@@ -110,6 +111,7 @@ class _TagSelector extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = FormFactorProvider.colorsOf(context);
     return Column(
       children: <Widget>[
         // -- Header + subtitle
@@ -120,10 +122,7 @@ class _TagSelector extends StatelessWidget {
             children: <Widget>[
               Text(
                 context.l10n.tagSearchSubtitle,
-                style: const TextStyle(
-                  color: KumoriyaColors.textMuted,
-                  fontSize: 13,
-                ),
+                style: TextStyle(color: colors.textMuted, fontSize: 13),
               ),
               const SizedBox(height: 12),
               // -- Step-by-step guide
@@ -136,25 +135,19 @@ class _TagSelector extends StatelessWidget {
                 height: 40,
                 child: TextField(
                   onChanged: onFilterChanged,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    color: KumoriyaColors.textPrimary,
-                  ),
+                  style: TextStyle(fontSize: 14, color: colors.text),
                   decoration: InputDecoration(
-                    prefixIcon: const Icon(
+                    prefixIcon: Icon(
                       KumoriyaIcons.search,
                       size: 18,
-                      color: KumoriyaColors.navInactive,
+                      color: colors.textSoft,
                     ),
                     hintText: context.l10n.tagSearchFilterHint,
-                    hintStyle: const TextStyle(
-                      color: KumoriyaColors.textDisabled,
-                      fontSize: 14,
-                    ),
+                    hintStyle: TextStyle(color: colors.textSoft, fontSize: 14),
                     filled: true,
-                    fillColor: KumoriyaColors.surface,
+                    fillColor: colors.surface,
                     border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(KumoriyaRadius.full),
+                      borderRadius: BorderRadius.circular(CloudRadius.pill),
                       borderSide: BorderSide.none,
                     ),
                     isDense: true,
@@ -181,16 +174,13 @@ class _TagSelector extends StatelessWidget {
                   label: Text(displayTagLabel(context, tag)),
                   deleteIcon: const Icon(KumoriyaIcons.close, size: 14),
                   onDeleted: () => onToggleTag(tag),
-                  backgroundColor: KumoriyaColors.primaryContainer,
-                  labelStyle: const TextStyle(
-                    color: KumoriyaColors.primaryLight,
-                    fontSize: 12,
-                  ),
+                  backgroundColor: colors.primarySoft,
+                  labelStyle: TextStyle(color: colors.text, fontSize: 12),
                   side: BorderSide(
-                    color: KumoriyaColors.primary.withValues(alpha: 0.5),
+                    color: colors.primary.withValues(alpha: 0.5),
                   ),
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(KumoriyaRadius.full),
+                    borderRadius: BorderRadius.circular(CloudRadius.pill),
                   ),
                   materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                   visualDensity: VisualDensity.compact,
@@ -234,9 +224,9 @@ class _TagSelector extends StatelessWidget {
                   '${context.l10n.tagSearchFindAnime} (${selectedTags.length})',
                 ),
                 style: FilledButton.styleFrom(
-                  backgroundColor: KumoriyaColors.primary,
+                  backgroundColor: colors.primary,
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(KumoriyaRadius.lg),
+                    borderRadius: BorderRadius.circular(CloudRadius.md),
                   ),
                 ),
               ),
@@ -270,6 +260,7 @@ class _TagCategoryList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = FormFactorProvider.colorsOf(context);
     final normalizedFilter = tagFilter.trim().toLowerCase();
 
     // Group by category
@@ -299,7 +290,7 @@ class _TagCategoryList extends StatelessWidget {
       return Center(
         child: Text(
           context.l10n.tagSearchNoTags,
-          style: const TextStyle(color: KumoriyaColors.textMuted),
+          style: TextStyle(color: colors.textMuted),
         ),
       );
     }
@@ -317,7 +308,7 @@ class _TagCategoryList extends StatelessWidget {
           children: <Widget>[
             InkWell(
               onTap: () => onExpandCategory(category),
-              borderRadius: BorderRadius.circular(KumoriyaRadius.sm),
+              borderRadius: BorderRadius.circular(CloudRadius.sm),
               child: Padding(
                 padding: const EdgeInsets.symmetric(vertical: 10),
                 child: Row(
@@ -325,24 +316,23 @@ class _TagCategoryList extends StatelessWidget {
                     Expanded(
                       child: Text(
                         displayTagCategoryLabel(context, category),
-                        style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                          color: KumoriyaColors.textSecondary,
+                        style: TextStyle(
+                          color: colors.textMuted,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
                     ),
                     Text(
                       '${categoryTags.length}',
-                      style: const TextStyle(
-                        color: KumoriyaColors.textMuted,
-                        fontSize: 12,
-                      ),
+                      style: TextStyle(color: colors.textMuted, fontSize: 12),
                     ),
                     const SizedBox(width: 4),
                     Icon(
                       isExpanded
                           ? Icons.expand_less_rounded
                           : Icons.expand_more_rounded,
-                      color: KumoriyaColors.textMuted,
+                      color: colors.textMuted,
                       size: 20,
                     ),
                   ],
@@ -362,23 +352,21 @@ class _TagCategoryList extends StatelessWidget {
                           label: Text(displayTagLabel(context, tag.name)),
                           selected: selected,
                           onSelected: (_) => onToggleTag(tag.name),
-                          selectedColor: KumoriyaColors.primaryContainer,
-                          backgroundColor: KumoriyaColors.surface,
-                          checkmarkColor: KumoriyaColors.primaryLight,
+                          selectedColor: colors.primarySoft,
+                          backgroundColor: colors.surface,
+                          checkmarkColor: colors.text,
                           labelStyle: TextStyle(
-                            color: selected
-                                ? KumoriyaColors.primaryLight
-                                : KumoriyaColors.textSecondary,
+                            color: selected ? colors.text : colors.textMuted,
                             fontSize: 13,
                           ),
                           side: BorderSide(
                             color: selected
-                                ? KumoriyaColors.primary.withValues(alpha: 0.5)
-                                : KumoriyaColors.borderSubtle,
+                                ? colors.primary.withValues(alpha: 0.5)
+                                : colors.surface2,
                           ),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(
-                              KumoriyaRadius.full,
+                              CloudRadius.pill,
                             ),
                           ),
                           materialTapTargetSize:
@@ -389,7 +377,7 @@ class _TagCategoryList extends StatelessWidget {
                       .toList(growable: false),
                 ),
               ),
-            Divider(color: KumoriyaColors.borderSubtle, height: 1),
+            Divider(color: colors.surface2, height: 1),
           ],
         );
       },
@@ -404,12 +392,13 @@ class _TagCategoryList extends StatelessWidget {
 class _TagSearchGuide extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
+    final colors = FormFactorProvider.colorsOf(context);
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: KumoriyaColors.surface,
-        borderRadius: BorderRadius.circular(KumoriyaRadius.md),
-        border: Border.all(color: KumoriyaColors.borderSubtle),
+        color: colors.surface,
+        borderRadius: BorderRadius.circular(CloudRadius.md),
+        border: Border.all(color: colors.surface2),
       ),
       child: Column(
         children: <Widget>[
@@ -449,35 +438,33 @@ class _GuideStep extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = FormFactorProvider.colorsOf(context);
     return Row(
       children: <Widget>[
         Container(
           width: 24,
           height: 24,
           decoration: BoxDecoration(
-            color: KumoriyaColors.primaryContainer,
+            color: colors.primarySoft,
             shape: BoxShape.circle,
           ),
           alignment: Alignment.center,
           child: Text(
             number,
-            style: const TextStyle(
-              color: KumoriyaColors.primaryLight,
+            style: TextStyle(
+              color: colors.text,
               fontSize: 12,
               fontWeight: FontWeight.w700,
             ),
           ),
         ),
         const SizedBox(width: 10),
-        Icon(icon, size: 18, color: KumoriyaColors.textMuted),
+        Icon(icon, size: 18, color: colors.textMuted),
         const SizedBox(width: 8),
         Expanded(
           child: Text(
             text,
-            style: const TextStyle(
-              color: KumoriyaColors.textSecondary,
-              fontSize: 13,
-            ),
+            style: TextStyle(color: colors.textMuted, fontSize: 13),
           ),
         ),
       ],
@@ -502,6 +489,7 @@ class _TagResults extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final colors = FormFactorProvider.colorsOf(context);
     final request = AnimeBrowseRequest(tags: tags, sort: AnimeSortType.score);
     final state = ref.watch(browseAnimeCatalogProvider(request));
 
@@ -514,18 +502,12 @@ class _TagResults extends ConsumerWidget {
             children: <Widget>[
               IconButton(
                 onPressed: onBack,
-                icon: const Icon(
-                  Icons.arrow_back_rounded,
-                  color: KumoriyaColors.textSecondary,
-                ),
+                icon: Icon(Icons.arrow_back_rounded, color: colors.textMuted),
               ),
               Expanded(
                 child: Text(
                   context.l10n.tagSearchSelectedTags(tags.length),
-                  style: const TextStyle(
-                    color: KumoriyaColors.textMuted,
-                    fontSize: 13,
-                  ),
+                  style: TextStyle(color: colors.textMuted, fontSize: 13),
                 ),
               ),
             ],
@@ -542,16 +524,11 @@ class _TagResults extends ConsumerWidget {
             itemBuilder: (context, index) {
               return Chip(
                 label: Text(tags[index]),
-                backgroundColor: KumoriyaColors.primaryContainer,
-                labelStyle: const TextStyle(
-                  color: KumoriyaColors.primaryLight,
-                  fontSize: 12,
-                ),
-                side: BorderSide(
-                  color: KumoriyaColors.primary.withValues(alpha: 0.5),
-                ),
+                backgroundColor: colors.primarySoft,
+                labelStyle: TextStyle(color: colors.text, fontSize: 12),
+                side: BorderSide(color: colors.primary.withValues(alpha: 0.5)),
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(KumoriyaRadius.full),
+                  borderRadius: BorderRadius.circular(CloudRadius.pill),
                 ),
                 materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                 visualDensity: VisualDensity.compact,
@@ -593,8 +570,11 @@ class _TagResults extends ConsumerWidget {
                   itemCount: animeList.length,
                   itemBuilder: (context, index) {
                     final anime = animeList[index];
-                    return AnimeCard(
-                      anime: anime,
+                    return PosterCard(
+                      imageUrl: anime.coverImageUrl ?? '',
+                      title: anime.title.romaji,
+                      subtitle: anime.releaseYear?.toString(),
+                      episodeCount: anime.totalEpisodes,
                       onTap: () => onOpenDetail(anime.anilistId),
                     );
                   },

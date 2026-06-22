@@ -1,0 +1,1 @@
+Provides real-time synchronized watch party state management and invite routing using Cloudflare Workers and Durable Objects.

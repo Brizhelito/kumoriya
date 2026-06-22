@@ -1,0 +1,1 @@
+Fiber v3 (fasthttp-based web framework), pgx/v5 connection pool to Neon Postgres, Ed25519 JWT signing via golang-jwt/jwt/v5, Firebase Admin SDK for FCM push notifications, Upstash Redis REST API for notification deduplication, go-webauthn/webauthn for passkey registration/authentication, GraphQL client for AniList API integration.

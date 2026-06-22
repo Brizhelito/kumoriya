@@ -1,12 +1,14 @@
+import 'package:kumoriya_domain/kumoriya_domain.dart';
 import 'package:kumoriya_plugins/kumoriya_plugins.dart';
+
+export 'package:kumoriya_domain/kumoriya_domain.dart'
+    show SourceAudioKind, sourceAudioKindFromCode;
 
 enum SourceAvailabilityStatus { available, unavailable, error }
 
 enum SourceUnavailableReason { noMatch, ambiguousMatch, noEpisodes }
 
 enum MatchConfidence { high, medium, low }
-
-enum SourceAudioKind { sub, dub }
 
 final class SourceMatchDecision {
   const SourceMatchDecision({
@@ -80,18 +82,4 @@ final class SourceAvailabilitySummary {
 
   List<SourceAvailability> get playableSources =>
       sources.where((source) => source.isAvailable).toList(growable: false);
-}
-
-SourceAudioKind? sourceAudioKindFromCode(String? code) {
-  final normalized = code?.trim().toLowerCase();
-  switch (normalized) {
-    case 'sub':
-      return SourceAudioKind.sub;
-    case 'dub':
-    case 'lat':
-    case 'cast':
-      return SourceAudioKind.dub;
-    default:
-      return null;
-  }
 }

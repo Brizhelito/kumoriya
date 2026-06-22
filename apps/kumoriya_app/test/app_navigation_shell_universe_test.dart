@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kumoriya_app/l10n/generated/app_localizations.dart';
-import 'package:kumoriya_app/src/features/manga_catalog/presentation/pages/manga_downloads_page.dart';
 import 'package:kumoriya_app/src/shared/navigation/app_navigation_shell.dart';
 import 'package:kumoriya_app/src/shared/universe/active_universe_providers.dart';
 import 'package:kumoriya_app/src/shared/universe/active_universe_store.dart';
@@ -50,9 +49,9 @@ Widget _buildShell({MediaKind? initial}) {
             ),
           ),
           KumoriyaAnimeTab.search: (_) => tab('anime-search'),
-          KumoriyaAnimeTab.calendar: (_) => tab('anime-calendar'),
+          KumoriyaAnimeTab.party: (_) => tab('anime-party'),
           KumoriyaAnimeTab.library: (_) => tab('anime-library'),
-          KumoriyaAnimeTab.downloads: (_) => tab('anime-downloads'),
+          KumoriyaAnimeTab.profile: (_) => tab('anime-profile'),
         },
         mangaTabBuilders: <KumoriyaMangaTab, WidgetBuilder>{
           // The real MangaHomePage / MangaSearchPage need the full
@@ -62,7 +61,7 @@ Widget _buildShell({MediaKind? initial}) {
           KumoriyaMangaTab.home: (_) => tab('manga-home'),
           KumoriyaMangaTab.search: (_) => tab('manga-search'),
           KumoriyaMangaTab.library: (_) => tab('manga-library'),
-          KumoriyaMangaTab.downloads: (_) => const MangaDownloadsPage(),
+          KumoriyaMangaTab.profile: (_) => tab('manga-profile'),
         },
       ),
     ),
@@ -93,7 +92,7 @@ void main() {
       find.byType(BottomNavigationBar),
     );
     expect(nav.items, hasLength(6));
-    // Calendar must be present on anime (3rd item, index 2).
+    // Party must be present on anime (3rd item, index 2).
     expect(nav.items[2].label, isNotNull);
   });
 

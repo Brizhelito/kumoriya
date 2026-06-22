@@ -906,6 +906,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get navDownloads => 'Downloads';
 
   @override
+  String get navParty => 'Party';
+
+  @override
+  String get navProfile => 'Profile';
+
+  @override
   String get universeAnime => 'Anime';
 
   @override

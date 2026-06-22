@@ -1,0 +1,5 @@
+- Handlers receive dependencies via constructor injection (e.g., NewAuthHandler, NewReleaseHandler) rather than accessing globals or creating services internally.
+- Services return domain errors as sentinel values (e.g., repository.ErrReleaseNotFound) that handlers map to appropriate HTTP status codes.
+- All background goroutines (prewarm scheduler, airing worker, flush loop) accept a context for cooperative cancellation during graceful shutdown.
+- Rate limiting middleware is applied per-route with distinct limits: PerIPRateLimit for public auth endpoints, PerUserRateLimit for authenticated API operations.
+- Optional external integrations (FCM sender, Upstash Redis, database pool) are constructed conditionally at startup with warn-level logging when credentials are absent, allowing the server to boot in partial-feature mode.

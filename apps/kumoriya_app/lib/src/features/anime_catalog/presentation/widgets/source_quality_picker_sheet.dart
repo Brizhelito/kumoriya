@@ -10,7 +10,7 @@ import '../../application/services/resolver_registry.dart';
 import '../../application/use_cases/get_source_episode_server_links_use_case.dart';
 import '../providers/anime_catalog_providers.dart';
 import '../support/plugin_icon_helpers.dart';
-import 'source_badge.dart';
+import 'package:kumoriya_ui/kumoriya_ui.dart';
 
 // ─── Public entry-point ───────────────────────────────────────────────────────
 
@@ -197,7 +197,7 @@ class _SourceTile extends StatelessWidget {
     final resolvedTier = tier;
     return ListTile(
       leading: SourceBadge(
-        name: source.manifest.displayName,
+        sourceName: source.manifest.displayName,
         iconUrl: effectiveSourceIconUrl(source.manifest),
         compact: true,
         iconOnly: true,

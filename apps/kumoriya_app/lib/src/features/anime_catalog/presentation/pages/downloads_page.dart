@@ -7,10 +7,9 @@ import 'package:kumoriya_storage/kumoriya_storage.dart';
 
 import '../../../../app/l10n.dart';
 import '../../../../shared/icons/kumoriya_icons.dart';
-import '../../../../shared/theme/kumoriya_theme.dart';
-import '../../../../shared/widgets/kumoriya_cached_image.dart';
-import '../../../../shared/widgets/state_views.dart';
 import '../../../../shared/widgets/translated_dynamic_text.dart';
+import 'package:kumoriya_ui/kumoriya_ui.dart';
+import '../../../../shared/utils/error_messaging.dart';
 import '../../application/models/resolved_server_link_result.dart';
 import '../../../downloads/application/download_manager_service.dart';
 import '../../../downloads/presentation/download_providers.dart';
@@ -23,10 +22,11 @@ class DownloadsPage extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final colors = FormFactorProvider.colorsOf(context);
     return DefaultTabController(
       length: 3,
       child: Scaffold(
-        backgroundColor: KumoriyaColors.background,
+        backgroundColor: colors.bg,
         body: SafeArea(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -38,16 +38,17 @@ class DownloadsPage extends ConsumerWidget {
                     Expanded(
                       child: Text(
                         context.l10n.downloadsTitle,
-                        style: Theme.of(context).textTheme.headlineMedium,
+                        style: TextStyle(
+                          color: colors.text,
+                          fontSize: 28,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                     ),
                     IconButton(
                       tooltip: context.l10n.retry,
                       onPressed: () => _refreshDownloads(ref),
-                      icon: const Icon(
-                        KumoriyaIcons.sync,
-                        color: KumoriyaColors.textPrimary,
-                      ),
+                      icon: Icon(KumoriyaIcons.sync, color: colors.text),
                     ),
                   ],
                 ),
@@ -56,10 +57,7 @@ class DownloadsPage extends ConsumerWidget {
                 padding: const EdgeInsets.fromLTRB(16, 0, 16, 4),
                 child: Text(
                   context.l10n.downloadsSubtitle,
-                  style: const TextStyle(
-                    fontSize: 13,
-                    color: KumoriyaColors.textTertiary,
-                  ),
+                  style: TextStyle(fontSize: 13, color: colors.textSoft),
                 ),
               ),
               TabBar(
@@ -67,10 +65,10 @@ class DownloadsPage extends ConsumerWidget {
                   fontSize: 13,
                   fontWeight: FontWeight.w600,
                 ),
-                indicatorColor: KumoriyaColors.primary,
-                labelColor: KumoriyaColors.primary,
-                unselectedLabelColor: KumoriyaColors.textSecondary,
-                dividerColor: KumoriyaColors.borderSubtle,
+                indicatorColor: colors.primary,
+                labelColor: colors.primary,
+                unselectedLabelColor: colors.textMuted,
+                dividerColor: colors.surface2,
                 tabs: <Tab>[
                   Tab(text: context.l10n.downloadsTabCompleted),
                   Tab(text: context.l10n.downloadsTabActive),
@@ -252,6 +250,7 @@ class _QueueTabContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = FormFactorProvider.colorsOf(context);
     if (tasks.isEmpty) {
       return RefreshIndicator(
         onRefresh: () => _refreshDownloads(ref),
@@ -284,7 +283,11 @@ class _QueueTabContent extends StatelessWidget {
                 Expanded(
                   child: Text(
                     context.l10n.downloadsTabQueue,
-                    style: Theme.of(context).textTheme.labelLarge,
+                    style: TextStyle(
+                      color: colors.text,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 ),
                 if (tasks.any((t) => t.status == DownloadStatus.failed))
@@ -296,7 +299,7 @@ class _QueueTabContent extends StatelessWidget {
                     icon: const Icon(KumoriyaIcons.sync, size: 16),
                     label: Text(context.l10n.downloadRetryAllFailed),
                     style: TextButton.styleFrom(
-                      foregroundColor: KumoriyaColors.primary,
+                      foregroundColor: colors.primary,
                       textStyle: const TextStyle(fontSize: 12),
                       padding: const EdgeInsets.symmetric(horizontal: 8),
                     ),
@@ -306,7 +309,6 @@ class _QueueTabContent extends StatelessWidget {
                     final confirmed = await showDialog<bool>(
                       context: context,
                       builder: (ctx) => AlertDialog(
-                        backgroundColor: KumoriyaColors.surfaceElevated,
                         title: Text(
                           context.l10n.downloadClearQueueConfirmTitle,
                         ),
@@ -321,7 +323,7 @@ class _QueueTabContent extends StatelessWidget {
                           TextButton(
                             onPressed: () => Navigator.of(ctx).pop(true),
                             style: TextButton.styleFrom(
-                              foregroundColor: KumoriyaColors.statusDanger,
+                              foregroundColor: colors.error,
                             ),
                             child: Text(context.l10n.downloadClearQueue),
                           ),
@@ -336,7 +338,7 @@ class _QueueTabContent extends StatelessWidget {
                   icon: const Icon(KumoriyaIcons.close, size: 16),
                   label: Text(context.l10n.downloadClearQueue),
                   style: TextButton.styleFrom(
-                    foregroundColor: KumoriyaColors.statusDanger,
+                    foregroundColor: colors.error,
                     textStyle: const TextStyle(fontSize: 12),
                     padding: const EdgeInsets.symmetric(horizontal: 8),
                   ),
@@ -413,6 +415,7 @@ class _ActiveDownloadsHeader extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final colors = FormFactorProvider.colorsOf(context);
     final aggregateProgress = ref
         .watch(downloadAggregateProgressProvider)
         .maybeWhen(
@@ -425,7 +428,11 @@ class _ActiveDownloadsHeader extends ConsumerWidget {
         Expanded(
           child: Text(
             context.l10n.downloadInProgress,
-            style: Theme.of(context).textTheme.labelLarge,
+            style: TextStyle(
+              color: colors.text,
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+            ),
           ),
         ),
         if (aggregateProgress.bytesPerSecond > 0)
@@ -433,10 +440,10 @@ class _ActiveDownloadsHeader extends ConsumerWidget {
             padding: const EdgeInsets.only(right: 8),
             child: Text(
               '${_fmtBytes(aggregateProgress.bytesPerSecond)}/s',
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 11,
                 fontWeight: FontWeight.w600,
-                color: KumoriyaColors.textMuted,
+                color: colors.textMuted,
               ),
             ),
           ),
@@ -445,7 +452,7 @@ class _ActiveDownloadsHeader extends ConsumerWidget {
           icon: const Icon(KumoriyaIcons.close, size: 16),
           label: Text(context.l10n.downloadCancel),
           style: TextButton.styleFrom(
-            foregroundColor: KumoriyaColors.statusDanger,
+            foregroundColor: colors.error,
             textStyle: const TextStyle(fontSize: 12),
             padding: const EdgeInsets.symmetric(horizontal: 8),
           ),
@@ -468,6 +475,7 @@ class _ActiveDownloadRowState extends ConsumerState<_ActiveDownloadRow> {
 
   @override
   Widget build(BuildContext context) {
+    final colors = FormFactorProvider.colorsOf(context);
     final task = widget.task;
 
     final liveProgress = ref
@@ -479,7 +487,7 @@ class _ActiveDownloadRowState extends ConsumerState<_ActiveDownloadRow> {
 
     final title = task.animeTitle ?? context.l10n.loadingGeneric;
 
-    final statusColor = _dlStatusColor(task.status);
+    final statusColor = _dlStatusColor(task.status, colors);
     final progress = liveProgress?.fraction ?? _dlProgress(task);
     final label = _dlLabel(task, liveProgress);
 
@@ -487,36 +495,32 @@ class _ActiveDownloadRowState extends ConsumerState<_ActiveDownloadRow> {
       onEnter: (_) => setState(() => _hovered = true),
       onExit: (_) => setState(() => _hovered = false),
       child: InkWell(
-        borderRadius: BorderRadius.circular(KumoriyaRadius.xxl),
-        splashColor: KumoriyaColors.primary.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(CloudRadius.lg),
+        splashColor: colors.primary.withValues(alpha: 0.08),
         onTap: () => Navigator.of(context).push(
           MaterialPageRoute<void>(
             builder: (_) => AnimeDetailPage(anilistId: task.anilistId),
           ),
         ),
         child: AnimatedContainer(
-          duration: const Duration(milliseconds: 180),
+          duration: CloudMotion.fast,
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
             color: _hovered
-                ? KumoriyaColors.surface
-                : KumoriyaColors.surfaceDim,
-            borderRadius: BorderRadius.circular(KumoriyaRadius.xxl),
-            border: Border.all(
-              color: _hovered
-                  ? KumoriyaColors.borderMedium
-                  : KumoriyaColors.borderSubtle,
-            ),
+                ? colors.surface
+                : colors.surface.withValues(alpha: 0.5),
+            borderRadius: BorderRadius.circular(CloudRadius.lg),
+            border: Border.all(color: _hovered ? colors.mist : colors.surface2),
           ),
           child: Column(
             children: <Widget>[
               Row(
                 children: <Widget>[
                   ClipRRect(
-                    borderRadius: BorderRadius.circular(KumoriyaRadius.md),
-                    child: KumoriyaCachedImage(
+                    borderRadius: BorderRadius.circular(CloudRadius.sm),
+                    child: CloudCachedImage(
                       url: null,
-                      bucket: KumoriyaImageCacheBucket.artwork,
+                      bucket: CloudImageCacheBucket.artwork,
                       localFileFallback: localCoverPath,
                       width: 48,
                       height: 48,
@@ -532,10 +536,10 @@ class _ActiveDownloadRowState extends ConsumerState<_ActiveDownloadRow> {
                           title,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 13,
                             fontWeight: FontWeight.w700,
-                            color: KumoriyaColors.textPrimary,
+                            color: colors.text,
                           ),
                         ),
                         const SizedBox(height: 2),
@@ -543,9 +547,9 @@ class _ActiveDownloadRowState extends ConsumerState<_ActiveDownloadRow> {
                           context.l10n.downloadEpisodeLabel(
                             task.episodeNumber.toInt(),
                           ),
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 11,
-                            color: KumoriyaColors.textMuted,
+                            color: colors.textMuted,
                           ),
                         ),
                         if (task.episodeTitle != null &&
@@ -555,9 +559,9 @@ class _ActiveDownloadRowState extends ConsumerState<_ActiveDownloadRow> {
                             task.episodeTitle!,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 10,
-                              color: KumoriyaColors.textDisabled,
+                              color: colors.textSoft,
                             ),
                           ),
                         ],
@@ -565,9 +569,9 @@ class _ActiveDownloadRowState extends ConsumerState<_ActiveDownloadRow> {
                           const SizedBox(height: 2),
                           Text(
                             label,
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 10,
-                              color: KumoriyaColors.textDisabled,
+                              color: colors.textSoft,
                             ),
                           ),
                         ],
@@ -578,9 +582,9 @@ class _ActiveDownloadRowState extends ConsumerState<_ActiveDownloadRow> {
                           Text(
                             _downloadErrorSummary(task.errorMessage!),
                             softWrap: true,
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 10,
-                              color: KumoriyaColors.statusDanger,
+                              color: colors.error,
                               fontWeight: FontWeight.w600,
                             ),
                           ),
@@ -610,7 +614,7 @@ class _ActiveDownloadRowState extends ConsumerState<_ActiveDownloadRow> {
                   child: LinearProgressIndicator(
                     value: (progress != null && progress > 0) ? progress : null,
                     minHeight: 4,
-                    backgroundColor: KumoriyaColors.borderSubtle,
+                    backgroundColor: colors.surface2,
                     valueColor: AlwaysStoppedAnimation<Color>(statusColor),
                   ),
                 ),
@@ -685,6 +689,8 @@ class _ActiveDownloadRowState extends ConsumerState<_ActiveDownloadRow> {
             await manager.cancel(task.id);
           },
         );
+      case DownloadStatus.cancelled:
+        return const SizedBox.shrink();
       case DownloadStatus.disconnected:
         // Manual retry + cancel. Once a NetworkMonitor lands in the
         // native engine this state will auto-recover, but the retry
@@ -734,6 +740,7 @@ class _CompletedAnimeCardState extends ConsumerState<_CompletedAnimeCard> {
 
   @override
   Widget build(BuildContext context) {
+    final colors = FormFactorProvider.colorsOf(context);
     final title =
         widget.episodes.first.animeTitle ?? context.l10n.loadingGeneric;
     final localCoverPath = ref
@@ -747,15 +754,15 @@ class _CompletedAnimeCardState extends ConsumerState<_CompletedAnimeCard> {
 
     return Container(
       decoration: BoxDecoration(
-        color: KumoriyaColors.surfaceDim,
-        borderRadius: BorderRadius.circular(KumoriyaRadius.xxl),
-        border: Border.all(color: KumoriyaColors.borderSubtle),
+        color: colors.surface.withValues(alpha: 0.5),
+        borderRadius: BorderRadius.circular(CloudRadius.lg),
+        border: Border.all(color: colors.surface2),
       ),
       child: Column(
         children: <Widget>[
           // ── Card header ──
           InkWell(
-            borderRadius: BorderRadius.circular(KumoriyaRadius.xxl),
+            borderRadius: BorderRadius.circular(CloudRadius.lg),
             onTap: () => setState(() => _expanded = !_expanded),
             onLongPress: () => _showAnimeContextMenu(context, ref),
             child: Padding(
@@ -763,10 +770,10 @@ class _CompletedAnimeCardState extends ConsumerState<_CompletedAnimeCard> {
               child: Row(
                 children: <Widget>[
                   ClipRRect(
-                    borderRadius: BorderRadius.circular(KumoriyaRadius.md),
-                    child: KumoriyaCachedImage(
+                    borderRadius: BorderRadius.circular(CloudRadius.sm),
+                    child: CloudCachedImage(
                       url: null,
-                      bucket: KumoriyaImageCacheBucket.artwork,
+                      bucket: CloudImageCacheBucket.artwork,
                       localFileFallback: localCoverPath,
                       width: 56,
                       height: 56,
@@ -782,7 +789,11 @@ class _CompletedAnimeCardState extends ConsumerState<_CompletedAnimeCard> {
                           title,
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
-                          style: Theme.of(context).textTheme.labelLarge,
+                          style: TextStyle(
+                            color: colors.text,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
                         const SizedBox(height: 4),
                         Row(
@@ -790,14 +801,14 @@ class _CompletedAnimeCardState extends ConsumerState<_CompletedAnimeCard> {
                             Icon(
                               Icons.download_done_rounded,
                               size: 14,
-                              color: KumoriyaColors.statusSuccess,
+                              color: colors.success,
                             ),
                             const SizedBox(width: 4),
                             Text(
                               '${context.l10n.downloadEpisodesCount(widget.episodes.length)} · ${_fmtBytes(totalSize)}',
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 11,
-                                color: KumoriyaColors.textMuted,
+                                color: colors.textMuted,
                               ),
                             ),
                           ],
@@ -811,7 +822,7 @@ class _CompletedAnimeCardState extends ConsumerState<_CompletedAnimeCard> {
                         ? Icons.expand_less_rounded
                         : Icons.expand_more_rounded,
                     size: 22,
-                    color: KumoriyaColors.textMuted,
+                    color: colors.textMuted,
                   ),
                 ],
               ),
@@ -819,7 +830,7 @@ class _CompletedAnimeCardState extends ConsumerState<_CompletedAnimeCard> {
           ),
           // ── Expanded episode list ──
           if (_expanded) ...<Widget>[
-            const Divider(height: 1, color: KumoriyaColors.borderSubtle),
+            Divider(height: 1, color: colors.surface2),
             ...widget.episodes.map(
               (task) => _CompletedEpisodeTile(
                 task: task,
@@ -838,6 +849,7 @@ class _CompletedAnimeCardState extends ConsumerState<_CompletedAnimeCard> {
     BuildContext context,
     WidgetRef ref,
   ) async {
+    final colors = FormFactorProvider.colorsOf(context);
     final action = await showModalBottomSheet<String>(
       context: context,
       builder: (ctx) => SafeArea(
@@ -850,13 +862,10 @@ class _CompletedAnimeCardState extends ConsumerState<_CompletedAnimeCard> {
               onTap: () => Navigator.of(ctx).pop('details'),
             ),
             ListTile(
-              leading: const Icon(
-                Icons.delete_sweep_rounded,
-                color: KumoriyaColors.statusDanger,
-              ),
+              leading: Icon(Icons.delete_sweep_rounded, color: colors.error),
               title: Text(
                 context.l10n.downloadDeleteAllEpisodes,
-                style: const TextStyle(color: KumoriyaColors.statusDanger),
+                style: TextStyle(color: colors.error),
               ),
               onTap: () => Navigator.of(ctx).pop('delete_all'),
             ),
@@ -885,9 +894,7 @@ class _CompletedAnimeCardState extends ConsumerState<_CompletedAnimeCard> {
             ),
             TextButton(
               onPressed: () => Navigator.of(ctx).pop(true),
-              style: TextButton.styleFrom(
-                foregroundColor: KumoriyaColors.statusDanger,
-              ),
+              style: TextButton.styleFrom(foregroundColor: colors.error),
               child: Text(context.l10n.deleteAction),
             ),
           ],
@@ -913,6 +920,7 @@ class _CompletedEpisodeTile extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final colors = FormFactorProvider.colorsOf(context);
     final quality = task.qualityLabel;
     final server = task.serverName;
     final size = task.totalBytes ?? task.downloadedBytes ?? 0;
@@ -933,9 +941,7 @@ class _CompletedEpisodeTile extends ConsumerWidget {
               ),
               TextButton(
                 onPressed: () => Navigator.of(ctx).pop(true),
-                style: TextButton.styleFrom(
-                  foregroundColor: KumoriyaColors.statusDanger,
-                ),
+                style: TextButton.styleFrom(foregroundColor: colors.error),
                 child: Text(context.l10n.downloadDelete),
               ),
             ],
@@ -947,7 +953,7 @@ class _CompletedEpisodeTile extends ConsumerWidget {
       background: Container(
         alignment: Alignment.centerRight,
         padding: const EdgeInsets.only(right: 20),
-        color: KumoriyaColors.statusDanger,
+        color: colors.error,
         child: const Icon(Icons.delete_rounded, color: Colors.white),
       ),
       child: InkWell(
@@ -956,10 +962,10 @@ class _CompletedEpisodeTile extends ConsumerWidget {
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
           child: Row(
             children: <Widget>[
-              const Icon(
+              Icon(
                 Icons.play_circle_filled_rounded,
                 size: 28,
-                color: KumoriyaColors.primary,
+                color: colors.primary,
               ),
               const SizedBox(width: 10),
               Expanded(
@@ -970,10 +976,10 @@ class _CompletedEpisodeTile extends ConsumerWidget {
                       context.l10n.downloadEpisodeLabel(
                         task.episodeNumber.toInt(),
                       ),
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 13,
                         fontWeight: FontWeight.w600,
-                        color: KumoriyaColors.textPrimary,
+                        color: colors.text,
                       ),
                     ),
                     if (task.episodeTitle != null &&
@@ -983,19 +989,13 @@ class _CompletedEpisodeTile extends ConsumerWidget {
                         task.episodeTitle!,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          fontSize: 10,
-                          color: KumoriyaColors.textDisabled,
-                        ),
+                        style: TextStyle(fontSize: 10, color: colors.textSoft),
                       ),
                     ],
                     const SizedBox(height: 2),
                     Text(
                       [server, quality, _fmtBytes(size)].nonNulls.join(' · '),
-                      style: const TextStyle(
-                        fontSize: 10,
-                        color: KumoriyaColors.textDisabled,
-                      ),
+                      style: TextStyle(fontSize: 10, color: colors.textSoft),
                     ),
                   ],
                 ),
@@ -1017,7 +1017,7 @@ class _CompletedEpisodeTile extends ConsumerWidget {
                         TextButton(
                           onPressed: () => Navigator.of(context).pop(true),
                           style: TextButton.styleFrom(
-                            foregroundColor: KumoriyaColors.statusDanger,
+                            foregroundColor: colors.error,
                           ),
                           child: Text(context.l10n.downloadDelete),
                         ),
@@ -1140,34 +1140,38 @@ String _dlStatusText(BuildContext context, DownloadTask task) {
       return 'Sin conexión';
     case DownloadStatus.completed:
       return context.l10n.downloadComplete;
+    case DownloadStatus.cancelled:
+      return context.l10n.downloadFailed;
     case DownloadStatus.failed:
       return context.l10n.downloadFailed;
   }
 }
 
-Color _dlStatusColor(DownloadStatus status) {
+Color _dlStatusColor(DownloadStatus status, CloudColors colors) {
   switch (status) {
     case DownloadStatus.pending:
-      return KumoriyaColors.textMuted;
+      return colors.textMuted;
     case DownloadStatus.downloading:
-      return KumoriyaColors.primary;
+      return colors.primary;
     case DownloadStatus.paused:
-      return KumoriyaColors.statusWarning;
+      return colors.warning;
     case DownloadStatus.remuxing:
       // Green/success so the "Procesando…" step reads as a distinct
       // post-download phase (the bytes already landed on disk; this is
       // the mux-to-MP4 wrap-up). Matching `primary` made it feel like
       // the download was mysteriously still running.
-      return KumoriyaColors.statusSuccess;
+      return colors.success;
     case DownloadStatus.disconnected:
       // Distinct from `paused` (warning/yellow) and `failed` (danger/red):
       // use the muted gray so the user reads it as "waiting on something
       // outside our control" rather than a problem to act on.
-      return KumoriyaColors.textMuted;
+      return colors.textMuted;
     case DownloadStatus.completed:
-      return KumoriyaColors.statusSuccess;
+      return colors.success;
+    case DownloadStatus.cancelled:
+      return colors.textMuted;
     case DownloadStatus.failed:
-      return KumoriyaColors.statusDanger;
+      return colors.error;
   }
 }
 

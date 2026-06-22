@@ -2,12 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:kumoriya_domain/kumoriya_domain.dart';
+import 'package:kumoriya_ui/kumoriya_ui.dart';
+import '../../../../shared/utils/error_messaging.dart';
 
 import '../../../../app/l10n.dart';
-import '../../../../shared/theme/kumoriya_theme.dart';
-import '../../../../shared/widgets/kumoriya_cached_image.dart';
-import '../../../../shared/widgets/status_pill.dart';
-import '../../../../shared/widgets/state_views.dart';
 import '../providers/anime_catalog_providers.dart';
 import 'anime_detail_page.dart';
 
@@ -42,6 +40,7 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
 
   @override
   Widget build(BuildContext context) {
+    final colors = FormFactorProvider.colorsOf(context);
     final slotsAsync = ref.watch(calendarFocusedMonthSlotsProvider);
     // Fast-path: reuse the home-page week data (already cached) so today's
     // schedule is visible immediately while the full month loads.
@@ -53,7 +52,7 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
     );
 
     return Scaffold(
-      backgroundColor: KumoriyaColors.background,
+      backgroundColor: colors.bg,
       body: SafeArea(
         child: slotsAsync.when(
           loading: () => partialSlots != null && partialSlots.isNotEmpty
@@ -133,6 +132,7 @@ class _CalendarBodyState extends ConsumerState<_CalendarBody> {
 
   @override
   Widget build(BuildContext context) {
+    final colors = FormFactorProvider.colorsOf(context);
     final focusMonth = ref.watch(calendarFocusMonthProvider);
     final selectedDay = ref.watch(calendarSelectedDayProvider);
     final now = DateTime.now();
@@ -162,7 +162,11 @@ class _CalendarBodyState extends ConsumerState<_CalendarBody> {
             padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
             child: Text(
               context.l10n.calendarTitle,
-              style: Theme.of(context).textTheme.headlineMedium,
+              style: TextStyle(
+                color: colors.text,
+                fontSize: 28,
+                fontWeight: FontWeight.w700,
+              ),
             ),
           ),
         ),
@@ -171,10 +175,7 @@ class _CalendarBodyState extends ConsumerState<_CalendarBody> {
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
             child: Text(
               context.l10n.calendarSubtitle,
-              style: const TextStyle(
-                fontSize: 13,
-                color: KumoriyaColors.textTertiary,
-              ),
+              style: TextStyle(fontSize: 13, color: colors.textSoft),
             ),
           ),
         ),
@@ -201,14 +202,16 @@ class _CalendarBodyState extends ConsumerState<_CalendarBody> {
                         }
                       : null,
                   icon: const Icon(Icons.chevron_left_rounded),
-                  color: KumoriyaColors.textPrimary,
-                  disabledColor: KumoriyaColors.textDisabled,
+                  color: colors.text,
+                  disabledColor: colors.textSoft,
                 ),
                 Expanded(
                   child: Text(
                     monthLabel,
                     textAlign: TextAlign.center,
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    style: TextStyle(
+                      color: colors.text,
+                      fontSize: 16,
                       fontWeight: FontWeight.w700,
                     ),
                   ),
@@ -229,8 +232,8 @@ class _CalendarBodyState extends ConsumerState<_CalendarBody> {
                         }
                       : null,
                   icon: const Icon(Icons.chevron_right_rounded),
-                  color: KumoriyaColors.textPrimary,
-                  disabledColor: KumoriyaColors.textDisabled,
+                  color: colors.text,
+                  disabledColor: colors.textSoft,
                 ),
               ],
             ),
@@ -280,10 +283,7 @@ class _CalendarBodyState extends ConsumerState<_CalendarBody> {
             child: Center(
               child: Text(
                 context.l10n.calendarNoAiring,
-                style: const TextStyle(
-                  fontSize: 13,
-                  color: KumoriyaColors.textDisabled,
-                ),
+                style: TextStyle(fontSize: 13, color: colors.textSoft),
               ),
             ),
           )
@@ -326,6 +326,7 @@ class _WeekdayHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = FormFactorProvider.colorsOf(context);
     // Generate short weekday labels starting from Monday.
     final labels = List<String>.generate(7, (i) {
       // DateTime weekday: Monday = 1 ... Sunday = 7
@@ -343,10 +344,10 @@ class _WeekdayHeader extends StatelessWidget {
                 child: Center(
                   child: Text(
                     label,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 11,
                       fontWeight: FontWeight.w700,
-                      color: KumoriyaColors.textDisabled,
+                      color: colors.textSoft,
                     ),
                   ),
                 ),
@@ -443,18 +444,19 @@ class _DayCell extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = FormFactorProvider.colorsOf(context);
     Color bgColor;
     Color textColor;
 
     if (isSelected) {
-      bgColor = KumoriyaColors.primary;
-      textColor = KumoriyaColors.textPrimary;
+      bgColor = colors.primary;
+      textColor = colors.text;
     } else if (isToday) {
-      bgColor = KumoriyaColors.primaryContainer;
-      textColor = KumoriyaColors.primary;
+      bgColor = colors.surface2;
+      textColor = colors.primary;
     } else {
       bgColor = Colors.transparent;
-      textColor = KumoriyaColors.textSecondary;
+      textColor = colors.textMuted;
     }
 
     return Container(
@@ -485,9 +487,7 @@ class _DayCell extends StatelessWidget {
               width: 5,
               height: 5,
               decoration: BoxDecoration(
-                color: isSelected
-                    ? KumoriyaColors.primary
-                    : KumoriyaColors.statusAiring,
+                color: isSelected ? colors.primary : colors.success,
                 shape: BoxShape.circle,
               ),
             )
@@ -523,6 +523,7 @@ class _AiringRowState extends State<_AiringRow> {
 
   @override
   Widget build(BuildContext context) {
+    final colors = FormFactorProvider.colorsOf(context);
     final anime = widget.anime;
     final localNextAiring = anime.nextAiringAt?.toLocal();
     final timeLabel = localNextAiring == null
@@ -536,29 +537,25 @@ class _AiringRowState extends State<_AiringRow> {
       onExit: (_) => setState(() => _hovered = false),
       child: InkWell(
         onTap: widget.onTap,
-        borderRadius: BorderRadius.circular(KumoriyaRadius.xxl),
-        splashColor: KumoriyaColors.primary.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(CloudRadius.lg),
+        splashColor: colors.primary.withValues(alpha: 0.08),
         child: AnimatedContainer(
-          duration: const Duration(milliseconds: 180),
+          duration: CloudMotion.fast,
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
             color: _hovered
-                ? KumoriyaColors.surface
-                : KumoriyaColors.surfaceDim,
-            borderRadius: BorderRadius.circular(KumoriyaRadius.xxl),
-            border: Border.all(
-              color: _hovered
-                  ? KumoriyaColors.borderMedium
-                  : KumoriyaColors.borderSubtle,
-            ),
+                ? colors.surface
+                : colors.surface.withValues(alpha: 0.5),
+            borderRadius: BorderRadius.circular(CloudRadius.lg),
+            border: Border.all(color: _hovered ? colors.mist : colors.surface2),
           ),
           child: Row(
             children: <Widget>[
               ClipRRect(
-                borderRadius: BorderRadius.circular(KumoriyaRadius.md),
-                child: KumoriyaCachedImage(
+                borderRadius: BorderRadius.circular(CloudRadius.md),
+                child: CloudCachedImage(
                   url: anime.coverImageUrl,
-                  bucket: KumoriyaImageCacheBucket.artwork,
+                  bucket: CloudImageCacheBucket.artwork,
                   width: 52,
                   height: 52,
                   fit: BoxFit.cover,
@@ -573,15 +570,17 @@ class _AiringRowState extends State<_AiringRow> {
                       anime.title.romaji,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: Theme.of(context).textTheme.labelLarge,
+                      style: TextStyle(
+                        color: colors.text,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                      ),
                     ),
                     if (anime.releaseYear != null) ...<Widget>[
                       const SizedBox(height: 4),
                       Text(
                         anime.releaseYear.toString(),
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: KumoriyaColors.textDisabled,
-                        ),
+                        style: TextStyle(color: colors.textSoft, fontSize: 12),
                       ),
                     ],
                     if (anime.nextAiringEpisodeNumber != null) ...<Widget>[
@@ -590,9 +589,7 @@ class _AiringRowState extends State<_AiringRow> {
                         context.l10n.downloadEpisodeLabel(
                           anime.nextAiringEpisodeNumber!.toInt(),
                         ),
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: KumoriyaColors.textDisabled,
-                        ),
+                        style: TextStyle(color: colors.textSoft, fontSize: 12),
                       ),
                     ],
                   ],
@@ -605,14 +602,14 @@ class _AiringRowState extends State<_AiringRow> {
                   if (widget.showTime)
                     Text(
                       timeLabel,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w700,
-                        color: KumoriyaColors.textPrimary,
+                        color: colors.text,
                       ),
                     ),
                   if (widget.showTime) const SizedBox(height: 6),
-                  KumoriyaStatusPill(status: anime.status),
+                  StatusPill(status: anime.status),
                 ],
               ),
             ],

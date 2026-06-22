@@ -1,0 +1,85 @@
+# 知识卡导出索引文件
+schema_version: 1
+locale: en-US
+branch: main
+nodes_managed: true
+exported_at: "2026-06-21T20:46:10Z"
+modules:
+    "":
+        dir_name: kumoriya
+        title: kumoriya
+        scope: []
+        source_files: []
+        children:
+            - docs
+            - infra
+            - kumoriya_api
+            - packages
+            - releases
+            - scripts
+            - tools
+        depends_on: []
+        related_to: []
+    docs:
+        dir_name: docs
+        title: docs
+        scope:
+            - docs/
+        source_files: []
+        children: []
+        depends_on: []
+        related_to: []
+    infra:
+        dir_name: Watch Party Realtime Infrastructure
+        title: Watch Party Realtime Infrastructure
+        scope:
+            - infra/
+        source_files: []
+        children: []
+        depends_on: []
+        related_to: []
+    kumoriya_api:
+        dir_name: Kumoriya Backend API & Realtime Sync Service
+        title: Kumoriya Backend API & Realtime Sync Service
+        scope:
+            - kumoriya-api/
+        source_files: []
+        children: []
+        depends_on: []
+        related_to: []
+    packages:
+        dir_name: Kumoriya Plugin Architecture & Domain Contracts
+        title: Kumoriya Plugin Architecture & Domain Contracts
+        scope:
+            - packages/
+        source_files: []
+        children: []
+        depends_on: []
+        related_to: []
+    releases:
+        dir_name: releases
+        title: releases
+        scope:
+            - releases/
+        source_files: []
+        children: []
+        depends_on: []
+        related_to: []
+    scripts:
+        dir_name: scripts
+        title: scripts
+        scope:
+            - scripts/
+        source_files: []
+        children: []
+        depends_on: []
+        related_to: []
+    tools:
+        dir_name: tools
+        title: tools
+        scope:
+            - tools/
+        source_files: []
+        children: []
+        depends_on: []
+        related_to: []

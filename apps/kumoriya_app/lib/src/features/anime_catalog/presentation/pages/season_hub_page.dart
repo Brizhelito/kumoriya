@@ -3,8 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kumoriya_domain/kumoriya_domain.dart';
 
 import '../../../../app/l10n.dart';
-import '../../../../shared/theme/kumoriya_theme.dart';
-import '../../../../shared/widgets/state_views.dart';
+import 'package:kumoriya_ui/kumoriya_ui.dart';
+import '../../../../shared/utils/error_messaging.dart';
 import '../controllers/paginated_anime_feed_notifier.dart';
 import '../support/season_presentation.dart';
 import 'anime_detail_page.dart';
@@ -27,11 +27,12 @@ class _SeasonHubPageState extends ConsumerState<SeasonHubPage> {
 
   @override
   Widget build(BuildContext context) {
+    final colors = FormFactorProvider.colorsOf(context);
     return Scaffold(
-      backgroundColor: KumoriyaColors.background,
+      backgroundColor: colors.bg,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
-        foregroundColor: KumoriyaColors.textPrimary,
+        foregroundColor: colors.text,
         title: Text(context.l10n.seasonHubTitle),
       ),
       body: SafeArea(
@@ -81,6 +82,7 @@ class _SeasonSelector extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = FormFactorProvider.colorsOf(context);
     return Row(
       children: <Widget>[
         IconButton(
@@ -91,9 +93,11 @@ class _SeasonSelector extends StatelessWidget {
           child: Text(
             displaySeasonYearLabel(context, request.season, request.year),
             textAlign: TextAlign.center,
-            style: Theme.of(
-              context,
-            ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+            style: TextStyle(
+              color: colors.text,
+              fontSize: 15,
+              fontWeight: FontWeight.w700,
+            ),
           ),
         ),
         IconButton(
@@ -254,6 +258,7 @@ class _SeasonListSectionState extends ConsumerState<_SeasonListSection> {
 
   @override
   Widget build(BuildContext context) {
+    final colors = FormFactorProvider.colorsOf(context);
     final state = ref.watch(paginatedAnimeFeedProvider(widget.request));
     if (state.isLoadingFirstPage) {
       return LoadingStateView(label: context.l10n.seasonHubLoading);
@@ -294,12 +299,11 @@ class _SeasonListSectionState extends ConsumerState<_SeasonListSection> {
           leading: SizedBox(
             width: 56,
             child: ClipRRect(
-              borderRadius: BorderRadius.circular(KumoriyaRadius.md),
+              borderRadius: BorderRadius.circular(CloudRadius.md),
               child: Image.network(
                 anime.coverImageUrl ?? '',
                 fit: BoxFit.cover,
-                errorBuilder: (_, _, _) =>
-                    const ColoredBox(color: KumoriyaColors.surface),
+                errorBuilder: (_, _, _) => ColoredBox(color: colors.surface),
               ),
             ),
           ),

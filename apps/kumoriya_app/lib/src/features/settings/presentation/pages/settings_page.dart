@@ -5,14 +5,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kumoriya_ui/kumoriya_ui.dart';
 import 'package:package_info_plus/package_info_plus.dart';
+import '../../../../shared/utils/error_messaging.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 import '../../../../app/l10n.dart';
 import '../../../../shared/auth/auth_providers.dart';
 import '../../../../shared/icons/kumoriya_icons.dart';
-import '../../../../shared/theme/kumoriya_theme.dart';
 import '../../../../shared/widgets/bug_report_button.dart';
-import '../../../../shared/widgets/state_views.dart';
 import '../../../app_update/application/app_update_service.dart';
 import '../../../app_update/presentation/app_update_providers.dart';
 import '../../../app_update/presentation/widgets/update_available_dialog.dart';
@@ -298,6 +297,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
   }
 
   Widget _buildAccountSection(BuildContext context) {
+    final colors = FormFactorProvider.colorsOf(context);
     final user = ref.watch(currentUserProvider);
     final isAuth = user != null;
 
@@ -306,7 +306,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
         contentPadding: EdgeInsets.zero,
         leading: CircleAvatar(
           radius: 22,
-          backgroundColor: KumoriyaColors.primary,
+          backgroundColor: colors.primary,
           child: isAuth
               ? Text(
                   user.displayName[0].toUpperCase(),
@@ -321,7 +321,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
         title: Text(
           isAuth ? user.displayName : 'Sign in',
           style: TextStyle(
-            color: KumoriyaColors.textPrimary,
+            color: colors.text,
             fontWeight: isAuth ? FontWeight.w600 : FontWeight.w700,
           ),
         ),
@@ -329,15 +329,9 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
           isAuth
               ? 'Sync enabled — tap to manage'
               : 'Sync your progress across devices',
-          style: const TextStyle(
-            color: KumoriyaColors.textTertiary,
-            fontSize: 12,
-          ),
+          style: TextStyle(color: colors.textSoft, fontSize: 12),
         ),
-        trailing: const Icon(
-          Icons.chevron_right_rounded,
-          color: KumoriyaColors.textTertiary,
-        ),
+        trailing: Icon(Icons.chevron_right_rounded, color: colors.textSoft),
         onTap: () {
           Navigator.of(context, rootNavigator: true).push(
             MaterialPageRoute<void>(
@@ -351,11 +345,12 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
 
   @override
   Widget build(BuildContext context) {
+    final colors = FormFactorProvider.colorsOf(context);
     final locale = Localizations.localeOf(context);
     final directoryInfoState = ref.watch(downloadDirectoryInfoProvider);
 
     return Scaffold(
-      backgroundColor: KumoriyaColors.background,
+      backgroundColor: colors.bg,
       appBar: AppBar(title: Text(context.l10n.settingsTitle)),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
@@ -686,6 +681,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
   }
 
   Widget _buildSubtitleSettingsSection(BuildContext context) {
+    final colors = FormFactorProvider.colorsOf(context);
     final subtitleState = ref.watch(subtitleSettingsProvider);
     final settings = subtitleState.value ?? const SubtitleSettings();
     final notifier = ref.read(subtitleSettingsProvider.notifier);
@@ -747,9 +743,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                     color: c.color,
                     shape: BoxShape.circle,
                     border: Border.all(
-                      color: selected
-                          ? KumoriyaColors.primary
-                          : KumoriyaColors.borderSubtle,
+                      color: selected ? colors.primary : colors.surface2,
                       width: selected ? 3 : 1,
                     ),
                   ),
@@ -912,12 +906,13 @@ class _SettingsSectionCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = FormFactorProvider.colorsOf(context);
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: KumoriyaColors.surfaceElevated,
-        borderRadius: BorderRadius.circular(KumoriyaRadius.xxl),
-        border: Border.all(color: KumoriyaColors.borderSubtle),
+        color: colors.bgElev,
+        borderRadius: BorderRadius.circular(CloudRadius.lg),
+        border: Border.all(color: colors.surface2),
       ),
       child: child,
     );
@@ -931,6 +926,7 @@ class _SubtitlePreviewCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = FormFactorProvider.colorsOf(context);
     final locale = Localizations.localeOf(context);
     final sampleText = locale.languageCode.startsWith('es')
         ? 'Asi se veran los subtitulos durante la reproduccion.'
@@ -957,13 +953,13 @@ class _SubtitlePreviewCard extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(KumoriyaRadius.xl),
+        borderRadius: BorderRadius.circular(CloudRadius.lg),
         gradient: const LinearGradient(
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
           colors: <Color>[Color(0xFF273142), Color(0xFF0B0E14)],
         ),
-        border: Border.all(color: KumoriyaColors.borderSubtle),
+        border: Border.all(color: colors.surface2),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -986,7 +982,7 @@ class _SubtitlePreviewCard extends StatelessWidget {
               decoration: hasBg
                   ? BoxDecoration(
                       color: effectiveBgColor,
-                      borderRadius: BorderRadius.circular(KumoriyaRadius.lg),
+                      borderRadius: BorderRadius.circular(CloudRadius.md),
                     )
                   : null,
               child: Text(
@@ -1021,25 +1017,23 @@ class _SettingsSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = FormFactorProvider.colorsOf(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
         Text(
           title,
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 15,
             fontWeight: FontWeight.w800,
-            color: KumoriyaColors.textPrimary,
+            color: colors.text,
           ),
         ),
         if (description != null) ...<Widget>[
           const SizedBox(height: 8),
           Text(
             description!,
-            style: const TextStyle(
-              color: KumoriyaColors.textSecondary,
-              height: 1.4,
-            ),
+            style: TextStyle(color: colors.textMuted, height: 1.4),
           ),
         ],
         const SizedBox(height: 14),
@@ -1054,9 +1048,10 @@ class _SectionDivider extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Padding(
-      padding: EdgeInsets.symmetric(vertical: 18),
-      child: Divider(height: 1, color: KumoriyaColors.borderSubtle),
+    final colors = FormFactorProvider.colorsOf(context);
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 18),
+      child: Divider(height: 1, color: colors.surface2),
     );
   }
 }
@@ -1071,22 +1066,23 @@ class _StatusBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = FormFactorProvider.colorsOf(context);
     final (foreground, background) = switch (tone) {
       _BadgeTone.primary => (
-        KumoriyaColors.primary,
-        KumoriyaColors.primary.withValues(alpha: 0.12),
+        colors.primary,
+        colors.primary.withValues(alpha: 0.12),
       ),
       _BadgeTone.success => (
-        KumoriyaColors.statusSuccess,
-        KumoriyaColors.statusSuccess.withValues(alpha: 0.14),
+        colors.success,
+        colors.success.withValues(alpha: 0.14),
       ),
       _BadgeTone.warning => (
-        KumoriyaColors.statusWarning,
-        KumoriyaColors.statusWarning.withValues(alpha: 0.14),
+        colors.warning,
+        colors.warning.withValues(alpha: 0.14),
       ),
       _BadgeTone.neutral => (
-        KumoriyaColors.textMuted,
-        KumoriyaColors.surfaceBright.withValues(alpha: 0.9),
+        colors.textMuted,
+        colors.bgElev.withValues(alpha: 0.9),
       ),
     };
 
@@ -1094,7 +1090,7 @@ class _StatusBadge extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
         color: background,
-        borderRadius: BorderRadius.circular(KumoriyaRadius.full),
+        borderRadius: BorderRadius.circular(CloudRadius.pill),
         border: Border.all(color: foreground.withValues(alpha: 0.18)),
       ),
       child: Text(
@@ -1117,23 +1113,24 @@ class _ReadOnlySettingRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = FormFactorProvider.colorsOf(context);
     return ListTile(
       contentPadding: EdgeInsets.zero,
       dense: true,
       title: Text(
         label,
-        style: const TextStyle(
+        style: TextStyle(
           fontSize: 13,
           fontWeight: FontWeight.w600,
-          color: KumoriyaColors.textSecondary,
+          color: colors.textMuted,
         ),
       ),
       trailing: Text(
         value,
-        style: const TextStyle(
+        style: TextStyle(
           fontSize: 13,
           fontWeight: FontWeight.w700,
-          color: KumoriyaColors.textPrimary,
+          color: colors.text,
         ),
       ),
     );
@@ -1155,6 +1152,7 @@ class _LanguagePickerRow extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final colors = FormFactorProvider.colorsOf(context);
     final asyncPref = ref.watch(appLanguageProvider);
     final current = asyncPref.value ?? AppLanguagePreference.system;
     return ListTile(
@@ -1162,29 +1160,25 @@ class _LanguagePickerRow extends ConsumerWidget {
       dense: true,
       title: Text(
         context.l10n.settingsLanguageLabel,
-        style: const TextStyle(
+        style: TextStyle(
           fontSize: 13,
           fontWeight: FontWeight.w600,
-          color: KumoriyaColors.textSecondary,
+          color: colors.textMuted,
         ),
       ),
       subtitle: Text(
         context.l10n.settingsLanguageDescription,
-        style: const TextStyle(
-          fontSize: 11,
-          color: KumoriyaColors.textTertiary,
-          height: 1.3,
-        ),
+        style: TextStyle(fontSize: 11, color: colors.textSoft, height: 1.3),
       ),
       trailing: DropdownButton<AppLanguagePreference>(
         value: current,
         underline: const SizedBox.shrink(),
-        style: const TextStyle(
+        style: TextStyle(
           fontSize: 13,
           fontWeight: FontWeight.w700,
-          color: KumoriyaColors.textPrimary,
+          color: colors.text,
         ),
-        dropdownColor: KumoriyaColors.surface,
+        dropdownColor: colors.surface,
         items: AppLanguagePreference.values
             .map(
               (pref) => DropdownMenuItem<AppLanguagePreference>(
@@ -1219,6 +1213,7 @@ class _SettingsActionRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = FormFactorProvider.colorsOf(context);
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
@@ -1226,25 +1221,32 @@ class _SettingsActionRow extends StatelessWidget {
           width: 40,
           height: 40,
           decoration: BoxDecoration(
-            color: KumoriyaColors.primary.withValues(alpha: 0.12),
-            borderRadius: BorderRadius.circular(KumoriyaRadius.lg),
+            color: colors.primary.withValues(alpha: 0.12),
+            borderRadius: BorderRadius.circular(CloudRadius.md),
           ),
-          child: Icon(leading, color: KumoriyaColors.primary, size: 20),
+          child: Icon(leading, color: colors.primary, size: 20),
         ),
         const SizedBox(width: 12),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
-              Text(title, style: Theme.of(context).textTheme.labelLarge),
+              Text(
+                title,
+                style: TextStyle(
+                  color: colors.text,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
               const SizedBox(height: 4),
               Text(
                 subtitle,
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 12,
-                  color: KumoriyaColors.textMuted,
+                  color: colors.textMuted,
                   height: 1.35,
                 ),
               ),
@@ -1272,6 +1274,7 @@ class _AutoDeleteWatchedSection extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final colors = FormFactorProvider.colorsOf(context);
     final asyncDelay = ref.watch(autoDeleteDelayProvider);
     final current = asyncDelay.value ?? AutoDeleteDelay.never;
 
@@ -1296,13 +1299,11 @@ class _AutoDeleteWatchedSection extends ConsumerWidget {
                 onSelected: (_) {
                   ref.read(autoDeleteDelayProvider.notifier).set(delay);
                 },
-                selectedColor: KumoriyaColors.primary.withValues(alpha: 0.2),
+                selectedColor: colors.primary.withValues(alpha: 0.2),
                 labelStyle: TextStyle(
                   fontSize: 12,
                   fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
-                  color: selected
-                      ? KumoriyaColors.primary
-                      : KumoriyaColors.textSecondary,
+                  color: selected ? colors.primary : colors.textMuted,
                 ),
               );
             }).toList(),

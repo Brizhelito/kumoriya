@@ -1,0 +1,3 @@
+- All public API methods return a `Result<T, KumoriyaError>` sealed class to enforce exhaustive handling of success and failure states without throwing exceptions across boundaries.
+- Plugin implementations expose a static `PluginManifest` defining capabilities, supported hosts, and base URLs, allowing the runtime to discover and route requests dynamically.
+- Domain repositories are defined as `abstract interface class` in domain packages, with concrete implementations (e.g., `AnilistAnimeCatalogRepository`) residing in adapter packages like `kumoriya_anilist`.

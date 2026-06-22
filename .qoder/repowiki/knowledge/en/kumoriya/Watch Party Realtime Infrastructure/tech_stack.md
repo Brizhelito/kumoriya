@@ -1,0 +1,3 @@
+- **Cloudflare Workers & Durable Objects**: Serverless runtime with stateful SQLite-backed DOs for room persistence (`wrangler.toml`).
+- **Ed25519 JWT Auth**: Custom session token verification using WebCrypto API for edge-side authentication (`src/auth/session-token.ts`).
+- **Vitest & fast-check**: Property-based and unit testing framework for verifying distributed state consistency and race conditions (`vitest.config.ts`, `src/__tests__/properties/`).

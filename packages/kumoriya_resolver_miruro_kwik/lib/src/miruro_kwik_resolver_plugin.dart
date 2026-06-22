@@ -19,7 +19,12 @@ final class MiruroKwikResolverPlugin implements ResolverPlugin {
     displayName: 'Miruro Kwik Passthrough',
     type: PluginType.resolver,
     capabilities: <PluginCapability>{PluginCapability.streamResolution},
-    supportedHosts: <String>['uwucdn.top', 'cdn.kwik.si', 'owocdn.top', 'kwik.cx'],
+    supportedHosts: <String>[
+      'uwucdn.top',
+      'cdn.kwik.si',
+      'owocdn.top',
+      'kwik.cx',
+    ],
     baseUrls: <String>[
       'https://vault-05.uwucdn.top/stream/',
       'https://cdn.kwik.si/hls/',

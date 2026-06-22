@@ -1,0 +1,1 @@
+A modular Dart monorepo providing domain models, plugin contracts, and runtime utilities for anime and manga content aggregation.

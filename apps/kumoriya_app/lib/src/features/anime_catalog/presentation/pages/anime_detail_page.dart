@@ -10,15 +10,11 @@ import 'package:kumoriya_core/kumoriya_core.dart';
 import 'package:kumoriya_domain/kumoriya_domain.dart';
 import 'package:kumoriya_plugins/kumoriya_plugins.dart';
 import 'package:kumoriya_storage/kumoriya_storage.dart';
+import 'package:kumoriya_ui/kumoriya_ui.dart';
 import 'package:permission_handler/permission_handler.dart';
+import '../../../../shared/utils/error_messaging.dart';
 
 import '../../../../app/l10n.dart';
-import '../../../../shared/theme/kumoriya_theme.dart';
-import '../../../../shared/widgets/episode_row.dart';
-import '../../../../shared/widgets/kumoriya_cached_image.dart';
-import '../../../../shared/widgets/meta_chip.dart';
-import '../../../../shared/widgets/section_header.dart';
-import '../../../../shared/widgets/state_views.dart';
 import '../../../../shared/widgets/translated_dynamic_text.dart';
 import '../../application/models/source_availability.dart';
 import '../../application/use_cases/get_source_episode_server_links_use_case.dart';
@@ -41,7 +37,6 @@ import '../support/episode_display_title.dart';
 import '../support/playback_launch_flow.dart';
 import '../support/plugin_icon_helpers.dart';
 import '../support/translated_episode_title.dart';
-import '../widgets/source_badge.dart';
 import '../widgets/source_quality_picker_sheet.dart';
 
 class AnimeDetailPage extends StatelessWidget {
@@ -107,6 +102,7 @@ class _AnimeDetailSceneState extends ConsumerState<AnimeDetailScene> {
       context: context,
       showDragHandle: true,
       builder: (context) {
+        final colors = FormFactorProvider.colorsOf(context);
         return SafeArea(
           child: Padding(
             padding: const EdgeInsets.fromLTRB(16, 4, 16, 20),
@@ -116,8 +112,10 @@ class _AnimeDetailSceneState extends ConsumerState<AnimeDetailScene> {
               children: <Widget>[
                 Text(
                   'Debug playback preference',
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  style: TextStyle(
+                    fontSize: 16,
                     fontWeight: FontWeight.w800,
+                    color: colors.text,
                   ),
                 ),
                 const SizedBox(height: 8),
@@ -125,7 +123,7 @@ class _AnimeDetailSceneState extends ConsumerState<AnimeDetailScene> {
                   preference == null
                       ? 'No persisted preferred player is stored for this anime.'
                       : _debugPreferenceSummary(preference),
-                  style: Theme.of(context).textTheme.bodyMedium,
+                  style: TextStyle(fontSize: 14, color: colors.text),
                 ),
                 const SizedBox(height: 12),
                 ListTile(
@@ -244,6 +242,7 @@ class AnimeDetailContent extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final colors = FormFactorProvider.colorsOf(context);
     return RefreshIndicator(
       onRefresh: () async {
         ref.invalidate(animeDetailProvider(detail.anime.anilistId));
@@ -259,7 +258,7 @@ class AnimeDetailContent extends ConsumerWidget {
             expandedHeight: 280,
             pinned: true,
             stretch: true,
-            backgroundColor: KumoriyaColors.background,
+            backgroundColor: colors.bg,
             elevation: 0,
             leading: routeMode.isParty
                 ? IconButton(
@@ -382,6 +381,7 @@ class _PlayResumeCtaState extends ConsumerState<_PlayResumeCta> {
 
   @override
   Widget build(BuildContext context) {
+    final colors = FormFactorProvider.colorsOf(context);
     final partySession = ref.watch(partySessionProvider);
     final partyLockedEpisode = partyLockedEpisodeNumberForAnime(
       session: partySession,
@@ -439,7 +439,7 @@ class _PlayResumeCtaState extends ConsumerState<_PlayResumeCta> {
                 height: 18,
                 child: CircularProgressIndicator(
                   strokeWidth: 2,
-                  color: KumoriyaColors.textPrimary,
+                  color: colors.text,
                 ),
               )
             : const Icon(icon, size: 22),
@@ -448,20 +448,21 @@ class _PlayResumeCtaState extends ConsumerState<_PlayResumeCta> {
           maxLines: 2,
           overflow: TextOverflow.ellipsis,
           textAlign: TextAlign.center,
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 15,
             fontWeight: FontWeight.w700,
             letterSpacing: 0.3,
+            color: colors.text,
           ),
         ),
         style: FilledButton.styleFrom(
-          backgroundColor: KumoriyaColors.primary,
-          foregroundColor: KumoriyaColors.textPrimary,
-          disabledBackgroundColor: KumoriyaColors.surface,
-          disabledForegroundColor: KumoriyaColors.textDisabled,
+          backgroundColor: colors.primary,
+          foregroundColor: colors.text,
+          disabledBackgroundColor: colors.surface,
+          disabledForegroundColor: colors.textSoft,
           minimumSize: const Size.fromHeight(48),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(KumoriyaRadius.lg),
+            borderRadius: BorderRadius.circular(CloudRadius.md),
           ),
         ),
       ),
@@ -579,26 +580,26 @@ class _PartyBrowseBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = FormFactorProvider.colorsOf(context);
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: KumoriyaColors.primaryContainer.withValues(alpha: 0.72),
-        borderRadius: BorderRadius.circular(KumoriyaRadius.lg),
-        border: Border.all(
-          color: KumoriyaColors.primary.withValues(alpha: 0.25),
-        ),
+        color: colors.primarySoft.withValues(alpha: 0.72),
+        borderRadius: BorderRadius.circular(CloudRadius.md),
+        border: Border.all(color: colors.primary.withValues(alpha: 0.25)),
       ),
       child: Row(
         children: <Widget>[
-          const Icon(Icons.groups_rounded, color: KumoriyaColors.primary),
+          Icon(Icons.groups_rounded, color: colors.primary),
           const SizedBox(width: 10),
           Expanded(
             child: Text(
               context.l10n.partyBrowseModeBanner,
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: KumoriyaColors.textPrimary,
+              style: TextStyle(
+                fontSize: 12,
                 fontWeight: FontWeight.w600,
+                color: colors.text,
               ),
             ),
           ),
@@ -620,6 +621,7 @@ class _CollapsibleSynopsisState extends State<_CollapsibleSynopsis> {
 
   @override
   Widget build(BuildContext context) {
+    final colors = FormFactorProvider.colorsOf(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
@@ -629,8 +631,10 @@ class _CollapsibleSynopsisState extends State<_CollapsibleSynopsis> {
             children: <Widget>[
               Text(
                 context.l10n.detailSynopsisTitle,
-                style: Theme.of(context).textTheme.titleSmall!.copyWith(
-                  color: KumoriyaColors.textPrimary,
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                  color: colors.text,
                 ),
               ),
               const SizedBox(width: 4),
@@ -639,7 +643,7 @@ class _CollapsibleSynopsisState extends State<_CollapsibleSynopsis> {
                     ? Icons.expand_less_rounded
                     : Icons.expand_more_rounded,
                 size: 20,
-                color: KumoriyaColors.textTertiary,
+                color: colors.textSoft,
               ),
             ],
           ),
@@ -650,22 +654,24 @@ class _CollapsibleSynopsisState extends State<_CollapsibleSynopsis> {
             widget.synopsis,
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
-            style: Theme.of(context).textTheme.bodySmall!.copyWith(
+            style: TextStyle(
+              fontSize: 12,
               height: 1.5,
-              color: KumoriyaColors.textSecondary,
+              color: colors.textMuted,
             ),
           ),
           secondChild: TranslatedDynamicText(
             widget.synopsis,
-            style: Theme.of(context).textTheme.bodySmall!.copyWith(
+            style: TextStyle(
+              fontSize: 12,
               height: 1.5,
-              color: KumoriyaColors.textSecondary,
+              color: colors.textMuted,
             ),
           ),
           crossFadeState: _expanded
               ? CrossFadeState.showSecond
               : CrossFadeState.showFirst,
-          duration: const Duration(milliseconds: 250),
+          duration: CloudMotion.fast,
         ),
       ],
     );
@@ -691,6 +697,7 @@ class _AnimeRelationsSectionState extends State<_AnimeRelationsSection> {
 
   @override
   Widget build(BuildContext context) {
+    final colors = FormFactorProvider.colorsOf(context);
     final visible = _expanded
         ? widget.relations
         : widget.relations.take(_collapsedCount);
@@ -700,9 +707,11 @@ class _AnimeRelationsSectionState extends State<_AnimeRelationsSection> {
       children: <Widget>[
         Text(
           context.l10n.relationsTitle,
-          style: Theme.of(
-            context,
-          ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w700,
+            color: colors.text,
+          ),
         ),
         const SizedBox(height: 8),
         ...visible.map(
@@ -733,9 +742,10 @@ class _AnimeRelationCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = FormFactorProvider.colorsOf(context);
     final target = relation.target;
     return InkWell(
-      borderRadius: BorderRadius.circular(KumoriyaRadius.xl),
+      borderRadius: BorderRadius.circular(CloudRadius.lg),
       onTap: () => Navigator.of(context).push(
         MaterialPageRoute<void>(
           builder: (_) => switch (target.kind) {
@@ -750,9 +760,9 @@ class _AnimeRelationCard extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: KumoriyaColors.surface.withValues(alpha: 0.6),
-          borderRadius: BorderRadius.circular(KumoriyaRadius.xl),
-          border: Border.all(color: KumoriyaColors.borderSubtle),
+          color: colors.surface.withValues(alpha: 0.6),
+          borderRadius: BorderRadius.circular(CloudRadius.lg),
+          border: Border.all(color: colors.surface2),
         ),
         child: Row(
           children: <Widget>[
@@ -764,8 +774,10 @@ class _AnimeRelationCard extends StatelessWidget {
                     target.titleRomaji,
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
-                    style: Theme.of(context).textTheme.titleSmall!.copyWith(
-                      color: KumoriyaColors.textPrimary,
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                      color: colors.text,
                     ),
                   ),
                   const SizedBox(height: 8),
@@ -786,10 +798,7 @@ class _AnimeRelationCard extends StatelessWidget {
               ),
             ),
             const SizedBox(width: 10),
-            const Icon(
-              Icons.chevron_right_rounded,
-              color: KumoriyaColors.textDisabled,
-            ),
+            Icon(Icons.chevron_right_rounded, color: colors.textSoft),
           ],
         ),
       ),
@@ -810,6 +819,7 @@ class _RelationsToggleButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = FormFactorProvider.colorsOf(context);
     return Align(
       alignment: Alignment.centerLeft,
       child: TextButton.icon(
@@ -824,8 +834,12 @@ class _RelationsToggleButton extends StatelessWidget {
               : _relationsShowMoreLabel(context, hiddenCount),
         ),
         style: TextButton.styleFrom(
-          foregroundColor: KumoriyaColors.primary,
-          textStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+          foregroundColor: colors.primary,
+          textStyle: TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w700,
+            color: colors.text,
+          ),
           padding: const EdgeInsets.symmetric(horizontal: 8),
         ),
       ),
@@ -846,6 +860,7 @@ class _PartyActionButton extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final colors = FormFactorProvider.colorsOf(context);
     final session = ref.watch(partySessionProvider);
     final isActive = session.isActive;
 
@@ -861,7 +876,7 @@ class _PartyActionButton extends ConsumerWidget {
       return IconButton(
         icon: Icon(
           isSameAnime ? Icons.group : Icons.swap_horiz,
-          color: isSameAnime ? KumoriyaColors.primary : Colors.orangeAccent,
+          color: isSameAnime ? colors.primary : Colors.orangeAccent,
         ),
         tooltip: isSameAnime
             ? context.l10n.partyActiveTooltip
@@ -924,7 +939,7 @@ class _PartyActionButton extends ConsumerWidget {
     return IconButton(
       icon: Icon(
         isActive ? Icons.group : Icons.group_add_outlined,
-        color: isActive ? KumoriyaColors.primary : null,
+        color: isActive ? colors.primary : null,
       ),
       tooltip: isActive
           ? context.l10n.partyLobbyTooltip
@@ -953,6 +968,7 @@ class _WatchPartySpotlightCard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final colors = FormFactorProvider.colorsOf(context);
     final isActive = ref.watch(partySessionProvider).isActive;
 
     return SizedBox(
@@ -973,16 +989,12 @@ class _WatchPartySpotlightCard extends ConsumerWidget {
           isActive ? context.l10n.partyLobbyTooltip : context.l10n.partyTitle,
         ),
         style: OutlinedButton.styleFrom(
-          foregroundColor: KumoriyaColors.textPrimary,
-          side: BorderSide(
-            color: KumoriyaColors.primary.withValues(alpha: 0.35),
-          ),
-          backgroundColor: KumoriyaColors.primaryContainer.withValues(
-            alpha: 0.28,
-          ),
+          foregroundColor: colors.text,
+          side: BorderSide(color: colors.primary.withValues(alpha: 0.35)),
+          backgroundColor: colors.primarySoft.withValues(alpha: 0.28),
           minimumSize: const Size.fromHeight(48),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(KumoriyaRadius.lg),
+            borderRadius: BorderRadius.circular(CloudRadius.md),
           ),
         ),
       ),
@@ -997,6 +1009,7 @@ class _DetailHero extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = FormFactorProvider.colorsOf(context);
     return Stack(
       fit: StackFit.expand,
       children: <Widget>[
@@ -1009,9 +1022,9 @@ class _DetailHero extends StatelessWidget {
               detail.bannerImageUrl ?? detail.anime.coverImageUrl,
               detail.anime.title.romaji,
             ),
-            child: KumoriyaCachedImage(
+            child: CloudCachedImage(
               url: detail.bannerImageUrl ?? detail.anime.coverImageUrl,
-              bucket: KumoriyaImageCacheBucket.artwork,
+              bucket: CloudImageCacheBucket.artwork,
               fit: BoxFit.cover,
             ),
           ),
@@ -1022,8 +1035,8 @@ class _DetailHero extends StatelessWidget {
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
               colors: <Color>[
-                KumoriyaColors.background.withValues(alpha: 0.0),
-                KumoriyaColors.background.withValues(alpha: 0.85),
+                colors.bg.withValues(alpha: 0.0),
+                colors.bg.withValues(alpha: 0.85),
               ],
               stops: const <double>[0.3, 1.0],
             ),
@@ -1046,14 +1059,14 @@ class _DetailHero extends StatelessWidget {
                         detail.anime.coverImageUrl,
                         detail.anime.title.romaji,
                       ),
-                      child: KumoriyaCachedImage(
+                      child: CloudCachedImage(
                         url: detail.anime.coverImageUrl,
-                        bucket: KumoriyaImageCacheBucket.artwork,
+                        bucket: CloudImageCacheBucket.artwork,
                         width: 120,
                         height: 170,
                         fit: BoxFit.cover,
                         alignment: Alignment.topCenter,
-                        borderRadius: BorderRadius.circular(KumoriyaRadius.xxl),
+                        borderRadius: BorderRadius.circular(CloudRadius.lg),
                       ),
                     ),
                   ),
@@ -1067,11 +1080,11 @@ class _DetailHero extends StatelessWidget {
                           detail.anime.title.romaji,
                           maxLines: 3,
                           overflow: TextOverflow.ellipsis,
-                          style: Theme.of(context).textTheme.headlineMedium
-                              ?.copyWith(
-                                color: KumoriyaColors.textPrimary,
-                                fontWeight: FontWeight.w800,
-                              ),
+                          style: TextStyle(
+                            fontSize: 28,
+                            fontWeight: FontWeight.w800,
+                            color: colors.text,
+                          ),
                         ),
                         const SizedBox(height: 8),
                         Wrap(
@@ -1096,7 +1109,7 @@ class _DetailHero extends StatelessWidget {
                             if (detail.anime.averageScore != null)
                               _HeroMetaPill(
                                 label: '★ ${detail.anime.averageScore}/100',
-                                textColor: KumoriyaColors.accentAmber,
+                                textColor: colors.star,
                               ),
                           ],
                         ),
@@ -1122,6 +1135,8 @@ Future<void> _showArtworkPreview(
     return;
   }
 
+  final colors = FormFactorProvider.colorsOf(context);
+
   await showDialog<void>(
     context: context,
     builder: (dialogContext) {
@@ -1133,9 +1148,9 @@ Future<void> _showArtworkPreview(
               child: InteractiveViewer(
                 minScale: 1,
                 maxScale: 4,
-                child: KumoriyaCachedImage(
+                child: CloudCachedImage(
                   url: imageUrl,
-                  bucket: KumoriyaImageCacheBucket.artwork,
+                  bucket: CloudImageCacheBucket.artwork,
                   fit: BoxFit.contain,
                 ),
               ),
@@ -1145,10 +1160,7 @@ Future<void> _showArtworkPreview(
                 alignment: Alignment.topLeft,
                 child: IconButton(
                   onPressed: () => Navigator.of(dialogContext).pop(),
-                  icon: const Icon(
-                    Icons.close_rounded,
-                    color: KumoriyaColors.textPrimary,
-                  ),
+                  icon: Icon(Icons.close_rounded, color: colors.text),
                   tooltip: title,
                 ),
               ),
@@ -1167,6 +1179,7 @@ class _TitleBlock extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = FormFactorProvider.colorsOf(context);
     final secondaryTitle =
         detail.anime.title.english ??
         detail.anime.title.native ??
@@ -1182,9 +1195,11 @@ class _TitleBlock extends StatelessWidget {
       secondaryTitle,
       maxLines: 2,
       overflow: TextOverflow.ellipsis,
-      style: Theme.of(
-        context,
-      ).textTheme.titleSmall!.copyWith(color: KumoriyaColors.textSecondary),
+      style: TextStyle(
+        fontSize: 14,
+        fontWeight: FontWeight.w500,
+        color: colors.textMuted,
+      ),
     );
   }
 }
@@ -1267,6 +1282,7 @@ class _EpisodeDetailSectionState extends ConsumerState<_EpisodeDetailSection> {
 
   @override
   Widget build(BuildContext context) {
+    final colors = FormFactorProvider.colorsOf(context);
     final latestProgress = widget.latestProgressState.maybeWhen(
       data: (result) => result.fold(
         onFailure: (_) => null,
@@ -1360,19 +1376,19 @@ class _EpisodeDetailSectionState extends ConsumerState<_EpisodeDetailSection> {
         summary?.playableSources
             .map(
               (source) => SourceBadge(
-                name: source.manifest.displayName,
+                sourceName: source.manifest.displayName,
                 iconUrl: effectiveSourceIconUrl(source.manifest),
                 audioKinds: source.availableAudioKinds,
                 compact: true,
                 iconOnly: true,
-                highlighted:
+                isHighlighted:
                     summary.recommended?.manifest.id == source.manifest.id,
               ),
             )
             .toList(growable: false) ??
         const <Widget>[];
     final contentChildren = <Widget>[
-      KumoriyaSectionHeader(
+      SectionHeader(
         title: context.l10n.episodePreviewTitle,
         onSeeAll: isLongSeries
             ? () => _openEpisodeListPage(latestProgress)
@@ -1395,9 +1411,7 @@ class _EpisodeDetailSectionState extends ConsumerState<_EpisodeDetailSection> {
               rowsResult.totalCount == 0
                   ? context.l10n.episodeListEmpty
                   : '${rowsResult.totalCount} ${context.l10n.episodesWord}',
-              style: Theme.of(context).textTheme.bodySmall!.copyWith(
-                color: KumoriyaColors.textTertiary,
-              ),
+              style: TextStyle(fontSize: 12, color: colors.textSoft),
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
             ),
@@ -1439,10 +1453,7 @@ class _EpisodeDetailSectionState extends ConsumerState<_EpisodeDetailSection> {
       if (sourceBadges.isEmpty)
         Text(
           context.l10n.detailPlaybackNotReady,
-          style: const TextStyle(
-            fontSize: 12,
-            color: KumoriyaColors.textTertiary,
-          ),
+          style: TextStyle(fontSize: 12, color: colors.textSoft),
         )
       else
         Wrap(spacing: 4, runSpacing: 4, children: sourceBadges),
@@ -1452,17 +1463,16 @@ class _EpisodeDetailSectionState extends ConsumerState<_EpisodeDetailSection> {
           width: double.infinity,
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
-            color: KumoriyaColors.primaryContainer.withValues(alpha: 0.7),
-            borderRadius: BorderRadius.circular(KumoriyaRadius.lg),
-            border: Border.all(
-              color: KumoriyaColors.primary.withValues(alpha: 0.25),
-            ),
+            color: colors.primarySoft.withValues(alpha: 0.7),
+            borderRadius: BorderRadius.circular(CloudRadius.md),
+            border: Border.all(color: colors.primary.withValues(alpha: 0.25)),
           ),
           child: Text(
             'Watch party active: only episode ${partyLockedEpisode.toInt()} is available while the host controls playback.',
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: KumoriyaColors.textPrimary,
+            style: TextStyle(
+              fontSize: 12,
               fontWeight: FontWeight.w600,
+              color: colors.text,
             ),
           ),
         ),
@@ -1489,7 +1499,7 @@ class _EpisodeDetailSectionState extends ConsumerState<_EpisodeDetailSection> {
       contentChildren.add(
         Text(
           context.l10n.episodeListEmpty,
-          style: Theme.of(context).textTheme.bodyMedium,
+          style: TextStyle(fontSize: 14, color: colors.text),
         ),
       );
     } else {
@@ -1577,9 +1587,9 @@ class _EpisodeDetailSectionState extends ConsumerState<_EpisodeDetailSection> {
       key: const Key('anime-detail-episodes-section'),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: KumoriyaColors.surface,
-        borderRadius: BorderRadius.circular(KumoriyaRadius.xxl),
-        border: Border.all(color: KumoriyaColors.borderSubtle),
+        color: colors.surface,
+        borderRadius: BorderRadius.circular(CloudRadius.lg),
+        border: Border.all(color: colors.surface2),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1798,23 +1808,25 @@ class _DetailEpisodeCardState extends ConsumerState<_DetailEpisodeCard> {
     return KeyedSubtree(
       key: Key('anime-detail-episode-${row.number.toInt()}'),
       child: EpisodeRow(
-        number: row.number,
-        displayTitle: row.displayTitle,
-        secondaryText: row.secondaryText,
+        episodeNumber: row.number.toString(),
+        title: row.displayTitle,
+        subtitle: row.secondaryText,
         sourceBadges: const <Widget>[],
-        progressFraction: row.progressFraction,
-        isCurrentEpisode: row.isCurrentEpisode,
-        isPlayable: isPlayable,
+        state: row.isCurrentEpisode
+            ? EpisodeRowState.active
+            : !isPlayable
+            ? EpisodeRowState.notPlayable
+            : EpisodeRowState.defaultState,
+        progress: row.progressFraction,
         onTap: widget.onTap,
         activeLabel: context.l10n.detailContinueBadge,
         trailingAccessory: _buildDownloadWidget(context, dlTask),
-        playIconSize: 26,
-        showWatchedCheck: false,
       ),
     );
   }
 
   Widget _buildDownloadWidget(BuildContext context, DownloadTask? dlTask) {
+    final colors = FormFactorProvider.colorsOf(context);
     if (_isEnqueuing) {
       return const SizedBox(
         width: 28,
@@ -1839,11 +1851,7 @@ class _DetailEpisodeCardState extends ConsumerState<_DetailEpisodeCard> {
     return IconButton(
       constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
       onPressed: () => _handleDownload(context),
-      icon: const Icon(
-        Icons.download_rounded,
-        size: 22,
-        color: KumoriyaColors.textDisabled,
-      ),
+      icon: Icon(Icons.download_rounded, size: 22, color: colors.textSoft),
       tooltip: context.l10n.downloadEpisode,
     );
   }
@@ -1982,6 +1990,7 @@ class _LibraryActions extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final colors = FormFactorProvider.colorsOf(context);
     final isFavAsync = ref.watch(isFavoriteProvider(anilistId));
     final isSubAsync = ref.watch(isSubscribedProvider(anilistId));
     final isAutoDownloadAsync = ref.watch(isAutoDownloadProvider(anilistId));
@@ -2071,9 +2080,10 @@ class _LibraryActions extends ConsumerWidget {
           const SizedBox(height: 8),
           Text(
             context.l10n.autoDownloadAudioPreference,
-            style: Theme.of(context).textTheme.labelMedium?.copyWith(
-              color: KumoriyaColors.textSecondary,
+            style: TextStyle(
+              fontSize: 12,
               fontWeight: FontWeight.w600,
+              color: colors.textMuted,
             ),
           ),
           const SizedBox(height: 6),
@@ -2125,12 +2135,13 @@ class _ActionButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = FormFactorProvider.colorsOf(context);
     final disabled = onTap == null;
     final color = disabled
-        ? KumoriyaColors.textDisabled
+        ? colors.textSoft
         : active
-        ? KumoriyaColors.primary
-        : KumoriyaColors.textSecondary;
+        ? colors.primary
+        : colors.textMuted;
 
     return GestureDetector(
       onTap: onTap,
@@ -2144,13 +2155,13 @@ class _ActionButton extends StatelessWidget {
               height: 44,
               decoration: BoxDecoration(
                 color: active
-                    ? KumoriyaColors.primary.withValues(alpha: 0.12)
-                    : KumoriyaColors.surface,
+                    ? colors.primary.withValues(alpha: 0.12)
+                    : colors.surface,
                 shape: BoxShape.circle,
                 border: Border.all(
                   color: active
-                      ? KumoriyaColors.primary.withValues(alpha: 0.35)
-                      : KumoriyaColors.borderSubtle,
+                      ? colors.primary.withValues(alpha: 0.35)
+                      : colors.surface2,
                 ),
               ),
               child: Icon(icon, size: 20, color: color),
@@ -2435,7 +2446,7 @@ class _HeroMetaPill extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(KumoriyaRadius.full),
+          borderRadius: BorderRadius.circular(CloudRadius.pill),
           color: Colors.black.withValues(alpha: 0.55),
           border: Border.all(color: Colors.white.withValues(alpha: 0.18)),
         ),
@@ -2638,40 +2649,27 @@ class _DetailDownloadStatusIcon extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final colors = FormFactorProvider.colorsOf(context);
     // Listen to live progress events for this task only.
     final liveEvent = ref
         .watch(downloadProgressByTaskProvider(task.id))
         .maybeWhen(data: (event) => event, orElse: () => null);
 
     final (icon, color) = switch (task.status) {
-      DownloadStatus.pending => (
-        Icons.hourglass_top_rounded,
-        KumoriyaColors.textDisabled,
-      ),
-      DownloadStatus.downloading => (
-        Icons.downloading_rounded,
-        KumoriyaColors.primary,
-      ),
+      DownloadStatus.pending => (Icons.hourglass_top_rounded, colors.textSoft),
+      DownloadStatus.downloading => (Icons.downloading_rounded, colors.primary),
       DownloadStatus.paused => (
         Icons.pause_circle_outline_rounded,
-        KumoriyaColors.statusWarning,
+        colors.warning,
       ),
-      DownloadStatus.remuxing => (
-        Icons.auto_fix_high_rounded,
-        KumoriyaColors.primary,
-      ),
+      DownloadStatus.remuxing => (Icons.auto_fix_high_rounded, colors.primary),
       DownloadStatus.disconnected => (
         Icons.cloud_off_rounded,
-        KumoriyaColors.textMuted,
+        colors.textMuted,
       ),
-      DownloadStatus.completed => (
-        Icons.download_done_rounded,
-        KumoriyaColors.statusSuccess,
-      ),
-      DownloadStatus.failed => (
-        Icons.error_outline_rounded,
-        KumoriyaColors.statusDanger,
-      ),
+      DownloadStatus.completed => (Icons.download_done_rounded, colors.success),
+      DownloadStatus.cancelled => (Icons.cancel_outlined, colors.textSoft),
+      DownloadStatus.failed => (Icons.error_outline_rounded, colors.error),
     };
 
     // Show circular progress around the icon when downloading.
@@ -2689,7 +2687,7 @@ class _DetailDownloadStatusIcon extends ConsumerWidget {
               CircularProgressIndicator(
                 value: fraction,
                 strokeWidth: 2.5,
-                backgroundColor: KumoriyaColors.borderSubtle,
+                backgroundColor: colors.surface2,
                 valueColor: AlwaysStoppedAnimation<Color>(color),
               ),
               Icon(icon, size: 14, color: color),
@@ -2741,6 +2739,7 @@ class _DetailDownloadAllButtonState
 
   @override
   Widget build(BuildContext context) {
+    final colors = FormFactorProvider.colorsOf(context);
     return _isEnqueuing
         ? const SizedBox(
             width: 20,
@@ -2752,18 +2751,14 @@ class _DetailDownloadAllButtonState
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: <Widget>[
-                Icon(
-                  Icons.download_rounded,
-                  size: 17,
-                  color: KumoriyaColors.primary,
-                ),
+                Icon(Icons.download_rounded, size: 17, color: colors.primary),
                 const SizedBox(width: 5),
                 Text(
                   context.l10n.downloadAll,
                   style: TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
-                    color: KumoriyaColors.textSecondary,
+                    color: colors.textMuted,
                   ),
                 ),
               ],
@@ -2877,6 +2872,7 @@ class _DetailDownloadAllButtonState
   }
 
   Future<SourceAudioKind?> _pickAudioKind(BuildContext context) {
+    final colors = FormFactorProvider.colorsOf(context);
     return showModalBottomSheet<SourceAudioKind>(
       context: context,
       showDragHandle: true,
@@ -2889,7 +2885,9 @@ class _DetailDownloadAllButtonState
                 padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
                 child: Text(
                   context.l10n.downloadAllChooseAudio,
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  style: TextStyle(
+                    color: colors.text,
+                    fontSize: 15,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
@@ -3015,7 +3013,7 @@ class _DownloadServerPickerSheetState
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
+    final colors = FormFactorProvider.colorsOf(context);
     final grouped = <String, List<_DownloadServerOption>>{};
     for (final opt in widget.options) {
       grouped.putIfAbsent(opt.sourcePluginId, () => []).add(opt);
@@ -3037,16 +3035,14 @@ class _DownloadServerPickerSheetState
             children: <Widget>[
               Row(
                 children: <Widget>[
-                  const Icon(
-                    Icons.download_rounded,
-                    size: 22,
-                    color: KumoriyaColors.primary,
-                  ),
+                  Icon(Icons.download_rounded, size: 22, color: colors.primary),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
                       context.l10n.downloadSelectServer,
-                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                      style: TextStyle(
+                        color: colors.text,
+                        fontSize: 18,
                         fontWeight: FontWeight.w800,
                       ),
                     ),
@@ -3104,8 +3100,8 @@ class _DownloadServerPickerSheetState
                     return Container(
                       padding: const EdgeInsets.all(14),
                       decoration: BoxDecoration(
-                        color: colorScheme.surfaceContainerLow,
-                        borderRadius: BorderRadius.circular(24),
+                        color: colors.bgElev,
+                        borderRadius: BorderRadius.circular(CloudRadius.lg),
                       ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -3113,17 +3109,17 @@ class _DownloadServerPickerSheetState
                           Row(
                             children: <Widget>[
                               SourceBadge(
-                                name: rep.sourceName,
+                                sourceName: rep.sourceName,
                                 iconUrl: rep.sourceIconUrl,
                                 compact: true,
                               ),
                               const SizedBox(width: 8),
                               Text(
                                 '${sourceOptions.length} server${sourceOptions.length != 1 ? 's' : ''}',
-                                style: Theme.of(context).textTheme.bodySmall
-                                    ?.copyWith(
-                                      color: colorScheme.onSurfaceVariant,
-                                    ),
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: colors.textMuted,
+                                ),
                               ),
                             ],
                           ),
@@ -3134,11 +3130,15 @@ class _DownloadServerPickerSheetState
                                 top: opt == sourceOptions.first ? 0 : 10,
                               ),
                               child: Material(
-                                color: colorScheme.surface,
-                                borderRadius: BorderRadius.circular(22),
+                                color: colors.surface,
+                                borderRadius: BorderRadius.circular(
+                                  CloudRadius.lg,
+                                ),
                                 child: InkWell(
                                   onTap: () => Navigator.of(context).pop(opt),
-                                  borderRadius: BorderRadius.circular(22),
+                                  borderRadius: BorderRadius.circular(
+                                    CloudRadius.lg,
+                                  ),
                                   child: Padding(
                                     padding: const EdgeInsets.all(14),
                                     child: Row(
@@ -3159,13 +3159,12 @@ class _DownloadServerPickerSheetState
                                                   Flexible(
                                                     child: Text(
                                                       opt.link.serverName,
-                                                      style: Theme.of(context)
-                                                          .textTheme
-                                                          .titleMedium
-                                                          ?.copyWith(
-                                                            fontWeight:
-                                                                FontWeight.w700,
-                                                          ),
+                                                      style: TextStyle(
+                                                        color: colors.text,
+                                                        fontSize: 15,
+                                                        fontWeight:
+                                                            FontWeight.w700,
+                                                      ),
                                                     ),
                                                   ),
                                                   const SizedBox(width: 6),
@@ -3192,8 +3191,7 @@ class _DownloadServerPickerSheetState
                                                   opt.link.detectedHost!,
                                                   style: TextStyle(
                                                     fontSize: 11,
-                                                    color: colorScheme
-                                                        .onSurfaceVariant,
+                                                    color: colors.textMuted,
                                                   ),
                                                 ),
                                               ],
@@ -3237,8 +3235,9 @@ class _QualityTierChip extends StatelessWidget {
       ),
       child: Text(
         tier.label,
-        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+        style: TextStyle(
           color: tier.color,
+          fontSize: 10,
           fontWeight: FontWeight.w700,
         ),
       ),
@@ -3262,8 +3261,9 @@ class _AudioCodeChip extends StatelessWidget {
       ),
       child: Text(
         code.trim().toUpperCase(),
-        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+        style: TextStyle(
           color: Colors.blueAccent,
+          fontSize: 10,
           fontWeight: FontWeight.w700,
         ),
       ),

@@ -9,7 +9,7 @@ import 'package:kumoriya_plugins/kumoriya_plugins.dart';
 import 'package:kumoriya_storage/kumoriya_storage.dart';
 
 import '../../../../app/l10n.dart';
-import '../../../../shared/widgets/state_views.dart';
+import 'package:kumoriya_ui/kumoriya_ui.dart';
 import '../../application/models/resolved_server_link_result.dart';
 import '../../application/models/source_availability.dart';
 import '../../application/use_cases/get_source_episode_server_links_use_case.dart';
@@ -28,9 +28,7 @@ import '../support/episode_display_title.dart';
 import '../support/playback_launch_flow.dart';
 import '../support/plugin_icon_helpers.dart';
 import '../support/translated_episode_title.dart';
-import '../widgets/source_badge.dart';
 import '../widgets/source_quality_picker_sheet.dart';
-import '../../../../shared/theme/kumoriya_theme.dart';
 
 class EpisodeListPage extends StatelessWidget {
   const EpisodeListPage({
@@ -698,11 +696,11 @@ class _EpisodeListHeader extends ConsumerWidget {
             badges: playableSources
                 .map(
                   (source) => SourceBadge(
-                    name: source.manifest.displayName,
+                    sourceName: source.manifest.displayName,
                     iconUrl: effectiveSourceIconUrl(source.manifest),
                     audioKinds: source.availableAudioKinds,
                     compact: true,
-                    highlighted:
+                    isHighlighted:
                         summary?.recommended?.manifest.id == source.manifest.id,
                   ),
                 )
@@ -834,7 +832,9 @@ class _EpisodeListHeader extends ConsumerWidget {
                 padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
                 child: Text(
                   context.l10n.downloadAllChooseAudio,
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  style: TextStyle(
+                    color: FormFactorProvider.colorsOf(context).text,
+                    fontSize: 16,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
@@ -923,6 +923,7 @@ class _EpisodeCardState extends ConsumerState<_EpisodeCard> {
 
   @override
   Widget build(BuildContext context) {
+    final colors = FormFactorProvider.colorsOf(context);
     final colorScheme = Theme.of(context).colorScheme;
     final row = widget.row;
     final progress = row.progressFraction;
@@ -958,7 +959,9 @@ class _EpisodeCardState extends ConsumerState<_EpisodeCard> {
                     alignment: Alignment.center,
                     child: Text(
                       row.number.toInt().toString(),
-                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                      style: TextStyle(
+                        color: colors.text,
+                        fontSize: 14,
                         fontWeight: FontWeight.w800,
                       ),
                     ),
@@ -975,8 +978,11 @@ class _EpisodeCardState extends ConsumerState<_EpisodeCard> {
                                 row.displayTitle,
                                 maxLines: 2,
                                 overflow: TextOverflow.ellipsis,
-                                style: Theme.of(context).textTheme.titleMedium
-                                    ?.copyWith(fontWeight: FontWeight.w700),
+                                style: TextStyle(
+                                  color: colors.text,
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w700,
+                                ),
                               ),
                             ),
                             if (row.isCurrentEpisode)
@@ -990,8 +996,10 @@ class _EpisodeCardState extends ConsumerState<_EpisodeCard> {
                           row.secondaryText,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: Theme.of(context).textTheme.bodyMedium
-                              ?.copyWith(color: colorScheme.onSurfaceVariant),
+                          style: TextStyle(
+                            color: colorScheme.onSurfaceVariant,
+                            fontSize: 14,
+                          ),
                         ),
                       ],
                     ),
@@ -1002,8 +1010,9 @@ class _EpisodeCardState extends ConsumerState<_EpisodeCard> {
               if (row.playableSources.isEmpty)
                 Text(
                   context.l10n.episodePlaybackUnavailable,
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  style: TextStyle(
                     color: colorScheme.onSurfaceVariant,
+                    fontSize: 14,
                   ),
                 ),
               if (progress != null) ...<Widget>[
@@ -1138,10 +1147,11 @@ class _DownloadStatusChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = FormFactorProvider.colorsOf(context);
     final (icon, color, label) = switch (task.status) {
       DownloadStatus.pending => (
         Icons.hourglass_top_rounded,
-        KumoriyaColors.textMuted,
+        colors.textMuted,
         context.l10n.downloadPending,
       ),
       DownloadStatus.downloading => (
@@ -1151,12 +1161,12 @@ class _DownloadStatusChip extends StatelessWidget {
       ),
       DownloadStatus.paused => (
         Icons.pause_circle_rounded,
-        KumoriyaColors.statusWarning,
+        colors.warning,
         context.l10n.downloadPaused,
       ),
       DownloadStatus.disconnected => (
         Icons.cloud_off_rounded,
-        KumoriyaColors.textMuted,
+        colors.textMuted,
         // TODO(i18n): localize.
         'Sin conexi\u00f3n',
       ),
@@ -1168,12 +1178,17 @@ class _DownloadStatusChip extends StatelessWidget {
       ),
       DownloadStatus.completed => (
         Icons.check_circle_rounded,
-        KumoriyaColors.statusSuccess,
+        colors.success,
         context.l10n.downloadComplete,
+      ),
+      DownloadStatus.cancelled => (
+        Icons.cancel_outlined,
+        colors.textMuted,
+        context.l10n.downloadFailed,
       ),
       DownloadStatus.failed => (
         Icons.error_rounded,
-        KumoriyaColors.statusDanger,
+        colors.error,
         context.l10n.downloadFailed,
       ),
     };
@@ -1204,9 +1219,11 @@ class _InfoBanner extends StatelessWidget {
         children: <Widget>[
           Text(
             message,
-            style: Theme.of(
-              context,
-            ).textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w600),
+            style: TextStyle(
+              color: FormFactorProvider.colorsOf(context).text,
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+            ),
           ),
           if (badges.isNotEmpty) ...<Widget>[
             const SizedBox(height: 12),
@@ -1225,17 +1242,19 @@ class _ContextChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = FormFactorProvider.colorsOf(context);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(999),
-        color: KumoriyaColors.primary.withValues(alpha: 0.85),
+        color: colors.primary.withValues(alpha: 0.85),
       ),
       child: Text(
         label,
-        style: Theme.of(context).textTheme.labelMedium?.copyWith(
+        style: TextStyle(
+          color: colors.text,
+          fontSize: 12,
           fontWeight: FontWeight.w700,
-          color: KumoriyaColors.textPrimary,
         ),
       ),
     );
@@ -1450,7 +1469,7 @@ class _PageSelectorState extends State<_PageSelector> {
       final target = widget.currentPage * (chipWidth + chipSpacing);
       _chipScroll.animateTo(
         target.clamp(0.0, _chipScroll.position.maxScrollExtent),
-        duration: const Duration(milliseconds: 200),
+        duration: CloudMotion.fast,
         curve: Curves.easeOut,
       );
     });

@@ -4,13 +4,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kumoriya_core/kumoriya_core.dart';
 import 'package:kumoriya_domain/kumoriya_domain.dart';
+import 'package:kumoriya_ui/kumoriya_ui.dart';
+import '../../../../shared/utils/error_messaging.dart';
 
 import '../../../../app/l10n.dart';
 import '../../../../shared/icons/kumoriya_icons.dart';
-import '../../../../shared/theme/kumoriya_theme.dart';
-import '../../../../shared/widgets/anime_card.dart';
-import '../../../../shared/widgets/section_header.dart';
-import '../../../../shared/widgets/state_views.dart';
+// PosterCard from package:kumoriya_ui
 import '../providers/anime_catalog_providers.dart';
 import '../widgets/anime_list_tile.dart';
 import 'anime_detail_page.dart';
@@ -38,7 +37,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
   void _handleSearchTextChange() {
     _debounce?.cancel();
     final nextQuery = _controller.text.trim();
-    _debounce = Timer(const Duration(milliseconds: 280), () {
+    _debounce = Timer(CloudMotion.base, () {
       if (!mounted) return;
       setState(() => _activeQuery = nextQuery);
     });
@@ -102,9 +101,10 @@ class _SearchPageState extends ConsumerState<SearchPage> {
   @override
   Widget build(BuildContext context) {
     final searchState = ref.watch(searchCatalogProvider(_activeQuery));
+    final colors = FormFactorProvider.colorsOf(context);
 
     return Scaffold(
-      backgroundColor: KumoriyaColors.background,
+      backgroundColor: colors.bg,
       body: SafeArea(
         child: Column(
           children: <Widget>[
@@ -115,15 +115,16 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                 children: <Widget>[
                   Text(
                     context.l10n.discoverTitle,
-                    style: Theme.of(context).textTheme.headlineMedium,
+                    style: TextStyle(
+                      color: colors.text,
+                      fontSize: 24,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                   const SizedBox(height: 4),
                   Text(
                     context.l10n.discoverSubtitle,
-                    style: const TextStyle(
-                      fontSize: 13,
-                      color: KumoriyaColors.textTertiary,
-                    ),
+                    style: TextStyle(fontSize: 13, color: colors.textSoft),
                   ),
                   const SizedBox(height: 14),
                   _DarkSearchBar(
@@ -334,7 +335,7 @@ class _DiscoverBody extends ConsumerWidget {
         // -- Genre chips
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: KumoriyaSectionHeader(title: context.l10n.discoverGenres),
+          child: SectionHeader(title: context.l10n.discoverGenres),
         ),
         const SizedBox(height: 12),
         _GenreChipsSection(
@@ -372,13 +373,18 @@ class _AnimeHorizontalSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = FormFactorProvider.colorsOf(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: <Widget>[
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: KumoriyaSectionHeader(title: title, onSeeAll: onSeeAll),
+          child: SectionHeader(
+            title: title,
+            onSeeAll: onSeeAll,
+            seeAllLabel: context.l10n.sectionSeeAll,
+          ),
         ),
         const SizedBox(height: 12),
         SizedBox(
@@ -394,14 +400,14 @@ class _AnimeHorizontalSection extends StatelessWidget {
             error: (_, _) => Center(
               child: Text(
                 context.l10n.genericLoadFailure,
-                style: const TextStyle(color: KumoriyaColors.textMuted),
+                style: TextStyle(color: colors.textMuted),
               ),
             ),
             data: (result) => result.fold(
               onFailure: (_) => Center(
                 child: Text(
                   context.l10n.genericLoadFailure,
-                  style: const TextStyle(color: KumoriyaColors.textMuted),
+                  style: TextStyle(color: colors.textMuted),
                 ),
               ),
               onSuccess: (animeList) {
@@ -415,8 +421,11 @@ class _AnimeHorizontalSection extends StatelessWidget {
                     final anime = animeList[index];
                     return SizedBox(
                       width: 120,
-                      child: AnimeCard(
-                        anime: anime,
+                      child: PosterCard(
+                        imageUrl: anime.coverImageUrl ?? '',
+                        title: anime.title.romaji,
+                        subtitle: anime.releaseYear?.toString(),
+                        episodeCount: anime.totalEpisodes,
                         onTap: () => onOpenDetail(anime.anilistId),
                       ),
                     );
@@ -551,17 +560,15 @@ class _DiscoveryActionChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = FormFactorProvider.colorsOf(context);
     return ActionChip(
       label: Text(label),
       onPressed: onPressed,
-      backgroundColor: KumoriyaColors.surface,
-      side: const BorderSide(color: KumoriyaColors.borderSubtle),
-      labelStyle: const TextStyle(
-        color: KumoriyaColors.textSecondary,
-        fontSize: 13,
-      ),
+      backgroundColor: colors.surface,
+      side: BorderSide(color: colors.surface2),
+      labelStyle: TextStyle(color: colors.textMuted, fontSize: 13),
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(KumoriyaRadius.full),
+        borderRadius: BorderRadius.circular(CloudRadius.pill),
       ),
     );
   }
@@ -578,32 +585,27 @@ class _CantRememberCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = FormFactorProvider.colorsOf(context);
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(KumoriyaRadius.lg),
+      borderRadius: BorderRadius.circular(CloudRadius.md),
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
           gradient: LinearGradient(
             colors: <Color>[
-              KumoriyaColors.primaryContainer,
-              KumoriyaColors.primary.withValues(alpha: 0.15),
+              colors.primarySoft,
+              colors.primary.withValues(alpha: 0.15),
             ],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
-          borderRadius: BorderRadius.circular(KumoriyaRadius.lg),
-          border: Border.all(
-            color: KumoriyaColors.primary.withValues(alpha: 0.30),
-          ),
+          borderRadius: BorderRadius.circular(CloudRadius.md),
+          border: Border.all(color: colors.primary.withValues(alpha: 0.30)),
         ),
         child: Row(
           children: <Widget>[
-            Icon(
-              Icons.lightbulb_outline_rounded,
-              color: KumoriyaColors.accentAmber,
-              size: 32,
-            ),
+            Icon(Icons.lightbulb_outline_rounded, color: colors.star, size: 32),
             const SizedBox(width: 14),
             Expanded(
               child: Column(
@@ -611,25 +613,21 @@ class _CantRememberCard extends StatelessWidget {
                 children: <Widget>[
                   Text(
                     context.l10n.discoverCantRemember,
-                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                      color: KumoriyaColors.textPrimary,
+                    style: TextStyle(
+                      color: colors.text,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
                   const SizedBox(height: 2),
                   Text(
                     context.l10n.discoverCantRememberSubtitle,
-                    style: const TextStyle(
-                      color: KumoriyaColors.textMuted,
-                      fontSize: 12,
-                    ),
+                    style: TextStyle(color: colors.textMuted, fontSize: 12),
                   ),
                 ],
               ),
             ),
-            const Icon(
-              KumoriyaIcons.chevronRight,
-              color: KumoriyaColors.textMuted,
-            ),
+            Icon(KumoriyaIcons.chevronRight, color: colors.textMuted),
           ],
         ),
       ),
@@ -658,34 +656,35 @@ class _DarkSearchBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = FormFactorProvider.colorsOf(context);
     final hasText = controller.text.isNotEmpty;
 
     return AnimatedContainer(
-      duration: const Duration(milliseconds: 280),
+      duration: CloudMotion.base,
       curve: Curves.easeOutCubic,
       height: 52,
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: focused
               ? <Color>[
-                  KumoriyaColors.surface,
-                  KumoriyaColors.primaryContainer.withValues(alpha: 0.35),
+                  colors.surface,
+                  colors.primarySoft.withValues(alpha: 0.35),
                 ]
-              : <Color>[KumoriyaColors.surface, KumoriyaColors.surface],
+              : <Color>[colors.surface, colors.surface],
           begin: Alignment.centerLeft,
           end: Alignment.centerRight,
         ),
-        borderRadius: BorderRadius.circular(KumoriyaRadius.lg),
+        borderRadius: BorderRadius.circular(CloudRadius.md),
         border: Border.all(
           color: focused
-              ? KumoriyaColors.primary.withValues(alpha: 0.6)
-              : KumoriyaColors.borderSubtle,
+              ? colors.primary.withValues(alpha: 0.6)
+              : colors.surface2,
           width: focused ? 1.5 : 1.0,
         ),
         boxShadow: <BoxShadow>[
           if (focused)
             BoxShadow(
-              color: KumoriyaColors.primary.withValues(alpha: 0.18),
+              color: colors.primary.withValues(alpha: 0.18),
               blurRadius: 24,
               spreadRadius: 1,
             )
@@ -702,14 +701,12 @@ class _DarkSearchBar extends StatelessWidget {
           const SizedBox(width: 16),
           AnimatedScale(
             scale: focused ? 1.15 : 1.0,
-            duration: const Duration(milliseconds: 250),
+            duration: CloudMotion.base,
             curve: Curves.easeOutBack,
             child: Icon(
               KumoriyaIcons.search,
               size: 22,
-              color: focused
-                  ? KumoriyaColors.primary
-                  : KumoriyaColors.navInactive,
+              color: focused ? colors.primary : colors.textSoft,
             ),
           ),
           const SizedBox(width: 12),
@@ -718,17 +715,12 @@ class _DarkSearchBar extends StatelessWidget {
               controller: controller,
               focusNode: focusNode,
               onSubmitted: onSubmitted,
-              style: const TextStyle(
-                fontSize: 15,
-                color: KumoriyaColors.textPrimary,
-              ),
+              style: TextStyle(fontSize: 15, color: colors.text),
               decoration: InputDecoration(
                 border: InputBorder.none,
                 hintText: context.l10n.searchHintTitle,
                 hintStyle: TextStyle(
-                  color: focused
-                      ? KumoriyaColors.textMuted
-                      : KumoriyaColors.textDisabled,
+                  color: focused ? colors.textMuted : colors.textSoft,
                   fontSize: 15,
                   letterSpacing: 0.2,
                 ),
@@ -739,7 +731,7 @@ class _DarkSearchBar extends StatelessWidget {
             ),
           ),
           AnimatedSwitcher(
-            duration: const Duration(milliseconds: 200),
+            duration: CloudMotion.fast,
             transitionBuilder: (child, animation) => FadeTransition(
               opacity: animation,
               child: ScaleTransition(scale: animation, child: child),
@@ -753,13 +745,13 @@ class _DarkSearchBar extends StatelessWidget {
                       width: 22,
                       height: 22,
                       decoration: BoxDecoration(
-                        color: KumoriyaColors.textMuted.withValues(alpha: 0.20),
+                        color: colors.textMuted.withValues(alpha: 0.20),
                         shape: BoxShape.circle,
                       ),
-                      child: const Icon(
+                      child: Icon(
                         KumoriyaIcons.close,
                         size: 14,
-                        color: KumoriyaColors.textSecondary,
+                        color: colors.textMuted,
                       ),
                     ),
                   )

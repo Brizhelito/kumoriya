@@ -1,0 +1,5 @@
+- **Layered Plugin System**: The architecture is split into `kumoriya_plugins` (contracts), `kumoriya_source_*` (content providers), and `kumoriya_resolver_*` (stream link resolvers). Sources implement `SourcePlugin` to fetch metadata, while resolvers implement `ResolverPlugin` to handle host-specific stream extraction.
+- **Domain Separation**: `kumoriya_domain` and `kumoriya_manga_domain` define use-case-facing repositories (`AnimeCatalogRepository`, `MangaCatalogRepository`) that abstract away specific gateways like AniList or source plugins.
+- **Core Primitives**: `kumoriya_core` provides shared error handling via `KumoriyaError` and a functional `Result<T, E>` type used across all module boundaries to enforce explicit failure handling.
+- **Runtime Utilities**: `kumoriya_source_runtime` offers `MirrorRotator` for transparent fallback across multiple base URLs, isolating transport resilience from individual plugin logic.
+- **Persistence Boundaries**: `kumoriya_storage` uses Drift (SQLite) with contract-first design, exporting interfaces like `LibraryStore` and `EpisodeCacheStore` before their concrete implementations.

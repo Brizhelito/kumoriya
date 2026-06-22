@@ -9,23 +9,20 @@ import 'package:kumoriya_core/kumoriya_core.dart';
 import 'package:kumoriya_domain/kumoriya_domain.dart';
 import 'package:kumoriya_plugins/kumoriya_plugins.dart';
 import 'package:kumoriya_auth/kumoriya_auth.dart';
-import 'package:kumoriya_storage/kumoriya_storage.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../../../../app/l10n.dart';
 import '../../../../shared/auth/auth_providers.dart';
 import '../../../../shared/storage_providers.dart';
-import '../../../../shared/theme/kumoriya_theme.dart';
-import '../../../../shared/widgets/kumoriya_cached_image.dart';
 import '../../../../shared/widgets/party_exit_dialog.dart';
-import '../../../../shared/widgets/state_views.dart';
+import 'package:kumoriya_ui/kumoriya_ui.dart';
+import '../../../../shared/utils/error_messaging.dart';
 import '../../../auth/presentation/pages/login_page.dart';
 import '../../../anime_catalog/application/models/resolved_server_link_result.dart';
 import '../../../anime_catalog/application/models/source_availability.dart';
 import '../../../anime_catalog/presentation/providers/anime_catalog_providers.dart';
 import '../../../anime_catalog/presentation/support/plugin_icon_helpers.dart';
 import '../../../anime_catalog/presentation/support/playback_launch_flow.dart';
-import '../../../anime_catalog/presentation/widgets/source_badge.dart';
 import '../../../downloads/presentation/download_providers.dart';
 import '../../../player/presentation/pages/player_page.dart';
 import '../../application/models/models.dart';
@@ -127,6 +124,7 @@ class _PartyAnimePageState extends ConsumerState<PartyAnimePage> {
 
   @override
   Widget build(BuildContext context) {
+    final colors = FormFactorProvider.colorsOf(context);
     final session = ref.watch(partySessionProvider);
     final effectiveAnilistId = session.room?.anilistId ?? widget.anilistId ?? 0;
     final isConnected = session.status == PartySessionStatus.connected;
@@ -161,12 +159,12 @@ class _PartyAnimePageState extends ConsumerState<PartyAnimePage> {
         }
       },
       child: Scaffold(
-        backgroundColor: KumoriyaColors.background,
+        backgroundColor: colors.bg,
         floatingActionButton: isConnected
             ? const PttButton(isOverlayMode: false)
             : null,
         appBar: AppBar(
-          backgroundColor: KumoriyaColors.surface,
+          backgroundColor: colors.surface,
           title: Text(context.l10n.partyTitle),
           leading: isConnected
               ? null
@@ -199,17 +197,17 @@ class _PartyAnimePageState extends ConsumerState<PartyAnimePage> {
                             vertical: 6,
                           ),
                           decoration: BoxDecoration(
-                            color: KumoriyaColors.primaryContainer,
+                            color: colors.primarySoft,
                             borderRadius: BorderRadius.circular(8),
                           ),
                           child: Text(
                             session.room!.inviteCode,
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontFamily: 'monospace',
                               letterSpacing: 2,
                               fontWeight: FontWeight.w700,
                               fontSize: 13,
-                              color: KumoriyaColors.primary,
+                              color: colors.primary,
                             ),
                           ),
                         ),
@@ -615,22 +613,20 @@ class _IdleView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = FormFactorProvider.colorsOf(context);
     return Center(
       child: SingleChildScrollView(
         padding: const EdgeInsets.all(24),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(
-              Icons.groups_rounded,
-              size: 64,
-              color: KumoriyaColors.primary,
-            ),
+            Icon(Icons.groups_rounded, size: 64, color: colors.primary),
             const SizedBox(height: 16),
             Text(
               context.l10n.partyTitle,
-              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                color: KumoriyaColors.textPrimary,
+              style: TextStyle(
+                color: colors.text,
+                fontSize: 24,
                 fontWeight: FontWeight.w800,
               ),
             ),
@@ -638,9 +634,7 @@ class _IdleView extends StatelessWidget {
             Text(
               context.l10n.partyIdleSubtitle,
               textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: KumoriyaColors.textSecondary,
-              ),
+              style: TextStyle(color: colors.textMuted, fontSize: 14),
             ),
             const SizedBox(height: 32),
             SizedBox(
@@ -665,9 +659,7 @@ class _IdleView extends StatelessWidget {
                   padding: const EdgeInsets.symmetric(horizontal: 16),
                   child: Text(
                     context.l10n.partyOrDivider,
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: KumoriyaColors.textMuted,
-                    ),
+                    style: TextStyle(color: colors.textMuted, fontSize: 12),
                   ),
                 ),
                 const Expanded(child: Divider()),
@@ -679,7 +671,7 @@ class _IdleView extends StatelessWidget {
               decoration: InputDecoration(
                 hintText: context.l10n.partyInviteCodeLabel,
                 filled: true,
-                fillColor: KumoriyaColors.surface,
+                fillColor: colors.surface,
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
                   borderSide: BorderSide.none,
@@ -704,7 +696,7 @@ class _IdleView extends StatelessWidget {
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  side: const BorderSide(color: KumoriyaColors.primary),
+                  side: BorderSide(color: colors.primary),
                 ),
               ),
             ),
@@ -725,29 +717,24 @@ class _ErrorView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = FormFactorProvider.colorsOf(context);
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(24),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(
-              Icons.error_outline,
-              size: 48,
-              color: KumoriyaColors.statusDanger,
-            ),
+            Icon(Icons.error_outline, size: 48, color: colors.error),
             const SizedBox(height: 16),
             Text(
               message,
               textAlign: TextAlign.center,
-              style: const TextStyle(color: KumoriyaColors.textSecondary),
+              style: TextStyle(color: colors.textMuted),
             ),
             const SizedBox(height: 24),
             FilledButton(
               onPressed: onRetry,
-              style: FilledButton.styleFrom(
-                backgroundColor: KumoriyaColors.primary,
-              ),
+              style: FilledButton.styleFrom(backgroundColor: colors.primary),
               child: Text(context.l10n.partyTryAgain),
             ),
           ],
@@ -764,32 +751,29 @@ class _UnauthenticatedView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = FormFactorProvider.colorsOf(context);
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(24),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(
-              Icons.lock_outline,
-              size: 56,
-              color: KumoriyaColors.primary,
-            ),
+            Icon(Icons.lock_outline, size: 56, color: colors.primary),
             const SizedBox(height: 16),
             Text(
               context.l10n.partyRequiresAccount,
               textAlign: TextAlign.center,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.bold,
-                color: KumoriyaColors.textPrimary,
+                color: colors.text,
               ),
             ),
             const SizedBox(height: 8),
             Text(
               context.l10n.partyRequiresAccountDescription,
               textAlign: TextAlign.center,
-              style: const TextStyle(color: KumoriyaColors.textSecondary),
+              style: TextStyle(color: colors.textMuted),
             ),
             const SizedBox(height: 24),
             FilledButton(
@@ -798,9 +782,7 @@ class _UnauthenticatedView extends StatelessWidget {
                   MaterialPageRoute<void>(builder: (_) => const LoginPage()),
                 );
               },
-              style: FilledButton.styleFrom(
-                backgroundColor: KumoriyaColors.primary,
-              ),
+              style: FilledButton.styleFrom(backgroundColor: colors.primary),
               child: Text(context.l10n.partyGoToLogin),
             ),
           ],
@@ -819,15 +801,16 @@ class _PartyPageShell extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = FormFactorProvider.colorsOf(context);
     return DecoratedBox(
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
           colors: <Color>[
-            Color(0xFF101823),
-            KumoriyaColors.background,
-            Color(0xFF090D13),
+            const Color(0xFF101823),
+            colors.bg,
+            const Color(0xFF090D13),
           ],
         ),
       ),
@@ -868,6 +851,7 @@ class _PartyAnimeContent extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final colors = FormFactorProvider.colorsOf(context);
     final room = session.room;
     final notifier = ref.read(partySessionProvider.notifier);
     final isHost = notifier.isLocalHost;
@@ -932,11 +916,11 @@ class _PartyAnimeContent extends ConsumerWidget {
                               : context.l10n.partyPreviewEpisodes,
                         ),
                         style: OutlinedButton.styleFrom(
-                          foregroundColor: KumoriyaColors.textPrimary,
+                          foregroundColor: colors.text,
                           side: BorderSide(
                             color: isCurrentPartyAnime
-                                ? KumoriyaColors.primary
-                                : KumoriyaColors.borderSubtle,
+                                ? colors.primary
+                                : colors.surface2,
                           ),
                           minimumSize: const Size.fromHeight(52),
                         ),
@@ -961,8 +945,8 @@ class _PartyAnimeContent extends ConsumerWidget {
                                     : context.l10n.partyEnterPlayer),
                         ),
                         style: FilledButton.styleFrom(
-                          backgroundColor: KumoriyaColors.primary,
-                          foregroundColor: KumoriyaColors.textPrimary,
+                          backgroundColor: colors.primary,
+                          foregroundColor: colors.text,
                           minimumSize: const Size.fromHeight(52),
                         ),
                       ),
@@ -979,8 +963,9 @@ class _PartyAnimeContent extends ConsumerWidget {
                   const SizedBox(height: 22),
                   Text(
                     context.l10n.partyMaybeNext,
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      color: KumoriyaColors.textPrimary,
+                    style: TextStyle(
+                      color: colors.text,
+                      fontSize: 16,
                       fontWeight: FontWeight.w700,
                     ),
                   ),
@@ -1036,10 +1021,11 @@ class _PartyHeroCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = FormFactorProvider.colorsOf(context);
     return Container(
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(KumoriyaRadius.xxl),
-        border: Border.all(color: KumoriyaColors.borderSubtle),
+        borderRadius: BorderRadius.circular(CloudRadius.lg),
+        border: Border.all(color: colors.surface2),
         boxShadow: <BoxShadow>[
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.24),
@@ -1049,15 +1035,15 @@ class _PartyHeroCard extends StatelessWidget {
         ],
       ),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(KumoriyaRadius.xxl),
+        borderRadius: BorderRadius.circular(CloudRadius.lg),
         child: Stack(
           children: <Widget>[
             SizedBox(
               height: 200,
               width: double.infinity,
-              child: KumoriyaCachedImage(
+              child: CloudCachedImage(
                 url: detail.bannerImageUrl ?? detail.anime.coverImageUrl,
-                bucket: KumoriyaImageCacheBucket.artwork,
+                bucket: CloudImageCacheBucket.artwork,
                 fit: BoxFit.cover,
               ),
             ),
@@ -1100,11 +1086,11 @@ class _PartyHeroCard extends StatelessWidget {
                       children: <Widget>[
                         Text(
                           detail.anime.title.romaji,
-                          style: Theme.of(context).textTheme.headlineSmall
-                              ?.copyWith(
-                                color: Colors.white,
-                                fontWeight: FontWeight.w800,
-                              ),
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 24,
+                            fontWeight: FontWeight.w800,
+                          ),
                         ),
                         const SizedBox(height: 8),
                         Wrap(
@@ -1153,22 +1139,24 @@ class _PartySourceStrip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = FormFactorProvider.colorsOf(context);
     final sources = summary?.playableSources ?? const <SourceAvailability>[];
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: KumoriyaColors.surface,
-        borderRadius: BorderRadius.circular(KumoriyaRadius.xl),
-        border: Border.all(color: KumoriyaColors.borderSubtle),
+        color: colors.surface,
+        borderRadius: BorderRadius.circular(CloudRadius.lg),
+        border: Border.all(color: colors.surface2),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
           Text(
             context.l10n.partyRoomReadySources,
-            style: Theme.of(context).textTheme.titleSmall?.copyWith(
-              color: KumoriyaColors.textPrimary,
+            style: TextStyle(
+              color: colors.text,
+              fontSize: 14,
               fontWeight: FontWeight.w700,
             ),
           ),
@@ -1176,9 +1164,7 @@ class _PartySourceStrip extends StatelessWidget {
           if (sources.isEmpty)
             Text(
               context.l10n.partyNeedPlayableSource,
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: KumoriyaColors.textSecondary,
-              ),
+              style: TextStyle(color: colors.textMuted, fontSize: 12),
             )
           else
             Wrap(
@@ -1187,11 +1173,11 @@ class _PartySourceStrip extends StatelessWidget {
               children: sources
                   .map(
                     (source) => SourceBadge(
-                      name: source.manifest.displayName,
+                      sourceName: source.manifest.displayName,
                       iconUrl: effectiveSourceIconUrl(source.manifest),
                       audioKinds: source.availableAudioKinds,
                       compact: true,
-                      highlighted:
+                      isHighlighted:
                           summary?.recommended?.manifest.id ==
                           source.manifest.id,
                     ),
@@ -1219,6 +1205,7 @@ class _PartyMembersStrip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = FormFactorProvider.colorsOf(context);
     final members = room?.members ?? const <PartyMember>[];
     if (members.isEmpty) {
       return const SizedBox.shrink();
@@ -1228,8 +1215,9 @@ class _PartyMembersStrip extends StatelessWidget {
       children: <Widget>[
         Text(
           context.l10n.partyWhoIsHere,
-          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-            color: KumoriyaColors.textPrimary,
+          style: TextStyle(
+            color: colors.text,
+            fontSize: 16,
             fontWeight: FontWeight.w700,
           ),
         ),
@@ -1253,13 +1241,13 @@ class _PartyMembersStrip extends StatelessWidget {
   }
 }
 
-Color _statusColor(PartyMemberStatus status) {
+Color _statusColor(PartyMemberStatus status, CloudColors colors) {
   return switch (status) {
-    PartyMemberStatus.watching => KumoriyaColors.statusSuccess,
+    PartyMemberStatus.watching => colors.success,
     PartyMemberStatus.inPlayer => Colors.lightBlue,
     PartyMemberStatus.loading => Colors.orange,
     PartyMemberStatus.paused => Colors.amber,
-    PartyMemberStatus.inLobby => KumoriyaColors.textMuted,
+    PartyMemberStatus.inLobby => colors.textMuted,
     PartyMemberStatus.buffering => Colors.deepOrange,
   };
 }
@@ -1284,19 +1272,20 @@ class _MemberTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = FormFactorProvider.colorsOf(context);
     final borderColor = status == PartyMemberStatus.watching
-        ? KumoriyaColors.statusSuccess.withValues(alpha: 0.5)
+        ? colors.success.withValues(alpha: 0.5)
         : status == PartyMemberStatus.loading
         ? Colors.orange.withValues(alpha: 0.4)
-        : KumoriyaColors.borderSubtle;
+        : colors.surface2;
     return AnimatedContainer(
-      duration: const Duration(milliseconds: 300),
+      duration: CloudMotion.base,
       curve: Curves.easeOut,
       width: 116,
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: const Color(0xFF111A24),
-        borderRadius: BorderRadius.circular(KumoriyaRadius.xl),
+        borderRadius: BorderRadius.circular(CloudRadius.lg),
         border: Border.all(color: borderColor),
       ),
       child: Column(
@@ -1306,13 +1295,13 @@ class _MemberTile extends StatelessWidget {
             children: <Widget>[
               CircleAvatar(
                 radius: 12,
-                backgroundColor: KumoriyaColors.primaryContainer,
+                backgroundColor: colors.primarySoft,
                 child: Text(
                   member.displayName.isEmpty
                       ? context.l10n.partyAvatarFallback
                       : member.displayName.substring(0, 1).toUpperCase(),
-                  style: const TextStyle(
-                    color: KumoriyaColors.textPrimary,
+                  style: TextStyle(
+                    color: colors.text,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
@@ -1321,7 +1310,7 @@ class _MemberTile extends StatelessWidget {
               Text(
                 status.label,
                 style: TextStyle(
-                  color: _statusColor(status),
+                  color: _statusColor(status, colors),
                   fontSize: 9,
                   fontWeight: FontWeight.w700,
                 ),
@@ -1344,8 +1333,9 @@ class _MemberTile extends StatelessWidget {
                           : member.displayName,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: KumoriyaColors.textPrimary,
+                      style: TextStyle(
+                        color: colors.text,
+                        fontSize: 12,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
@@ -1378,7 +1368,8 @@ class _PlaybackStatePill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final dotColor = isPlaying ? KumoriyaColors.statusSuccess : Colors.amber;
+    final colors = FormFactorProvider.colorsOf(context);
+    final dotColor = isPlaying ? colors.success : Colors.amber;
     final label = isPlaying
         ? context.l10n.partyPlaybackPlaying
         : context.l10n.partyPlaybackPaused;
@@ -1386,7 +1377,7 @@ class _PlaybackStatePill extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
       decoration: BoxDecoration(
         color: Colors.black.withValues(alpha: 0.26),
-        borderRadius: BorderRadius.circular(KumoriyaRadius.full),
+        borderRadius: BorderRadius.circular(CloudRadius.pill),
         border: Border.all(color: Colors.white.withValues(alpha: 0.10)),
       ),
       child: Row(
@@ -1410,8 +1401,9 @@ class _PlaybackStatePill extends StatelessWidget {
           const SizedBox(width: 6),
           Text(
             label,
-            style: Theme.of(context).textTheme.labelSmall?.copyWith(
+            style: TextStyle(
               color: Colors.white,
+              fontSize: 11,
               fontWeight: FontWeight.w700,
             ),
           ),
@@ -1430,17 +1422,16 @@ class _PlaybackStatePill extends StatelessWidget {
 class _PartyWaitingForHostBanner extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
+    final colors = FormFactorProvider.colorsOf(context);
     return Padding(
       padding: const EdgeInsets.only(bottom: 16),
       child: Container(
         width: double.infinity,
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         decoration: BoxDecoration(
-          color: KumoriyaColors.primary.withValues(alpha: 0.12),
-          borderRadius: BorderRadius.circular(KumoriyaRadius.lg),
-          border: Border.all(
-            color: KumoriyaColors.primary.withValues(alpha: 0.3),
-          ),
+          color: colors.primary.withValues(alpha: 0.12),
+          borderRadius: BorderRadius.circular(CloudRadius.md),
+          border: Border.all(color: colors.primary.withValues(alpha: 0.3)),
         ),
         child: Row(
           children: [
@@ -1453,8 +1444,9 @@ class _PartyWaitingForHostBanner extends StatelessWidget {
             Expanded(
               child: Text(
                 context.l10n.partyHostIsChoosing,
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: KumoriyaColors.textPrimary,
+                style: TextStyle(
+                  color: colors.text,
+                  fontSize: 14,
                   fontWeight: FontWeight.w600,
                 ),
               ),
@@ -1475,8 +1467,9 @@ class _PartyRelationCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = FormFactorProvider.colorsOf(context);
     return InkWell(
-      borderRadius: BorderRadius.circular(KumoriyaRadius.xl),
+      borderRadius: BorderRadius.circular(CloudRadius.lg),
       onTap: () => Navigator.of(context, rootNavigator: true).push(
         MaterialPageRoute<void>(
           builder: (_) => PartyAnimePage(anilistId: anime.anilistId),
@@ -1490,10 +1483,10 @@ class _PartyRelationCard extends StatelessWidget {
             SizedBox(
               height: 144,
               width: 124,
-              child: KumoriyaCachedImage(
+              child: CloudCachedImage(
                 url: anime.coverImageUrl,
-                bucket: KumoriyaImageCacheBucket.artwork,
-                borderRadius: BorderRadius.circular(KumoriyaRadius.xl),
+                bucket: CloudImageCacheBucket.artwork,
+                borderRadius: BorderRadius.circular(CloudRadius.lg),
               ),
             ),
             const SizedBox(height: 8),
@@ -1501,8 +1494,9 @@ class _PartyRelationCard extends StatelessWidget {
               anime.title.romaji,
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: KumoriyaColors.textPrimary,
+              style: TextStyle(
+                color: colors.text,
+                fontSize: 12,
                 fontWeight: FontWeight.w600,
                 height: 1.2,
               ),
@@ -1528,7 +1522,7 @@ class _PartyStatPill extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
       decoration: BoxDecoration(
         color: Colors.black.withValues(alpha: 0.26),
-        borderRadius: BorderRadius.circular(KumoriyaRadius.full),
+        borderRadius: BorderRadius.circular(CloudRadius.pill),
         border: Border.all(color: Colors.white.withValues(alpha: 0.10)),
       ),
       child: Row(
@@ -1538,8 +1532,9 @@ class _PartyStatPill extends StatelessWidget {
           const SizedBox(width: 6),
           Text(
             label,
-            style: Theme.of(context).textTheme.labelSmall?.copyWith(
+            style: TextStyle(
               color: Colors.white,
+              fontSize: 11,
               fontWeight: FontWeight.w700,
             ),
           ),
@@ -1559,12 +1554,13 @@ class _PartyStatusCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = FormFactorProvider.colorsOf(context);
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: KumoriyaColors.surface,
-        borderRadius: BorderRadius.circular(KumoriyaRadius.xl),
-        border: Border.all(color: KumoriyaColors.borderSubtle),
+        color: colors.surface,
+        borderRadius: BorderRadius.circular(CloudRadius.lg),
+        border: Border.all(color: colors.surface2),
       ),
       child: Row(
         children: [
@@ -1572,14 +1568,15 @@ class _PartyStatusCard extends StatelessWidget {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               decoration: BoxDecoration(
-                color: KumoriyaColors.primaryContainer,
+                color: colors.primarySoft,
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Text(
                 room.inviteCode,
-                style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  color: KumoriyaColors.primary,
+                style: TextStyle(
+                  color: colors.primary,
                   fontFamily: 'monospace',
+                  fontSize: 22,
                   letterSpacing: 4,
                 ),
                 textAlign: TextAlign.center,
@@ -1588,7 +1585,7 @@ class _PartyStatusCard extends StatelessWidget {
           ),
           const SizedBox(width: 8),
           IconButton(
-            icon: const Icon(Icons.copy, color: KumoriyaColors.primary),
+            icon: Icon(Icons.copy, color: colors.primary),
             onPressed: () {
               Clipboard.setData(ClipboardData(text: room.inviteCode));
               ScaffoldMessenger.of(context).showSnackBar(
@@ -1600,7 +1597,7 @@ class _PartyStatusCard extends StatelessWidget {
             },
           ),
           IconButton(
-            icon: const Icon(Icons.share, color: KumoriyaColors.primary),
+            icon: Icon(Icons.share, color: colors.primary),
             tooltip: context.l10n.partyShareInviteLinkTooltip,
             onPressed: () => onShareInviteLink(room),
           ),
@@ -1623,28 +1620,26 @@ class _PartyHostControlsCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = FormFactorProvider.colorsOf(context);
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: KumoriyaColors.surface,
-        borderRadius: BorderRadius.circular(KumoriyaRadius.xl),
-        border: Border.all(color: KumoriyaColors.borderSubtle),
+        color: colors.surface,
+        borderRadius: BorderRadius.circular(CloudRadius.lg),
+        border: Border.all(color: colors.surface2),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              const Icon(
-                Icons.admin_panel_settings,
-                size: 20,
-                color: KumoriyaColors.primary,
-              ),
+              Icon(Icons.admin_panel_settings, size: 20, color: colors.primary),
               const SizedBox(width: 8),
               Text(
                 context.l10n.partyHostControls,
-                style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                  color: KumoriyaColors.primary,
+                style: TextStyle(
+                  color: colors.primary,
+                  fontSize: 12,
                   fontWeight: FontWeight.w600,
                 ),
               ),
@@ -1659,8 +1654,8 @@ class _PartyHostControlsCard extends StatelessWidget {
                   icon: const Icon(Icons.swap_horiz, size: 18),
                   label: Text(context.l10n.partyChangeAnime),
                   style: OutlinedButton.styleFrom(
-                    foregroundColor: KumoriyaColors.primary,
-                    side: const BorderSide(color: KumoriyaColors.primary),
+                    foregroundColor: colors.primary,
+                    side: BorderSide(color: colors.primary),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(8),
                     ),
@@ -1674,8 +1669,8 @@ class _PartyHostControlsCard extends StatelessWidget {
                   icon: const Icon(Icons.skip_next, size: 18),
                   label: Text(context.l10n.partyChangeEpisode),
                   style: OutlinedButton.styleFrom(
-                    foregroundColor: KumoriyaColors.primary,
-                    side: const BorderSide(color: KumoriyaColors.primary),
+                    foregroundColor: colors.primary,
+                    side: BorderSide(color: colors.primary),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(8),
                     ),
@@ -1703,12 +1698,13 @@ class _PartyInfoChip extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
         color: Colors.white.withValues(alpha: 0.10),
-        borderRadius: BorderRadius.circular(KumoriyaRadius.full),
+        borderRadius: BorderRadius.circular(CloudRadius.pill),
       ),
       child: Text(
         label,
-        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+        style: TextStyle(
           color: Colors.white,
+          fontSize: 11,
           fontWeight: FontWeight.w600,
         ),
       ),
@@ -1756,7 +1752,7 @@ class _PartyAnimeSearchSectionState
 
   void _onQueryChanged(String value) {
     _debounce?.cancel();
-    _debounce = Timer(const Duration(milliseconds: 350), () {
+    _debounce = Timer(CloudMotion.base, () {
       if (!mounted) return;
       setState(() => _activeQuery = value.trim());
     });
@@ -1767,34 +1763,33 @@ class _PartyAnimeSearchSectionState
     WidgetRef ref,
     Anime anime,
   ) async {
+    final colors = FormFactorProvider.colorsOf(context);
     if (anime.anilistId == widget.currentAnilistId) return;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: KumoriyaColors.surface,
+        backgroundColor: colors.surface,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(KumoriyaRadius.xl),
+          borderRadius: BorderRadius.circular(CloudRadius.lg),
         ),
         title: Text(
           context.l10n.partyChangeAnimeTitle,
-          style: TextStyle(color: KumoriyaColors.textPrimary),
+          style: TextStyle(color: colors.text),
         ),
         content: Text(
           context.l10n.partyChangeAnimeBody(anime.title.romaji),
-          style: TextStyle(color: KumoriyaColors.textSecondary, height: 1.4),
+          style: TextStyle(color: colors.textMuted, height: 1.4),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(false),
             child: Text(
               context.l10n.cancelAction,
-              style: TextStyle(color: KumoriyaColors.textSecondary),
+              style: TextStyle(color: colors.textMuted),
             ),
           ),
           FilledButton(
-            style: FilledButton.styleFrom(
-              backgroundColor: KumoriyaColors.primary,
-            ),
+            style: FilledButton.styleFrom(backgroundColor: colors.primary),
             onPressed: () => Navigator.of(ctx).pop(true),
             child: Text(context.l10n.partySwitch),
           ),
@@ -1813,14 +1808,13 @@ class _PartyAnimeSearchSectionState
 
   @override
   Widget build(BuildContext context) {
+    final colors = FormFactorProvider.colorsOf(context);
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: KumoriyaColors.surface,
-        borderRadius: BorderRadius.circular(KumoriyaRadius.xl),
-        border: Border.all(
-          color: KumoriyaColors.primary.withValues(alpha: 0.4),
-        ),
+        color: colors.surface,
+        borderRadius: BorderRadius.circular(CloudRadius.lg),
+        border: Border.all(color: colors.primary.withValues(alpha: 0.4)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1828,23 +1822,20 @@ class _PartyAnimeSearchSectionState
           // Header row
           Row(
             children: [
-              Icon(Icons.search, color: KumoriyaColors.primary, size: 20),
+              Icon(Icons.search, color: colors.primary, size: 20),
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
                   context.l10n.partySearchAnime,
-                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                    color: KumoriyaColors.textPrimary,
+                  style: TextStyle(
+                    color: colors.text,
+                    fontSize: 14,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
               ),
               IconButton(
-                icon: Icon(
-                  Icons.close,
-                  color: KumoriyaColors.textMuted,
-                  size: 20,
-                ),
+                icon: Icon(Icons.close, color: colors.textMuted, size: 20),
                 onPressed: widget.onClose,
                 padding: EdgeInsets.zero,
                 constraints: const BoxConstraints(),
@@ -1860,12 +1851,8 @@ class _PartyAnimeSearchSectionState
             decoration: InputDecoration(
               hintText: context.l10n.partySearchPlaceholder,
               filled: true,
-              fillColor: KumoriyaColors.background,
-              prefixIcon: Icon(
-                Icons.search,
-                color: KumoriyaColors.textMuted,
-                size: 20,
-              ),
+              fillColor: colors.bg,
+              prefixIcon: Icon(Icons.search, color: colors.textMuted, size: 20),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(10),
                 borderSide: BorderSide.none,
@@ -1876,7 +1863,7 @@ class _PartyAnimeSearchSectionState
               ),
               isDense: true,
             ),
-            style: TextStyle(color: KumoriyaColors.textPrimary, fontSize: 14),
+            style: TextStyle(color: colors.text, fontSize: 14),
           ),
           const SizedBox(height: 12),
           // Results or trending
@@ -1904,6 +1891,7 @@ class _SearchResultsList extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final colors = FormFactorProvider.colorsOf(context);
     final state = ref.watch(searchCatalogProvider(query));
     return state.when(
       loading: () => const Padding(
@@ -1920,7 +1908,7 @@ class _SearchResultsList extends ConsumerWidget {
         padding: const EdgeInsets.symmetric(vertical: 12),
         child: Text(
           context.l10n.partyCouldNotLoadAnime,
-          style: TextStyle(color: KumoriyaColors.textMuted, fontSize: 12),
+          style: TextStyle(color: colors.textMuted, fontSize: 12),
         ),
       ),
       data: (result) {
@@ -1933,7 +1921,7 @@ class _SearchResultsList extends ConsumerWidget {
             padding: const EdgeInsets.symmetric(vertical: 12),
             child: Text(
               context.l10n.partyNeedPlayableSource,
-              style: TextStyle(color: KumoriyaColors.textMuted, fontSize: 12),
+              style: TextStyle(color: colors.textMuted, fontSize: 12),
             ),
           );
         }
@@ -1956,14 +1944,16 @@ class _TrendingAnimeList extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final colors = FormFactorProvider.colorsOf(context);
     final state = ref.watch(browseAnimeCatalogProvider(_trendingRequest));
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
           context.l10n.partyTrendingNow,
-          style: Theme.of(context).textTheme.labelMedium?.copyWith(
-            color: KumoriyaColors.textSecondary,
+          style: TextStyle(
+            color: colors.textMuted,
+            fontSize: 12,
             fontWeight: FontWeight.w600,
           ),
         ),
@@ -2002,13 +1992,13 @@ class _AnimeCompactList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = FormFactorProvider.colorsOf(context);
     return ConstrainedBox(
       constraints: const BoxConstraints(maxHeight: 260),
       child: ListView.separated(
         shrinkWrap: true,
         itemCount: items.length,
-        separatorBuilder: (_, _) =>
-            const Divider(height: 1, color: KumoriyaColors.borderSubtle),
+        separatorBuilder: (_, _) => Divider(height: 1, color: colors.surface2),
         itemBuilder: (context, index) {
           final anime = items[index];
           return InkWell(
@@ -2020,9 +2010,9 @@ class _AnimeCompactList extends StatelessWidget {
                 children: [
                   ClipRRect(
                     borderRadius: BorderRadius.circular(6),
-                    child: KumoriyaCachedImage(
+                    child: CloudCachedImage(
                       url: anime.coverImageUrl,
-                      bucket: KumoriyaImageCacheBucket.artwork,
+                      bucket: CloudImageCacheBucket.artwork,
                       width: 40,
                       height: 56,
                       fit: BoxFit.cover,
@@ -2038,7 +2028,7 @@ class _AnimeCompactList extends StatelessWidget {
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
-                            color: KumoriyaColors.textPrimary,
+                            color: colors.text,
                             fontSize: 13,
                             fontWeight: FontWeight.w600,
                           ),
@@ -2047,18 +2037,14 @@ class _AnimeCompactList extends StatelessWidget {
                           Text(
                             '${anime.format.name} \u00b7 ${anime.releaseYear}',
                             style: TextStyle(
-                              color: KumoriyaColors.textMuted,
+                              color: colors.textMuted,
                               fontSize: 11,
                             ),
                           ),
                       ],
                     ),
                   ),
-                  Icon(
-                    Icons.chevron_right,
-                    color: KumoriyaColors.textMuted,
-                    size: 18,
-                  ),
+                  Icon(Icons.chevron_right, color: colors.textMuted, size: 18),
                 ],
               ),
             ),

@@ -27,7 +27,9 @@ final class MiruroVibeplayerResolverPlugin implements ResolverPlugin {
       return false;
     }
     return url.path.startsWith('/public/stream/') ||
-        (url.pathSegments.length == 1 && url.pathSegments.first.isNotEmpty && url.pathSegments.first.length == 36);
+        (url.pathSegments.length == 1 &&
+            url.pathSegments.first.isNotEmpty &&
+            url.pathSegments.first.length == 36);
   }
 
   @override

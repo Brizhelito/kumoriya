@@ -1,0 +1,7 @@
+- Entry point at `cmd/server/main.go` wires all dependencies and registers routes on a Fiber v3 app with global middleware (recover, request ID, helmet, CORS).
+- Strict handler → service → repository layering: handlers (`internal/handler/`) delegate business logic to services (`internal/service/`), which call repositories (`internal/repository/`) backed by a pgx pool to Neon Postgres.
+- Authentication uses Ed25519-signed JWTs (access + refresh tokens) with OAuth (Discord, Google) and WebAuthn passkey support; auth middleware validates tokens and injects user claims into Fiber Locals.
+- Cross-device sync employs write-behind buffering (RAM cache flushed periodically to Neon) with durable cursors so clients can prune local queues safely.
+- Watch-party realtime supports two modes: legacy in-process SignalRelay hub and v2 brokered mode proxying to a Cloudflare Worker via internal HTTP endpoints.
+- Background workers include an AniList prewarm scheduler, an airing-notifications pipeline (FCM + Upstash Redis dedup), and a periodic sync flush loop.
+- Configuration is loaded from environment variables in `internal/config/config.go`, with graceful degradation when optional credentials (DB, Firebase, Upstash) are absent.

@@ -10,9 +10,7 @@ import 'package:path/path.dart' as p;
 
 import '../../../../app/l10n.dart';
 import '../../../../shared/icons/kumoriya_icons.dart';
-import '../../../../shared/theme/kumoriya_theme.dart';
-import '../../../../shared/widgets/kumoriya_cached_image.dart';
-import '../../../../shared/widgets/state_views.dart';
+import 'package:kumoriya_ui/kumoriya_ui.dart';
 import '../../../manga_downloads/domain/cbz_unpacker.dart';
 import '../../../manga_downloads/presentation/providers/manga_download_providers.dart';
 import '../providers/manga_catalog_providers.dart';
@@ -35,11 +33,12 @@ class MangaDownloadsPage extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final colors = FormFactorProvider.colorsOf(context);
     final l10n = context.l10n;
     return DefaultTabController(
       length: 3,
       child: Scaffold(
-        backgroundColor: KumoriyaColors.background,
+        backgroundColor: colors.bg,
         body: SafeArea(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -51,16 +50,17 @@ class MangaDownloadsPage extends ConsumerWidget {
                     Expanded(
                       child: Text(
                         l10n.mangaDownloadsTitle,
-                        style: Theme.of(context).textTheme.headlineMedium,
+                        style: TextStyle(
+                          color: colors.text,
+                          fontSize: 28,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                     ),
                     IconButton(
                       tooltip: l10n.retry,
                       onPressed: () => _refreshMangaDownloads(ref),
-                      icon: const Icon(
-                        KumoriyaIcons.sync,
-                        color: KumoriyaColors.textPrimary,
-                      ),
+                      icon: Icon(KumoriyaIcons.sync, color: colors.text),
                     ),
                   ],
                 ),
@@ -69,10 +69,7 @@ class MangaDownloadsPage extends ConsumerWidget {
                 padding: const EdgeInsets.fromLTRB(16, 0, 16, 4),
                 child: Text(
                   _mangaDownloadsSubtitle(context),
-                  style: const TextStyle(
-                    fontSize: 13,
-                    color: KumoriyaColors.textTertiary,
-                  ),
+                  style: TextStyle(fontSize: 13, color: colors.textSoft),
                 ),
               ),
               TabBar(
@@ -80,10 +77,10 @@ class MangaDownloadsPage extends ConsumerWidget {
                   fontSize: 13,
                   fontWeight: FontWeight.w600,
                 ),
-                indicatorColor: KumoriyaColors.primary,
-                labelColor: KumoriyaColors.primary,
-                unselectedLabelColor: KumoriyaColors.textSecondary,
-                dividerColor: KumoriyaColors.borderSubtle,
+                indicatorColor: colors.primary,
+                labelColor: colors.primary,
+                unselectedLabelColor: colors.textMuted,
+                dividerColor: colors.surface2,
                 tabs: <Tab>[
                   Tab(text: l10n.downloadsTabCompleted),
                   Tab(text: l10n.downloadsTabActive),
@@ -316,6 +313,7 @@ class _CompletedMangaCardState extends ConsumerState<_CompletedMangaCard> {
 
   @override
   Widget build(BuildContext context) {
+    final colors = FormFactorProvider.colorsOf(context);
     final title =
         widget.chapters.first.mangaTitle ?? '#${widget.mangaAnilistId}';
     final coverImageUrl = ref
@@ -331,39 +329,37 @@ class _CompletedMangaCardState extends ConsumerState<_CompletedMangaCard> {
 
     return Container(
       decoration: BoxDecoration(
-        color: KumoriyaColors.surfaceDim,
-        borderRadius: BorderRadius.circular(KumoriyaRadius.xxl),
-        border: Border.all(color: KumoriyaColors.borderSubtle),
+        color: colors.surface.withValues(alpha: 0.5),
+        borderRadius: BorderRadius.circular(CloudRadius.lg),
+        border: Border.all(color: colors.surface2),
       ),
       child: Column(
         children: <Widget>[
           InkWell(
-            borderRadius: BorderRadius.circular(KumoriyaRadius.xxl),
+            borderRadius: BorderRadius.circular(CloudRadius.lg),
             onTap: () => setState(() => _expanded = !_expanded),
             onLongPress: () => _showMangaContextMenu(context),
             child: Padding(
               padding: const EdgeInsets.all(12),
               child: Row(
                 children: <Widget>[
-                  KumoriyaCachedImage(
+                  CloudCachedImage(
                     url: coverImageUrl,
-                    bucket: KumoriyaImageCacheBucket.artwork,
+                    bucket: CloudImageCacheBucket.artwork,
                     width: 56,
                     height: 56,
                     fit: BoxFit.cover,
-                    borderRadius: BorderRadius.circular(KumoriyaRadius.md),
+                    borderRadius: BorderRadius.circular(CloudRadius.sm),
                     errorFallback: Container(
                       width: 56,
                       height: 56,
                       decoration: BoxDecoration(
-                        color: KumoriyaColors.primaryContainer.withValues(
-                          alpha: 0.35,
-                        ),
-                        borderRadius: BorderRadius.circular(KumoriyaRadius.md),
+                        color: colors.primarySoft.withValues(alpha: 0.35),
+                        borderRadius: BorderRadius.circular(CloudRadius.sm),
                       ),
-                      child: const Icon(
+                      child: Icon(
                         Icons.menu_book_rounded,
-                        color: KumoriyaColors.primary,
+                        color: colors.primary,
                         size: 28,
                       ),
                     ),
@@ -377,22 +373,26 @@ class _CompletedMangaCardState extends ConsumerState<_CompletedMangaCard> {
                           title,
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
-                          style: Theme.of(context).textTheme.labelLarge,
+                          style: TextStyle(
+                            color: colors.text,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
                         const SizedBox(height: 4),
                         Row(
                           children: <Widget>[
-                            const Icon(
+                            Icon(
                               Icons.download_done_rounded,
                               size: 14,
-                              color: KumoriyaColors.statusSuccess,
+                              color: colors.success,
                             ),
                             const SizedBox(width: 4),
                             Text(
                               '${_downloadChaptersCount(context, widget.chapters.length)} · ${_fmtBytes(totalSize)}',
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 11,
-                                color: KumoriyaColors.textMuted,
+                                color: colors.textMuted,
                               ),
                             ),
                           ],
@@ -406,14 +406,14 @@ class _CompletedMangaCardState extends ConsumerState<_CompletedMangaCard> {
                         ? Icons.expand_less_rounded
                         : Icons.expand_more_rounded,
                     size: 22,
-                    color: KumoriyaColors.textMuted,
+                    color: colors.textMuted,
                   ),
                 ],
               ),
             ),
           ),
           if (_expanded) ...<Widget>[
-            const Divider(height: 1, color: KumoriyaColors.borderSubtle),
+            Divider(height: 1, color: colors.surface2),
             ...widget.chapters.map((task) => _CompletedChapterTile(task: task)),
           ],
         ],
@@ -422,6 +422,7 @@ class _CompletedMangaCardState extends ConsumerState<_CompletedMangaCard> {
   }
 
   Future<void> _showMangaContextMenu(BuildContext context) async {
+    final colors = FormFactorProvider.colorsOf(context);
     final action = await showModalBottomSheet<String>(
       context: context,
       builder: (ctx) => SafeArea(
@@ -429,13 +430,10 @@ class _CompletedMangaCardState extends ConsumerState<_CompletedMangaCard> {
           mainAxisSize: MainAxisSize.min,
           children: <Widget>[
             ListTile(
-              leading: const Icon(
-                Icons.delete_sweep_rounded,
-                color: KumoriyaColors.statusDanger,
-              ),
+              leading: Icon(Icons.delete_sweep_rounded, color: colors.error),
               title: Text(
                 _downloadDeleteAllChapters(context),
-                style: const TextStyle(color: KumoriyaColors.statusDanger),
+                style: TextStyle(color: colors.error),
               ),
               onTap: () => Navigator.of(ctx).pop('delete_all'),
             ),
@@ -450,6 +448,7 @@ class _CompletedMangaCardState extends ConsumerState<_CompletedMangaCard> {
       title: _downloadDeleteAllConfirmTitle(context),
       message: _downloadDeleteAllConfirmMessage(context),
       actionLabel: context.l10n.deleteAction,
+      colors: colors,
     );
     if (confirmed != true) return;
 
@@ -468,6 +467,7 @@ class _CompletedChapterTile extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final colors = FormFactorProvider.colorsOf(context);
     return Dismissible(
       key: ValueKey('chapter-tile-${task.id}'),
       direction: DismissDirection.endToStart,
@@ -477,6 +477,7 @@ class _CompletedChapterTile extends ConsumerWidget {
           title: context.l10n.downloadDeleteConfirmTitle,
           message: _mangaDownloadDeleteMessage(context),
           actionLabel: context.l10n.downloadDelete,
+          colors: colors,
         );
         return confirmed == true;
       },
@@ -487,7 +488,7 @@ class _CompletedChapterTile extends ConsumerWidget {
       background: Container(
         alignment: Alignment.centerRight,
         padding: const EdgeInsets.only(right: 20),
-        color: KumoriyaColors.statusDanger,
+        color: colors.error,
         child: const Icon(Icons.delete_rounded, color: Colors.white),
       ),
       child: InkWell(
@@ -496,11 +497,7 @@ class _CompletedChapterTile extends ConsumerWidget {
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
           child: Row(
             children: <Widget>[
-              const Icon(
-                Icons.menu_book_rounded,
-                size: 28,
-                color: KumoriyaColors.primary,
-              ),
+              Icon(Icons.menu_book_rounded, size: 28, color: colors.primary),
               const SizedBox(width: 10),
               Expanded(
                 child: Column(
@@ -508,10 +505,10 @@ class _CompletedChapterTile extends ConsumerWidget {
                   children: <Widget>[
                     Text(
                       _formatChapterLabel(task),
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 13,
                         fontWeight: FontWeight.w600,
-                        color: KumoriyaColors.textPrimary,
+                        color: colors.text,
                       ),
                     ),
                     const SizedBox(height: 2),
@@ -522,10 +519,7 @@ class _CompletedChapterTile extends ConsumerWidget {
                           task.scanlator!,
                         _fmtBytes(_completedTaskSize(task)),
                       ].join(' · '),
-                      style: const TextStyle(
-                        fontSize: 10,
-                        color: KumoriyaColors.textDisabled,
-                      ),
+                      style: TextStyle(fontSize: 10, color: colors.textSoft),
                     ),
                   ],
                 ),
@@ -539,6 +533,7 @@ class _CompletedChapterTile extends ConsumerWidget {
                     title: context.l10n.downloadDeleteConfirmTitle,
                     message: _mangaDownloadDeleteMessage(context),
                     actionLabel: context.l10n.downloadDelete,
+                    colors: colors,
                   );
                   if (confirmed != true) return;
                   await ref.read(mangaDownloadManagerProvider).delete(task.id);
@@ -560,12 +555,17 @@ class _ActiveDownloadsHeader extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final colors = FormFactorProvider.colorsOf(context);
     return Row(
       children: <Widget>[
         Expanded(
           child: Text(
             context.l10n.downloadInProgress,
-            style: Theme.of(context).textTheme.labelLarge,
+            style: TextStyle(
+              color: colors.text,
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+            ),
           ),
         ),
         TextButton.icon(
@@ -579,7 +579,7 @@ class _ActiveDownloadsHeader extends ConsumerWidget {
           icon: const Icon(KumoriyaIcons.close, size: 16),
           label: Text(context.l10n.downloadCancel),
           style: TextButton.styleFrom(
-            foregroundColor: KumoriyaColors.statusDanger,
+            foregroundColor: colors.error,
             textStyle: const TextStyle(fontSize: 12),
             padding: const EdgeInsets.symmetric(horizontal: 8),
           ),
@@ -596,13 +596,18 @@ class _QueueHeader extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final colors = FormFactorProvider.colorsOf(context);
     final retryable = tasks.where(_canRetry).toList();
     return Row(
       children: <Widget>[
         Expanded(
           child: Text(
             context.l10n.downloadsTabQueue,
-            style: Theme.of(context).textTheme.labelLarge,
+            style: TextStyle(
+              color: colors.text,
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+            ),
           ),
         ),
         if (retryable.isNotEmpty)
@@ -617,7 +622,7 @@ class _QueueHeader extends ConsumerWidget {
             icon: const Icon(KumoriyaIcons.sync, size: 16),
             label: Text(context.l10n.downloadRetryAllFailed),
             style: TextButton.styleFrom(
-              foregroundColor: KumoriyaColors.primary,
+              foregroundColor: colors.primary,
               textStyle: const TextStyle(fontSize: 12),
               padding: const EdgeInsets.symmetric(horizontal: 8),
             ),
@@ -629,6 +634,7 @@ class _QueueHeader extends ConsumerWidget {
               title: context.l10n.downloadClearQueueConfirmTitle,
               message: context.l10n.downloadClearQueueConfirmMessage,
               actionLabel: context.l10n.downloadClearQueue,
+              colors: colors,
             );
             if (confirmed != true) return;
             final manager = ref.read(mangaDownloadManagerProvider);
@@ -640,7 +646,7 @@ class _QueueHeader extends ConsumerWidget {
           icon: const Icon(KumoriyaIcons.close, size: 16),
           label: Text(context.l10n.downloadClearQueue),
           style: TextButton.styleFrom(
-            foregroundColor: KumoriyaColors.statusDanger,
+            foregroundColor: colors.error,
             textStyle: const TextStyle(fontSize: 12),
             padding: const EdgeInsets.symmetric(horizontal: 8),
           ),
@@ -658,6 +664,7 @@ class _MangaSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = FormFactorProvider.colorsOf(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
@@ -665,8 +672,8 @@ class _MangaSection extends StatelessWidget {
           padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
           child: Text(
             title,
-            style: const TextStyle(
-              color: KumoriyaColors.textPrimary,
+            style: TextStyle(
+              color: colors.text,
               fontWeight: FontWeight.w700,
               fontSize: 14,
             ),
@@ -685,6 +692,7 @@ class _TaskRow extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final colors = FormFactorProvider.colorsOf(context);
     final manager = ref.read(mangaDownloadManagerProvider);
     final liveProgress = ref
         .watch(mangaDownloadProgressProvider(task.id))
@@ -705,14 +713,14 @@ class _TaskRow extends ConsumerWidget {
       onTap: task.status == MangaDownloadStatus.completed
           ? () => _openDownloadedChapter(context, ref, task)
           : null,
-      borderRadius: BorderRadius.circular(KumoriyaRadius.xl),
+      borderRadius: BorderRadius.circular(CloudRadius.md),
       child: Container(
         margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         decoration: BoxDecoration(
-          color: KumoriyaColors.surface,
-          borderRadius: BorderRadius.circular(KumoriyaRadius.xl),
-          border: Border.all(color: KumoriyaColors.borderSubtle),
+          color: colors.surface,
+          borderRadius: BorderRadius.circular(CloudRadius.md),
+          border: Border.all(color: colors.surface2),
         ),
         child: Row(
           children: <Widget>[
@@ -724,8 +732,8 @@ class _TaskRow extends ConsumerWidget {
                 children: <Widget>[
                   Text(
                     chapterLabel,
-                    style: const TextStyle(
-                      color: KumoriyaColors.textPrimary,
+                    style: TextStyle(
+                      color: colors.text,
                       fontSize: 13,
                       fontWeight: FontWeight.w600,
                     ),
@@ -740,12 +748,12 @@ class _TaskRow extends ConsumerWidget {
                   if (isActive && pageCount > 0) ...<Widget>[
                     const SizedBox(height: 6),
                     ClipRRect(
-                      borderRadius: BorderRadius.circular(KumoriyaRadius.full),
+                      borderRadius: BorderRadius.circular(CloudRadius.pill),
                       child: LinearProgressIndicator(
                         value: pagesDownloaded / pageCount,
                         minHeight: 4,
-                        color: _statusColor(effectiveStatus),
-                        backgroundColor: KumoriyaColors.background,
+                        color: _statusColor(effectiveStatus, colors),
+                        backgroundColor: colors.bg,
                       ),
                     ),
                   ],
@@ -753,12 +761,12 @@ class _TaskRow extends ConsumerWidget {
               ),
             ),
             if (task.status == MangaDownloadStatus.completed)
-              const Padding(
-                padding: EdgeInsets.only(right: 4),
+              Padding(
+                padding: const EdgeInsets.only(right: 4),
                 child: Icon(
                   Icons.menu_book_rounded,
                   size: 18,
-                  color: KumoriyaColors.primary,
+                  color: colors.primary,
                 ),
               ),
             _ActionsMenu(
@@ -769,6 +777,7 @@ class _TaskRow extends ConsumerWidget {
                   title: context.l10n.downloadDeleteConfirmTitle,
                   message: _mangaDownloadDeleteMessage(context),
                   actionLabel: context.l10n.downloadDelete,
+                  colors: colors,
                 );
                 if (confirmed == true) {
                   await manager.delete(task.id);
@@ -810,6 +819,7 @@ class _StatusLine extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = FormFactorProvider.colorsOf(context);
     final text = switch (status) {
       MangaDownloadStatus.pending => context.l10n.downloadPending,
       MangaDownloadStatus.downloading =>
@@ -827,10 +837,7 @@ class _StatusLine extends StatelessWidget {
       MangaDownloadStatus.failed =>
         task.errorMessage ?? context.l10n.downloadFailed,
     };
-    return Text(
-      text,
-      style: const TextStyle(color: KumoriyaColors.textMuted, fontSize: 12),
-    );
+    return Text(text, style: TextStyle(color: colors.textMuted, fontSize: 12));
   }
 }
 
@@ -840,6 +847,7 @@ class _StatusBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = FormFactorProvider.colorsOf(context);
     final icon = switch (status) {
       MangaDownloadStatus.pending => Icons.schedule,
       MangaDownloadStatus.downloading => Icons.download_rounded,
@@ -850,7 +858,7 @@ class _StatusBadge extends StatelessWidget {
       MangaDownloadStatus.completed => Icons.check_circle,
       MangaDownloadStatus.failed => Icons.error_outline,
     };
-    return Icon(icon, color: _statusColor(status), size: 22);
+    return Icon(icon, color: _statusColor(status, colors), size: 22);
   }
 }
 
@@ -869,9 +877,10 @@ class _ActionsMenu extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = FormFactorProvider.colorsOf(context);
     return PopupMenuButton<String>(
-      color: KumoriyaColors.surface,
-      icon: const Icon(Icons.more_vert, color: KumoriyaColors.textMuted),
+      color: colors.surface,
+      icon: Icon(Icons.more_vert, color: colors.textMuted),
       onSelected: (action) {
         switch (action) {
           case 'cancel':
@@ -935,11 +944,11 @@ Future<bool?> _confirmDelete(
   required String title,
   required String message,
   required String actionLabel,
+  required CloudColors colors,
 }) {
   return showDialog<bool>(
     context: context,
     builder: (ctx) => AlertDialog(
-      backgroundColor: KumoriyaColors.surfaceElevated,
       title: Text(title),
       content: Text(message),
       actions: <Widget>[
@@ -949,9 +958,7 @@ Future<bool?> _confirmDelete(
         ),
         TextButton(
           onPressed: () => Navigator.of(ctx).pop(true),
-          style: TextButton.styleFrom(
-            foregroundColor: KumoriyaColors.statusDanger,
-          ),
+          style: TextButton.styleFrom(foregroundColor: colors.error),
           child: Text(actionLabel),
         ),
       ],
@@ -1047,16 +1054,16 @@ String _fmtBytes(int bytes) {
   return '${(bytes / (1024 * 1024 * 1024)).toStringAsFixed(2)} GB';
 }
 
-Color _statusColor(MangaDownloadStatus status) {
+Color _statusColor(MangaDownloadStatus status, CloudColors colors) {
   return switch (status) {
-    MangaDownloadStatus.pending => KumoriyaColors.textMuted,
-    MangaDownloadStatus.downloading => KumoriyaColors.primary,
-    MangaDownloadStatus.paused => KumoriyaColors.statusWarning,
-    MangaDownloadStatus.packaging => KumoriyaColors.statusSuccess,
-    MangaDownloadStatus.disconnected => KumoriyaColors.textMuted,
-    MangaDownloadStatus.partial => KumoriyaColors.statusWarning,
-    MangaDownloadStatus.completed => KumoriyaColors.statusSuccess,
-    MangaDownloadStatus.failed => KumoriyaColors.statusDanger,
+    MangaDownloadStatus.pending => colors.textMuted,
+    MangaDownloadStatus.downloading => colors.primary,
+    MangaDownloadStatus.paused => colors.warning,
+    MangaDownloadStatus.packaging => colors.success,
+    MangaDownloadStatus.disconnected => colors.textMuted,
+    MangaDownloadStatus.partial => colors.warning,
+    MangaDownloadStatus.completed => colors.success,
+    MangaDownloadStatus.failed => colors.error,
   };
 }
 

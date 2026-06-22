@@ -29,11 +29,13 @@ export 'src/primitives/cloud_progress.dart';
 export 'src/primitives/cloud_divider.dart';
 export 'src/primitives/cloud_tooltip.dart';
 export 'src/primitives/cloud_badge.dart';
+export 'src/primitives/cloud_cached_image.dart';
 
 // Components
 export 'src/components/poster_card.dart';
 export 'src/components/continue_watching_card.dart';
 export 'src/components/episode_row.dart';
+export 'src/components/ranked_tile.dart';
 export 'src/components/section_header.dart';
 export 'src/components/state_views.dart';
 export 'src/components/source_badge.dart';

@@ -4,7 +4,7 @@ import 'package:kumoriya_domain/kumoriya_domain.dart';
 import '../../../../app/l10n.dart';
 import '../../../../shared/theme/kumoriya_theme.dart';
 import '../../../../shared/widgets/kumoriya_cached_image.dart';
-import '../../../../shared/widgets/meta_chip.dart';
+import 'package:kumoriya_ui/kumoriya_ui.dart';
 
 class AnimeListTile extends StatelessWidget {
   const AnimeListTile({super.key, required this.anime, required this.onTap});

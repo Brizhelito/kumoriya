@@ -12,4 +12,6 @@ export 'src/anime/anime_status.dart';
 export 'src/anime/anime_tag.dart';
 export 'src/anime/anime_title.dart';
 export 'src/anime/season_discovery_result.dart';
+export 'src/downloads/download_status.dart';
 export 'src/repositories/anime_catalog_repository.dart';
+export 'src/source_availability/source_audio_kind.dart';

@@ -7,10 +7,8 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../app/l10n.dart';
 import '../../../../shared/storage_providers.dart';
-import '../../../../shared/theme/kumoriya_theme.dart';
-import '../../../../shared/widgets/kumoriya_cached_image.dart';
-import '../../../../shared/widgets/meta_chip.dart';
 import '../../../../shared/widgets/translated_dynamic_text.dart';
+import 'package:kumoriya_ui/kumoriya_ui.dart';
 import '../../../manga_downloads/presentation/widgets/chapter_download_button.dart';
 import '../../../anime_catalog/presentation/pages/anime_detail_page.dart';
 import '../../application/services/composite_manga_catalog_repository.dart';
@@ -28,9 +26,10 @@ class MangaDetailPage extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final colors = FormFactorProvider.colorsOf(context);
     final detailAsync = ref.watch(mangaDetailProvider(anilistId));
     return Scaffold(
-      backgroundColor: KumoriyaColors.background,
+      backgroundColor: colors.bg,
       body: detailAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => _ErrorState(error: e.toString()),
@@ -47,14 +46,14 @@ class _DetailContent extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final colors = FormFactorProvider.colorsOf(context);
     final manga = detail.manga;
     final l10n = context.l10n;
-    final theme = Theme.of(context);
     return CustomScrollView(
       slivers: <Widget>[
         SliverAppBar(
           pinned: true,
-          backgroundColor: KumoriyaColors.background,
+          backgroundColor: colors.bg,
           expandedHeight: 280,
           leading: IconButton(
             icon: const Icon(Icons.arrow_back_rounded),
@@ -64,9 +63,9 @@ class _DetailContent extends ConsumerWidget {
             background: Stack(
               fit: StackFit.expand,
               children: <Widget>[
-                KumoriyaCachedImage(
+                CloudCachedImage(
                   url: manga.bannerImageUrl ?? manga.coverImageUrl,
-                  bucket: KumoriyaImageCacheBucket.artwork,
+                  bucket: CloudImageCacheBucket.artwork,
                   fit: BoxFit.cover,
                 ),
                 DecoratedBox(
@@ -74,10 +73,7 @@ class _DetailContent extends ConsumerWidget {
                     gradient: LinearGradient(
                       begin: Alignment.topCenter,
                       end: Alignment.bottomCenter,
-                      colors: <Color>[
-                        Colors.transparent,
-                        KumoriyaColors.background,
-                      ],
+                      colors: <Color>[Colors.transparent, colors.bg],
                     ),
                   ),
                 ),
@@ -93,8 +89,9 @@ class _DetailContent extends ConsumerWidget {
               children: <Widget>[
                 Text(
                   manga.title.romaji,
-                  style: theme.textTheme.headlineMedium!.copyWith(
-                    color: KumoriyaColors.textPrimary,
+                  style: TextStyle(
+                    color: colors.text,
+                    fontSize: 24,
                     fontWeight: FontWeight.w800,
                   ),
                 ),
@@ -104,8 +101,10 @@ class _DetailContent extends ConsumerWidget {
                     padding: const EdgeInsets.only(top: 4),
                     child: Text(
                       manga.title.native!,
-                      style: theme.textTheme.bodyMedium!.copyWith(
-                        color: KumoriyaColors.textMuted,
+                      style: TextStyle(
+                        color: colors.textMuted,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
                       ),
                     ),
                   ),
@@ -124,8 +123,9 @@ class _DetailContent extends ConsumerWidget {
                   const SizedBox(height: 20),
                   Text(
                     l10n.mangaDetailGenres,
-                    style: theme.textTheme.titleMedium!.copyWith(
-                      color: KumoriyaColors.textPrimary,
+                    style: TextStyle(
+                      color: colors.text,
+                      fontSize: 15,
                       fontWeight: FontWeight.w800,
                     ),
                   ),
@@ -144,8 +144,9 @@ class _DetailContent extends ConsumerWidget {
                     Expanded(
                       child: Text(
                         l10n.mangaDetailChapters,
-                        style: theme.textTheme.titleMedium!.copyWith(
-                          color: KumoriyaColors.textPrimary,
+                        style: TextStyle(
+                          color: colors.text,
+                          fontSize: 15,
                           fontWeight: FontWeight.w800,
                         ),
                       ),
@@ -231,17 +232,18 @@ class _Chip extends StatelessWidget {
   final String label;
   @override
   Widget build(BuildContext context) {
+    final colors = FormFactorProvider.colorsOf(context);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
-        color: KumoriyaColors.surface,
-        border: Border.all(color: KumoriyaColors.borderSubtle),
-        borderRadius: BorderRadius.circular(KumoriyaRadius.full),
+        color: colors.surface,
+        border: Border.all(color: colors.surface2),
+        borderRadius: BorderRadius.circular(CloudRadius.pill),
       ),
       child: Text(
         label,
-        style: const TextStyle(
-          color: KumoriyaColors.textSecondary,
+        style: TextStyle(
+          color: colors.textMuted,
           fontSize: 12,
           fontWeight: FontWeight.w600,
         ),
@@ -318,7 +320,8 @@ class _ActionPill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = active ? KumoriyaColors.primary : KumoriyaColors.textMuted;
+    final colors = FormFactorProvider.colorsOf(context);
+    final color = active ? colors.primary : colors.textMuted;
     return InkWell(
       borderRadius: BorderRadius.circular(20),
       onTap: () {
@@ -362,6 +365,7 @@ class _CollapsibleMangaSynopsisState extends State<_CollapsibleMangaSynopsis> {
 
   @override
   Widget build(BuildContext context) {
+    final colors = FormFactorProvider.colorsOf(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
@@ -371,9 +375,10 @@ class _CollapsibleMangaSynopsisState extends State<_CollapsibleMangaSynopsis> {
             children: <Widget>[
               Text(
                 context.l10n.mangaDetailSynopsis,
-                style: Theme.of(context).textTheme.titleSmall!.copyWith(
-                  color: KumoriyaColors.textPrimary,
+                style: TextStyle(
+                  color: colors.text,
                   fontWeight: FontWeight.w800,
+                  fontSize: 14,
                 ),
               ),
               const SizedBox(width: 4),
@@ -382,7 +387,7 @@ class _CollapsibleMangaSynopsisState extends State<_CollapsibleMangaSynopsis> {
                     ? Icons.expand_less_rounded
                     : Icons.expand_more_rounded,
                 size: 20,
-                color: KumoriyaColors.textTertiary,
+                color: colors.textSoft,
               ),
             ],
           ),
@@ -393,22 +398,26 @@ class _CollapsibleMangaSynopsisState extends State<_CollapsibleMangaSynopsis> {
             widget.synopsis,
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
-            style: Theme.of(context).textTheme.bodySmall!.copyWith(
+            style: TextStyle(
               height: 1.5,
-              color: KumoriyaColors.textSecondary,
+              color: colors.textMuted,
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
             ),
           ),
           secondChild: TranslatedDynamicText(
             widget.synopsis,
-            style: Theme.of(context).textTheme.bodySmall!.copyWith(
+            style: TextStyle(
               height: 1.5,
-              color: KumoriyaColors.textSecondary,
+              color: colors.textMuted,
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
             ),
           ),
           crossFadeState: _expanded
               ? CrossFadeState.showSecond
               : CrossFadeState.showFirst,
-          duration: const Duration(milliseconds: 250),
+          duration: CloudMotion.fast,
         ),
       ],
     );
@@ -430,6 +439,7 @@ class _MangaRelationsSectionState extends State<_MangaRelationsSection> {
 
   @override
   Widget build(BuildContext context) {
+    final colors = FormFactorProvider.colorsOf(context);
     final visible = _expanded
         ? widget.relations
         : widget.relations.take(_collapsedCount);
@@ -439,9 +449,10 @@ class _MangaRelationsSectionState extends State<_MangaRelationsSection> {
       children: <Widget>[
         Text(
           context.l10n.relationsTitle,
-          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-            color: KumoriyaColors.textPrimary,
+          style: TextStyle(
+            color: colors.text,
             fontWeight: FontWeight.w800,
+            fontSize: 15,
           ),
         ),
         const SizedBox(height: 8),
@@ -475,6 +486,7 @@ class _RelationsToggleButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = FormFactorProvider.colorsOf(context);
     return Align(
       alignment: Alignment.centerLeft,
       child: TextButton.icon(
@@ -489,8 +501,8 @@ class _RelationsToggleButton extends StatelessWidget {
               : _relationsShowMoreLabel(context, hiddenCount),
         ),
         style: TextButton.styleFrom(
-          foregroundColor: KumoriyaColors.primary,
-          textStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+          foregroundColor: colors.primary,
+          textStyle: TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
           padding: const EdgeInsets.symmetric(horizontal: 8),
         ),
       ),
@@ -505,9 +517,10 @@ class _MangaRelationCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = FormFactorProvider.colorsOf(context);
     final target = relation.target;
     return InkWell(
-      borderRadius: BorderRadius.circular(KumoriyaRadius.xl),
+      borderRadius: BorderRadius.circular(CloudRadius.lg),
       onTap: () => Navigator.of(context).push(
         MaterialPageRoute<void>(
           builder: (_) => switch (target.kind) {
@@ -519,19 +532,19 @@ class _MangaRelationCard extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: KumoriyaColors.surface.withValues(alpha: 0.6),
-          borderRadius: BorderRadius.circular(KumoriyaRadius.xl),
-          border: Border.all(color: KumoriyaColors.borderSubtle),
+          color: colors.surface.withValues(alpha: 0.6),
+          borderRadius: BorderRadius.circular(CloudRadius.lg),
+          border: Border.all(color: colors.surface2),
         ),
         child: Row(
           children: <Widget>[
-            KumoriyaCachedImage(
+            CloudCachedImage(
               url: target.coverImageUrl,
-              bucket: KumoriyaImageCacheBucket.artwork,
+              bucket: CloudImageCacheBucket.artwork,
               width: 44,
               height: 58,
               fit: BoxFit.cover,
-              borderRadius: BorderRadius.circular(KumoriyaRadius.md),
+              borderRadius: BorderRadius.circular(CloudRadius.sm),
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -542,9 +555,10 @@ class _MangaRelationCard extends StatelessWidget {
                     target.titleRomaji,
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
-                    style: Theme.of(context).textTheme.titleSmall!.copyWith(
-                      color: KumoriyaColors.textPrimary,
+                    style: TextStyle(
+                      color: colors.text,
                       fontWeight: FontWeight.w700,
+                      fontSize: 14,
                     ),
                   ),
                   const SizedBox(height: 8),
@@ -568,10 +582,7 @@ class _MangaRelationCard extends StatelessWidget {
               ),
             ),
             const SizedBox(width: 10),
-            const Icon(
-              Icons.chevron_right_rounded,
-              color: KumoriyaColors.textDisabled,
-            ),
+            Icon(Icons.chevron_right_rounded, color: colors.textSoft),
           ],
         ),
       ),
@@ -656,6 +667,7 @@ class _ChaptersSliverState extends ConsumerState<_ChaptersSliver> {
 
   @override
   Widget build(BuildContext context) {
+    final colors = FormFactorProvider.colorsOf(context);
     final asyncChapters = ref.watch(mangaChaptersProvider(widget.anilistId));
     return asyncChapters.when(
       loading: () => const SliverToBoxAdapter(
@@ -667,10 +679,7 @@ class _ChaptersSliverState extends ConsumerState<_ChaptersSliver> {
       error: (e, _) => SliverToBoxAdapter(
         child: Padding(
           padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
-          child: Text(
-            e.toString(),
-            style: const TextStyle(color: KumoriyaColors.statusDanger),
-          ),
+          child: Text(e.toString(), style: TextStyle(color: colors.error)),
         ),
       ),
       data: (chapters) {
@@ -680,7 +689,7 @@ class _ChaptersSliverState extends ConsumerState<_ChaptersSliver> {
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
               child: Text(
                 context.l10n.mangaDetailNoChaptersInLanguage,
-                style: const TextStyle(color: KumoriyaColors.textMuted),
+                style: TextStyle(color: colors.textMuted),
               ),
             ),
           );
@@ -737,8 +746,8 @@ class _ChaptersSliverState extends ConsumerState<_ChaptersSliver> {
                     children: <Widget>[
                       Text(
                         l10n.mangaDetailExternalChaptersTitle,
-                        style: const TextStyle(
-                          color: KumoriyaColors.textPrimary,
+                        style: TextStyle(
+                          color: colors.text,
                           fontWeight: FontWeight.w800,
                           fontSize: 16,
                         ),
@@ -746,8 +755,8 @@ class _ChaptersSliverState extends ConsumerState<_ChaptersSliver> {
                       const SizedBox(height: 4),
                       Text(
                         l10n.mangaDetailExternalChaptersHint,
-                        style: const TextStyle(
-                          color: KumoriyaColors.textMuted,
+                        style: TextStyle(
+                          color: colors.textMuted,
                           fontSize: 12,
                           height: 1.4,
                         ),
@@ -779,6 +788,7 @@ class _ScanlatorPicker extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final colors = FormFactorProvider.colorsOf(context);
     final options = ref.watch(availableScanlatorsProvider(anilistId));
     final preferredAsync = ref.watch(preferredScanlatorProvider(anilistId));
     if (options.isEmpty) return const SizedBox.shrink();
@@ -786,23 +796,19 @@ class _ScanlatorPicker extends ConsumerWidget {
     final l10n = context.l10n;
     final label = preferred ?? l10n.mangaDetailScanlatorAuto;
     return InkWell(
-      borderRadius: BorderRadius.circular(KumoriyaRadius.full),
+      borderRadius: BorderRadius.circular(CloudRadius.pill),
       onTap: () => _openSheet(context, ref, options, preferred),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
         decoration: BoxDecoration(
-          color: KumoriyaColors.surface,
-          border: Border.all(color: KumoriyaColors.borderSubtle),
-          borderRadius: BorderRadius.circular(KumoriyaRadius.full),
+          color: colors.surface,
+          border: Border.all(color: colors.surface2),
+          borderRadius: BorderRadius.circular(CloudRadius.pill),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: <Widget>[
-            const Icon(
-              Icons.tune_rounded,
-              size: 14,
-              color: KumoriyaColors.textSecondary,
-            ),
+            Icon(Icons.tune_rounded, size: 14, color: colors.textMuted),
             const SizedBox(width: 6),
             ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 140),
@@ -810,19 +816,15 @@ class _ScanlatorPicker extends ConsumerWidget {
                 '${l10n.mangaDetailScanlatorLabel}: $label',
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  color: KumoriyaColors.textSecondary,
+                style: TextStyle(
+                  color: colors.textMuted,
                   fontSize: 12,
                   fontWeight: FontWeight.w600,
                 ),
               ),
             ),
             const SizedBox(width: 4),
-            const Icon(
-              Icons.expand_more_rounded,
-              size: 14,
-              color: KumoriyaColors.textSecondary,
-            ),
+            Icon(Icons.expand_more_rounded, size: 14, color: colors.textMuted),
           ],
         ),
       ),
@@ -835,10 +837,11 @@ class _ScanlatorPicker extends ConsumerWidget {
     List<ScanlatorOption> options,
     String? current,
   ) async {
+    final colors = FormFactorProvider.colorsOf(context);
     final l10n = context.l10n;
     final picked = await showModalBottomSheet<_PickResult?>(
       context: context,
-      backgroundColor: KumoriyaColors.surface,
+      backgroundColor: colors.surface,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
       ),
@@ -851,8 +854,8 @@ class _ScanlatorPicker extends ConsumerWidget {
                 padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
                 child: Text(
                   l10n.mangaDetailScanlatorPickerTitle,
-                  style: const TextStyle(
-                    color: KumoriyaColors.textPrimary,
+                  style: TextStyle(
+                    color: colors.text,
                     fontWeight: FontWeight.w800,
                     fontSize: 16,
                   ),
@@ -863,28 +866,23 @@ class _ScanlatorPicker extends ConsumerWidget {
                   current == null
                       ? Icons.radio_button_checked_rounded
                       : Icons.radio_button_unchecked_rounded,
-                  color: current == null
-                      ? KumoriyaColors.primary
-                      : KumoriyaColors.textMuted,
+                  color: current == null ? colors.primary : colors.textMuted,
                 ),
                 title: Text(
                   l10n.mangaDetailScanlatorAuto,
-                  style: const TextStyle(
-                    color: KumoriyaColors.textPrimary,
+                  style: TextStyle(
+                    color: colors.text,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
                 subtitle: Text(
                   l10n.mangaDetailScanlatorAutoHint,
-                  style: const TextStyle(
-                    color: KumoriyaColors.textMuted,
-                    fontSize: 12,
-                  ),
+                  style: TextStyle(color: colors.textMuted, fontSize: 12),
                 ),
                 onTap: () =>
                     Navigator.of(ctx).pop(const _PickResult(scanlator: null)),
               ),
-              const Divider(height: 1, color: KumoriyaColors.borderSubtle),
+              Divider(height: 1, color: colors.surface2),
               for (final opt in options)
                 ListTile(
                   leading: Icon(
@@ -892,31 +890,28 @@ class _ScanlatorPicker extends ConsumerWidget {
                         ? Icons.radio_button_checked_rounded
                         : Icons.radio_button_unchecked_rounded,
                     color: current == opt.name
-                        ? KumoriyaColors.primary
-                        : KumoriyaColors.textMuted,
+                        ? colors.primary
+                        : colors.textMuted,
                   ),
                   title: Text(
-                    opt.name,
-                    style: const TextStyle(
-                      color: KumoriyaColors.textPrimary,
+                    l10n.mangaDetailScanlatorAuto,
+                    style: TextStyle(
+                      color: colors.text,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
                   subtitle: opt.lastReleaseAt != null
                       ? Text(
                           _formatLastRelease(l10n, opt.lastReleaseAt!),
-                          style: const TextStyle(
-                            color: KumoriyaColors.textMuted,
+                          style: TextStyle(
+                            color: colors.textMuted,
                             fontSize: 11,
                           ),
                         )
                       : null,
                   trailing: Text(
                     l10n.mangaDetailScanlatorChapterCount(opt.chapterCount),
-                    style: const TextStyle(
-                      color: KumoriyaColors.textMuted,
-                      fontSize: 12,
-                    ),
+                    style: TextStyle(color: colors.textMuted, fontSize: 12),
                   ),
                   onTap: () =>
                       Navigator.of(ctx).pop(_PickResult(scanlator: opt.name)),
@@ -982,6 +977,7 @@ class _SourcePicker extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final colors = FormFactorProvider.colorsOf(context);
     final options = ref.watch(availableSourcesProvider(anilistId));
     final preferredAsync = ref.watch(preferredSourceIdProvider(anilistId));
     // Only one option AND no explicit user pin → nothing to pick. The
@@ -1004,23 +1000,19 @@ class _SourcePicker extends ConsumerWidget {
     final l10n = context.l10n;
     final label = preferredOption?.displayName ?? l10n.mangaDetailSourceAuto;
     return InkWell(
-      borderRadius: BorderRadius.circular(KumoriyaRadius.full),
+      borderRadius: BorderRadius.circular(CloudRadius.pill),
       onTap: () => _openSheet(context, ref, options, preferredId),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
         decoration: BoxDecoration(
-          color: KumoriyaColors.surface,
-          border: Border.all(color: KumoriyaColors.borderSubtle),
-          borderRadius: BorderRadius.circular(KumoriyaRadius.full),
+          color: colors.surface,
+          border: Border.all(color: colors.surface2),
+          borderRadius: BorderRadius.circular(CloudRadius.pill),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: <Widget>[
-            const Icon(
-              Icons.cloud_outlined,
-              size: 14,
-              color: KumoriyaColors.textSecondary,
-            ),
+            Icon(Icons.cloud_outlined, size: 14, color: colors.textMuted),
             const SizedBox(width: 6),
             ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 120),
@@ -1028,19 +1020,15 @@ class _SourcePicker extends ConsumerWidget {
                 '${l10n.mangaDetailSourceLabel}: $label',
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  color: KumoriyaColors.textSecondary,
+                style: TextStyle(
+                  color: colors.textMuted,
                   fontSize: 12,
                   fontWeight: FontWeight.w600,
                 ),
               ),
             ),
             const SizedBox(width: 4),
-            const Icon(
-              Icons.expand_more_rounded,
-              size: 14,
-              color: KumoriyaColors.textSecondary,
-            ),
+            Icon(Icons.expand_more_rounded, size: 14, color: colors.textMuted),
           ],
         ),
       ),
@@ -1053,10 +1041,11 @@ class _SourcePicker extends ConsumerWidget {
     List<SourceOption> options,
     String? current,
   ) async {
+    final colors = FormFactorProvider.colorsOf(context);
     final l10n = context.l10n;
     final picked = await showModalBottomSheet<_SourcePickResult?>(
       context: context,
-      backgroundColor: KumoriyaColors.surface,
+      backgroundColor: colors.surface,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
       ),
@@ -1069,8 +1058,8 @@ class _SourcePicker extends ConsumerWidget {
                 padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
                 child: Text(
                   l10n.mangaDetailSourcePickerTitle,
-                  style: const TextStyle(
-                    color: KumoriyaColors.textPrimary,
+                  style: TextStyle(
+                    color: colors.text,
                     fontWeight: FontWeight.w800,
                     fontSize: 16,
                   ),
@@ -1081,29 +1070,24 @@ class _SourcePicker extends ConsumerWidget {
                   current == null
                       ? Icons.radio_button_checked_rounded
                       : Icons.radio_button_unchecked_rounded,
-                  color: current == null
-                      ? KumoriyaColors.primary
-                      : KumoriyaColors.textMuted,
+                  color: current == null ? colors.primary : colors.textMuted,
                 ),
                 title: Text(
                   l10n.mangaDetailSourceAuto,
-                  style: const TextStyle(
-                    color: KumoriyaColors.textPrimary,
+                  style: TextStyle(
+                    color: colors.text,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
                 subtitle: Text(
                   l10n.mangaDetailSourceAutoHint,
-                  style: const TextStyle(
-                    color: KumoriyaColors.textMuted,
-                    fontSize: 12,
-                  ),
+                  style: TextStyle(color: colors.textMuted, fontSize: 12),
                 ),
                 onTap: () => Navigator.of(
                   ctx,
                 ).pop(const _SourcePickResult(sourceId: null)),
               ),
-              const Divider(height: 1, color: KumoriyaColors.borderSubtle),
+              Divider(height: 1, color: colors.surface2),
               for (final opt in options)
                 ListTile(
                   leading: Icon(
@@ -1111,22 +1095,19 @@ class _SourcePicker extends ConsumerWidget {
                         ? Icons.radio_button_checked_rounded
                         : Icons.radio_button_unchecked_rounded,
                     color: current == opt.sourceId
-                        ? KumoriyaColors.primary
-                        : KumoriyaColors.textMuted,
+                        ? colors.primary
+                        : colors.textMuted,
                   ),
                   title: Text(
                     opt.displayName,
-                    style: const TextStyle(
-                      color: KumoriyaColors.textPrimary,
+                    style: TextStyle(
+                      color: colors.text,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
                   trailing: Text(
                     l10n.mangaDetailScanlatorChapterCount(opt.chapterCount),
-                    style: const TextStyle(
-                      color: KumoriyaColors.textMuted,
-                      fontSize: 12,
-                    ),
+                    style: TextStyle(color: colors.textMuted, fontSize: 12),
                   ),
                   onTap: () => Navigator.of(
                     ctx,
@@ -1221,6 +1202,7 @@ class _ExternalChapterRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = FormFactorProvider.colorsOf(context);
     final l10n = context.l10n;
     final chapterNum = chapter.number == chapter.number.truncateToDouble()
         ? chapter.number.toInt().toString()
@@ -1242,11 +1224,7 @@ class _ExternalChapterRow extends StatelessWidget {
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
         child: Row(
           children: <Widget>[
-            const Icon(
-              Icons.open_in_new_rounded,
-              color: KumoriyaColors.textMuted,
-              size: 18,
-            ),
+            Icon(Icons.open_in_new_rounded, color: colors.textMuted, size: 18),
             const SizedBox(width: 12),
             Expanded(
               child: Column(
@@ -1258,8 +1236,8 @@ class _ExternalChapterRow extends StatelessWidget {
                         : l10n.mangaDetailChapterLabel(chapterNum),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: KumoriyaColors.textPrimary,
+                    style: TextStyle(
+                      color: colors.text,
                       fontWeight: FontWeight.w600,
                       fontSize: 14,
                     ),
@@ -1269,10 +1247,7 @@ class _ExternalChapterRow extends StatelessWidget {
                     subtitle,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: KumoriyaColors.textMuted,
-                      fontSize: 12,
-                    ),
+                    style: TextStyle(color: colors.textMuted, fontSize: 12),
                   ),
                 ],
               ),
@@ -1281,8 +1256,8 @@ class _ExternalChapterRow extends StatelessWidget {
               padding: const EdgeInsets.only(left: 8),
               child: Text(
                 l10n.mangaDetailOpenExternal,
-                style: const TextStyle(
-                  color: KumoriyaColors.textSecondary,
+                style: TextStyle(
+                  color: colors.textMuted,
                   fontSize: 11,
                   fontWeight: FontWeight.w600,
                 ),
@@ -1320,6 +1295,7 @@ class _ChapterRow extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final colors = FormFactorProvider.colorsOf(context);
     final l10n = context.l10n;
     final volumeLabel = chapter.volume != null
         ? '${l10n.mangaDetailVolumeLabel(chapter.volume!)} · '
@@ -1347,8 +1323,8 @@ class _ChapterRow extends ConsumerWidget {
                         : l10n.mangaDetailChapterLabel(chapterNum),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: KumoriyaColors.textPrimary,
+                    style: TextStyle(
+                      color: colors.text,
                       fontWeight: FontWeight.w600,
                       fontSize: 14,
                     ),
@@ -1358,10 +1334,7 @@ class _ChapterRow extends ConsumerWidget {
                     subtitle,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: KumoriyaColors.textMuted,
-                      fontSize: 12,
-                    ),
+                    style: TextStyle(color: colors.textMuted, fontSize: 12),
                   ),
                 ],
               ),
@@ -1377,10 +1350,7 @@ class _ChapterRow extends ConsumerWidget {
                 );
               },
             ),
-            const Icon(
-              Icons.chevron_right_rounded,
-              color: KumoriyaColors.textMuted,
-            ),
+            Icon(Icons.chevron_right_rounded, color: colors.textMuted),
           ],
         ),
       ),
@@ -1393,22 +1363,19 @@ class _ErrorState extends StatelessWidget {
   final String error;
   @override
   Widget build(BuildContext context) {
+    final colors = FormFactorProvider.colorsOf(context);
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(24),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: <Widget>[
-            const Icon(
-              Icons.error_outline_rounded,
-              color: KumoriyaColors.statusDanger,
-              size: 48,
-            ),
+            Icon(Icons.error_outline_rounded, color: colors.error, size: 48),
             const SizedBox(height: 12),
             Text(
               error,
               textAlign: TextAlign.center,
-              style: const TextStyle(color: KumoriyaColors.textSecondary),
+              style: TextStyle(color: colors.textMuted),
             ),
           ],
         ),

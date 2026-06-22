@@ -5,6 +5,11 @@ import '../primitives/cloud_button.dart';
 import '../tokens/cloud_colors.dart';
 import '../tokens/cloud_spacing.dart';
 
+// Type aliases for backward compatibility during migration
+typedef LoadingStateView = CloudLoadingView;
+typedef EmptyStateView = CloudEmptyView;
+typedef ErrorStateView = CloudErrorView;
+
 /// Cloud-styled loading state — centered spinner with optional label.
 class CloudLoadingView extends StatelessWidget {
   const CloudLoadingView({super.key, this.label});
@@ -140,6 +145,60 @@ class CloudErrorView extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+/// Cloud-styled unavailable state — cloud_off icon + message + optional CTA.
+class UnavailableStateView extends StatelessWidget {
+  const UnavailableStateView({
+    super.key,
+    required this.message,
+    this.title,
+    this.actionLabel,
+    this.onAction,
+  });
+
+  final String message;
+  final String? title;
+  final String? actionLabel;
+  final VoidCallback? onAction;
+
+  @override
+  Widget build(BuildContext context) {
+    return CloudEmptyView(
+      title: title,
+      icon: Icons.cloud_off_rounded,
+      message: message,
+      actionLabel: actionLabel,
+      onAction: onAction,
+    );
+  }
+}
+
+/// Transition wrapper with fade animation for state changes.
+class StateTransitionSwitcher extends StatelessWidget {
+  const StateTransitionSwitcher({
+    super.key,
+    required this.stateKey,
+    required this.child,
+    this.duration = const Duration(milliseconds: 220),
+  });
+
+  final Object stateKey;
+  final Widget child;
+  final Duration duration;
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedSwitcher(
+      duration: duration,
+      switchInCurve: Curves.easeOutCubic,
+      switchOutCurve: Curves.easeInCubic,
+      transitionBuilder: (widget, animation) {
+        return FadeTransition(opacity: animation, child: widget);
+      },
+      child: KeyedSubtree(key: ValueKey<Object>(stateKey), child: child),
     );
   }
 }

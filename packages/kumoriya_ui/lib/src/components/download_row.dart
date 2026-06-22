@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:kumoriya_domain/kumoriya_domain.dart';
 
 import '../platform/form_factor_provider.dart';
 import '../primitives/cloud_progress.dart';
@@ -95,7 +96,9 @@ class DownloadRow extends StatelessWidget {
                     ],
                   ),
                   if (status == DownloadStatus.downloading ||
-                      status == DownloadStatus.paused) ...[
+                      status == DownloadStatus.paused ||
+                      status == DownloadStatus.remuxing ||
+                      status == DownloadStatus.disconnected) ...[
                     SizedBox(height: CloudSpacing.s1),
                     CloudProgress(value: progress),
                   ],
@@ -110,9 +113,11 @@ class DownloadRow extends StatelessWidget {
 
   IconData _resolveIcon() {
     return switch (status) {
-      DownloadStatus.queued => Icons.schedule_rounded,
+      DownloadStatus.pending => Icons.schedule_rounded,
       DownloadStatus.downloading => Icons.download_rounded,
       DownloadStatus.paused => Icons.pause_circle_outline_rounded,
+      DownloadStatus.remuxing => Icons.sync_rounded,
+      DownloadStatus.disconnected => Icons.wifi_off_rounded,
       DownloadStatus.completed => Icons.download_done_rounded,
       DownloadStatus.failed => Icons.error_outline_rounded,
       DownloadStatus.cancelled => Icons.cancel_outlined,
@@ -121,9 +126,11 @@ class DownloadRow extends StatelessWidget {
 
   Color _resolveColor(CloudColors colors) {
     return switch (status) {
-      DownloadStatus.queued => colors.textSoft,
+      DownloadStatus.pending => colors.textSoft,
       DownloadStatus.downloading => colors.primary,
       DownloadStatus.paused => colors.warning,
+      DownloadStatus.remuxing => colors.primary,
+      DownloadStatus.disconnected => colors.warning,
       DownloadStatus.completed => colors.success,
       DownloadStatus.failed => colors.error,
       DownloadStatus.cancelled => colors.textSoft,
@@ -132,21 +139,14 @@ class DownloadRow extends StatelessWidget {
 
   String _statusLabel() {
     return switch (status) {
-      DownloadStatus.queued => 'Queued',
+      DownloadStatus.pending => 'Pending',
       DownloadStatus.downloading => 'Downloading',
       DownloadStatus.paused => 'Paused',
+      DownloadStatus.remuxing => 'Processing',
+      DownloadStatus.disconnected => 'Disconnected',
       DownloadStatus.completed => 'Completed',
       DownloadStatus.failed => 'Failed',
       DownloadStatus.cancelled => 'Cancelled',
     };
   }
-}
-
-enum DownloadStatus {
-  queued,
-  downloading,
-  paused,
-  completed,
-  failed,
-  cancelled,
 }

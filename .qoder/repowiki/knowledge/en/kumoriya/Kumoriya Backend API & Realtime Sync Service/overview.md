@@ -1,0 +1,1 @@
+Go/Fiber microservice providing authentication, cross-device sync, watch-party signaling, and push notifications for the Kumoriya anime/manga tracking platform.

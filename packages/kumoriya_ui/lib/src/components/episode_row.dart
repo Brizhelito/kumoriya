@@ -19,7 +19,9 @@ class EpisodeRow extends StatefulWidget {
     this.state = EpisodeRowState.defaultState,
     this.progress,
     this.onTap,
-    this.sourceLabels = const <String>[],
+    this.sourceBadges = const <Widget>[],
+    this.trailingAccessory,
+    this.activeLabel,
   });
 
   final String episodeNumber;
@@ -28,7 +30,9 @@ class EpisodeRow extends StatefulWidget {
   final EpisodeRowState state;
   final double? progress;
   final VoidCallback? onTap;
-  final List<String> sourceLabels;
+  final List<Widget> sourceBadges;
+  final Widget? trailingAccessory;
+  final String? activeLabel;
 
   @override
   State<EpisodeRow> createState() => _EpisodeRowState();
@@ -132,11 +136,35 @@ class _EpisodeRowState extends State<EpisodeRow> {
                         SizedBox(height: CloudSpacing.s2),
                         CloudProgress(value: widget.progress!),
                       ],
+                      if (widget.sourceBadges.isNotEmpty) ...[
+                        SizedBox(height: CloudSpacing.s1),
+                        Wrap(
+                          spacing: 4,
+                          runSpacing: 4,
+                          children: widget.sourceBadges,
+                        ),
+                      ],
                     ],
                   ),
                 ),
-                // Trailing icons
-                if (widget.state == EpisodeRowState.watched)
+                // Active label
+                if (isActive && widget.activeLabel != null)
+                  Padding(
+                    padding: EdgeInsets.only(right: CloudSpacing.s2),
+                    child: Text(
+                      widget.activeLabel!,
+                      style: TextStyle(
+                        color: colors.primary,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                  ),
+                // Trailing accessory (download chip, action chip, etc.)
+                if (widget.trailingAccessory != null)
+                  widget.trailingAccessory!
+                else if (widget.state == EpisodeRowState.watched)
                   Icon(
                     Icons.check_circle_rounded,
                     size: 16,

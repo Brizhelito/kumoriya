@@ -1,0 +1,4 @@
+- Generate Ed25519 keypair for JWT signing via `go run ./scripts/gen-jwt-keypair` before first boot; the hex-encoded private key must be set as `JWT_PRIVATE_KEY_HEX`.
+- Database schema applied via numbered SQL migrations in `migrations/` directory (001_users.sql through 014_sync_manga.sql).
+- Docker build produces a static binary (`CGO_ENABLED=0`) running as non-root user on Alpine; default port 7860 exposed.
+- Optional feature flags control runtime behavior: `WATCH_PARTY_REALTIME_V2` toggles Cloudflare Worker broker mode, missing `NEON_DSN` disables DB-dependent routes, missing Firebase/Upstash creds disable notification workers.

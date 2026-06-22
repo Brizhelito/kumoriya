@@ -208,4 +208,53 @@ class CloudColors {
   final List<BoxShadow> shadowLg;
   final List<BoxShadow> shadowHover;
   final bool isDark;
+
+  /// Returns a copy of this [CloudColors] with the given fields overridden.
+  CloudColors copyWith({
+    Color? bg,
+    Color? bgElev,
+    Color? surface,
+    Color? surface2,
+    Color? mist,
+    Color? text,
+    Color? textMuted,
+    Color? textSoft,
+    Color? primary,
+    Color? primarySoft,
+    Color? accent,
+    Color? accentSoft,
+    Color? success,
+    Color? warning,
+    Color? error,
+    Color? star,
+    List<BoxShadow>? shadowSm,
+    List<BoxShadow>? shadow,
+    List<BoxShadow>? shadowLg,
+    List<BoxShadow>? shadowHover,
+    bool? isDark,
+  }) {
+    return CloudColors(
+      bg: bg ?? this.bg,
+      bgElev: bgElev ?? this.bgElev,
+      surface: surface ?? this.surface,
+      surface2: surface2 ?? this.surface2,
+      mist: mist ?? this.mist,
+      text: text ?? this.text,
+      textMuted: textMuted ?? this.textMuted,
+      textSoft: textSoft ?? this.textSoft,
+      primary: primary ?? this.primary,
+      primarySoft: primarySoft ?? this.primarySoft,
+      accent: accent ?? this.accent,
+      accentSoft: accentSoft ?? this.accentSoft,
+      success: success ?? this.success,
+      warning: warning ?? this.warning,
+      error: error ?? this.error,
+      star: star ?? this.star,
+      shadowSm: shadowSm ?? this.shadowSm,
+      shadow: shadow ?? this.shadow,
+      shadowLg: shadowLg ?? this.shadowLg,
+      shadowHover: shadowHover ?? this.shadowHover,
+      isDark: isDark ?? this.isDark,
+    );
+  }
 }

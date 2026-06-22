@@ -1,0 +1,3 @@
+- State-modifying WebSocket messages (e.g., `set_ready`, `playback_intent`) must include a `messageId` for client-side acknowledgement and correlation.
+- Durable Object internal HTTP endpoints use a pseudo-protocol (e.g., `http://registry/rooms`, `http://room/ws`) to route requests between the Worker entry point and specific DO instances.
+- Room state mutations in `PartyRoomDO` follow an optimistic update pattern where in-memory state is updated, persisted to `state.storage`, and then broadcast to connected clients.

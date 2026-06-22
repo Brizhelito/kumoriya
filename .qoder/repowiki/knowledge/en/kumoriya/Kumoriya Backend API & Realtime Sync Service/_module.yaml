@@ -1,0 +1,8 @@
+schema_version: 1
+module_path: kumoriya_api
+title: Kumoriya Backend API & Realtime Sync Service
+scope:
+    - kumoriya-api/
+source_files: []
+depends_on: []
+related_to: []

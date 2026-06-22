@@ -15,7 +15,7 @@ import '../../application/services/resolver_registry.dart';
 import '../../application/use_cases/get_source_episode_server_links_use_case.dart';
 import '../providers/anime_catalog_providers.dart';
 import '../providers/storage_providers.dart';
-import '../widgets/source_badge.dart';
+import 'package:kumoriya_ui/kumoriya_ui.dart';
 import '../../../player/presentation/pages/player_page.dart';
 import '../../../watch_party/presentation/party_route_mode.dart';
 
@@ -669,14 +669,14 @@ class _ServerPickerSheetState extends State<_ServerPickerSheet> {
                           Row(
                             children: <Widget>[
                               SourceBadge(
-                                name: representative.sourceName,
+                                sourceName: representative.sourceName,
                                 iconUrl: representative.sourceIconUrl,
                                 audioKinds: sourceOptions
                                     .map((item) => item.audioKind)
                                     .whereType<SourceAudioKind>()
                                     .toSet(),
                                 compact: true,
-                                highlighted: sourceOptions.any(
+                                isHighlighted: sourceOptions.any(
                                   (item) => item.isRecommended,
                                 ),
                               ),

@@ -10,13 +10,10 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
 
-import '../features/anime_catalog/presentation/pages/calendar_page.dart';
-import '../features/anime_catalog/presentation/pages/downloads_page.dart';
 import '../features/anime_catalog/presentation/pages/home_page.dart';
 import '../features/anime_catalog/presentation/pages/library_page.dart';
 import '../features/anime_catalog/presentation/pages/search_page.dart';
 import '../features/library/presentation/pages/unified_library_page.dart';
-import '../features/manga_catalog/presentation/pages/manga_downloads_page.dart';
 import '../features/manga_catalog/presentation/pages/manga_home_page.dart';
 import '../features/manga_catalog/presentation/pages/manga_search_page.dart';
 import '../features/app_update/application/release_notes_catalog.dart';
@@ -40,8 +37,6 @@ import '../shared/dev/dev_cache_seeder.dart';
 import '../shared/navigation/app_navigation_shell.dart';
 import '../shared/storage_providers.dart';
 import '../shared/sync/sync_providers.dart';
-import '../shared/theme/kumoriya_theme.dart';
-import '../shared/universe/active_universe_providers.dart';
 import 'l10n.dart';
 
 class KumoriyaApp extends ConsumerStatefulWidget {
@@ -86,12 +81,8 @@ class _KumoriyaAppState extends ConsumerState<KumoriyaApp> {
 
   @override
   Widget build(BuildContext context) {
-    // Active universe drives the accent that flows through MaterialApp's
-    // ThemeData. Watching the provider here means the whole app rebuilds
-    // its theme with the new primary on every universe switch — and
-    // MaterialApp's implicit AnimatedTheme cross-fades the change.
-    final accent = ref.watch(universeAccentProvider);
-    final themeData = KumoriyaTheme.forUniverse(accent);
+    final colors = CloudColors.noche();
+    final themeData = CloudTheme.build(colors);
     // Language override (null → device locale resolved against
     // supportedLocales). Async until the JSON file is loaded; default
     // is `system` so the first frame already respects the device.
@@ -102,7 +93,7 @@ class _KumoriyaAppState extends ConsumerState<KumoriyaApp> {
           orElse: () => AppLanguagePreference.system,
         );
     return FormFactorProvider(
-      colors: CloudColors.noche(),
+      colors: colors,
       child: MaterialApp(
         navigatorKey: _navigatorKey,
         onGenerateTitle: (context) => context.l10n.appTitle,
@@ -174,18 +165,19 @@ class _FirstLaunchGateState extends ConsumerState<_FirstLaunchGate> {
 
     // Show a rationale dialog before the system prompt.
     if (!mounted) return;
+    final colors = FormFactorProvider.colorsOf(context);
     final proceed = await showDialog<bool>(
       context: context,
       barrierDismissible: false,
       builder: (ctx) => AlertDialog(
-        backgroundColor: KumoriyaColors.surface,
+        backgroundColor: colors.surface,
         title: Text(
           context.l10n.onboardingNotificationTitle,
-          style: const TextStyle(color: KumoriyaColors.textPrimary),
+          style: TextStyle(color: colors.text),
         ),
         content: Text(
           context.l10n.onboardingNotificationBody,
-          style: const TextStyle(color: KumoriyaColors.textSecondary),
+          style: TextStyle(color: colors.textMuted),
         ),
         actions: [
           TextButton(
@@ -195,8 +187,8 @@ class _FirstLaunchGateState extends ConsumerState<_FirstLaunchGate> {
           ElevatedButton(
             onPressed: () => Navigator.pop(ctx, true),
             style: ElevatedButton.styleFrom(
-              backgroundColor: KumoriyaColors.primary,
-              foregroundColor: KumoriyaColors.textPrimary,
+              backgroundColor: colors.primary,
+              foregroundColor: colors.surface,
             ),
             child: Text(context.l10n.onboardingNotificationAllow),
           ),

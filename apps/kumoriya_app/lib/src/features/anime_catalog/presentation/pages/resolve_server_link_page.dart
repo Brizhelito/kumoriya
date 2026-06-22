@@ -5,7 +5,8 @@ import 'package:kumoriya_storage/kumoriya_storage.dart';
 
 import '../../../../app/l10n.dart';
 import '../../../player/presentation/pages/player_page.dart';
-import '../../../../shared/widgets/state_views.dart';
+import 'package:kumoriya_ui/kumoriya_ui.dart';
+import '../../../../shared/utils/error_messaging.dart';
 import '../providers/anime_catalog_providers.dart';
 
 class ResolveServerLinkPage extends ConsumerWidget {

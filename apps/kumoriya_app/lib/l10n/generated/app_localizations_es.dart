@@ -918,6 +918,12 @@ class AppLocalizationsEs extends AppLocalizations {
   String get navDownloads => 'Descargas';
 
   @override
+  String get navParty => 'Party';
+
+  @override
+  String get navProfile => 'Perfil';
+
+  @override
   String get universeAnime => 'Anime';
 
   @override

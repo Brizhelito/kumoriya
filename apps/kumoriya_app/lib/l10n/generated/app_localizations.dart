@@ -1579,6 +1579,18 @@ abstract class AppLocalizations {
   /// **'Downloads'**
   String get navDownloads;
 
+  /// No description provided for @navParty.
+  ///
+  /// In en, this message translates to:
+  /// **'Party'**
+  String get navParty;
+
+  /// No description provided for @navProfile.
+  ///
+  /// In en, this message translates to:
+  /// **'Profile'**
+  String get navProfile;
+
   /// No description provided for @universeAnime.
   ///
   /// In en, this message translates to:

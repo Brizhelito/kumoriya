@@ -237,7 +237,10 @@ class _AppNavigationShellState extends ConsumerState<AppNavigationShell> {
             children: <Widget>[
               CloudSidebar(
                 items: <SidebarItem>[
-                  for (final spec in _tabSpecsFor(universe, AppL10nProxy.of(context)))
+                  for (final spec in _tabSpecsFor(
+                    universe,
+                    AppL10nProxy.of(context),
+                  ))
                     SidebarItem(
                       icon: spec.icon,
                       activeIcon: spec.activeIcon,
@@ -268,7 +271,10 @@ class _AppNavigationShellState extends ConsumerState<AppNavigationShell> {
             bodyWithBanner,
             CloudBottomNav(
               items: <BottomNavItem>[
-                for (final spec in _tabSpecsFor(universe, AppL10nProxy.of(context)))
+                for (final spec in _tabSpecsFor(
+                  universe,
+                  AppL10nProxy.of(context),
+                ))
                   BottomNavItem(
                     icon: spec.icon,
                     activeIcon: spec.activeIcon,

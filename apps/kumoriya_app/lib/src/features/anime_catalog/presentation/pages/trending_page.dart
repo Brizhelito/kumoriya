@@ -2,10 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../app/l10n.dart';
-import '../../../../shared/theme/kumoriya_theme.dart';
-import '../../../../shared/widgets/state_views.dart';
+import 'package:kumoriya_ui/kumoriya_ui.dart';
+import '../../../../shared/utils/error_messaging.dart';
 import '../providers/anime_catalog_providers.dart';
-import '../widgets/anime_ranked_tile.dart';
 import 'anime_detail_page.dart';
 
 class TrendingPage extends ConsumerWidget {
@@ -16,12 +15,13 @@ class TrendingPage extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final trendingAsync = ref.watch(trendingCatalogProvider(_pageSize));
+    final colors = FormFactorProvider.colorsOf(context);
 
     return Scaffold(
-      backgroundColor: KumoriyaColors.background,
+      backgroundColor: colors.bg,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
-        foregroundColor: KumoriyaColors.textPrimary,
+        foregroundColor: colors.text,
         title: Text(context.l10n.trendingPageTitle),
       ),
       body: SafeArea(
@@ -50,10 +50,7 @@ class TrendingPage extends ConsumerWidget {
                       padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
                       child: Text(
                         context.l10n.trendingPageSubtitle,
-                        style: const TextStyle(
-                          fontSize: 13,
-                          color: KumoriyaColors.textTertiary,
-                        ),
+                        style: TextStyle(fontSize: 13, color: colors.textSoft),
                       ),
                     ),
                   ),
@@ -63,9 +60,16 @@ class TrendingPage extends ConsumerWidget {
                       itemCount: animeList.length,
                       itemBuilder: (context, index) {
                         final anime = animeList[index];
-                        return AnimeRankedTile(
-                          anime: anime,
-                          rank: index + 1,
+                        return RankedTile(
+                          rank: '${index + 1}',
+                          imageUrl: anime.coverImageUrl,
+                          title: anime.title.romaji,
+                          subtitle: anime.releaseYear != null
+                              ? '${anime.releaseYear} · ${anime.format.name.toUpperCase()}'
+                              : anime.format.name.toUpperCase(),
+                          score: anime.averageScore != null
+                              ? '★ ${anime.averageScore}'
+                              : null,
                           onTap: () => Navigator.of(context).push(
                             MaterialPageRoute<void>(
                               builder: (_) =>

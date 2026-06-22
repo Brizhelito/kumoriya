@@ -10,16 +10,12 @@ import 'package:kumoriya_core/kumoriya_core.dart';
 import 'package:kumoriya_domain/kumoriya_domain.dart';
 import 'package:kumoriya_plugins/kumoriya_plugins.dart';
 import 'package:kumoriya_storage/kumoriya_storage.dart';
-import 'package:kumoriya_ui/kumoriya_ui.dart'
-    hide ContinueWatchingCard, DownloadStatus;
+import 'package:kumoriya_ui/kumoriya_ui.dart';
+import '../../../../shared/utils/error_messaging.dart';
 
 import '../../../../app/l10n.dart';
 import '../../../../shared/icons/kumoriya_icons.dart';
-import '../../../../shared/theme/kumoriya_theme.dart';
 import '../../../../shared/widgets/active_party_banner.dart';
-import '../../../../shared/widgets/continue_watching_card.dart';
-import '../../../../shared/widgets/kumoriya_cached_image.dart';
-import '../../../../shared/widgets/state_views.dart';
 import '../../../../shared/universe/widgets/universe_switch.dart';
 import '../../application/models/episode_playback.dart';
 import '../../application/models/resolved_server_link_result.dart';
@@ -31,7 +27,6 @@ import '../providers/anime_catalog_providers.dart';
 import '../providers/storage_providers.dart';
 import '../support/playback_launch_flow.dart';
 import '../support/season_presentation.dart';
-import '../widgets/anime_ranked_tile.dart';
 import 'anime_detail_page.dart';
 import 'episode_list_page.dart';
 import 'season_hub_page.dart';
@@ -122,13 +117,14 @@ class _HomeBody extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = FormFactorProvider.colorsOf(context);
     final catalogById = <int, Anime>{
       for (final anime in animeList) anime.anilistId: anime,
     };
 
     return RefreshIndicator(
-      color: KumoriyaColors.primary,
-      backgroundColor: KumoriyaColors.surface,
+      color: colors.primary,
+      backgroundColor: colors.surface,
       onRefresh: () async {
         onRefresh?.call();
       },
@@ -184,9 +180,16 @@ class _HomeBody extends StatelessWidget {
               sliver: SliverList(
                 delegate: SliverChildBuilderDelegate((context, index) {
                   final anime = animeList[index];
-                  return AnimeRankedTile(
-                    anime: anime,
-                    rank: index + 1,
+                  return RankedTile(
+                    rank: '${index + 1}',
+                    imageUrl: anime.coverImageUrl,
+                    title: anime.title.romaji,
+                    subtitle: anime.releaseYear != null
+                        ? '${anime.releaseYear} · ${anime.format.name.toUpperCase()}'
+                        : anime.format.name.toUpperCase(),
+                    score: anime.averageScore != null
+                        ? '★ ${anime.averageScore}'
+                        : null,
                     onTap: () => _openDetail(context, anime.anilistId),
                   );
                 }, childCount: animeList.length > 10 ? 10 : animeList.length),
@@ -209,7 +212,7 @@ class _HomeBody extends StatelessWidget {
 class _MobileHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
+    final colors = FormFactorProvider.colorsOf(context);
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: Row(
@@ -218,11 +221,11 @@ class _MobileHeader extends StatelessWidget {
             width: 32,
             height: 32,
             decoration: BoxDecoration(
-              color: KumoriyaColors.primary,
+              color: colors.primary,
               shape: BoxShape.circle,
               boxShadow: <BoxShadow>[
                 BoxShadow(
-                  color: KumoriyaColors.primary.withValues(alpha: 0.30),
+                  color: colors.primary.withValues(alpha: 0.30),
                   blurRadius: 10,
                   offset: const Offset(0, 3),
                 ),
@@ -232,7 +235,7 @@ class _MobileHeader extends StatelessWidget {
             child: Text(
               'K',
               style: TextStyle(
-                color: theme.colorScheme.onPrimary,
+                color: colors.surface,
                 fontSize: 16,
                 fontWeight: FontWeight.w900,
               ),
@@ -248,7 +251,10 @@ class _MobileHeader extends StatelessWidget {
                   'Kumoriya',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: theme.textTheme.headlineSmall?.copyWith(
+                  style: TextStyle(
+                    color: colors.text,
+                    fontSize: 20,
+                    fontWeight: FontWeight.w700,
                     letterSpacing: -0.3,
                   ),
                 ),
@@ -258,10 +264,7 @@ class _MobileHeader extends StatelessWidget {
                   ).format(DateTime.now()),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontSize: 11,
-                    color: KumoriyaColors.textTertiary,
-                  ),
+                  style: TextStyle(fontSize: 11, color: colors.textSoft),
                 ),
               ],
             ),
@@ -293,25 +296,26 @@ class _SeasonHubSpotlightCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = FormFactorProvider.colorsOf(context);
     final request = currentSeasonalCatalogRequest();
     return Material(
       color: Colors.transparent,
       child: InkWell(
-        borderRadius: BorderRadius.circular(KumoriyaRadius.xxl),
+        borderRadius: BorderRadius.circular(CloudRadius.lg),
         onTap: onTap,
         child: Ink(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(KumoriyaRadius.xxl),
+            borderRadius: BorderRadius.circular(CloudRadius.lg),
             gradient: LinearGradient(
               colors: <Color>[
-                KumoriyaColors.surface,
-                KumoriyaColors.surfaceDim,
+                colors.surface,
+                colors.surface.withValues(alpha: 0.5),
               ],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
-            border: Border.all(color: KumoriyaColors.borderMedium),
+            border: Border.all(color: colors.mist),
           ),
           child: Row(
             children: <Widget>[
@@ -321,7 +325,9 @@ class _SeasonHubSpotlightCard extends StatelessWidget {
                   children: <Widget>[
                     Text(
                       context.l10n.homeSeasonHubTitle,
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      style: TextStyle(
+                        color: colors.text,
+                        fontSize: 15,
                         fontWeight: FontWeight.w800,
                       ),
                     ),
@@ -332,9 +338,9 @@ class _SeasonHubSpotlightCard extends StatelessWidget {
                         request.season,
                         request.year,
                       ),
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 12,
-                        color: KumoriyaColors.primary,
+                        color: colors.primary,
                         fontWeight: FontWeight.w700,
                       ),
                     ),
@@ -343,19 +349,13 @@ class _SeasonHubSpotlightCard extends StatelessWidget {
                       context.l10n.homeSeasonHubSubtitle,
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontSize: 13,
-                        color: KumoriyaColors.textTertiary,
-                      ),
+                      style: TextStyle(fontSize: 13, color: colors.textSoft),
                     ),
                   ],
                 ),
               ),
               const SizedBox(width: 12),
-              const Icon(
-                Icons.auto_awesome_rounded,
-                color: KumoriyaColors.primary,
-              ),
+              Icon(Icons.auto_awesome_rounded, color: colors.primary),
             ],
           ),
         ),
@@ -434,6 +434,7 @@ class _ContinueWatchingSectionState extends State<_ContinueWatchingSection> {
 
   @override
   Widget build(BuildContext context) {
+    final colors = FormFactorProvider.colorsOf(context);
     return widget.continueWatching.when(
       loading: () => Padding(
         padding: const EdgeInsets.only(top: 20),
@@ -478,12 +479,19 @@ class _ContinueWatchingSectionState extends State<_ContinueWatchingSection> {
                           children: <Widget>[
                             Text(
                               context.l10n.continueWatching,
-                              style: Theme.of(context).textTheme.titleLarge,
+                              style: TextStyle(
+                                color: colors.text,
+                                fontSize: 18,
+                                fontWeight: FontWeight.w700,
+                              ),
                             ),
                             const SizedBox(height: 3),
                             Text(
                               context.l10n.continueWatchingHint,
-                              style: Theme.of(context).textTheme.bodySmall,
+                              style: TextStyle(
+                                color: colors.textMuted,
+                                fontSize: 12,
+                              ),
                             ),
                           ],
                         ),
@@ -551,19 +559,20 @@ class _NavArrow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = FormFactorProvider.colorsOf(context);
     Widget child = InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(KumoriyaRadius.full),
-      splashColor: KumoriyaColors.primary.withValues(alpha: 0.08),
+      borderRadius: BorderRadius.circular(CloudRadius.pill),
+      splashColor: colors.primary.withValues(alpha: 0.08),
       child: Container(
         width: 44,
         height: 44,
         decoration: BoxDecoration(
-          color: KumoriyaColors.surface,
-          borderRadius: BorderRadius.circular(KumoriyaRadius.full),
-          border: Border.all(color: KumoriyaColors.borderSubtle),
+          color: colors.surface,
+          borderRadius: BorderRadius.circular(CloudRadius.pill),
+          border: Border.all(color: colors.surface2),
         ),
-        child: Icon(icon, color: KumoriyaColors.textMuted, size: 18),
+        child: Icon(icon, color: colors.textMuted, size: 18),
       ),
     );
     if (tooltip != null) {
@@ -623,10 +632,10 @@ class _ContinueWatchingCardWrapperState
 
     return ContinueWatchingCard(
       key: Key('continue-watching-card-${widget.entry.anilistId}'),
-      entry: widget.entry,
-      title: title,
+      animeTitle: title,
+      episodeLabel: 'Episode ${widget.entry.lastEpisodeNumber.toInt()}',
+      progress: widget.entry.progressFraction ?? 0.0,
       imageUrl: imageUrl,
-      isLaunching: _isLaunching,
       onResume: () => _handleResumeTap(title),
     );
   }
@@ -971,6 +980,7 @@ class _AiringTodayCardState extends State<_AiringTodayCard> {
 
   @override
   Widget build(BuildContext context) {
+    final colors = FormFactorProvider.colorsOf(context);
     final anime = widget.anime;
     final localNext = anime.nextAiringAt?.toLocal();
     final timeLabel = localNext != null
@@ -984,31 +994,27 @@ class _AiringTodayCardState extends State<_AiringTodayCard> {
       onExit: (_) => setState(() => _hovered = false),
       child: InkWell(
         onTap: widget.onTap,
-        borderRadius: BorderRadius.circular(KumoriyaRadius.xxl),
-        splashColor: KumoriyaColors.primary.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(CloudRadius.lg),
+        splashColor: colors.primary.withValues(alpha: 0.08),
         child: AnimatedContainer(
-          duration: const Duration(milliseconds: 180),
+          duration: CloudMotion.fast,
           width: 260,
           padding: const EdgeInsets.all(12),
           clipBehavior: Clip.hardEdge,
           decoration: BoxDecoration(
             color: _hovered
-                ? KumoriyaColors.surface
-                : KumoriyaColors.surfaceDim,
-            borderRadius: BorderRadius.circular(KumoriyaRadius.xxl),
-            border: Border.all(
-              color: _hovered
-                  ? KumoriyaColors.borderMedium
-                  : KumoriyaColors.borderSubtle,
-            ),
+                ? colors.surface
+                : colors.surface.withValues(alpha: 0.5),
+            borderRadius: BorderRadius.circular(CloudRadius.lg),
+            border: Border.all(color: _hovered ? colors.mist : colors.surface2),
           ),
           child: Row(
             children: <Widget>[
               ClipRRect(
-                borderRadius: BorderRadius.circular(KumoriyaRadius.md),
-                child: KumoriyaCachedImage(
+                borderRadius: BorderRadius.circular(CloudRadius.md),
+                child: CloudCachedImage(
                   url: anime.coverImageUrl,
-                  bucket: KumoriyaImageCacheBucket.artwork,
+                  bucket: CloudImageCacheBucket.artwork,
                   width: 72,
                   height: 96,
                   fit: BoxFit.cover,
@@ -1024,20 +1030,20 @@ class _AiringTodayCardState extends State<_AiringTodayCard> {
                       anime.title.romaji,
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 13,
                         fontWeight: FontWeight.w700,
-                        color: KumoriyaColors.textPrimary,
+                        color: colors.text,
                       ),
                     ),
                     if (anime.nextAiringEpisodeNumber != null) ...<Widget>[
                       const SizedBox(height: 4),
                       Text(
                         'EP ${anime.nextAiringEpisodeNumber}',
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 11,
                           fontWeight: FontWeight.w600,
-                          color: KumoriyaColors.primary,
+                          color: colors.primary,
                         ),
                       ),
                     ],
@@ -1045,19 +1051,19 @@ class _AiringTodayCardState extends State<_AiringTodayCard> {
                       const SizedBox(height: 4),
                       Row(
                         children: <Widget>[
-                          const Icon(
+                          Icon(
                             Icons.schedule_rounded,
                             size: 13,
-                            color: KumoriyaColors.textDisabled,
+                            color: colors.textSoft,
                           ),
                           const SizedBox(width: 4),
                           Flexible(
                             child: Text(
                               timeLabel,
                               overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 11,
-                                color: KumoriyaColors.textDisabled,
+                                color: colors.textSoft,
                               ),
                             ),
                           ),

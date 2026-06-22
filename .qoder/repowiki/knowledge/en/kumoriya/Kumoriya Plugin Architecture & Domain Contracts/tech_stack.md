@@ -1,0 +1,1 @@
+Dart SDK ^3.11.1 with workspace resolution; Drift for SQLite persistence; Dio for advanced HTTP in sources; http package for lightweight resolvers.

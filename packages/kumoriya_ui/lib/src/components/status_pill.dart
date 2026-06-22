@@ -1,22 +1,23 @@
 import 'package:flutter/widgets.dart';
+import 'package:kumoriya_domain/kumoriya_domain.dart';
 
 import '../platform/form_factor_provider.dart';
 import '../tokens/cloud_colors.dart';
 import '../tokens/cloud_radius.dart';
 import '../tokens/cloud_spacing.dart';
 
-/// Status pill for anime status (airing, finished, upcoming, etc.).
+/// Status pill for anime status (releasing, finished, upcoming, etc.).
 class StatusPill extends StatelessWidget {
-  const StatusPill({super.key, required this.status});
+  const StatusPill({super.key, required this.status, this.label});
 
-  final CloudAnimeStatus status;
+  final AnimeStatus status;
+  final String? label;
 
   @override
   Widget build(BuildContext context) {
     final colors = FormFactorProvider.colorsOf(context);
     final bgColor = _resolveBg(colors);
     final fgColor = _resolveFg(colors);
-    final label = _resolveLabel();
 
     return Container(
       padding: EdgeInsets.symmetric(
@@ -28,7 +29,7 @@ class StatusPill extends StatelessWidget {
         borderRadius: BorderRadius.circular(CloudRadius.pill),
       ),
       child: Text(
-        label,
+        label ?? _defaultLabel(),
         style: TextStyle(
           color: fgColor,
           fontSize: 10,
@@ -41,33 +42,34 @@ class StatusPill extends StatelessWidget {
 
   Color _resolveBg(CloudColors colors) {
     return switch (status) {
-      CloudAnimeStatus.airing => colors.primary.withValues(alpha: 0.14),
-      CloudAnimeStatus.finished => colors.success.withValues(alpha: 0.12),
-      CloudAnimeStatus.upcoming => colors.surface2,
-      CloudAnimeStatus.cancelled => colors.error.withValues(alpha: 0.12),
-      CloudAnimeStatus.hiatus => colors.warning.withValues(alpha: 0.12),
+      AnimeStatus.releasing => colors.primary.withValues(alpha: 0.14),
+      AnimeStatus.finished => colors.success.withValues(alpha: 0.12),
+      AnimeStatus.notYetReleased => colors.surface2,
+      AnimeStatus.cancelled => colors.error.withValues(alpha: 0.12),
+      AnimeStatus.hiatus => colors.warning.withValues(alpha: 0.12),
+      AnimeStatus.unknown => colors.surface2,
     };
   }
 
   Color _resolveFg(CloudColors colors) {
     return switch (status) {
-      CloudAnimeStatus.airing => colors.primary,
-      CloudAnimeStatus.finished => colors.success,
-      CloudAnimeStatus.upcoming => colors.textMuted,
-      CloudAnimeStatus.cancelled => colors.error,
-      CloudAnimeStatus.hiatus => colors.warning,
+      AnimeStatus.releasing => colors.primary,
+      AnimeStatus.finished => colors.success,
+      AnimeStatus.notYetReleased => colors.textMuted,
+      AnimeStatus.cancelled => colors.error,
+      AnimeStatus.hiatus => colors.warning,
+      AnimeStatus.unknown => colors.textMuted,
     };
   }
 
-  String _resolveLabel() {
+  String _defaultLabel() {
     return switch (status) {
-      CloudAnimeStatus.airing => 'AIRING',
-      CloudAnimeStatus.finished => 'FINISHED',
-      CloudAnimeStatus.upcoming => 'UPCOMING',
-      CloudAnimeStatus.cancelled => 'CANCELLED',
-      CloudAnimeStatus.hiatus => 'ON HIATUS',
+      AnimeStatus.releasing => 'AIRING',
+      AnimeStatus.finished => 'FINISHED',
+      AnimeStatus.notYetReleased => 'UPCOMING',
+      AnimeStatus.cancelled => 'CANCELLED',
+      AnimeStatus.hiatus => 'ON HIATUS',
+      AnimeStatus.unknown => 'UNKNOWN',
     };
   }
 }
-
-enum CloudAnimeStatus { airing, finished, upcoming, cancelled, hiatus }

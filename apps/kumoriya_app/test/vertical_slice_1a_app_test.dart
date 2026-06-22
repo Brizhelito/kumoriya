@@ -13,7 +13,7 @@ import 'package:kumoriya_app/src/features/anime_catalog/presentation/providers/a
 import 'package:kumoriya_app/src/features/downloads/application/download_directory_service.dart';
 import 'package:kumoriya_app/src/features/downloads/presentation/download_providers.dart';
 import 'package:kumoriya_app/src/features/anime_catalog/presentation/providers/storage_providers.dart';
-import 'package:kumoriya_app/src/features/anime_catalog/presentation/widgets/source_badge.dart';
+import 'package:kumoriya_ui/kumoriya_ui.dart';
 
 void main() {
   testWidgets(

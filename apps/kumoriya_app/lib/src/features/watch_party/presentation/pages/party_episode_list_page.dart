@@ -7,18 +7,15 @@ import 'package:kumoriya_domain/kumoriya_domain.dart';
 import 'package:kumoriya_plugins/kumoriya_plugins.dart';
 import 'package:kumoriya_storage/kumoriya_storage.dart';
 
+import 'package:kumoriya_ui/kumoriya_ui.dart';
 import '../../../../app/l10n.dart';
-import '../../../../shared/theme/kumoriya_theme.dart';
-import '../../../../shared/widgets/episode_row.dart';
-import '../../../../shared/widgets/kumoriya_cached_image.dart';
-import '../../../../shared/widgets/state_views.dart';
+import '../../../../shared/utils/error_messaging.dart';
 import '../../../anime_catalog/application/models/resolved_server_link_result.dart';
 import '../../../anime_catalog/application/models/source_availability.dart';
 import '../../../anime_catalog/presentation/providers/anime_catalog_providers.dart';
 import '../../../anime_catalog/presentation/support/episode_display_title.dart';
 import '../../../anime_catalog/presentation/support/playback_launch_flow.dart';
 import '../../../anime_catalog/presentation/support/plugin_icon_helpers.dart';
-import '../../../anime_catalog/presentation/widgets/source_badge.dart';
 import '../../../downloads/presentation/download_providers.dart';
 import '../../../player/presentation/pages/player_page.dart';
 import '../../../anime_catalog/presentation/providers/storage_providers.dart';
@@ -48,6 +45,7 @@ class _PartyEpisodeListPageState extends ConsumerState<PartyEpisodeListPage> {
 
   @override
   Widget build(BuildContext context) {
+    final colors = FormFactorProvider.colorsOf(context);
     final detailState = ref.watch(animeDetailProvider(widget.anilistId));
     final availabilityState = ref.watch(
       sourceAvailabilitySummaryProvider(widget.anilistId),
@@ -64,7 +62,7 @@ class _PartyEpisodeListPageState extends ConsumerState<PartyEpisodeListPage> {
         if (!didPop && mounted) _openLobby();
       },
       child: Scaffold(
-        backgroundColor: KumoriyaColors.background,
+        backgroundColor: colors.bg,
         body: SafeArea(
           child: detailState.when(
             loading: () =>
@@ -260,6 +258,7 @@ class _PartyEpisodeContent extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final colors = FormFactorProvider.colorsOf(context);
     final notifier = ref.read(partySessionProvider.notifier);
     final isHost = notifier.isLocalHost;
     final room = session.room;
@@ -294,18 +293,20 @@ class _PartyEpisodeContent extends ConsumerWidget {
                         children: <Widget>[
                           Text(
                             context.l10n.partyEpisodesTitle,
-                            style: Theme.of(context).textTheme.titleMedium
-                                ?.copyWith(
-                                  color: KumoriyaColors.textPrimary,
-                                  fontWeight: FontWeight.w800,
-                                ),
+                            style: TextStyle(
+                              color: colors.text,
+                              fontSize: 16,
+                              fontWeight: FontWeight.w800,
+                            ),
                           ),
                           Text(
                             isHost
                                 ? context.l10n.partyEpisodesHostSubtitle
                                 : context.l10n.partyEpisodesMemberSubtitle,
-                            style: Theme.of(context).textTheme.bodySmall
-                                ?.copyWith(color: KumoriyaColors.textSecondary),
+                            style: TextStyle(
+                              color: colors.textMuted,
+                              fontSize: 12,
+                            ),
                           ),
                         ],
                       ),
@@ -316,22 +317,22 @@ class _PartyEpisodeContent extends ConsumerWidget {
                 Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(KumoriyaRadius.xl),
+                    borderRadius: BorderRadius.circular(CloudRadius.lg),
                     gradient: const LinearGradient(
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
                       colors: <Color>[Color(0xFF152131), Color(0xFF0D131C)],
                     ),
-                    border: Border.all(color: KumoriyaColors.borderSubtle),
+                    border: Border.all(color: colors.surface2),
                   ),
                   child: Row(
                     children: <Widget>[
-                      KumoriyaCachedImage(
+                      CloudCachedImage(
                         url: detail.anime.coverImageUrl,
-                        bucket: KumoriyaImageCacheBucket.artwork,
+                        bucket: CloudImageCacheBucket.artwork,
                         width: 68,
                         height: 96,
-                        borderRadius: BorderRadius.circular(KumoriyaRadius.lg),
+                        borderRadius: BorderRadius.circular(CloudRadius.md),
                       ),
                       const SizedBox(width: 14),
                       Expanded(
@@ -342,11 +343,11 @@ class _PartyEpisodeContent extends ConsumerWidget {
                               detail.anime.title.romaji,
                               maxLines: 2,
                               overflow: TextOverflow.ellipsis,
-                              style: Theme.of(context).textTheme.titleLarge
-                                  ?.copyWith(
-                                    color: KumoriyaColors.textPrimary,
-                                    fontWeight: FontWeight.w800,
-                                  ),
+                              style: TextStyle(
+                                color: colors.text,
+                                fontSize: 20,
+                                fontWeight: FontWeight.w800,
+                              ),
                             ),
                             const SizedBox(height: 8),
                             Wrap(
@@ -379,11 +380,11 @@ class _PartyEpisodeContent extends ConsumerWidget {
                     children: summary!.playableSources
                         .map(
                           (source) => SourceBadge(
-                            name: source.manifest.displayName,
+                            sourceName: source.manifest.displayName,
                             iconUrl: effectiveSourceIconUrl(source.manifest),
                             audioKinds: source.availableAudioKinds,
                             compact: true,
-                            highlighted:
+                            isHighlighted:
                                 summary!.recommended?.manifest.id ==
                                 source.manifest.id,
                           ),
@@ -425,14 +426,12 @@ class _PartyEpisodeContent extends ConsumerWidget {
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
                         color: isCurrentPartyEpisode
-                            ? KumoriyaColors.primary.withValues(alpha: 0.08)
+                            ? colors.primary.withValues(alpha: 0.08)
                             : Colors.transparent,
-                        borderRadius: BorderRadius.circular(KumoriyaRadius.lg),
+                        borderRadius: BorderRadius.circular(CloudRadius.md),
                         border: isCurrentPartyEpisode
                             ? Border.all(
-                                color: KumoriyaColors.primary.withValues(
-                                  alpha: 0.20,
-                                ),
+                                color: colors.primary.withValues(alpha: 0.20),
                               )
                             : null,
                       ),
@@ -442,21 +441,23 @@ class _PartyEpisodeContent extends ConsumerWidget {
                             width: 36,
                             child: Text(
                               episode.number.toInt().toString(),
-                              style: Theme.of(context).textTheme.titleMedium
-                                  ?.copyWith(
-                                    color: isCurrentPartyEpisode
-                                        ? KumoriyaColors.primary
-                                        : KumoriyaColors.textSecondary,
-                                    fontWeight: FontWeight.w700,
-                                  ),
+                              style: TextStyle(
+                                color: isCurrentPartyEpisode
+                                    ? colors.primary
+                                    : colors.textMuted,
+                                fontSize: 16,
+                                fontWeight: FontWeight.w700,
+                              ),
                             ),
                           ),
                           const SizedBox(width: 8),
                           Expanded(
                             child: Text(
                               _displayEpisodeTitle(episode, context: context),
-                              style: Theme.of(context).textTheme.bodyMedium
-                                  ?.copyWith(color: KumoriyaColors.textPrimary),
+                              style: TextStyle(
+                                color: colors.text,
+                                fontSize: 14,
+                              ),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                             ),
@@ -464,11 +465,11 @@ class _PartyEpisodeContent extends ConsumerWidget {
                           if (isCurrentPartyEpisode)
                             Text(
                               context.l10n.partyRoomPick,
-                              style: Theme.of(context).textTheme.labelSmall
-                                  ?.copyWith(
-                                    color: KumoriyaColors.primary,
-                                    fontWeight: FontWeight.w700,
-                                  ),
+                              style: TextStyle(
+                                color: colors.primary,
+                                fontSize: 11,
+                                fontWeight: FontWeight.w700,
+                              ),
                             ),
                         ],
                       ),
@@ -477,19 +478,24 @@ class _PartyEpisodeContent extends ConsumerWidget {
                 }
 
                 return EpisodeRow(
-                  number: episode.number,
-                  displayTitle: _displayEpisodeTitle(episode, context: context),
-                  secondaryText: _secondaryLabel(
+                  episodeNumber: episode.number.toString(),
+                  title: _displayEpisodeTitle(episode, context: context),
+                  subtitle: _secondaryLabel(
                     context: context,
                     isHost: isHost,
                     isCurrentPartyEpisode: isCurrentPartyEpisode,
                     sourceCount: sources.length,
                     episode: episode,
                   ),
+                  state: isCurrentPartyEpisode
+                      ? EpisodeRowState.active
+                      : isLaunching || sources.isEmpty
+                      ? EpisodeRowState.notPlayable
+                      : EpisodeRowState.defaultState,
                   sourceBadges: sources
                       .map(
                         (source) => SourceBadge(
-                          name: source.manifest.displayName,
+                          sourceName: source.manifest.displayName,
                           iconUrl: effectiveSourceIconUrl(source.manifest),
                           audioKinds: source.availableAudioKinds,
                           compact: true,
@@ -497,9 +503,7 @@ class _PartyEpisodeContent extends ConsumerWidget {
                         ),
                       )
                       .toList(growable: false),
-                  progressFraction: _progressFraction(progress),
-                  isCurrentEpisode: isCurrentPartyEpisode,
-                  isPlayable: !isLaunching && sources.isNotEmpty,
+                  progress: _progressFraction(progress),
                   activeLabel: isCurrentPartyEpisode
                       ? context.l10n.partyRoomPick
                       : context.l10n.partyTapToQueue,
@@ -588,23 +592,25 @@ class _EpisodeActionChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = FormFactorProvider.colorsOf(context);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
         color: highlighted
-            ? KumoriyaColors.primary.withValues(alpha: 0.18)
-            : KumoriyaColors.surface,
-        borderRadius: BorderRadius.circular(KumoriyaRadius.full),
+            ? colors.primary.withValues(alpha: 0.18)
+            : colors.surface,
+        borderRadius: BorderRadius.circular(CloudRadius.pill),
         border: Border.all(
           color: highlighted
-              ? KumoriyaColors.primary.withValues(alpha: 0.35)
-              : KumoriyaColors.borderSubtle,
+              ? colors.primary.withValues(alpha: 0.35)
+              : colors.surface2,
         ),
       ),
       child: Text(
         label,
-        style: Theme.of(context).textTheme.labelSmall?.copyWith(
-          color: KumoriyaColors.textPrimary,
+        style: TextStyle(
+          color: colors.text,
+          fontSize: 11,
           fontWeight: FontWeight.w700,
         ),
       ),
@@ -619,16 +625,18 @@ class _PartyMiniChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = FormFactorProvider.colorsOf(context);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
         color: Colors.white.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(KumoriyaRadius.full),
+        borderRadius: BorderRadius.circular(CloudRadius.pill),
       ),
       child: Text(
         label,
-        style: Theme.of(context).textTheme.labelSmall?.copyWith(
-          color: KumoriyaColors.textPrimary,
+        style: TextStyle(
+          color: colors.text,
+          fontSize: 11,
           fontWeight: FontWeight.w700,
         ),
       ),

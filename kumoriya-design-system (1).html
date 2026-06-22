@@ -1,0 +1,3118 @@
+<!DOCTYPE html>
+<html lang="es" data-palette="cloudy-day" data-typography="serif-rounded" data-icon-style="yuukari" data-universe="anime">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Kumoriya · Design System — Cloudy Cozy</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@400;500;700;900&family=M+PLUS+Rounded+1c:wght@400;500;700;800&family=Hina+Mincho&family=Nunito:wght@400;600;700;800&family=Fredoka:wght@400;500;600;700&family=Quicksand:wght@400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,700;1,400;1,700&family=Inter:wght@400;500;600;700&family=Zen+Kurenaido&family=Klee+One:wght@400;600&family=Zen+Kaku+Gothic+New:wght@400;500;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+/* ============================================================
+   KUMORIYA DESIGN SYSTEM — CSS Variables
+   4 paletas · 4 tipografías · 4 estilos de iconos · 2 universos
+   ============================================================ */
+
+:root {
+  /* === Spacing scale === */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+  --space-8: 64px;
+
+  /* === Radius === */
+  --r-sm: 12px;
+  --r-md: 16px;
+  --r-lg: 24px;
+  --r-xl: 32px;
+  --r-pill: 999px;
+
+  /* === Motion === */
+  --ease-cloud: cubic-bezier(0.22, 1, 0.36, 1);   /* easeOutQuint */
+  --ease-rain: cubic-bezier(0.65, 0, 0.35, 1);    /* easeInOutCubic */
+  --dur-fast: 200ms;
+  --dur-base: 400ms;
+  --dur-slow: 600ms;
+  --dur-ambient: 30s;
+
+  /* === Default: Día nublado suave === */
+  --bg: #F4F1EC;
+  --bg-elev: #FBF9F5;
+  --surface: #FFFFFF;
+  --surface-2: #EDE9E2;
+  --mist: #E8EBF0;
+  --text: #2B3144;
+  --text-muted: #6B7280;
+  --text-soft: #9AA0AE;
+  --primary: #5B7BB5;
+  --primary-soft: #A8B8D4;
+  --accent: #E8A598;
+  --accent-soft: #F5CFC6;
+  --success: #7FB069;
+  --warning: #E6B450;
+  --error: #D97B7B;
+  --star: #F0C667;
+
+  /* === Default: Serif suave + Sans rounded === */
+  --font-display: 'Zen Maru Gothic', 'M PLUS Rounded 1c', serif;
+  --font-body: 'M PLUS Rounded 1c', 'Nunito', sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+  --font-weight-display: 700;
+  --font-weight-body: 500;
+
+  /* === Cloud shadow (3 capas difusas) === */
+  --shadow-cloud-sm: 0 1px 2px rgba(43,49,68,0.04), 0 2px 8px rgba(43,49,68,0.06), 0 8px 24px rgba(43,49,68,0.05);
+  --shadow-cloud: 0 2px 4px rgba(43,49,68,0.05), 0 8px 16px rgba(43,49,68,0.07), 0 16px 48px rgba(43,49,68,0.06);
+  --shadow-cloud-lg: 0 4px 8px rgba(43,49,68,0.06), 0 16px 32px rgba(43,49,68,0.08), 0 32px 80px rgba(43,49,68,0.08);
+  --shadow-cloud-hover: 0 4px 12px rgba(43,49,68,0.08), 0 16px 36px rgba(43,49,68,0.10), 0 32px 80px rgba(43,49,68,0.10);
+
+  /* === Gradient nube === */
+  --grad-cloud: linear-gradient(180deg, #FBF9F5 0%, #F4F1EC 50%, #EDE9E2 100%);
+  --grad-sky: linear-gradient(180deg, #DDE5EF 0%, #E8EBF0 60%, #F4F1EC 100%);
+
+  /* === Texturas === */
+  --washi-texture: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.4 0 0 0 0 0.4 0 0 0 0 0.4 0 0 0 0.06 0'/></filter><rect width='200' height='200' filter='url(%23n)'/></svg>");
+}
+
+/* ============================================================
+   PALETTE VARIANTS — 4 universos cromáticos
+   ============================================================ */
+
+/* 1. Día nublado suave (default) */
+[data-palette="cloudy-day"] {
+  --bg: #F4F1EC;
+  --bg-elev: #FBF9F5;
+  --surface: #FFFFFF;
+  --surface-2: #EDE9E2;
+  --mist: #E8EBF0;
+  --text: #2B3144;
+  --text-muted: #6B7280;
+  --text-soft: #9AA0AE;
+  --primary: #5B7BB5;
+  --primary-soft: #A8B8D4;
+  --accent: #E8A598;
+  --accent-soft: #F5CFC6;
+  --success: #7FB069;
+  --warning: #E6B450;
+  --error: #D97B7B;
+  --star: #F0C667;
+  --grad-cloud: linear-gradient(180deg, #FBF9F5 0%, #F4F1EC 50%, #EDE9E2 100%);
+  --grad-sky: linear-gradient(180deg, #DDE5EF 0%, #E8EBF0 60%, #F4F1EC 100%);
+}
+
+/* 2. Crepúsculo cálido */
+[data-palette="warm-twilight"] {
+  --bg: #F7EDE6;
+  --bg-elev: #FBF3EC;
+  --surface: #FFF8F2;
+  --surface-2: #F0E0D4;
+  --mist: #EAD9CC;
+  --text: #3A2A28;
+  --text-muted: #7A6258;
+  --text-soft: #A89187;
+  --primary: #C9927A;
+  --primary-soft: #E5C2AF;
+  --accent: #D4A574;
+  --accent-soft: #EBD0A8;
+  --success: #94B87F;
+  --warning: #D9A958;
+  --error: #C77772;
+  --star: #E8B659;
+  --grad-cloud: linear-gradient(180deg, #FFF8F2 0%, #F7EDE6 50%, #F0E0D4 100%);
+  --grad-sky: linear-gradient(180deg, #EAD9CC 0%, #F0E0D4 60%, #F7EDE6 100%);
+}
+
+/* 3. Noche estrellada */
+[data-palette="starry-night"] {
+  --bg: #1B1B3A;
+  --bg-elev: #232352;
+  --surface: #2A2A5A;
+  --surface-2: #343468;
+  --mist: #3D3D78;
+  --text: #E8E6F5;
+  --text-muted: #B8B5D4;
+  --text-soft: #8A87B0;
+  --primary: #8A9DD9;
+  --primary-soft: #5E6BA8;
+  --accent: #E8C668;
+  --accent-soft: #C9A855;
+  --success: #8FBD7D;
+  --warning: #E8C668;
+  --error: #E08A8A;
+  --star: #FFE9A8;
+  --grad-cloud: linear-gradient(180deg, #232352 0%, #1B1B3A 50%, #15152F 100%);
+  --grad-sky: linear-gradient(180deg, #2A2A5A 0%, #1B1B3A 60%, #15152F 100%);
+  --shadow-cloud-sm: 0 1px 2px rgba(0,0,0,0.3), 0 2px 8px rgba(0,0,0,0.4), 0 8px 24px rgba(0,0,0,0.3);
+  --shadow-cloud: 0 2px 4px rgba(0,0,0,0.4), 0 8px 16px rgba(0,0,0,0.5), 0 16px 48px rgba(0,0,0,0.4);
+  --shadow-cloud-lg: 0 4px 8px rgba(0,0,0,0.5), 0 16px 32px rgba(0,0,0,0.6), 0 32px 80px rgba(0,0,0,0.5);
+  --shadow-cloud-hover: 0 4px 12px rgba(0,0,0,0.5), 0 16px 36px rgba(0,0,0,0.6), 0 32px 80px rgba(0,0,0,0.6);
+}
+
+/* 4. Tormenta cozy */
+[data-palette="cozy-storm"] {
+  --bg: #E8E5E0;
+  --bg-elev: #EFEBE5;
+  --surface: #F5F1EB;
+  --surface-2: #DDD8D0;
+  --mist: #CFC9BE;
+  --text: #2D2A28;
+  --text-muted: #6E675F;
+  --text-soft: #9D958A;
+  --primary: #8B95A8;
+  --primary-soft: #B5BCC8;
+  --accent: #E8B59A;
+  --accent-soft: #F0D2BD;
+  --success: #8AA876;
+  --warning: #D9B058;
+  --error: #C77A6F;
+  --star: #E8C159;
+  --grad-cloud: linear-gradient(180deg, #F5F1EB 0%, #E8E5E0 50%, #DDD8D0 100%);
+  --grad-sky: linear-gradient(180deg, #CFC9BE 0%, #DDD8D0 60%, #E8E5E0 100%);
+}
+
+/* ============================================================
+   TYPOGRAPHY VARIANTS — 4 direcciones
+   ============================================================ */
+
+[data-typography="serif-rounded"] {
+  --font-display: 'Zen Maru Gothic', 'Hina Mincho', serif;
+  --font-body: 'M PLUS Rounded 1c', 'Nunito', sans-serif;
+  --font-weight-display: 700;
+  --font-weight-body: 500;
+}
+
+[data-typography="display-cozy"] {
+  --font-display: 'Fredoka', 'Baloo 2', sans-serif;
+  --font-body: 'Quicksand', sans-serif;
+  --font-weight-display: 600;
+  --font-weight-body: 500;
+}
+
+[data-typography="editorial-cloud"] {
+  --font-display: 'Playfair Display', serif;
+  --font-body: 'Inter', sans-serif;
+  --font-weight-display: 700;
+  --font-weight-body: 400;
+}
+
+[data-typography="handwritten-home"] {
+  --font-display: 'Zen Kurenaido', 'Klee One', cursive;
+  --font-body: 'Zen Kaku Gothic New', sans-serif;
+  --font-weight-display: 400;
+  --font-weight-body: 400;
+}
+
+/* ============================================================
+   UNIVERSE VARIANTS — Anime (Cielo) vs Manga (Papel)
+   ============================================================ */
+
+[data-universe="anime"] {
+  --universe-bg: var(--grad-sky);
+  --universe-texture: none;
+  --universe-overlay: '';
+}
+
+[data-universe="manga"] {
+  --universe-bg: linear-gradient(180deg, #F0E8D8 0%, #E8DFCB 100%);
+  --universe-texture: var(--washi-texture);
+  --universe-overlay: 'sepia(0.15) contrast(0.97)';
+}
+
+/* ============================================================
+   BASE STYLES
+   ============================================================ */
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html { scroll-behavior: smooth; }
+
+body {
+  font-family: var(--font-body);
+  font-weight: var(--font-weight-body);
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.6;
+  font-size: 16px;
+  transition: background var(--dur-slow) var(--ease-cloud), color var(--dur-slow) var(--ease-cloud);
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3, h4 {
+  font-family: var(--font-display);
+  font-weight: var(--font-weight-display);
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+}
+
+code, pre, .mono {
+  font-family: var(--font-mono);
+}
+
+::selection { background: var(--accent-soft); color: var(--text); }
+
+/* ============================================================
+   LAYOUT — Sections
+   ============================================================ */
+
+.section {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: var(--space-7) var(--space-5);
+  position: relative;
+}
+
+.section-label {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--text-muted);
+  padding: 6px 14px;
+  background: var(--surface);
+  border-radius: var(--r-pill);
+  box-shadow: var(--shadow-cloud-sm);
+  margin-bottom: var(--space-4);
+}
+
+.section-title {
+  font-size: clamp(28px, 4vw, 42px);
+  margin-bottom: var(--space-3);
+  color: var(--text);
+}
+
+.section-sub {
+  font-size: 17px;
+  color: var(--text-muted);
+  max-width: 680px;
+  margin-bottom: var(--space-6);
+  line-height: 1.65;
+}
+
+.section-divider {
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--text-soft), transparent);
+  opacity: 0.3;
+  margin: var(--space-7) 0;
+}
+
+/* ============================================================
+   THEME SWITCHER — Sticky control bar
+   ============================================================ */
+
+.theme-switcher {
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+  background: rgba(255,255,255,0.85);
+  backdrop-filter: blur(20px) saturate(1.2);
+  -webkit-backdrop-filter: blur(20px) saturate(1.2);
+  border-bottom: 1px solid var(--surface-2);
+  padding: 12px var(--space-5);
+  transition: background var(--dur-base) var(--ease-cloud), border-color var(--dur-base) var(--ease-cloud);
+}
+
+[data-palette="starry-night"] .theme-switcher {
+  background: rgba(27,27,58,0.85);
+}
+
+.theme-switcher-inner {
+  max-width: 1280px;
+  margin: 0 auto;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.switcher-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 18px;
+}
+
+.switcher-brand-mark {
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+}
+
+.switcher-groups {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+
+.switcher-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px;
+  background: var(--surface-2);
+  border-radius: var(--r-pill);
+  transition: background var(--dur-base) var(--ease-cloud);
+}
+
+.switcher-group-label {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-soft);
+  padding: 0 8px 0 6px;
+}
+
+.switcher-btn {
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  font-family: var(--font-body);
+  font-size: 12px;
+  font-weight: 600;
+  padding: 6px 12px;
+  border-radius: var(--r-pill);
+  cursor: pointer;
+  transition: all var(--dur-fast) var(--ease-cloud);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.switcher-btn:hover {
+  color: var(--text);
+  background: var(--surface);
+}
+
+.switcher-btn.active {
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: var(--shadow-cloud-sm);
+}
+
+.switcher-swatch {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(0,0,0,0.06);
+}
+
+.sw-cd { background: linear-gradient(135deg, #F4F1EC, #A8B8D4); }
+.sw-wt { background: linear-gradient(135deg, #F7EDE6, #D4A574); }
+.sw-sn { background: linear-gradient(135deg, #1B1B3A, #E8C668); }
+.sw-cs { background: linear-gradient(135deg, #E8E5E0, #8B95A8); }
+
+/* ============================================================
+   HERO
+   ============================================================ */
+
+.hero {
+  position: relative;
+  min-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  overflow: hidden;
+  background: var(--grad-sky);
+  transition: background var(--dur-slow) var(--ease-cloud);
+}
+
+.hero-clouds {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.cloud {
+  position: absolute;
+  background: radial-gradient(ellipse at center, rgba(255,255,255,0.9) 0%, rgba(255,255,255,0) 70%);
+  filter: blur(20px);
+  border-radius: 50%;
+  animation: drift var(--dur-ambient) linear infinite;
+}
+
+.cloud-1 { width: 400px; height: 200px; top: 10%; left: -100px; animation-duration: 45s; }
+.cloud-2 { width: 300px; height: 150px; top: 30%; right: -50px; animation-duration: 60s; animation-delay: -10s; }
+.cloud-3 { width: 500px; height: 220px; bottom: 15%; left: 20%; animation-duration: 80s; animation-delay: -25s; opacity: 0.7; }
+
+@keyframes drift {
+  from { transform: translateX(-100px); }
+  to { transform: translateX(calc(100vw + 100px)); }
+}
+
+.hero-stars {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+}
+
+.star {
+  position: absolute;
+  width: 2px;
+  height: 2px;
+  background: var(--star);
+  border-radius: 50%;
+  opacity: 0;
+  animation: twinkle 4s ease-in-out infinite;
+}
+
+@keyframes twinkle {
+  0%, 100% { opacity: 0; transform: scale(0.5); }
+  50% { opacity: 0.8; transform: scale(1); }
+}
+
+.hero-content {
+  position: relative;
+  z-index: 2;
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 0 var(--space-5);
+  text-align: center;
+}
+
+.hero-jp {
+  font-family: var(--font-display);
+  font-size: clamp(20px, 3vw, 28px);
+  color: var(--accent);
+  letter-spacing: 0.3em;
+  margin-bottom: var(--space-3);
+  font-weight: 400;
+}
+
+.hero-title {
+  font-size: clamp(56px, 12vw, 140px);
+  line-height: 0.95;
+  letter-spacing: -0.03em;
+  margin-bottom: var(--space-4);
+  color: var(--text);
+}
+
+.hero-tagline {
+  font-size: clamp(18px, 2.2vw, 24px);
+  color: var(--text-muted);
+  max-width: 600px;
+  margin: 0 auto var(--space-6);
+  line-height: 1.5;
+}
+
+.hero-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 14px 28px;
+  background: var(--text);
+  color: var(--bg);
+  border: none;
+  border-radius: var(--r-pill);
+  font-family: var(--font-body);
+  font-weight: 700;
+  font-size: 15px;
+  cursor: pointer;
+  box-shadow: var(--shadow-cloud);
+  transition: all var(--dur-base) var(--ease-cloud);
+}
+
+.hero-cta:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-cloud-hover);
+}
+
+.hero-meta {
+  position: absolute;
+  bottom: var(--space-5);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 2;
+  display: flex;
+  gap: var(--space-5);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  color: var(--text-soft);
+}
+
+/* ============================================================
+   CONCEPT CARDS
+   ============================================================ */
+
+.concept-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: var(--space-4);
+  margin-top: var(--space-5);
+}
+
+.concept-card {
+  padding: var(--space-5);
+  background: var(--surface);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-cloud-sm);
+  transition: all var(--dur-base) var(--ease-cloud);
+}
+
+.concept-card:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-cloud);
+}
+
+.concept-card-icon {
+  width: 48px;
+  height: 48px;
+  display: grid;
+  place-items: center;
+  background: var(--accent-soft);
+  border-radius: var(--r-md);
+  margin-bottom: var(--space-3);
+  color: var(--text);
+}
+
+.concept-card h3 {
+  font-size: 18px;
+  margin-bottom: var(--space-2);
+}
+
+.concept-card p {
+  font-size: 14px;
+  color: var(--text-muted);
+  line-height: 1.6;
+}
+
+/* ============================================================
+   FOUNDATIONS — Color
+   ============================================================ */
+
+.color-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: var(--space-3);
+}
+
+.color-chip {
+  background: var(--surface);
+  border-radius: var(--r-md);
+  overflow: hidden;
+  box-shadow: var(--shadow-cloud-sm);
+  transition: transform var(--dur-base) var(--ease-cloud);
+}
+
+.color-chip:hover { transform: translateY(-2px); }
+
+.color-swatch {
+  height: 80px;
+  display: flex;
+  align-items: flex-end;
+  padding: 8px 12px;
+}
+
+.color-chip-meta {
+  padding: 10px 12px;
+}
+
+.color-chip-name {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text);
+  margin-bottom: 2px;
+}
+
+.color-chip-hex {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-soft);
+}
+
+/* ============================================================
+   FOUNDATIONS — Typography
+   ============================================================ */
+
+.type-stack {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.type-row {
+  display: grid;
+  grid-template-columns: 100px 1fr;
+  gap: var(--space-4);
+  align-items: baseline;
+  padding: var(--space-4);
+  background: var(--surface);
+  border-radius: var(--r-md);
+  box-shadow: var(--shadow-cloud-sm);
+}
+
+.type-label {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-soft);
+}
+
+.type-sample-display { font-family: var(--font-display); font-weight: var(--font-weight-display); font-size: 48px; line-height: 1.1; }
+.type-sample-h1 { font-family: var(--font-display); font-weight: var(--font-weight-display); font-size: 32px; line-height: 1.2; }
+.type-sample-h2 { font-family: var(--font-display); font-weight: var(--font-weight-display); font-size: 24px; line-height: 1.3; }
+.type-sample-body { font-family: var(--font-body); font-weight: var(--font-weight-body); font-size: 16px; line-height: 1.6; }
+.type-sample-caption { font-family: var(--font-body); font-weight: var(--font-weight-body); font-size: 12px; color: var(--text-muted); }
+
+/* ============================================================
+   FOUNDATIONS — Iconography
+   ============================================================ */
+
+.icon-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+  gap: var(--space-3);
+}
+
+.icon-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-4);
+  background: var(--surface);
+  border-radius: var(--r-md);
+  box-shadow: var(--shadow-cloud-sm);
+  transition: all var(--dur-base) var(--ease-cloud);
+}
+
+.icon-cell:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-cloud);
+}
+
+.icon-cell svg {
+  width: 28px;
+  height: 28px;
+  color: var(--text);
+}
+
+.icon-cell-name {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-soft);
+}
+
+/* ============================================================
+   COMPONENTS showcase
+   ============================================================ */
+
+.comp-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+  align-items: center;
+  padding: var(--space-5);
+  background: var(--surface);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-cloud-sm);
+  margin-bottom: var(--space-4);
+}
+
+.comp-row-label {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-soft);
+  min-width: 100px;
+}
+
+/* === CloudButton === */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 22px;
+  font-family: var(--font-body);
+  font-weight: 700;
+  font-size: 14px;
+  border: none;
+  border-radius: var(--r-pill);
+  cursor: pointer;
+  transition: all var(--dur-base) var(--ease-cloud);
+}
+
+.btn-primary {
+  background: var(--text);
+  color: var(--bg);
+  box-shadow: var(--shadow-cloud-sm);
+}
+
+.btn-primary:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-cloud);
+}
+
+.btn-secondary {
+  background: var(--accent);
+  color: var(--text);
+  box-shadow: var(--shadow-cloud-sm);
+}
+
+.btn-secondary:hover {
+  background: var(--accent-soft);
+  transform: translateY(-1px);
+}
+
+.btn-ghost {
+  background: transparent;
+  color: var(--text);
+  border: 1.5px solid var(--surface-2);
+}
+
+.btn-ghost:hover {
+  background: var(--surface-2);
+}
+
+/* === Chips === */
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  font-family: var(--font-body);
+  font-size: 12px;
+  font-weight: 600;
+  border-radius: var(--r-pill);
+  background: var(--surface-2);
+  color: var(--text);
+}
+
+.chip-airing { background: var(--success); color: white; }
+.chip-finished { background: var(--text-soft); color: white; }
+.chip-upcoming { background: var(--warning); color: white; }
+.chip-tag { background: var(--primary-soft); color: var(--text); }
+.chip-rating { background: var(--accent-soft); color: var(--text); }
+.chip-rating svg { width: 12px; height: 12px; color: var(--star); }
+
+/* === SearchBar === */
+.search {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  background: var(--surface-2);
+  border-radius: var(--r-pill);
+  min-width: 280px;
+  transition: all var(--dur-base) var(--ease-cloud);
+}
+
+.search:focus-within {
+  background: var(--surface);
+  box-shadow: var(--shadow-cloud-sm);
+  outline: 2px solid var(--primary-soft);
+}
+
+.search svg { width: 18px; height: 18px; color: var(--text-soft); flex-shrink: 0; }
+
+.search input {
+  border: none;
+  background: transparent;
+  font-family: var(--font-body);
+  font-size: 14px;
+  color: var(--text);
+  outline: none;
+  width: 100%;
+}
+
+.search input::placeholder { color: var(--text-soft); }
+
+.search-kbd {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  padding: 2px 6px;
+  background: var(--surface);
+  border-radius: 4px;
+  color: var(--text-soft);
+  box-shadow: var(--shadow-cloud-sm);
+}
+
+/* === CloudCard === */
+.cloud-card {
+  background: var(--grad-cloud);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-cloud);
+  overflow: hidden;
+  transition: all var(--dur-base) var(--ease-cloud);
+  cursor: pointer;
+}
+
+.cloud-card:hover {
+  transform: translateY(-6px);
+  box-shadow: var(--shadow-cloud-hover);
+}
+
+.cloud-card-poster {
+  position: relative;
+  width: 180px;
+  aspect-ratio: 2/3;
+  overflow: hidden;
+}
+
+.cloud-card-poster img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform var(--dur-slow) var(--ease-cloud);
+}
+
+.cloud-card:hover .cloud-card-poster img { transform: scale(1.05); }
+
+.cloud-card-badge {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  padding: 4px 10px;
+  background: rgba(0,0,0,0.6);
+  color: white;
+  border-radius: var(--r-pill);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  backdrop-filter: blur(8px);
+}
+
+.cloud-card-info {
+  padding: 14px;
+}
+
+.cloud-card-title {
+  font-family: var(--font-display);
+  font-weight: var(--font-weight-display);
+  font-size: 15px;
+  margin-bottom: 4px;
+  color: var(--text);
+}
+
+.cloud-card-meta {
+  font-family: var(--font-body);
+  font-size: 12px;
+  color: var(--text-muted);
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+/* === BottomNav (mock mobile) === */
+.bottom-nav {
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+  background: var(--surface);
+  border-radius: var(--r-pill);
+  padding: 8px;
+  box-shadow: var(--shadow-cloud);
+  position: relative;
+}
+
+.nav-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 8px 16px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  border-radius: var(--r-pill);
+  font-family: var(--font-body);
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text-soft);
+  transition: all var(--dur-base) var(--ease-cloud);
+}
+
+.nav-item.active {
+  background: var(--accent-soft);
+  color: var(--text);
+}
+
+.nav-item svg { width: 22px; height: 22px; }
+
+/* ============================================================
+   MOBILE MOCKUPS
+   ============================================================ */
+
+.mockup-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-5);
+  justify-content: center;
+  margin: var(--space-5) 0;
+}
+
+.phone {
+  width: 320px;
+  height: 640px;
+  background: var(--bg);
+  border-radius: 40px;
+  padding: 12px;
+  box-shadow: var(--shadow-cloud-lg), inset 0 0 0 2px var(--surface-2);
+  position: relative;
+  overflow: hidden;
+  transition: all var(--dur-slow) var(--ease-cloud);
+}
+
+.phone-screen {
+  width: 100%;
+  height: 100%;
+  background: var(--bg);
+  border-radius: 30px;
+  overflow: hidden;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+
+.phone-notch {
+  position: absolute;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 100px;
+  height: 22px;
+  background: var(--surface-2);
+  border-radius: 0 0 16px 16px;
+  z-index: 10;
+}
+
+.phone-content {
+  flex: 1;
+  overflow: hidden;
+  padding-top: 40px;
+  position: relative;
+}
+
+.phone-statusbar {
+  position: absolute;
+  top: 16px;
+  left: 24px;
+  right: 24px;
+  display: flex;
+  justify-content: space-between;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text);
+  z-index: 11;
+}
+
+.phone-app {
+  height: 100%;
+  overflow-y: auto;
+  padding: 0 14px 80px;
+}
+
+.phone-app::-webkit-scrollbar { display: none; }
+
+.app-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 0 16px;
+}
+
+.app-greeting {
+  font-family: var(--font-display);
+  font-size: 18px;
+  font-weight: var(--font-weight-display);
+  line-height: 1.2;
+}
+
+.app-greeting-sub {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-weight: 400;
+}
+
+.app-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--accent-soft);
+  display: grid;
+  place-items: center;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 14px;
+  color: var(--text);
+}
+
+.app-hero-card {
+  position: relative;
+  height: 180px;
+  border-radius: var(--r-md);
+  overflow: hidden;
+  margin-bottom: 16px;
+  background: var(--grad-sky);
+}
+
+.app-hero-card-bg {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, var(--primary), var(--accent));
+  opacity: 0.85;
+}
+
+.app-hero-card-content {
+  position: relative;
+  z-index: 2;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  padding: 16px;
+  color: white;
+}
+
+.app-hero-card-tag {
+  display: inline-flex;
+  align-self: flex-start;
+  padding: 3px 10px;
+  background: rgba(255,255,255,0.25);
+  backdrop-filter: blur(10px);
+  border-radius: var(--r-pill);
+  font-family: var(--font-mono);
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  margin-bottom: 8px;
+}
+
+.app-hero-card-title {
+  font-family: var(--font-display);
+  font-weight: var(--font-weight-display);
+  font-size: 18px;
+  line-height: 1.15;
+  margin-bottom: 4px;
+}
+
+.app-hero-card-meta {
+  font-size: 11px;
+  opacity: 0.85;
+}
+
+.app-section-title {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-family: var(--font-display);
+  font-weight: var(--font-weight-display);
+  font-size: 14px;
+  margin: 18px 0 10px;
+}
+
+.app-section-link {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.app-card-row {
+  display: flex;
+  gap: 10px;
+  overflow-x: auto;
+  padding-bottom: 6px;
+  margin: 0 -14px;
+  padding-left: 14px;
+  padding-right: 14px;
+}
+
+.app-card-row::-webkit-scrollbar { display: none; }
+
+.app-mini-card {
+  flex-shrink: 0;
+  width: 100px;
+  background: var(--surface);
+  border-radius: var(--r-md);
+  overflow: hidden;
+  box-shadow: var(--shadow-cloud-sm);
+}
+
+.app-mini-poster {
+  height: 140px;
+  background: linear-gradient(135deg, var(--primary-soft), var(--accent-soft));
+  position: relative;
+}
+
+.app-mini-poster.ep2 { background: linear-gradient(135deg, var(--accent-soft), var(--primary-soft)); }
+.app-mini-poster.ep3 { background: linear-gradient(135deg, var(--success), var(--primary-soft)); }
+.app-mini-poster.ep4 { background: linear-gradient(135deg, var(--warning), var(--accent)); }
+
+.app-mini-info {
+  padding: 8px 10px;
+}
+
+.app-mini-title {
+  font-family: var(--font-display);
+  font-weight: var(--font-weight-display);
+  font-size: 11px;
+  line-height: 1.2;
+  margin-bottom: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.app-mini-meta {
+  font-size: 9px;
+  color: var(--text-muted);
+}
+
+.app-continue-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px;
+  background: var(--surface);
+  border-radius: var(--r-md);
+  box-shadow: var(--shadow-cloud-sm);
+  margin-bottom: 8px;
+}
+
+.app-continue-poster {
+  width: 50px;
+  height: 64px;
+  border-radius: var(--r-sm);
+  background: linear-gradient(135deg, var(--primary), var(--accent));
+  flex-shrink: 0;
+}
+
+.app-continue-info { flex: 1; min-width: 0; }
+.app-continue-title {
+  font-family: var(--font-display);
+  font-weight: var(--font-weight-display);
+  font-size: 12px;
+  margin-bottom: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.app-continue-ep { font-size: 10px; color: var(--text-muted); margin-bottom: 4px; }
+
+.app-continue-progress {
+  height: 3px;
+  background: var(--surface-2);
+  border-radius: var(--r-pill);
+  overflow: hidden;
+}
+
+.app-continue-progress-bar {
+  height: 100%;
+  background: var(--accent);
+  border-radius: var(--r-pill);
+}
+
+.app-bottom-nav {
+  position: absolute;
+  bottom: 14px;
+  left: 14px;
+  right: 14px;
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+  background: var(--surface);
+  border-radius: var(--r-pill);
+  padding: 6px;
+  box-shadow: var(--shadow-cloud);
+}
+
+.app-nav-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  padding: 6px 10px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  border-radius: var(--r-pill);
+  font-family: var(--font-body);
+  font-size: 9px;
+  font-weight: 600;
+  color: var(--text-soft);
+}
+
+.app-nav-item.active {
+  background: var(--accent-soft);
+  color: var(--text);
+}
+
+.app-nav-item svg { width: 18px; height: 18px; }
+
+/* ============================================================
+   COMPARISON — Anime vs Manga universes
+   ============================================================ */
+
+.universe-compare {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-4);
+  margin: var(--space-5) 0;
+}
+
+@media (max-width: 768px) {
+  .universe-compare { grid-template-columns: 1fr; }
+}
+
+.universe-panel {
+  padding: var(--space-5);
+  border-radius: var(--r-lg);
+  position: relative;
+  overflow: hidden;
+  min-height: 360px;
+}
+
+.universe-panel-anime {
+  background: linear-gradient(180deg, #DDE5EF 0%, #C8D4E8 50%, #B5C5DD 100%);
+  color: var(--text);
+}
+
+.universe-panel-manga {
+  background: linear-gradient(180deg, #F0E8D8 0%, #E8DFCB 50%, #D8CFB8 100%);
+  color: #3D3328;
+  position: relative;
+}
+
+.universe-panel-manga::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: var(--washi-texture);
+  opacity: 0.4;
+  pointer-events: none;
+}
+
+.universe-panel-label {
+  display: inline-block;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  padding: 4px 10px;
+  background: rgba(255,255,255,0.5);
+  backdrop-filter: blur(8px);
+  border-radius: var(--r-pill);
+  margin-bottom: var(--space-3);
+  position: relative;
+  z-index: 2;
+}
+
+.universe-panel-title {
+  font-family: var(--font-display);
+  font-weight: var(--font-weight-display);
+  font-size: 24px;
+  margin-bottom: var(--space-2);
+  position: relative;
+  z-index: 2;
+}
+
+.universe-panel-desc {
+  font-size: 13px;
+  line-height: 1.6;
+  margin-bottom: var(--space-4);
+  max-width: 320px;
+  position: relative;
+  z-index: 2;
+}
+
+.universe-panel-demo {
+  position: relative;
+  z-index: 2;
+}
+
+/* ============================================================
+   DESKTOP MOCKUP
+   ============================================================ */
+
+.desktop-frame {
+  width: 100%;
+  max-width: 1100px;
+  margin: var(--space-5) auto;
+  background: var(--bg);
+  border-radius: 16px;
+  box-shadow: var(--shadow-cloud-lg);
+  overflow: hidden;
+  border: 1px solid var(--surface-2);
+}
+
+.desktop-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 18px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--surface-2);
+}
+
+.desktop-dots { display: flex; gap: 6px; }
+.desktop-dot { width: 11px; height: 11px; border-radius: 50%; background: var(--surface-2); }
+.desktop-dot:nth-child(1) { background: #FF6058; }
+.desktop-dot:nth-child(2) { background: #FFBC2C; }
+.desktop-dot:nth-child(3) { background: #28C840; }
+
+.desktop-url {
+  flex: 1;
+  background: var(--surface-2);
+  border-radius: var(--r-pill);
+  padding: 6px 14px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-muted);
+  max-width: 400px;
+  margin: 0 auto;
+}
+
+.desktop-body {
+  display: grid;
+  grid-template-columns: 220px 1fr;
+  min-height: 580px;
+}
+
+.desktop-sidebar {
+  background: var(--surface);
+  padding: 20px 16px;
+  border-right: 1px solid var(--surface-2);
+}
+
+.desktop-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-family: var(--font-display);
+  font-weight: var(--font-weight-display);
+  font-size: 18px;
+  padding: 0 8px 20px;
+}
+
+.desktop-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.desktop-nav-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 12px;
+  border-radius: var(--r-sm);
+  font-family: var(--font-body);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all var(--dur-fast) var(--ease-cloud);
+}
+
+.desktop-nav-item:hover { background: var(--surface-2); color: var(--text); }
+.desktop-nav-item.active { background: var(--accent-soft); color: var(--text); }
+.desktop-nav-item svg { width: 18px; height: 18px; }
+
+.desktop-main {
+  padding: 24px 28px;
+  overflow-y: auto;
+}
+
+.desktop-page-title {
+  font-family: var(--font-display);
+  font-weight: var(--font-weight-display);
+  font-size: 28px;
+  margin-bottom: 4px;
+}
+
+.desktop-page-sub {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin-bottom: 20px;
+}
+
+.desktop-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 14px;
+  margin-bottom: 24px;
+}
+
+.desktop-card {
+  background: var(--grad-cloud);
+  border-radius: var(--r-md);
+  box-shadow: var(--shadow-cloud-sm);
+  overflow: hidden;
+  transition: all var(--dur-base) var(--ease-cloud);
+}
+
+.desktop-card:hover { transform: translateY(-3px); box-shadow: var(--shadow-cloud); }
+
+.desktop-card-poster {
+  aspect-ratio: 2/3;
+  background: linear-gradient(135deg, var(--primary-soft), var(--accent));
+}
+
+.desktop-card-poster.p2 { background: linear-gradient(135deg, var(--accent), var(--warning)); }
+.desktop-card-poster.p3 { background: linear-gradient(135deg, var(--primary), var(--primary-soft)); }
+.desktop-card-poster.p4 { background: linear-gradient(135deg, var(--success), var(--primary-soft)); }
+.desktop-card-poster.p5 { background: linear-gradient(135deg, var(--accent-soft), var(--primary-soft)); }
+.desktop-card-poster.p6 { background: linear-gradient(135deg, var(--warning), var(--accent)); }
+
+.desktop-card-info { padding: 8px 10px; }
+.desktop-card-title {
+  font-family: var(--font-display);
+  font-weight: var(--font-weight-display);
+  font-size: 12px;
+  margin-bottom: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.desktop-card-meta { font-size: 10px; color: var(--text-muted); }
+
+/* ============================================================
+   CODE BLOCKS — Dart
+   ============================================================ */
+
+.code-tabs {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 0;
+  padding: 4px 4px 0;
+  background: var(--surface);
+  border-radius: var(--r-md) var(--r-md) 0 0;
+  box-shadow: var(--shadow-cloud-sm);
+  overflow-x: auto;
+}
+
+.code-tab {
+  padding: 10px 16px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+  background: transparent;
+  border: none;
+  border-radius: 8px 8px 0 0;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all var(--dur-fast) var(--ease-cloud);
+}
+
+.code-tab.active {
+  background: var(--surface-2);
+  color: var(--text);
+}
+
+.code-block {
+  background: #1F2233;
+  border-radius: 0 0 var(--r-md) var(--r-md);
+  padding: 20px;
+  overflow-x: auto;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  line-height: 1.6;
+  color: #D8DAE6;
+  box-shadow: var(--shadow-cloud);
+  margin-bottom: var(--space-5);
+}
+
+.code-block pre { margin: 0; white-space: pre; }
+
+.code-block .kw { color: #C792EA; }
+.code-block .str { color: #C3E88D; }
+.code-block .num { color: #F78C6C; }
+.code-block .com { color: #6B7394; font-style: italic; }
+.code-block .cls { color: #82AAFF; }
+.code-block .fn { color: #82AAFF; }
+.code-block .var { color: #FFCB6B; }
+.code-block .at { color: #FFCB6B; }
+.code-block .pun { color: #89DDFF; }
+
+.code-copy {
+  float: right;
+  padding: 6px 12px;
+  background: rgba(255,255,255,0.1);
+  border: 1px solid rgba(255,255,255,0.15);
+  color: #D8DAE6;
+  border-radius: 6px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  cursor: pointer;
+  transition: all var(--dur-fast) var(--ease-cloud);
+}
+
+.code-copy:hover { background: rgba(255,255,255,0.15); }
+
+/* ============================================================
+   MOTION SHOWCASE
+   ============================================================ */
+
+.motion-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: var(--space-4);
+}
+
+.motion-card {
+  padding: var(--space-5);
+  background: var(--surface);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-cloud-sm);
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+  min-height: 200px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.motion-demo {
+  flex: 1;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  position: relative;
+  overflow: hidden;
+}
+
+.motion-label {
+  font-family: var(--font-display);
+  font-weight: var(--font-weight-display);
+  font-size: 14px;
+  margin-bottom: 4px;
+}
+
+.motion-spec {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-soft);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.motion-ball {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: var(--shadow-cloud);
+}
+
+.motion-card-drift:hover .motion-ball {
+  animation: ballDrift 2s var(--ease-cloud) infinite;
+}
+
+@keyframes ballDrift {
+  0%, 100% { transform: translateX(-30px); }
+  50% { transform: translateX(30px); }
+}
+
+.motion-card-twinkle .motion-ball {
+  animation: ballTwinkle 2.5s ease-in-out infinite;
+  background: var(--star);
+}
+
+@keyframes ballTwinkle {
+  0%, 100% { opacity: 0.3; transform: scale(0.8); }
+  50% { opacity: 1; transform: scale(1.2); box-shadow: 0 0 20px var(--star); }
+}
+
+.motion-card-lift:hover .motion-ball {
+  animation: ballLift 1s var(--ease-cloud);
+}
+
+@keyframes ballLift {
+  0% { transform: translateY(0); }
+  50% { transform: translateY(-20px); }
+  100% { transform: translateY(0); }
+}
+
+.motion-card-pulse .motion-ball {
+  animation: ballPulse 2s ease-in-out infinite;
+}
+
+@keyframes ballPulse {
+  0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 var(--accent-soft); }
+  50% { transform: scale(1.05); box-shadow: 0 0 0 20px rgba(232, 165, 152, 0); }
+}
+
+/* ============================================================
+   CLOSING
+   ============================================================ */
+
+.closing {
+  text-align: center;
+  padding: var(--space-7) var(--space-5);
+  background: var(--grad-cloud);
+  border-radius: var(--r-xl);
+  margin: var(--space-7) 0;
+  box-shadow: var(--shadow-cloud-sm);
+}
+
+.closing-jp {
+  font-family: var(--font-display);
+  font-size: 24px;
+  color: var(--accent);
+  letter-spacing: 0.3em;
+  margin-bottom: var(--space-3);
+}
+
+.closing h2 {
+  font-size: 36px;
+  margin-bottom: var(--space-3);
+}
+
+.closing p {
+  font-size: 16px;
+  color: var(--text-muted);
+  max-width: 580px;
+  margin: 0 auto var(--space-5);
+  line-height: 1.65;
+}
+
+/* ============================================================
+   UTIL
+   ============================================================ */
+
+.muted { color: var(--text-muted); }
+.mono { font-family: var(--font-mono); }
+.flex { display: flex; }
+.gap-2 { gap: var(--space-2); }
+.gap-3 { gap: var(--space-3); }
+.mt-3 { margin-top: var(--space-3); }
+.mt-4 { margin-top: var(--space-4); }
+.mt-5 { margin-top: var(--space-5); }
+
+@media (max-width: 768px) {
+  .type-row { grid-template-columns: 1fr; gap: var(--space-2); }
+  .comp-row { flex-direction: column; align-items: stretch; }
+  .comp-row-label { margin-bottom: 4px; }
+  .theme-switcher-inner { flex-direction: column; align-items: stretch; }
+  .switcher-groups { justify-content: center; }
+}
+
+</style>
+</head>
+<body>
+
+<!-- THEME SWITCHER (sticky) -->
+<nav class="theme-switcher">
+  <div class="theme-switcher-inner">
+    <div class="switcher-brand">
+      <div class="switcher-brand-mark">
+        <svg viewBox="0 0 32 32" fill="none">
+          <path d="M8 20 Q4 20 4 16 Q4 12 8 12 Q9 8 14 8 Q19 8 20 12 Q24 12 24 16 Q24 20 20 20 Z" fill="currentColor" opacity="0.85"/>
+          <circle cx="22" cy="10" r="1.5" fill="var(--star)"/>
+          <circle cx="26" cy="14" r="1" fill="var(--star)"/>
+        </svg>
+      </div>
+      <span>Kumoriya</span>
+    </div>
+    <div class="switcher-groups">
+      <div class="switcher-group">
+        <span class="switcher-group-label">Paleta</span>
+        <button class="switcher-btn active" data-set="palette" data-val="cloudy-day"><span class="switcher-swatch sw-cd"></span>Nublado</button>
+        <button class="switcher-btn" data-set="palette" data-val="warm-twilight"><span class="switcher-swatch sw-wt"></span>Crepúsculo</button>
+        <button class="switcher-btn" data-set="palette" data-val="starry-night"><span class="switcher-swatch sw-sn"></span>Noche</button>
+        <button class="switcher-btn" data-set="palette" data-val="cozy-storm"><span class="switcher-swatch sw-cs"></span>Tormenta</button>
+      </div>
+      <div class="switcher-group">
+        <span class="switcher-group-label">Tipo</span>
+        <button class="switcher-btn active" data-set="typography" data-val="serif-rounded">Serif JP</button>
+        <button class="switcher-btn" data-set="typography" data-val="display-cozy">Cozy</button>
+        <button class="switcher-btn" data-set="typography" data-val="editorial-cloud">Editorial</button>
+        <button class="switcher-btn" data-set="typography" data-val="handwritten-home">Manuscrita</button>
+      </div>
+      <div class="switcher-group">
+        <span class="switcher-group-label">Universo</span>
+        <button class="switcher-btn active" data-set="universe" data-val="anime">Anime · Cielo</button>
+        <button class="switcher-btn" data-set="universe" data-val="manga">Manga · Papel</button>
+      </div>
+    </div>
+  </div>
+</nav>
+
+<!-- BODY CONTENT WILL BE INJECTED HERE -->
+<main id="content">
+  <span style="color: var(--text-muted); padding: 40px;">Cargando…</span>
+</main>
+
+<script>
+/* ============================================================
+   THEME SWITCHER LOGIC
+   ============================================================ */
+document.querySelectorAll('.switcher-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const set = btn.dataset.set;
+    const val = btn.dataset.val;
+    document.documentElement.setAttribute(`data-${set}`, val);
+    document.querySelectorAll(`[data-set="${set}"]`).forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    if (set === 'universe') applyUniverse(val);
+  });
+});
+
+function applyUniverse(u) {
+  document.body.style.background = u === 'manga'
+    ? 'linear-gradient(180deg, #F0E8D8 0%, #E8DFCB 100%)'
+    : '';
+  document.body.style.setProperty('filter', u === 'manga' ? 'sepia(0.05)' : 'none');
+}
+
+/* ============================================================
+   ICON LIBRARY — 4 estilos intercambiables
+   ============================================================ */
+const ICONS = {
+  // Yūkari: línea media + relleno sutil, motif japonés
+  yuukari: {
+    cloud: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 17 Q2 17 2 13 Q2 9 6 9 Q7 5 12 5 Q17 5 18 9 Q22 9 22 13 Q22 17 18 17 Z" fill="currentColor" fill-opacity="0.12"/><circle cx="19" cy="7" r="0.8" fill="currentColor"/></svg>',
+    moon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M20 13 A8 8 0 1 1 11 4 A6 6 0 0 0 20 13 Z" fill="currentColor" fill-opacity="0.12"/><circle cx="17" cy="9" r="0.6" fill="currentColor"/></svg>',
+    star: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 3 L13.5 10.5 L21 12 L13.5 13.5 L12 21 L10.5 13.5 L3 12 L10.5 10.5 Z" opacity="0.85"/><circle cx="12" cy="12" r="1.2" fill="currentColor"/></svg>',
+    play: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M7 5 L19 12 L7 19 Z" fill="currentColor" fill-opacity="0.2"/></svg>',
+    home: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M4 11 L12 4 L20 11 L20 20 L4 20 Z" fill="currentColor" fill-opacity="0.12"/><path d="M10 20 L10 14 L14 14 L14 20"/></svg>',
+    search: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="11" cy="11" r="7" fill="currentColor" fill-opacity="0.12"/><path d="M16 16 L21 21"/></svg>',
+    library: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M5 4 L5 20 L9 20 L9 4 Z" fill="currentColor" fill-opacity="0.12"/><path d="M11 4 L11 20 L15 20 L15 4 Z" fill="currentColor" fill-opacity="0.06"/><path d="M17 7 L20 19"/></svg>',
+    user: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4" fill="currentColor" fill-opacity="0.12"/><path d="M4 21 Q4 14 12 14 Q20 14 20 21"/></svg>',
+    party: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9" fill="currentColor" fill-opacity="0.12"/><circle cx="9" cy="10" r="1" fill="currentColor"/><circle cx="15" cy="10" r="1" fill="currentColor"/><path d="M8 14 Q12 17 16 14"/></svg>',
+    heart: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M12 21 Q3 14 3 8 Q3 4 7 4 Q10 4 12 7 Q14 4 17 4 Q21 4 21 8 Q21 14 12 21 Z" fill="currentColor" fill-opacity="0.12"/></svg>',
+    leaf: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 19 Q5 8 19 5 Q19 19 8 19 Q5 19 5 19 Z" fill="currentColor" fill-opacity="0.12"/><path d="M9 15 Q12 12 16 9"/></svg>',
+    download: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4 L12 16 M7 11 L12 16 L17 11" /><path d="M5 20 L19 20"/></svg>',
+    bell: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 17 Q6 10 12 10 Q18 10 18 17 Z" fill="currentColor" fill-opacity="0.12"/><path d="M4 17 L20 17"/><circle cx="12" cy="20" r="1.5" fill="currentColor" fill-opacity="0.12"/></svg>',
+    chat: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6 Q4 4 6 4 L18 4 Q20 4 20 6 L20 14 Q20 16 18 16 L10 16 L6 20 L6 16 Q4 16 4 14 Z" fill="currentColor" fill-opacity="0.12"/></svg>',
+    clock: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="12" cy="12" r="8" fill="currentColor" fill-opacity="0.12"/><path d="M12 8 L12 12 L15 14"/></svg>',
+    bookmark: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M6 4 L18 4 L18 20 L12 16 L6 20 Z" fill="currentColor" fill-opacity="0.12"/></svg>',
+    fire: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 Q8 8 8 12 Q8 17 12 21 Q16 17 16 12 Q16 8 12 3 Z" fill="currentColor" fill-opacity="0.12"/><path d="M12 11 Q10 13 10 15 Q10 17 12 18 Q14 17 14 15 Q14 13 12 11 Z" fill="currentColor" fill-opacity="0.2"/></svg>',
+    drop: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 Q5 12 5 16 Q5 20 12 21 Q19 20 19 16 Q19 12 12 3 Z" fill="currentColor" fill-opacity="0.12"/></svg>',
+    fan: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="2" fill="currentColor" fill-opacity="0.2"/><path d="M12 10 Q12 4 16 4 Q14 8 14 10" fill="currentColor" fill-opacity="0.1"/><path d="M14 12 Q20 12 20 16 Q16 14 14 14" fill="currentColor" fill-opacity="0.1"/><path d="M12 14 Q12 20 8 20 Q10 16 10 14" fill="currentColor" fill-opacity="0.1"/><path d="M10 12 Q4 12 4 8 Q8 10 10 10" fill="currentColor" fill-opacity="0.1"/></svg>',
+  },
+  // Line soft 1.5px
+  line: {
+    cloud: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 17 Q2 17 2 13 Q2 9 6 9 Q7 5 12 5 Q17 5 18 9 Q22 9 22 13 Q22 17 18 17 Z"/></svg>',
+    moon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 13 A8 8 0 1 1 11 4 A6 6 0 0 0 20 13 Z"/></svg>',
+    star: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 L13.5 10.5 L21 12 L13.5 13.5 L12 21 L10.5 13.5 L3 12 L10.5 10.5 Z"/></svg>',
+    play: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><path d="M7 5 L19 12 L7 19 Z"/></svg>',
+    home: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11 L12 4 L20 11 L20 20 L4 20 Z"/><path d="M10 20 L10 14 L14 14 L14 20"/></svg>',
+    search: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M16 16 L21 21"/></svg>',
+    library: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 4 L5 20 L9 20 L9 4 Z"/><path d="M11 4 L11 20 L15 20 L15 4 Z"/><path d="M17 7 L20 19"/></svg>',
+    user: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21 Q4 14 12 14 Q20 14 20 21"/></svg>',
+    party: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><circle cx="9" cy="10" r="0.5" fill="currentColor"/><circle cx="15" cy="10" r="0.5" fill="currentColor"/><path d="M8 14 Q12 17 16 14"/></svg>',
+    heart: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><path d="M12 21 Q3 14 3 8 Q3 4 7 4 Q10 4 12 7 Q14 4 17 4 Q21 4 21 8 Q21 14 12 21 Z"/></svg>',
+    leaf: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 19 Q5 8 19 5 Q19 19 8 19"/><path d="M9 15 Q12 12 16 9"/></svg>',
+    download: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4 L12 16 M7 11 L12 16 L17 11"/><path d="M5 20 L19 20"/></svg>',
+    bell: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 17 Q6 10 12 10 Q18 10 18 17 Z"/><path d="M4 17 L20 17"/><circle cx="12" cy="20" r="1.5"/></svg>',
+    chat: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6 Q4 4 6 4 L18 4 Q20 4 20 6 L20 14 Q20 16 18 16 L10 16 L6 20 L6 16 Q4 16 4 14 Z"/></svg>',
+    clock: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="12" cy="12" r="8"/><path d="M12 8 L12 12 L15 14"/></svg>',
+    bookmark: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><path d="M6 4 L18 4 L18 20 L12 16 L6 20 Z"/></svg>',
+    fire: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 Q8 8 8 12 Q8 17 12 21 Q16 17 16 12 Q16 8 12 3 Z"/><path d="M12 11 Q10 13 10 15 Q10 17 12 18 Q14 17 14 15 Q14 13 12 11 Z"/></svg>',
+    drop: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 Q5 12 5 16 Q5 20 12 21 Q19 20 19 16 Q19 12 12 3 Z"/></svg>',
+    fan: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="2"/><path d="M12 10 Q12 4 16 4"/><path d="M14 12 Q20 12 20 16"/><path d="M12 14 Q12 20 8 20"/><path d="M10 12 Q4 12 4 8"/></svg>',
+  },
+  // Claymorphism (3D soft, plastilina)
+  clay: {
+    cloud: '<svg viewBox="0 0 24 24" fill="currentColor"><ellipse cx="8" cy="14" rx="5" ry="4"/><ellipse cx="15" cy="13" rx="6" ry="5"/><ellipse cx="12" cy="10" rx="4" ry="3"/><ellipse cx="7" cy="12" rx="3" ry="2.5"/></svg>',
+    moon: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M20 13 A8 8 0 1 1 11 4 A6 6 0 0 0 20 13 Z"/></svg>',
+    star: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 3 L13.5 10.5 L21 12 L13.5 13.5 L12 21 L10.5 13.5 L3 12 L10.5 10.5 Z"/></svg>',
+    play: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 5 L19 12 L7 19 Z"/></svg>',
+    home: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M4 11 L12 4 L20 11 L20 20 L4 20 Z M10 20 L10 14 L14 14 L14 20 Z"/></svg>',
+    search: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><circle cx="11" cy="11" r="6" fill="currentColor"/><path d="M16 16 L21 21"/></svg>',
+    library: '<svg viewBox="0 0 24 24" fill="currentColor"><rect x="5" y="4" width="4" height="16" rx="1"/><rect x="11" y="4" width="4" height="16" rx="1" opacity="0.7"/><path d="M17 7 L20 19 L17.5 20 L14.5 8 Z"/></svg>',
+    user: '<svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="8" r="4"/><path d="M4 21 Q4 14 12 14 Q20 14 20 21 Z"/></svg>',
+    party: '<svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="9"/></svg>',
+    heart: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 21 Q3 14 3 8 Q3 4 7 4 Q10 4 12 7 Q14 4 17 4 Q21 4 21 8 Q21 14 12 21 Z"/></svg>',
+    leaf: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M5 19 Q5 8 19 5 Q19 19 8 19 Z"/></svg>',
+    download: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 4 L17 11 L13 11 L13 18 L11 18 L11 11 L7 11 Z M5 20 L19 20 L19 22 L5 22 Z"/></svg>',
+    bell: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 17 Q6 10 12 10 Q18 10 18 17 Z M4 17 L20 17 L20 18 L4 18 Z"/><circle cx="12" cy="20" r="1.5"/></svg>',
+    chat: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M4 6 Q4 4 6 4 L18 4 Q20 4 20 6 L20 14 Q20 16 18 16 L10 16 L6 20 L6 16 Q4 16 4 14 Z"/></svg>',
+    clock: '<svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="8"/></svg>',
+    bookmark: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 4 L18 4 L18 20 L12 16 L6 20 Z"/></svg>',
+    fire: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 3 Q8 8 8 12 Q8 17 12 21 Q16 17 16 12 Q16 8 12 3 Z"/></svg>',
+    drop: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 3 Q5 12 5 16 Q5 20 12 21 Q19 20 19 16 Q19 12 12 3 Z"/></svg>',
+    fan: '<svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="2"/><ellipse cx="12" cy="6" rx="2" ry="3"/><ellipse cx="18" cy="12" rx="3" ry="2"/><ellipse cx="12" cy="18" rx="2" ry="3"/><ellipse cx="6" cy="12" rx="3" ry="2"/></svg>',
+  },
+  // Hand-drawn (sketch)
+  hand: {
+    cloud: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="0.5 0.3"><path d="M6 17 Q2 17 2 13 Q2 9 6 9 Q7 5 12 5 Q17 5 18 9 Q22 9 22 13 Q22 17 18 17 Z"/></svg>',
+    moon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="0.5 0.3"><path d="M20 13 A8 8 0 1 1 11 4 A6 6 0 0 0 20 13 Z"/></svg>',
+    star: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="0.5 0.3"><path d="M12 3 L13.5 10.5 L21 12 L13.5 13.5 L12 21 L10.5 13.5 L3 12 L10.5 10.5 Z"/></svg>',
+    play: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="0.5 0.3"><path d="M7 5 L19 12 L7 19 Z"/></svg>',
+    home: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="0.5 0.3"><path d="M4 11 L12 4 L20 11 L20 20 L4 20 Z"/><path d="M10 20 L10 14 L14 14 L14 20"/></svg>',
+    search: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-dasharray="0.5 0.3"><circle cx="11" cy="11" r="7"/><path d="M16 16 L21 21"/></svg>',
+    library: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="0.5 0.3"><path d="M5 4 L5 20 L9 20 L9 4 Z"/><path d="M11 4 L11 20 L15 20 L15 4 Z"/><path d="M17 7 L20 19"/></svg>',
+    user: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="0.5 0.3"><circle cx="12" cy="8" r="4"/><path d="M4 21 Q4 14 12 14 Q20 14 20 21"/></svg>',
+    party: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="0.5 0.3"><circle cx="12" cy="12" r="9"/><circle cx="9" cy="10" r="0.5" fill="currentColor"/><circle cx="15" cy="10" r="0.5" fill="currentColor"/><path d="M8 14 Q12 17 16 14"/></svg>',
+    heart: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" stroke-dasharray="0.5 0.3"><path d="M12 21 Q3 14 3 8 Q3 4 7 4 Q10 4 12 7 Q14 4 17 4 Q21 4 21 8 Q21 14 12 21 Z"/></svg>',
+    leaf: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="0.5 0.3"><path d="M5 19 Q5 8 19 5 Q19 19 8 19"/><path d="M9 15 Q12 12 16 9"/></svg>',
+    download: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="0.5 0.3"><path d="M12 4 L12 16 M7 11 L12 16 L17 11"/><path d="M5 20 L19 20"/></svg>',
+    bell: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="0.5 0.3"><path d="M6 17 Q6 10 12 10 Q18 10 18 17 Z"/><path d="M4 17 L20 17"/><circle cx="12" cy="20" r="1.5"/></svg>',
+    chat: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="0.5 0.3"><path d="M4 6 Q4 4 6 4 L18 4 Q20 4 20 6 L20 14 Q20 16 18 16 L10 16 L6 20 L6 16 Q4 16 4 14 Z"/></svg>',
+    clock: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-dasharray="0.5 0.3"><circle cx="12" cy="12" r="8"/><path d="M12 8 L12 12 L15 14"/></svg>',
+    bookmark: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" stroke-dasharray="0.5 0.3"><path d="M6 4 L18 4 L18 20 L12 16 L6 20 Z"/></svg>',
+    fire: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="0.5 0.3"><path d="M12 3 Q8 8 8 12 Q8 17 12 21 Q16 17 16 12 Q16 8 12 3 Z"/><path d="M12 11 Q10 13 10 15 Q10 17 12 18 Q14 17 14 15 Q14 13 12 11 Z"/></svg>',
+    drop: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="0.5 0.3"><path d="M12 3 Q5 12 5 16 Q5 20 12 21 Q19 20 19 16 Q19 12 12 3 Z"/></svg>',
+    fan: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="0.5 0.3"><circle cx="12" cy="12" r="2"/><path d="M12 10 Q12 4 16 4"/><path d="M14 12 Q20 12 20 16"/><path d="M12 14 Q12 20 8 20"/><path d="M10 12 Q4 12 4 8"/></svg>',
+  },
+};
+
+function getIconStyle() {
+  return document.documentElement.getAttribute('data-icon-style') || 'yuukari';
+}
+
+function icon(name, style) {
+  style = style || getIconStyle();
+  const set = ICONS[style] || ICONS.yuukari;
+  return set[name] || '';
+}
+
+/* ============================================================
+   RENDER SECTIONS — main content
+   ============================================================ */
+
+const content = document.getElementById('content');
+content.innerHTML = `
+<!-- HERO -->
+<section class="hero">
+  <div class="hero-stars" id="heroStars"></div>
+  <div class="hero-clouds">
+    <div class="cloud cloud-1"></div>
+    <div class="cloud cloud-2"></div>
+    <div class="cloud cloud-3"></div>
+  </div>
+  <div class="hero-content">
+    <div class="hero-jp">くもり屋</div>
+    <h1 class="hero-title">Kumoriya</h1>
+    <p class="hero-tagline">Una tienda de nubes para ver anime y leer manga. Acogedora como una manta bajo el cielo nublado, suave como almohadas de algodón.</p>
+    <button class="hero-cta" onclick="document.querySelector('#concept').scrollIntoView({behavior:'smooth'})">
+      <span id="heroCtaIcon"></span>
+      Explora el design system
+    </button>
+  </div>
+  <div class="hero-meta">
+    <span>v 0.1 · Cloudy Cozy</span>
+    <span>·</span>
+    <span>Mobile First · Flutter</span>
+    <span>·</span>
+    <span id="heroPalette">Día nublado suave</span>
+  </div>
+</section>
+
+<!-- CONCEPTO -->
+<section class="section" id="concept">
+  <div class="section-label"><span id="conceptIcon"></span>Concepto · くもり</div>
+  <h2 class="section-title">El naming es la brújula</h2>
+  <p class="section-sub"><strong>Kumori</strong> (曇り) significa "nublado" en japonés. <strong>Ya</strong> (屋) es "tienda" o "casa". Kumoriya es literalmente "la casa de lo nublado" — un refugio cálido para ver anime y leer manga mientras llueve afuera. Cada decisión de diseño nace de esa metáfora: suavidad, cobijo, lentitud, textura de nube.</p>
+  
+  <div class="concept-grid">
+    <div class="concept-card">
+      <div class="concept-card-icon" id="ccIcon1"></div>
+      <h3>Almohada de nube</h3>
+      <p>Cada superficie es suave al tacto visual. Sombras difusas de 3 capas, bordes redondeados 24px+, gradientes que se disuelven. Nada de bordes duros ni sombras marcadas.</p>
+    </div>
+    <div class="concept-card">
+      <div class="concept-card-icon" id="ccIcon2"></div>
+      <h3>Cine bajo las estrellas</h3>
+      <p>El universo Anime vive en un cielo crepuscular: partículas que parpadean, nubes que derivan lento, silencio ambiental. La watching session se siente como un ritual nocturno.</p>
+    </div>
+    <div class="concept-card">
+      <div class="concept-card-icon" id="ccIcon3"></div>
+      <h3>Papel washi</h3>
+      <p>El universo Manga vive en papel envejecido: textura granulada sutil, tonos sepia tenues, sensación de cuaderno. Cuando lees manga, sientes que sostienes un tomo físico.</p>
+    </div>
+    <div class="concept-card">
+      <div class="concept-card-icon" id="ccIcon4"></div>
+      <h3>Movimiento lento</h3>
+      <p>Las transiciones duran 400–600ms con curva easeOutQuint. Las nubes derivan en loops de 30–60s. Nada de rebotes bruscos: la app respira contigo, no te apura.</p>
+    </div>
+  </div>
+</section>
+
+<div class="section-divider"></div>
+
+<!-- FOUNDATIONS: COLOR -->
+<section class="section" id="color">
+  <div class="section-label"><span id="colorIcon"></span>Foundations · Color</div>
+  <h2 class="section-title">4 paletas, 4 atmósferas</h2>
+  <p class="section-sub">Cambia entre las 4 paletas con el switcher de arriba. Cada una responde a un momento del día distinto. La default es <strong>Día nublado suave</strong> — blanco crema, gris azulado, celeste pálido, acentos coral.</p>
+  
+  <div class="color-grid" id="colorGrid"></div>
+</section>
+
+<!-- FOUNDATIONS: TYPOGRAPHY -->
+<section class="section" id="typography">
+  <div class="section-label"><span id="typeIcon"></span>Foundations · Tipografía</div>
+  <h2 class="section-title">4 direcciones tipográficas</h2>
+  <p class="section-sub">Cambia entre las 4 direcciones en el switcher. Default: <strong>Serif suave JP + Sans rounded</strong> — Zen Maru Gothic para títulos, M PLUS Rounded 1c para UI. Cálido y japonés.</p>
+  
+  <div class="type-stack">
+    <div class="type-row">
+      <div class="type-label">Display · 48</div>
+      <div class="type-sample-display">くもり屋 Kumoriya</div>
+    </div>
+    <div class="type-row">
+      <div class="type-label">H1 · 32</div>
+      <div class="type-sample-h1">Una tienda de nubes</div>
+    </div>
+    <div class="type-row">
+      <div class="type-label">H2 · 24</div>
+      <div class="type-sample-h2">Ver anime bajo las estrellas</div>
+    </div>
+    <div class="type-row">
+      <div class="type-label">Body · 16</div>
+      <div class="type-sample-body">El cuerpo de texto usa sans redondeado para mantener la suavidad. Line-height 1.6 generoso, peso 500, anti-aliasing suave.</div>
+    </div>
+    <div class="type-row">
+      <div class="type-label">Caption · 12</div>
+      <div class="type-sample-caption">Episodio 12 · 24 min · Japón · 2024</div>
+    </div>
+  </div>
+</section>
+
+<!-- FOUNDATIONS: ICONOGRAPHY -->
+<section class="section" id="icons">
+  <div class="section-label"><span id="iconIcon"></span>Foundations · Iconografía</div>
+  <h2 class="section-title">Sistema Yūkari — motifs japoneses</h2>
+  <p class="section-sub">El estilo default es <strong>Yūkari</strong>: línea media 1.6px + relleno sutil 12% con motifs luna, nube, hoja, abanico. Sensación de sello japonés moderno. Cambia entre los 4 estilos en el switcher.</p>
+  
+  <div class="icon-grid" id="iconGrid"></div>
+</section>
+
+<!-- FOUNDATIONS: TEXTURES, SHADOWS, SPACING -->
+<section class="section" id="tokens">
+  <div class="section-label"><span id="tokensIcon"></span>Foundations · Texturas · Sombras · Spacing</div>
+  <h2 class="section-title">Tokens no-cromáticos</h2>
+  <p class="section-sub">Las sombras de "nube" se componen de 3 capas difusas superpuestas — nunca una sombra dura única. Los radius son generosos. Las texturas washi se aplican como overlay sutil en el universo Manga.</p>
+  
+  <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 24px; margin-top: 24px;">
+    <div>
+      <div class="type-label" style="margin-bottom: 12px;">Cloud Shadow · 3 capas</div>
+      <div style="display: flex; gap: 16px; flex-wrap: wrap;">
+        <div style="width: 80px; height: 80px; background: var(--surface); border-radius: 16px; box-shadow: var(--shadow-cloud-sm);"></div>
+        <div style="width: 80px; height: 80px; background: var(--surface); border-radius: 16px; box-shadow: var(--shadow-cloud);"></div>
+        <div style="width: 80px; height: 80px; background: var(--surface); border-radius: 16px; box-shadow: var(--shadow-cloud-lg);"></div>
+      </div>
+      <div class="type-label" style="margin-top: 8px; font-size: 10px;">sm · default · lg</div>
+    </div>
+    <div>
+      <div class="type-label" style="margin-bottom: 12px;">Border Radius</div>
+      <div style="display: flex; gap: 16px; flex-wrap: wrap;">
+        <div style="width: 80px; height: 80px; background: var(--accent-soft); border-radius: 12px; display: grid; place-items: center; font-family: var(--font-mono); font-size: 11px;">12</div>
+        <div style="width: 80px; height: 80px; background: var(--accent-soft); border-radius: 16px; display: grid; place-items: center; font-family: var(--font-mono); font-size: 11px;">16</div>
+        <div style="width: 80px; height: 80px; background: var(--accent-soft); border-radius: 24px; display: grid; place-items: center; font-family: var(--font-mono); font-size: 11px;">24</div>
+        <div style="width: 80px; height: 80px; background: var(--accent-soft); border-radius: 32px; display: grid; place-items: center; font-family: var(--font-mono); font-size: 11px;">32</div>
+      </div>
+    </div>
+    <div>
+      <div class="type-label" style="margin-bottom: 12px;">Spacing scale · 4·8·12·16·24·32·48</div>
+      <div style="display: flex; gap: 4px; align-items: flex-end; height: 80px;">
+        <div style="width: 8px; height: 8px; background: var(--primary);"></div>
+        <div style="width: 8px; height: 16px; background: var(--primary);"></div>
+        <div style="width: 8px; height: 24px; background: var(--primary);"></div>
+        <div style="width: 8px; height: 32px; background: var(--primary);"></div>
+        <div style="width: 8px; height: 48px; background: var(--primary);"></div>
+        <div style="width: 8px; height: 64px; background: var(--primary);"></div>
+        <div style="width: 8px; height: 80px; background: var(--primary);"></div>
+      </div>
+    </div>
+    <div>
+      <div class="type-label" style="margin-bottom: 12px;">Motion curves</div>
+      <div style="display: grid; gap: 8px;">
+        <div class="mono" style="font-size: 11px; color: var(--text-muted);">easeOutQuint · cubic-bezier(0.22, 1, 0.36, 1)</div>
+        <div class="mono" style="font-size: 11px; color: var(--text-muted);">easeRain · cubic-bezier(0.65, 0, 0.35, 1)</div>
+        <div class="mono" style="font-size: 11px; color: var(--text-muted);">Durations · 200ms · 400ms · 600ms</div>
+        <div class="mono" style="font-size: 11px; color: var(--text-muted);">Ambient loops · 30s · 45s · 60s · 80s</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="section-divider"></div>
+
+<!-- COMPONENTES -->
+<section class="section" id="components">
+  <div class="section-label"><span id="compIcon"></span>Componentes</div>
+  <h2 class="section-title">Botones · Chips · Search · Cards · Nav</h2>
+  <p class="section-sub">Componentes base del design system. Todos usan la variable <code class="mono" style="background: var(--surface-2); padding: 2px 6px; border-radius: 4px; font-size: 13px;">--shadow-cloud</code> y se adaptan automáticamente al tema activo.</p>
+  
+  <!-- Botones -->
+  <div class="comp-row">
+    <div class="comp-row-label">CloudButton</div>
+    <button class="btn btn-primary"><span id="btnPlayIcon"></span> Reproducir</button>
+    <button class="btn btn-secondary"><span id="btnHeartIcon"></span> Favorito</button>
+    <button class="btn btn-ghost">Cancelar</button>
+  </div>
+  
+  <!-- Chips -->
+  <div class="comp-row">
+    <div class="comp-row-label">StatusChip</div>
+    <span class="chip chip-airing">En emisión</span>
+    <span class="chip chip-finished">Finalizado</span>
+    <span class="chip chip-upcoming">Próximamente</span>
+    <span class="chip chip-tag">Shounen</span>
+    <span class="chip chip-tag">Slice of life</span>
+    <span class="chip chip-rating"><span id="chipStarIcon"></span> 8.4</span>
+  </div>
+  
+  <!-- Search -->
+  <div class="comp-row">
+    <div class="comp-row-label">SearchBar</div>
+    <div class="search">
+      <span id="searchIcon"></span>
+      <input type="text" placeholder="Buscar anime, manga, personajes…">
+      <span class="search-kbd">⌘K</span>
+    </div>
+  </div>
+  
+  <!-- CloudCards -->
+  <div class="comp-row" style="align-items: flex-start;">
+    <div class="comp-row-label">CloudCard</div>
+    <div class="cloud-card" style="width: 180px;">
+      <div class="cloud-card-poster" style="background: linear-gradient(135deg, var(--primary), var(--accent));">
+        <div class="cloud-card-badge">EP 12</div>
+      </div>
+      <div class="cloud-card-info">
+        <div class="cloud-card-title">Frieren</div>
+        <div class="cloud-card-meta"><span id="cardStarIcon"></span> 9.1 · 2024</div>
+      </div>
+    </div>
+    <div class="cloud-card" style="width: 180px;">
+      <div class="cloud-card-poster" style="background: linear-gradient(135deg, var(--accent), var(--warning));">
+        <div class="cloud-card-badge">NEW</div>
+      </div>
+      <div class="cloud-card-info">
+        <div class="cloud-card-title">Sousou no Frieren</div>
+        <div class="cloud-card-meta"><span id="cardStar2Icon"></span> 9.1 · 2024</div>
+      </div>
+    </div>
+    <div class="cloud-card" style="width: 180px;">
+      <div class="cloud-card-poster" style="background: linear-gradient(135deg, var(--success), var(--primary-soft));">
+        <div class="cloud-card-badge">HOT</div>
+      </div>
+      <div class="cloud-card-info">
+        <div class="cloud-card-title">Mushishi</div>
+        <div class="cloud-card-meta"><span id="cardStar3Icon"></span> 8.7 · 2005</div>
+      </div>
+    </div>
+  </div>
+  
+  <!-- BottomNav -->
+  <div class="comp-row" style="justify-content: center;">
+    <div class="comp-row-label">BottomNav</div>
+    <div class="bottom-nav" style="max-width: 460px; flex: 1;">
+      <button class="nav-item active" data-nav="home"><span id="navHomeIcon"></span>Inicio</button>
+      <button class="nav-item" data-nav="search"><span id="navSearchIcon"></span>Buscar</button>
+      <button class="nav-item" data-nav="party"><span id="navPartyIcon"></span>Party</button>
+      <button class="nav-item" data-nav="library"><span id="navLibraryIcon"></span>Biblioteca</button>
+      <button class="nav-item" data-nav="profile"><span id="navProfileIcon"></span>Perfil</button>
+    </div>
+  </div>
+</section>
+
+<div class="section-divider"></div>
+
+<!-- MOBILE MOCKUPS -->
+<section class="section" id="mobile">
+  <div class="section-label"><span id="mobileIcon"></span>Pantallas Mobile</div>
+  <h2 class="section-title">Home · Detail · Watch Party · Library · Profile</h2>
+  <p class="section-sub">5 pantallas mobile-first en frames de 320px. Las pantallas viven dentro del universo activo (Anime = cielo / Manga = papel). Cambia el universo en el switcher para verlas mutar.</p>
+  
+  <div class="mockup-row" id="mobileMockups"></div>
+</section>
+
+<div class="section-divider"></div>
+
+<!-- UNIVERSOS: Anime vs Manga -->
+<section class="section" id="universes">
+  <div class="section-label"><span id="univIcon"></span>Sistema 2 Universos</div>
+  <h2 class="section-title">Anime · Cielo &nbsp;⇄&nbsp; Manga · Papel</h2>
+  <p class="section-sub">Dos universos visuales que comparten el sistema pero cambian de atmósfera. El universo Anime vive en un cielo crepuscular con partículas-estrella. El universo Manga vive en papel washi envejecido con textura granulada y sepia tenue. Ambos usan los mismos componentes, solo cambia el background y el overlay.</p>
+  
+  <div class="universe-compare">
+    <div class="universe-panel universe-panel-anime">
+      <div class="universe-panel-label">Anime · Cielo</div>
+      <h3 class="universe-panel-title">空 — Sora</h3>
+      <p class="universe-panel-desc">Gradiente cielo crepuscular (celeste → crema). Partículas-estrella que parpadean. Nubes que derivan en background. Sin textura overlay. Pensado para video, watching, immersion.</p>
+      <div class="universe-panel-demo">
+        <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+          <span class="chip chip-airing">En emisión</span>
+          <span class="chip chip-rating"><span id="uAnimeStarIcon"></span> 9.1</span>
+          <span class="chip chip-tag">Shounen</span>
+        </div>
+        <div style="margin-top: 12px; padding: 12px; background: rgba(255,255,255,0.5); backdrop-filter: blur(10px); border-radius: 16px; font-size: 13px;">
+          ▶ Episodio 12 — "La luz de la luna"
+        </div>
+      </div>
+    </div>
+    
+    <div class="universe-panel universe-panel-manga">
+      <div class="universe-panel-label">Manga · Papel</div>
+      <h3 class="universe-panel-title">紙 — Kami</h3>
+      <p class="universe-panel-desc">Papel washi con textura granulada sutil. Tono sepia tenue sobre la paleta base. Sin partículas-estrella. Bordes ligeramente irregulares. Pensado para lectura, paginación, tinta.</p>
+      <div class="universe-panel-demo">
+        <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+          <span class="chip" style="background: #C9B98F; color: #3D3328;">Capítulo 142</span>
+          <span class="chip" style="background: #D8C8A8; color: #3D3328;">★ 9.3</span>
+          <span class="chip" style="background: #E0D2B0; color: #3D3328;">Seinen</span>
+        </div>
+        <div style="margin-top: 12px; padding: 12px; background: rgba(255,250,235,0.7); backdrop-filter: blur(4px); border-radius: 12px; font-size: 13px; border: 1px solid rgba(0,0,0,0.05);">
+          ▶ Capítulo 142 — "Vagabond"
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <div style="padding: 20px; background: var(--surface); border-radius: 16px; box-shadow: var(--shadow-cloud-sm); margin-top: 16px;">
+    <div class="type-label" style="margin-bottom: 8px;">Cuándo usar cada universo</div>
+    <ul style="font-size: 14px; color: var(--text-muted); line-height: 1.8; padding-left: 20px;">
+      <li><strong>Anime · Cielo</strong>: pantallas de watching, watch party, galería de posters, hero cards, descubrimiento de series.</li>
+      <li><strong>Manga · Papel</strong>: reader de manga, biblioteca de tomos, lista de capítulos, detalle de manga.</li>
+      <li><strong>Universal</strong>: home híbrida, search, profile usan la paleta base sin overlay. El universo se aplica solo a las superficies relevantes.</li>
+    </ul>
+  </div>
+</section>
+
+<div class="section-divider"></div>
+
+<!-- DESKTOP MOCKUP -->
+<section class="section" id="desktop">
+  <div class="section-label"><span id="desktopIcon"></span>Adaptación Desktop</div>
+  <h2 class="section-title">Layout 1440 · Sidebar + Grid amplio</h2>
+  <p class="section-sub">En desktop, el bottom-nav se convierte en sidebar izquierda. El contenido se expande en grid amplio. El reader de manga gana modo paginado vertical/horizontal. Watch Party muestra video + chat en 2 columnas.</p>
+  
+  <div class="desktop-frame">
+    <div class="desktop-bar">
+      <div class="desktop-dots"><div class="desktop-dot"></div><div class="desktop-dot"></div><div class="desktop-dot"></div></div>
+      <div class="desktop-url">kumoriya.app · Inicio</div>
+      <div style="width: 80px;"></div>
+    </div>
+    <div class="desktop-body">
+      <aside class="desktop-sidebar">
+        <div class="desktop-brand">
+          <span style="width: 24px; height: 24px; display: inline-grid; place-items: center; color: var(--accent);" id="desktopBrandIcon"></span>
+          Kumoriya
+        </div>
+        <nav class="desktop-nav">
+          <div class="desktop-nav-item active"><span id="dNavHomeIcon"></span>Inicio</div>
+          <div class="desktop-nav-item"><span id="dNavSearchIcon"></span>Buscar</div>
+          <div class="desktop-nav-item"><span id="dNavFireIcon"></span>Trending</div>
+          <div class="desktop-nav-item"><span id="dNavPartyIcon"></span>Watch Party</div>
+          <div class="desktop-nav-item"><span id="dNavLibraryIcon"></span>Biblioteca</div>
+          <div class="desktop-nav-item"><span id="dNavBellIcon"></span>Notificaciones</div>
+        </nav>
+        <div style="margin-top: 24px; padding-top: 16px; border-top: 1px solid var(--surface-2);">
+          <div class="type-label" style="margin-bottom: 8px; padding: 0 12px;">Bibliotecas</div>
+          <div class="desktop-nav-item"><span id="dNavHeartIcon"></span>Favoritos</div>
+          <div class="desktop-nav-item"><span id="dNavBookmarkIcon"></span>Por ver</div>
+          <div class="desktop-nav-item"><span id="dNavDownloadIcon"></span>Descargas</div>
+        </div>
+      </aside>
+      <main class="desktop-main">
+        <div class="desktop-page-title">Buenas tardes, Brizhelito</div>
+        <div class="desktop-page-sub">El cielo está nublado hoy. Perfecto para maratón.</div>
+        
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 24px;">
+          <div style="padding: 20px; background: var(--grad-sky); border-radius: 16px; box-shadow: var(--shadow-cloud-sm);">
+            <div class="type-label" style="margin-bottom: 8px;">Continuar viendo</div>
+            <div style="font-family: var(--font-display); font-weight: var(--font-weight-display); font-size: 20px;">Frieren · EP 12</div>
+            <div style="margin-top: 8px; height: 4px; background: rgba(255,255,255,0.4); border-radius: 2px; overflow: hidden;">
+              <div style="height: 100%; width: 64%; background: var(--accent);"></div>
+            </div>
+          </div>
+          <div style="padding: 20px; background: var(--accent-soft); border-radius: 16px; box-shadow: var(--shadow-cloud-sm);">
+            <div class="type-label" style="margin-bottom: 8px;">Watch Party activa</div>
+            <div style="font-family: var(--font-display); font-weight: var(--font-weight-display); font-size: 20px;">3 amigos · 8:30 PM</div>
+            <div style="margin-top: 8px; font-size: 13px; color: var(--text-muted);">Sousou no Frieren · EP 12</div>
+          </div>
+        </div>
+        
+        <div class="desktop-page-title" style="font-size: 20px; margin-bottom: 12px;">Trending ahora</div>
+        <div class="desktop-grid">
+          <div class="desktop-card"><div class="desktop-card-poster"></div><div class="desktop-card-info"><div class="desktop-card-title">Frieren</div><div class="desktop-card-meta">2024 · 9.1</div></div></div>
+          <div class="desktop-card"><div class="desktop-card-poster p2"></div><div class="desktop-card-info"><div class="desktop-card-title">Mushishi</div><div class="desktop-card-meta">2005 · 8.7</div></div></div>
+          <div class="desktop-card"><div class="desktop-card-poster p3"></div><div class="desktop-card-info"><div class="desktop-card-title">Vinland</div><div class="desktop-card-meta">2023 · 9.0</div></div></div>
+          <div class="desktop-card"><div class="desktop-card-poster p4"></div><div class="desktop-card-info"><div class="desktop-card-title">Natsume</div><div class="desktop-card-meta">2017 · 8.6</div></div></div>
+          <div class="desktop-card"><div class="desktop-card-poster p5"></div><div class="desktop-card-info"><div class="desktop-card-title">Aria</div><div class="desktop-card-meta">2005 · 8.4</div></div></div>
+          <div class="desktop-card"><div class="desktop-card-poster p6"></div><div class="desktop-card-info"><div class="desktop-card-title">Haibane</div><div class="desktop-card-meta">2002 · 8.2</div></div></div>
+        </div>
+      </main>
+    </div>
+  </div>
+</section>
+
+<div class="section-divider"></div>
+
+<!-- DART PATTERNS -->
+<section class="section" id="dart">
+  <div class="section-label"><span id="dartIcon"></span>Patrones Dart · Flutter</div>
+  <h2 class="section-title">ThemeData + Widgets Cloud</h2>
+  <p class="section-sub">Snippets en Dart listos para copiar/pegar en tu repo Flutter. Incluye el <code class="mono" style="background: var(--surface-2); padding: 2px 6px; border-radius: 4px; font-size: 13px;">KumoriyaTheme</code> con switch en caliente de paletas, y los widgets clave: <code class="mono" style="background: var(--surface-2); padding: 2px 6px; border-radius: 4px; font-size: 13px;">CloudCard</code>, <code class="mono" style="background: var(--surface-2); padding: 2px 6px; border-radius: 4px; font-size: 13px;">StarryBackground</code>, <code class="mono" style="background: var(--surface-2); padding: 2px 6px; border-radius: 4px; font-size: 13px;">DriftingClouds</code>, <code class="mono" style="background: var(--surface-2); padding: 2px 6px; border-radius: 4px; font-size: 13px;">WashiTextureOverlay</code>.</p>
+  
+  <div class="code-tabs">
+    <button class="code-tab active" data-code="theme">ThemeData</button>
+    <button class="code-tab" data-code="cloudcard">CloudCard</button>
+    <button class="code-tab" data-code="starry">StarryBackground</button>
+    <button class="code-tab" data-code="clouds">DriftingClouds</button>
+    <button class="code-tab" data-code="washi">WashiTexture</button>
+    <button class="code-tab" data-code="universe">UniverseSwitcher</button>
+  </div>
+  
+  <div class="code-block" id="dartCode"></div>
+</section>
+
+<div class="section-divider"></div>
+
+<!-- MOTION -->
+<section class="section" id="motion">
+  <div class="section-label"><span id="motionIcon"></span>Microinteracciones · Motion</div>
+  <h2 class="section-title">Animaciones suaves y orgánicas</h2>
+  <p class="section-sub">4 patrones base. Todas usan curvas easeOutQuint y duraciones largas (400–600ms). Los loops ambientales son de 30s+ para no distraer. Hover sobre cada card para activar.</p>
+  
+  <div class="motion-grid">
+    <div class="motion-card motion-card-drift">
+      <div class="motion-demo"><div class="motion-ball"></div></div>
+      <div>
+        <div class="motion-label">Cloud Drift</div>
+        <div class="motion-spec">30–60s · linear · loop</div>
+      </div>
+    </div>
+    <div class="motion-card motion-card-twinkle">
+      <div class="motion-demo"><div class="motion-ball"></div></div>
+      <div>
+        <div class="motion-label">Star Twinkle</div>
+        <div class="motion-spec">2.5s · ease · staggered</div>
+      </div>
+    </div>
+    <div class="motion-card motion-card-lift">
+      <div class="motion-demo"><div class="motion-ball"></div></div>
+      <div>
+        <div class="motion-label">Card Lift</div>
+        <div class="motion-spec">400ms · easeOutQuint · hover</div>
+      </div>
+    </div>
+    <div class="motion-card motion-card-pulse">
+      <div class="motion-demo"><div class="motion-ball"></div></div>
+      <div>
+        <div class="motion-label">Soft Pulse</div>
+        <div class="motion-spec">2s · ease · loop</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- CIERRE -->
+<section class="section" id="closing">
+  <div class="closing">
+    <div class="closing-jp">くもり屋</div>
+    <h2>El cielo es solo el comienzo</h2>
+    <p>Esta propuesta es un punto de partida. Tienes 4 paletas, 4 tipografías, 4 estilos de iconos y 2 universos — 128 combinaciones posibles para encontrar el Kumoriya que más te abriga. Juega con el switcher, encuentra tu combinación, y después podemos iterar en componentes específicos.</p>
+    <div style="display: flex; gap: 12px; justify-content: center; flex-wrap: wrap;">
+      <button class="btn btn-primary" onclick="window.scrollTo({top:0, behavior:'smooth'})"><span id="closeUpIcon"></span> Volver arriba</button>
+      <button class="btn btn-ghost" onclick="document.querySelector('#components').scrollIntoView({behavior:'smooth'})">Ver componentes</button>
+    </div>
+  </div>
+</section>
+`;
+
+/* ============================================================
+   POPULATE ICONS — bind SVGs to placeholders
+   ============================================================ */
+function bindIcons() {
+  const s = getIconStyle();
+  const map = {
+    conceptIcon: 'cloud',
+    ccIcon1: 'cloud',
+    ccIcon2: 'star',
+    ccIcon3: 'leaf',
+    ccIcon4: 'clock',
+    colorIcon: 'drop',
+    typeIcon: 'fan',
+    iconIcon: 'moon',
+    tokensIcon: 'bookmark',
+    compIcon: 'cloud',
+    btnPlayIcon: 'play',
+    btnHeartIcon: 'heart',
+    chipStarIcon: 'star',
+    searchIcon: 'search',
+    cardStarIcon: 'star',
+    cardStar2Icon: 'star',
+    cardStar3Icon: 'star',
+    navHomeIcon: 'home',
+    navSearchIcon: 'search',
+    navPartyIcon: 'party',
+    navLibraryIcon: 'library',
+    navProfileIcon: 'user',
+    mobileIcon: 'cloud',
+    univIcon: 'moon',
+    uAnimeStarIcon: 'star',
+    desktopIcon: 'home',
+    desktopBrandIcon: 'cloud',
+    dNavHomeIcon: 'home',
+    dNavSearchIcon: 'search',
+    dNavFireIcon: 'fire',
+    dNavPartyIcon: 'party',
+    dNavLibraryIcon: 'library',
+    dNavBellIcon: 'bell',
+    dNavHeartIcon: 'heart',
+    dNavBookmarkIcon: 'bookmark',
+    dNavDownloadIcon: 'download',
+    dartIcon: 'leaf',
+    motionIcon: 'cloud',
+    closeUpIcon: 'cloud',
+    heroCtaIcon: 'play',
+  };
+  
+  Object.entries(map).forEach(([id, name]) => {
+    const el = document.getElementById(id);
+    if (el) el.innerHTML = icon(name, s);
+  });
+  
+  // Icon grid
+  const iconGrid = document.getElementById('iconGrid');
+  if (iconGrid) {
+    const names = ['cloud', 'moon', 'star', 'play', 'home', 'search', 'library', 'user', 'party', 'heart', 'leaf', 'download', 'bell', 'chat', 'clock', 'bookmark', 'fire', 'drop', 'fan'];
+    iconGrid.innerHTML = names.map(n => `
+      <div class="icon-cell">
+        ${icon(n, s)}
+        <div class="icon-cell-name">${n}</div>
+      </div>
+    `).join('');
+  }
+}
+
+/* ============================================================
+   POPULATE COLOR GRID
+   ============================================================ */
+function bindColors() {
+  const paletteNames = {
+    'cloudy-day': 'Día nublado suave',
+    'warm-twilight': 'Crepúsculo cálido',
+    'starry-night': 'Noche estrellada',
+    'cozy-storm': 'Tormenta cozy',
+  };
+  const activePalette = document.documentElement.getAttribute('data-palette');
+  document.getElementById('heroPalette').textContent = paletteNames[activePalette];
+  
+  const tokens = [
+    ['bg', 'bg'],
+    ['bg-elev', 'bg-elev'],
+    ['surface', 'surface'],
+    ['surface-2', 'surface-2'],
+    ['mist', 'mist'],
+    ['text', 'text'],
+    ['text-muted', 'text-muted'],
+    ['text-soft', 'text-soft'],
+    ['primary', 'primary'],
+    ['primary-soft', 'primary-soft'],
+    ['accent', 'accent'],
+    ['accent-soft', 'accent-soft'],
+    ['success', 'success'],
+    ['warning', 'warning'],
+    ['error', 'error'],
+    ['star', 'star'],
+  ];
+  
+  const grid = document.getElementById('colorGrid');
+  if (!grid) return;
+  
+  grid.innerHTML = tokens.map(([name, label]) => {
+    const val = getComputedStyle(document.documentElement).getPropertyValue(`--${name}`).trim();
+    const isDark = ['text', 'text-muted', 'text-soft', 'primary'].includes(name);
+    return `
+      <div class="color-chip">
+        <div class="color-swatch" style="background: var(--${name}); color: ${isDark ? 'white' : 'var(--text)'};">
+          <span class="mono" style="font-size: 9px; opacity: 0.7;">${label}</span>
+        </div>
+        <div class="color-chip-meta">
+          <div class="color-chip-name">${name}</div>
+          <div class="color-chip-hex">${val}</div>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+/* ============================================================
+   MOBILE MOCKUPS — generate 5 phones
+   ============================================================ */
+function renderMockups() {
+  const s = getIconStyle();
+  const mockups = [
+    // HOME
+    { id: 'home', label: 'Home', html: `
+      <div class="app-header">
+        <div>
+          <div class="app-greeting">Buenas tardes</div>
+          <div class="app-greeting-sub">El cielo está nublado</div>
+        </div>
+        <div class="app-avatar">B</div>
+      </div>
+      <div class="app-hero-card">
+        <div class="app-hero-card-bg"></div>
+        <div class="app-hero-card-content">
+          <span class="app-hero-card-tag">★ Destacado</span>
+          <div class="app-hero-card-title">Sousou no Frieren</div>
+          <div class="app-hero-card-meta">EP 12 · 24 min · 2024</div>
+        </div>
+      </div>
+      <div class="app-section-title">Continuar viendo <span class="app-section-link">ver todo</span></div>
+      <div class="app-continue-card">
+        <div class="app-continue-poster"></div>
+        <div class="app-continue-info">
+          <div class="app-continue-title">Frieren</div>
+          <div class="app-continue-ep">EP 12 · 14:32 / 24:00</div>
+          <div class="app-continue-progress"><div class="app-continue-progress-bar" style="width: 64%;"></div></div>
+        </div>
+      </div>
+      <div class="app-continue-card">
+        <div class="app-continue-poster" style="background: linear-gradient(135deg, var(--accent), var(--warning));"></div>
+        <div class="app-continue-info">
+          <div class="app-continue-title">Mushishi</div>
+          <div class="app-continue-ep">EP 3 · 08:15 / 23:00</div>
+          <div class="app-continue-progress"><div class="app-continue-progress-bar" style="width: 35%; background: var(--warning);"></div></div>
+        </div>
+      </div>
+      <div class="app-section-title">Trending <span class="app-section-link">ver todo</span></div>
+      <div class="app-card-row">
+        <div class="app-mini-card"><div class="app-mini-poster"></div><div class="app-mini-info"><div class="app-mini-title">Vinland</div><div class="app-mini-meta">9.0</div></div></div>
+        <div class="app-mini-card"><div class="app-mini-poster ep2"></div><div class="app-mini-info"><div class="app-mini-title">Natsume</div><div class="app-mini-meta">8.6</div></div></div>
+        <div class="app-mini-card"><div class="app-mini-poster ep3"></div><div class="app-mini-info"><div class="app-mini-title">Aria</div><div class="app-mini-meta">8.4</div></div></div>
+        <div class="app-mini-card"><div class="app-mini-poster ep4"></div><div class="app-mini-info"><div class="app-mini-title">Haibane</div><div class="app-mini-meta">8.2</div></div></div>
+      </div>
+    `},
+    // DETAIL
+    { id: 'detail', label: 'Detalle', html: `
+      <div style="display: flex; align-items: center; gap: 8px; padding: 12px 0;">
+        <span style="color: var(--text-muted);">${icon('home', s)}</span>
+        <span style="font-family: var(--font-mono); font-size: 11px; color: var(--text-muted);">/ Frieren</span>
+      </div>
+      <div class="app-hero-card" style="height: 220px;">
+        <div class="app-hero-card-bg" style="background: linear-gradient(135deg, var(--primary), var(--accent));"></div>
+        <div class="app-hero-card-content">
+          <span class="app-hero-card-tag">EN EMISIÓN</span>
+          <div class="app-hero-card-title" style="font-size: 22px;">Sousou no Frieren</div>
+          <div class="app-hero-card-meta">2024 · 28 eps · Shounen</div>
+        </div>
+      </div>
+      <div style="display: flex; gap: 6px; margin: 12px 0; flex-wrap: wrap;">
+        <span class="chip chip-airing">En emisión</span>
+        <span class="chip chip-tag">Aventura</span>
+        <span class="chip chip-tag">Drama</span>
+        <span class="chip chip-rating">${icon('star', s)} 9.1</span>
+      </div>
+      <p style="font-size: 12px; color: var(--text-muted); line-height: 1.6; margin-bottom: 14px;">Frieren, una elfa maga, sobrevive a sus compañeros heroicos y reflexiona sobre la brevedad de la vida humana.</p>
+      <button class="btn btn-primary" style="width: 100%; justify-content: center;">${icon('play', s)} Reproducir EP 12</button>
+      <div class="app-section-title">Episodios <span class="app-section-link">28</span></div>
+      <div class="app-continue-card">
+        <div class="app-continue-poster" style="width: 80px; height: 50px; background: linear-gradient(135deg, var(--primary), var(--accent));"></div>
+        <div class="app-continue-info">
+          <div class="app-continue-title">EP 12 · La luz de la luna</div>
+          <div class="app-continue-ep">24 min · 14:32 / 24:00</div>
+        </div>
+        <span style="color: var(--accent);">${icon('play', s)}</span>
+      </div>
+      <div class="app-continue-card">
+        <div class="app-continue-poster" style="width: 80px; height: 50px; background: linear-gradient(135deg, var(--accent), var(--warning));"></div>
+        <div class="app-continue-info">
+          <div class="app-continue-title">EP 11 · El hechicero</div>
+          <div class="app-continue-ep">24 min · visto</div>
+        </div>
+        <span style="color: var(--success);">${icon('star', s)}</span>
+      </div>
+    `},
+    // WATCH PARTY
+    { id: 'party', label: 'Watch Party', html: `
+      <div class="app-header">
+        <div>
+          <div class="app-greeting">Watch Party</div>
+          <div class="app-greeting-sub">3 amigos · 8:30 PM</div>
+        </div>
+        <div style="color: var(--accent);">${icon('party', s)}</div>
+      </div>
+      <div style="position: relative; height: 160px; border-radius: 16px; overflow: hidden; background: linear-gradient(135deg, var(--primary), var(--accent)); margin-bottom: 12px;">
+        <div style="position: absolute; inset: 0; display: grid; place-items: center; color: white;">
+          ${icon('play', s)}
+        </div>
+        <div style="position: absolute; bottom: 8px; left: 12px; right: 12px; display: flex; justify-content: space-between; color: white; font-size: 10px; font-family: var(--font-mono);">
+          <span>14:32</span><span>SYNC ✓</span><span>24:00</span>
+        </div>
+      </div>
+      <div class="app-section-title">Viendo ahora <span class="app-section-link">3 viewers</span></div>
+      <div style="display: flex; gap: 8px; margin-bottom: 14px;">
+        <div style="text-align: center;">
+          <div style="width: 40px; height: 40px; border-radius: 50%; background: var(--accent-soft); display: grid; place-items: center; font-family: var(--font-display); font-weight: 700; font-size: 14px;">B</div>
+          <div style="font-size: 10px; margin-top: 4px;">Tú</div>
+        </div>
+        <div style="text-align: center;">
+          <div style="width: 40px; height: 40px; border-radius: 50%; background: var(--primary-soft); display: grid; place-items: center; font-family: var(--font-display); font-weight: 700; font-size: 14px; color: white;">M</div>
+          <div style="font-size: 10px; margin-top: 4px;">Mika</div>
+        </div>
+        <div style="text-align: center;">
+          <div style="width: 40px; height: 40px; border-radius: 50%; background: var(--success); display: grid; place-items: center; font-family: var(--font-display); font-weight: 700; font-size: 14px; color: white;">R</div>
+          <div style="font-size: 10px; margin-top: 4px;">Ren</div>
+        </div>
+      </div>
+      <div class="app-section-title">Chat</div>
+      <div style="background: var(--surface); border-radius: 12px; padding: 10px; box-shadow: var(--shadow-cloud-sm);">
+        <div style="font-size: 11px; margin-bottom: 6px;"><strong style="color: var(--primary);">Mika:</strong> qué buena escena 😭</div>
+        <div style="font-size: 11px; margin-bottom: 6px;"><strong style="color: var(--success);">Ren:</strong> la animación está brutal</div>
+        <div style="font-size: 11px;"><strong style="color: var(--accent);">Tú:</strong> agreement</div>
+      </div>
+    `},
+    // LIBRARY
+    { id: 'library', label: 'Biblioteca', html: `
+      <div class="app-header">
+        <div>
+          <div class="app-greeting">Biblioteca</div>
+          <div class="app-greeting-sub">128 títulos</div>
+        </div>
+        <div style="color: var(--text-muted);">${icon('library', s)}</div>
+      </div>
+      <div style="display: flex; gap: 6px; margin-bottom: 14px;">
+        <button class="chip chip-airing">Anime · 84</button>
+        <button class="chip">Manga · 44</button>
+      </div>
+      <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;">
+        ${[1,2,3,4,5,6,7,8,9].map(i => `
+          <div style="background: var(--surface); border-radius: 10px; overflow: hidden; box-shadow: var(--shadow-cloud-sm);">
+            <div style="aspect-ratio: 2/3; background: linear-gradient(135deg, var(--primary-soft), var(--accent));"></div>
+            <div style="padding: 6px;"><div style="font-family: var(--font-display); font-weight: 700; font-size: 10px; line-height: 1.2;">Título ${i}</div></div>
+          </div>
+        `).join('')}
+      </div>
+    `},
+    // PROFILE
+    { id: 'profile', label: 'Perfil', html: `
+      <div style="text-align: center; padding: 20px 0;">
+        <div style="width: 80px; height: 80px; border-radius: 50%; background: var(--accent-soft); display: grid; place-items: center; margin: 0 auto 12px; font-family: var(--font-display); font-weight: 900; font-size: 32px; color: var(--text);">B</div>
+        <div style="font-family: var(--font-display); font-weight: 700; font-size: 20px;">Brizhelito</div>
+        <div style="font-size: 12px; color: var(--text-muted);">Nube coleccionista · nivel 7</div>
+      </div>
+      <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 14px;">
+        <div style="background: var(--surface); padding: 12px 8px; border-radius: 12px; text-align: center; box-shadow: var(--shadow-cloud-sm);">
+          <div style="font-family: var(--font-display); font-weight: 900; font-size: 22px; color: var(--accent);">847</div>
+          <div style="font-size: 10px; color: var(--text-muted);">Horas</div>
+        </div>
+        <div style="background: var(--surface); padding: 12px 8px; border-radius: 12px; text-align: center; box-shadow: var(--shadow-cloud-sm);">
+          <div style="font-family: var(--font-display); font-weight: 900; font-size: 22px; color: var(--primary);">128</div>
+          <div style="font-size: 10px; color: var(--text-muted);">Títulos</div>
+        </div>
+        <div style="background: var(--surface); padding: 12px 8px; border-radius: 12px; text-align: center; box-shadow: var(--shadow-cloud-sm);">
+          <div style="font-family: var(--font-display); font-weight: 900; font-size: 22px; color: var(--success);">42</div>
+          <div style="font-size: 10px; color: var(--text-muted);">Nubes</div>
+        </div>
+      </div>
+      <div class="app-section-title">Logros</div>
+      <div style="display: flex; gap: 8px; overflow-x: auto; padding-bottom: 8px;">
+        ${['star','moon','cloud','fire','heart','leaf'].map(ic => `
+          <div style="flex-shrink: 0; width: 60px; text-align: center;">
+            <div style="width: 50px; height: 50px; border-radius: 50%; background: var(--accent-soft); display: grid; place-items: center; margin: 0 auto; color: var(--text);">${icon(ic, s)}</div>
+            <div style="font-size: 9px; margin-top: 4px;">Logro</div>
+          </div>
+        `).join('')}
+      </div>
+    `},
+  ];
+  
+  const container = document.getElementById('mobileMockups');
+  if (!container) return;
+  
+  container.innerHTML = mockups.map(m => `
+    <div class="phone">
+      <div class="phone-notch"></div>
+      <div class="phone-statusbar">
+        <span>9:41</span>
+        <span style="display: flex; gap: 4px; align-items: center;">${icon('cloud', s)} <span style="font-size: 9px;">kumoriya</span></span>
+      </div>
+      <div class="phone-screen">
+        <div class="phone-content">
+          <div class="phone-app">${m.html}</div>
+        </div>
+        <div class="app-bottom-nav">
+          <button class="app-nav-item ${m.id==='home'?'active':''}">${icon('home', s)}Inicio</button>
+          <button class="app-nav-item ${m.id==='detail'?'active':''}">${icon('search', s)}Buscar</button>
+          <button class="app-nav-item ${m.id==='party'?'active':''}">${icon('party', s)}Party</button>
+          <button class="app-nav-item ${m.id==='library'?'active':''}">${icon('library', s)}Biblio</button>
+          <button class="app-nav-item ${m.id==='profile'?'active':''}">${icon('user', s)}Perfil</button>
+        </div>
+      </div>
+    </div>
+  `).join('');
+}
+
+/* ============================================================
+   DART CODE SNIPPETS
+   ============================================================ */
+const DART_SNIPPETS = {
+  theme: `<span class="com">// lib/theme/kumoriya_theme.dart</span>
+<span class="kw">import</span> <span class="str">'package:flutter/material.dart'</span>;
+
+<span class="com">/// 4 paletas de "cielo nublado acogedor"</span>
+<span class="kw">enum</span> <span class="cls">KumoriyaPalette</span> { cloudyDay, warmTwilight, starryNight, cozyStorm }
+
+<span class="kw">class</span> <span class="cls">KumoriyaTheme</span> {
+  <span class="kw">static</span> <span class="cls">ThemeData</span> <span class="fn">of</span>(<span class="cls">KumoriyaPalette</span> palette) {
+    <span class="kw">final</span> colors = <span class="fn">_resolvePalette</span>(palette);
+    <span class="kw">return</span> <span class="cls">ThemeData</span>(
+      useMaterial3: <span class="kw">true</span>,
+      colorScheme: <span class="cls">ColorScheme</span>.<span class="fn">light</span>(
+        background: colors[<span class="str">'bg'</span>]!,
+        surface: colors[<span class="str">'surface'</span>]!,
+        primary: colors[<span class="str">'primary'</span>]!,
+        secondary: colors[<span class="str">'accent'</span>]!,
+        onBackground: colors[<span class="str">'text'</span>]!,
+        onSurface: colors[<span class="str">'text'</span>]!,
+        error: colors[<span class="str">'error'</span>]!,
+      ),
+      textTheme: <span class="cls">TextTheme</span>(
+        displayLarge: <span class="cls">TextStyle</span>(fontFamily: <span class="str">'ZenMaruGothic'</span>, fontWeight: <span class="cls">FontWeight</span>.w700, fontSize: <span class="num">48</span>, height: <span class="num">1.1</span>),
+        headlineMedium: <span class="cls">TextStyle</span>(fontFamily: <span class="str">'ZenMaruGothic'</span>, fontWeight: <span class="cls">FontWeight</span>.w700, fontSize: <span class="num">24</span>),
+        bodyLarge: <span class="cls">TextStyle</span>(fontFamily: <span class="str">'MPlusRounded1c'</span>, fontWeight: <span class="cls">FontWeight</span>.w500, fontSize: <span class="num">16</span>, height: <span class="num">1.6</span>),
+        bodySmall: <span class="cls">TextStyle</span>(fontFamily: <span class="str">'MPlusRounded1c'</span>, fontSize: <span class="num">12</span>, color: colors[<span class="str">'textMuted'</span>]),
+      ),
+      scaffoldBackgroundColor: colors[<span class="str">'bg'</span>]!,
+      <span class="com">// Cloud shadow: 3 capas difusas</span>
+      cardTheme: <span class="cls">CardTheme</span>(
+        elevation: <span class="num">0</span>,
+        color: colors[<span class="str">'surface'</span>],
+        shape: <span class="cls">RoundedRectangleBorder</span>(borderRadius: <span class="cls">BorderRadius</span>.<span class="fn">circular</span>(<span class="num">24</span>)),
+        shadowColor: <span class="cls">Color</span>(<span class="num">0x1A2B3144</span>),
+      ),
+    );
+  }
+
+  <span class="kw">static</span> <span class="cls">Map</span>&lt;<span class="cls">String</span>, <span class="cls">Color</span>&gt; <span class="fn">_resolvePalette</span>(<span class="cls">KumoriyaPalette</span> p) {
+    <span class="kw">switch</span> (p) {
+      <span class="kw">case</span> <span class="cls">KumoriyaPalette</span>.cloudyDay:
+        <span class="kw">return</span> {
+          <span class="str">'bg'</span>: <span class="kw">const</span> <span class="cls">Color</span>(<span class="num">0xFFF4F1EC</span>),
+          <span class="str">'surface'</span>: <span class="kw">const</span> <span class="cls">Color</span>(<span class="num">0xFFFFFFFF</span>),
+          <span class="str">'primary'</span>: <span class="kw">const</span> <span class="cls">Color</span>(<span class="num">0xFF5B7BB5</span>),
+          <span class="str">'accent'</span>: <span class="kw">const</span> <span class="cls">Color</span>(<span class="num">0xFFE8A598</span>),
+          <span class="str">'text'</span>: <span class="kw">const</span> <span class="cls">Color</span>(<span class="num">0xFF2B3144</span>),
+          <span class="str">'textMuted'</span>: <span class="kw">const</span> <span class="cls">Color</span>(<span class="num">0xFF6B7280</span>),
+          <span class="str">'error'</span>: <span class="kw">const</span> <span class="cls">Color</span>(<span class="num">0xFFD97B7B</span>),
+        };
+      <span class="kw">case</span> <span class="cls">KumoriyaPalette</span>.starryNight:
+        <span class="kw">return</span> {<span class="com">/* ... tonos noche ... */</span>};
+      <span class="kw">case</span> <span class="cls">KumoriyaPalette</span>.warmTwilight:
+        <span class="kw">return</span> {<span class="com">/* ... tonos crepúsculo ... */</span>};
+      <span class="kw">case</span> <span class="cls">KumoriyaPalette</span>.cozyStorm:
+        <span class="kw">return</span> {<span class="com">/* ... tonos tormenta ... */</span>};
+    }
+  }
+
+  <span class="com">/// Cloud shadow de 3 capas — la firma visual de Kumoriya</span>
+  <span class="kw">static</span> <span class="cls">List</span>&lt;<span class="cls">BoxShadow</span>&gt; <span class="fn">cloudShadow</span>(<span class="cls">KumoriyaPalette</span> p, {<span class="kw">bool</span> hover = <span class="kw">false</span>}) {
+    <span class="kw">final</span> isDark = p == <span class="cls">KumoriyaPalette</span>.starryNight;
+    <span class="kw">final</span> alpha = isDark ? <span class="num">0.4</span> : <span class="num">0.07</span>;
+    <span class="kw">final</span> color = <span class="cls">Color</span>(<span class="num">0xFF2B3144</span>).<span class="fn">withOpacity</span>(alpha);
+    <span class="kw">return</span> [
+      <span class="cls">BoxShadow</span>(color: color, blurRadius: <span class="num">4</span>, offset: <span class="kw">const</span> <span class="cls">Offset</span>(<span class="num">0</span>, <span class="num">2</span>)),
+      <span class="cls">BoxShadow</span>(color: color, blurRadius: <span class="num">16</span>, offset: <span class="kw">const</span> <span class="cls">Offset</span>(<span class="num">0</span>, <span class="num">8</span>)),
+      <span class="cls">BoxShadow</span>(color: color, blurRadius: <span class="num">48</span>, offset: <span class="kw">const</span> <span class="cls">Offset</span>(<span class="num">0</span>, hover ? <span class="num">32</span> : <span class="num">16</span>)),
+    ];
+  }
+}`,
+
+  cloudcard: `<span class="com">// lib/widgets/cloud_card.dart</span>
+<span class="kw">import</span> <span class="str">'package:flutter/material.dart'</span>;
+
+<span class="com">/// CloudCard — la unidad básica de Kumoriya.
+/// Sombras 3-capas, esquina 24, hover lift con easeOutQuint.</span>
+<span class="kw">class</span> <span class="cls">CloudCard</span> <span class="kw">extends</span> <span class="cls">StatefulWidget</span> {
+  <span class="kw">final</span> <span class="cls">Widget</span> child;
+  <span class="kw">final</span> <span class="cls">VoidCallback</span>? onTap;
+  <span class="kw">final</span> <span class="cls">double</span> borderRadius;
+
+  <span class="kw">const</span> <span class="cls">CloudCard</span>({<span class="kw">super</span>.key, <span class="kw">required</span> <span class="kw">this</span>.child, <span class="kw">this</span>.onTap, <span class="kw">this</span>.borderRadius = <span class="num">24</span>});
+
+  <span class="at">@override</span>
+  <span class="cls">State</span>&lt;<span class="cls">CloudCard</span>&gt; <span class="fn">createState</span>() => <span class="cls">_CloudCardState</span>();
+}
+
+<span class="kw">class</span> <span class="cls">_CloudCardState</span> <span class="kw">extends</span> <span class="cls">State</span>&lt;<span class="cls">CloudCard</span>&gt;
+    <span class="kw">with</span> <span class="cls">SingleTickerProviderStateMixin</span> {
+  <span class="kw">late</span> <span class="cls">AnimationController</span> _lift;
+  <span class="kw">bool</span> _hovering = <span class="kw">false</span>;
+
+  <span class="at">@override</span>
+  <span class="kw">void</span> <span class="fn">initState</span>() {
+    <span class="kw">super</span>.<span class="fn">initState</span>();
+    _lift = <span class="cls">AnimationController</span>(
+      vsync: <span class="kw">this</span>,
+      duration: <span class="kw">const</span> <span class="cls">Duration</span>(milliseconds: <span class="num">400</span>),
+    );
+  }
+
+  <span class="at">@override</span>
+  <span class="kw">void</span> <span class="fn">dispose</span>() { _lift.<span class="fn">dispose</span>(); <span class="kw">super</span>.<span class="fn">dispose</span>(); }
+
+  <span class="at">@override</span>
+  <span class="cls">Widget</span> <span class="fn">build</span>(<span class="cls">BuildContext</span> context) {
+    <span class="kw">final</span> theme = <span class="cls">Theme</span>.<span class="fn">of</span>(context);
+    <span class="kw">return</span> <span class="cls">MouseRegion</span>(
+      onEnter: (_) { <span class="fn">setState</span>(() => _hovering = <span class="kw">true</span>); _lift.<span class="fn">forward</span>(); },
+      onExit: (_) { <span class="fn">setState</span>(() => _hovering = <span class="kw">false</span>); _lift.<span class="fn">reverse</span>(); },
+      child: <span class="cls">AnimatedBuilder</span>(
+        animation: _lift,
+        builder: (_, __) => <span class="cls">Transform</span>.<span class="fn">translate</span>(
+          offset: <span class="cls">Offset</span>(<span class="num">0</span>, -<span class="num">6</span> * _lift.value),
+          child: <span class="cls">GestureDetector</span>(
+            onTap: widget.onTap,
+            child: <span class="cls">Container</span>(
+              decoration: <span class="cls">BoxDecoration</span>(
+                color: theme.colorScheme.surface,
+                borderRadius: <span class="cls">BorderRadius</span>.<span class="fn">circular</span>(widget.borderRadius),
+                boxShadow: <span class="cls">KumoriyaTheme</span>.<span class="fn">cloudShadow</span>(
+                  <span class="cls">KumoriyaPalette</span>.cloudyDay,
+                  hover: _hovering,
+                ),
+              ),
+              child: widget.child,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+<span class="com">/// Uso:</span>
+<span class="com">/// CloudCard(onTap: () => ..., child: PosterInfo())</span>`,
+
+  starry: `<span class="com">// lib/widgets/starry_background.dart</span>
+<span class="kw">import</span> <span class="str">'package:flutter/material.dart'</span>;
+<span class="kw">import</span> <span class="str">'dart:math'</span>;
+
+<span class="com">/// Fondo estrellado para el universo Anime · Cielo.
+/// Estrellas que parpadean con staggered animation, loops de 4s.</span>
+<span class="kw">class</span> <span class="cls">StarryBackground</span> <span class="kw">extends</span> <span class="cls">StatefulWidget</span> {
+  <span class="kw">final</span> <span class="cls">int</span> starCount;
+  <span class="kw">final</span> <span class="cls">Color</span>? starColor;
+  <span class="kw">const</span> <span class="cls">StarryBackground</span>({<span class="kw">super</span>.key, <span class="kw">this</span>.starCount = <span class="num">60</span>, <span class="kw">this</span>.starColor});
+
+  <span class="at">@override</span>
+  <span class="cls">State</span>&lt;<span class="cls">StarryBackground</span>&gt; <span class="fn">createState</span>() => <span class="cls">_StarryBackgroundState</span>();
+}
+
+<span class="kw">class</span> <span class="cls">_StarryBackgroundState</span> <span class="kw">extends</span> <span class="cls">State</span>&lt;<span class="cls">StarryBackground</span>&gt; {
+  <span class="kw">late</span> <span class="cls">List</span>&lt;<span class="cls">_Star</span>&gt; _stars;
+  <span class="kw">late</span> <span class="cls">AnimationController</span> _twinkle;
+  <span class="kw">final</span> _rng = <span class="cls">Random</span>();
+
+  <span class="at">@override</span>
+  <span class="kw">void</span> <span class="fn">initState</span>() {
+    <span class="kw">super</span>.<span class="fn">initState</span>();
+    _stars = <span class="cls">List</span>.<span class="fn">generate</span>(widget.starCount, (_) => <span class="cls">_Star</span>.<span class="fn">random</span>(_rng));
+    _twinkle = <span class="cls">AnimationController</span>(
+      vsync: <span class="kw">this</span>,
+      duration: <span class="kw">const</span> <span class="cls">Duration</span>(seconds: <span class="num">4</span>),
+    )..<span class="fn">repeat</span>();
+  }
+
+  <span class="at">@override</span>
+  <span class="kw">void</span> <span class="fn">dispose</span>() { _twinkle.<span class="fn">dispose</span>(); <span class="kw">super</span>.<span class="fn">dispose</span>(); }
+
+  <span class="at">@override</span>
+  <span class="cls">Widget</span> <span class="fn">build</span>(<span class="cls">BuildContext</span> context) {
+    <span class="kw">return</span> <span class="cls">AnimatedBuilder</span>(
+      animation: _twinkle,
+      builder: (_, __) {
+        <span class="kw">return</span> <span class="cls">CustomPaint</span>(
+          painter: <span class="cls">_StarPainter</span>(_stars, _twinkle.value, widget.starColor ?? <span class="kw">const</span> <span class="cls">Color</span>(<span class="num">0xFFF0C667</span>)),
+          size: <span class="cls">Size</span>.<span class="fn">infinite</span>,
+        );
+      },
+    );
+  }
+}
+
+<span class="kw">class</span> <span class="cls">_Star</span> {
+  <span class="kw">final</span> <span class="cls">Offset</span> pos; <span class="kw">final</span> <span class="cls">double</span> size; <span class="kw">final</span> <span class="cls">double</span> phase;
+  <span class="cls">_Star</span>(<span class="kw">this</span>.pos, <span class="kw">this</span>.size, <span class="kw">this</span>.phase);
+  <span class="kw">factory</span> <span class="cls">_Star</span>.<span class="fn">random</span>(<span class="cls">Random</span> r) => <span class="cls">_Star</span>(
+    <span class="cls">Offset</span>(r.<span class="fn">nextDouble</span>(), r.<span class="fn">nextDouble</span>()),
+    <span class="num">1.0</span> + r.<span class="fn">nextDouble</span>() * <span class="num">2.5</span>,
+    r.<span class="fn">nextDouble</span>() * <span class="num">3.14</span>,
+  );
+}
+
+<span class="kw">class</span> <span class="cls">_StarPainter</span> <span class="kw">extends</span> <span class="cls">CustomPainter</span> {
+  <span class="kw">final</span> <span class="cls">List</span>&lt;<span class="cls">_Star</span>&gt; stars; <span class="kw">final</span> <span class="cls">double</span> t; <span class="kw">final</span> <span class="cls">Color</span> color;
+  <span class="cls">_StarPainter</span>(<span class="kw">this</span>.stars, <span class="kw">this</span>.t, <span class="kw">this</span>.color);
+  <span class="at">@override</span>
+  <span class="kw">void</span> <span class="fn">paint</span>(<span class="cls">Canvas</span> canvas, <span class="cls">Size</span> size) {
+    <span class="kw">final</span> paint = <span class="cls">Paint</span>()..color = color;
+    <span class="kw">for</span> (<span class="kw">final</span> s <span class="kw">in</span> stars) {
+      <span class="kw">final</span> opacity = (<span class="fn">sin</span>(t * <span class="num">2</span> * <span class="num">3.14159</span> + s.phase) + <span class="num">1</span>) / <span class="num">2</span> * <span class="num">0.8</span>;
+      paint.<span class="fn">withOpacity</span>(opacity);
+      canvas.<span class="fn">drawCircle</span>(
+        <span class="cls">Offset</span>(s.pos.dx * size.width, s.pos.dy * size.height),
+        s.size, paint,
+      );
+    }
+  }
+  <span class="at">@override</span>
+  <span class="kw">bool</span> <span class="kw">should</span>Repaint(_) => <span class="kw">true</span>;
+}`,
+
+  clouds: `<span class="com">// lib/widgets/drifting_clouds.dart</span>
+<span class="kw">import</span> <span class="str">'package:flutter/material.dart'</span>;
+
+<span class="com">/// Nubes que derivan horizontalmente en loops de 30–60s.
+/// Background ambient del universo Anime.</span>
+<span class="kw">class</span> <span class="cls">DriftingClouds</span> <span class="kw">extends</span> <span class="cls">StatefulWidget</span> {
+  <span class="kw">const</span> <span class="cls">DriftingClouds</span>({<span class="kw">super</span>.key});
+  <span class="at">@override</span>
+  <span class="cls">State</span>&lt;<span class="cls">DriftingClouds</span>&gt; <span class="fn">createState</span>() => <span class="cls">_DriftingCloudsState</span>();
+}
+
+<span class="kw">class</span> <span class="cls">_DriftingCloudsState</span> <span class="kw">extends</span> <span class="cls">State</span>&lt;<span class="cls">DriftingClouds</span>&gt>
+    <span class="kw">with</span> <span class="cls">TickerProviderStateMixin</span> {
+  <span class="kw">late</span> <span class="cls">List</span>&lt;<span class="cls">AnimationController</span>&gt; _controllers;
+
+  <span class="at">@override</span>
+  <span class="kw">void</span> <span class="fn">initState</span>() {
+    <span class="kw">super</span>.<span class="fn">initState</span>();
+    <span class="com">// 3 nubes con duraciones distintas para asimetría orgánica</span>
+    _controllers = [<span class="num">45</span>, <span class="num">60</span>, <span class="num">80</span>].<span class="fn">map</span>((s) => <span class="cls">AnimationController</span>(
+      vsync: <span class="kw">this</span>,
+      duration: <span class="cls">Duration</span>(seconds: s),
+    )..<span class="fn">repeat</span>()).<span class="fn">toList</span>();
+  }
+
+  <span class="at">@override</span>
+  <span class="kw">void</span> <span class="fn">dispose</span>() {
+    <span class="kw">for</span> (<span class="kw">final</span> c <span class="kw">in</span> _controllers) c.<span class="fn">dispose</span>();
+    <span class="kw">super</span>.<span class="fn">dispose</span>();
+  }
+
+  <span class="at">@override</span>
+  <span class="cls">Widget</span> <span class="fn">build</span>(<span class="cls">BuildContext</span> context) {
+    <span class="kw">return</span> <span class="cls">Stack</span>(
+      children: <span class="cls">List</span>.<span class="fn">generate</span>(_controllers.length, (i) {
+        <span class="kw">final</span> configs = [
+          (<span class="num">0.10</span>, <span class="num">400.0</span>, <span class="num">200.0</span>, <span class="num">0.9</span>),
+          (<span class="num">0.30</span>, <span class="num">300.0</span>, <span class="num">150.0</span>, <span class="num">0.7</span>),
+          (<span class="num">0.70</span>, <span class="num">500.0</span>, <span class="num">220.0</span>, <span class="num">0.5</span>),
+        ][i];
+        <span class="kw">return</span> <span class="cls">AnimatedBuilder</span>(
+          animation: _controllers[i],
+          builder: (_, __) {
+            <span class="kw">final</span> dx = _controllers[i].value * (<span class="cls">MediaQuery</span>.<span class="fn">of</span>(context).size.width + configs.$2);
+            <span class="kw">return</span> <span class="cls">Positioned</span>(
+              top: <span class="cls">MediaQuery</span>.<span class="fn">of</span>(context).size.height * configs.$1,
+              left: -configs.$2 + dx,
+              child: <span class="cls">Opacity</span>(
+                opacity: configs.$4,
+                child: <span class="cls">Container</span>(
+                  width: configs.$2, height: configs.$3,
+                  decoration: <span class="cls">BoxDecoration</span>(
+                    color: <span class="cls">Colors</span>.white.<span class="fn">withOpacity</span>(<span class="num">0.7</span>),
+                    borderRadius: <span class="cls">BorderRadius</span>.<span class="fn">circular</span>(configs.$3),
+                    <span class="com">/* blur via BackdropFilter en producción */</span>
+                  ),
+                ),
+              ),
+            );
+          },
+        );
+      }),
+    );
+  }
+}`,
+
+  washi: `<span class="com">// lib/widgets/washi_texture.dart</span>
+<span class="kw">import</span> <span class="str">'package:flutter/material.dart'</span>;
+<span class="kw">import</span> <span class="str">'dart:ui'</span>;
+
+<span class="com">/// Overlay de textura washi para el universo Manga · Papel.
+/// Se aplica encima del contenido con BlendMode.multiply a baja opacidad.</span>
+<span class="kw">class</span> <span class="cls">WashiTextureOverlay</span> <span class="kw">extends</span> <span class="cls">StatelessWidget</span> {
+  <span class="kw">final</span> <span class="cls">double</span> opacity;
+  <span class="kw">const</span> <span class="cls">WashiTextureOverlay</span>({<span class="kw">super</span>.key, <span class="kw">this</span>.opacity = <span class="num">0.06</span>});
+
+  <span class="at">@override</span>
+  <span class="cls">Widget</span> <span class="fn">build</span>(<span class="cls">BuildContext</span> context) {
+    <span class="kw">return</span> <span class="cls">IgnorePointer</span>(
+      child: <span class="cls"> Positioned</span>.<span class="fn">fill</span>(
+        child: <span class="cls">ShaderMask</span>(
+          shaderCallback: (rect) => <span class="cls">ImageShader</span>(
+            <span class="cls">_washiPattern</span>,
+            <span class="cls">TileMode</span>.repeated, <span class="cls">TileMode</span>.repeated,
+            <span class="cls">Matrix4</span>.<span class="fn">identity</span>().<span class="fn">scaled</span>(<span class="num">0.5</span>).<span class="fn">storage</span>,
+          ),
+          blendMode: <span class="cls">BlendMode</span>.multiply,
+          child: <span class="cls">Container</span>(color: <span class="cls">Colors</span>.black.<span class="fn">withOpacity</span>(opacity)),
+        ),
+      ),
+    );
+  }
+}
+
+<span class="kw">final</span> _washiPattern = <span class="com">/* precarga de asset washi.png (200x200 noise) */</span>
+    <span class="cls">Image</span>.<span class="fn">asset</span>(<span class="str">'assets/textures/washi.png'</span>).image;
+
+<span class="com">/// Modo de uso en pantallas del universo Manga:
+/// Stack(
+///   children: [
+///     tuContenido,
+///     const WasbiTextureOverlay(opacity: 0.08),
+///   ],
+/// )</span>`,
+
+  universe: `<span class="com">// lib/widgets/universe_container.dart</span>
+<span class="kw">import</span> <span class="str">'package:flutter/material.dart'</span>;
+<span class="kw">import</span> <span class="str">'package:provider/provider.dart'</span>;
+
+<span class="com">/// Gestiona el universo activo (Anime · Cielo / Manga · Papel).
+/// Aplica el fondo + overlay adecuado según el universo.</span>
+<span class="kw">enum</span> <span class="cls">KumoriyaUniverse</span> { anime, manga }
+
+<span class="kw">class</span> <span class="cls">UniverseModel</span> <span class="kw">extends</span> <span class="cls">ChangeNotifier</span> {
+  <span class="cls">KumoriyaUniverse</span> _current = <span class="cls">KumoriyaUniverse</span>.anime;
+  <span class="cls">KumoriyaUniverse</span> <span class="kw">get</span> current => _current;
+
+  <span class="kw">void</span> <span class="fn">switchTo</span>(<span class="cls">KumoriyaUniverse</span> u) {
+    <span class="kw">if</span> (_current == u) <span class="kw">return</span>;
+    _current = u;
+    <span class="fn">notifyListeners</span>();
+  }
+
+  <span class="kw">bool</span> <span class="kw">get</span> isAnime => _current == <span class="cls">KumoriyaUniverse</span>.anime;
+  <span class="kw">bool</span> <span class="kw">get</span> isManga => _current == <span class="cls">KumoriyaUniverse</span>.manga;
+}
+
+<span class="com">/// Contenedor que aplica el fondo y overlay del universo activo.</span>
+<span class="kw">class</span> <span class="cls">UniverseBackground</span> <span class="kw">extends</span> <span class="cls">StatelessWidget</span> {
+  <span class="kw">final</span> <span class="cls">Widget</span> child;
+  <span class="kw">const</span> <span class="cls">UniverseBackground</span>({<span class="kw">super</span>.key, <span class="kw">required</span> <span class="kw">this</span>.child});
+
+  <span class="at">@override</span>
+  <span class="cls">Widget</span> <span class="fn">build</span>(<span class="cls">BuildContext</span> context) {
+    <span class="kw">final</span> u = context.<span class="fn">watch</span>&lt;<span class="cls">UniverseModel</span>&gt;();
+    <span class="kw">return</span> <span class="cls">Stack</span>(
+      children: [
+        <span class="com">// Fondo según universo</span>
+        <span class="cls">Positioned</span>.<span class="fn">fill</span>(
+          child: u.isAnime
+            ? <span class="kw">const</span> <span class="cls">_SkyGradient</span>()
+            : <span class="kw">const</span> <span class="cls">_WashiGradient</span>(),
+        ),
+        <span class="com">// Ambient solo en Anime · Cielo</span>
+        <span class="kw">if</span> (u.isAnime) ...[
+          <span class="kw">const</span> <span class="cls">Positioned</span>.<span class="fn">fill</span>(child: <span class="cls">DriftingClouds</span>()),
+          <span class="kw">const</span> <span class="cls">Positioned</span>.<span class="fn">fill</span>(child: <span class="cls">StarryBackground</span>(starCount: <span class="num">40</span>)),
+        ],
+        <span class="com">// Overlay de papel solo en Manga · Papel</span>
+        <span class="kw">if</span> (u.isManga)
+          <span class="kw">const</span> <span class="cls">Positioned</span>.<span class="fn">fill</span>(child: <span class="cls">WashiTextureOverlay</span>(opacity: <span class="num">0.08</span>)),
+        <span class="com">// Contenido real</span>
+        child,
+      ],
+    );
+  }
+}
+
+<span class="kw">class</span> <span class="cls">_SkyGradient</span> <span class="kw">extends</span> <span class="cls">StatelessWidget</span> {
+  <span class="kw">const</span> <span class="cls">_SkyGradient</span>();
+  <span class="at">@override</span>
+  <span class="cls">Widget</span> <span class="fn">build</span>(<span class="cls">BuildContext</span> context) => <span class="cls">Container</span>(
+    decoration: <span class="kw">const</span> <span class="cls">BoxDecoration</span>(
+      gradient: <span class="cls">LinearGradient</span>(
+        begin: <span class="cls">Alignment</span>.topCenter, end: <span class="cls">Alignment</span>.bottomCenter,
+        colors: [<span class="cls">Color</span>(<span class="num">0xFFDDE5EF</span>), <span class="cls">Color</span>(<span class="num">0xFFE8EBF0</span>), <span class="cls">Color</span>(<span class="num">0xFFF4F1EC</span>)],
+      ),
+    ),
+  );
+}
+
+<span class="kw">class</span> <span class="cls">_WashiGradient</span> <span class="kw">extends</span> <span class="cls">StatelessWidget</span> {
+  <span class="kw">const</span> <span class="cls">_WashiGradient</span>();
+  <span class="at">@override</span>
+  <span class="cls">Widget</span> <span class="fn">build</span>(<span class="cls">BuildContext</span> context) => <span class="cls">Container</span>(
+    decoration: <span class="kw">const</span> <span class="cls">BoxDecoration</span>(
+      gradient: <span class="cls">LinearGradient</span>(
+        begin: <span class="cls">Alignment</span>.topCenter, end: <span class="cls">Alignment</span>.bottomCenter,
+        colors: [<span class="cls">Color</span>(<span class="num">0xFFF0E8D8</span>), <span class="cls">Color</span>(<span class="num">0xFFE8DFCB</span>)],
+      ),
+    ),
+  );
+}
+
+<span class="com">/// Uso en main.dart:
+/// MultiProvider(
+///   providers: [ChangeNotifierProvider(create: (_) => UniverseModel())],
+///   child: MaterialApp(
+///     theme: KumoriyaTheme.of(KumoriyaPalette.cloudyDay),
+///     home: UniverseBackground(child: HomePage()),
+///   ),
+/// )</span>`,
+};
+
+function showDart(key) {
+  document.querySelectorAll('.code-tab').forEach(t => t.classList.toggle('active', t.dataset.code === key));
+  document.getElementById('dartCode').innerHTML = `<button class="code-copy" onclick="navigator.clipboard.writeText(document.getElementById('dartCode').innerText)">copiar</button><pre>${DART_SNIPPETS[key]}</pre>`;
+}
+
+document.querySelectorAll('.code-tab').forEach(t => {
+  t.addEventListener('click', () => showDart(t.dataset.code));
+});
+
+/* ============================================================
+   STAR GENERATION in hero
+   ============================================================ */
+function makeStars() {
+  const container = document.getElementById('heroStars');
+  if (!container) return;
+  container.innerHTML = '';
+  for (let i = 0; i < 40; i++) {
+    const s = document.createElement('div');
+    s.className = 'star';
+    s.style.top = Math.random() * 100 + '%';
+    s.style.left = Math.random() * 100 + '%';
+    s.style.animationDelay = Math.random() * 4 + 's';
+    s.style.width = (1 + Math.random() * 2) + 'px';
+    s.style.height = s.style.width;
+    container.appendChild(s);
+  }
+}
+
+/* ============================================================
+   INIT
+   ============================================================ */
+function render() {
+  bindIcons();
+  bindColors();
+  renderMockups();
+  showDart('theme');
+  makeStars();
+}
+
+// Re-render on theme change
+const observer = new MutationObserver(() => render());
+observer.observe(document.documentElement, { attributes: true, attributeFilter: ['data-palette', 'data-typography', 'data-icon-style', 'data-universe'] });
+
+render();
+</script>
+</body>
+</html>

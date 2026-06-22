@@ -38,15 +38,15 @@ Widget _buildShell(ValueNotifier<FallbackReason> reason) {
         animeTabBuilders: <KumoriyaAnimeTab, WidgetBuilder>{
           KumoriyaAnimeTab.home: (_) => tab('anime-home'),
           KumoriyaAnimeTab.search: (_) => tab('anime-search'),
-          KumoriyaAnimeTab.calendar: (_) => tab('anime-calendar'),
+          KumoriyaAnimeTab.party: (_) => tab('anime-party'),
           KumoriyaAnimeTab.library: (_) => tab('anime-library'),
-          KumoriyaAnimeTab.downloads: (_) => tab('anime-downloads'),
+          KumoriyaAnimeTab.profile: (_) => tab('anime-profile'),
         },
         mangaTabBuilders: <KumoriyaMangaTab, WidgetBuilder>{
           KumoriyaMangaTab.home: (_) => tab('manga-home'),
           KumoriyaMangaTab.search: (_) => tab('manga-search'),
           KumoriyaMangaTab.library: (_) => tab('manga-library'),
-          KumoriyaMangaTab.downloads: (_) => tab('manga-downloads'),
+          KumoriyaMangaTab.profile: (_) => tab('manga-profile'),
         },
       ),
     ),

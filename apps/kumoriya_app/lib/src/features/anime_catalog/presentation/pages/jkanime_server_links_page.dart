@@ -3,7 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kumoriya_plugins/kumoriya_plugins.dart';
 
 import '../../../../app/l10n.dart';
-import '../../../../shared/widgets/state_views.dart';
+import 'package:kumoriya_ui/kumoriya_ui.dart';
+import '../../../../shared/utils/error_messaging.dart';
 import '../../application/models/server_quality_registry.dart';
 import '../providers/anime_catalog_providers.dart';
 import 'resolve_server_link_page.dart';

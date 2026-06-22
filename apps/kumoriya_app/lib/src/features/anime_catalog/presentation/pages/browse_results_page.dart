@@ -5,9 +5,9 @@ import 'package:kumoriya_domain/kumoriya_domain.dart';
 
 import '../../../../app/l10n.dart';
 import '../../../../shared/icons/kumoriya_icons.dart';
-import '../../../../shared/theme/kumoriya_theme.dart';
-import '../../../../shared/widgets/anime_card.dart';
-import '../../../../shared/widgets/state_views.dart';
+// PosterCard from package:kumoriya_ui
+import 'package:kumoriya_ui/kumoriya_ui.dart';
+import '../../../../shared/utils/error_messaging.dart';
 import '../controllers/paginated_anime_feed_notifier.dart';
 import '../providers/anime_catalog_providers.dart';
 import 'anime_detail_page.dart';
@@ -118,12 +118,13 @@ class _BrowseResultsPageState extends ConsumerState<BrowseResultsPage> {
 
   @override
   Widget build(BuildContext context) {
+    final colors = FormFactorProvider.colorsOf(context);
     final genres = ref.watch(genreCollectionProvider);
 
     return Scaffold(
-      backgroundColor: KumoriyaColors.background,
+      backgroundColor: colors.bg,
       appBar: AppBar(
-        backgroundColor: KumoriyaColors.background,
+        backgroundColor: colors.bg,
         title: Text(context.l10n.browseResultsTitle),
         elevation: 0,
       ),
@@ -243,6 +244,7 @@ class _FilterRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = FormFactorProvider.colorsOf(context);
     return SizedBox(
       height: 44,
       child: ListView(
@@ -308,14 +310,11 @@ class _FilterRow extends StatelessWidget {
               label: Text(context.l10n.browseFilterClear),
               onPressed: onClear,
               avatar: const Icon(KumoriyaIcons.close, size: 16),
-              backgroundColor: KumoriyaColors.surface,
-              labelStyle: const TextStyle(
-                color: KumoriyaColors.textMuted,
-                fontSize: 13,
-              ),
-              side: const BorderSide(color: KumoriyaColors.borderSubtle),
+              backgroundColor: colors.surface,
+              labelStyle: TextStyle(color: colors.textMuted, fontSize: 13),
+              side: BorderSide(color: colors.surface2),
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(KumoriyaRadius.full),
+                borderRadius: BorderRadius.circular(CloudRadius.pill),
               ),
             ),
           ],
@@ -325,6 +324,7 @@ class _FilterRow extends StatelessWidget {
   }
 
   void _showGenrePicker(BuildContext context) {
+    final colors = FormFactorProvider.colorsOf(context);
     final genreResult = genres.value;
     if (genreResult == null) return;
     final genreList = genreResult.fold(
@@ -335,10 +335,10 @@ class _FilterRow extends StatelessWidget {
 
     showModalBottomSheet<void>(
       context: context,
-      backgroundColor: KumoriyaColors.surface,
-      shape: const RoundedRectangleBorder(
+      backgroundColor: colors.surface,
+      shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(
-          top: Radius.circular(KumoriyaRadius.xl),
+          top: Radius.circular(CloudRadius.lg),
         ),
       ),
       builder: (ctx) => _MultiGenrePickerSheet(
@@ -358,6 +358,7 @@ class _FilterRow extends StatelessWidget {
   }
 
   void _showFormatPicker(BuildContext context) {
+    final colors = FormFactorProvider.colorsOf(context);
     final formats = <AnimeFormat>[
       AnimeFormat.tv,
       AnimeFormat.movie,
@@ -368,10 +369,10 @@ class _FilterRow extends StatelessWidget {
 
     showModalBottomSheet<AnimeFormat>(
       context: context,
-      backgroundColor: KumoriyaColors.surface,
-      shape: const RoundedRectangleBorder(
+      backgroundColor: colors.surface,
+      shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(
-          top: Radius.circular(KumoriyaRadius.xl),
+          top: Radius.circular(CloudRadius.lg),
         ),
       ),
       builder: (ctx) => _PickerSheet(
@@ -396,6 +397,7 @@ class _FilterRow extends StatelessWidget {
   }
 
   void _showStatusPicker(BuildContext context) {
+    final colors = FormFactorProvider.colorsOf(context);
     final statuses = <AnimeStatus>[
       AnimeStatus.releasing,
       AnimeStatus.notYetReleased,
@@ -406,10 +408,10 @@ class _FilterRow extends StatelessWidget {
 
     showModalBottomSheet<void>(
       context: context,
-      backgroundColor: KumoriyaColors.surface,
-      shape: const RoundedRectangleBorder(
+      backgroundColor: colors.surface,
+      shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(
-          top: Radius.circular(KumoriyaRadius.xl),
+          top: Radius.circular(CloudRadius.lg),
         ),
       ),
       builder: (ctx) => _MultiStatusPickerSheet(
@@ -430,14 +432,15 @@ class _FilterRow extends StatelessWidget {
   }
 
   void _showSeasonPicker(BuildContext context) {
+    final colors = FormFactorProvider.colorsOf(context);
     final seasons = AnimeSeason.values;
 
     showModalBottomSheet<AnimeSeason>(
       context: context,
-      backgroundColor: KumoriyaColors.surface,
-      shape: const RoundedRectangleBorder(
+      backgroundColor: colors.surface,
+      shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(
-          top: Radius.circular(KumoriyaRadius.xl),
+          top: Radius.circular(CloudRadius.lg),
         ),
       ),
       builder: (ctx) => _PickerSheet(
@@ -462,15 +465,16 @@ class _FilterRow extends StatelessWidget {
   }
 
   void _showYearPicker(BuildContext context) {
+    final colors = FormFactorProvider.colorsOf(context);
     final currentYear = DateTime.now().year + 1;
     final years = List<int>.generate(55, (index) => currentYear - index);
 
     showModalBottomSheet<int>(
       context: context,
-      backgroundColor: KumoriyaColors.surface,
-      shape: const RoundedRectangleBorder(
+      backgroundColor: colors.surface,
+      shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(
-          top: Radius.circular(KumoriyaRadius.xl),
+          top: Radius.circular(CloudRadius.lg),
         ),
       ),
       builder: (ctx) => _PickerSheet(
@@ -490,14 +494,15 @@ class _FilterRow extends StatelessWidget {
   }
 
   void _showSortPicker(BuildContext context) {
+    final colors = FormFactorProvider.colorsOf(context);
     final sortTypes = AnimeSortType.values;
 
     showModalBottomSheet<AnimeSortType>(
       context: context,
-      backgroundColor: KumoriyaColors.surface,
-      shape: const RoundedRectangleBorder(
+      backgroundColor: colors.surface,
+      shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(
-          top: Radius.circular(KumoriyaRadius.xl),
+          top: Radius.circular(CloudRadius.lg),
         ),
       ),
       builder: (ctx) => _PickerSheet(
@@ -577,24 +582,21 @@ class _FilterChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = FormFactorProvider.colorsOf(context);
     return ActionChip(
       label: Text(label),
       avatar: icon != null ? Icon(icon, size: 16) : null,
       onPressed: onTap,
-      backgroundColor: active
-          ? KumoriyaColors.primaryContainer
-          : KumoriyaColors.surface,
+      backgroundColor: active ? colors.primarySoft : colors.surface,
       labelStyle: TextStyle(
-        color: active ? KumoriyaColors.primaryLight : KumoriyaColors.textMuted,
+        color: active ? colors.primarySoft : colors.textMuted,
         fontSize: 13,
       ),
       side: BorderSide(
-        color: active
-            ? KumoriyaColors.primary.withValues(alpha: 0.5)
-            : KumoriyaColors.borderSubtle,
+        color: active ? colors.primary.withValues(alpha: 0.5) : colors.surface2,
       ),
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(KumoriyaRadius.full),
+        borderRadius: BorderRadius.circular(CloudRadius.pill),
       ),
     );
   }
@@ -621,6 +623,7 @@ class _PickerSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = FormFactorProvider.colorsOf(context);
     return Padding(
       padding: const EdgeInsets.fromLTRB(0, 12, 0, 16),
       child: Column(
@@ -630,7 +633,7 @@ class _PickerSheet extends StatelessWidget {
             width: 40,
             height: 4,
             decoration: BoxDecoration(
-              color: KumoriyaColors.borderSubtle,
+              color: colors.surface2,
               borderRadius: BorderRadius.circular(2),
             ),
           ),
@@ -640,7 +643,14 @@ class _PickerSheet extends StatelessWidget {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: <Widget>[
-                Text(title, style: Theme.of(context).textTheme.titleMedium),
+                Text(
+                  title,
+                  style: TextStyle(
+                    color: colors.text,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
                 if (onClear != null)
                   TextButton(
                     onPressed: onClear,
@@ -661,18 +671,16 @@ class _PickerSheet extends StatelessWidget {
                   title: Text(
                     item,
                     style: TextStyle(
-                      color: isSelected
-                          ? KumoriyaColors.primaryLight
-                          : KumoriyaColors.textPrimary,
+                      color: isSelected ? colors.primarySoft : colors.text,
                       fontWeight: isSelected
                           ? FontWeight.w600
                           : FontWeight.normal,
                     ),
                   ),
                   trailing: isSelected
-                      ? const Icon(
+                      ? Icon(
                           Icons.check_rounded,
-                          color: KumoriyaColors.primaryLight,
+                          color: colors.primarySoft,
                           size: 20,
                         )
                       : null,
@@ -725,6 +733,7 @@ class _MultiGenrePickerSheetState extends State<_MultiGenrePickerSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final colors = FormFactorProvider.colorsOf(context);
     return Padding(
       padding: const EdgeInsets.fromLTRB(0, 12, 0, 16),
       child: Column(
@@ -734,7 +743,7 @@ class _MultiGenrePickerSheetState extends State<_MultiGenrePickerSheet> {
             width: 40,
             height: 4,
             decoration: BoxDecoration(
-              color: KumoriyaColors.borderSubtle,
+              color: colors.surface2,
               borderRadius: BorderRadius.circular(2),
             ),
           ),
@@ -746,7 +755,11 @@ class _MultiGenrePickerSheetState extends State<_MultiGenrePickerSheet> {
               children: <Widget>[
                 Text(
                   widget.title,
-                  style: Theme.of(context).textTheme.titleMedium,
+                  style: TextStyle(
+                    color: colors.text,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w500,
+                  ),
                 ),
                 Row(
                   mainAxisSize: MainAxisSize.min,
@@ -760,12 +773,10 @@ class _MultiGenrePickerSheetState extends State<_MultiGenrePickerSheet> {
                     FilledButton(
                       onPressed: () => widget.onDone(_draft),
                       style: FilledButton.styleFrom(
-                        backgroundColor: KumoriyaColors.primary,
+                        backgroundColor: colors.primary,
                         minimumSize: const Size(64, 36),
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(
-                            KumoriyaRadius.md,
-                          ),
+                          borderRadius: BorderRadius.circular(CloudRadius.md),
                         ),
                       ),
                       child: Text(
@@ -796,18 +807,16 @@ class _MultiGenrePickerSheetState extends State<_MultiGenrePickerSheet> {
                       label: Text(displayGenreLabel(context, genre)),
                       deleteIcon: const Icon(KumoriyaIcons.close, size: 14),
                       onDeleted: () => _toggle(genre),
-                      backgroundColor: KumoriyaColors.primaryContainer,
-                      labelStyle: const TextStyle(
-                        color: KumoriyaColors.primaryLight,
+                      backgroundColor: colors.primarySoft,
+                      labelStyle: TextStyle(
+                        color: colors.primarySoft,
                         fontSize: 12,
                       ),
                       side: BorderSide(
-                        color: KumoriyaColors.primary.withValues(alpha: 0.5),
+                        color: colors.primary.withValues(alpha: 0.5),
                       ),
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(
-                          KumoriyaRadius.full,
-                        ),
+                        borderRadius: BorderRadius.circular(CloudRadius.pill),
                       ),
                       materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                       visualDensity: VisualDensity.compact,
@@ -828,18 +837,16 @@ class _MultiGenrePickerSheetState extends State<_MultiGenrePickerSheet> {
                   title: Text(
                     displayGenreLabel(context, genre),
                     style: TextStyle(
-                      color: isSelected
-                          ? KumoriyaColors.primaryLight
-                          : KumoriyaColors.textPrimary,
+                      color: isSelected ? colors.primarySoft : colors.text,
                       fontWeight: isSelected
                           ? FontWeight.w600
                           : FontWeight.normal,
                     ),
                   ),
                   trailing: isSelected
-                      ? const Icon(
+                      ? Icon(
                           Icons.check_rounded,
-                          color: KumoriyaColors.primaryLight,
+                          color: colors.primarySoft,
                           size: 20,
                         )
                       : null,
@@ -891,6 +898,7 @@ class _MultiStatusPickerSheetState extends State<_MultiStatusPickerSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final colors = FormFactorProvider.colorsOf(context);
     return Padding(
       padding: const EdgeInsets.fromLTRB(0, 12, 0, 16),
       child: Column(
@@ -900,7 +908,7 @@ class _MultiStatusPickerSheetState extends State<_MultiStatusPickerSheet> {
             width: 40,
             height: 4,
             decoration: BoxDecoration(
-              color: KumoriyaColors.borderSubtle,
+              color: colors.surface2,
               borderRadius: BorderRadius.circular(2),
             ),
           ),
@@ -912,7 +920,11 @@ class _MultiStatusPickerSheetState extends State<_MultiStatusPickerSheet> {
               children: <Widget>[
                 Text(
                   widget.title,
-                  style: Theme.of(context).textTheme.titleMedium,
+                  style: TextStyle(
+                    color: colors.text,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w500,
+                  ),
                 ),
                 Row(
                   mainAxisSize: MainAxisSize.min,
@@ -926,12 +938,10 @@ class _MultiStatusPickerSheetState extends State<_MultiStatusPickerSheet> {
                     FilledButton(
                       onPressed: () => widget.onDone(_draft),
                       style: FilledButton.styleFrom(
-                        backgroundColor: KumoriyaColors.primary,
+                        backgroundColor: colors.primary,
                         minimumSize: const Size(64, 36),
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(
-                            KumoriyaRadius.md,
-                          ),
+                          borderRadius: BorderRadius.circular(CloudRadius.md),
                         ),
                       ),
                       child: Text(context.l10n.browseFilterApply),
@@ -953,18 +963,16 @@ class _MultiStatusPickerSheetState extends State<_MultiStatusPickerSheet> {
                   title: Text(
                     widget.labelFor(status),
                     style: TextStyle(
-                      color: isSelected
-                          ? KumoriyaColors.primaryLight
-                          : KumoriyaColors.textPrimary,
+                      color: isSelected ? colors.primarySoft : colors.text,
                       fontWeight: isSelected
                           ? FontWeight.w600
                           : FontWeight.normal,
                     ),
                   ),
                   trailing: isSelected
-                      ? const Icon(
+                      ? Icon(
                           Icons.check_rounded,
-                          color: KumoriyaColors.primaryLight,
+                          color: colors.primarySoft,
                           size: 20,
                         )
                       : null,
@@ -1037,8 +1045,11 @@ class _BrowseGrid extends StatelessWidget {
             return _BrowseFooter(state: state, onRetry: onLoadMore);
           }
           final anime = animeList[index];
-          return AnimeCard(
-            anime: anime,
+          return PosterCard(
+            imageUrl: anime.coverImageUrl ?? '',
+            title: anime.title.romaji,
+            subtitle: anime.releaseYear?.toString(),
+            episodeCount: anime.totalEpisodes,
             onTap: () => onOpenDetail(anime.anilistId),
           );
         },
@@ -1055,6 +1066,7 @@ class _BrowseFooter extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = FormFactorProvider.colorsOf(context);
     if (state.isLoadingMore) {
       return const Center(
         child: SizedBox(
@@ -1069,15 +1081,15 @@ class _BrowseFooter extends StatelessWidget {
         child: IconButton(
           onPressed: onRetry,
           icon: const Icon(Icons.refresh_rounded),
-          color: KumoriyaColors.textMuted,
+          color: colors.textMuted,
         ),
       );
     }
     if (state.hasReachedEnd) {
-      return const Center(
+      return Center(
         child: Icon(
           Icons.check_circle_outline_rounded,
-          color: KumoriyaColors.textMuted,
+          color: colors.textMuted,
         ),
       );
     }

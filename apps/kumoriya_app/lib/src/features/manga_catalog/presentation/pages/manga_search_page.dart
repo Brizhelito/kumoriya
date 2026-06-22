@@ -6,8 +6,7 @@ import 'package:kumoriya_manga_domain/kumoriya_manga_domain.dart';
 
 import '../../../../app/l10n.dart';
 import '../../../../shared/icons/kumoriya_icons.dart';
-import '../../../../shared/theme/kumoriya_theme.dart';
-import '../../../../shared/widgets/state_views.dart';
+import 'package:kumoriya_ui/kumoriya_ui.dart';
 import '../providers/manga_catalog_providers.dart';
 import '../widgets/manga_card.dart';
 import '../widgets/manga_carousel.dart';
@@ -22,7 +21,7 @@ class MangaSearchPage extends ConsumerStatefulWidget {
 }
 
 class _MangaSearchPageState extends ConsumerState<MangaSearchPage> {
-  static const _debounce = Duration(milliseconds: 280);
+  static const _debounce = CloudMotion.base;
 
   final _controller = TextEditingController();
   final _focusNode = FocusNode();
@@ -82,8 +81,9 @@ class _MangaSearchPageState extends ConsumerState<MangaSearchPage> {
   Widget build(BuildContext context) {
     final l10n = context.l10n;
     final query = ref.watch(mangaSearchQueryProvider);
+    final colors = FormFactorProvider.colorsOf(context);
     return Scaffold(
-      backgroundColor: KumoriyaColors.background,
+      backgroundColor: colors.bg,
       body: SafeArea(
         child: Column(
           children: <Widget>[
@@ -94,15 +94,16 @@ class _MangaSearchPageState extends ConsumerState<MangaSearchPage> {
                 children: <Widget>[
                   Text(
                     l10n.mangaSearchTitle,
-                    style: Theme.of(context).textTheme.headlineMedium,
+                    style: TextStyle(
+                      color: colors.text,
+                      fontSize: 24,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                   const SizedBox(height: 4),
                   Text(
                     l10n.mangaSearchEmptyHint,
-                    style: const TextStyle(
-                      fontSize: 13,
-                      color: KumoriyaColors.textTertiary,
-                    ),
+                    style: TextStyle(fontSize: 13, color: colors.textSoft),
                   ),
                   const SizedBox(height: 14),
                   _MangaDarkSearchBar(
@@ -296,34 +297,35 @@ class _MangaDarkSearchBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = FormFactorProvider.colorsOf(context);
     final hasText = controller.text.isNotEmpty;
 
     return AnimatedContainer(
-      duration: const Duration(milliseconds: 280),
+      duration: CloudMotion.base,
       curve: Curves.easeOutCubic,
       height: 52,
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: focused
               ? <Color>[
-                  KumoriyaColors.surface,
-                  KumoriyaColors.primaryContainer.withValues(alpha: 0.35),
+                  colors.surface,
+                  colors.primarySoft.withValues(alpha: 0.35),
                 ]
-              : <Color>[KumoriyaColors.surface, KumoriyaColors.surface],
+              : <Color>[colors.surface, colors.surface],
           begin: Alignment.centerLeft,
           end: Alignment.centerRight,
         ),
-        borderRadius: BorderRadius.circular(KumoriyaRadius.lg),
+        borderRadius: BorderRadius.circular(CloudRadius.md),
         border: Border.all(
           color: focused
-              ? KumoriyaColors.primary.withValues(alpha: 0.6)
-              : KumoriyaColors.borderSubtle,
+              ? colors.primary.withValues(alpha: 0.6)
+              : colors.surface2,
           width: focused ? 1.5 : 1.0,
         ),
         boxShadow: <BoxShadow>[
           if (focused)
             BoxShadow(
-              color: KumoriyaColors.primary.withValues(alpha: 0.18),
+              color: colors.primary.withValues(alpha: 0.18),
               blurRadius: 24,
               spreadRadius: 1,
             )
@@ -340,14 +342,12 @@ class _MangaDarkSearchBar extends StatelessWidget {
           const SizedBox(width: 16),
           AnimatedScale(
             scale: focused ? 1.15 : 1.0,
-            duration: const Duration(milliseconds: 250),
+            duration: CloudMotion.base,
             curve: Curves.easeOutBack,
             child: Icon(
               KumoriyaIcons.search,
               size: 22,
-              color: focused
-                  ? KumoriyaColors.primary
-                  : KumoriyaColors.navInactive,
+              color: focused ? colors.primary : colors.textSoft,
             ),
           ),
           const SizedBox(width: 12),
@@ -357,17 +357,12 @@ class _MangaDarkSearchBar extends StatelessWidget {
               focusNode: focusNode,
               onChanged: onChanged,
               onSubmitted: onSubmitted,
-              style: const TextStyle(
-                fontSize: 15,
-                color: KumoriyaColors.textPrimary,
-              ),
+              style: TextStyle(fontSize: 15, color: colors.text),
               decoration: InputDecoration(
                 border: InputBorder.none,
                 hintText: context.l10n.mangaSearchHint,
                 hintStyle: TextStyle(
-                  color: focused
-                      ? KumoriyaColors.textMuted
-                      : KumoriyaColors.textDisabled,
+                  color: focused ? colors.textMuted : colors.textSoft,
                   fontSize: 15,
                   letterSpacing: 0.2,
                 ),
@@ -378,7 +373,7 @@ class _MangaDarkSearchBar extends StatelessWidget {
             ),
           ),
           AnimatedSwitcher(
-            duration: const Duration(milliseconds: 200),
+            duration: CloudMotion.fast,
             transitionBuilder: (child, animation) => FadeTransition(
               opacity: animation,
               child: ScaleTransition(scale: animation, child: child),
@@ -392,13 +387,13 @@ class _MangaDarkSearchBar extends StatelessWidget {
                       width: 22,
                       height: 22,
                       decoration: BoxDecoration(
-                        color: KumoriyaColors.textMuted.withValues(alpha: 0.20),
+                        color: colors.textMuted.withValues(alpha: 0.20),
                         shape: BoxShape.circle,
                       ),
-                      child: const Icon(
+                      child: Icon(
                         KumoriyaIcons.close,
                         size: 14,
-                        color: KumoriyaColors.textSecondary,
+                        color: colors.textMuted,
                       ),
                     ),
                   )

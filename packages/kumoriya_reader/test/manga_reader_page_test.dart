@@ -78,38 +78,36 @@ void main() {
     expect(find.text('Custom Title'), findsOneWidget);
   });
 
-  testWidgets(
-    'falls back to "Chapter N" when no title is provided',
-    (tester) async {
-      final session = buildSession(mode: ReaderMode.paginated, pageCount: 1);
-      await tester.pumpWidget(
-        MaterialApp(home: MangaReaderPage(session: session)),
-      );
-      await tester.pump();
-      expect(find.text('Chapter 1'), findsOneWidget);
-    },
-  );
+  testWidgets('falls back to "Chapter N" when no title is provided', (
+    tester,
+  ) async {
+    final session = buildSession(mode: ReaderMode.paginated, pageCount: 1);
+    await tester.pumpWidget(
+      MaterialApp(home: MangaReaderPage(session: session)),
+    );
+    await tester.pump();
+    expect(find.text('Chapter 1'), findsOneWidget);
+  });
 
-  testWidgets(
-    'flushes progress on dispose when a sink is provided',
-    (tester) async {
-      final sink = _RecordingSink();
-      final session = buildSession(
-        mode: ReaderMode.paginated,
-        pageCount: 3,
-        initialPageIndex: 1,
-      );
-      await tester.pumpWidget(
-        MaterialApp(
-          home: MangaReaderPage(session: session, progressSink: sink),
-        ),
-      );
-      await tester.pump();
-      // Replace with another widget so the reader disposes.
-      await tester.pumpWidget(const MaterialApp(home: SizedBox()));
-      await tester.pump();
-      expect(sink.calls, isNotEmpty);
-      expect(sink.calls.last.pageIndex, 1);
-    },
-  );
+  testWidgets('flushes progress on dispose when a sink is provided', (
+    tester,
+  ) async {
+    final sink = _RecordingSink();
+    final session = buildSession(
+      mode: ReaderMode.paginated,
+      pageCount: 3,
+      initialPageIndex: 1,
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: MangaReaderPage(session: session, progressSink: sink),
+      ),
+    );
+    await tester.pump();
+    // Replace with another widget so the reader disposes.
+    await tester.pumpWidget(const MaterialApp(home: SizedBox()));
+    await tester.pump();
+    expect(sink.calls, isNotEmpty);
+    expect(sink.calls.last.pageIndex, 1);
+  });
 }

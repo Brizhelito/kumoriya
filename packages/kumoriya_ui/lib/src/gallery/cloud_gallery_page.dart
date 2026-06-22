@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:kumoriya_domain/kumoriya_domain.dart';
 
 import '../components/continue_watching_card.dart';
 import '../components/download_row.dart';
@@ -376,11 +377,11 @@ class _CloudGalleryPageState extends State<CloudGalleryPage> {
       spacing: 8,
       runSpacing: 8,
       children: <Widget>[
-        StatusPill(status: CloudAnimeStatus.airing),
-        StatusPill(status: CloudAnimeStatus.finished),
-        StatusPill(status: CloudAnimeStatus.upcoming),
-        StatusPill(status: CloudAnimeStatus.cancelled),
-        StatusPill(status: CloudAnimeStatus.hiatus),
+        StatusPill(status: AnimeStatus.releasing),
+        StatusPill(status: AnimeStatus.finished),
+        StatusPill(status: AnimeStatus.notYetReleased),
+        StatusPill(status: AnimeStatus.cancelled),
+        StatusPill(status: AnimeStatus.hiatus),
       ],
     );
   }

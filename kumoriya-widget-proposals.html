@@ -1,0 +1,903 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Kumoriya · Cloudy Cozy — 15 Widget Proposals</title>
+<style>
+  :root {
+    --bg: #1B1B3A;
+    --bg-elev: #232352;
+    --surface: #2A2A5A;
+    --surface-2: #343468;
+    --mist: #3D3D78;
+    --text: #E8E6F5;
+    --text-muted: #B8B5D4;
+    --text-soft: #8A87B0;
+    --primary: #8A9DD9;
+    --primary-soft: #5E6BA8;
+    --accent: #E8C668;
+    --accent-soft: #C9A855;
+    --success: #8FBD7D;
+    --warning: #E8C668;
+    --error: #E08A8A;
+    --star: #FFE9A8;
+    --washi: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.9 0 0 0 0 0.9 0 0 0 0 0.9 0 0 0 0.04 0'/></filter><rect width='200' height='200' filter='url(%23n)'/></svg>");
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Inter', -apple-system, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    padding: 48px 32px 80px;
+    min-height: 100vh;
+    line-height: 1.5;
+  }
+  .page-header { max-width: 960px; margin: 0 auto 56px; }
+  .page-header h1 { font-size: 36px; font-weight: 800; letter-spacing: -0.02em; margin-bottom: 8px; }
+  .page-header p { color: var(--text-muted); font-size: 15px; max-width: 640px; }
+  .page-header .jp { color: var(--accent); font-size: 14px; letter-spacing: 0.25em; margin-bottom: 4px; }
+
+  .section { max-width: 960px; margin: 0 auto 64px; }
+  .section-label {
+    display: inline-flex; align-items: center; gap: 8px;
+    font-family: 'JetBrains Mono', monospace; font-size: 10px;
+    text-transform: uppercase; letter-spacing: 0.15em;
+    color: var(--text-soft); padding: 4px 12px;
+    background: var(--surface); border-radius: 999px; margin-bottom: 12px;
+  }
+  .section-title { font-size: 24px; font-weight: 700; margin-bottom: 4px; }
+  .section-desc { color: var(--text-muted); font-size: 13px; margin-bottom: 20px; max-width: 640px; }
+  .demo {
+    padding: 32px; background: var(--bg-elev); border-radius: 16px;
+    position: relative; overflow: hidden;
+  }
+  .flex-row { display: flex; gap: 16px; align-items: center; flex-wrap: wrap; }
+  .flex-col { display: flex; flex-direction: column; gap: 12px; }
+  .spacer { height: 16px; }
+  .divider { height: 1px; background: linear-gradient(90deg, transparent, var(--surface-2), transparent); margin: 8px 0; }
+  .mono { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--text-soft); letter-spacing: 0.1em; }
+
+  /* ============================================================
+     1. KUMO CARD
+     ============================================================ */
+  .kumo-card {
+    width: 260px; background: var(--surface); position: relative;
+    overflow: hidden; cursor: pointer;
+    transition: transform 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  .kumo-card-inner { clip-path: url(#cloudEdge); }
+  .kumo-card::before {
+    content: ''; position: absolute; inset: 0;
+    background: linear-gradient(180deg, var(--primary) 0%, var(--primary-soft) 30%, transparent 70%);
+    opacity: 0.25; pointer-events: none; z-index: 1;
+  }
+  .kumo-card::after {
+    content: ''; position: absolute; inset: 0;
+    background-image: var(--washi); opacity: 0.5; pointer-events: none; z-index: 2;
+  }
+  .kumo-card .ink-bloom {
+    position: absolute; inset: 0;
+    background: radial-gradient(circle at 50% 50%, var(--primary) 0%, transparent 70%);
+    opacity: 0; transform: scale(0.3);
+    transition: opacity 0.6s cubic-bezier(0.22, 1, 0.36, 1), transform 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+    z-index: 3; pointer-events: none;
+  }
+  .kumo-card:hover .ink-bloom { opacity: 0.12; transform: scale(1.5); }
+  .kumo-card:hover { transform: translateY(-4px); }
+  .kumo-card-poster { height: 170px; background: linear-gradient(135deg, var(--primary-soft), var(--mist)); }
+  .kumo-card-info { padding: 14px; position: relative; z-index: 4; }
+  .kumo-card-title { font-size: 14px; font-weight: 700; margin-bottom: 4px; }
+  .kumo-card-meta { font-size: 11px; color: var(--text-muted); display: flex; gap: 6px; }
+
+  /* ============================================================
+     2. KUMO BUTTON
+     ============================================================ */
+  .kumo-btn {
+    position: relative; display: inline-flex; align-items: center; gap: 8px;
+    padding: 13px 26px; font-family: 'Inter', sans-serif;
+    font-size: 14px; font-weight: 700; letter-spacing: 0.06em;
+    border: none; cursor: pointer; overflow: hidden;
+    transition: all 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  .kumo-btn-primary { background: var(--text); color: var(--bg); border-radius: 999px 999px 999px 20px; }
+  .kumo-btn-secondary { background: transparent; color: var(--accent); border: 2px solid var(--accent-soft); border-radius: 20px 999px 999px 999px; }
+  .kumo-btn-ghost { background: transparent; color: var(--text-muted); border: 1.5px solid var(--surface-2); border-radius: 999px; }
+  .kumo-btn .ink-spread {
+    position: absolute; width: 200%; height: 200%; top: 50%; left: 50%;
+    transform: translate(-50%, -50%) scale(0);
+    background: radial-gradient(circle, var(--accent) 0%, transparent 60%);
+    opacity: 0; transition: transform 0.5s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.5s;
+    pointer-events: none; border-radius: 50%;
+  }
+  .kumo-btn:active .ink-spread { transform: translate(-50%, -50%) scale(1); opacity: 0.15; }
+  .kumo-btn:hover { transform: translateY(-1px); }
+  .kumo-btn-primary:hover { box-shadow: 0 4px 20px rgba(138, 157, 217, 0.25); }
+
+  /* ============================================================
+     3. EPISODE STRIP
+     ============================================================ */
+  .episode-timeline { display: flex; flex-direction: column; position: relative; padding-left: 32px; }
+  .episode-timeline::before {
+    content: ''; position: absolute; left: 14px; top: 0; bottom: 0; width: 2px;
+    background: linear-gradient(180deg, var(--surface-2) 0%, var(--primary-soft) 50%, var(--surface-2) 100%);
+  }
+  .episode-item {
+    display: flex; align-items: center; gap: 14px; padding: 10px 0;
+    position: relative; cursor: pointer; transition: all 0.3s ease;
+  }
+  .episode-item:hover { padding-left: 4px; }
+  .episode-hanko {
+    position: absolute; left: -32px; width: 28px; height: 28px;
+    display: flex; align-items: center; justify-content: center;
+    background: var(--primary); border-radius: 4px; transform: rotate(-3deg);
+    font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 700; color: var(--bg);
+    box-shadow: inset 0 1px 2px rgba(0,0,0,0.3), 0 1px 0 rgba(255,255,255,0.05);
+    background-image: var(--washi); background-size: 50px 50px;
+  }
+  .episode-item.active .episode-hanko {
+    background: var(--accent);
+    box-shadow: 0 0 12px var(--accent), 0 0 24px rgba(232,198,104,0.3), inset 0 1px 2px rgba(0,0,0,0.3);
+  }
+  .episode-content { flex: 1; min-width: 0; }
+  .episode-title { font-size: 14px; font-weight: 600; margin-bottom: 2px; }
+  .episode-item.active .episode-title { color: var(--accent); }
+  .episode-sub { font-size: 11px; color: var(--text-soft); }
+  .episode-progress { margin-top: 6px; height: 4px; background: var(--surface-2); border-radius: 2px; position: relative; }
+  .episode-progress-fill {
+    height: 100%; background: var(--primary); border-radius: 2px; position: relative;
+    box-shadow: 0 -1px 0 var(--primary), 0 1px 0 var(--primary);
+  }
+  .episode-progress-fill::after {
+    content: ''; position: absolute; right: -4px; top: -3px;
+    width: 10px; height: 10px; background: var(--primary); border-radius: 50%;
+    box-shadow: 0 0 6px var(--primary);
+  }
+
+  /* ============================================================
+     4. INK TRAIL PROGRESS
+     ============================================================ */
+  .ink-trail { width: 100%; height: 20px; position: relative; display: flex; align-items: center; }
+  .ink-trail-track { width: 100%; height: 6px; background: var(--surface-2); border-radius: 3px; position: relative; overflow: visible; }
+  .ink-trail-fill {
+    height: 100%; border-radius: 3px; position: relative; background: var(--primary);
+    box-shadow: 0 -2px 0 var(--primary), 0 2px 0 var(--primary), 0 -1px 4px rgba(138,157,217,0.3);
+    transition: width 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  .ink-trail-fill::before { content: ''; position: absolute; inset: 0; background-image: var(--washi); opacity: 0.3; border-radius: 3px; }
+  .ink-trail-drop {
+    position: absolute; top: 50%; transform: translate(-50%, -50%);
+    width: 14px; height: 14px; background: var(--primary); border-radius: 50%;
+    box-shadow: 0 0 8px var(--primary), 0 0 16px rgba(138,157,217,0.4);
+    transition: left 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  /* ============================================================
+     5. HANKO BADGE
+     ============================================================ */
+  .hanko-badge {
+    display: inline-flex; align-items: center; justify-content: center;
+    padding: 4px 10px; background: var(--accent); border-radius: 3px;
+    transform: rotate(-2deg); font-family: 'JetBrains Mono', monospace;
+    font-size: 10px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.1em; color: var(--bg); position: relative;
+    box-shadow: inset 0 1px 3px rgba(0,0,0,0.4), 0 1px 0 rgba(255,255,255,0.05);
+    background-image: var(--washi); background-size: 40px 40px;
+  }
+  .hanko-badge-primary { background: var(--primary); }
+  .hanko-badge-error { background: var(--error); }
+  .hanko-badge::before {
+    content: ''; position: absolute; inset: -1px;
+    border: 1.5px solid currentColor; border-radius: 4px; opacity: 0.2; pointer-events: none;
+  }
+
+  /* ============================================================
+     6. KAMI CHIP
+     ============================================================ */
+  .kami-chip {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 5px 14px 5px 10px; font-size: 12px; font-weight: 600;
+    color: var(--text); position: relative; cursor: default;
+    background: var(--surface-2);
+    border-radius: 2px 999px 999px 2px;
+    transition: all 0.3s ease;
+  }
+  .kami-chip::before {
+    content: '•'; font-size: 8px; color: var(--text-soft); margin-right: 2px;
+  }
+  .kami-chip:hover { background: var(--mist); }
+  .kami-chip-airing { background: rgba(143,189,125,0.15); color: var(--success); }
+  .kami-chip-upcoming { background: rgba(232,198,104,0.15); color: var(--warning); }
+  .kami-chip-rating { background: rgba(232,198,104,0.15); color: var(--star); }
+
+  /* ============================================================
+     7. SUMI SEARCH
+     ============================================================ */
+  .sumi-search {
+    position: relative; padding: 12px 0; width: 100%; max-width: 400px;
+  }
+  .sumi-search-input {
+    width: 100%; background: transparent; border: none; outline: none;
+    font-family: 'Inter', sans-serif; font-size: 16px; color: var(--text);
+    padding: 8px 0; letter-spacing: 0.02em;
+  }
+  .sumi-search-input::placeholder { color: var(--text-soft); }
+  .sumi-search-stroke {
+    height: 3px; position: relative; overflow: visible;
+  }
+  .sumi-search-stroke svg {
+    width: 100%; height: 100%; display: block;
+  }
+  .sumi-search-stroke path {
+    stroke: var(--primary-soft); stroke-width: 3; fill: none;
+    stroke-dasharray: 400; stroke-dashoffset: 400;
+    transition: stroke-dashoffset 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  .sumi-search:focus-within .sumi-search-stroke path {
+    stroke-dashoffset: 0; stroke: var(--primary);
+  }
+  .sumi-search-glow {
+    position: absolute; bottom: -8px; left: 50%; transform: translateX(-50%);
+    width: 60%; height: 20px;
+    background: radial-gradient(ellipse, var(--primary) 0%, transparent 70%);
+    opacity: 0; transition: opacity 0.4s ease;
+    pointer-events: none;
+  }
+  .sumi-search:focus-within .sumi-search-glow { opacity: 0.15; }
+  .sumi-search-kbd {
+    position: absolute; right: 0; top: 50%; transform: translateY(-50%);
+    padding: 2px 8px; background: var(--surface); border-radius: 4px;
+    font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--text-soft);
+  }
+
+  /* ============================================================
+     8. ENJI CARD (Continue Watching)
+     ============================================================ */
+  .enji-card {
+    width: 340px; background: var(--surface); border-radius: 8px;
+    overflow: hidden; position: relative; cursor: pointer;
+    transition: transform 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  .enji-card:hover { transform: translateY(-3px); }
+  .enji-card-banner {
+    height: 120px; position: relative; overflow: hidden;
+    background: linear-gradient(135deg, var(--primary-soft) 0%, var(--mist) 100%);
+  }
+  .enji-card-banner::after {
+    content: ''; position: absolute; inset: 0;
+    background-image: var(--washi); opacity: 0.4;
+  }
+  /* Water-fill progress */
+  .enji-card-water {
+    position: absolute; bottom: 0; left: 0; right: 0;
+    height: 40%; background: rgba(138,157,217,0.15);
+    border-top: 2px solid var(--primary);
+    overflow: hidden;
+  }
+  .enji-card-water::before {
+    content: ''; position: absolute; top: -4px; left: -10%;
+    width: 120%; height: 8px;
+    background: var(--primary);
+    border-radius: 50%;
+    opacity: 0.4;
+    animation: wave 3s ease-in-out infinite;
+  }
+  @keyframes wave {
+    0%, 100% { transform: translateX(-5%) scaleY(1); }
+    50% { transform: translateX(5%) scaleY(1.5); }
+  }
+  .enji-card-info { padding: 12px 14px; position: relative; }
+  .enji-card-title { font-size: 13px; font-weight: 600; margin-bottom: 2px; }
+  .enji-card-ep { font-size: 11px; color: var(--text-muted); }
+  /* Moon phase */
+  .enji-card-moon {
+    position: absolute; top: 8px; right: 8px; width: 20px; height: 20px;
+    border-radius: 50%; background: var(--accent);
+    box-shadow: 0 0 6px var(--accent);
+  }
+  .enji-card-moon::after {
+    content: ''; position: absolute; top: 0; right: 0;
+    width: 12px; height: 20px; background: var(--surface);
+    border-radius: 0 10px 10px 0;
+  }
+
+  /* ============================================================
+     9. SHODO HEADER
+     ============================================================ */
+  .shodo-header { position: relative; display: inline-block; margin-bottom: 16px; }
+  .shodo-header-title {
+    font-size: 20px; font-weight: 700; position: relative; z-index: 1;
+  }
+  .shodo-header-stroke {
+    position: absolute; bottom: -4px; left: 0; width: 80%; height: 4px;
+  }
+  .shodo-header-stroke svg { width: 100%; height: 100%; display: block; }
+  .shodo-header-stroke path {
+    stroke: var(--accent); stroke-width: 4; fill: none;
+    stroke-dasharray: 200; stroke-dashoffset: 200;
+    animation: brushDraw 1s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  }
+  @keyframes brushDraw { to { stroke-dashoffset: 0; } }
+  .shodo-header-cloud {
+    position: absolute; left: -24px; top: 50%; transform: translateY(-50%);
+    width: 16px; height: 10px; opacity: 0.4;
+  }
+  .shodo-header-arrow {
+    display: inline-flex; align-items: center; gap: 4px;
+    font-size: 12px; color: var(--text-muted); font-weight: 600;
+    margin-left: 16px; cursor: pointer; transition: gap 0.3s ease;
+  }
+  .shodo-header-arrow:hover { gap: 10px; color: var(--text); }
+
+  /* ============================================================
+     10. ATMOSPHERIC STATES
+     ============================================================ */
+  .atmo-state {
+    width: 200px; height: 160px; background: var(--surface);
+    border-radius: 12px; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 8px;
+    position: relative; overflow: hidden;
+  }
+  /* Loading: drifting clouds */
+  .atmo-loading-cloud {
+    position: absolute; width: 60px; height: 24px;
+    background: radial-gradient(ellipse, var(--mist) 0%, transparent 70%);
+    border-radius: 50%; filter: blur(4px);
+    animation: drift 8s linear infinite;
+  }
+  .atmo-loading-cloud:nth-child(1) { top: 20%; left: -60px; animation-delay: 0s; }
+  .atmo-loading-cloud:nth-child(2) { top: 50%; left: -40px; animation-delay: -3s; width: 40px; }
+  @keyframes drift { from { transform: translateX(0); } to { transform: translateX(260px); } }
+  .atmo-state-text { font-size: 12px; color: var(--text-muted); z-index: 1; }
+  /* Error: rain drops */
+  .atmo-rain-drop {
+    position: absolute; width: 1px; background: var(--primary-soft);
+    opacity: 0.4; animation: rain 1s linear infinite;
+  }
+  .atmo-rain-drop:nth-child(1) { left: 20%; height: 12px; animation-delay: 0s; top: -12px; }
+  .atmo-rain-drop:nth-child(2) { left: 45%; height: 8px; animation-delay: -0.3s; top: -8px; }
+  .atmo-rain-drop:nth-child(3) { left: 70%; height: 10px; animation-delay: -0.6s; top: -10px; }
+  .atmo-rain-drop:nth-child(4) { left: 85%; height: 14px; animation-delay: -0.8s; top: -14px; }
+  @keyframes rain { from { transform: translateY(0); } to { transform: translateY(180px); } }
+  /* Empty: single cloud bob */
+  .atmo-empty-cloud {
+    width: 48px; height: 20px;
+    background: radial-gradient(ellipse, var(--mist) 0%, transparent 70%);
+    border-radius: 50%; filter: blur(3px);
+    animation: bob 3s ease-in-out infinite;
+  }
+  @keyframes bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
+
+  /* ============================================================
+     11. MON BADGE
+     ============================================================ */
+  .mon-badge {
+    width: 36px; height: 36px; border-radius: 50%;
+    background: var(--surface-2); display: flex;
+    align-items: center; justify-content: center;
+    font-family: 'JetBrains Mono', monospace; font-size: 10px;
+    font-weight: 700; color: var(--text); position: relative;
+    border: 1.5px solid var(--text-soft);
+    background-image: var(--washi); background-size: 40px 40px;
+    transition: all 0.3s ease; cursor: pointer;
+  }
+  .mon-badge:hover {
+    width: auto; padding: 0 12px; border-radius: 999px;
+    gap: 6px;
+  }
+  .mon-badge-full {
+    display: none; font-size: 11px; font-weight: 600;
+  }
+  .mon-badge:hover .mon-badge-full { display: inline; }
+
+  /* ============================================================
+     12. KOKIRI STATUS
+     ============================================================ */
+  .kokiri-status {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 4px 12px; position: relative;
+    clip-path: polygon(10% 0%, 90% 0%, 100% 50%, 90% 100%, 10% 100%, 0% 50%);
+    font-size: 11px; font-weight: 600;
+  }
+  .kokiri-airing { background: rgba(143,189,125,0.2); color: var(--success); animation: breathe 3s ease-in-out infinite; }
+  .kokiri-finished { background: rgba(201,168,85,0.2); color: var(--accent-soft); }
+  .kokiri-upcoming { background: rgba(232,198,104,0.15); color: var(--warning); }
+  .kokiri-hiatus { background: rgba(138,157,217,0.15); color: var(--primary-soft); }
+  .kokiri-cancelled { background: rgba(224,138,138,0.15); color: var(--error); }
+  @keyframes breathe { 0%, 100% { opacity: 1; } 50% { opacity: 0.7; } }
+
+  /* ============================================================
+     13. NAGARE ROW (Download)
+     ============================================================ */
+  .nagare-row {
+    display: flex; align-items: center; gap: 14px;
+    padding: 12px; background: var(--surface); border-radius: 10px;
+    position: relative; overflow: hidden; cursor: pointer;
+    transition: all 0.3s ease;
+  }
+  .nagare-row:hover { background: var(--surface-2); }
+  /* Ripple on hover */
+  .nagare-row::after {
+    content: ''; position: absolute; top: 50%; left: 50%;
+    width: 0; height: 0; border-radius: 50%;
+    background: rgba(138,157,217,0.08);
+    transform: translate(-50%, -50%);
+    transition: width 0.6s ease, height 0.6s ease;
+  }
+  .nagare-row:hover::after { width: 400px; height: 400px; }
+  .nagare-cover {
+    width: 44px; height: 60px; background: var(--mist); border-radius: 4px;
+    position: relative; overflow: hidden;
+    border-top: 2px solid var(--text-soft);
+    border-bottom: 2px solid var(--text-soft);
+  }
+  .nagare-info { flex: 1; min-width: 0; z-index: 1; }
+  .nagare-title { font-size: 13px; font-weight: 600; margin-bottom: 2px; }
+  .nagare-sub { font-size: 11px; color: var(--text-soft); }
+  /* River flow progress */
+  .nagare-river {
+    margin-top: 6px; height: 6px; position: relative;
+    background: var(--surface-2); border-radius: 3px; overflow: hidden;
+  }
+  .nagare-river-fill {
+    height: 100%; border-radius: 3px; position: relative;
+    background: linear-gradient(90deg, var(--primary-soft), var(--primary));
+    overflow: hidden;
+  }
+  .nagare-river-fill::before {
+    content: ''; position: absolute; inset: 0;
+    background: repeating-linear-gradient(90deg, transparent, transparent 8px, rgba(255,255,255,0.08) 8px, rgba(255,255,255,0.08) 16px);
+    animation: flow 2s linear infinite;
+  }
+  @keyframes flow { from { transform: translateX(0); } to { transform: translateX(16px); } }
+  /* Droplet status */
+  .nagare-drop {
+    width: 12px; height: 16px; position: relative; z-index: 1;
+    clip-path: polygon(50% 0%, 100% 60%, 80% 100%, 20% 100%, 0% 60%);
+  }
+  .nagare-drop-downloading { background: var(--primary); }
+  .nagare-drop-paused { background: var(--warning); }
+  .nagare-drop-completed { background: var(--success); }
+
+  /* ============================================================
+     14. KUMO DOCK (Bottom Nav)
+     ============================================================ */
+  .kumo-dock {
+    display: flex; align-items: flex-end; justify-content: center;
+    gap: 0; padding: 0; position: relative;
+    background: var(--surface); border-radius: 999px;
+    box-shadow: var(--shadow-dock, 0 4px 20px rgba(0,0,0,0.3));
+    height: 56px; padding: 0 8px;
+  }
+  .kumo-dock-item {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    width: 64px; height: 56px; cursor: pointer; position: relative;
+    transition: all 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  .kumo-dock-item svg { width: 22px; height: 22px; color: var(--text-soft); transition: all 0.3s ease; }
+  .kumo-dock-item span { font-size: 9px; font-weight: 600; color: var(--text-soft); margin-top: 2px; transition: all 0.3s ease; }
+  .kumo-dock-item.active { transform: translateY(4px); }
+  .kumo-dock-item.active svg { color: var(--text); }
+  .kumo-dock-item.active span { color: var(--text); }
+  .kumo-dock-item.active::before {
+    content: ''; position: absolute; top: 0; left: 50%; transform: translateX(-50%);
+    width: 32px; height: 3px; background: var(--accent); border-radius: 0 0 3px 3px;
+    box-shadow: 0 0 8px var(--accent);
+  }
+  /* Dewdrop notification */
+  .kumo-dock-dew {
+    position: absolute; top: 6px; right: 12px; width: 8px; height: 8px;
+    border-radius: 50%; background: var(--primary);
+    box-shadow: 0 0 4px var(--primary);
+  }
+  .kumo-dock-dew::after {
+    content: ''; position: absolute; top: 1px; left: 2px;
+    width: 3px; height: 3px; border-radius: 50%;
+    background: rgba(255,255,255,0.5);
+  }
+
+  /* ============================================================
+     15. KAKEJIKU SIDEBAR
+     ============================================================ */
+  .kakejiku-sidebar {
+    width: 200px; background: var(--surface); position: relative;
+    border-radius: 4px; overflow: hidden;
+  }
+  /* Scroll rod at top */
+  .kakejiku-rod {
+    height: 12px; background: linear-gradient(180deg, var(--mist) 0%, var(--surface-2) 100%);
+    border-radius: 4px 4px 0 0;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+  }
+  .kakejiku-body { padding: 16px 12px; position: relative; }
+  .kakejiku-body::before {
+    content: ''; position: absolute; inset: 0;
+    background-image: var(--washi); opacity: 0.3;
+  }
+  .kakejiku-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 12px; border-radius: 6px; cursor: pointer;
+    font-size: 13px; font-weight: 500; color: var(--text-muted);
+    position: relative; z-index: 1; transition: all 0.3s ease;
+  }
+  .kakejiku-item:hover { color: var(--text); background: rgba(255,255,255,0.03); }
+  .kakejiku-item.active { color: var(--text); }
+  /* Ink blot active indicator */
+  .kakejiku-item.active::before {
+    content: ''; position: absolute; inset: 0;
+    background: radial-gradient(ellipse at 30% 50%, var(--accent) 0%, transparent 60%);
+    opacity: 0.12; border-radius: 6px;
+  }
+  .kakejiku-item svg { width: 18px; height: 18px; flex-shrink: 0; }
+  .kakejiku-weight {
+    height: 8px; background: linear-gradient(0deg, var(--mist) 0%, var(--surface-2) 100%);
+    border-radius: 0 0 4px 4px;
+  }
+</style>
+</head>
+<body>
+
+<!-- SVG defs -->
+<svg width="0" height="0" style="position:absolute">
+  <defs>
+    <clipPath id="cloudEdge" clipPathUnits="objectBoundingBox">
+      <path d="M0,0.05 Q0.05,0 0.12,0.02 Q0.2,0.05 0.28,0.01 Q0.38,0 0.48,0.03 Q0.58,0.06 0.68,0.01 Q0.78,0 0.88,0.04 Q0.95,0.02 1,0.06 L1,1 L0,1 Z"/>
+    </clipPath>
+  </defs>
+</svg>
+
+<div class="page-header">
+  <div class="jp">くもり屋 · デザインシステム</div>
+  <h1>Cloudy Cozy — 15 Widget Proposals</h1>
+  <p>Every widget rooted in Japanese aesthetics: sumi-e ink wash, hanko stamps, washi paper, cloud motifs, wabi-sabi imperfection. Zero glassmorphism. Zero AI slop. Hover to interact.</p>
+</div>
+
+<!-- 1. KUMO CARD -->
+<div class="section">
+  <div class="section-label">01 · Card</div>
+  <div class="section-title">Kumo Card</div>
+  <div class="section-desc">Cloud-silhouette top edge (SVG clip-path). Ink-wash border fading top→bottom. Washi grain overlay. Hover: radial ink-bloom from center.</div>
+  <div class="demo">
+    <div class="flex-row">
+      <div class="kumo-card">
+        <div class="ink-bloom"></div>
+        <div class="kumo-card-inner">
+          <div class="kumo-card-poster"></div>
+          <div class="kumo-card-info">
+            <div class="kumo-card-title">Frieren: Beyond Journey's End</div>
+            <div class="kumo-card-meta"><span>2024</span><span>·</span><span>28 eps</span><span>·</span><span style="color:var(--star)">★ 9.1</span></div>
+          </div>
+        </div>
+      </div>
+      <div class="kumo-card">
+        <div class="ink-bloom"></div>
+        <div class="kumo-card-inner">
+          <div class="kumo-card-poster" style="background:linear-gradient(135deg,var(--accent-soft),var(--mist));"></div>
+          <div class="kumo-card-info">
+            <div class="kumo-card-title">Mushishi</div>
+            <div class="kumo-card-meta"><span>2005</span><span>·</span><span>26 eps</span><span>·</span><span style="color:var(--star)">★ 8.7</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 2. KUMO BUTTON -->
+<div class="section">
+  <div class="section-label">02 · Button</div>
+  <div class="section-title">Kumo Button</div>
+  <div class="section-desc">Asymmetric border-radius (organic feel). Ink-spread on press. Calligraphy letter-spacing. Inverted primary (text color bg + accent text).</div>
+  <div class="demo">
+    <div class="flex-row">
+      <button class="kumo-btn kumo-btn-primary"><span class="ink-spread"></span>Resume Episode</button>
+      <button class="kumo-btn kumo-btn-secondary"><span class="ink-spread"></span>Add to Library</button>
+      <button class="kumo-btn kumo-btn-ghost"><span class="ink-spread"></span>Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- 3. EPISODE STRIP -->
+<div class="section">
+  <div class="section-label">03 · Episode Row</div>
+  <div class="section-title">Episode Strip</div>
+  <div class="section-desc">Hanko stamp for episode number (rotated, textured, pressed-into-paper). Vertical ink timeline. Active episode glows. Progress as ink trail with glowing drop.</div>
+  <div class="demo">
+    <div class="episode-timeline">
+      <div class="episode-item"><div class="episode-hanko">1</div><div class="episode-content"><div class="episode-title">The Journey Begins</div><div class="episode-sub">24 min · JKAnime · SUB</div></div></div>
+      <div class="episode-item"><div class="episode-hanko">2</div><div class="episode-content"><div class="episode-title">A Quiet Village</div><div class="episode-sub">24 min · JKAnime · SUB</div><div class="episode-progress"><div class="episode-progress-fill" style="width:45%"></div></div></div></div>
+      <div class="episode-item active"><div class="episode-hanko">3</div><div class="episode-content"><div class="episode-title">The Forest Spirit</div><div class="episode-sub">24 min · AnimeFLV · NOW PLAYING</div><div class="episode-progress"><div class="episode-progress-fill" style="width:72%"></div></div></div></div>
+      <div class="episode-item"><div class="episode-hanko">4</div><div class="episode-content"><div class="episode-title">Echoes of the Past</div><div class="episode-sub">24 min · 2 sources</div></div></div>
+    </div>
+  </div>
+</div>
+
+<!-- 4. INK TRAIL PROGRESS -->
+<div class="section">
+  <div class="section-label">04 · Progress</div>
+  <div class="section-title">Ink Trail Progress</div>
+  <div class="section-desc">Variable-thickness brush stroke. Ink-bleed washi texture on fill. Glowing ink drop at current position.</div>
+  <div class="demo">
+    <div class="flex-col" style="gap:20px">
+      <div><div class="mono" style="margin-bottom:8px">PROGRESS · 35%</div><div class="ink-trail"><div class="ink-trail-track"><div class="ink-trail-fill" style="width:35%"></div><div class="ink-trail-drop" style="left:35%"></div></div></div></div>
+      <div><div class="mono" style="margin-bottom:8px">PROGRESS · 72%</div><div class="ink-trail"><div class="ink-trail-track"><div class="ink-trail-fill" style="width:72%"></div><div class="ink-trail-drop" style="left:72%"></div></div></div></div>
+      <div><div class="mono" style="margin-bottom:8px">BUFFERING · 91%</div><div class="ink-trail"><div class="ink-trail-track"><div class="ink-trail-fill" style="width:91%;background:var(--accent)"></div><div class="ink-trail-drop" style="left:91%;background:var(--accent);box-shadow:0 0 8px var(--accent),0 0 16px rgba(232,198,104,0.4)"></div></div></div></div>
+    </div>
+  </div>
+</div>
+
+<!-- 5. HANKO BADGE -->
+<div class="section">
+  <div class="section-label">05 · Badge</div>
+  <div class="section-title">Hanko Badge</div>
+  <div class="section-desc">Japanese hanko stamp: rotated, textured, pressed-into-paper. Monospace uppercase. Three variants: accent, primary, error.</div>
+  <div class="demo">
+    <div class="flex-row" style="gap:16px">
+      <span class="hanko-badge">NEW</span>
+      <span class="hanko-badge hanko-badge-primary">EP 12</span>
+      <span class="hanko-badge hanko-badge-error">FAILED</span>
+      <span class="hanko-badge">HOT</span>
+      <span class="hanko-badge hanko-badge-primary">SUB</span>
+    </div>
+  </div>
+</div>
+
+<!-- 6. KAMI CHIP -->
+<div class="section">
+  <div class="section-label">06 · Chip</div>
+  <div class="section-title">Kami Chip</div>
+  <div class="section-desc">Torn-paper asymmetric edge. Ink dot prefix (•). Semantic variants: airing (green), upcoming (gold), rating (star). Hover: ink spread.</div>
+  <div class="demo">
+    <div class="flex-row" style="gap:10px">
+      <span class="kami-chip">TV</span>
+      <span class="kami-chip">2024</span>
+      <span class="kami-chip kami-chip-airing">Airing</span>
+      <span class="kami-chip kami-chip-upcoming">Upcoming</span>
+      <span class="kami-chip kami-chip-rating">★ 9.1</span>
+      <span class="kami-chip">Shounen</span>
+      <span class="kami-chip">Slice of Life</span>
+    </div>
+  </div>
+</div>
+
+<!-- 7. SUMI SEARCH -->
+<div class="section">
+  <div class="section-label">07 · Search</div>
+  <div class="section-title">Sumi Search</div>
+  <div class="section-desc">No border, no background — just a brush stroke underline that draws itself on focus (stroke-dasharray animation). Ink well glow beneath. ⌘K badge.</div>
+  <div class="demo">
+    <div class="sumi-search">
+      <input class="sumi-search-input" type="text" placeholder="検索 · Search anime, manga…">
+      <div class="sumi-search-stroke">
+        <svg viewBox="0 0 400 4" preserveAspectRatio="none"><path d="M0,2 Q100,0 200,2 Q300,4 400,2"/></svg>
+      </div>
+      <div class="sumi-search-glow"></div>
+      <div class="sumi-search-kbd">⌘K</div>
+    </div>
+  </div>
+</div>
+
+<!-- 8. ENJI CARD -->
+<div class="section">
+  <div class="section-label">08 · Continue Watching</div>
+  <div class="section-title">Enji Card</div>
+  <div class="section-desc">Ema board proportions. Water-fill progress (translucent fill with wave animation at surface). Moon phase indicator in corner.</div>
+  <div class="demo">
+    <div class="flex-row">
+      <div class="enji-card">
+        <div class="enji-card-banner">
+          <div class="enji-card-water" style="height:40%"></div>
+          <div class="enji-card-moon"></div>
+        </div>
+        <div class="enji-card-info">
+          <div class="enji-card-title">Frieren: Beyond Journey's End</div>
+          <div class="enji-card-ep">Episode 12 · 65% watched</div>
+        </div>
+      </div>
+      <div class="enji-card">
+        <div class="enji-card-banner" style="background:linear-gradient(135deg,var(--accent-soft),var(--mist));">
+          <div class="enji-card-water" style="height:75%"></div>
+          <div class="enji-card-moon" style="box-shadow:0 0 10px var(--accent)"></div>
+        </div>
+        <div class="enji-card-info">
+          <div class="enji-card-title">Mushishi</div>
+          <div class="enji-card-ep">Episode 8 · 75% watched</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 9. SHODO HEADER -->
+<div class="section">
+  <div class="section-label">09 · Section Header</div>
+  <div class="section-title">Shodō Header</div>
+  <div class="section-desc">Brush stroke underline that draws itself on load. Small cloud accent to the left. "See all" as extending arrow on hover.</div>
+  <div class="demo">
+    <div class="shodo-header">
+      <svg class="shodo-header-cloud" viewBox="0 0 16 10"><ellipse cx="8" cy="5" rx="8" ry="5" fill="var(--mist)" opacity="0.5"/></svg>
+      <span class="shodo-header-title">Trending Now</span>
+      <span class="shodo-header-arrow">See all →</span>
+      <div class="shodo-header-stroke">
+        <svg viewBox="0 0 200 4" preserveAspectRatio="none"><path d="M0,2 Q50,0 100,2 Q150,4 200,2"/></svg>
+      </div>
+    </div>
+    <div class="spacer"></div>
+    <div class="shodo-header">
+      <svg class="shodo-header-cloud" viewBox="0 0 16 10"><ellipse cx="8" cy="5" rx="8" ry="5" fill="var(--mist)" opacity="0.5"/></svg>
+      <span class="shodo-header-title">Continue Watching</span>
+      <div class="shodo-header-stroke">
+        <svg viewBox="0 0 200 4" preserveAspectRatio="none"><path d="M0,2 Q50,0 100,2 Q150,4 200,2"/></svg>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 10. ATMOSPHERIC STATES -->
+<div class="section">
+  <div class="section-label">10 · State Views</div>
+  <div class="section-title">Atmospheric States</div>
+  <div class="section-desc">Loading: drifting clouds. Error: rain drops falling from a dark cloud. Empty: single cloud bobbing in clear sky.</div>
+  <div class="demo">
+    <div class="flex-row" style="gap:16px;align-items:stretch">
+      <div class="atmo-state">
+        <div class="atmo-loading-cloud"></div>
+        <div class="atmo-loading-cloud"></div>
+        <div class="atmo-state-text">Gathering clouds…</div>
+      </div>
+      <div class="atmo-state">
+        <div class="atmo-rain-drop"></div>
+        <div class="atmo-rain-drop"></div>
+        <div class="atmo-rain-drop"></div>
+        <div class="atmo-rain-drop"></div>
+        <div class="atmo-state-text" style="color:var(--error)">Something went wrong</div>
+      </div>
+      <div class="atmo-state">
+        <div class="atmo-empty-cloud"></div>
+        <div class="atmo-state-text">Nothing here yet</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 11. MON BADGE -->
+<div class="section">
+  <div class="section-label">11 · Source Badge</div>
+  <div class="section-title">Mon Badge</div>
+  <div class="section-desc">Circular crest (kamon). Abbreviated source name inside. Washi texture. Expands on hover to reveal full name.</div>
+  <div class="demo">
+    <div class="flex-row" style="gap:20px">
+      <div class="mon-badge"><span>JK</span><span class="mon-badge-full">JKAnime</span></div>
+      <div class="mon-badge"><span>AF</span><span class="mon-badge-full">AnimeFLV</span></div>
+      <div class="mon-badge"><span>AN</span><span class="mon-badge-full">AnimeNexus</span></div>
+      <div class="mon-badge"><span>MR</span><span class="mon-badge-full">Miruro</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- 12. KOKIRI STATUS -->
+<div class="section">
+  <div class="section-label">12 · Status Pill</div>
+  <div class="section-title">Kokiri Status</div>
+  <div class="section-desc">Organic hexagonal clip-path (leaf/petal shape). Nature-mapped colors. Airing status breathes (pulsing opacity).</div>
+  <div class="demo">
+    <div class="flex-row" style="gap:12px">
+      <span class="kokiri-status kokiri-airing">● AIRING</span>
+      <span class="kokiri-status kokiri-finished">● FINISHED</span>
+      <span class="kokiri-status kokiri-upcoming">● UPCOMING</span>
+      <span class="kokiri-status kokiri-hiatus">● HIATUS</span>
+      <span class="kokiri-status kokiri-cancelled">● CANCELLED</span>
+    </div>
+  </div>
+</div>
+
+<!-- 13. NAGARE ROW -->
+<div class="section">
+  <div class="section-label">13 · Download Row</div>
+  <div class="section-title">Nagare Row</div>
+  <div class="section-desc">Cover framed as a scroll (thin borders top/bottom). River-flow progress (animated wave pattern). Droplet status icon. Ripple expansion on hover.</div>
+  <div class="demo">
+    <div class="flex-col" style="gap:8px">
+      <div class="nagare-row">
+        <div class="nagare-cover"></div>
+        <div class="nagare-info">
+          <div class="nagare-title">Frieren</div>
+          <div class="nagare-sub">Episode 5 · 45% · Downloading</div>
+          <div class="nagare-river"><div class="nagare-river-fill" style="width:45%"></div></div>
+        </div>
+        <div class="nagare-drop nagare-drop-downloading"></div>
+      </div>
+      <div class="nagare-row">
+        <div class="nagare-cover"></div>
+        <div class="nagare-info">
+          <div class="nagare-title">Mushishi</div>
+          <div class="nagare-sub">Episode 12 · Completed</div>
+        </div>
+        <div class="nagare-drop nagare-drop-completed"></div>
+      </div>
+      <div class="nagare-row">
+        <div class="nagare-cover"></div>
+        <div class="nagare-info">
+          <div class="nagare-title">Odd Taxi</div>
+          <div class="nagare-sub">Episode 3 · 20% · Paused</div>
+          <div class="nagare-river"><div class="nagare-river-fill" style="width:20%;background:linear-gradient(90deg,var(--accent-soft),var(--warning))"></div></div>
+        </div>
+        <div class="nagare-drop nagare-drop-paused"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 14. KUMO DOCK -->
+<div class="section">
+  <div class="section-label">14 · Bottom Nav</div>
+  <div class="section-title">Kumo Dock</div>
+  <div class="section-desc">Cloud-shaped container. Active item sinks into the cloud (translateY down + accent bar above). Dewdrop notifications (not red dots).</div>
+  <div class="demo">
+    <div style="display:flex;justify-content:center">
+      <div class="kumo-dock">
+        <div class="kumo-dock-item active">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 11L12 4L20 11V20H4V11Z"/></svg>
+          <span>Home</span>
+        </div>
+        <div class="kumo-dock-item">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="11" cy="11" r="7"/><path d="M16 16L21 21"/></svg>
+          <span>Search</span>
+        </div>
+        <div class="kumo-dock-item">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="9"/><circle cx="9" cy="10" r="0.5" fill="currentColor"/><circle cx="15" cy="10" r="0.5" fill="currentColor"/><path d="M8 14Q12 17 16 14"/></svg>
+          <span>Party</span>
+          <div class="kumo-dock-dew"></div>
+        </div>
+        <div class="kumo-dock-item">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M6 4L18 4L18 20L12 16L6 20Z"/></svg>
+          <span>Library</span>
+        </div>
+        <div class="kumo-dock-item">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="8" r="4"/><path d="M4 21Q4 14 12 14Q20 14 20 21"/></svg>
+          <span>Profile</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 15. KAKEJIKU SIDEBAR -->
+<div class="section">
+  <div class="section-label">15 · Desktop Sidebar</div>
+  <div class="section-title">Kakejiku Sidebar</div>
+  <div class="section-desc">Hanging scroll proportions: decorative rod at top, washi-textured body, weight at bottom. Active item has ink-blot radial background. Brush-written feel.</div>
+  <div class="demo">
+    <div style="display:flex;justify-content:center">
+      <div class="kakejiku-sidebar">
+        <div class="kakejiku-rod"></div>
+        <div class="kakejiku-body">
+          <div class="kakejiku-item active">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 11L12 4L20 11V20H4V11Z"/></svg>
+            Home
+          </div>
+          <div class="kakejiku-item">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="11" cy="11" r="7"/><path d="M16 16L21 21"/></svg>
+            Search
+          </div>
+          <div class="kakejiku-item">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="9"/><circle cx="9" cy="10" r="0.5" fill="currentColor"/><circle cx="15" cy="10" r="0.5" fill="currentColor"/><path d="M8 14Q12 17 16 14"/></svg>
+            Watch Party
+          </div>
+          <div class="kakejiku-item">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M6 4L18 4L18 20L12 16L6 20Z"/></svg>
+            Library
+          </div>
+          <div class="kakejiku-item">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="8" r="4"/><path d="M4 21Q4 14 12 14Q20 14 20 21"/></svg>
+            Profile
+          </div>
+        </div>
+        <div class="kakejiku-weight"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>
