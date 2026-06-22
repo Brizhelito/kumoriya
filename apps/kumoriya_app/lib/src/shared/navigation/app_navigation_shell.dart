@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kumoriya_core/kumoriya_core.dart';
+import 'package:kumoriya_ui/kumoriya_ui.dart';
 
 import '../../app/l10n.dart';
 import '../../features/anime_catalog/application/services/cached_anime_catalog_repository.dart';
@@ -234,11 +235,19 @@ class _AppNavigationShellState extends ConsumerState<AppNavigationShell> {
           backgroundColor: KumoriyaColors.background,
           body: Row(
             children: <Widget>[
-              _DesktopRail(
-                universe: universe,
+              CloudSidebar(
+                items: <SidebarItem>[
+                  for (final spec in _tabSpecsFor(universe, AppL10nProxy.of(context)))
+                    SidebarItem(
+                      icon: spec.icon,
+                      activeIcon: spec.activeIcon,
+                      label: spec.label,
+                    ),
+                ],
                 currentIndex: currentIndex,
                 onTap: (i) => _onTabSelected(universe, i),
-                onOpenSettings: () => _openSettings(context),
+                brandName: 'Kumoriya',
+                onSettingsTap: () => _openSettings(context),
               ),
               Expanded(child: bodyWithBanner),
             ],
@@ -254,12 +263,22 @@ class _AppNavigationShellState extends ConsumerState<AppNavigationShell> {
       },
       child: Scaffold(
         backgroundColor: KumoriyaColors.background,
-        body: bodyWithBanner,
-        bottomNavigationBar: _MobileBottomNav(
-          universe: universe,
-          currentIndex: currentIndex,
-          onTap: (i) => _onTabSelected(universe, i),
-          onSettingsTap: () => _openSettings(context),
+        body: Stack(
+          children: <Widget>[
+            bodyWithBanner,
+            CloudBottomNav(
+              items: <BottomNavItem>[
+                for (final spec in _tabSpecsFor(universe, AppL10nProxy.of(context)))
+                  BottomNavItem(
+                    icon: spec.icon,
+                    activeIcon: spec.activeIcon,
+                    label: spec.label,
+                  ),
+              ],
+              currentIndex: currentIndex,
+              onTap: (i) => _onTabSelected(universe, i),
+            ),
+          ],
         ),
       ),
     );
@@ -360,275 +379,4 @@ class AppL10nProxy {
   final String navParty;
   final String navLibrary;
   final String navProfile;
-}
-
-class _MobileBottomNav extends StatelessWidget {
-  const _MobileBottomNav({
-    required this.universe,
-    required this.currentIndex,
-    required this.onTap,
-    required this.onSettingsTap,
-  });
-
-  final MediaKind universe;
-  final int currentIndex;
-  final ValueChanged<int> onTap;
-  final VoidCallback onSettingsTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final specs = _tabSpecsFor(universe, AppL10nProxy.of(context));
-    final primary = Theme.of(context).colorScheme.primary;
-    return Container(
-      decoration: const BoxDecoration(
-        border: Border(top: BorderSide(color: KumoriyaColors.borderSubtle)),
-      ),
-      child: BottomNavigationBar(
-        currentIndex: currentIndex,
-        onTap: (index) {
-          if (index == specs.length) {
-            onSettingsTap();
-            return;
-          }
-          onTap(index);
-        },
-        backgroundColor: KumoriyaColors.navBackground,
-        selectedItemColor: KumoriyaColors.textPrimary,
-        selectedIconTheme: IconThemeData(color: primary),
-        unselectedItemColor: KumoriyaColors.navInactive,
-        type: BottomNavigationBarType.fixed,
-        elevation: 0,
-        selectedFontSize: 10,
-        unselectedFontSize: 10,
-        iconSize: 24,
-        items: <BottomNavigationBarItem>[
-          for (final spec in specs)
-            BottomNavigationBarItem(
-              icon: Icon(spec.icon),
-              activeIcon: Icon(spec.activeIcon),
-              label: spec.label,
-            ),
-          BottomNavigationBarItem(
-            icon: const Icon(KumoriyaIcons.navSettings),
-            activeIcon: const Icon(KumoriyaIcons.navSettingsActive),
-            label: context.l10n.settingsTitle,
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _DesktopRail extends StatelessWidget {
-  const _DesktopRail({
-    required this.universe,
-    required this.currentIndex,
-    required this.onTap,
-    required this.onOpenSettings,
-  });
-
-  final MediaKind universe;
-  final int currentIndex;
-  final ValueChanged<int> onTap;
-  final VoidCallback onOpenSettings;
-
-  @override
-  Widget build(BuildContext context) {
-    final specs = _tabSpecsFor(universe, AppL10nProxy.of(context));
-    return Container(
-      width: 88,
-      decoration: const BoxDecoration(
-        color: KumoriyaColors.navBackground,
-        border: Border(right: BorderSide(color: KumoriyaColors.borderSubtle)),
-      ),
-      child: Column(
-        children: <Widget>[
-          const SizedBox(height: 28),
-          _KumoriyaLogoMark(),
-          const SizedBox(height: 16),
-          const Divider(
-            indent: 16,
-            endIndent: 16,
-            color: KumoriyaColors.borderSubtle,
-          ),
-          const SizedBox(height: 8),
-          Expanded(
-            child: SingleChildScrollView(
-              child: Column(
-                children: <Widget>[
-                  for (var i = 0; i < specs.length; i++)
-                    _RailItem(
-                      icon: specs[i].icon,
-                      activeIcon: specs[i].activeIcon,
-                      label: specs[i].label,
-                      index: i,
-                      currentIndex: currentIndex,
-                      onTap: onTap,
-                    ),
-                ],
-              ),
-            ),
-          ),
-          _RailUtilityButton(
-            icon: KumoriyaIcons.navSettings,
-            tooltip: context.l10n.settingsTitle,
-            onTap: onOpenSettings,
-          ),
-          const SizedBox(height: 16),
-        ],
-      ),
-    );
-  }
-}
-
-class _RailUtilityButton extends StatefulWidget {
-  const _RailUtilityButton({
-    required this.icon,
-    required this.tooltip,
-    required this.onTap,
-  });
-
-  final IconData icon;
-  final String tooltip;
-  final VoidCallback onTap;
-
-  @override
-  State<_RailUtilityButton> createState() => _RailUtilityButtonState();
-}
-
-class _RailUtilityButtonState extends State<_RailUtilityButton> {
-  bool _hovered = false;
-
-  @override
-  Widget build(BuildContext context) {
-    final primary = Theme.of(context).colorScheme.primary;
-    return Tooltip(
-      message: widget.tooltip,
-      preferBelow: false,
-      child: MouseRegion(
-        cursor: SystemMouseCursors.click,
-        onEnter: (_) => setState(() => _hovered = true),
-        onExit: (_) => setState(() => _hovered = false),
-        child: InkWell(
-          borderRadius: BorderRadius.circular(KumoriyaRadius.lg),
-          onTap: widget.onTap,
-          splashColor: primary.withValues(alpha: 0.10),
-          child: Container(
-            width: 56,
-            height: 56,
-            margin: const EdgeInsets.only(bottom: 8),
-            decoration: BoxDecoration(
-              color: _hovered
-                  ? primary.withValues(alpha: 0.20)
-                  : Colors.transparent,
-              borderRadius: BorderRadius.circular(KumoriyaRadius.lg),
-            ),
-            child: Center(
-              child: Icon(
-                widget.icon,
-                color: KumoriyaColors.navInactive,
-                size: 24,
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _KumoriyaLogoMark extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    final primary = Theme.of(context).colorScheme.primary;
-    return Container(
-      width: 40,
-      height: 40,
-      decoration: BoxDecoration(
-        color: primary,
-        shape: BoxShape.circle,
-        boxShadow: <BoxShadow>[
-          BoxShadow(
-            color: primary.withValues(alpha: 0.35),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      alignment: Alignment.center,
-      child: const Text(
-        'K',
-        style: TextStyle(
-          color: KumoriyaColors.textPrimary,
-          fontSize: 20,
-          fontWeight: FontWeight.w800,
-        ),
-      ),
-    );
-  }
-}
-
-class _RailItem extends StatelessWidget {
-  const _RailItem({
-    required this.icon,
-    required this.activeIcon,
-    required this.label,
-    required this.index,
-    required this.currentIndex,
-    required this.onTap,
-  });
-
-  final IconData icon;
-  final IconData activeIcon;
-  final String label;
-  final int index;
-  final int currentIndex;
-  final ValueChanged<int> onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final primary = Theme.of(context).colorScheme.primary;
-    final isActive = index == currentIndex;
-    final color = isActive ? primary : KumoriyaColors.navInactive;
-
-    return Tooltip(
-      message: label,
-      preferBelow: false,
-      child: MouseRegion(
-        cursor: SystemMouseCursors.click,
-        child: InkWell(
-          borderRadius: BorderRadius.circular(KumoriyaRadius.lg),
-          onTap: () => onTap(index),
-          splashColor: primary.withValues(alpha: 0.10),
-          child: Container(
-            width: 88,
-            height: 56,
-            margin: const EdgeInsets.symmetric(vertical: 2),
-            decoration: BoxDecoration(
-              color: isActive
-                  ? primary.withValues(alpha: 0.20)
-                  : Colors.transparent,
-              borderRadius: BorderRadius.circular(KumoriyaRadius.lg),
-            ),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: <Widget>[
-                Icon(isActive ? activeIcon : icon, color: color, size: 24),
-                const SizedBox(height: 4),
-                Text(
-                  label,
-                  style: TextStyle(
-                    color: color,
-                    fontSize: 10,
-                    fontWeight: isActive ? FontWeight.w700 : FontWeight.w500,
-                    letterSpacing: 0.3,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
 }
