@@ -30,6 +30,8 @@ import '../features/downloads/presentation/download_providers.dart';
 import '../features/downloads/presentation/widgets/download_path_dialog.dart';
 import '../features/player/presentation/pages/player_performance_benchmark_page.dart';
 import '../features/settings/application/app_language_preference.dart';
+import '../features/settings/presentation/pages/settings_page.dart';
+import '../features/watch_party/presentation/pages/party_anime_page.dart';
 import '../shared/auth/auth_providers.dart';
 import '../shared/auth/deep_link_handler.dart';
 import '../shared/cache/anilist_recovery_watcher.dart';
@@ -346,15 +348,15 @@ class _FirstLaunchGateState extends ConsumerState<_FirstLaunchGate> {
         animeTabBuilders: <KumoriyaAnimeTab, WidgetBuilder>{
           KumoriyaAnimeTab.home: (_) => const HomePage(),
           KumoriyaAnimeTab.search: (_) => const SearchPage(),
-          KumoriyaAnimeTab.calendar: (_) => const CalendarPage(),
+          KumoriyaAnimeTab.party: (_) => const PartyAnimePage(),
           KumoriyaAnimeTab.library: (_) => const LibraryPage(),
-          KumoriyaAnimeTab.downloads: (_) => const DownloadsPage(),
+          KumoriyaAnimeTab.profile: (_) => const SettingsPage(),
         },
         mangaTabBuilders: <KumoriyaMangaTab, WidgetBuilder>{
           KumoriyaMangaTab.home: (_) => const MangaHomePage(),
           KumoriyaMangaTab.search: (_) => const MangaSearchPage(),
           KumoriyaMangaTab.library: (_) => const UnifiedLibraryPage(),
-          KumoriyaMangaTab.downloads: (_) => const MangaDownloadsPage(),
+          KumoriyaMangaTab.profile: (_) => const SettingsPage(),
         },
       ),
     );

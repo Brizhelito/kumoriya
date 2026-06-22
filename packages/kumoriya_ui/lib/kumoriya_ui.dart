@@ -40,6 +40,7 @@ export 'src/components/source_badge.dart';
 export 'src/components/status_pill.dart';
 export 'src/components/meta_chip.dart';
 export 'src/components/download_row.dart';
+export 'src/components/cloud_tab_bar.dart';
 
 // Navigation
 export 'src/navigation/cloud_nav_shell.dart';

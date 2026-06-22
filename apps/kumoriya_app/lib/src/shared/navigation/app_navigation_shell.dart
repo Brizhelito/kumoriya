@@ -12,12 +12,11 @@ import '../universe/active_universe_providers.dart';
 
 /// Tabs available in the anime universe. Order is the canonical
 /// bottom-nav / rail order.
-enum KumoriyaAnimeTab { home, search, calendar, library, downloads }
+enum KumoriyaAnimeTab { home, search, party, library, profile }
 
 /// Tabs available in the manga universe. Order is the canonical
-/// bottom-nav / rail order. No Calendar (anime-only) and no dedicated
-/// Latest tab — Latest lives inside Manga Home (see plan §8).
-enum KumoriyaMangaTab { home, search, library, downloads }
+/// bottom-nav / rail order. No Calendar (anime-only) and no Party tab.
+enum KumoriyaMangaTab { home, search, library, profile }
 
 class AppNavigationShell extends ConsumerStatefulWidget {
   const AppNavigationShell({
@@ -293,9 +292,9 @@ List<_TabSpec> _tabSpecsFor(MediaKind universe, AppL10nProxy l10n) {
         label: l10n.navSearch,
       ),
       _TabSpec(
-        icon: KumoriyaIcons.navCalendar,
-        activeIcon: KumoriyaIcons.navCalendarActive,
-        label: l10n.navCalendar,
+        icon: KumoriyaIcons.navParty,
+        activeIcon: KumoriyaIcons.navPartyActive,
+        label: l10n.navParty,
       ),
       _TabSpec(
         icon: KumoriyaIcons.navLibrary,
@@ -303,9 +302,9 @@ List<_TabSpec> _tabSpecsFor(MediaKind universe, AppL10nProxy l10n) {
         label: l10n.navLibrary,
       ),
       _TabSpec(
-        icon: KumoriyaIcons.navDownloads,
-        activeIcon: KumoriyaIcons.navDownloadsActive,
-        label: l10n.navDownloads,
+        icon: KumoriyaIcons.navProfile,
+        activeIcon: KumoriyaIcons.navProfileActive,
+        label: l10n.navProfile,
       ),
     ],
     MediaKind.manga => <_TabSpec>[
@@ -325,9 +324,9 @@ List<_TabSpec> _tabSpecsFor(MediaKind universe, AppL10nProxy l10n) {
         label: l10n.navLibrary,
       ),
       _TabSpec(
-        icon: KumoriyaIcons.navDownloads,
-        activeIcon: KumoriyaIcons.navDownloadsActive,
-        label: l10n.navDownloads,
+        icon: KumoriyaIcons.navProfile,
+        activeIcon: KumoriyaIcons.navProfileActive,
+        label: l10n.navProfile,
       ),
     ],
   };
@@ -340,9 +339,9 @@ class AppL10nProxy {
   const AppL10nProxy({
     required this.navHome,
     required this.navSearch,
-    required this.navCalendar,
+    required this.navParty,
     required this.navLibrary,
-    required this.navDownloads,
+    required this.navProfile,
   });
 
   factory AppL10nProxy.of(BuildContext context) {
@@ -350,17 +349,17 @@ class AppL10nProxy {
     return AppL10nProxy(
       navHome: l10n.navHome,
       navSearch: l10n.navSearch,
-      navCalendar: l10n.navCalendar,
+      navParty: l10n.navParty,
       navLibrary: l10n.navLibrary,
-      navDownloads: l10n.navDownloads,
+      navProfile: l10n.navProfile,
     );
   }
 
   final String navHome;
   final String navSearch;
-  final String navCalendar;
+  final String navParty;
   final String navLibrary;
-  final String navDownloads;
+  final String navProfile;
 }
 
 class _MobileBottomNav extends StatelessWidget {

@@ -15,6 +15,7 @@ dependencies:
     sdk: flutter
   intl: any
   flutter_riverpod: ^3.0.3
+  flutter_svg: ^2.0.17
   media_kit: ^1.2.6
   media_kit_video: ^2.0.1
   # Desktop-only media_kit native libs. We intentionally exclude

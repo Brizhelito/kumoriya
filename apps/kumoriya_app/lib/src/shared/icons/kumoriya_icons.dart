@@ -13,6 +13,10 @@ abstract final class KumoriyaIcons {
   static const IconData navLibraryActive = Icons.video_library_rounded;
   static const IconData navDownloads = Icons.download_outlined;
   static const IconData navDownloadsActive = Icons.download_rounded;
+  static const IconData navParty = Icons.groups_outlined;
+  static const IconData navPartyActive = Icons.groups_rounded;
+  static const IconData navProfile = Icons.person_outline_rounded;
+  static const IconData navProfileActive = Icons.person_rounded;
   static const IconData navSettings = Icons.settings_outlined;
   static const IconData navSettingsActive = Icons.settings_rounded;
 
