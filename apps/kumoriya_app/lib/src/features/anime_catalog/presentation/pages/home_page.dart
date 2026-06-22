@@ -10,6 +10,8 @@ import 'package:kumoriya_core/kumoriya_core.dart';
 import 'package:kumoriya_domain/kumoriya_domain.dart';
 import 'package:kumoriya_plugins/kumoriya_plugins.dart';
 import 'package:kumoriya_storage/kumoriya_storage.dart';
+import 'package:kumoriya_ui/kumoriya_ui.dart'
+    hide ContinueWatchingCard, DownloadStatus;
 
 import '../../../../app/l10n.dart';
 import '../../../../shared/icons/kumoriya_icons.dart';
@@ -17,7 +19,6 @@ import '../../../../shared/theme/kumoriya_theme.dart';
 import '../../../../shared/widgets/active_party_banner.dart';
 import '../../../../shared/widgets/continue_watching_card.dart';
 import '../../../../shared/widgets/kumoriya_cached_image.dart';
-import '../../../../shared/widgets/section_header.dart';
 import '../../../../shared/widgets/state_views.dart';
 import '../../../../shared/universe/widgets/universe_switch.dart';
 import '../../application/models/episode_playback.dart';
@@ -45,36 +46,40 @@ class HomePage extends ConsumerWidget {
     final continueWatching = ref.watch(continueWatchingProvider);
 
     return Scaffold(
-      backgroundColor: KumoriyaColors.background,
-      body: StateTransitionSwitcher(
-        stateKey: homeCatalog.isLoading
-            ? 'loading'
-            : homeCatalog.hasError
-            ? 'error'
-            : 'content',
-        child: homeCatalog.when(
-          loading: () =>
-              LoadingStateView(label: context.l10n.homeLoadingCatalog),
-          error: (_, _) => ErrorStateView(
-            message: context.l10n.genericLoadFailure,
-            onRetry: () => ref.invalidate(homeCatalogProvider),
-          ),
-          data: (result) => result.fold(
-            onFailure: (error) => ErrorStateView(
-              message: mapErrorMessage(context, error),
+      backgroundColor: Colors.transparent,
+      body: UniverseBackground(
+        universe: 'anime',
+        colors: FormFactorProvider.colorsOf(context),
+        child: StateTransitionSwitcher(
+          stateKey: homeCatalog.isLoading
+              ? 'loading'
+              : homeCatalog.hasError
+              ? 'error'
+              : 'content',
+          child: homeCatalog.when(
+            loading: () =>
+                LoadingStateView(label: context.l10n.homeLoadingCatalog),
+            error: (_, _) => ErrorStateView(
+              message: context.l10n.genericLoadFailure,
               onRetry: () => ref.invalidate(homeCatalogProvider),
             ),
-            onSuccess: (animeList) => _HomeBody(
-              animeList: animeList,
-              continueWatching: continueWatching,
-              onRefresh: () {
-                ref.invalidate(homeCatalogProvider);
-                ref.invalidate(continueWatchingProvider);
-                ref.invalidate(allWatchHistoryProvider);
-                ref.invalidate(favoriteAnimeIdsProvider);
-                ref.invalidate(subscribedAnimeIdsProvider);
-                ref.invalidate(calendarCatalogProvider);
-              },
+            data: (result) => result.fold(
+              onFailure: (error) => ErrorStateView(
+                message: mapErrorMessage(context, error),
+                onRetry: () => ref.invalidate(homeCatalogProvider),
+              ),
+              onSuccess: (animeList) => _HomeBody(
+                animeList: animeList,
+                continueWatching: continueWatching,
+                onRefresh: () {
+                  ref.invalidate(homeCatalogProvider);
+                  ref.invalidate(continueWatchingProvider);
+                  ref.invalidate(allWatchHistoryProvider);
+                  ref.invalidate(favoriteAnimeIdsProvider);
+                  ref.invalidate(subscribedAnimeIdsProvider);
+                  ref.invalidate(calendarCatalogProvider);
+                },
+              ),
             ),
           ),
         ),
@@ -150,7 +155,7 @@ class _HomeBody extends StatelessWidget {
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.fromLTRB(16, 24, 16, 0),
-              child: KumoriyaSectionHeader(
+              child: SectionHeader(
                 title: context.l10n.homeSeasonHubSection,
                 onSeeAll: () => _openSeasonHub(context),
               ),
@@ -168,7 +173,7 @@ class _HomeBody extends StatelessWidget {
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(16, 32, 16, 12),
-                child: KumoriyaSectionHeader(
+                child: SectionHeader(
                   title: context.l10n.homeTrendingSection,
                   onSeeAll: () => _openTrending(context),
                 ),
@@ -870,9 +875,7 @@ class _AiringTodaySection extends ConsumerWidget {
               children: <Widget>[
                 Padding(
                   padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-                  child: KumoriyaSectionHeader(
-                    title: context.l10n.homeAiringToday,
-                  ),
+                  child: SectionHeader(title: context.l10n.homeAiringToday),
                 ),
                 SizedBox(
                   height: 128,
